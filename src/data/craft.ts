@@ -118,11 +118,11 @@ export function forgeItem(it: Item, g = 1, r = 0, lines: RefineLine[] = []): Ite
   g = Math.max(1, Math.min(gradeCap(it), g))
   r = refinable(it) ? Math.max(0, Math.min(REFINE.max, r)) : 0
   if (g <= 1 && r <= 0 && !lines.length) return it
-  const k = 1 + GRADE.pct[g] + r * REFINE.pct
+  const k = (100 + Math.round(GRADE.pct[g] * 100) + Math.round(r * REFINE.pct * 100)) / 100 // whole percents: 1+.15+.15 must be 1.3, not 1.2999…
   const base: Partial<Record<BaseStat, number>> = {}
-  for (const [s, v] of Object.entries(it.base ?? {}) as [BaseStat, number][]) base[s] = v > 0 ? Math.round(v * k) : v
+  for (const [s, v] of Object.entries(it.base ?? {}) as [BaseStat, number][]) base[s] = v > 0 ? Math.round(r3(v * k)) : v
   const mod: Partial<Stats> = {}
-  for (const [s, v] of Object.entries(it.mod) as [keyof Stats, number][]) mod[s] = SCALES.has(s) && v > 0 ? (FLAT.has(s) ? Math.round(v * k) : r3(v * k)) : v
+  for (const [s, v] of Object.entries(it.mod) as [keyof Stats, number][]) mod[s] = SCALES.has(s) && v > 0 ? (FLAT.has(s) ? Math.round(r3(v * k)) : r3(v * k)) : v
   if (it.craft) it.craft.bonus.forEach((b, i) => { if (g >= GRADE.bonusAt[i]) for (const [s, v] of Object.entries(b) as [keyof Stats, number][]) mod[s] = r3((mod[s] ?? 0) + v) })
   const pct: NonNullable<Item['pct']> = { ...(it.pct ?? {}) }
   for (const l of lines) {

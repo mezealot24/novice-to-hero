@@ -71,9 +71,12 @@ export class HubScene extends Phaser.Scene {
         const why = d.unlock === 'job' ? 'แนะนำให้เคลียร์ดัน 1 แล้วเปลี่ยนอาชีพก่อน\nโนวิสจะยากมาก' : `แนะนำให้เคลียร์${prevName(d.unlock)}ก่อน มอนแรงมาก`
         // broken gear (failed refine) gives nothing: say so in red before the run (design 3.5)
         const broken = Object.values(s.equipped).filter((id, k, all) => isBroken(s, id) && all.indexOf(id) === k).map((id) => itemById(id).name)
-        const start = () => broken.length
-          ? confirm(this, '💔 มีของแตกอยู่', `${broken.join(', ')} แตกอยู่ ไม่ได้ค่าพลังและการ์ด\nซ่อมได้ที่ 🔨 โรงตีเหล็ก`, 'ลุยเลย', () => go(this, 'battle', { d: i }), 'ยังก่อน')
-          : go(this, 'battle', { d: i })
+        const start = () => {
+          if (!broken.length) { go(this, 'battle', { d: i }); return }
+          const c = confirm(this, '💔 มีของแตกอยู่', `${broken.join(', ')} แตกอยู่ ไม่ได้ค่าพลังและการ์ด\nซ่อมได้ที่ 🔨 โรงตีเหล็ก`, 'ลุยเลย', () => go(this, 'battle', { d: i }), 'ยังก่อน')
+          ;(c.list[3] as Phaser.GameObjects.Text).setColor('#ff8a8a') // body text in red (design 3.5)
+          ;(c.list[2] as Phaser.GameObjects.Text).setColor('#ff6b6b')
+        }
         if (locked) { confirm(this, `${d.name} ยังล็อกอยู่`, `${why} (โหมดทดสอบ: ลองได้)`, 'ลองเลย', start); return }
         start()
       }, { size: compact ? 17 : 20, fill: locked ? 0x4a4e6e : undefined, color: locked ? UI.sub : undefined })

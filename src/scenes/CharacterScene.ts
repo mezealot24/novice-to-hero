@@ -101,7 +101,7 @@ export class CharacterScene extends Phaser.Scene {
       b.add(g)
       b.add(txt(this, x + 10, y + 4, `${sl.icon} ${sl.name}`, 11, UI.sub))
       if (n) b.add(txt(this, x + 182, y + 4, `🃏${socketed(s, it).length}/${n}`, 11, UI.gold).setOrigin(1, 0))
-      const r = refineOf(s, it.id), tag = [gradeOf(s, it.id) > 1 ? gradeStars(gradeOf(s, it.id), gradeCap(it)) : '', r ? `+${r}` : ''].filter(Boolean).join(' ')
+      const r = refineOf(s, it.id), tag = [gradeOf(s, it.id) > 1 ? (r ? `★${gradeOf(s, it.id)}` : gradeStars(gradeOf(s, it.id), gradeCap(it))) : '', r ? `+${r}` : ''].filter(Boolean).join(' ') // short when refined (slot label room)
       if (tag) b.add(txt(this, x + (n ? 140 : 182), y + 4, tag, 11, '#ffd36b').setOrigin(1, 0))
       b.add(txt(this, x + 10, y + 19, clip(`${it.icon} ${it.name}`, 15), 15, it.id.startsWith('none') ? UI.sub : UI.text, true))
       const warn = off ? '🔒 ถืออาวุธ 2 มือ (ไม่ได้ค่าพลัง)' : isBroken(s, it.id) ? '💔 แตก ไม่ได้ค่าพลัง (ซ่อมที่โรงตีเหล็ก)' : !canWear(it, s.job) ? `⚠ ${wearText(it)} เท่านั้น` : ''

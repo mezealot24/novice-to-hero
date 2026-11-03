@@ -14,13 +14,15 @@ export const isFodder = (it: Item) => it.price > 0 && !it.jobs && !it.req && !it
 export const FODDER: Item[] = ITEMS.filter(isFodder)
 /** Refine tiers: +1~+4 / +5~+7 / +8~+10. */
 export const refineTier = (n: number) => (n <= 4 ? 0 : n <= 7 ? 1 : 2)
+// Zeny / fodder cut from the spec (50/100/150 x + and fodder >=200z / >=400z): bot income is ~46z per ดัน1 run and
+// ~213z per ดัน3 run, so the spec made one +7 cost ~24 ดัน3 runs (+10 ~100). Now +7 ~8 runs, +10 ~34 (2026-11-03).
 const TIER = [
-  { fodderMin: 0, common: 2, boss: 0, zeny: 50 },
-  { fodderMin: 200, common: 4, boss: 0, zeny: 100 },
-  { fodderMin: 400, common: 6, boss: 1, zeny: 150 },
+  { fodderMin: 0, common: 2, boss: 0, zeny: 10 },
+  { fodderMin: 0, common: 4, boss: 0, zeny: 20 },
+  { fodderMin: 200, common: 6, boss: 1, zeny: 40 },
 ]
-/** Cheapest fodder price a tier asks for. Slots whose dearest basic item is cheaper (head 300z, off-hand 180z)
- * take their dearest one instead, so every slot can reach +10. */
+/** Cheapest fodder price a tier asks for. A slot whose dearest basic item is cheaper (off-hand: buckler 180z)
+ * takes its dearest one instead, so every slot can reach +10. */
 export function fodderMin(slot: Slot, tier: number) {
   const top = Math.max(0, ...FODDER.filter((f) => f.slot === slot).map((f) => f.price))
   return Math.min(TIER[tier].fodderMin, top)
@@ -66,16 +68,17 @@ export function spend(s: Wallet, c: ForgeCost): Item | null | false {
 // ---------- random bonus lines (3.5.1) ----------
 type Kind = 'atk' | 'def' | 'any'
 interface LineDef { stat: string; vals: [number, number, number]; kind: Kind; w: number; off?: JobId[] }
-const NO_MANA: JobId[] = ['swordsman', 'archer', 'thief']
-const NO_MAGIC: JobId[] = ['swordsman', 'archer', 'thief']
-const NO_PHYS: JobId[] = ['mage', 'cleric']
+// Who gets nothing from a stat (checked against BattleScene / heroStats, 2026-11-03):
+const NO_MANA: JobId[] = ['archer', 'thief', 'novice'] // Energy jobs + Novice (Swordsman runs on Mana since v28)
+const NO_MAGIC: JobId[] = ['swordsman', 'archer', 'thief', 'novice'] // M.ATK / spell crit
+const NO_PSKILL: JobId[] = ['mage', 'cleric', 'archer', 'thief'] // pskill is read by Swordsman skills + Novice Smash only
 /** The pool. `w` splits shared table rows ("M.DEF / ต้านทาน" = 0.5 each); `off` = jobs that get no use (weight x0.25). */
 export const LINE_POOL: LineDef[] = [
   { stat: 'base', vals: [1, 2, 3], kind: 'any', w: 1 },
   { stat: 'hpPct', vals: [0.02, 0.03, 0.05], kind: 'def', w: 1 },
-  { stat: 'atkPct', vals: [0.02, 0.03, 0.05], kind: 'atk', w: 0.5, off: NO_PHYS },
+  { stat: 'atkPct', vals: [0.02, 0.03, 0.05], kind: 'atk', w: 0.5, off: ['mage'] }, // Cleric's mace hit is physical
   { stat: 'matkPct', vals: [0.02, 0.03, 0.05], kind: 'atk', w: 0.5, off: NO_MAGIC },
-  { stat: 'pskill', vals: [0.02, 0.04, 0.06], kind: 'atk', w: 1, off: NO_PHYS },
+  { stat: 'pskill', vals: [0.02, 0.04, 0.06], kind: 'atk', w: 1, off: NO_PSKILL },
   { stat: 'def', vals: [2, 3, 5], kind: 'def', w: 1 },
   { stat: 'mdef', vals: [0.01, 0.02, 0.03], kind: 'def', w: 0.5 },
   { stat: 'tenacity', vals: [0.01, 0.02, 0.03], kind: 'def', w: 0.5 },
@@ -93,8 +96,11 @@ export const LINE_POOL: LineDef[] = [
   { stat: 'resRegen', vals: [0.5, 1, 1.5], kind: 'def', w: 0.5, off: NO_MANA },
 ]
 /** Base stats a job gets nothing from (x0.25 when the "base stat" row picks one). */
-const BASE_OFF: Record<BaseStat, JobId[]> = { str: NO_PHYS, vit: [], wis: [], dex: ['mage'], int: NO_MAGIC, luk: NO_PHYS, agi: [] }
+// STR: P.ATK for melee non-Thief + pskill · INT: M.ATK + Max Mana (Swordsman uses Mana) · LUK: crit, lucky dodge, drops for all
+const BASE_OFF: Record<BaseStat, JobId[]> = { str: ['mage', 'archer', 'thief'], vit: [], wis: [], dex: ['mage'], int: ['archer', 'thief', 'novice'], luk: [], agi: [] }
 const BASES: BaseStat[] = ['str', 'vit', 'wis', 'dex', 'int', 'luk', 'agi']
+/** Whole-number stats (gold x1.5 rounds); everything else keeps 3 decimals (resRegen 1 -> 1.5, not 2). */
+const INT_STATS = new Set<string>([...BASES, 'def', 'hit', 'flee', 'maxRes'])
 const slotBias = (slot: Slot, kind: Kind) => (slot === 'weapon' ? (kind === 'atk' ? 2 : 1) : slot === 'acc' ? 1 : kind === 'def' ? 2 : 1)
 const jobBias = (off: JobId[] | undefined, job: JobId) => (off?.includes(job) ? 0.25 : 1)
 
@@ -110,7 +116,7 @@ export function rollLine(it: Item, idx: number, job: JobId, rnd: () => number = 
   const stat = def.stat === 'base' ? pickWeighted(BASES, (b) => jobBias(BASE_OFF[b], job), rnd) : def.stat
   const gold = rnd() < REFINE.goldRate
   const v = def.vals[idx]
-  const val = gold ? (Number.isInteger(v) ? Math.round(v * REFINE.goldMul) : Math.round(v * REFINE.goldMul * 1000) / 1000) : v
+  const val = gold ? (INT_STATS.has(stat) ? Math.round(v * REFINE.goldMul) : Math.round(v * REFINE.goldMul * 1000) / 1000) : v
   return { stat, val, ...(gold ? { gold: 1 as const } : {}) }
 }
 /** "✨ P.ATK +3%" */

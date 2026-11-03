@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { COLORS, DUNGEONS, H, W } from '../data/game-data'
 import { JOBS } from '../data/jobs'
 import { canWear, forged, gradeOf, isBroken, itemStatLine, ITEMS, linesOf, refineOf, slotCount, SLOTS, wearText, type Item } from '../data/meta'
-import { craftCost, CRAFT_ITEMS, GRADE, gradeCap, gradeCost, gradeStars, REFINE, refinable } from '../data/craft'
+import { craftCost, CRAFT_ITEMS, GRADE, gradeCap, gradeCost, gradeItem, gradeStars, REFINE, refinable } from '../data/craft'
 import { canAfford, FODDER, fodderFits, fodderMin, gemRepairCost, lineText, nextRate, pickFodder, refineCost, repair, repairCost, reroll, rerollCost, settleReroll, tryRefine, type ForgeCost } from '../data/refine'
 import { MAT_RULES, MATS, matById } from '../data/materials'
 import { addFodder, canPay, equip, forgetForge, isWorn, pay, persist, save } from '../save'
@@ -119,7 +119,7 @@ export class ForgeScene extends Phaser.Scene {
     b.add(txt(this, x + 14, y + 10, it.icon, 30))
     b.add(txt(this, x + 60, y + 8, it.name, 18, GRADE.colors[g], true))
     b.add(txt(this, x + 60, y + 34, `${gradeStars(g, cap)}  ${GRADE.names[g]}${worn ? ' · ใส่อยู่' : ''}`, 13, GRADE.colors[g], true))
-    const line = txt(this, x + 14, y + 56, itemStatLine(forged(s, it)), 13, '#9fe3a8', true).setWordWrapWidth(cw - 28)
+    const line = fit(txt(this, x + 14, y + 56, itemStatLine(gradeItem(it, g)), 13, '#9fe3a8', true).setWordWrapWidth(cw - 28), 52) // grade only: refine/lines show on the ตีบวก tab
     b.add(line)
     const by = y + ch - 24
     if (g >= cap) {
@@ -150,9 +150,12 @@ export class ForgeScene extends Phaser.Scene {
   // ---------- refine +1..+10 ----------
   private refineList(): Item[] {
     const s = save()
-    const rank = (it: Item) => (isWorn(s, it.id) ? 0 : 2) + (isBroken(s, it.id) ? 0 : 1)
-    return ITEMS.filter((it) => s.owned.includes(it.id) && refinable(it) && (!this.mineOnly || canWear(it, s.job)))
-      .sort((a, c) => rank(a) - rank(c) || refineOf(s, c.id) - refineOf(s, a.id))
+    // Order must not change after a try (it would move the card under the player's finger): pending reroll first,
+    // then worn gear, then slot order. Never by refine level or broken state.
+    const rank = (it: Item) => (s.reroll?.item === it.id ? 0 : isWorn(s, it.id) ? 1 : 2)
+    const slotIx = (it: Item) => SLOTS.findIndex((q) => q.id === it.slot)
+    return ITEMS.filter((it) => s.owned.includes(it.id) && refinable(it) && (!this.mineOnly || canWear(it, s.job) || s.reroll?.item === it.id))
+      .sort((a, c) => rank(a) - rank(c) || slotIx(a) - slotIx(c))
   }
 
   private refineCard(it: Item, x: number, y: number) {
@@ -164,11 +167,12 @@ export class ForgeScene extends Phaser.Scene {
     b.add(txt(this, x + 60, y + 8, `${it.name}${r ? ` +${r}` : ''}`, 18, GRADE.colors[g], true))
     b.add(txt(this, x + 60, y + 34, `${gradeStars(g, gradeCap(it))} · ตีบวก +${r}/${REFINE.max}${worn ? ' · ใส่อยู่' : ''}`, 12, UI.sub))
     const stat = broken ? '💔 แตก: ไม่ได้ค่าพลังและการ์ดจนกว่าจะซ่อม (บวก/ขั้น/การ์ด/ค่าพิเศษ ยังอยู่ครบ)' : itemStatLine(forged(s, it)) || it.desc
-    const line = txt(this, x + 14, y + 54, stat, 12, broken ? '#ffb0b0' : '#9fe3a8', true).setWordWrapWidth(cw - 28)
+    const line = fit(txt(this, x + 14, y + 54, stat, 12, broken ? '#ffb0b0' : '#9fe3a8', true).setWordWrapWidth(cw - 28), 48) // 3 lines max
     const extra = REFINE.lineAt.map((at, i) => `+${at} ${lines[i] ? lineText(lines[i]) : '—'}`).join(' · ')
-    const lt = txt(this, x + 14, line.y + line.height + 2, `🎁 ${extra}`, 11, lines.length ? '#d9c2ff' : UI.sub).setWordWrapWidth(cw - (lines.length ? 70 : 28))
+    const has = lines.some(Boolean)
+    const lt = fit(txt(this, x + 14, y + 106, `🎁 ${extra}`, 11, has ? '#d9c2ff' : UI.sub).setWordWrapWidth(cw - (has ? 100 : 28)), 32) // fixed row, 2 lines max
     b.add([line, lt])
-    if (lines.some(Boolean)) b.add(button(this, x + cw - 40, lt.y + 10, 64, 24, s.reroll?.item === it.id ? '🎲 เลือก' : '🎲', () => this.linesView(it), { size: 13, fill: 0x8a6fd1, color: UI.text }))
+    if (has) b.add(button(this, x + cw - 40, lt.y + 10, 64, 24, s.reroll?.item === it.id ? '🎲 เลือก' : '🎲', () => this.linesView(it), { size: 13, fill: 0x8a6fd1, color: UI.text }))
     const by = y + ch - 24
     if (broken) {
       const mc = repairCost(it)
@@ -218,27 +222,30 @@ export class ForgeScene extends Phaser.Scene {
     const pw = 700, ph = 400, px = W / 2 - pw / 2, py = H / 2 - ph / 2
     c.add(panel(this, px, py, pw, ph, UI.panelHi, COLORS.gold))
     c.add(txt(this, W / 2, py + 18, `🎁 ค่าพิเศษ ${it.icon} ${it.name} +${refineOf(s, it.id)}`, 22, UI.gold, true).setOrigin(0.5, 0))
-    c.add(txt(this, W / 2, py + 52, 'สุ่มใหม่ใช้วัตถุดิบ + zeny เท่านั้น (ไม่ใช้เพชร) · ได้ค่าใหม่แล้วเลือกเก็บอันเดิมได้เสมอ', 13, UI.sub).setOrigin(0.5, 0))
     const lines = linesOf(s, it.id), pend = s.reroll
+    const other = pend && pend.item !== it.id ? `🎲 มีค่าสุ่มใหม่รอเลือกอยู่ที่ ${ITEMS.find((x) => x.id === pend.item)?.name ?? pend.item} เลือกที่นั่นก่อนนะคะ` : ''
+    c.add(txt(this, W / 2, py + 52, other || 'สุ่มใหม่ใช้วัตถุดิบ + zeny เท่านั้น (ไม่ใช้เพชร) · ได้ค่าใหม่แล้วเลือกเก็บอันเดิมได้เสมอ', 13, other ? '#ffb0b0' : UI.sub).setOrigin(0.5, 0))
     REFINE.lineAt.forEach((at, i) => {
       const y = py + 84 + i * 96, l = lines[i]
       c.add(panel(this, px + 20, y, pw - 40, 86, UI.panel, UI.line, 10))
       c.add(txt(this, px + 36, y + 10, `+${at} (${['เล็ก', 'กลาง', 'ใหญ่'][i]})`, 15, UI.sub, true))
       if (!l) { c.add(txt(this, px + 36, y + 40, `ยังไม่ได้ · ตีถึง +${at} ครั้งแรกจะได้ค่าสุ่ม 1 บรรทัด`, 14, UI.sub)); return }
       const mine = pend && pend.item === it.id && pend.idx === i
-      c.add(txt(this, px + 36, y + 36, `${mine ? 'เดิม: ' : ''}${lineText(l)}`, 18, l.gold ? UI.gold : UI.text, true))
       if (mine) {
-        c.add(txt(this, px + 300, y + 36, `ใหม่: ${lineText(pend!.line)}`, 18, pend!.line.gold ? UI.gold : '#9fe3a8', true))
-        c.add(button(this, px + pw - 230, y + 64, 130, 30, 'เก็บอันเดิม', () => { settleReroll(s, false); persist(); close() }, { size: 14, fill: 0x5a5f8a, color: UI.text }))
-        c.add(button(this, px + pw - 90, y + 64, 130, 30, 'เอาอันใหม่', () => { settleReroll(s, true); persist(); close() }, { size: 14 }))
+        c.add(txt(this, px + 150, y + 8, `เดิม: ${lineText(l)}`, 16, l.gold ? UI.gold : UI.text, true))
+        c.add(txt(this, px + 150, y + 34, `ใหม่: ${lineText(pend!.line)}`, 18, pend!.line.gold ? UI.gold : '#9fe3a8', true))
+        c.add(txt(this, px + 150, y + 62, 'เลือกได้เลยค่ะ ไม่เลือกตอนนี้ก็ค้างไว้ได้', 12, UI.sub))
+        c.add(button(this, px + pw - 100, y + 24, 140, 30, 'เก็บอันเดิม', () => { settleReroll(s, false); persist(); close() }, { size: 14, fill: 0x5a5f8a, color: UI.text }))
+        c.add(button(this, px + pw - 100, y + 62, 140, 30, 'เอาอันใหม่', () => { settleReroll(s, true); persist(); close() }, { size: 14 }))
         return
       }
+      c.add(txt(this, px + 36, y + 36, lineText(l), 18, l.gold ? UI.gold : UI.text, true))
       const cost = rerollCost(it, i)
       c.add(this.costText(px + 36, y + 62, cost, 400))
       c.add(button(this, px + pw - 100, y + 43, 140, 36, '🎲 สุ่มใหม่', () => {
-        if (!reroll(s, it, i)) { toast(this, s.reroll ? 'เลือกค่าที่สุ่มค้างไว้ก่อนนะคะ' : 'วัตถุดิบหรือ zeny ยังไม่พอค่ะ', UI.red); return }
+        if (!reroll(s, it, i)) { toast(this, s.reroll ? `เลือกค่าที่สุ่มค้างไว้ที่ ${ITEMS.find((x) => x.id === s.reroll!.item)?.name ?? ''} ก่อนนะคะ` : 'วัตถุดิบหรือ zeny ยังไม่พอค่ะ', UI.red); return }
         persist(); sfx.pop(); this.refreshWallet(); c.destroy(); this.linesView(it)
-      }, { size: 15 }).setEnabled(!pend && canAfford(s, cost)))
+      }, { size: 15 }).setEnabled(!!pend || canAfford(s, cost)))
     })
     c.add(button(this, W / 2, py + ph - 26, 160, 36, 'ปิด', close, { size: 16, fill: 0x5a5f8a, color: UI.text }))
   }
@@ -252,7 +259,7 @@ export class ForgeScene extends Phaser.Scene {
     b.add(panel(this, x, y, cw, ch, UI.panel, n ? COLORS.gold : UI.line, 10))
     b.add(txt(this, x + 10, y + 8, `${it.icon} ${it.name}`, 15, UI.text, true))
     b.add(txt(this, x + cw - 10, y + 8, `🔩 x${n}`, 16, n ? UI.gold : UI.sub, true).setOrigin(1, 0))
-    b.add(txt(this, x + 10, y + 30, `${SLOTS.find((q) => q.id === it.slot)?.name ?? it.slot} · ${it.price}z · ตีได้ถึง +${it.price >= fodderMin(it.slot, 2) ? 10 : it.price >= fodderMin(it.slot, 1) ? 7 : 4} · ซ่อมได้`, 11, UI.sub))
+    b.add(txt(this, x + 10, y + 30, `${SLOTS.find((q) => q.id === it.slot)?.name ?? it.slot} · ${it.price}z · ใช้ได้ถึง +${it.price >= fodderMin(it.slot, 2) ? 10 : it.price >= fodderMin(it.slot, 1) ? 7 : 4} · ซ่อมได้`, 11, UI.sub))
     b.add(button(this, x + 74, y + 66, 124, 30, `ซื้อ ${it.price}z`, () => {
       if (s.zeny < it.price) { toast(this, 'zeny ไม่พอค่ะ', UI.red); return }
       s.zeny -= it.price; addFodder(s, it.id); persist(); sfx.coin(); this.refreshWallet(); this.render()
@@ -297,7 +304,17 @@ export class ForgeScene extends Phaser.Scene {
     const ok = canAfford(s, cost)
     const t = txt(this, x, y, prefix + parts.join(' · '), 12, ok ? UI.text : '#ffb0b0')
     if (t.width > w) t.setText(prefix + parts.map((p) => p.replace(/(\S+?)[\u0E00-\u0E7F]+ (\d+\/\d+)/u, '$1 $2').replace(/ \(เช่น [^)]+\)/u, '')).join(' · ')) // too long: icons only (names are on the วัตถุดิบ tab)
+    if (t.width > w) t.setText(t.text.replace(/🔩[\u0E00-\u0E7F]+(ร้าน)?/u, '🔩')) // still too long: "✗🔩≥400z"
+    if (t.width > w) t.setFontSize(11)
     return t
   }
 
+}
+
+/** Clip a wrapped text to a height budget, ending with "…" (keeps cards from running into their cost row). */
+function fit(t: Phaser.GameObjects.Text, maxH: number) {
+  if (t.height <= maxH) return t
+  let s = t.text
+  while (s.length > 1 && t.height > maxH) { s = s.slice(0, -2); t.setText(s + '…') }
+  return t
 }
