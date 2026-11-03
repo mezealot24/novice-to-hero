@@ -72,7 +72,7 @@ export const SLOTS: { id: Slot; name: string; icon: string }[] = [
 // stats (Hit, Flee, Counter, Combo, lifesteal, shields, Mana Shield...). One item per slot, so nothing stacks.
 // jobs = who can wear it (none = everyone). req = when the shop sells it: 'job' after the first job change,
 // 'd2' after beating ป่าหมาป่าเงา. Item ids are save data: never rename or remove one.
-export type ItemReq = 'job' | 'd2'
+export type ItemReq = 'job' | 'd2' | 'd3' | 'd4'
 export interface Item { id: string; slot: Slot; name: string; icon: string; price: number; desc: string; base?: Partial<Record<BaseStat, number>>; mod: Partial<Stats>; jobs?: JobId[]; req?: ItemReq }
 const SW: JobId[] = ['swordsman'], AR: JobId[] = ['archer'], MG: JobId[] = ['mage'], CL: JobId[] = ['cleric'], TH: JobId[] = ['thief']
 export const ITEMS: Item[] = [
@@ -129,6 +129,9 @@ export const ITEMS: Item[] = [
   { id: 'r_mana', slot: 'acc', name: 'จี้มานา', icon: '🔷', price: 420, desc: 'Mana เยอะ ฟื้นไว (อาชีพที่ใช้ Mana)', base: { int: 2 }, mod: { maxRes: 20, resRegen: 1 }, req: 'job' },
   { id: 'fang', slot: 'acc', name: 'สร้อยเขี้ยวหมาป่า', icon: '🦷', price: 480, desc: 'ดูดเลือด', mod: { lifesteal: 0.05, atk: 3 } },
   { id: 'r_alphafang', slot: 'acc', name: 'เขี้ยวจ่าฝูงเงา', icon: '🐺', price: 1200, desc: 'ของดัน 2: ทุกค่าสถานะ +2', base: { str: 2, vit: 2, wis: 2, dex: 2, int: 2, luk: 2, agi: 2 }, mod: { crit: 0.03 }, req: 'd2' },
+  // ----- Dungeon 4-5 prep: resist the new debuffs (design/dungeon-4-5-brutal.md) -----
+  { id: 'r_amulet', slot: 'acc', name: 'เครื่องรางล้างพิษ', icon: '🧿', price: 1600, desc: 'ของดัน 3: กันสถานะผิดปกติ (เตรียมลุยบึงพิษ)', base: { vit: 2, wis: 2 }, mod: { debuffRes: 0.35, maxHp: 40, mdef: 0.04 }, req: 'd3' },
+  { id: 'r_hydraheart', slot: 'acc', name: 'หัวใจไฮดรา', icon: '💚', price: 2600, desc: 'ของดัน 4: ทุกค่าสถานะ +3 · ฟื้น HP ทุกเทิร์น · กันสถานะผิดปกติ', base: { str: 3, vit: 3, wis: 3, dex: 3, int: 3, luk: 3, agi: 3 }, mod: { regen: 0.5, debuffRes: 0.25 }, req: 'd4' },
 ]
 export const itemById = (id: string) => ITEMS.find((i) => i.id === id) ?? ITEMS[0]
 /** Can this job wear it? (no `jobs` list = everyone) */
@@ -137,9 +140,11 @@ export const canWear = (it: Item, job: JobId) => !it.jobs || it.jobs.includes(jo
 export function itemUnlocked(it: Item, s: { job: JobId; clearsBy?: Record<string, number> }) {
   if (it.req === 'job') return s.job !== 'novice'
   if (it.req === 'd2') return (s.clearsBy?.d2 ?? 0) > 0
+  if (it.req === 'd3') return (s.clearsBy?.d3 ?? 0) > 0
+  if (it.req === 'd4') return (s.clearsBy?.d4 ?? 0) > 0
   return true
 }
-export const REQ_TEXT: Record<ItemReq, string> = { job: 'ขายหลังเปลี่ยนอาชีพ', d2: 'ขายหลังล้มบอสป่าหมาป่าเงา' }
+export const REQ_TEXT: Record<ItemReq, string> = { job: 'ขายหลังเปลี่ยนอาชีพ', d2: 'ขายหลังล้มบอสป่าหมาป่าเงา', d3: 'ขายหลังล้มอัศวินมรณะ', d4: 'ขายหลังล้มไฮดรามรกต' }
 
 // Labels for the auto-built stat line on every item card (so desc and numbers can never disagree).
 const pc = (n: number) => `${Math.round(n * 1000) / 10}%`
@@ -151,7 +156,7 @@ const STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => string]>> 
   crit: ['คริ', pc], spellCrit: ['เวทคริ', pc], critMul: ['ดาเมจคริ', pc], guard: ['ลดดาเมจ', pc], lifesteal: ['ดูดเลือด', pc], regen: ['ฟื้น HP/เทิร์น', (n) => pc(n * 1.5 / 100)],
   poison: ['พิษ stack/hit', (n) => `${n}`], poisonDmg: ['พิษแรง', (n) => `${n}`], smashMul: ['ทุบ(โนวิส)', (n) => `${n}x`],
   manaShield: ['Mana Shield', pc], counter: ['สวนกลับ', pc], combo: ['คอมโบ', pc],
-  dodgeHeal: ['หลบ→ฟื้น HP', pc], waveShield: ['โล่ต้นเวฟ', (n) => `${pc(n)} HP`],
+  dodgeHeal: ['หลบ→ฟื้น HP', pc], debuffRes: ['กันสถานะผิดปกติ', pc], waveShield: ['โล่ต้นเวฟ', (n) => `${pc(n)} HP`],
 }
 export const BASE_NAME: Record<BaseStat, string> = { str: 'STR', vit: 'VIT', wis: 'WIS', dex: 'DEX', int: 'INT', luk: 'LUK', agi: 'AGI' }
 /** "STR +3 · P.ATK +8 · ดูดเลือด +6%" */

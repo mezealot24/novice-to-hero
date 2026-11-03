@@ -5,6 +5,7 @@
 import type { MonsterKind } from './game-data'
 
 export type RelicId = 'trinity' | 'storm' | 'iceage' | 'hellfire' | 'bloodpact' | 'riposte' | 'haste' | 'harvest'
+  | 'purify' | 'executioner' | 'aegis' | 'thornaura' // Dungeon 4-5 mini bosses (design/dungeon-4-5-brutal.md)
 export interface RelicDef { id: RelicId; name: string; icon: string; desc: string }
 
 export const RELICS: Record<RelicId, RelicDef> = {
@@ -16,6 +17,10 @@ export const RELICS: Record<RelicId, RelicDef> = {
   riposte: { id: 'riposte', name: 'ปัดป้องไร้ที่ติ', icon: '🤺', desc: 'ทุกการโจมตีครั้งที่ 3 ของศัตรู ปัดทิ้ง 0 ดาเมจ แล้วสวนกลับ 2x' },
   haste: { id: 'haste', name: 'เร่งเวลา', icon: '⏩', desc: 'ความเร็วเทิร์น +25% · ท่าไม้ตายคูลดาวน์ -1 เทิร์น' },
   harvest: { id: 'harvest', name: 'เก็บเกี่ยววิญญาณ', icon: '🐦‍⬛', desc: 'ล้มศัตรู 1 ตัว: ATK/M.ATK +4% (สูงสุด +40%) + ฮีล 8% · บอส HP ลดทุก 20% นับเป็น 1 ตัว' },
+  purify: { id: 'purify', name: 'กายบริสุทธิ์', icon: '✨', desc: 'ไม่ติดสถานะผิดปกติจากมอนเลย (พิษ ไฟ สาป เกราะแตก ใบ้ แช่แข็ง) · ฟื้น HP 3% ทุกเทิร์น' },
+  executioner: { id: 'executioner', name: 'เพชฌฆาต', icon: '🪓', desc: 'ตีศัตรูที่ HP ต่ำกว่า 35% แรงขึ้น 60% · ล้มศัตรูแล้วท่าไม้ตายคูลดาวน์ -1 เทิร์น' },
+  aegis: { id: 'aegis', name: 'โล่อมตะ', icon: '🛡️', desc: 'เริ่มทุกการต่อสู้ได้โล่ 35% HP · ตอนมีโล่ ดาเมจเรา +20%' },
+  thornaura: { id: 'thornaura', name: 'เกราะหนามอเวจี', icon: '🌵', desc: 'โดนตีแล้วคนตีโดนสะท้อน 50% ของดาเมจ (เวท ไม่พลาด) · ดาเมจสะท้อนของมอนใส่เราลดครึ่ง' },
 }
 
 export const RELIC_RULES = {
@@ -28,6 +33,10 @@ export const RELIC_RULES = {
   riposte: { every: 3, mul: 2 },
   haste: { speed: 0.25, cd: 1 },
   harvest: { perKill: 0.04, max: 0.4, heal: 0.08, bossStep: 0.2 },
+  purify: { regen: 0.03 },
+  executioner: { below: 0.35, mul: 0.6, cd: 1 },
+  aegis: { shield: 0.35, dmg: 0.2 },
+  thornaura: { back: 0.5, reflectCut: 0.5 },
   burnCut: 0.25, // heal cut while a monster burns from normal fire (cards / Mage fire ult)
 }
 
@@ -37,7 +46,12 @@ export const MINI_RELICS: Partial<Record<MonsterKind, [RelicId, RelicId]>> = {
   hunter: ['hellfire', 'bloodpact'],
   gunner: ['storm', 'haste'],
   drainer: ['iceage', 'harvest'],
+  venomqueen: ['purify', 'hellfire'],
+  frostgiant: ['aegis', 'iceage'],
+  mirage: ['thornaura', 'riposte'],
+  warlord: ['executioner', 'bloodpact'],
 }
+/** Dungeon 3's duel pool. Later dungeons name their own (RoomDef.miniPool). */
 export const MINI_POOL: MonsterKind[] = ['duelist', 'hunter', 'gunner', 'drainer']
 
 export const hellEff = (n: number) => RELIC_RULES.hellfire.k * Math.log(1 + n / RELIC_RULES.hellfire.k)

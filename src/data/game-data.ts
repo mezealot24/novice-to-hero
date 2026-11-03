@@ -131,6 +131,7 @@ export interface Stats {
   arTurnRes: number // Archer talent สมาธิพราน r2: + Energy per hero turn
   arCritRes: number // Archer talent ลมหายใจนักล่า: Energy per crit
   arDodgeRes: number // Archer tree ยิงถอย: Energy per dodge
+  debuffRes: number // 0..1 chance to shrug off a monster debuff (poison, burn, curse, armor break, silence, freeze) · Dungeon 4-5 gear
   // ----- Cleric tree + talents (data/trees/cleric.ts) -----
   healAt: number // auto skill heals below (0.75 - this) of max HP
   atone: number // share of every skill heal (incl. overheal) dealt as holy damage to the front monster
@@ -156,7 +157,7 @@ export const PLAYER: Stats = {
   aspd: 1.6, range: 110, crit: 0, critMul: 1.4, /* Q: crit only from items, skill tree, talents (+ in-run cards) */ speed: 190,
   guard: 0, lifesteal: 0, regen: 0, fireEvery: 0, boltMul: 2, burnDps: 0, poison: 0, poisonDmg: 2,
   smashMul: 3, smashCd: 6000, smashCost: 0, revive: 0, manaShield: 0, counter: 0, combo: 0, dodgeHeal: 0, waveShield: 0,
-  thorns: 0, rageGain: 0, autoCostCut: 0, ctrAoe: 0, berserk: 0, pierce: 0, lockOn: 0, dodgeStrike: 0, lightMax: 0, overload: 0, lightLuck: 0, burnCap: 0, autoBurn: 0, fireSpread: 0, chillPlus: 0, brittle: 0, shatter: 0, reviveHp: 0, smiteTargets: 0, holyCounter: 0, overhealShield: 0, poisonCap: 0, poisonSpread: 0, fleeFloor: 0, waveDodge: 0, dodgeEnergy: 0, ultDodge: 0, ultHits: 0, ultPoison: 0, poisonAmp: 0, lightHits: 0, lightChain: 0, burnTick: 0, chillSlow: 0, iceBarrier: 0, boltHits: 0, boltCharge: 0, stormSet: 0, mgLightAmp: 0, mgFireAmp: 0, mgIceAmp: 0, mgFirstCard: 0, mgFireStack: 0, mgWaveBarrier: 0, resRegenCut: 0, mgUltAmp: 0, elemWheel: 0, mgBarrierCut: 0, barrierBoom: 0, mgEmergency: 0, mgDoubleCast: 0, mgUltCd: 0, mgUltMana: 0, mgOverflow: 0, cleaveAdd: 0, startRage: 0, rageOnHurtAdd: 0, autoLifesteal: 0, ultMulAdd: 0, ultShieldAdd: 0, ultVsCharge: 0, ultCounters: 0, counterRage: 0, counterShield: 0, arDodgeShield: 0, arUltBreak: 0, arWaveDodge: 0, arSnipeLow: 0, arLowHpBonus: 0, arVolley: 0, arAim: 0, arAimCrit: 0, arUltSplash: 0, arUltDodge: 0, arUltMulCut: 0, arHawk: 0, arStartFull: 0, arTurnRes: 0, arCritRes: 0, arDodgeRes: 0, healAt: 0, atone: 0, judge: 0, smiteMul: 0, smiteVamp: 0, healShield: 0, spearStart: 0, spearRate: 0, spearMul: 0, spearHeal: 0, ultRegen: 0, ultHoly: 0, ultChargeShield: 0, bossShield: 0, lateDmg: 0, spellCrit: 0, // Novice: cooldown only (resources come with job change)
+  thorns: 0, rageGain: 0, autoCostCut: 0, ctrAoe: 0, berserk: 0, pierce: 0, lockOn: 0, dodgeStrike: 0, lightMax: 0, overload: 0, lightLuck: 0, burnCap: 0, autoBurn: 0, fireSpread: 0, chillPlus: 0, brittle: 0, shatter: 0, reviveHp: 0, smiteTargets: 0, holyCounter: 0, overhealShield: 0, poisonCap: 0, poisonSpread: 0, fleeFloor: 0, waveDodge: 0, dodgeEnergy: 0, ultDodge: 0, ultHits: 0, ultPoison: 0, poisonAmp: 0, lightHits: 0, lightChain: 0, burnTick: 0, chillSlow: 0, iceBarrier: 0, boltHits: 0, boltCharge: 0, stormSet: 0, mgLightAmp: 0, mgFireAmp: 0, mgIceAmp: 0, mgFirstCard: 0, mgFireStack: 0, mgWaveBarrier: 0, resRegenCut: 0, mgUltAmp: 0, elemWheel: 0, mgBarrierCut: 0, barrierBoom: 0, mgEmergency: 0, mgDoubleCast: 0, mgUltCd: 0, mgUltMana: 0, mgOverflow: 0, cleaveAdd: 0, startRage: 0, rageOnHurtAdd: 0, autoLifesteal: 0, ultMulAdd: 0, ultShieldAdd: 0, ultVsCharge: 0, ultCounters: 0, counterRage: 0, counterShield: 0, arDodgeShield: 0, arUltBreak: 0, arWaveDodge: 0, arSnipeLow: 0, arLowHpBonus: 0, arVolley: 0, arAim: 0, arAimCrit: 0, arUltSplash: 0, arUltDodge: 0, arUltMulCut: 0, arHawk: 0, arStartFull: 0, arTurnRes: 0, arCritRes: 0, arDodgeRes: 0, debuffRes: 0, healAt: 0, atone: 0, judge: 0, smiteMul: 0, smiteVamp: 0, healShield: 0, spearStart: 0, spearRate: 0, spearMul: 0, spearHeal: 0, ultRegen: 0, ultHoly: 0, ultChargeShield: 0, bossShield: 0, lateDmg: 0, spellCrit: 0, // Novice: cooldown only (resources come with job change)
 }
 
 export const RULES = {
@@ -240,7 +241,48 @@ export const SET_BONUS: Partial<Record<Tag, { desc: string; mod: Partial<Stats> 
 
 export type MonsterKind = 'jellop' | 'wolf' | 'king' | 'minijellop' | 'bat' | 'shroom' | 'boar' | 'shadowwolf' | 'alpha'
   | 'skeleton' | 'wisp' | 'gargoyle' | 'duelist' | 'hunter' | 'gunner' | 'drainer' | 'deathknight'
-export type MiniKind = 'duelist' | 'hunter' | 'gunner' | 'drainer'
+  | 'toad' | 'lizardshaman' | 'hornet' | 'turtleguard' | 'bloater' | 'spiderling' | 'venomqueen' | 'frostgiant' | 'hydra'
+  | 'hellknight' | 'hexwitch' | 'imp' | 'necropriest' | 'wraith' | 'shard' | 'mirage' | 'warlord' | 'lich'
+export type MiniKind = 'duelist' | 'hunter' | 'gunner' | 'drainer' | 'venomqueen' | 'frostgiant' | 'mirage' | 'warlord'
+
+// ----- Dungeon 4-5 (design/dungeon-4-5-brutal.md): data-driven monster skills, debuffs on the hero, boss phases -----
+/** What a landed monster hit (or a skill / charged attack) puts on the hero. Turns count hero turns. */
+export interface HitFx {
+  poison?: number // + poison stacks: each hero turn lose 1.2% max HP per stack, then 1 stack fades (cap 10)
+  burn?: number // burn for N hero turns: lose 3% max HP per turn, healing on the hero -40%
+  weaken?: number // curse for N hero turns: hero damage -25%
+  armorBreak?: number // N hero turns: P.DEF and M.DEF count half
+  silence?: number // N hero turns: the ultimate / Smash can't be cast (it stays queued)
+  freeze?: number // hero turn gauge lost (tenacity reduces it); 100 = skip a whole turn
+}
+export type MonSkillKind = 'heal' | 'shield' | 'warcry' | 'curse' | 'summon' | 'revive' | 'haste'
+/** A monster turn spent on a skill instead of an attack: used on every `every`-th turn of that monster when it makes sense. */
+export interface MonSkill {
+  kind: MonSkillKind
+  every: number
+  name: string
+  pow?: number // heal / shield: share of the target's max HP · warcry: + damage share · haste: gauge added
+  turns?: number // warcry: monster turns it lasts
+  fx?: HitFx // curse: what lands on the hero (can't miss, debuffRes can resist)
+  summon?: [MonsterKind, number] // summon: kind, how many (free slots only)
+  self?: boolean // heal / shield: only on itself
+}
+/** Boss phase: entered once when HP drops under `at` (share of max HP). Effects stack with later phases. */
+export interface BossPhase {
+  at: number
+  name: string
+  speed?: number // x turn speed
+  dmg?: number // x damage
+  chargeEvery?: number // new charge rhythm
+  heal?: number // heal this share of max HP on entering (heal cut applies)
+  shield?: number // shield of this share of max HP on entering
+  summon?: [MonsterKind, number]
+  reflect?: number // from now on reflects this share of every direct hit
+  skills?: MonSkill[] // replaces the skill list
+  onHit?: HitFx // replaces the hit effect
+  slamFx?: HitFx // replaces the charged attack's effect
+  cleanse?: boolean // drops its burns / poison / chill on entering
+}
 
 export interface MonsterDef {
   name: string
@@ -268,6 +310,13 @@ export interface MonsterDef {
   chargeEvery?: number // boss: charges every Nth turn (default BATTLE.slamEvery)
   slamMul?: number // boss: charged attack = (dmg + 8) * monDmgMul * this (default 1.6)
   shots?: number // each attack is this many small hits, each rolls hit/flee on its own
+  // ----- Dungeon 4-5 -----
+  onHit?: HitFx // every landed hit also puts this on the hero
+  slamFx?: HitFx // boss: the charged attack also puts this on the hero
+  skills?: MonSkill[]
+  reflect?: number // reflects this share of every direct hit (strike / Smash) back as magic damage
+  deathBlast?: number // explodes on death: (dmg) x monDmgMul x this as magic (Flee / lucky dodge / shield all work)
+  phases?: BossPhase[]
 }
 
 export const MONSTERS: Record<MonsterKind, MonsterDef> = {
@@ -289,6 +338,52 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
   gunner: { name: 'ปิ๊กซี่', title: 'มือปืนพลุบ้าระห่ำ', tex: 'gunner', hp: 1250, dmg: 21, xp: 12, ai: 'boss', mini: 'gunner', moveSpeed: 300, radius: 30, zeny: [30, 40], idleMs: [600, 900], def: 5, flee: 20, hit: 36, shots: 3, slamMul: 3.4, slamName: 'จรวดยักษ์! ล็อกเป้าแล้ว', breakPct: 0.07 },
   drainer: { name: 'คาร์วอส', title: 'จอมเวทกาดำ', tex: 'drainer', hp: 1450, dmg: 38, xp: 12, ai: 'boss', mini: 'drainer', moveSpeed: 300, radius: 32, zeny: [30, 40], idleMs: [600, 900], def: 20, hit: 34, magic: true, slamMagic: true, lifesteal: 0.3, slamMul: 1.9, slamName: 'กรงเล็บวิญญาณ! ดูดชีวิต', breakPct: 0.08 },
   deathknight: { name: 'อัศวินมรณะ', tex: 'deathknight', hp: 2600, dmg: 46, xp: 0, ai: 'boss', moveSpeed: 240, radius: 42, zeny: [60, 80], idleMs: [700, 1000], def: 35, flee: 12, hit: 36, lifesteal: 0.2, summon: 'skeleton', slamName: 'ดาบมรณะ! ฟันกวาดวิญญาณ', breakPct: 0.08 },
+  // ----- Dungeon 4: บึงพิษมรกต. Monsters that heal, shield, poison and explode (design/dungeon-4-5-brutal.md) -----
+  toad: { name: 'คางคกพิษ', tex: 'toad', hp: 270, dmg: 40, xp: 8, ai: 'hopper', moveSpeed: 220, radius: 16, zeny: [5, 7], idleMs: [700, 1200], def: 25, hit: 34, onHit: { poison: 2 } },
+  lizardshaman: { name: 'หมอผีกิ้งก่า', tex: 'lizardshaman', hp: 240, dmg: 34, xp: 9, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [5, 8], idleMs: [700, 1200], magic: true, hit: 34,
+    skills: [{ kind: 'heal', every: 2, pow: 0.18, name: 'น้ำมนต์บึง' }] },
+  hornet: { name: 'ต่อยักษ์', tex: 'hornet', hp: 170, dmg: 20, xp: 8, ai: 'dasher', moveSpeed: 520, radius: 13, zeny: [5, 7], idleMs: [500, 900], flee: 42, hit: 40, shots: 2, onHit: { poison: 1 } },
+  turtleguard: { name: 'ทหารเต่าโล่', tex: 'turtleguard', hp: 430, dmg: 38, xp: 10, ai: 'hopper', moveSpeed: 160, radius: 18, zeny: [6, 9], idleMs: [900, 1400], def: 120, hit: 32,
+    skills: [{ kind: 'shield', every: 4, pow: 0.1, name: 'กำแพงกระดอง' }] },
+  bloater: { name: 'คางคกพองลม', tex: 'bloater', hp: 210, dmg: 30, xp: 8, ai: 'hopper', moveSpeed: 180, radius: 17, zeny: [5, 7], idleMs: [800, 1300], hit: 30, deathBlast: 2, onHit: { poison: 1 } },
+  spiderling: { name: 'ลูกแมงมุม', tex: 'spiderling', hp: 160, dmg: 26, xp: 3, ai: 'dasher', moveSpeed: 480, radius: 11, zeny: [1, 2], idleMs: [400, 800], flee: 30, hit: 36, onHit: { poison: 1 } },
+  venomqueen: { name: 'เวโนมิร่า', title: 'ราชินีใยพิษ', tex: 'venomqueen', hp: 2000, dmg: 44, xp: 14, ai: 'boss', mini: 'venomqueen', moveSpeed: 300, radius: 34, zeny: [45, 60], idleMs: [600, 900], def: 30, flee: 25, hit: 40,
+    onHit: { poison: 2 }, chargeEvery: 4, slamMul: 1.5, slamName: 'ห่อใยพิษ! จะโดนมัด', slamFx: { freeze: 100, poison: 3 }, breakPct: 0.07,
+    skills: [{ kind: 'curse', every: 3, name: 'พ่นใยปิดปาก', fx: { silence: 2 } }],
+    phases: [{ at: 0.5, name: 'ฟักไข่! ลูกแมงมุมออกมา', summon: ['spiderling', 2], speed: 1.15 }] },
+  frostgiant: { name: 'กลาเซียร์', title: 'ยักษ์ธารน้ำแข็ง', tex: 'frostgiant', hp: 2300, dmg: 50, xp: 14, ai: 'boss', mini: 'frostgiant', moveSpeed: 240, radius: 40, zeny: [45, 60], idleMs: [700, 1000], def: 100, flee: 5, hit: 34,
+    onHit: { armorBreak: 2 }, chargeEvery: 3, slamMul: 1.7, slamName: 'ทุบธารน้ำแข็ง! แช่แข็งทั้งตัว', slamFx: { freeze: 100 }, breakPct: 0.06,
+    phases: [{ at: 0.4, name: 'เกราะน้ำแข็งพันปี!', shield: 0.18, dmg: 1.2, cleanse: true }] },
+  hydra: { name: 'ไฮดรามรกต', tex: 'hydra', hp: 4200, dmg: 50, xp: 0, ai: 'boss', moveSpeed: 240, radius: 46, zeny: [90, 120], idleMs: [700, 1000], def: 45, flee: 15, hit: 40,
+    onHit: { poison: 2 }, slamName: 'กัดสามหัว! พิษเข้ากระแสเลือด', slamMul: 1.6, slamFx: { poison: 4 }, breakPct: 0.06,
+    phases: [
+      { at: 0.66, name: 'หัวที่สองงอก! ฟื้นตัว + ไข่ฟัก', heal: 0.1, summon: ['toad', 2], dmg: 1.15, cleanse: true, onHit: { poison: 2, burn: 2 } },
+      { at: 0.33, name: 'หัวที่สาม! คลั่งพ่นกรด', speed: 1.3, chargeEvery: 2, slamFx: { poison: 4, armorBreak: 3 }, cleanse: true },
+    ] },
+  // ----- Dungeon 5: บัลลังก์อเวจี. Buffers, cursers, revivers, mirrors, bombers -----
+  hellknight: { name: 'อัศวินนรก', tex: 'hellknight', hp: 560, dmg: 56, xp: 12, ai: 'hopper', moveSpeed: 220, radius: 18, zeny: [8, 11], idleMs: [700, 1200], def: 80, hit: 40, onHit: { armorBreak: 2 },
+    skills: [{ kind: 'warcry', every: 3, pow: 0.3, turns: 3, name: 'โห่ร้องสงคราม' }] },
+  hexwitch: { name: 'แม่มดคำสาป', tex: 'hexwitch', hp: 320, dmg: 48, xp: 11, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [7, 10], idleMs: [700, 1200], magic: true, hit: 40, onHit: { burn: 2 },
+    skills: [{ kind: 'curse', every: 3, name: 'คำสาปอ่อนแรง', fx: { weaken: 3, burn: 2 } }] },
+  imp: { name: 'ปีศาจระเบิด', tex: 'imp', hp: 200, dmg: 36, xp: 8, ai: 'dasher', moveSpeed: 560, radius: 12, zeny: [5, 7], idleMs: [400, 800], flee: 38, hit: 42, deathBlast: 2 },
+  necropriest: { name: 'นักบวชมรณะ', tex: 'necropriest', hp: 380, dmg: 40, xp: 11, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [7, 10], idleMs: [700, 1200], magic: true, hit: 38,
+    skills: [{ kind: 'revive', every: 3, pow: 0.5, name: 'ปลุกศพ' }, { kind: 'heal', every: 2, pow: 0.15, name: 'มนต์ดำฟื้นกาย' }] },
+  wraith: { name: 'ภูตกระจก', tex: 'wraith', hp: 300, dmg: 46, xp: 10, ai: 'dasher', moveSpeed: 500, radius: 14, zeny: [6, 9], idleMs: [500, 900], magic: true, flee: 36, hit: 40, reflect: 0.25 },
+  shard: { name: 'เศษกระจก', tex: 'shard', hp: 220, dmg: 30, xp: 3, ai: 'dasher', moveSpeed: 500, radius: 11, zeny: [1, 2], idleMs: [400, 800], magic: true, flee: 30, hit: 40, deathBlast: 1.8 },
+  mirage: { name: 'มิราจ', title: 'ภูตกระจกพันหน้า', tex: 'mirage', hp: 2300, dmg: 52, xp: 16, ai: 'boss', mini: 'mirage', moveSpeed: 300, radius: 32, zeny: [60, 80], idleMs: [600, 900], magic: true, slamMagic: true, def: 20, flee: 34, hit: 44,
+    reflect: 0.3, onHit: { weaken: 2 }, chargeEvery: 4, slamMul: 1.8, slamName: 'กระจกพันบาน! สะท้อนทุกอย่าง', slamFx: { weaken: 3, silence: 1 }, breakPct: 0.07,
+    phases: [{ at: 0.5, name: 'แตกร่าง! เศษกระจกระเบิดได้', summon: ['shard', 2], reflect: 0.4 }] },
+  warlord: { name: 'บารัค', title: 'ขุนศึกคลั่งโลหิต', tex: 'warlord', hp: 2400, dmg: 50, xp: 16, ai: 'boss', mini: 'warlord', moveSpeed: 300, radius: 36, zeny: [60, 80], idleMs: [600, 900], def: 60, flee: 15, hit: 44, lifesteal: 0.2,
+    onHit: { armorBreak: 2 }, chargeEvery: 4, slamMul: 2, slamName: 'ขวานผ่าภูผา! ฟันทะลุเกราะ', breakPct: 0.07,
+    skills: [{ kind: 'warcry', every: 3, pow: 0.25, turns: 99, self: true, name: 'คลั่งเลือด (สะสม)' }],
+    phases: [{ at: 0.3, name: 'โกรธจัด! เร็วขึ้นมาก', speed: 1.5, dmg: 1.1 }] },
+  lich: { name: 'โมรเดคัส', title: 'จอมลิชนิรันดร์', tex: 'lich', hp: 5200, dmg: 58, xp: 0, ai: 'boss', moveSpeed: 240, radius: 44, zeny: [150, 200], idleMs: [700, 1000], magic: true, slamMagic: true, def: 50, flee: 18, hit: 44,
+    onHit: { burn: 2 }, slamName: 'ดวงดาวมรณะ! ทุกอย่างมอดไหม้', slamMul: 1.7, slamFx: { burn: 3, weaken: 2 }, breakPct: 0.05,
+    skills: [{ kind: 'curse', every: 4, name: 'คำสาปจอมลิช', fx: { weaken: 3, armorBreak: 3 } }],
+    phases: [
+      { at: 0.7, name: 'โล่กระดูก! สะท้อนดาเมจ + ปีศาจระเบิด', shield: 0.12, reflect: 0.2, summon: ['imp', 2] },
+      { at: 0.35, name: 'พิธีกรรมสุดท้าย! เร็วขึ้น ชาร์จถี่', heal: 0.08, speed: 1.3, dmg: 1.15, chargeEvery: 2, cleanse: true, slamFx: { burn: 3, weaken: 2, silence: 2 }, summon: ['hellknight', 1] },
+    ] },
   alpha: { name: 'จ่าฝูงเงา', tex: 'alpha', hp: 1350, dmg: 26, xp: 0, ai: 'boss', moveSpeed: 260, radius: 40, zeny: [35, 45], idleMs: [700, 1000], def: 25, flee: 12, hit: 30, summon: 'shadowwolf', slamName: 'หอนเรียกพลัง! กระโจนตาหน้า', breakPct: 0.09 },
 }
 
@@ -298,6 +393,7 @@ export interface RoomDef {
   boss?: boolean
   turnLimit?: number // hero turns before the fight is lost (default BATTLE.turnLimit)
   mini?: boolean // 1v1 duel: spawn is ignored, one mini boss is drawn from MINI_POOL (data/relics.ts)
+  miniPool?: MonsterKind[] // this duel draws from these instead of MINI_POOL (Dungeon 4-5)
 }
 
 export interface DungeonDef {
@@ -307,7 +403,7 @@ export interface DungeonDef {
   tier: number // event rewards scale with this
   sky: [number, number] // gradient top, bottom
   hills: number // tint on the far hills / trees
-  unlock: 'none' | 'job' | 'd2' // 'job' = after the first job change, 'd2' = after clearing dungeon 2
+  unlock: 'none' | 'job' | 'd2' | 'd3' | 'd4' // 'job' = after the first job change, 'dN' = after clearing dungeon N
   rooms: RoomDef[]
 }
 
@@ -339,6 +435,26 @@ export const DUNGEONS: DungeonDef[] = [{
     { title: 'เวฟ 4 · หน้าบัลลังก์', spawn: [['gargoyle', 2], ['skeleton', 1], ['wisp', 1]] },
     { title: 'ห้องบอส · อัศวินมรณะ', spawn: [['deathknight', 1]], boss: true, turnLimit: 40 },
   ],
+}, {
+  id: 'd4', name: 'บึงพิษมรกต', boss: 'ไฮดรามรกต', tier: 4, sky: [0x0f2a22, 0x5a8a3a], hills: 0x6ab07a, unlock: 'd3',
+  rooms: [
+    { title: 'เวฟ 1 · ริมบึง', spawn: [['toad', 2], ['lizardshaman', 1]] },
+    { title: 'เวฟ 2 · รังต่อ', spawn: [['hornet', 2], ['turtleguard', 1]] },
+    { title: 'สังเวียน · ดวล 1-1', spawn: [], mini: true, miniPool: ['venomqueen', 'frostgiant'], turnLimit: 40 },
+    { title: 'เวฟ 3 · ดงคางคกระเบิด', spawn: [['bloater', 2], ['turtleguard', 1], ['hornet', 1]] },
+    { title: 'เวฟ 4 · กำแพงกระดอง', spawn: [['turtleguard', 2], ['lizardshaman', 1], ['toad', 1]] },
+    { title: 'ห้องบอส · ไฮดรามรกต', spawn: [['hydra', 1]], boss: true, turnLimit: 45 },
+  ],
+}, {
+  id: 'd5', name: 'บัลลังก์อเวจี', boss: 'จอมลิชโมรเดคัส', tier: 5, sky: [0x0a0612, 0x6a1a3a], hills: 0x9a4a6a, unlock: 'd4',
+  rooms: [
+    { title: 'เวฟ 1 · ประตูนรก', spawn: [['hellknight', 1], ['imp', 1]] },
+    { title: 'เวฟ 2 · โถงคำสาป', spawn: [['hexwitch', 1], ['necropriest', 1], ['imp', 1]] },
+    { title: 'สังเวียน · ดวล 1-1', spawn: [], mini: true, miniPool: ['mirage', 'warlord'], turnLimit: 40 },
+    { title: 'เวฟ 3 · ระเบียงกระจก', spawn: [['wraith', 2], ['imp', 1], ['hexwitch', 1]] },
+    { title: 'เวฟ 4 · กองทัพศพ', spawn: [['hellknight', 2], ['necropriest', 1], ['imp', 1]] },
+    { title: 'ห้องบอส · จอมลิชโมรเดคัส', spawn: [['lich', 1]], boss: true, turnLimit: 50 },
+  ],
 }]
 /** Old single-dungeon name (DungeonScene, the unused real-time prototype, still reads it). */
 export const DUNGEON = DUNGEONS[0]
@@ -367,7 +483,9 @@ export const BATTLE = {
   bossTurnLimit: 30, // boss fights (bot: damage builds 10-23 turns, pure tanks 36-43)
   heroSpeed: 10, // at base attack speed (PLAYER.aspd); AGI / speed perks scale it with aspd
   monSpeed: { jellop: 8, minijellop: 9, wolf: 13, king: 8, bat: 16, shroom: 7, boar: 9, shadowwolf: 14, alpha: 11,
-    skeleton: 10, wisp: 14, gargoyle: 7, duelist: 15, hunter: 13, gunner: 14, drainer: 10, deathknight: 11 } as Record<MonsterKind, number>,
+    skeleton: 10, wisp: 14, gargoyle: 7, duelist: 15, hunter: 13, gunner: 14, drainer: 10, deathknight: 11,
+    toad: 10, lizardshaman: 9, hornet: 17, turtleguard: 7, bloater: 8, spiderling: 15, venomqueen: 14, frostgiant: 9, hydra: 11,
+    hellknight: 10, hexwitch: 11, imp: 17, necropriest: 9, wraith: 15, shard: 14, mirage: 14, warlord: 12, lich: 11 } as Record<MonsterKind, number>,
   monDmgMul: 0.55, // monster hit = def.dmg * this
   cleave: 0.5, // hero's swing also hits the 2nd monster for this share
   regenPerTurn: 1.5, // regen stat (%/s in real-time) -> % of max HP per hero turn
@@ -385,4 +503,8 @@ export const BATTLE = {
   parryMul: 1.4, // riposte damage x the duelist's normal hit
   frenzyAt: 0.5, frenzySpeed: 1.4, frenzyLifesteal: 0.6, // hunter below 50% HP
   demonAt: 0.5, demonRegen: 0.02, // drainer below 50% HP: regen share of max HP per turn
+  // ----- Dungeon 4-5: debuffs on the hero (HitFx) -----
+  poisonPct: 0.01, poisonCap: 8, // per stack per hero turn, share of max HP (Lv-15 bot: 1.2%/cap 10 killed Thief in wave 1-2)
+  burnPct: 0.03, burnHealCut: 0.4,
+  weakenMul: 0.75, armorBreakMul: 0.5,
 }

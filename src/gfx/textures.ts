@@ -258,6 +258,146 @@ export function makeTextures(scene: Phaser.Scene) {
     g.fillStyle(0xbfc4d4).fillRect(4, 30, 6, 56); g.fillStyle(0x7a3fa0).fillRect(0, 26, 14, 5) // greatsword
   })
 
+  // --- Dungeon 4 (บึงพิษมรกต) + Dungeon 5 (บัลลังก์อเวจี): original designs, all face left toward the hero
+  const eyes = (g: G, x1: number, x2: number, y: number, c = 0x14172b, r = 2) => g.fillStyle(c).fillCircle(x1, y, r).fillCircle(x2, y, r)
+  make(scene, 'toad', 48, 36, (g) => {
+    g.fillStyle(0x3f7a3a).fillEllipse(24, 24, 40, 22)
+    g.fillStyle(0x9ad04a).fillCircle(14, 22, 3).fillCircle(30, 18, 3.5).fillCircle(34, 27, 2.5) // warts
+    g.fillStyle(0x3f7a3a).fillCircle(12, 12, 7).fillCircle(26, 11, 7)
+    eyes(g, 11, 25, 11, 0xff3a6a, 2.6)
+    g.fillStyle(0x2a5a28).fillRect(4, 30, 10, 5).fillRect(32, 30, 10, 5)
+    g.fillStyle(0xd94a8a).fillRect(4, 22, 9, 2) // tongue
+  })
+  make(scene, 'lizardshaman', 44, 56, (g) => {
+    g.fillStyle(0x4a8a5a).fillTriangle(30, 44, 44, 52, 34, 36) // tail
+    g.fillStyle(0x6a3a8a).fillRoundedRect(12, 22, 22, 26, 6) // robe
+    g.fillStyle(0x4a8a5a).fillEllipse(18, 14, 24, 14) // head + snout
+    eyes(g, 14, 22, 11, 0xf2d24b, 2)
+    g.fillStyle(0xe8e4d4).fillTriangle(16, 2, 22, 8, 26, 0) // bone headdress
+    g.fillStyle(0x8a6a3a).fillRect(4, 10, 3, 42); g.fillStyle(0x6fd08c).fillCircle(5.5, 9, 5) // staff + glowing orb
+  })
+  make(scene, 'hornet', 46, 36, (g) => {
+    g.fillStyle(0xdfe6f2, 0.7).fillEllipse(26, 8, 18, 12).fillEllipse(34, 10, 14, 10) // wings
+    g.fillStyle(0xf2b84b).fillEllipse(30, 22, 22, 14)
+    g.fillStyle(0x14172b).fillRect(26, 15, 3, 14).fillRect(33, 15, 3, 14) // stripes
+    g.fillStyle(0x14172b).fillTriangle(40, 22, 46, 20, 46, 26) // stinger (back)
+    g.fillStyle(0xf2b84b).fillCircle(14, 20, 7); eyes(g, 10, 15, 18, 0xff3a3a, 2)
+    g.fillStyle(0x14172b).fillTriangle(6, 24, 10, 22, 8, 30) // mandible
+  })
+  make(scene, 'turtleguard', 56, 52, (g) => {
+    g.fillStyle(0x5a7a3a).fillRect(18, 40, 8, 12).fillRect(34, 40, 8, 12)
+    g.fillStyle(0x6a5a3a).fillEllipse(32, 28, 40, 34) // shell
+    g.fillStyle(0x8a7a4a); for (const [x, y] of [[26, 22], [38, 22], [32, 33]]) g.fillCircle(x, y, 5)
+    g.fillStyle(0x5a7a3a).fillCircle(12, 20, 8); eyes(g, 9, 14, 18)
+    g.fillStyle(0x9aa0b4).fillRoundedRect(0, 22, 14, 26, 4); g.fillStyle(0xc9c9d6).fillCircle(7, 35, 3) // tower shield
+  })
+  make(scene, 'bloater', 50, 46, (g) => {
+    g.fillStyle(0x8aa03a).fillCircle(26, 26, 19)
+    g.fillStyle(0xd0e070, 0.8).fillCircle(20, 20, 6)
+    g.fillStyle(0xb04a3a).fillCircle(34, 32, 3).fillCircle(16, 34, 2.5).fillCircle(36, 18, 2) // boils
+    eyes(g, 14, 24, 22, 0xff7a3a, 2.4)
+    g.fillStyle(0x6a7a2a).fillRect(14, 42, 7, 4).fillRect(30, 42, 7, 4)
+  })
+  make(scene, 'spiderling', 40, 26, (g) => {
+    g.lineStyle(2, 0x2b2238); for (let i = 0; i < 4; i++) { g.lineBetween(14 + i * 5, 14, 6 + i * 6, 25); g.lineBetween(14 + i * 5, 14, 22 + i * 5, 25) }
+    g.fillStyle(0x4a2a5a).fillEllipse(24, 13, 20, 14)
+    g.fillStyle(0x6fd08c).fillTriangle(22, 9, 28, 9, 25, 15) // venom mark
+    g.fillStyle(0x4a2a5a).fillCircle(10, 13, 6); eyes(g, 8, 12, 12, 0xff3a3a, 1.5)
+  })
+  make(scene, 'venomqueen', 72, 76, (g) => {
+    g.lineStyle(4, 0x2b2238); for (let i = 0; i < 4; i++) { g.lineBetween(36, 52, 6 + i * 6, 74); g.lineBetween(40, 52, 50 + i * 6, 74) }
+    g.fillStyle(0x3a1a4a).fillEllipse(48, 54, 36, 26) // abdomen
+    g.fillStyle(0x6fd08c).fillTriangle(44, 46, 54, 46, 49, 60)
+    duelBody(g, 0x5a2a6a, 0x6fd08c, 0xd0b0e0)
+    g.fillStyle(0x2b2238).fillEllipse(29, 10, 28, 12).fillTriangle(16, 10, 10, 40, 22, 14) // long hair
+    g.fillStyle(0xf2b84b).fillTriangle(22, 6, 26, 0, 30, 6).fillTriangle(30, 6, 34, 0, 38, 6) // crown
+  })
+  make(scene, 'frostgiant', 84, 96, (g) => {
+    g.fillStyle(0x7a9ac0).fillRoundedRect(24, 70, 14, 26, 4).fillRoundedRect(48, 70, 14, 26, 4)
+    g.fillStyle(0x9fc0e0).fillRoundedRect(16, 30, 54, 44, 14) // body
+    g.fillStyle(0xdff2ff).fillTriangle(18, 32, 26, 14, 34, 32).fillTriangle(52, 32, 60, 12, 68, 32) // ice spikes
+    g.fillStyle(0xbfe0f6).fillCircle(42, 22, 14); eyes(g, 36, 46, 21, 0x3a6aff, 3)
+    g.fillStyle(0xe8f4ff).fillRect(32, 30, 20, 6) // frost beard
+    g.fillStyle(0x7a9ac0).fillRoundedRect(0, 38, 22, 34, 6); g.fillStyle(0xdff2ff).fillRoundedRect(0, 62, 24, 22, 6) // club arm
+  })
+  make(scene, 'hydra', 110, 104, (g) => {
+    g.fillStyle(0x2a6a4a).fillEllipse(66, 78, 70, 40) // body
+    g.fillStyle(0x1f5a3a).fillRoundedRect(44, 90, 14, 14, 4).fillRoundedRect(76, 90, 14, 14, 4)
+    g.fillStyle(0x2a6a4a).fillTriangle(96, 76, 110, 96, 92, 90) // tail
+    const head = (x: number, y: number) => {
+      g.fillStyle(0x2a6a4a).fillEllipse(x, y, 26, 16)
+      g.fillStyle(0x9ad04a).fillTriangle(x + 4, y - 8, x + 10, y - 16, x + 12, y - 6)
+      g.fillStyle(0xf2d24b).fillCircle(x - 4, y - 3, 2.4)
+      g.fillStyle(0xe8e4d4).fillTriangle(x - 13, y + 2, x - 9, y + 2, x - 11, y + 7)
+    }
+    g.lineStyle(12, 0x2a6a4a); g.lineBetween(56, 66, 22, 30); g.lineBetween(64, 62, 52, 16); g.lineBetween(72, 66, 84, 32)
+    head(20, 28); head(50, 14); head(82, 30)
+    g.fillStyle(0x6fd08c, 0.8).fillCircle(6, 34, 4) // dripping venom
+  })
+  make(scene, 'hellknight', 52, 60, (g) => {
+    g.fillStyle(0x2b1a2a).fillRect(18, 44, 7, 16).fillRect(30, 44, 7, 16)
+    g.fillStyle(0x5a1a2a).fillRoundedRect(14, 20, 28, 28, 6)
+    g.fillStyle(0x3a2a3a).fillCircle(28, 13, 10); g.fillStyle(0xff5a2a).fillRect(21, 12, 14, 3) // visor glow
+    g.fillStyle(0xff8c42).fillTriangle(20, 4, 24, -2, 26, 6).fillTriangle(30, 6, 32, -2, 36, 4) // flame horns
+    g.fillStyle(0x8a8ea0).fillRect(2, 8, 5, 40); g.fillStyle(0xff5a2a).fillRect(0, 6, 9, 4) // flame sword
+  })
+  make(scene, 'hexwitch', 46, 60, (g) => {
+    g.fillStyle(0x3a1a4a).fillTriangle(8, 60, 38, 60, 23, 22) // robe
+    g.fillStyle(0xc0d0b0).fillCircle(23, 20, 8); eyes(g, 20, 26, 19, 0xff3a6a, 1.8)
+    g.fillStyle(0x2b1a3a).fillTriangle(10, 16, 36, 16, 26, -2).fillRect(6, 14, 34, 4) // hat
+    g.fillStyle(0xd94a8a, 0.85).fillCircle(5, 34, 5); g.fillStyle(0xc0d0b0).fillRect(6, 32, 8, 3) // hex in hand
+  })
+  make(scene, 'imp', 40, 40, (g) => {
+    g.fillStyle(0x8a1a1a).fillTriangle(26, 14, 40, 4, 36, 20).fillTriangle(14, 14, 6, 2, 10, 18) // wings
+    g.fillStyle(0xd94a2a).fillCircle(20, 22, 11)
+    g.fillStyle(0xf2b84b).fillTriangle(12, 12, 14, 4, 17, 12).fillTriangle(23, 12, 26, 4, 28, 12)
+    eyes(g, 16, 23, 20, 0xfff0b8, 2)
+    g.fillStyle(0x14172b).fillRect(15, 27, 9, 2)
+    g.fillStyle(0xffb347).fillCircle(32, 34, 5); g.fillStyle(0x14172b).fillRect(31, 26, 2, 5) // bomb
+  })
+  make(scene, 'necropriest', 46, 62, (g) => {
+    g.fillStyle(0x1b1f3a).fillTriangle(8, 62, 38, 62, 23, 20)
+    g.fillStyle(0x2b2238).fillCircle(23, 18, 11) // hood
+    g.fillStyle(0xe8e4d4).fillCircle(22, 20, 6); eyes(g, 20, 24, 19, 0x6fd08c, 1.4)
+    g.fillStyle(0x8a8ea0).fillRect(4, 12, 3, 48); g.fillStyle(0xe8e4d4).fillCircle(5.5, 10, 5); eyes(g, 4, 7, 10, 0x14172b, 1) // skull staff
+  })
+  make(scene, 'wraith', 44, 52, (g) => {
+    g.fillStyle(0xc9e0ff, 0.35).fillEllipse(22, 30, 40, 46)
+    g.fillStyle(0xdfe6f2).fillTriangle(6, 50, 38, 50, 22, 8)
+    g.fillStyle(0xffffff, 0.8).fillTriangle(14, 34, 22, 14, 20, 40) // glass shine
+    eyes(g, 18, 25, 22, 0x5a7ab8, 2.2)
+  })
+  make(scene, 'shard', 32, 36, (g) => {
+    g.fillStyle(0xc9e0ff).fillTriangle(16, 0, 2, 30, 28, 34)
+    g.fillStyle(0xffffff, 0.8).fillTriangle(16, 4, 10, 26, 16, 24)
+    eyes(g, 13, 19, 22, 0x5a7ab8, 1.6)
+  })
+  make(scene, 'mirage', 60, 76, (g) => {
+    g.fillStyle(0xc9e0ff, 0.3).fillCircle(30, 36, 30)
+    duelBody(g, 0xa0b8e0, 0xffffff, 0xe8f0ff)
+    g.fillStyle(0xffffff).fillEllipse(29, 10, 26, 10)
+    g.fillStyle(0xdfe6f2).fillRoundedRect(2, 26, 12, 18, 3); g.fillStyle(0x9fe3ff).fillRoundedRect(4, 28, 8, 14, 2) // hand mirror
+    g.fillStyle(0xffffff).fillTriangle(44, 20, 58, 14, 50, 30).fillTriangle(46, 40, 60, 38, 50, 50) // floating shards
+  })
+  make(scene, 'warlord', 72, 84, (g) => {
+    g.fillStyle(0x2b2238).fillRoundedRect(24, 64, 10, 20, 2).fillRoundedRect(40, 64, 10, 20, 2)
+    g.fillStyle(0x8a3a2a).fillRoundedRect(18, 30, 38, 38, 8)
+    g.fillStyle(0x5a5e70).fillCircle(20, 32, 9).fillCircle(54, 32, 9) // pauldrons
+    g.fillStyle(0xc9906a).fillCircle(37, 20, 12); eyes(g, 33, 40, 19, 0xff3a3a, 2)
+    g.fillStyle(0x3a2a2a).fillRect(26, 6, 22, 6); g.fillStyle(0xe8e4d4).fillTriangle(26, 8, 18, -2, 28, 4).fillTriangle(48, 8, 56, -2, 46, 4) // horned helm
+    g.fillStyle(0x6a4a2a).fillRect(6, 12, 4, 60); g.fillStyle(0xbfc4d4).fillTriangle(8, 10, -4, 20, 8, 32).fillTriangle(10, 10, 22, 20, 10, 30) // double axe
+  })
+  make(scene, 'lich', 104, 108, (g) => {
+    g.fillStyle(0x6a1a3a, 0.35).fillCircle(52, 54, 50)
+    g.fillStyle(0x1b0f22).fillTriangle(16, 108, 88, 108, 52, 30) // robe
+    g.fillStyle(0x3a1a4a).fillRect(30, 60, 44, 6)
+    g.fillStyle(0xe8e4d4).fillCircle(52, 30, 16); eyes(g, 46, 58, 29, 0x9f7bff, 3.4)
+    g.fillStyle(0x14172b).fillRect(46, 38, 12, 3)
+    g.fillStyle(0xf2b84b).fillTriangle(38, 18, 42, 2, 46, 16).fillTriangle(48, 14, 52, -2, 56, 14).fillTriangle(58, 16, 62, 2, 66, 18) // crown
+    g.fillStyle(0x8a8ea0).fillRect(8, 20, 5, 86); g.fillStyle(0x9f7bff).fillCircle(10.5, 16, 9); g.fillStyle(0xffffff, 0.7).fillCircle(8, 13, 3) // staff
+    g.fillStyle(0xe8e4d4).fillCircle(90, 64, 4).fillCircle(96, 50, 3) // floating skulls
+  })
+
   // --- particles / pickups
   make(scene, 'dot', 8, 8, (g) => { g.fillStyle(0xffffff).fillCircle(4, 4, 4) })
   make(scene, 'coin', 14, 14, (g) => {

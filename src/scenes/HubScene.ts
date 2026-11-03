@@ -48,22 +48,30 @@ export class HubScene extends Phaser.Scene {
     panel(this, 428, 76, 508, 240, 0x2a3358)
     txt(this, 452, 84, '⚔️ ผจญภัย', 20, UI.gold, true)
     const by = s.clearsBy ?? { d1: s.clears }
-    const isLocked = (d: (typeof DUNGEONS)[number]) => (d.unlock === 'job' && s.job === 'novice') || (d.unlock === 'd2' && !(by.d2 > 0))
+    const isLocked = (d: (typeof DUNGEONS)[number]) => (d.unlock === 'job' && s.job === 'novice') || (d.unlock.startsWith('d') && !(by[d.unlock] > 0))
+    const prevName = (u: string) => DUNGEONS.find((x) => x.id === u)?.name ?? u
+    const rowH = Math.min(66, Math.floor(200 / DUNGEONS.length)) // 5 dungeons: compact rows
+    const compact = rowH < 60
     DUNGEONS.forEach((d, i) => {
-      const y = 114 + i * 66
+      const y = 112 + i * rowH
       const locked = isLocked(d)
       const n = by[d.id] ?? 0
       const mini = d.rooms.some((r) => r.mini)
-      txt(this, 452, y, `${i + 1}. ${d.name}`, 17, locked ? UI.sub : UI.text, true)
-      txt(this, 452, y + 22, `${d.rooms.length - 1 - (mini ? 1 : 0)} เวฟ${mini ? ' + ดวล 1-1' : ''} + บอส${d.boss}`, 13, UI.sub)
-      const lockMsg = d.unlock === 'd2' ? '🔒 ปลดล็อกหลังเคลียร์ดัน 2' : '🔒 ปลดล็อกหลังเปลี่ยนอาชีพ'
-      txt(this, 452, y + 40, locked ? lockMsg : n ? `เคลียร์แล้ว ${n} ครั้ง` : `เคลียร์ครั้งแรกได้เพชร ${FREE_GEMS.firstClear}`, 13, locked ? '#ff9a9a' : n ? UI.sub : UI.gem)
-      const b = button(this, 856, y + 26, 130, 50, locked ? '🔒' : 'ลุย!', () => {
+      const info = `${d.rooms.length - 1 - (mini ? 1 : 0)} เวฟ${mini ? ' + ดวล 1-1' : ''} + บอส${d.boss}`
+      const lockMsg = d.unlock === 'job' ? '🔒 ปลดล็อกหลังเปลี่ยนอาชีพ' : `🔒 ปลดล็อกหลังเคลียร์${prevName(d.unlock)}`
+      const status = locked ? (compact ? '🔒 ล็อก' : lockMsg) : n ? `เคลียร์แล้ว ${n} ครั้ง` : compact ? `ครั้งแรก 💎${FREE_GEMS.firstClear}` : `เคลียร์ครั้งแรกได้เพชร ${FREE_GEMS.firstClear}`
+      txt(this, 452, y, `${i + 1}. ${d.name}${d.tier >= 4 ? ' 💀' : ''}`, compact ? 15 : 17, locked ? UI.sub : UI.text, true)
+      if (compact) txt(this, 452, y + 19, `${info} · ${status}`, 11, locked ? '#ff9a9a' : n ? UI.sub : UI.gem).setWordWrapWidth(320)
+      else {
+        txt(this, 452, y + 22, info, 13, UI.sub)
+        txt(this, 452, y + 40, status, 13, locked ? '#ff9a9a' : n ? UI.sub : UI.gem)
+      }
+      const b = button(this, 856, y + (compact ? 18 : 26), 130, compact ? 34 : 50, locked ? '🔒' : 'ลุย!', () => {
         // playtest: a locked dungeon still opens, after a warning
-        const why = d.unlock === 'd2' ? 'แนะนำให้เคลียร์ดัน 2 ก่อน มอนแรงมาก' : 'แนะนำให้เคลียร์ดัน 1 แล้วเปลี่ยนอาชีพก่อน\nโนวิสจะยากมาก'
+        const why = d.unlock === 'job' ? 'แนะนำให้เคลียร์ดัน 1 แล้วเปลี่ยนอาชีพก่อน\nโนวิสจะยากมาก' : `แนะนำให้เคลียร์${prevName(d.unlock)}ก่อน มอนแรงมาก`
         if (locked) { confirm(this, `${d.name} ยังล็อกอยู่`, `${why} (โหมดทดสอบ: ลองได้)`, 'ลองเลย', () => go(this, 'battle', { d: i })); return }
         go(this, 'battle', { d: i })
-      }, { size: 20, fill: locked ? 0x4a4e6e : undefined, color: locked ? UI.sub : undefined })
+      }, { size: compact ? 17 : 20, fill: locked ? 0x4a4e6e : undefined, color: locked ? UI.sub : undefined })
       const nextLocked = i === DUNGEONS.length - 1 || isLocked(DUNGEONS[i + 1])
       if (!locked && nextLocked) this.tweens.add({ targets: b, scale: 1.05, duration: 700, yoyo: true, repeat: -1 })
     })
