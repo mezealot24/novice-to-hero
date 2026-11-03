@@ -3,7 +3,9 @@ import { afterDef, BATTLE, COLORS, COMMON_PERKS, hitChance, DUNGEONS, FONT_NUM, 
 import { EVENT_RULES, rollEvent, type EventDef } from '../data/events'
 import { COSTUMES, FREE_GEMS, heroStats, PER_POINT, RESOURCES, totalBase } from '../data/meta'
 import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster } from '../data/cards'
-import { JOBS, MAGE_SPELL, RES_RULES, SWORD_MANA, skillPow, type JobDef } from '../data/jobs'
+import { JOBS, MAGE_SPELL, RES_RULES, SWORD_MANA, type JobDef } from '../data/jobs'
+import { skill2Picked } from '../data/tree'
+import type { Skill2Def } from '../data/skill2'
 import { addCard, addXp, persist, save } from '../save'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
@@ -36,6 +38,7 @@ interface Mon {
   speedMul: number; dmgMul: number; reflect: number; chargeEvery: number
   skills: MonSkill[]; onHit?: HitFx; slamFx?: HitFx
   revived: boolean // came back once (necro): can't be raised again
+  weakTurns: number; weakPct: number // hero Skill 2 ท้าทาย: hits weaker for its next N turns
 }
 type Element = 'lightning' | 'fire' | 'ice'
 const BOLT_MAX_LV = 5 // Lightning Bolt card: Lv1 + 4 repeats (design/skill-tree-mage.md)
@@ -191,7 +194,9 @@ export class BattleScene extends Phaser.Scene {
     this.st = heroStats(s)
     this.hp = this.st.maxHp; this.smashCdLeft = 0; this.heroGauge = 0; this.zapCount = 0; this.emergencyUsed = false; this.firstOffer = true
     this.job = JOBS[s.job ?? 'novice']
-    this.jobSkills = { ...(s.jobSkills ?? { auto: 1, ult: 1 }) }
+    this.s2 = this.job.id === 'novice' ? undefined : skill2Picked(s.jobTree, this.job.id); this.s2Cd = 0
+    this.buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0 }; this.s2Count = 0
+    if (this.s2?.id === 'cl_spear') this.st.spearMul += 0.03 * this.st.s2Lv // หอกคม: +10%/lv of the 0.3x base
     this.res = this.job.resource === 'rage' ? 0 : this.resMax()
     this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0
     this.heroSpr.setTexture(this.job.tex).setTint((COSTUMES.find((c) => c.id === s.costume) ?? COSTUMES[0]).tint).setAngle(0).setAlpha(1)
@@ -286,7 +291,7 @@ export class BattleScene extends Phaser.Scene {
     const spr = this.add.image(W + 80, y, def.tex).setOrigin(0.5, 1).setScale(kind === 'minijellop' ? 1.1 : big ? 1.6 : 1.5).setDepth(y)
     if (FACES_RIGHT.includes(kind)) spr.setFlipX(true)
     const m: Mon = { kind, def, spr, shadow, hp: def.hp, gauge: gauge ?? Phaser.Math.Between(0, 40), dead: false, slot, turns: 0, charging: false, summoned: false, chargeDmg: 0, burnStacks: 0, burnStackTurns: 0, chill: 0, frozen: false, burn: 0, burnTurns: 0, poison: 0, poisonDmg: 0, parry: false, ice: 0, iceChance: 0, iced: false, hell: 0, harvestMark: 0,
-      shield: 0, atkUp: 0, atkUpTurns: 0, phase: 0, speedMul: 1, dmgMul: 1, reflect: def.reflect ?? 0, chargeEvery: def.chargeEvery ?? BATTLE.slamEvery, skills: def.skills ?? [], onHit: def.onHit, slamFx: def.slamFx, revived: false }
+      shield: 0, atkUp: 0, atkUpTurns: 0, phase: 0, speedMul: 1, dmgMul: 1, reflect: def.reflect ?? 0, chargeEvery: def.chargeEvery ?? BATTLE.slamEvery, skills: def.skills ?? [], onHit: def.onHit, slamFx: def.slamFx, revived: false, weakTurns: 0, weakPct: 0 }
     this.mons.push(m)
     this.tweens.add({ targets: [spr, shadow], x, duration: 600, ease: 'Quad.easeOut', delay: slot * 90 })
     return m
@@ -412,6 +417,8 @@ export class BattleScene extends Phaser.Scene {
     this.overflow = this.st.mgOverflow > 0 && this.job.resource === 'mana' && this.res >= this.resMax() * 0.9 // mage talent พลังล้น
     if (this.st.boltHits > 0 && this.alive().length) await this.lightningBolt() // storm card: Lightning Bolt
     if (this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + RES_RULES.energyPerTurn + this.st.arTurnRes)
+    await this.skill2Turn()
+    if (!this.alive().length || this.hp <= 0) return
     if (this.st.arHawk > 0 && ++this.hawkTurn % 3 === 0) { const t = this.alive(); if (t.length) { const m = t[Phaser.Math.Between(0, t.length - 1)]; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, '🦅', '#f2d24b'); this.strike(m, this.st.arHawk, true, '#f2d24b') } } // archer talent เหยี่ยวคู่ใจ
     if (this.smashQueued && this.smashCdLeft <= 0 && this.hx.silence > 0) this.floatText(HERO_X, GROUND - 140, `🤐 ใบ้! อีก ${this.hx.silence} เทิร์น`, '#c9a8ff')
     const ultCost = this.ultCost()
@@ -434,7 +441,12 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private job: JobDef = JOBS.novice
-  private jobSkills = { auto: 1, ult: 1 }
+  // ----- skill web v1: Skill 2 (data/skill2.ts, design/skill-web-v1.md) -----
+  private s2?: Skill2Def
+  private s2Cd = 0 // hero turns until Skill 2 can cast again
+  private buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0 } // hero turns left on Skill 2 buffs
+  private s2Count = 0 // casts this run (bot/debug)
+  private s2Txt?: Phaser.GameObjects.Text // HUD line above the ult button
   private res = 0
   private shield = 0
   private dodgeCharges = 0
@@ -468,7 +480,7 @@ export class BattleScene extends Phaser.Scene {
    *  Magic never misses and never crits. Returns damage dealt. */
   private strike(m: Mon, mul: number, magic = false, color?: string, pierce = 0): number {
     if (m.dead || this.hp <= 0) return 0
-    const crit = Math.random() < (magic ? this.st.spellCrit : this.st.crit) // magic crits only with spellCrit (talent/item/card)
+    const crit = Math.random() < (magic ? this.st.spellCrit : this.st.crit + (this.buf.hawk > 0 ? 0.2 + 0.05 * this.st.s2Lv : 0)) // magic crits only with spellCrit (talent/item/card) · Skill 2 ตาเหยี่ยว
     if (!magic && !crit && Math.random() > hitChance(this.st.hit, m.def.flee ?? 5)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
     if (m.parry) { this.parried(m); return 0 }
     if (m.chill > 0 && this.st.brittle > 0) mul *= 1 + this.st.brittle // tree: ice "เปราะ"
@@ -479,7 +491,8 @@ export class BattleScene extends Phaser.Scene {
     this.damageMon(m, r.dmg, r.crit, color)
     if (!magic && this.st.poison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.poison); m.poisonDmg = this.st.poisonDmg; this.dotIcon(m) }
     if (this.relic === 'hellfire' && !m.dead) { m.hell++; this.dotIcon(m) }
-    if (this.st.lifesteal > 0) this.heal(r.dmg * this.st.lifesteal * (this.berserking() ? 2 : 1), true)
+    const ls = this.st.lifesteal + (this.buf.blood > 0 ? 0.15 + 0.05 * this.st.s2Lv : 0) // Skill 2 เลือดเดือด
+    if (ls > 0) this.heal(r.dmg * ls * (this.berserking() ? 2 : 1), true)
     if (r.crit) sfx.crit(); else sfx.hit()
     this.gainRage(RES_RULES.rageOnHit)
     return r.dmg
@@ -548,13 +561,104 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  /** Skill 2: buffs tick down, then it casts by itself (free extra action) when ready, paid for and useful. */
+  private async skill2Turn() {
+    const B = this.buf
+    if (B.renew > 0) { B.renew--; this.heal(this.st.maxHp * (0.06 + 0.01 * this.st.s2Lv)) }
+    for (const k of ['guard', 'blood', 'hawk', 'mshield'] as const) if (B[k] > 0) B[k]--
+    const k = this.s2
+    if (!k || this.hx.silence > 0 || !this.alive().length) return
+    if (this.s2Cd > 0) { this.s2Cd--; return }
+    if (this.res < k.cost) return
+    if (this.smashQueued && this.smashCdLeft <= 0 && this.res - k.cost < this.ultCost()) return // keep Mana for the booked ult
+    if (k.id === 'mg_mshield' && B.mshield > 0) return
+    if (k.id === 'cl_renew' && (B.renew > 0 || this.hp >= this.st.maxHp * 0.9)) return
+    if (k.id === 'sw_guard' && B.guard > 0) return
+    this.res -= k.cost
+    this.s2Cd = Math.max(1, k.cd - (k.id === 'cl_bless' && this.st.s2Star ? 1 : 0))
+    this.s2Count++
+    await this.castSkill2(k)
+  }
+
+  private async castSkill2(k: Skill2Def) {
+    const lv = this.st.s2Lv, star = this.st.s2Star > 0, B = this.buf
+    this.floatText(HERO_X, GROUND - 160, `${k.icon} ${k.name}`, '#7fd7ff')
+    const front = () => this.front()[0]
+    const bossFirst = () => this.alive().find((m) => m.def.ai === 'boss') ?? this.alive().sort((x, y) => y.hp - x.hp)[0]
+    switch (k.id) {
+      case 'sw_guard': B.guard = star ? 3 : 2; this.ctrCharges = Math.max(this.ctrCharges, star ? 2 : 1); this.floatText(HERO_X, GROUND - 100, '🛡️ ตั้งการ์ด', '#9fe3ff'); break
+      case 'sw_blood': B.blood = 3; this.burst(HERO_X, GROUND - 40, 0xc0392b, 14, 160); break
+      case 'sw_taunt':
+        for (const m of this.alive()) { m.weakTurns = star ? 3 : 2; m.weakPct = 0.2 + 0.05 * lv; this.dotIcon(m) }
+        if (star) this.gainRage(15)
+        this.cameras.main.shake(80, 0.004)
+        break
+      case 'ar_rain':
+        for (let w = 0; w < (star ? 2 : 1); w++) {
+          this.burst(700, GROUND - 60, 0xf6eedc, 20, 240)
+          for (const m of this.alive()) this.strike(m, 0.8 + 0.15 * lv)
+          await this.wait(BATTLE.stepMs * 0.3)
+        }
+        break
+      case 'ar_hawk': B.hawk = 3; break
+      case 'ar_trap':
+        for (const m of star ? this.alive() : [front()].filter(Boolean) as Mon[]) { this.strike(m, 0.6); m.gauge -= 30 + 10 * lv; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, '🪤', '#c9c9d6') }
+        break
+      case 'mg_mshield': B.mshield = star ? 5 : 3; this.floatText(HERO_X, GROUND - 100, '🔷 Mana Shield', '#5aa0ff'); break
+      case 'mg_nova':
+        this.burst(700, GROUND - 20, 0x9fe3ff, 30, 300)
+        for (const m of this.alive()) {
+          this.strike(m, 0.8 + 0.15 * lv, true, '#9fe3ff')
+          if (m.dead) continue
+          m.chill = Math.max(m.chill, 2 + (star ? 1 : 0)); if (star) m.gauge -= 15
+          if (!m.charging) m.spr.setTint(0x9fe3ff); this.dotIcon(m)
+        }
+        await this.wait(BATTLE.stepMs * 0.3)
+        break
+      case 'mg_arcane': {
+        let t = bossFirst()
+        for (let i = 0; i < 3 + (star ? 2 : 0); i++) {
+          if (!t || t.dead) { t = bossFirst(); if (!t) break }
+          const m = t
+          await this.shoot(m, 0xc9a8ff, () => this.strike(m, 0.6 + 0.1 * lv, true, '#c9a8ff'))
+        }
+        break
+      }
+      case 'cl_renew': B.renew = star ? 6 : 4; this.burst(HERO_X, GROUND - 40, 0x6fd08c, 14, 160); break
+      case 'cl_bless': this.addShield(this.st.maxHp * (0.2 + 0.04 * lv)); break
+      case 'cl_spear': this.spears += star ? 4 : 2; break // "+" node: spearMul set at run start
+      case 'th_smoke':
+        this.dodgeCharges = Math.max(this.dodgeCharges, star ? 2 : 1)
+        if (lv > 0) this.heal(this.st.maxHp * 0.03 * lv)
+        this.burst(HERO_X, GROUND - 40, 0xc9c9d6, 16, 180)
+        break
+      case 'th_pick': {
+        const m = front(); if (!m) break
+        await this.lunge(m, () => {
+          this.strike(m, star ? 1.6 : 1)
+          if (star && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + 3); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) }
+        })
+        this.res = Math.min(this.resMax(), this.res + 15 + 5 * lv)
+        break
+      }
+      case 'th_wound': {
+        const m = front(); if (!m) break
+        await this.lunge(m, () => {
+          this.strike(m, star ? 2 : 1.2, false, '#ff7a7a', 1)
+          if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + 4 + lv); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) }
+        })
+        break
+      }
+    }
+  }
+
   private async skillName(sk: { name: string; icon: string }) {
     this.floatText(HERO_X, GROUND - 130, `${sk.icon} ${sk.name}`, '#f2b84b')
     await this.wait(150)
   }
 
   private async autoSkill() {
-    const pow = skillPow(this.jobSkills.auto)
+    const pow = 1 + this.st.s1Pow // skill web: ทักษะ 1 +power node
     await this.skillName(this.job.auto)
     const live = this.front()
     switch (this.job.id) {
@@ -596,7 +700,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private async ultimate() {
-    const pow = skillPow(this.jobSkills.ult)
+    const pow = 1 + this.st.ultPow // skill web: Ult +power node
     const hitPow = pow * (1 + this.st.ultAmp) // run pick บดกระดูก: damage only, shields/heals stay
     await this.skillName(this.job.ult)
     sfx.slam()
@@ -749,7 +853,7 @@ export class BattleScene extends Phaser.Scene {
   /** RO-style crit: physical only, uses max ATK (no low roll) x critMul (base 1.4 + crit-damage bonuses). Caller skips DEF on a crit. */
   private roll(mul = 1, magic = false, crit = Math.random() < (magic ? this.st.spellCrit : this.st.crit)) { // magic crit: spellCrit only, max M.ATK roll
     const base = (magic ? this.st.matk * (crit ? 1.1 : Phaser.Math.FloatBetween(0.9, 1.1)) : this.st.atk * (crit ? 1 : Phaser.Math.FloatBetween(this.st.minPct, 1))) * (this.berserking() ? 1.4 : 1) * this.atkMul()
-    return { dmg: Math.max(1, Math.round(base * mul * (crit ? this.st.critMul : 1))), crit }
+    return { dmg: Math.max(1, Math.round(base * mul * (crit ? this.st.critMul + (this.buf.hawk > 0 && this.st.s2Star ? 0.3 : 0) : 1))), crit } // Skill 2 ★ เล็งจุดตาย
   }
 
   /** Monster P.DEF (stat spec v1 formula). Magic skips this. */
@@ -888,6 +992,7 @@ export class BattleScene extends Phaser.Scene {
   private async monTurn(m: Mon) {
     m.turns++
     if (m.atkUpTurns > 0 && --m.atkUpTurns === 0) { m.atkUp = 0; this.dotIcon(m) }
+    if (m.weakTurns > 0 && --m.weakTurns === 0) this.dotIcon(m)
     if ((m.marked ?? 0) > 0) m.marked!--
     // damage over time first
     if (m.burnTurns > 0) { m.burnTurns--; this.damageMon(m, m.burn, false, '#ff8c42', true); if (!m.burnTurns) this.dotIcon(m) }
@@ -1030,7 +1135,7 @@ export class BattleScene extends Phaser.Scene {
     if (Math.random() > hitChance(monHit, this.st.flee, 0.8 - this.st.fleeFloor)) return dodged('EVADE!', '#9fe3ff') // Thief เงาบาง lowers the floor
     const ab = this.hx.armorBreak > 0 ? BATTLE.armorBreakMul : 1 // เกราะแตก: P.DEF / M.DEF count half
     const raw = magic ? dmg * (1 - this.st.mdef * ab) : afterDef(dmg, this.st.def * ab)
-    let n = Math.max(1, Math.round(raw * (1 - this.st.guard)))
+    let n = Math.max(1, Math.round(raw * (1 - this.st.guard) * (this.buf.guard > 0 ? 1 - (0.4 + 0.05 * this.st.s2Lv) : 1))) // Skill 2 ตั้งการ์ด
     this.lastHurt = n
     if (this.relic === 'thornaura' && src && !src.dead) { this.damageMon(src, Math.max(1, Math.round(n * RELIC_RULES.thornaura.back)), false, '#7fd08c', true); this.floatText(src.spr.x, src.spr.y - src.spr.displayHeight - 30, '🌵 หนาม!', '#7fd08c') }
     this.gainRage(RES_RULES.rageOnHurt + this.st.rageOnHurtAdd) // talent: แค้นฝังใจ
@@ -1044,6 +1149,12 @@ export class BattleScene extends Phaser.Scene {
         for (const m of this.alive()) { this.strike(m, this.st.barrierBoom, true, '#c9a8ff'); if (this.st.barrierBoom >= 1.6) m.gauge -= 20 }
       }
       if (this.st.thorns > 0 && src && !src.dead) this.damageMon(src, Math.max(1, Math.round(absorbed * this.st.thorns)), false, '#9fe3ff', true) // tree: "โล่หนาม"
+      if (n <= 0) return true
+    }
+    if (this.buf.mshield > 0 && this.job.resource === 'mana' && this.res > 0) { // Skill 2 Mana Shield (active, v27)
+      const paid = Math.min(Math.floor(this.res), Math.round(n * (0.4 + 0.05 * this.st.s2Lv)))
+      this.res -= paid; n -= paid
+      if (paid > 0) this.floatText(HERO_X, GROUND - 110, `🔷 -${paid}`, '#5aa0ff')
       if (n <= 0) return true
     }
     this.hp = Math.max(0, this.hp - n)
@@ -1085,7 +1196,7 @@ export class BattleScene extends Phaser.Scene {
 
   private dotIcon(m: Mon) {
     if (!m.dotTxt) m.dotTxt = this.add.text(0, 0, '', { fontSize: '14px' }).setOrigin(0.5).setDepth(9500)
-    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.reflect > 0 ? '🪞' : ''}`)
+    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${m.reflect > 0 ? '🪞' : ''}`)
   }
 
   // ---------- xp / perks ----------
@@ -1267,7 +1378,7 @@ export class BattleScene extends Phaser.Scene {
   private lastHurt = 0
   private bestAtk() { return Math.max(this.st.atk, this.st.matk) * this.atkMul() }
   private atkMul() {
-    return (this.relic === 'trinity' ? 1 + RELIC_RULES.trinity.atkPct : 1) * (1 + this.harvest * RELIC_RULES.harvest.perKill)
+    return (this.relic === 'trinity' ? 1 + RELIC_RULES.trinity.atkPct : 1) * (1 + this.harvest * RELIC_RULES.harvest.perKill) * (this.buf.blood > 0 && this.st.s2Star ? 1.15 : 1)
       * (this.hx.weaken > 0 ? BATTLE.weakenMul : 1) * (this.relic === 'aegis' && this.shield > 0 ? 1 + RELIC_RULES.aegis.dmg : 1)
   }
 
@@ -1275,7 +1386,7 @@ export class BattleScene extends Phaser.Scene {
   private monMul(m: Mon) {
     let k = m.iced ? 1 - RELIC_RULES.iceage.atkDown : 1
     if (m.def.mini === 'hunter' && this.hp < this.st.maxHp * 0.5) k *= 1.2
-    return k * m.dmgMul * (m.atkUpTurns > 0 ? 1 + m.atkUp : 1)
+    return k * m.dmgMul * (m.atkUpTurns > 0 ? 1 + m.atkUp : 1) * (m.weakTurns > 0 ? 1 - m.weakPct : 1)
   }
 
   /** Heal cut on a monster: Hellfire 5%/stack (max 50%), otherwise 25% while any normal burn is on it. */
@@ -1657,6 +1768,7 @@ export class BattleScene extends Phaser.Scene {
     button(this, W - 30, 110, 38, 38, 'II', () => this.showPause(), { size: 16, fill: 0x2a2e50, color: '#f6eedc' }).setDepth(15003)
     this.speedBtn = button(this, W - 90, 110, 70, 38, '▶ x1', () => this.setFast(!this.fast), { size: 15, fill: 0x2a2e50, color: '#f6eedc' }).setDepth(15003) as Btn
     this.smashBtn = button(this, W - 100, H - 70, 160, 84, 'ทุบ!', () => this.queueSmash(), { size: 22 }).setDepth(15003) as Btn
+    this.s2Txt = this.add.text(W - 100, H - 124, '', { fontSize: '13px', color: '#7fd7ff', fontStyle: 'bold', stroke: '#14172b', strokeThickness: 3 }).setOrigin(0.5).setDepth(15003)
     this.debuffTxt = this.add.text(22, 98, '', { fontFamily: FONT_UI, fontSize: '15px', color: '#ffb0e0', stroke: '#14172b', strokeThickness: 4 }).setDepth(15001)
     this.setFast(false)
   }
@@ -1719,6 +1831,8 @@ export class BattleScene extends Phaser.Scene {
     })
 
     // smash button state
+    const k2 = this.s2
+    this.s2Txt?.setText(k2 ? `${k2.icon} ${k2.name} ${this.s2Cd > 0 ? `อีก ${this.s2Cd}` : this.res < k2.cost ? `รอ ${k2.cost}` : 'พร้อม'}` : '')
     const ready = this.smashCdLeft <= 0
     const u = this.job.ult
     const cost = this.ultCost(), short = cost > 0 && this.res < cost
