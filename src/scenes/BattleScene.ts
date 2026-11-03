@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { afterDef, BATTLE, COLORS, COMMON_PERKS, hitChance, DUNGEONS, FONT_NUM, FONT_UI, H, MONSTERS, PERKS, PLAYER, RULES, SET_BONUS, TAGS, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Perk, type Stats, type Tag } from '../data/game-data'
 import { EVENT_RULES, rollEvent, type EventDef } from '../data/events'
 import { COSTUMES, FREE_GEMS, heroStats, RESOURCES } from '../data/meta'
-import { JOBS, RES_RULES, skillPow, type JobDef } from '../data/jobs'
+import { JOBS, MAGE_SPELL, RES_RULES, skillPow, type JobDef } from '../data/jobs'
 import { addXp, persist, save } from '../save'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
@@ -409,14 +409,18 @@ export class BattleScene extends Phaser.Scene {
     if (this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + RES_RULES.energyPerTurn + this.st.arTurnRes)
     if (this.st.arHawk > 0 && ++this.hawkTurn % 3 === 0) { const t = this.alive(); if (t.length) { const m = t[Phaser.Math.Between(0, t.length - 1)]; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, '🦅', '#f2d24b'); this.strike(m, this.st.arHawk, true, '#f2d24b') } } // archer talent เหยี่ยวคู่ใจ
     if (this.smashQueued && this.smashCdLeft <= 0 && this.hx.silence > 0) this.floatText(HERO_X, GROUND - 140, `🤐 ใบ้! อีก ${this.hx.silence} เทิร์น`, '#c9a8ff')
-    if (this.smashQueued && this.smashCdLeft <= 0 && this.hx.silence <= 0) {
+    const ultCost = this.ultCost()
+    const ultWaiting = this.smashQueued && this.smashCdLeft <= 0 && this.hx.silence <= 0 // ult ready and booked
+    if (ultWaiting && this.res >= ultCost) {
       this.smashQueued = false
       this.smashCdLeft = this.ultTurns()
+      this.res -= ultCost
       await (this.job.id === 'novice' ? this.smash() : this.ultimate())
       return
     }
+    if (ultWaiting) this.floatText(HERO_X, GROUND - 140, `🔷 Mana ไม่พอ ult (${Math.floor(this.res)}/${ultCost})`, '#5aa0ff') // keep it booked, save Mana for it
     const autoCost = Math.max(10, this.job.auto.cost - this.st.autoCostCut)
-    if (this.job.resource && this.res >= autoCost && this.alive().length) {
+    if (this.job.resource && !ultWaiting && this.res >= autoCost && this.alive().length) {
       this.res -= autoCost
       await this.autoSkill()
       return
@@ -430,6 +434,8 @@ export class BattleScene extends Phaser.Scene {
   private shield = 0
   private dodgeCharges = 0
   private ctrCharges = 0 // Swordsman talent ท่าสวนพร้อม: sure counters left
+  /** Mana the ult costs (Mage); 0 for every other job. */
+  private ultCost() { return this.job.resource === 'mana' ? this.job.ult.cost ?? 0 : 0 }
   private resMax() { return this.job.resource === 'rage' ? RES_RULES.rageMax : this.job.resource === 'energy' ? RES_RULES.energyMax : this.st.maxRes }
   private ultTurns() {
     const t = this.job.id === 'novice' ? this.smashTurns() : Math.max(2, this.job.ult.cd + this.st.mgUltCd)
@@ -514,12 +520,15 @@ export class BattleScene extends Phaser.Scene {
       }
       await this.shoot(f, 0xf6eedc, () => this.strike(f, mul))
     }
-    else if (kind === 'mage') await this.shoot(f, 0x9f7bff, () => this.strike(f, 1, true, '#c9a8ff'))
+    else if (kind === 'mage') await this.shoot(f, 0x9f7bff, () => this.strike(f, MAGE_SPELL.basicMul, true, '#c9a8ff')) // weak free magic bolt; real damage = Mana spells
     else if (kind === 'thief') await this.lunge(f, () => { this.strike(f, 0.6); this.strike(f, 0.6) })
     else if (kind === 'cleric') await this.lunge(f, () => { this.strike(f, 1); this.strike(f, 0.9, true, '#f6e27a') }) // mace + holy spark (M.ATK); 0.6 -> 0.9 so Cleric beats the boss turn limit
     else await this.lunge(f, () => { const cl = BATTLE.cleave + this.st.cleaveAdd; if (live[1]) { this.strike(f, 1); this.strike(live[1], cl) } else this.strike(f, 1 + (kind === 'swordsman' ? cl : 0)) }) // novice, swordsman: cleave (+talent ฟันกวาด) · swordsman alone vs 1 monster: the cleave lands on it too
     this.hits++
-    if (this.st.fireEvery > 0 && this.hits % this.st.fireEvery === 0) await this.fireBolt()
+    if (this.st.fireEvery > 0 && this.hits % this.st.fireEvery === 0) {
+      if (this.job.id !== 'mage') await this.fireBolt()
+      else if (this.res >= MAGE_SPELL.fireBolt) { this.res -= MAGE_SPELL.fireBolt; await this.fireBolt() } // Mage: card spells cost Mana
+    }
   }
 
   private async skillName(sk: { name: string; icon: string }) {
@@ -685,6 +694,11 @@ export class BattleScene extends Phaser.Scene {
 
   /** Storm card Lightning Bolt: N hits at 0.3x M.ATK, random targets, at the start of the hero's turn. */
   private async lightningBolt() {
+    if (this.job.id === 'mage') { // Mage: card spells cost Mana (all hits or nothing)
+      const cost = this.st.boltHits * MAGE_SPELL.boltPerHit
+      if (this.res < cost) return
+      this.res -= cost
+    }
     this.zapTurn.clear()
     for (let i = 0; i < this.st.boltHits; i++) {
       const l = this.alive(); if (!l.length) break
@@ -992,12 +1006,6 @@ export class BattleScene extends Phaser.Scene {
         for (const m of this.alive()) { this.strike(m, this.st.barrierBoom, true, '#c9a8ff'); if (this.st.barrierBoom >= 1.6) m.gauge -= 20 }
       }
       if (this.st.thorns > 0 && src && !src.dead) this.damageMon(src, Math.max(1, Math.round(absorbed * this.st.thorns)), false, '#9fe3ff', true) // tree: "โล่หนาม"
-      if (n <= 0) return true
-    }
-    if (this.st.manaShield > 0 && this.job.resource === 'mana' && this.res > 0) { // Mage: Mana Shield
-      const paid = Math.min(this.res, Math.round(n * this.st.manaShield))
-      this.res -= paid; n -= paid
-      if (paid > 0) this.floatText(HERO_X, GROUND - 110, `🔷 -${paid}`, '#5aa0ff')
       if (n <= 0) return true
     }
     this.hp = Math.max(0, this.hp - n)
@@ -1672,7 +1680,9 @@ export class BattleScene extends Phaser.Scene {
     // smash button state
     const ready = this.smashCdLeft <= 0
     const u = this.job.ult
-    this.smashBtn.setLabel(this.smashQueued ? (ready ? `${u.icon} ตาหน้า!\n(แตะยกเลิก)` : `จองไว้แล้ว\nอีก ${this.smashCdLeft} เทิร์น`) : ready ? `${u.icon} ${u.name}\nพร้อม` : `${u.name}\nอีก ${this.smashCdLeft} เทิร์น`)
+    const cost = this.ultCost(), short = cost > 0 && this.res < cost
+    const tag = cost > 0 ? ` · 🔷${cost}` : ''
+    this.smashBtn.setLabel(this.smashQueued ? (ready ? (short ? `รอ Mana\n${Math.floor(this.res)}/${cost}` : `${u.icon} ตาหน้า!\n(แตะยกเลิก)`) : `จองไว้แล้ว\nอีก ${this.smashCdLeft} เทิร์น`) : ready ? `${u.icon} ${u.name}\n${short ? `Mana ไม่พอ${tag}` : `พร้อม${tag}`}` : `${u.name}\nอีก ${this.smashCdLeft} เทิร์น`)
     this.smashBtn.setAlpha(ready || this.smashQueued ? 1 : 0.6)
   }
 

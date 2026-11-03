@@ -44,7 +44,6 @@ export interface Stats {
   smashCd: number // ms
   smashCost: number // resource per Smash
   revive: number // times the hero gets back up this run (Phoenix card)
-  manaShield: number // share of damage taken that Mana pays instead of HP, 1:1 (Mage)
   counter: number // 0..1 chance to hit back when a monster's attack lands (cards/gear major, VIT minor)
   combo: number // 0..1 chance a basic attack chains another one, up to BATTLE.comboMax extra (AGI)
   dodgeHeal: number // share of max HP healed whenever a monster attack is dodged (Thief gear)
@@ -156,7 +155,7 @@ export const PLAYER: Stats = {
   hit: 10, flee: 5, luckyDodge: 0, legendChance: 0.03, eventChance: 0.1, dropChance: 0.04, maxRes: 60, resRegen: 3,
   aspd: 1.6, range: 110, crit: 0, critMul: 1.4, /* Q: crit only from items, skill tree, talents (+ in-run cards) */ speed: 190,
   guard: 0, lifesteal: 0, regen: 0, fireEvery: 0, boltMul: 2, burnDps: 0, poison: 0, poisonDmg: 2,
-  smashMul: 3, smashCd: 6000, smashCost: 0, revive: 0, manaShield: 0, counter: 0, combo: 0, dodgeHeal: 0, waveShield: 0,
+  smashMul: 3, smashCd: 6000, smashCost: 0, revive: 0, counter: 0, combo: 0, dodgeHeal: 0, waveShield: 0,
   thorns: 0, rageGain: 0, autoCostCut: 0, ctrAoe: 0, berserk: 0, pierce: 0, lockOn: 0, dodgeStrike: 0, lightMax: 0, overload: 0, lightLuck: 0, burnCap: 0, autoBurn: 0, fireSpread: 0, chillPlus: 0, brittle: 0, shatter: 0, reviveHp: 0, smiteTargets: 0, holyCounter: 0, overhealShield: 0, poisonCap: 0, poisonSpread: 0, fleeFloor: 0, waveDodge: 0, dodgeEnergy: 0, ultDodge: 0, ultHits: 0, ultPoison: 0, poisonAmp: 0, lightHits: 0, lightChain: 0, burnTick: 0, chillSlow: 0, iceBarrier: 0, boltHits: 0, boltCharge: 0, stormSet: 0, mgLightAmp: 0, mgFireAmp: 0, mgIceAmp: 0, mgFirstCard: 0, mgFireStack: 0, mgWaveBarrier: 0, resRegenCut: 0, mgUltAmp: 0, elemWheel: 0, mgBarrierCut: 0, barrierBoom: 0, mgEmergency: 0, mgDoubleCast: 0, mgUltCd: 0, mgUltMana: 0, mgOverflow: 0, cleaveAdd: 0, startRage: 0, rageOnHurtAdd: 0, autoLifesteal: 0, ultMulAdd: 0, ultShieldAdd: 0, ultVsCharge: 0, ultCounters: 0, counterRage: 0, counterShield: 0, arDodgeShield: 0, arUltBreak: 0, arWaveDodge: 0, arSnipeLow: 0, arLowHpBonus: 0, arVolley: 0, arAim: 0, arAimCrit: 0, arUltSplash: 0, arUltDodge: 0, arUltMulCut: 0, arHawk: 0, arStartFull: 0, arTurnRes: 0, arCritRes: 0, arDodgeRes: 0, debuffRes: 0, healAt: 0, atone: 0, judge: 0, smiteMul: 0, smiteVamp: 0, healShield: 0, spearStart: 0, spearRate: 0, spearMul: 0, spearHeal: 0, ultRegen: 0, ultHoly: 0, ultChargeShield: 0, bossShield: 0, lateDmg: 0, spellCrit: 0, // Novice: cooldown only (resources come with job change)
 }
 

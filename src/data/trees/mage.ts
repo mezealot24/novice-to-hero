@@ -11,7 +11,7 @@ export const tree: ClassTree = {
     { id: 'mage_i', job: 'mage', name: 'น้ำแข็ง', icon: '❄️', blurb: 'ช้า · บาเรียหนา · หักบอส' },
   ],
   nodes: [
-    n('mage_core1', 'mage_core', 0, '🔷', 'แก่นเวท', 3, (lv) => `Mana Shield +${lv * 5}%`, (lv) => ({ manaShield: 0.05 * lv })),
+    n('mage_core1', 'mage_core', 0, '🔷', 'แก่นเวท', 3, (lv) => `Max Mana +${lv * 8}`, (lv) => ({ maxRes: 8 * lv })), // v21: was Mana Shield (removed)
     n('mage_core2', 'mage_core', 0, '🧘', 'สมาธิ', 3, (lv) => `ฟื้น Mana +${lv * 2}/เทิร์น`, (lv) => ({ resRegen: (2 / 3) * lv })),
     n('mage_l1', 'mage_l', 1, '⚡', 'กระแสแรง', 3, (lv) => `ult สายฟ้า +${lv} ฮิต`, (lv) => ({ lightHits: lv })),
     n('mage_l2', 'mage_l', 2, '🌩️', 'ฟ้าแตกแขนง', 3, (lv) => `ทุกฮิตสายฟ้า ${lv * 8}% แตกเป็นฮิตเพิ่มใส่ตัวสุ่ม`, (lv) => ({ lightChain: 0.08 * lv })),
@@ -32,8 +32,8 @@ export const tree: ClassTree = {
     t('mg_t0b', 1, '🔥', 'ลูกศิษย์เปลวไฟ', 2, (r) => r === 1 ? 'การ์ดเลเวลอัปใบแรกมี "ลูกไฟ" เสมอ · ult ไฟ +10%' : 'การ์ดใบแรกมี "ลูกไฟ" · ult ไฟ +20% · ult เผา +1 stack', (r) => ({ mgFirstCard: 2, mgFireAmp: 0.1 * r, mgFireStack: r === 2 ? 1 : 0 })),
     t('mg_t0c', 1, '❄️', 'ลูกศิษย์น้ำแข็ง', 2, (r) => `เริ่มทุกเวฟด้วยบาเรีย ${r === 1 ? '1' : '1.6'}x M.ATK · ult น้ำแข็ง +${r * 10}%`, (r) => ({ mgWaveBarrier: r === 1 ? 1 : 1.6, mgIceAmp: 0.1 * r })),
     // row 2 (Job Lv 10): สไตล์ Mana
-    t('mg_t1a', 2, '🛡️', 'ปราการมานา', 2, (r) => `Mana Shield +${r === 1 ? 15 : 25}% · ฟื้น Mana −30%`, (r) => ({ manaShield: r === 1 ? 0.15 : 0.25, resRegenCut: 0.3 })),
-    t('mg_t1b', 2, '💨', 'ร่ายไว', 2, (r) => `สกิลออโต้ใช้ Mana −${r === 1 ? 7 : 13} · Mana Shield −15%`, (r) => ({ autoCostCut: r === 1 ? 7 : 13, manaShield: -0.15 })),
+    t('mg_t1a', 2, '🏺', 'คลังมานา', 2, (r) => `Max Mana +${r === 1 ? 25 : 45} · ฟื้น Mana −20%`, (r) => ({ maxRes: r === 1 ? 25 : 45, resRegenCut: 0.2 })), // v21: was ปราการมานา (Mana Shield removed)
+    t('mg_t1b', 2, '💨', 'ร่ายไว', 2, (r) => `สกิลออโต้ใช้ Mana −${r === 1 ? 7 : 13} · Max Mana −15`, (r) => ({ autoCostCut: r === 1 ? 7 : 13, maxRes: -15 })),
     t('mg_t1c', 2, '🔄', 'วงล้อธาตุ', 2, (r) => `ธาตุ ult หมุนเองทุกครั้งที่ร่าย ⚡→🔥→❄️ · ult +${r * 10}%`, (r) => ({ elemWheel: 1, mgUltAmp: 0.1 * r })),
     // row 3 (Job Lv 20): รอดตอนคับขัน
     t('mg_t2a', 3, '💥', 'บาเรียระเบิด', 2, (r) => r === 1 ? 'บาเรียแตก → ระเบิด 1x M.ATK ใส่ทุกตัว · บาเรีย −20%' : 'บาเรียแตก → ระเบิด 1.6x ใส่ทุกตัว + ผลักเทิร์น · บาเรีย −20%', (r) => ({ barrierBoom: r === 1 ? 1 : 1.6, mgBarrierCut: 0.2 })),

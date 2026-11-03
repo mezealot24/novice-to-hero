@@ -10,7 +10,7 @@ export interface JobSkill { name: string; icon: string; desc: string }
 export interface JobDef {
   id: JobId; name: string; icon: string; tex: string; blurb: string; focus: string
   resource: Resource | null; attack: AttackStyle; tags: Tag[]; mod: Partial<Stats>
-  auto: JobSkill & { cost: number }; ult: JobSkill & { cd: number }
+  auto: JobSkill & { cost: number }; ult: JobSkill & { cd: number; cost?: number } // ult cost: Mana (Mage only for now)
 }
 
 export const JOB_CHANGE = { needClears: 1, classMaxJobLevel: 40 }
@@ -18,6 +18,12 @@ export const RES_RULES = {
   rageMax: 100, rageOnHit: 12, rageOnHurt: 8,
   energyMax: 100, energyPerTurn: 25,
   manaPerTurnMul: 3, // resRegen (3 + WIS) x this, per hero turn
+}
+/** Mage (Q 2026-11-03): no Mana Shield; every spell costs Mana, the basic attack is a weak free magic bolt. */
+export const MAGE_SPELL = {
+  basicMul: 0.6, // basic attack: magic projectile 0.6x M.ATK, free
+  boltPerHit: 2, // card Lightning Bolt: Mana per hit, cast only when Mana covers every hit
+  fireBolt: 8, // card ลูกไฟ: Mana per fireball, skipped when Mana is short
 }
 
 export const JOBS: Record<JobId, JobDef> = {
@@ -39,10 +45,10 @@ export const JOBS: Record<JobId, JobDef> = {
     ult: { name: 'ศรทะลวง', icon: '🎯', cd: 4, desc: 'กระโดดถอย หลบการโจมตีถัดไปแน่นอน + ยิงเป้าเดียว (บอส/ตัวที่ HP เยอะสุด) 5x' },
   },
   mage: {
-    id: 'mage', name: 'จอมเวท', icon: '🔮', tex: 'hero_mage', blurb: 'เวทแรง ตีทั้งกลุ่ม ไม่มีวันพลาด ตัวบางแต่มี Mana Shield (Mana รับดาเมจแทน 40%)', focus: 'INT · WIS',
-    resource: 'mana', attack: 'magic', tags: ['fire', 'storm', 'crit'], mod: { matk: 10, maxRes: 20, maxHp: 15, manaShield: 0.4 },
+    id: 'mage', name: 'จอมเวท', icon: '🔮', tex: 'hero_mage', blurb: 'เวทแรง ตีทั้งกลุ่ม ไม่มีวันพลาด แต่ตัวบาง · ตีปกติเป็นลูกเวทเบาๆ ดาเมจจริงมาจากสกิลที่ต้องใช้ Mana', focus: 'INT · WIS',
+    resource: 'mana', attack: 'magic', tags: ['fire', 'storm', 'crit'], mod: { matk: 10, maxRes: 20, maxHp: 15 },
     auto: { name: 'ลูกไฟระเบิด', icon: '🔥', cost: 36, desc: 'Mana 36: ไฟใส่ทุกตัว 1.1x M.ATK (ติดไฟถ้ามีการ์ดเผา)' },
-    ult: { name: 'เวทธาตุ', icon: '☄️', cd: 5, desc: 'เลือกธาตุตอนเริ่มรอบ · ⚡ สายฟ้า เป้าเดียว 6 ฮิต (0.3–1.2x/ฮิต) · 🔥 ไฟ 2x + เผาซ้อน · ❄️ น้ำแข็ง 1.6x + ช้า/แช่แข็ง · ทุกธาตุได้บาเรีย 2x M.ATK' },
+    ult: { name: 'เวทธาตุ', icon: '☄️', cd: 5, cost: 30, desc: 'Mana 30: เลือกธาตุตอนเริ่มรอบ · ⚡ สายฟ้า เป้าเดียว 6 ฮิต (0.3–1.2x/ฮิต) · 🔥 ไฟ 2x + เผาซ้อน · ❄️ น้ำแข็ง 1.6x + ช้า/แช่แข็ง · ทุกธาตุได้บาเรีย 2x M.ATK' },
   },
   cleric: {
     id: 'cleric', name: 'นักบวช', icon: '✨', tex: 'hero_cleric', blurb: 'ฮีลตัวเอง มีโล่ ยืนนานที่สุด', focus: 'WIS · INT',

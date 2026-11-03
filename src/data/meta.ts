@@ -69,7 +69,7 @@ export const SLOTS: { id: Slot; name: string; icon: string }[] = [
   { id: 'acc', name: 'เครื่องประดับ', icon: '💍' },
 ]
 // Gear gives base stats (STR/VIT/...) that run through the stat spec like spent points, plus direct
-// stats (Hit, Flee, Counter, Combo, lifesteal, shields, Mana Shield...). One item per slot, so nothing stacks.
+// stats (Hit, Flee, Counter, Combo, lifesteal, shields...). One item per slot, so nothing stacks.
 // jobs = who can wear it (none = everyone). req = when the shop sells it: 'job' after the first job change,
 // 'd2' after beating ป่าหมาป่าเงา. Item ids are save data: never rename or remove one.
 export type ItemReq = 'job' | 'd2' | 'd3' | 'd4'
@@ -93,7 +93,7 @@ export const ITEMS: Item[] = [
   { id: 'w_starbow', slot: 'weapon', name: 'ธนูดาวตก', icon: '🌠', price: 1100, desc: 'ของดัน 2: คริแรงมาก', base: { dex: 5 }, mod: { atk: 10, critMul: 0.35, crit: 0.03 }, jobs: AR, req: 'd2' },
   // ----- weapons: Mage (M.ATK / Mana Shield) -----
   { id: 'w_gemstaff', slot: 'weapon', name: 'คทาอัญมณี', icon: '💎', price: 520, desc: 'สายตีแรง', base: { int: 3 }, mod: { matk: 10 }, jobs: MG, req: 'job' },
-  { id: 'w_wardstaff', slot: 'weapon', name: 'คทาวงเวทป้องกัน', icon: '🔮', price: 560, desc: 'สายอึด Mana เยอะ รับดาเมจแทนได้มากขึ้น', base: { wis: 3 }, mod: { matk: 5, maxRes: 25, manaShield: 0.1 }, jobs: MG, req: 'job' },
+  { id: 'w_wardstaff', slot: 'weapon', name: 'คทาวงเวทป้องกัน', icon: '🔮', price: 560, desc: 'สาย Mana ยาว: Mana เยอะ ฟื้นไว ร่ายสกิลได้บ่อย', base: { wis: 3 }, mod: { matk: 5, maxRes: 30, resRegen: 1 }, jobs: MG, req: 'job' },
   { id: 'w_archstaff', slot: 'weapon', name: 'คทาจอมปราชญ์', icon: '🪄', price: 1100, desc: 'ของดัน 2: เวทแรง Mana ฟื้นไว', base: { int: 5 }, mod: { matk: 16, resRegen: 1 }, jobs: MG, req: 'd2' },
   // ----- weapons: Cleric (heal / shield) -----
   { id: 'w_holymace', slot: 'weapon', name: 'กระบองศักดิ์สิทธิ์', icon: '🔱', price: 520, desc: 'ฮีลแรงขึ้น', base: { wis: 3 }, mod: { atk: 4, matk: 6, healAmp: 0.15 }, jobs: CL, req: 'job' },
@@ -113,7 +113,7 @@ export const ITEMS: Item[] = [
   { id: 'a_huntvest', slot: 'armor', name: 'เสื้อนักล่า', icon: '🥾', price: 650, desc: 'เบา หลบง่าย ตีซ้ำได้', base: { agi: 3 }, mod: { maxHp: 30, flee: 6, combo: 0.05 }, jobs: ['archer', 'thief'], req: 'job' },
   { id: 'a_eaglecloak', slot: 'armor', name: 'ผ้าคลุมตาเหยี่ยว', icon: '🦅', price: 700, desc: 'แม่นขึ้น หลบเก่งขึ้น', base: { dex: 3 }, mod: { maxHp: 35, hit: 6, flee: 5 }, jobs: AR, req: 'job' },
   { id: 'a_sagerobe', slot: 'armor', name: 'เสื้อคลุมปราชญ์', icon: '🧙', price: 650, desc: 'กันเวท Mana เยอะ', base: { wis: 3 }, mod: { maxHp: 30, mdef: 0.08, maxRes: 20, resRegen: 1 }, jobs: ['mage', 'cleric'], req: 'job' },
-  { id: 'a_runerobe', slot: 'armor', name: 'เสื้อคลุมรูน', icon: '🌀', price: 750, desc: 'Mana Shield หนาขึ้น', base: { int: 3 }, mod: { maxHp: 40, maxRes: 20, manaShield: 0.08 }, jobs: MG, req: 'job' },
+  { id: 'a_runerobe', slot: 'armor', name: 'เสื้อคลุมรูน', icon: '🌀', price: 750, desc: 'ตัวหนาขึ้น กันเวท Mana เยอะ', base: { int: 3 }, mod: { maxHp: 55, maxRes: 20, mdef: 0.06 }, jobs: MG, req: 'job' },
   { id: 'a_lightvestment', slot: 'armor', name: 'อาภรณ์แสง', icon: '🕊️', price: 700, desc: 'ได้โล่ทุกเวฟ ฮีลแรงขึ้น', base: { wis: 2, vit: 2 }, mod: { maxHp: 50, healAmp: 0.1, waveShield: 0.05 }, jobs: CL, req: 'job' },
   { id: 'a_nightsuit', slot: 'armor', name: 'ชุดจอมโจรราตรี', icon: '🌒', price: 700, desc: 'หลบเก่ง หลบแล้วฟื้น HP', base: { luk: 3 }, mod: { maxHp: 30, flee: 8, luckyDodge: 0.03, dodgeHeal: 0.02 }, jobs: TH, req: 'job' },
   // ----- accessories: everyone (pick the one stat your build needs) -----
@@ -155,7 +155,7 @@ const STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => string]>> 
   maxRes: ['Max Mana', (n) => `${n}`], resRegen: ['ฟื้น Mana', (n) => `${n}`], aspd: ['เร็ว', (n) => pc(n / PLAYER.aspd)],
   crit: ['คริ', pc], spellCrit: ['เวทคริ', pc], critMul: ['ดาเมจคริ', pc], guard: ['ลดดาเมจ', pc], lifesteal: ['ดูดเลือด', pc], regen: ['ฟื้น HP/เทิร์น', (n) => pc(n * 1.5 / 100)],
   poison: ['พิษ stack/hit', (n) => `${n}`], poisonDmg: ['พิษแรง', (n) => `${n}`], smashMul: ['ทุบ(โนวิส)', (n) => `${n}x`],
-  manaShield: ['Mana Shield', pc], counter: ['สวนกลับ', pc], combo: ['คอมโบ', pc],
+  counter: ['สวนกลับ', pc], combo: ['คอมโบ', pc],
   dodgeHeal: ['หลบ→ฟื้น HP', pc], debuffRes: ['กันสถานะผิดปกติ', pc], waveShield: ['โล่ต้นเวฟ', (n) => `${pc(n)} HP`],
 }
 export const BASE_NAME: Record<BaseStat, string> = { str: 'STR', vit: 'VIT', wis: 'WIS', dex: 'DEX', int: 'INT', luk: 'LUK', agi: 'AGI' }
@@ -256,7 +256,6 @@ export function heroStats(s: StatsInput): Stats {
   st.counter = Math.min(0.6, st.counter)
   st.combo = Math.min(0.5, st.combo)
   st.lifesteal = Math.min(0.4, st.lifesteal)
-  st.manaShield = Math.min(0.7, st.manaShield)
   st.dodgeHeal = Math.min(0.1, st.dodgeHeal)
   st.fleeFloor = Math.min(0.2, st.fleeFloor) // Thief: monsters still hit at least 60%
   st.waveShield = Math.min(0.2, st.waveShield)

@@ -116,7 +116,6 @@ export function compareLine(now: Stats, next: Stats): string {
   d('ฮีล', now.healAmp, next.healAmp, p)
   d('โล่', now.shieldAmp, next.shieldAmp, p)
   d('Mana', now.maxRes, next.maxRes, (n) => `${Math.round(n)}`)
-  d('ManaShield', now.manaShield, next.manaShield, p)
   d('ดาเมจคริ', now.critMul, next.critMul, p)
   d('หลบ→ฟื้น', now.dodgeHeal, next.dodgeHeal, (n) => `${(n * 100).toFixed(1)}%`)
   d('โล่ต้นเวฟ', now.waveShield, next.waveShield, p)
