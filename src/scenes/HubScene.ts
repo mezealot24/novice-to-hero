@@ -100,16 +100,21 @@ export class HubScene extends Phaser.Scene {
     const s = save()
     const c = this.add.container(0, 0).setDepth(40000)
     c.add(this.add.rectangle(W / 2, H / 2, W, H, UI.night, 0.75).setInteractive())
-    c.add(panel(this, W / 2 - 230, H / 2 - 150, 460, 300, UI.panelHi, COLORS.gold))
-    c.add(txt(this, W / 2, H / 2 - 124, 'ตั้งค่า', 26, UI.gold, true).setOrigin(0.5, 0))
-    const snd = button(this, W / 2, H / 2 - 40, 320, 52, s.muted ? '🔇 เสียง: ปิด' : '🔊 เสียง: เปิด', () => {
+    c.add(panel(this, W / 2 - 230, H / 2 - 180, 460, 360, UI.panelHi, COLORS.gold))
+    c.add(txt(this, W / 2, H / 2 - 154, 'ตั้งค่า', 26, UI.gold, true).setOrigin(0.5, 0))
+    const snd = button(this, W / 2, H / 2 - 70, 320, 52, s.muted ? '🔇 เสียง: ปิด' : '🔊 เสียง: เปิด', () => {
       s.muted = !s.muted; setMuted(s.muted); persist()
       snd.setLabel(s.muted ? '🔇 เสียง: ปิด' : '🔊 เสียง: เปิด')
     }, { fill: 0x5a5f8a, color: UI.text, size: 19 })
     c.add(snd)
-    c.add(button(this, W / 2, H / 2 + 26, 320, 52, '🗑️ ลบเซฟ เริ่มใหม่', () =>
+    const shk = button(this, W / 2, H / 2 - 8, 320, 52, s.lowShake ? '📳 จอสั่น: ลดลง' : '📳 จอสั่น: ปกติ', () => {
+      s.lowShake = !s.lowShake; persist()
+      shk.setLabel(s.lowShake ? '📳 จอสั่น: ลดลง' : '📳 จอสั่น: ปกติ')
+    }, { fill: 0x5a5f8a, color: UI.text, size: 19 })
+    c.add(shk)
+    c.add(button(this, W / 2, H / 2 + 54, 320, 52, '🗑️ ลบเซฟ เริ่มใหม่', () =>
       confirm(this, 'ลบเซฟจริงไหม?', 'ตัวละคร ของ และเพชรทั้งหมดจะหายถาวร', 'ลบเลย', () => { wipe(); go(this, 'title') }),
     { fill: 0x8a3a4a, color: UI.text, size: 19 }))
-    c.add(button(this, W / 2, H / 2 + 104, 200, 48, 'ปิด', () => { c.destroy(); this.scene.restart() }, { size: 19 }))
+    c.add(button(this, W / 2, H / 2 + 128, 200, 48, 'ปิด', () => { c.destroy(); this.scene.restart() }, { size: 19 }))
   }
 }

@@ -17,6 +17,7 @@ export class CharacterScene extends Phaser.Scene {
   private cardPage = 0
   private cardBook = false
   private bookDg = 0
+  private bookV2 = false
   constructor() { super('character') }
 
   create(data: { tab?: number }) {
@@ -151,7 +152,7 @@ export class CharacterScene extends Phaser.Scene {
       const it = itemById(s.equipped[cd.slot]), free = slotCount(it) - socketed(s, it).length
       b.add(panel(this, x, y, 302, 64, UI.panel, Phaser.Display.Color.HexStringToColor(TIER_COLOR[cd.tier]).color, 10))
       b.add(txt(this, x + 10, y + 5, `${cardIcon(cd)} ${clip(cardName(cd), 20)} ×${bag[cd.id]}`, 14, TIER_COLOR[cd.tier], true))
-      b.add(txt(this, x + 10, y + 26, `${SLOTS.find((q) => q.id === cd.slot)!.icon} ${clip(cardStatLine(cd), 34)}`, 11, UI.green).setWordWrapWidth(200))
+      b.add(txt(this, x + 10, y + 25, `${SLOTS.find((q) => q.id === cd.slot)!.icon} ${clip(cardStatLine(cd), 70)}`, 10, UI.green).setWordWrapWidth(212).setLineSpacing(0))
       b.add(button(this, x + 262, y + 18, 70, 28, 'ใส่', () => {
         if (!socketCard(s, it.id, cd.id, slotCount(it))) { toast(this, slotCount(it) ? 'ช่องเต็มแล้ว ถอดการ์ดเก่าก่อนนะคะ' : `${it.name} ไม่มีช่องการ์ดค่ะ`, UI.red); return }
         persist(); toast(this, `ใส่${cardName(cd)}ใน ${it.name} แล้ว!`); this.redraw()
@@ -173,13 +174,15 @@ export class CharacterScene extends Phaser.Scene {
       b.add(button(this, 352 + i * 56, 318, 50, 30, `ดัน${i + 1}`, () => { this.bookDg = i; this.render() }, { size: 12, fill: i === this.bookDg ? COLORS.gold : 0x5a5f8a, color: i === this.bookDg ? UI.ink : UI.text }))
     })
     const dg = DUNGEONS[this.bookDg]
-    b.add(txt(this, 640, 310, dg.name, 15, UI.gold, true))
-    const list: EquipCard[] = EQUIP_CARDS.filter((cd) => cd.dungeon === dg.id)
+    b.add(button(this, 720, 318, 110, 30, this.bookV2 ? 'การ์ดหลัก' : 'การ์ดสายอาชีพ', () => { this.bookV2 = !this.bookV2; this.render() }, { size: 12, fill: 0x5a5f8a, color: UI.text }))
+    b.add(txt(this, 940, 318, dg.name, 13, UI.gold, true).setOrigin(1, 0.5))
+    const list: EquipCard[] = EQUIP_CARDS.filter((cd) => cd.dungeon === dg.id && !!cd.v2 === this.bookV2)
     list.forEach((cd, i) => {
-      const x = 330 + (i % 3) * 206, y = 342 + Math.floor(i / 3) * 52, got = seen.has(cd.id)
-      b.add(panel(this, x, y, 200, 46, got ? UI.panel : 0x1d2140, got ? Phaser.Display.Color.HexStringToColor(TIER_COLOR[cd.tier]).color : UI.line, 8))
+      const x = 330 + (i % 3) * 206, y = 342 + Math.floor(i / 3) * 62, got = seen.has(cd.id)
+      b.add(panel(this, x, y, 200, 56, got ? UI.panel : 0x1d2140, got ? Phaser.Display.Color.HexStringToColor(TIER_COLOR[cd.tier]).color : UI.line, 8))
       b.add(txt(this, x + 8, y + 4, got ? `${cardIcon(cd)} ${clip(cardName(cd), 17)}` : `❓ ${cd.tier === 'normal' ? '???' : cd.tier === 'mini' ? '??? (มินิบอส)' : '??? (บอส)'}`, 13, got ? TIER_COLOR[cd.tier] : UI.sub, true))
-      b.add(txt(this, x + 8, y + 25, got ? `${SLOTS.find((q) => q.id === cd.slot)!.icon} ${clip(cardStatLine(cd), 27)}` : `ดรอปใน${dg.name}`, 10, got ? UI.green : UI.sub))
+      b.add(txt(this, x + 8, y + 25, got ? `${SLOTS.find((q) => q.id === cd.slot)!.icon} ${clip(cardStatLine(cd), 30)}` : `ดรอปใน${dg.name}`, 10, got ? UI.green : UI.sub))
+      if (got && cd.forJobs) b.add(txt(this, x + 8, y + 39, clip(`เหมาะกับ ${cd.forJobs}`, 30), 10, UI.sub))
     })
   }
 

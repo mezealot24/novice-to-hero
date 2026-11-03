@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { afterDef, BATTLE, COLORS, COMMON_PERKS, hitChance, DUNGEONS, FONT_NUM, FONT_UI, H, MONSTERS, PERKS, perkDesc, PLAYER, RULES, SET_BONUS, TAGS, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Perk, type Stats, type Tag } from '../data/game-data'
 import { EVENT_RULES, rollEvent, type EventDef } from '../data/events'
 import { COSTUMES, FREE_GEMS, heroStats, PER_POINT, RESOURCES, totalBase } from '../data/meta'
-import { CARD_RULES, cardById, cardName, cardOfMonster } from '../data/cards'
+import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster } from '../data/cards'
 import { JOBS, MAGE_SPELL, RES_RULES, SWORD_MANA, skillPow, type JobDef } from '../data/jobs'
 import { addCard, addXp, persist, save } from '../save'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
@@ -200,7 +200,7 @@ export class BattleScene extends Phaser.Scene {
     this.cardLuck = 1 + Math.min(PER_POINT.luk.dropCap, PER_POINT.luk.dropPct * totalBase(s).luk)
     this.settled = false; this.over = false; this.smashQueued = false
     this.startedAt = this.time.now
-    this.eventLog = []; this.lockTarget = undefined; this.lockStacks = 0; this.hawkTurn = 0; this.breakCount = 0; this.revivedCount = 0; this.spears = 0; this.spearAcc = 0; this.ultRegenTurns = 0; this.smiteCount = 0; this.counterCount = 0; this.comboCount = 0; this.peakTurns = 0; this.turnsLog = []
+    this.eventLog = []; this.lockTarget = undefined; this.lockStacks = 0; this.hawkTurn = 0; this.breakCount = 0; this.revivedCount = 0; this.spears = 0; this.spearAcc = 0; this.ultRegenTurns = 0; this.smiteCount = 0; this.counterCount = 0; this.comboCount = 0; this.comboLevel = 0; this.lowShake = !!save().lowShake; this.peakTurns = 0; this.turnsLog = []
     this.minHpPct = 1; this.relic = null; this.miniKind = null; this.miniWon = false; this.parryCount = 0; this.freezeCount = 0; this.harvest = 0; this.enemyAttacks = 0
     this.hx = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0 }; this.debuffCount = 0; this.resistCount = 0
     const rooms = this.dg.rooms
@@ -491,7 +491,7 @@ export class BattleScene extends Phaser.Scene {
     this.slashFx(m.spr.x - 20, GROUND - 40)
     sfx.swing()
     fn()
-    this.cameras.main.shake(60, 0.004)
+    this.shake(60, 0.004)
     await this.tween({ targets: this.heroSpr, x: HERO_X, duration: step * 0.35, ease: 'Quad.easeOut' })
   }
 
@@ -506,12 +506,21 @@ export class BattleScene extends Phaser.Scene {
 
   /** Basic attack, then AGI combo: each success chains one more (up to BATTLE.comboMax). */
   private async basicAttack() {
+    this.comboSum = { on: true, per: new Map() } // RO-style: each hit shows its own white number, the chain total pops big + yellow at the end
     await this.basicOnce()
+    let hits = 1
     for (let n = 0; n < BATTLE.comboMax && this.alive().length && Math.random() < this.st.combo; n++) {
       this.comboCount++
-      this.floatText(HERO_X, GROUND - 120, `คอมโบ x${n + 2}!`, '#7fd7ff')
+      this.comboLevel = n + 2
+      sfx.combo(n + 2)
       await this.basicOnce()
+      hits++
     }
+    this.comboLevel = 0
+    this.comboSum.on = false
+    let best: { dmg: number, x: number, y: number } | undefined // total for the monster that took the most (cleave splash shows only its own numbers)
+    for (const v of this.comboSum.per.values()) if (!best || v.dmg > best.dmg) best = v
+    if (hits >= 2 && best) this.comboTotal(best.x, best.y, best.dmg, hits)
   }
 
   private async basicOnce() {
@@ -611,7 +620,7 @@ export class BattleScene extends Phaser.Scene {
             if (this.st.arUltSplash > 0) for (const o of this.alive()) if (o !== t) this.strike(o, this.st.arUltSplash * hitPow, false, undefined, this.st.pierce) // talent ศรเจาะทะลุ
           })
           this.ultFiring = false
-          this.cameras.main.shake(160, 0.012)
+          this.shake(160, 0.012)
         }
         await this.wait(200)
         break
@@ -661,7 +670,7 @@ export class BattleScene extends Phaser.Scene {
       await this.tween({ targets: orb, x: 700, y: GROUND - 30, duration: 380, ease: 'Quad.easeIn' })
       orb.destroy()
     }
-    this.cameras.main.shake(260, 0.016)
+    this.shake(260, 0.016)
     this.burst(700, GROUND - 20, col, 36, 400)
     let froze = false
     if (el === 'lightning') await this.lightningStorm(pow, txt) // single target, many hits (Q 2026-11-03)
@@ -765,7 +774,7 @@ export class BattleScene extends Phaser.Scene {
     sfx.slam()
     await this.tween({ targets: this.heroSpr, x: HERO_X + 140, y: GROUND - 90, duration: 220, ease: 'Quad.easeOut' })
     await this.tween({ targets: this.heroSpr, y: GROUND, duration: 140, ease: 'Quad.easeIn' })
-    this.cameras.main.shake(260, 0.014)
+    this.shake(260, 0.014)
     const ring = this.add.ellipse(HERO_X + 140, GROUND, 40, 14).setStrokeStyle(8, COLORS.gold).setDepth(9000)
     this.tweens.add({ targets: ring, width: 900, height: 120, alpha: 0, duration: 380, onComplete: () => ring.destroy() })
     this.burst(HERO_X + 140, GROUND, COLORS.gold, 26, 360)
@@ -799,6 +808,9 @@ export class BattleScene extends Phaser.Scene {
       if (m.chargeDmg >= m.def.hp * m.def.breakPct) this.breakCharge(m)
     }
     this.damageNumber(m.spr.x, m.spr.y - m.spr.displayHeight, dmg, crit, color)
+    if (this.comboSum.on && !dot) { const e = this.comboSum.per.get(m) ?? { dmg: 0, x: 0, y: 0 }; e.dmg += dmg; e.x = m.spr.x; e.y = m.spr.y - m.spr.displayHeight; this.comboSum.per.set(m, e) }
+    if (crit && !dot) this.critJuice(m)
+    else if (this.comboLevel >= 2 && !dot) { this.hitStop(20 + 12 * this.comboLevel); this.shake(60, 0.002 + 0.0015 * this.comboLevel) }
     m.spr.setTintFill(0xffffff)
     this.time.delayedCall(80, () => m.spr.active && m.spr.clearTint())
     if (this.relic === 'harvest' && m.def.ai === 'boss' && m.hp > 0) {
@@ -823,16 +835,17 @@ export class BattleScene extends Phaser.Scene {
 
   /** Equipment card drop (design/equipment-cards.md): base rate x LUK, guaranteed after `pity` kills of that monster. */
   private rollCard(m: Mon) {
-    const cd = cardOfMonster(m.kind)
-    if (!cd || m.revived) return
+    if (m.revived) return
     const pity = (save().cardPity ??= {})
-    const n = (pity[cd.id] ?? 0) + 1
-    if (Math.random() < CARD_RULES.rate[cd.tier] * this.cardLuck || n >= CARD_RULES.pity[cd.tier]) {
-      pity[cd.id] = 0
-      this.runCards.push(cd.id)
-      this.callout(`🃏 ได้${cardName(cd)}!`, m.spr.x, m.spr.y - 130)
-      sfx.coin()
-    } else pity[cd.id] = n
+    for (const cd of cardsOfMonster(m.kind)) {
+      const n = (pity[cd.id] ?? 0) + 1
+      if (Math.random() < cardRate(cd) * this.cardLuck || n >= cardPityMax(cd)) {
+        pity[cd.id] = 0
+        this.runCards.push(cd.id)
+        this.callout(`🃏 ได้${cardName(cd)}!`, m.spr.x, m.spr.y - 130 - (cd.v2 ? 40 : 0))
+        sfx.coin()
+      } else pity[cd.id] = n
+    }
   }
 
   private killMon(m: Mon) {
@@ -847,7 +860,7 @@ export class BattleScene extends Phaser.Scene {
     if (m.def.deathBlast && this.hp > 0) { // bloater / imp / mirror shard: blows up when it dies
       this.callout(`💥 ${m.def.name}ระเบิด!`, m.spr.x, m.spr.y - 120)
       this.burst(m.spr.x, m.spr.y - 20, 0xffb347, 22, 300)
-      this.cameras.main.shake(180, 0.012)
+      this.shake(180, 0.012)
       sfx.slam()
       this.hurtHero(m.def.dmg * BATTLE.monDmgMul * m.def.deathBlast, true, m.def.hit ?? 15)
     }
@@ -954,7 +967,7 @@ export class BattleScene extends Phaser.Scene {
     this.counterCount++
     if (this.st.counterRage > 0) { this.gainRage(this.st.counterRage); this.gainRes(this.st.counterRage) } // talent: เหล็กกล้า (Rage or Mana)
     if (this.st.counterShield > 0) this.addShield(this.st.maxHp * this.st.counterShield, true)
-    this.floatText(HERO_X + 40, GROUND - 130, 'สวนกลับ!', '#f2b84b')
+    this.counterJuice()
     const magic = this.job.attack === 'magic' || this.st.holyCounter > 0 // tree: "ศรัทธาสวน"
     const hit = () => {
       this.strike(m, BATTLE.counterMul, magic, magic ? '#c9a8ff' : undefined)
@@ -966,7 +979,7 @@ export class BattleScene extends Phaser.Scene {
     this.slashFx(m.spr.x - 10, GROUND - 40)
     sfx.swing()
     hit()
-    this.cameras.main.shake(70, 0.005)
+    this.shake(70, 0.005)
     if (!m.dead) this.tweens.add({ targets: [m.spr, m.shadow], x: m.spr.x + 40, duration: step * 0.2, ease: 'Quad.easeOut' })
     await this.tween({ targets: this.heroSpr, x: HERO_X, duration: step * 0.3, ease: 'Quad.easeOut' })
   }
@@ -983,7 +996,7 @@ export class BattleScene extends Phaser.Scene {
   private async slam(m: Mon) {
     await this.tween({ targets: m.spr, y: m.spr.y - 120, duration: 220, ease: 'Quad.easeOut' })
     await this.tween({ targets: m.spr, y: GROUND, duration: 150, ease: 'Quad.easeIn' })
-    this.cameras.main.shake(300, 0.02)
+    this.shake(300, 0.02)
     this.burst(m.spr.x, GROUND, COLORS.telegraph, 24, 320)
     sfx.slam()
     if (this.riposte(m)) { await this.wait(300); return }
@@ -1004,7 +1017,7 @@ export class BattleScene extends Phaser.Scene {
   private hurtHero(dmg: number, magic: boolean, monHit: number, src?: Mon): boolean {
     this.lastHurt = 0
     const dodged = (label: string, color: string) => {
-      this.floatText(HERO_X, GROUND - 90, label, color)
+      this.evadeJuice(label, color)
       if (this.st.dodgeStrike > 0 && src && !src.dead) { this.floatText(HERO_X + 40, GROUND - 130, 'สวนจากเงา!', '#c9c9d6'); this.counterCount++; this.strike(src, BATTLE.counterMul, this.job.attack === 'magic') } // tree
       if (this.st.dodgeHeal > 0) this.heal(this.st.maxHp * this.st.dodgeHeal) // gear: dodging heals a little (Thief)
       if (this.st.arDodgeShield > 0 && this.shield < this.st.maxHp * this.st.arDodgeShield * 3) this.addShield(Math.min(this.st.maxHp * this.st.arDodgeShield, this.st.maxHp * this.st.arDodgeShield * 3 - this.shield)) // archer tree โล่ลม
@@ -1014,7 +1027,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (this.dodgeCharges > 0) { this.dodgeCharges--; return dodged('เงาพริ้ว!', '#c9c9d6') }
     if (Math.random() < this.st.luckyDodge) return dodged('LUCKY!', '#6fd08c')
-    if (Math.random() > hitChance(monHit, this.st.flee, 0.8 - this.st.fleeFloor)) return dodged('หลบ!', '#a9a6c7') // Thief เงาบาง lowers the floor
+    if (Math.random() > hitChance(monHit, this.st.flee, 0.8 - this.st.fleeFloor)) return dodged('EVADE!', '#9fe3ff') // Thief เงาบาง lowers the floor
     const ab = this.hx.armorBreak > 0 ? BATTLE.armorBreakMul : 1 // เกราะแตก: P.DEF / M.DEF count half
     const raw = magic ? dmg * (1 - this.st.mdef * ab) : afterDef(dmg, this.st.def * ab)
     let n = Math.max(1, Math.round(raw * (1 - this.st.guard)))
@@ -1331,7 +1344,7 @@ export class BattleScene extends Phaser.Scene {
       sfx.hit()
       await this.wait(70)
     }
-    this.cameras.main.shake(160, 0.01)
+    this.shake(160, 0.01)
   }
 
   private harvestSoul() {
@@ -1454,7 +1467,7 @@ export class BattleScene extends Phaser.Scene {
   private enterPhase(m: Mon, p: BossPhase) {
     this.callout(`⚠️ ${m.def.name}: ${p.name}`, W / 2, 190)
     this.cameras.main.flash(200, 255, 80, 80)
-    this.cameras.main.shake(220, 0.012)
+    this.shake(220, 0.012)
     sfx.slam()
     this.tweens.add({ targets: m.spr, scaleX: m.spr.scaleX * 1.15, scaleY: m.spr.scaleY * 1.15, duration: 180, yoyo: true })
     if (p.cleanse) { m.burn = 0; m.burnTurns = 0; m.burnStacks = 0; m.burnStackTurns = 0; m.poison = 0; m.chill = 0; m.frozen = false }
@@ -1537,6 +1550,7 @@ export class BattleScene extends Phaser.Scene {
 
   private setFast(on: boolean) {
     this.fast = on
+    this.stopToken++ // a running hit-stop must not restore the old speed
     this.time.timeScale = on ? 2 : 1
     this.tweens.timeScale = on ? 2 : 1
     this.speedBtn.setLabel(on ? '▶▶ x2' : '▶ x1')
@@ -1719,10 +1733,88 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: s, scale: 1, alpha: 0, duration: 180, onComplete: () => s.destroy() })
   }
 
+  // ---------- hit feel (game-feel skill): small = evade · combo grows · medium = counter · large = crit ----------
+  private comboLevel = 0
+  private stopToken = 0
+  private lastStop = 0
+  private lowShake = false
+
+  /** Camera shake; the "ลดจอสั่น" setting cuts it to a third. */
+  private shake(ms: number, intensity: number) { this.cameras.main.shake(ms, this.lowShake ? intensity / 3 : intensity) }
+
+  /** Hit-stop: freeze tweens + timers for a real-time moment, then put back the x1/x2 speed.
+   *  Skipped when a bot runs the game fast, and at most one per 120 ms so multi-hits don't stall. */
+  private hitStop(ms: number) {
+    if (this.over || this.tweens.timeScale > 2) return
+    const now = performance.now()
+    if (now - this.lastStop < 120) return
+    this.lastStop = now
+    const tok = ++this.stopToken
+    this.tweens.timeScale = 0.05; this.time.timeScale = 0.05
+    window.setTimeout(() => {
+      if (tok !== this.stopToken || !this.sys.isActive() && !this.sys.isPaused()) return
+      const sp = this.fast ? 2 : 1
+      this.tweens.timeScale = sp; this.time.timeScale = sp
+    }, ms / (this.fast ? 2 : 1))
+  }
+
+  /** Big word that pops in with overshoot (EVADE / COUNTER / 3 HIT). */
+  private popWord(x: number, y: number, s: string, color: string, size = 24, from = 1.7) {
+    const t = this.add.text(x, y, s, { fontFamily: FONT_NUM, fontSize: `${size}px`, color, stroke: '#14172b', strokeThickness: 6 }).setOrigin(0.5).setDepth(10000).setScale(from)
+    this.tweens.add({ targets: t, scale: 1, duration: 220, ease: 'Back.easeOut' })
+    this.tweens.add({ targets: t, y: y - 30, alpha: 0, delay: 520, duration: 360, onComplete: () => t.destroy() })
+  }
+
+  private heroTint() { this.heroSpr.setTint((COSTUMES.find((c) => c.id === save().costume) ?? COSTUMES[0]).tint) }
+
+  private comboSum = { on: false, per: new Map<Mon, { dmg: number, x: number, y: number }>() }
+
+  /** RO double-attack style: after a combo chain, the summed damage pops big and yellow above the last target and hangs ~1.3 s. */
+  private comboTotal(x: number, y: number, total: number, hits: number) {
+    const ty = y - 62
+    const tag = this.add.text(x, ty - 30, `${hits} HIT`, { fontFamily: FONT_NUM, fontSize: '16px', color: '#ffe9a8', stroke: '#14172b', strokeThickness: 5 }).setOrigin(0.5).setDepth(10001)
+    const t = this.add.text(x, ty, `${total}`, { fontFamily: FONT_NUM, fontSize: `${36 + Math.min(3, hits - 2) * 6}px`, color: '#ffd34d', stroke: '#14172b', strokeThickness: 7 }).setOrigin(0.5).setDepth(10001).setScale(1.9)
+    this.tweens.add({ targets: t, scale: 1, duration: 260, ease: 'Back.easeOut' })
+    this.tweens.add({ targets: [t, tag], y: '-=18', alpha: 0, delay: 1300, duration: 400, onComplete: () => { t.destroy(); tag.destroy() } })
+  }
+
+  /** Counter: clang + spark, hero flashes white, short freeze, then the strike back. */
+  private counterJuice() {
+    this.popWord(HERO_X + 40, GROUND - 140, 'COUNTER!', '#ff9f43', 26)
+    sfx.clang()
+    this.burst(HERO_X + 36, GROUND - 50, 0xffd27a, 14, 260, true)
+    this.heroSpr.setTintFill(0xffffff)
+    this.time.delayedCall(90, () => this.heroTint())
+    this.hitStop(60)
+  }
+
+  /** Crit: freeze, star burst, shake (the monster's white flash and big number come from damageMon). */
+  private critJuice(m: Mon) {
+    const y = m.spr.y - m.spr.displayHeight / 2
+    this.burst(m.spr.x, y, 0xffe08a, 18, 320, true)
+    const ring = this.add.circle(m.spr.x, y, 10).setStrokeStyle(4, 0xffe08a).setDepth(9001)
+    this.tweens.add({ targets: ring, scale: 6, alpha: 0, duration: 260, ease: 'Quad.easeOut', onComplete: () => ring.destroy() })
+    this.popWord(m.spr.x, m.spr.y - m.spr.displayHeight - 80, 'CRITICAL', '#ffd34d', 18, 2)
+    this.shake(110, 0.008)
+    sfx.critBoom()
+    this.hitStop(80)
+  }
+
+  /** Evade: sidestep with an afterimage + whoosh; no shake (small tier). */
+  private evadeJuice(label: string, color: string) {
+    this.popWord(HERO_X, GROUND - 100, label, color, 22, 1.4)
+    sfx.evade()
+    const ghost = this.add.image(this.heroSpr.x, this.heroSpr.y, this.heroSpr.texture.key).setOrigin(0.5, 1).setScale(this.heroSpr.scaleX, this.heroSpr.scaleY)
+      .setFlipX(this.heroSpr.flipX).setTintFill(0x9fe3ff).setAlpha(0.55).setDepth(this.heroSpr.depth - 1)
+    this.tweens.add({ targets: ghost, x: ghost.x + 26, alpha: 0, duration: 260, onComplete: () => ghost.destroy() })
+    this.tweens.add({ targets: this.heroSpr, x: HERO_X - 34, duration: 90, yoyo: true, ease: 'Quad.easeOut', onComplete: () => { this.heroSpr.x = HERO_X } })
+  }
+
   private damageNumber(x: number, y: number, n: number, crit: boolean, color?: string, heal = false) {
     const t = this.add.text(x + Phaser.Math.Between(-10, 10), y, heal ? `+${n}` : crit ? `${n}!` : `${n}`, {
-      fontFamily: FONT_NUM, fontSize: crit ? '32px' : '24px', color: color ?? (crit ? '#f2b84b' : '#f6eedc'), stroke: '#14172b', strokeThickness: 5,
+      fontFamily: FONT_NUM, fontSize: crit ? '40px' : '24px', color: color ?? (crit ? '#ffd34d' : '#f6eedc'), stroke: '#14172b', strokeThickness: crit ? 7 : 5,
     }).setOrigin(0.5).setDepth(9999)
+    if (crit) { t.setScale(1.8); this.tweens.add({ targets: t, scale: 1, duration: 240, ease: 'Back.easeOut' }) }
     this.tweens.add({ targets: t, y: y - 44, duration: 300, ease: 'Back.easeOut' })
     this.tweens.add({ targets: t, alpha: 0, delay: 500, duration: 260, onComplete: () => t.destroy() })
   }
@@ -1732,9 +1824,9 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: t, y: y - 34, alpha: 0, delay: 400, duration: 700, onComplete: () => t.destroy() })
   }
 
-  private burst(x: number, y: number, color: number, n: number, speed: number) {
+  private burst(x: number, y: number, color: number, n: number, speed: number, star = false) {
     const p = this.add.particles(x, y, 'dot', {
-      speed: { min: speed * 0.3, max: speed }, angle: { min: 180, max: 360 }, scale: { start: 0.9, end: 0 },
+      speed: { min: speed * 0.3, max: speed }, angle: { min: star ? 0 : 180, max: 360 }, scale: { start: 0.9, end: 0 },
       lifespan: 420, tint: [color, 0xffffff], quantity: n, emitting: false,
     }).setDepth(9000)
     p.explode(n)

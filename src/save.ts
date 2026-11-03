@@ -35,6 +35,7 @@ export interface SaveData {
   cardSeen?: string[] // card book: every card ever found
   lastDaily: string // yyyy-mm-dd of last free daily gems
   muted: boolean
+  lowShake?: boolean // settings: ลดจอสั่น (camera shake x1/3)
 }
 
 const KEY = 'novice-to-hero.save.v1'
