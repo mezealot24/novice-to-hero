@@ -57,6 +57,8 @@ export interface Stats {
   pierce: number // 0..1 of monster P.DEF the Archer ult ignores
   lockOn: number // flag: Archer basic hits on the same target stack +10% (max 5)
   dodgeStrike: number // flag: every dodge strikes back at 0.8x
+  doubleAtk: number // Thief passive Double Strike level (0-10): chance of +1 hit (can crit), see doubleAtkChance()
+  dSlash: number // Thief Double Slash level (0-10): ทักษะ 1 becomes a 2-hit AoE, see doubleSlash()
   lightMax: number // (retired) old lightning roll top
   overload: number // Mana refunded per lightning hit that rolls >= 1x
   lightLuck: number // flag: every lightning hit rolls twice, keeps the higher
@@ -161,7 +163,7 @@ export const PLAYER: Stats = {
   aspd: 1.6, range: 110, crit: 0, critMul: 1.4, /* Q: crit only from items, skill tree, talents (+ in-run cards) */ speed: 190,
   guard: 0, lifesteal: 0, regen: 0, fireEvery: 0, boltMul: 2, burnDps: 0, poison: 0, poisonDmg: 2,
   smashMul: 3, smashCd: 6000, smashCost: 0, revive: 0, counter: 0, combo: 0, dodgeHeal: 0, waveShield: 0,
-  thorns: 0, rageGain: 0, autoCostCut: 0, ctrAoe: 0, berserk: 0, pierce: 0, lockOn: 0, dodgeStrike: 0, lightMax: 0, overload: 0, lightLuck: 0, burnCap: 0, autoBurn: 0, fireSpread: 0, chillPlus: 0, brittle: 0, shatter: 0, reviveHp: 0, smiteTargets: 0, holyCounter: 0, overhealShield: 0, poisonCap: 0, poisonSpread: 0, fleeFloor: 0, waveDodge: 0, dodgeEnergy: 0, ultDodge: 0, ultHits: 0, ultPoison: 0, poisonAmp: 0, lightHits: 0, lightChain: 0, burnTick: 0, chillSlow: 0, iceBarrier: 0, boltHits: 0, boltCharge: 0, stormSet: 0, mgLightAmp: 0, mgFireAmp: 0, mgIceAmp: 0, mgFirstCard: 0, mgFireStack: 0, mgWaveBarrier: 0, resRegenCut: 0, mgUltAmp: 0, elemWheel: 0, mgBarrierCut: 0, barrierBoom: 0, mgEmergency: 0, mgDoubleCast: 0, mgUltCd: 0, mgUltMana: 0, mgOverflow: 0, cleaveAdd: 0, startRage: 0, rageOnHurtAdd: 0, autoLifesteal: 0, ultMulAdd: 0, ultAmp: 0, ultShieldAdd: 0, ultVsCharge: 0, ultCounters: 0, counterRage: 0, counterShield: 0, arDodgeShield: 0, arUltBreak: 0, arWaveDodge: 0, arSnipeLow: 0, arLowHpBonus: 0, arVolley: 0, arAim: 0, arAimCrit: 0, arUltSplash: 0, arUltDodge: 0, arUltMulCut: 0, arHawk: 0, arStartFull: 0, arTurnRes: 0, arCritRes: 0, arDodgeRes: 0, debuffRes: 0, healAt: 0, atone: 0, judge: 0, smiteMul: 0, smiteVamp: 0, healShield: 0, spearStart: 0, spearRate: 0, spearMul: 0, spearHeal: 0, ultRegen: 0, ultHoly: 0, ultChargeShield: 0, bossShield: 0, lateDmg: 0, spellCrit: 0, s1Pow: 0, ultPow: 0, s2Lv: 0, s2Star: 0, // Novice: cooldown only (resources come with job change)
+  thorns: 0, rageGain: 0, autoCostCut: 0, ctrAoe: 0, berserk: 0, pierce: 0, lockOn: 0, dodgeStrike: 0, doubleAtk: 0, dSlash: 0, lightMax: 0, overload: 0, lightLuck: 0, burnCap: 0, autoBurn: 0, fireSpread: 0, chillPlus: 0, brittle: 0, shatter: 0, reviveHp: 0, smiteTargets: 0, holyCounter: 0, overhealShield: 0, poisonCap: 0, poisonSpread: 0, fleeFloor: 0, waveDodge: 0, dodgeEnergy: 0, ultDodge: 0, ultHits: 0, ultPoison: 0, poisonAmp: 0, lightHits: 0, lightChain: 0, burnTick: 0, chillSlow: 0, iceBarrier: 0, boltHits: 0, boltCharge: 0, stormSet: 0, mgLightAmp: 0, mgFireAmp: 0, mgIceAmp: 0, mgFirstCard: 0, mgFireStack: 0, mgWaveBarrier: 0, resRegenCut: 0, mgUltAmp: 0, elemWheel: 0, mgBarrierCut: 0, barrierBoom: 0, mgEmergency: 0, mgDoubleCast: 0, mgUltCd: 0, mgUltMana: 0, mgOverflow: 0, cleaveAdd: 0, startRage: 0, rageOnHurtAdd: 0, autoLifesteal: 0, ultMulAdd: 0, ultAmp: 0, ultShieldAdd: 0, ultVsCharge: 0, ultCounters: 0, counterRage: 0, counterShield: 0, arDodgeShield: 0, arUltBreak: 0, arWaveDodge: 0, arSnipeLow: 0, arLowHpBonus: 0, arVolley: 0, arAim: 0, arAimCrit: 0, arUltSplash: 0, arUltDodge: 0, arUltMulCut: 0, arHawk: 0, arStartFull: 0, arTurnRes: 0, arCritRes: 0, arDodgeRes: 0, debuffRes: 0, healAt: 0, atone: 0, judge: 0, smiteMul: 0, smiteVamp: 0, healShield: 0, spearStart: 0, spearRate: 0, spearMul: 0, spearHeal: 0, ultRegen: 0, ultHoly: 0, ultChargeShield: 0, bossShield: 0, lateDmg: 0, spellCrit: 0, s1Pow: 0, ultPow: 0, s2Lv: 0, s2Star: 0, // Novice: cooldown only (resources come with job change)
 }
 
 export const RULES = {
@@ -489,6 +491,10 @@ export const FONT_UI = '"Mali", "Leelawadee UI", "Noto Sans Thai", sans-serif'
 export const FONT_NUM = '"Pixelify Sans", "Mali", monospace'
 
 /** Stat spec v1: hit chance = clamp(0.80 + (Hit - Flee) * 1%, 80%, 98%), both sides. */
+/** Thief Double Strike (RO Double Attack): Lv 1 20%, +4%/Lv, Lv 10 60%. */
+export const doubleAtkChance = (lv: number) => (lv <= 0 ? 0 : lv >= 10 ? 0.6 : 0.16 + 0.04 * lv)
+/** Thief Double Slash (RO table): each of the 2 hits = (100 + 10 x Lv)% P.ATK + (5 + 5 x Lv). */
+export const doubleSlash = (lv: number) => ({ mul: 1 + 0.1 * lv, flat: 5 + 5 * lv })
 export const hitChance = (hit: number, flee: number, floor = 0.8) => Math.min(0.98, Math.max(floor, 0.8 + (hit - flee) * 0.01))
 /** Stat spec v1: damage after DEF = dmg * 100 / (100 + DEF). Never subtract flat. */
 export const afterDef = (dmg: number, def: number) => dmg * 100 / (100 + Math.max(0, def))

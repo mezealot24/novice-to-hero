@@ -77,6 +77,7 @@ export function lockReason(t: TreeSave, job: JobId, node: TreeNode): string {
   const lv = t[node.id] ?? 0
   if (lv >= node.max) return 'เต็มแล้ว'
   if (node.parent && !(t[node.parent] ?? 0)) return `ลง "${nodeById(node.parent)?.name ?? ''}" ก่อน`
+  if (node.parent && node.parentLv && (t[node.parent] ?? 0) < node.parentLv) return `ลง "${nodeById(node.parent)?.name ?? ''}" ถึง Lv ${node.parentLv} ก่อน`
   if (node.kind === 's2root') {
     const other = skill2Picked(t, job)
     if (other && other.id !== node.s2) return `เลือก "${other.name}" ไปแล้ว (รีเซ็ตเพื่อเปลี่ยน)`

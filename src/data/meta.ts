@@ -304,8 +304,8 @@ export function heroStats(s: StatsInput): Stats {
   const d = (k: BaseStat) => b[k] - STAT_RULES.start
   const P = PER_POINT
   const job = JOBS[s.job ?? 'novice']
-  // ranged jobs draw P.ATK from DEX instead of STR (stat spec v1); Thief draws it from AGI (design/thief-buff-v1.md, Q OK 2026-11-03)
-  st.atk += P.str.atk * d(job.attack === 'ranged' ? 'dex' : job.id === 'thief' ? 'agi' : 'str'); st.pskill += P.str.pskill * b.str
+  // ranged jobs draw P.ATK from DEX instead of STR (stat spec v1)
+  st.atk += P.str.atk * d(job.attack === 'ranged' ? 'dex' : 'str'); st.pskill += P.str.pskill * b.str
   st.hit += P.dex.hit * b.dex; st.minPct = Math.min(0.95, st.minPct + P.dex.minPct * b.dex)
   st.maxHp = (st.maxHp + P.vit.maxHp * d('vit')) * (1 + P.vit.maxHpPct * b.vit); st.def += P.vit.def * b.vit; st.regen += P.vit.regen * b.vit
   st.matk += P.int.matk * d('int'); st.maxRes += P.int.maxRes * d('int')

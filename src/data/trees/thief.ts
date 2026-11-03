@@ -3,11 +3,13 @@
 // Class passive เงาบาง (fleeFloor 0.1 in JOBS.thief.mod): monsters hit the Thief at least 70% instead of 80%.
 // Node and talent ids are save data: never rename or remove a shipped id (retire it by leaving it out of the UI instead).
 import { node as n, talent as t, type ClassTree } from '../tree-types'
+import { doubleAtkChance, doubleSlash } from '../game-data'
 
 export const tree: ClassTree = {
   branches: [
     { id: 'thief_a', job: 'thief', name: 'พิษ', icon: '☠️', blurb: 'พิษซ้อนหนา ล้มบอสช้าแต่ชัวร์ · ระเบิดพิษ' },
     { id: 'thief_b', job: 'thief', name: 'เงา', icon: '👤', blurb: 'หลบ · หลบแล้วฟื้น · หลบแล้วสวน' },
+    { id: 'thief_core', job: 'thief', name: 'แก่นโจร', icon: '🗡️', blurb: 'Double Strike → Double Slash (สายตีหมู่)' }, // no ATTACH -> core column
   ],
   nodes: [
     n('thief_a1', 'thief_a', 1, '🧪', 'เคลือบพิษ', 3, (lv) => `พิษ +${lv} stack ต่อ hit`, (lv) => ({ poison: lv })),
@@ -17,6 +19,10 @@ export const tree: ClassTree = {
     n('thief_b1', 'thief_b', 1, '🌫️', 'ย่องเบา', 3, (lv) => `Flee +${lv * 4} · มอนตีโดนขั้นต่ำ −${lv * 2}%`, (lv) => ({ flee: 4 * lv, fleeFloor: 0.02 * lv })),
     n('thief_b2', 'thief_b', 2, '🌙', 'หายใจในเงา', 3, (lv) => `หลบได้แล้วฟื้น ${lv * 2}% HP สูงสุด`, (lv) => ({ dodgeHeal: 0.02 * lv })),
     n('thief_b3', 'thief_b', 3, '🔪', 'มีดคู่', 3, (lv) => `คอมโบ +${lv * 5}% · คริ +${lv * 3}%`, (lv) => ({ combo: 0.05 * lv, crit: 0.03 * lv })),
+    // Q 2026-11-03, RO style: Double Strike (RO Double Attack: Lv 1 20% ... Lv 9 52%, Lv 10 60%; the extra hit CAN crit, unlike RO)
+    // -> Double Slash (needs Double Strike Lv 5): ทักษะ 1 แทงพิษ becomes a 2-hit AoE on the front monster + up to 3 more.
+    n('thief_core1', 'thief_core', 0, '🗡️', 'D.Strike', 10, (lv) => `Double Strike: ตีปกติ + Double Slash มีโอกาส ${Math.round(doubleAtkChance(lv) * 100)}% ตีเพิ่ม 1 ที (คริได้) · เป้าเดียว`, (lv) => ({ doubleAtk: lv })),
+    { ...n('thief_core2', 'thief_core', 1, '⚔️', 'D.Slash', 10, (lv) => { const d = doubleSlash(lv); return `Double Slash: ทักษะ 1 เปลี่ยนเป็นฟันหมู่: 2 ที ทีละ ${Math.round(d.mul * 100)}% +${d.flat} ใส่ตัวหน้า + รอบข้างอีก 3 ตัว · ติด Double Strike ได้` }, (lv) => ({ dSlash: lv })), parentLv: 5 },
     n('thief_b4', 'thief_b', 4, '👤', 'เงาสวน', 1, () => 'หลบได้ทุกครั้ง = แทงสวน 0.8x (ติดพิษได้)', () => ({ dodgeStrike: 1 })),
   ],
   talents: [
