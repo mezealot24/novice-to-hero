@@ -7,13 +7,13 @@ const r2 = (rank: number, a: number, b: number) => (rank >= 2 ? b : a)
 
 export const tree: ClassTree = {
   branches: [
-    { id: 'archer_a', job: 'archer', name: 'ซุ่มยิง', icon: '🎯', blurb: 'ฆ่าบอส · คริแรง · BREAK' },
+    { id: 'archer_a', job: 'archer', name: 'ซุ่มยิง', icon: '🎯', blurb: 'ฆ่าบอส · คริแรง · ยิงสวนท่าชาร์จ' },
     { id: 'archer_b', job: 'archer', name: 'พริ้วไหว', icon: '🍃', blurb: 'คอมโบ · หลบแล้วได้โล่ · ยิงสวน' },
   ],
   nodes: [
     n('archer_a1', 'archer_a', 1, '🦅', 'ตาเหยี่ยว', 3, (lv) => `คริ +${lv * 4}%`, (lv) => ({ crit: 0.04 * lv })),
     n('archer_a2', 'archer_a', 2, '💥', 'จุดตาย', 3, (lv) => `ดาเมจคริ +${lv * 20}%`, (lv) => ({ critMul: 0.2 * lv })),
-    n('archer_a3', 'archer_a', 3, '🔩', 'ทะลวงเกราะ', 3, (lv) => `ศรทะลวงไม่สน P.DEF ${lv * 25}% · ดาเมจเข้าแถบ BREAK +${lv * 15}%`, (lv) => ({ pierce: 0.25 * lv, arUltBreak: 0.15 * lv })),
+    n('archer_a3', 'archer_a', 3, '🔩', 'ทะลวงเกราะ', 3, (lv) => `ศรทะลวงไม่สน P.DEF ${lv * 25}% · ยิงบอสที่กำลังชาร์จแรงขึ้น +${lv * 15}%`, (lv) => ({ pierce: 0.25 * lv, arUltBreak: 0.15 * lv })),
     n('archer_a4', 'archer_a', 4, '🎯', 'ล็อกเป้า', 1, () => 'ยิงตัวเดิมติดกัน ดาเมจ +8%/ชั้น (สูงสุด 5) · ยิงคู่ยิงตัวที่ล็อก · ฆ่าตัวที่ล็อกได้ = หลบแน่นอน 1 ครั้ง', () => ({ lockOn: 1 })),
     n('archer_b1', 'archer_b', 1, '🏹', 'ยิงรัว', 3, (lv) => `คอมโบ +${lv * 5}%`, (lv) => ({ combo: 0.05 * lv })),
     n('archer_b2', 'archer_b', 2, '🍃', 'ฝีเท้าลม', 3, (lv) => `Flee +${lv * 4} · หลบโชคดี +${lv * 2}%`, (lv) => ({ flee: 4 * lv, luckyDodge: 0.02 * lv })),
@@ -32,7 +32,7 @@ export const tree: ClassTree = {
     // row 3 (Job Lv 20): ศรทะลวง (ult)
     t('ar_t3a', 3, '💥', 'ศรเจาะทะลุ', 2, (r) => `ศรทะลวงโดนตัวอื่นทุกตัวด้วย ${r2(r, 1.5, 2)}x`, (r) => ({ arUltSplash: r2(r, 1.5, 2) })),
     t('ar_t3b', 3, '💨', 'ถอยยาว', 2, (r) => `ศรทะลวงหลบแน่นอน 2 ครั้ง แต่ดาเมจ ${r2(r, 4, 4.5)}x`, (r) => ({ arUltDodge: 1, arUltMulCut: r2(r, 1, 0.5) })),
-    t('ar_t3c', 3, '🔨', 'ศรบั่น', 2, (r) => `ดาเมจศรทะลวงเข้าแถบ BREAK x${r2(r, 1.6, 2)}`, (r) => ({ arUltBreak: r2(r, 0.6, 1) })),
+    t('ar_t3c', 3, '🔨', 'ศรบั่น', 2, (r) => `ศรทะลวงใส่บอสที่กำลังชาร์จ x${r2(r, 1.6, 2)}`, (r) => ({ arUltBreak: r2(r, 0.6, 1) })),
     // row 4 (Job Lv 30): identity
     t('ar_t4a', 4, '🦅', 'เหยี่ยวคู่ใจ', 2, (r) => `ทุก 3 เทิร์นเหยี่ยวจิกตัวสุ่ม ${r2(r, 0.6, 0.9)}x (ไม่พลาด)`, (r) => ({ arHawk: r2(r, 0.6, 0.9) })),
     t('ar_t4b', 4, '🌬️', 'สมาธิพราน', 2, (r) => `เริ่มทุกเวฟด้วย Energy เต็ม${r >= 2 ? ' · Energy +5/เทิร์น' : ''}`, (r) => ({ arStartFull: 1, arTurnRes: r2(r, 0, 5) })),

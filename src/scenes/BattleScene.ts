@@ -22,7 +22,6 @@ const FACES_RIGHT: MonsterKind[] = ['wolf', 'shadowwolf', 'boar', 'alpha', 'hunt
 interface Mon {
   kind: MonsterKind; def: MonsterDef; spr: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Image
   hp: number; gauge: number; dead: boolean; slot: number; turns: number; charging: boolean; summoned: boolean
-  chargeDmg: number // damage taken during the current charge (BREAK check)
   burnStacks: number; burnStackTurns: number // Mage fire ult: stacking burn
   chill: number; frozen: boolean // Mage ice ult: chill = slowed turns left, frozen = skips its next turn
   burn: number; burnTurns: number; poison: number; poisonDmg: number; dotTxt?: Phaser.GameObjects.Text
@@ -49,10 +48,10 @@ const ELEMENTS: Record<Element, { icon: string; name: string; sub: string }> = {
 }
 type Actor = { hero: true } | { hero: false; m: Mon }
 const MINI_HINT: Record<string, string> = {
-  duelist: 'ตั้งท่าปัดเมื่อไหร่ ตีครั้งแรกจะโดนปัด+สวน · อย่าใช้ท่าไม้ตายตอนนั้น',
+  duelist: 'ตั้งท่าปัดเมื่อไหร่ ตีครั้งแรกจะโดนปัด+สวน · อย่าใช้ท่าไม้ตายตอนนั้น · ต่ำกว่า 40% เร็วและแรงขึ้น',
   hunter: 'ดูดเลือดทุกครั้งที่กัด · HP ต่ำกว่าครึ่งจะคลั่ง เร็วขึ้น · ไฟตัดฮีลได้',
-  gunner: 'ยิงรัว 3 นัด (Flee ช่วยหลบทีละนัด) · ชาร์จจรวดยักษ์ = ต้อง BREAK หรือกัน',
-  drainer: 'เวทดูดชีวิต · ต่ำกว่าครึ่งฟื้น HP ทุกเทิร์น · ชาร์จแล้ว BREAK ให้ทัน',
+  gunner: 'ยิงรัว 3 นัด (Flee ช่วยหลบทีละนัด) · ชาร์จจรวดยักษ์ = เตรียมกันด้วยท่าไม้ตาย · ครึ่งเลือดยิงติดไฟ',
+  drainer: 'เวทดูดชีวิต · ต่ำกว่าครึ่งฟื้น HP ทุกเทิร์น · ท่าชาร์จดูดเลือดเต็ม · ทุก 4 เทิร์นปิดปาก 1 เทิร์น',
   venomqueen: 'กัดติดพิษ · พ่นใยทำให้ใช้ท่าไม้ตายไม่ได้ 2 เทิร์น · ชาร์จห่อใย = โดนมัดเสียเทิร์น · ครึ่งเลือดฟักลูก',
   frostgiant: 'P.DEF สูงมาก (คริ/เวททะลุ) · ทุกทีเกราะเราแตก · ชาร์จทุก 3 เทิร์น ทุบแล้วแข็ง · 40% ได้เกราะน้ำแข็ง',
   mirage: 'สะท้อนดาเมจ 30% (ตีแรงเจ็บเอง) · ตีทีเราอ่อนแรง · ครึ่งเลือดแตกเศษกระจกที่ระเบิดได้',
@@ -105,7 +104,6 @@ export class BattleScene extends Phaser.Scene {
   pendingPick?: (i: number) => void
   eventLog: string[] = []
   /** Playtest counters (bots read these). */
-  breakCount = 0
   counterCount = 0
   /** Hero turns used in the current fight, and the fight's limit (Q: no endless tank stalling). */
   fightTurns = 0
@@ -205,7 +203,7 @@ export class BattleScene extends Phaser.Scene {
     this.cardLuck = 1 + Math.min(PER_POINT.luk.dropCap, PER_POINT.luk.dropPct * totalBase(s).luk)
     this.settled = false; this.over = false; this.smashQueued = false
     this.startedAt = this.time.now
-    this.eventLog = []; this.lockTarget = undefined; this.lockStacks = 0; this.hawkTurn = 0; this.breakCount = 0; this.revivedCount = 0; this.spears = 0; this.spearAcc = 0; this.ultRegenTurns = 0; this.smiteCount = 0; this.counterCount = 0; this.comboCount = 0; this.comboLevel = 0; this.lowShake = !!save().lowShake; this.peakTurns = 0; this.turnsLog = []
+    this.eventLog = []; this.lockTarget = undefined; this.lockStacks = 0; this.hawkTurn = 0; this.revivedCount = 0; this.spears = 0; this.spearAcc = 0; this.ultRegenTurns = 0; this.smiteCount = 0; this.counterCount = 0; this.comboCount = 0; this.comboLevel = 0; this.lowShake = !!save().lowShake; this.peakTurns = 0; this.turnsLog = []
     this.minHpPct = 1; this.relic = null; this.miniKind = null; this.miniWon = false; this.parryCount = 0; this.freezeCount = 0; this.harvest = 0; this.enemyAttacks = 0
     this.hx = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0 }; this.debuffCount = 0; this.resistCount = 0
     const rooms = this.dg.rooms
@@ -263,7 +261,7 @@ export class BattleScene extends Phaser.Scene {
       this.banner(`⚔️ ดวล 1-1 · ${d.name} ${d.title ?? ''}`, MINI_HINT[d.mini!])
       kinds.push(this.miniKind)
     } else {
-      this.banner(room.title, room.boss ? 'บอสชาร์จพลัง = ตาเรา! ตีแรงพอจะ BREAK ยกเลิกท่า หรือกันด้วยท่าไม้ตาย' : 'ผลัดกันตีตามความเร็ว (AGI) · แตะปุ่มทุบเมื่อพร้อม')
+      this.banner(room.title, room.boss ? 'บอสชาร์จพลัง = ตาเรา! เตรียมกันด้วยท่าไม้ตาย หรือรีบตีให้จบ' : 'ผลัดกันตีตามความเร็ว (AGI) · แตะปุ่มทุบเมื่อพร้อม')
       for (const [k, n] of room.spawn) for (let j = 0; j < n; j++) kinds.push(k)
     }
     kinds.slice(0, SLOT_X.length).forEach((k, j) => this.addMon(k, j))
@@ -290,7 +288,7 @@ export class BattleScene extends Phaser.Scene {
     const shadow = this.add.image(W + 80, y + 2, 'shadow').setScale((def.radius * 2.4) / 60 * 1.4, 1.2).setDepth(y - 1)
     const spr = this.add.image(W + 80, y, def.tex).setOrigin(0.5, 1).setScale(kind === 'minijellop' ? 1.1 : big ? 1.6 : 1.5).setDepth(y)
     if (FACES_RIGHT.includes(kind)) spr.setFlipX(true)
-    const m: Mon = { kind, def, spr, shadow, hp: def.hp, gauge: gauge ?? Phaser.Math.Between(0, 40), dead: false, slot, turns: 0, charging: false, summoned: false, chargeDmg: 0, burnStacks: 0, burnStackTurns: 0, chill: 0, frozen: false, burn: 0, burnTurns: 0, poison: 0, poisonDmg: 0, parry: false, ice: 0, iceChance: 0, iced: false, hell: 0, harvestMark: 0,
+    const m: Mon = { kind, def, spr, shadow, hp: def.hp, gauge: gauge ?? Phaser.Math.Between(0, 40), dead: false, slot, turns: 0, charging: false, summoned: false, burnStacks: 0, burnStackTurns: 0, chill: 0, frozen: false, burn: 0, burnTurns: 0, poison: 0, poisonDmg: 0, parry: false, ice: 0, iceChance: 0, iced: false, hell: 0, harvestMark: 0,
       shield: 0, atkUp: 0, atkUpTurns: 0, phase: 0, speedMul: 1, dmgMul: 1, reflect: def.reflect ?? 0, chargeEvery: def.chargeEvery ?? BATTLE.slamEvery, skills: def.skills ?? [], onHit: def.onHit, slamFx: def.slamFx, revived: false, weakTurns: 0, weakPct: 0 }
     this.mons.push(m)
     this.tweens.add({ targets: [spr, shadow], x, duration: 600, ease: 'Quad.easeOut', delay: slot * 90 })
@@ -474,7 +472,7 @@ export class BattleScene extends Phaser.Scene {
   private lockTarget?: Mon
   private lockStacks = 0
   private hawkTurn = 0
-  private ultFiring = false // archer: ult damage counts extra toward BREAK
+  private ultFiring = false // archer: ult hits a charging boss harder (ทะลวงเกราะ / ศรบั่น)
 
   /** One physical/magic hit. RO-style crit: physical only, rolled first; a crit always hits (skips flee) and ignores DEF.
    *  Magic never misses and never crits. Returns damage dealt. */
@@ -484,6 +482,7 @@ export class BattleScene extends Phaser.Scene {
     if (!magic && !crit && Math.random() > hitChance(this.st.hit, m.def.flee ?? 5)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
     if (m.parry) { this.parried(m); return 0 }
     if (m.chill > 0 && this.st.brittle > 0) mul *= 1 + this.st.brittle // tree: ice "เปราะ"
+    if (this.ultFiring && m.charging && this.st.arUltBreak > 0) mul *= 1 + this.st.arUltBreak // archer tree/talent: ult vs a charging boss
     if (this.st.arLowHpBonus > 0 && m.hp < m.def.hp * 0.5) mul *= 1 + this.st.arLowHpBonus // archer talent เก็บตัวเปราะ r2
     if (crit && this.st.arCritRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arCritRes) // archer talent ลมหายใจนักล่า
     const r = this.roll(mul, magic, crit)
@@ -925,10 +924,6 @@ export class BattleScene extends Phaser.Scene {
       if (dmg <= 0) return
     }
     m.hp -= dmg
-    if (m.charging && m.def.breakPct && m.hp > 0) {
-      m.chargeDmg += dmg * (m.chill > 0 && this.st.shatter > 0 ? 1.5 : 1) * (this.ultFiring ? 1 + this.st.arUltBreak : 1) // tree ice ★: chilled boss breaks faster · archer ult: ทะลวงเกราะ / ศรบั่น
-      if (m.chargeDmg >= m.def.hp * m.def.breakPct) this.breakCharge(m)
-    }
     this.damageNumber(m.spr.x, m.spr.y - m.spr.displayHeight, dmg, crit, color)
     if (this.comboSum.on && !dot) { const e = this.comboSum.per.get(m) ?? { dmg: 0, x: 0, y: 0 }; e.dmg += dmg; e.x = m.spr.x; e.y = m.spr.y - m.spr.displayHeight; this.comboSum.per.set(m, e) }
     if (crit && !dot) this.critJuice(m)
@@ -941,18 +936,6 @@ export class BattleScene extends Phaser.Scene {
     }
     if (m.hp <= 0) this.killMon(m)
     else while (m.def.phases && m.phase < m.def.phases.length && m.hp < m.def.hp * m.def.phases[m.phase].at) this.enterPhase(m, m.def.phases[m.phase++])
-  }
-
-  /** BREAK: enough damage during a charge cancels the big attack and staggers the boss. */
-  private breakCharge(m: Mon) {
-    m.charging = false; m.chargeDmg = 0
-    m.gauge -= BATTLE.breakStagger
-    this.breakCount++
-    this.time.delayedCall(90, () => m.spr.active && m.spr.clearTint())
-    this.callout('⚡ BREAK! ขัดท่าสำเร็จ', W / 2, 150)
-    this.cameras.main.flash(120, 255, 240, 160)
-    this.tweens.add({ targets: m.spr, angle: -8, duration: 90, yoyo: true, repeat: 1 })
-    sfx.door()
   }
 
   /** Equipment card drop (design/equipment-cards.md): base rate x LUK, guaranteed after `pity` kills of that monster. */
@@ -1059,8 +1042,8 @@ export class BattleScene extends Phaser.Scene {
         return
       }
       if (m.charging) { m.charging = false; m.spr.clearTint(); await this.slam(m); return }
-      if (m.def.breakPct && m.turns % m.chargeEvery === 0) {
-        m.charging = true; m.chargeDmg = 0
+      if (m.def.charge && m.turns % m.chargeEvery === 0) {
+        m.charging = true
         m.spr.setTint(0xff8080)
         this.heroGauge = Math.max(this.heroGauge, 100) // the hero always gets one turn to answer the charge
         this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10, `⚠️ ${m.def.slamName ?? 'ชาร์จพลัง!'}`, '#ff7a7a')
@@ -1149,7 +1132,7 @@ export class BattleScene extends Phaser.Scene {
     this.burst(m.spr.x, GROUND, COLORS.telegraph, 24, 320)
     sfx.slam()
     if (this.riposte(m)) { await this.wait(300); return }
-    const hit = this.hurtHero((m.def.dmg + 8) * BATTLE.monDmgMul * (m.def.slamMul ?? 1.6) * this.monMul(m), !!m.def.slamMagic, 999, m) // slam can't be fled, only lucky-dodged / BREAK-ed
+    const hit = this.hurtHero((m.def.dmg + 8) * BATTLE.monDmgMul * (m.def.slamMul ?? 1.6) * this.monMul(m), !!m.def.slamMagic, 999, m) // slam can't be fled, only lucky-dodged / shielded
     if (hit) {
       this.monLeech(m, m.def.mini === 'hunter' || m.def.mini === 'drainer' ? 1 : undefined) // the big drain heals all of it
       if (m.slamFx) this.applyFx(m.slamFx, m)
@@ -1855,11 +1838,6 @@ export class BattleScene extends Phaser.Scene {
       const w = Math.max(40, m.spr.displayWidth * 0.8), x = m.spr.x - w / 2, y = m.spr.y - m.spr.displayHeight - 12
       g.fillStyle(COLORS.night, 0.85).fillRect(x - 1, y - 1, w + 2, 8)
       g.fillStyle(m.def.ai === 'boss' ? COLORS.gold : COLORS.hp).fillRect(x, y, w * Math.max(0, m.hp / m.def.hp), 6)
-      if (m.charging && m.def.breakPct) { // BREAK meter: fill it before the boss acts to cancel the attack
-        const need = m.def.hp * m.def.breakPct
-        g.fillStyle(COLORS.night, 0.85).fillRect(x - 1, y + 8, w + 2, 7)
-        g.fillStyle(0x7fd7ff).fillRect(x, y + 9, w * Math.min(1, m.chargeDmg / need), 5)
-      }
       m.dotTxt?.setPosition(m.spr.x, y - 12)
     }
 

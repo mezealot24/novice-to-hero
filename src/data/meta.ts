@@ -207,7 +207,7 @@ const STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => string]>> 
   dodgeHeal: ['หลบ→ฟื้น HP', pc], revive: ['ลุกใหม่', (n) => `${n} ครั้ง/รอบ`],
   burnDps: ['ติดไฟ', (n) => `${n}/เทิร์น`], healShield: ['ฮีลแล้วได้โล่', pc], dodgeEnergy: ['หลบ→Energy', (n) => `${n}`], counterRage: ['สวนกลับ→Rage', (n) => `${n}`],
   mgUltAmp: ['ult ธาตุแรง', pc], thorns: ['โล่สะท้อนดาเมจ', pc], holyCounter: ['สวนกลับเป็นเวท (ใช้ M.ATK)', () => ''], rageGain: ['ได้ Rage', pc], startRage: ['เริ่มเวฟมี Rage', (n) => `${n}`],
-  pierce: ['ult ทะลวงเกราะ', pc], arUltBreak: ['ult ทำ BREAK', pc], mgUltMana: ['ร่าย ult คืน Mana', (n) => `${n}`], ultAmp: ['ult แรง', pc], ultShieldAdd: ['โล่จาก ult', (n) => `${pc(n)} HP`],
+  pierce: ['ult ทะลวงเกราะ', pc], arUltBreak: ['ult ใส่บอสที่ชาร์จ', pc], mgUltMana: ['ร่าย ult คืน Mana', (n) => `${n}`], ultAmp: ['ult แรง', pc], ultShieldAdd: ['โล่จาก ult', (n) => `${pc(n)} HP`],
   ultPoison: ['ult ติดพิษ', (n) => `${n} stack`], arDodgeShield: ['หลบ→โล่', (n) => `${pc(n)} HP`], arCritRes: ['คริ→Energy', (n) => `${n}`], counterShield: ['สวนกลับ→โล่', (n) => `${pc(n)} HP`],
   poisonAmp: ['ดาเมจใส่มอนพิษ 10+ stack', pc], ultMulAdd: ['ult ตัวคูณ', (n) => `${n}x`], ultVsCharge: ['ult ใส่บอสที่กำลังชาร์จ', pc], ultRegen: ['หลัง ult ฟื้น HP/เทิร์น (3 เทิร์น)', pc],
   autoCostCut: ['สกิลออโต้ใช้ resource ลดลง', (n) => `${n}`], autoLifesteal: ['สกิลออโต้ดูดเลือด', pc], spearRate: ['ได้หอกแสงต่อเทิร์น', pc], spearMul: ['หอกแสงแรง', (n) => `${n}x M.ATK`],
