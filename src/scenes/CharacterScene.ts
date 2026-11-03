@@ -3,8 +3,8 @@ import { COLORS, DUNGEONS, type Stats } from '../data/game-data'
 import { CARD_RULES, cardIcon, cardName, EQUIP_CARDS, TIER_COLOR, type EquipCard } from '../data/cards'
 import { BASE_STATS, canWear, CERT_SLOTS_AT, COSTUMES, gearBase, heroStats, cardStatLine, itemStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText, type Slot } from '../data/meta'
 import { canChangeJob, persist, resetTree, save, socketCard, unsocketCard } from '../save'
-import { branchesOf, branchSpent, lockReason, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentsOf, treeSpent } from '../data/tree'
-import { JOB_CHANGE, JOBS, skillPow } from '../data/jobs'
+import { branchesOf, lockReason, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
+import { JOB_CHANGE, JOBS } from '../data/jobs'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
 
 // Character sheet: preview on the left, three tabs on the right (equipment, status, skills).
@@ -18,6 +18,8 @@ export class CharacterScene extends Phaser.Scene {
   private cardBook = false
   private bookDg = 0
   private bookV2 = false
+  private skillBasic = false // skill tab: false = skill web, true = Novice skills + certificates + job
+  private selNode = ''
   constructor() { super('character') }
 
   create(data: { tab?: number }) {
@@ -26,7 +28,7 @@ export class CharacterScene extends Phaser.Scene {
     this.tab = data?.tab ?? 0
     topBar(this, '👤 ตัวละคร', () => go(this, 'hub'))
     this.drawPreview()
-    tabs(this, 330, 84, ['🎒 อุปกรณ์', '🃏 การ์ด', '📊 สถานะ', '✨ สกิล', '🌳 ต้นสกิล', '⭐ ทาเลนต์'], 94, (i) => { this.tab = i; this.render() }, this.tab)
+    tabs(this, 330, 84, ['🎒 อุปกรณ์', '🃏 การ์ด', '📊 สถานะ', '✨ สกิล', '⭐ ทาเลนต์'], 112, (i) => { this.tab = i; this.render() }, this.tab)
   }
 
   private render() {
@@ -35,8 +37,7 @@ export class CharacterScene extends Phaser.Scene {
     if (this.tab === 0) this.equipTab()
     else if (this.tab === 1) this.cardTab()
     else if (this.tab === 2) this.statusTab()
-    else if (this.tab === 3) this.skillTab()
-    else if (this.tab === 4) this.treeTab()
+    else if (this.tab === 3) (save().job === 'novice' || this.skillBasic ? this.skillTab() : this.webTab())
     else this.talentTab()
   }
 
@@ -225,18 +226,9 @@ export class CharacterScene extends Phaser.Scene {
     const s = save(), b = this.body!
     b.add(txt(this, 330, 116, `แต้มสกิลเหลือ: ${s.skillPoints}`, 20, s.skillPoints ? UI.gold : UI.sub, true))
     const job = JOBS[s.job]
-    b.add(txt(this, 330, 144, `ได้ 1 แต้มทุก Job Lv · ${job.icon} ${job.name}${s.job === 'novice' ? '' : ' + สกิลโนวิสที่ติดตัว'}`, 14, UI.sub))
+    b.add(txt(this, 330, 144, `ได้ 1 แต้มทุก Job Lv · ${s.job === 'novice' ? `${job.icon} ${job.name}` : 'สกิลโนวิสที่ติดตัว (สกิลอาชีพอยู่ในใยสกิล)'}`, 14, UI.sub))
     const rows: { icon: string; name: string; kind: string; lv: number; max: number; desc: string; up: () => void }[] = []
-    if (s.job !== 'novice') {
-      const cls = [
-        { key: 'auto' as const, sk: job.auto, kind: `อัตโนมัติ · ${job.resource ?? ''}` },
-        { key: 'ult' as const, sk: job.ult, kind: `กดเอง · ${job.ult.cd} เทิร์น` },
-      ]
-      for (const c of cls) {
-        const lv = s.jobSkills[c.key]
-        rows.push({ icon: c.sk.icon, name: c.sk.name, kind: c.kind, lv, max: 10, desc: `${c.sk.desc} · แรง x${skillPow(lv).toFixed(1)}`, up: () => { s.jobSkills[c.key]++ } })
-      }
-    }
+    if (s.job !== 'novice') b.add(button(this, 885, 124, 120, 30, '🕸️ ใยสกิล', () => { this.skillBasic = false; this.render() }, { size: 13 }))
     for (const sk of SKILLS) {
       if (sk.id === 'smash' && s.job !== 'novice') continue
       const lv = s.skills[sk.id]
@@ -265,61 +257,92 @@ export class CharacterScene extends Phaser.Scene {
     })
     b.add(txt(this, 330, y0 + 100, '🌳 ทาเลนต์ & เปลี่ยนอาชีพ', 16, UI.text, true))
     if (canChangeJob(s) || s.job !== 'novice') {
-      b.add(txt(this, 330, y0 + 126, s.job === 'novice' ? 'ล้มบอสดันแรกแล้ว! ไปเลือกอาชีพได้เลย' : 'ลงแต้มต้นสกิลได้ที่แท็บ 🌳 · เปลี่ยนอาชีพใหม่ได้ฟรีช่วงทดลอง (คืนแต้มให้)', 13, UI.gold).setWordWrapWidth(420))
+      b.add(txt(this, 330, y0 + 126, s.job === 'novice' ? 'ล้มบอสดันแรกแล้ว! ไปเลือกอาชีพได้เลย' : 'ลงแต้มสกิลอาชีพได้ที่ 🕸️ ใยสกิล · เปลี่ยนอาชีพใหม่ได้ฟรีช่วงทดลอง (คืนแต้มให้)', 13, UI.gold).setWordWrapWidth(420))
       b.add(button(this, 850, y0 + 132, 150, 36, '🎓 อาชีพ', () => go(this, 'job'), { size: 15 }))
     } else b.add(txt(this, 330, y0 + 126, 'ปลดล็อกเมื่อล้มบอสดันแรก (ราชาเจลล็อป) · มี 5 อาชีพ: นักดาบ นักธนู จอมเวท นักบวช โจร', 13, UI.sub).setWordWrapWidth(600))
   }
 
-  // ---------- tab 4: skill tree (data/tree.ts) ----------
-  private treeTab() {
+  // ---------- tab 3: skill web (data/tree.ts + data/skill2.ts, design/skill-web-v1.md) ----------
+  private webTab() {
     const s = save(), b = this.body!
-    const job = JOBS[s.job]
-    if (s.job === 'novice') {
-      b.add(txt(this, 330, 130, '🌳 ต้นสกิลเปิดหลังเปลี่ยนอาชีพ', 20, UI.gold, true))
-      b.add(txt(this, 330, 166, 'อาชีพละ 2 สาย (จอมเวท 3 สายตามธาตุ) · ลงแต้มสกิลเดียวกับสกิลอาชีพ\nโหนดสุดท้าย ★ เลือกได้อาชีพละ 1 อันเท่านั้น', 14, UI.sub))
-      return
-    }
-    const t = (s.jobTree ??= {})
-    b.add(txt(this, 330, 114, `แต้มสกิลเหลือ: ${s.skillPoints}`, 18, s.skillPoints ? UI.gold : UI.sub, true))
-    b.add(txt(this, 500, 118, `${job.icon} ลงไปแล้ว ${treeSpent(t, s.job)} · ทุก 2 แต้มเปิดโหนดถัดไป · ★ ได้ 1 อัน`, 12, UI.sub))
-    b.add(button(this, 885, 124, 90, 30, 'รีเซ็ตฟรี', () => {
+    const job = JOBS[s.job], t = (s.jobTree ??= {})
+    b.add(txt(this, 330, 112, `แต้มสกิลเหลือ: ${s.skillPoints}`, 18, s.skillPoints ? UI.gold : UI.sub, true))
+    b.add(txt(this, 330, 136, `${job.icon} ลงไปแล้ว ${treeSpent(t, s.job)} · ★ ได้ ${TREE_RULES.capstones} ดวง · ทักษะ 2 ร่ายเอง · แตะโหนดเพื่อดู`, 11, UI.sub))
+    b.add(button(this, 760, 124, 112, 30, '🌱 โนวิส/อาชีพ', () => { this.skillBasic = true; this.render() }, { size: 12, fill: 0x5a5f8a, color: UI.text }))
+    b.add(button(this, 880, 124, 96, 30, 'รีเซ็ตฟรี', () => {
       const back = resetTree(s)
       if (!back) return
       s.skillPoints += back; persist(); toast(this, `คืน ${back} แต้มแล้ว`); this.redraw()
     }, { size: 13, fill: 0x5a5f8a, color: UI.text }).setEnabled(treeSpent(t, s.job) > 0))
+
+    // columns: ทักษะ 1 | ทักษะ 2 (x3) | Ult | core
+    type Col = { group: string; cells: { n: TreeNode; row: number }[] }
+    const cols: Col[] = [], groups: { name: string; from: number; to: number }[] = []
     const brs = branchesOf(s.job)
-    const core = brs.find((x) => nodesOf(x.id).every((n) => n.tier === 0))
-    const cols = brs.filter((x) => x !== core)
-    const x0 = 330, wAll = 600, gap = 10
-    const cw = (wAll - gap * (cols.length - 1)) / cols.length
-    let top = 146
-    const node = (n: ReturnType<typeof nodesOf>[number], x: number, y: number, w: number, h: number) => {
-      const lv = t[n.id] ?? 0, why = lockReason(t, s.job, n), cap = n.tier === 4
-      const open = !why || why === 'เต็มแล้ว'
-      b.add(panel(this, x, y, w, h, lv ? 0x2a3b5a : open ? UI.panel : 0x1d2140, cap ? COLORS.gold : lv ? 0x7fd7ff : UI.line, 10))
-      b.add(txt(this, x + 8, y + 4, `${cap ? '★ ' : ''}${n.icon} ${n.name}`, 13, open ? UI.text : UI.sub, true))
-      b.add(txt(this, x + w - 8, y + 5, `${lv}/${n.max}`, 12, lv ? UI.gold : UI.sub, true).setOrigin(1, 0))
-      b.add(txt(this, x + 8, y + 23, n.desc(Math.max(1, lv)), 11, open ? UI.green : UI.sub).setWordWrapWidth(w - 60))
-      if (why && why !== 'เต็มแล้ว') b.add(txt(this, x + 8, y + h - 16, `🔒 ${why}`, 10, UI.sub))
-      b.add(button(this, x + w - 26, y + h - 20, 40, 26, '+', () => {
-        if (s.skillPoints <= 0 || lockReason(t, s.job, n)) return
-        t[n.id] = (t[n.id] ?? 0) + 1; s.skillPoints--; persist(); this.redraw()
-      }, { size: 16 }).setEnabled(s.skillPoints > 0 && !why))
+    const lineCols = (line: 's1' | 'ult', name: string) => {
+      const from = cols.length
+      const root = nodesOf(`${s.job}_${line}`)[0]
+      const subs = brs.filter((x) => x.line === line && x.id !== `${s.job}_${line}`)
+      cols.push({ group: name, cells: [{ n: root, row: 0 }] })
+      subs.forEach((br, i) => {
+        const cells = nodesOf(br.id).map((n) => ({ n, row: n.tier }))
+        if (i === 0) cols[from].cells.push(...cells); else cols.push({ group: name, cells })
+      })
+      groups.push({ name, from, to: cols.length - 1 })
     }
-    if (core) {
-      for (const n of nodesOf(core.id)) node(n, x0, top, wAll, 50)
-      top += 58
+    lineCols('s1', `${job.auto.icon} ทักษะ 1`)
+    { const from = cols.length
+      const s2 = nodesOf(`${s.job}_s2`)
+      for (const r of s2.filter((n) => n.kind === 's2root')) cols.push({ group: 's2', cells: s2.filter((n) => n.s2 === r.s2).map((n) => ({ n, row: n.tier })) })
+      groups.push({ name: '🔀 ทักษะ 2 (เลือก 1)', from, to: cols.length - 1 }) }
+    lineCols('ult', `${job.ult.icon} Ult`)
+    const core = brs.filter((x) => x.line === 'core')
+    if (core.length) { const from = cols.length; for (const br of core) cols.push({ group: 'core', cells: nodesOf(br.id).map((n, i) => ({ n, row: i })) }); groups.push({ name: `${core[0].icon} ${core[0].name}`, from, to: cols.length - 1 }) }
+
+    const gap = 6, x0 = 330, wAll = 620
+    const cw = Math.min(118, (wAll - gap * (cols.length - 1)) / cols.length), nw = cw, nh = 50, top = 176, rh = 62
+    const cx = (i: number) => x0 + i * (cw + gap)
+    for (const g of groups) {
+      const gx = cx(g.from), gw = cx(g.to) + cw - gx
+      b.add(panel(this, gx - 3, 150, gw + 6, 344, 0x1d2140, UI.line, 8))
+      b.add(txt(this, gx + 4, 155, g.name, 11, UI.gold, true).setWordWrapWidth(gw))
     }
-    const nh = core ? 70 : 86
-    cols.forEach((br, i) => {
-      const x = x0 + i * (cw + gap)
-      b.add(txt(this, x, top, `${br.icon} ${br.name} · ${branchSpent(t, br.id)}`, 15, UI.gold, true))
-      b.add(txt(this, x, top + 20, br.blurb, 11, UI.sub).setWordWrapWidth(cw))
-      nodesOf(br.id).forEach((n, k) => node(n, x, top + 40 + k * (nh + 6), cw, nh))
-    })
+    if (!this.selNode || !nodeById(this.selNode) || !cols.some((c) => c.cells.some((q) => q.n.id === this.selNode))) this.selNode = cols[0].cells[0].n.id
+    const pos = new Map<string, { x: number; y: number }>()
+    cols.forEach((c, i) => c.cells.forEach((q) => pos.set(q.n.id, { x: cx(i), y: top + q.row * rh })))
+    // edges first (parent bottom -> child top)
+    const g = this.add.graphics(); b.add(g)
+    for (const [id, p] of pos) {
+      const n = nodeById(id)!, pp = n.parent ? pos.get(n.parent) : undefined
+      if (!pp) continue
+      g.lineStyle(3, (t[id] ?? 0) > 0 ? COLORS.gold : UI.line, 1).lineBetween(pp.x + nw / 2, pp.y + nh, p.x + nw / 2, p.y)
+    }
+    for (const [id, p] of pos) {
+      const n = nodeById(id)!, lv = t[id] ?? 0, why = lockReason(t, s.job, n), open = !why || why === 'เต็มแล้ว'
+      const star = n.tier === 4 || n.kind === 's2star', sel = id === this.selNode
+      b.add(panel(this, p.x, p.y, nw, nh, lv ? 0x2a3b5a : open ? UI.panel : 0x161a33, sel ? 0xffffff : star ? COLORS.gold : lv ? 0x7fd7ff : UI.line, 10))
+      b.add(txt(this, p.x + 6, p.y + 4, `${star ? '★' : ''}${n.icon}`, 17, UI.text))
+      b.add(txt(this, p.x + nw - 6, p.y + 6, `${lv}/${n.max}`, 11, lv ? UI.gold : UI.sub, true).setOrigin(1, 0))
+      b.add(txt(this, p.x + 6, p.y + 30, clip(n.name, Math.max(5, Math.floor(nw / 11))), 11, open ? UI.text : UI.sub))
+      const z = this.add.zone(p.x, p.y, nw, nh).setOrigin(0).setInteractive({ useHandCursor: true })
+      z.on('pointerdown', () => { this.selNode = id; this.render() })
+      b.add(z)
+    }
+    // detail of the selected node
+    const n = nodeById(this.selNode)!, lv = t[n.id] ?? 0, why = lockReason(t, s.job, n)
+    b.add(panel(this, 330, 500, 620, 70, UI.panel, COLORS.gold, 10))
+    b.add(txt(this, 342, 505, `${n.icon} ${n.name}  ${lv}/${n.max}${n.kind === 's2root' ? '  · ทักษะ 2' : ''}`, 15, UI.gold, true))
+    const now = lv ? n.desc(lv) : n.desc(1)
+    const next = lv && lv < n.max ? `  → Lv ${lv + 1}: ${n.desc(lv + 1)}` : ''
+    b.add(txt(this, 342, 527, `${lv ? '' : 'Lv 1: '}${now}${next}`, 11, UI.green).setWordWrapWidth(500))
+    if (why && why !== 'เต็มแล้ว') b.add(txt(this, 342, 553, `🔒 ${why}`, 11, UI.sub))
+    b.add(button(this, 900, 535, 84, 40, lv ? '+1' : 'เรียน', () => {
+      if (s.skillPoints <= 0 || lockReason(t, s.job, n)) return
+      t[n.id] = (t[n.id] ?? 0) + 1; s.skillPoints--; persist(); this.redraw()
+    }, { size: 16 }).setEnabled(s.skillPoints > 0 && !why))
   }
 
-  // ---------- tab 5: talents (4 tiers by Job Lv, pick 1 of 3, free swap in town) ----------
+  // ---------- tab 4: talents (4 tiers by Job Lv, pick 1 of 3, free swap in town) ----------
   private talentTab() {
     const s = save(), b = this.body!
     if (s.job === 'novice') {

@@ -94,6 +94,11 @@ export class HubScene extends Phaser.Scene {
     tile(3, '⚙️', 'ตั้งค่า', s.muted ? 'เสียง: ปิด' : 'เสียง: เปิด', 0x4a4e6e, () => this.settings())
 
     if (data?.fresh) this.time.delayedCall(250, () => toast(this, `ยินดีต้อนรับ ${s.name}! ลองกด "ออกผจญภัย" ได้เลย`))
+    if (s.webRefund) { // v27 skill web migration notice (once)
+      const n = s.webRefund
+      delete s.webRefund; persist()
+      this.time.delayedCall(300, () => confirm(this, '✨ ระบบสกิลใหม่!', `สกิลกับต้นสกิลรวมเป็นหน้าเดียวแล้ว + มีทักษะ 2 ให้เลือก\nคืนแต้มสกิลให้ ${n} แต้ม ไปลงใหม่ได้ฟรีค่ะ`, 'ไปหน้าสกิล', () => go(this, 'character', { tab: 3 })))
+    }
   }
 
   private settings() {
