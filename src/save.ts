@@ -45,6 +45,7 @@ export interface SaveData {
   refineGems?: string[] // "itemId:7" / "itemId:10": free refine gems already paid out (kept after selling)
   reroll?: { item: string; idx: number; line: RefineLine } // a rerolled line waiting for keep-old / take-new
   fodder?: Record<string, number> // basic shop items kept as forge fodder, by item id (counts)
+  fortune?: number // Fortune meter 0..100 (data/events.ts FORTUNE), kept across runs: full = the next event is a JACKPOT
   lastDaily: string // yyyy-mm-dd of last free daily gems
   muted: boolean
   lowShake?: boolean // settings: ลดจอสั่น (camera shake x1/3)

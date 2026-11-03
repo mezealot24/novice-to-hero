@@ -131,6 +131,35 @@ export function makeTextures(scene: Phaser.Scene) {
     g.fillStyle(0xf2b84b).fillCircle(42, 13, 1.8) // eye
   })
 
+  // --- Event monsters (data/events.ts): golden jellop, mimic chest, mimic king ---
+  make(scene, 'goldjellop', 40, 34, (g) => {
+    g.fillStyle(0xb8860b).fillEllipse(20, 21, 38, 26)
+    g.fillStyle(0xf2c94c).fillEllipse(20, 19, 34, 24)
+    g.fillStyle(0xffffff, 0.75).fillEllipse(12, 12, 9, 5)
+    g.fillStyle(0xfff4b0).fillCircle(31, 9, 1.6).fillCircle(6, 15, 1.2)
+    g.fillStyle(0x4a3500).fillCircle(15, 20, 2.4).fillCircle(26, 20, 2.4)
+    g.fillStyle(0x4a3500).fillRect(18, 25, 5, 1.5)
+  })
+  const chest = (g: G, w: number, h: number, crown: boolean) => {
+    const top = crown ? h * 0.22 : 0, lid = top + (h - top) * 0.38
+    g.fillStyle(0x5a3a1e).fillRect(0, lid, w, h - lid) // box
+    g.fillStyle(0x7a4f28).fillRect(2, lid + 2, w - 4, h - lid - 4)
+    g.fillStyle(0x8a5a2e).fillRect(0, top, w, lid - top - 4) // lid (open a bit)
+    g.fillStyle(0xd4a017).fillRect(0, lid - 6, w, 3).fillRect(0, h - 4, w, 3).fillRect(w / 2 - 3, lid - 6, 6, h - lid + 2) // gold bands
+    g.fillStyle(0x2a0a0a).fillRect(4, lid - 4, w - 8, 8) // mouth
+    g.fillStyle(0xf6eedc)
+    for (let x = 6; x < w - 8; x += 7) { g.fillTriangle(x, lid - 4, x + 5, lid - 4, x + 2.5, lid + 1); g.fillTriangle(x + 2, lid + 4, x + 7, lid + 4, x + 4.5, lid - 1) } // teeth
+    g.fillStyle(0xd6336c).fillEllipse(w / 2, lid + 3, w * 0.3, 4) // tongue
+    g.fillStyle(0xffe066).fillCircle(w * 0.3, top + (lid - top) * 0.45, 2.5).fillCircle(w * 0.7, top + (lid - top) * 0.45, 2.5) // eyes
+    if (crown) {
+      g.fillStyle(0xf2b84b).fillRect(w * 0.25, top - 6, w * 0.5, 7)
+      g.fillTriangle(w * 0.25, top - 6, w * 0.33, top - 6, w * 0.29, 0).fillTriangle(w * 0.46, top - 6, w * 0.54, top - 6, w * 0.5, 0).fillTriangle(w * 0.67, top - 6, w * 0.75, top - 6, w * 0.71, 0)
+      g.fillStyle(0xd6336c).fillCircle(w * 0.5, top - 3, 2)
+    }
+  }
+  make(scene, 'mimic', 44, 36, (g) => chest(g, 44, 36, false))
+  make(scene, 'mimicking', 92, 90, (g) => chest(g, 92, 90, true))
+
   // --- Jellop King: big slime with a crown
   make(scene, 'king', 100, 90, (g) => {
     g.fillStyle(0x2f8f4e).fillEllipse(50, 58, 96, 62)
