@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { afterDef, BATTLE, COLORS, COMMON_PERKS, hitChance, DUNGEONS, FONT_NUM, FONT_UI, H, MONSTERS, PERKS, perkDesc, PLAYER, RULES, SET_BONUS, TAGS, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Perk, type Stats, type Tag } from '../data/game-data'
 import { EVENT_RULES, rollEvent, type EventDef } from '../data/events'
 import { COSTUMES, FREE_GEMS, heroStats, PER_POINT, RESOURCES, totalBase } from '../data/meta'
-import { CARD_RULES, cardById, cardName, cardOfMonster } from '../data/cards'
+import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster } from '../data/cards'
 import { JOBS, MAGE_SPELL, RES_RULES, skillPow, type JobDef } from '../data/jobs'
 import { addCard, addXp, persist, save } from '../save'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
@@ -815,16 +815,17 @@ export class BattleScene extends Phaser.Scene {
 
   /** Equipment card drop (design/equipment-cards.md): base rate x LUK, guaranteed after `pity` kills of that monster. */
   private rollCard(m: Mon) {
-    const cd = cardOfMonster(m.kind)
-    if (!cd || m.revived) return
+    if (m.revived) return
     const pity = (save().cardPity ??= {})
-    const n = (pity[cd.id] ?? 0) + 1
-    if (Math.random() < CARD_RULES.rate[cd.tier] * this.cardLuck || n >= CARD_RULES.pity[cd.tier]) {
-      pity[cd.id] = 0
-      this.runCards.push(cd.id)
-      this.callout(`🃏 ได้${cardName(cd)}!`, m.spr.x, m.spr.y - 130)
-      sfx.coin()
-    } else pity[cd.id] = n
+    for (const cd of cardsOfMonster(m.kind)) {
+      const n = (pity[cd.id] ?? 0) + 1
+      if (Math.random() < cardRate(cd) * this.cardLuck || n >= cardPityMax(cd)) {
+        pity[cd.id] = 0
+        this.runCards.push(cd.id)
+        this.callout(`🃏 ได้${cardName(cd)}!`, m.spr.x, m.spr.y - 130 - (cd.v2 ? 40 : 0))
+        sfx.coin()
+      } else pity[cd.id] = n
+    }
   }
 
   private killMon(m: Mon) {

@@ -160,11 +160,19 @@ const STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => string]>> 
   maxHp: ['HP', (n) => `${n}`], atk: ['P.ATK', (n) => `${n}`], matk: ['M.ATK', (n) => `${n}`], pskill: ['สกิลกายภาพ', pc],
   def: ['P.DEF', (n) => `${n}`], mdef: ['M.DEF', pc], tenacity: ['ต้านทาน', pc], healAmp: ['ฮีลแรง', pc], shieldAmp: ['โล่แรง', pc],
   hit: ['Hit', (n) => `${n}`], flee: ['Flee', (n) => `${n}`], luckyDodge: ['หลบโชคดี', pc], dropChance: ['ดรอปหายาก', pc],
-  maxRes: ['Max Mana', (n) => `${n}`], resRegen: ['ฟื้น Mana', (n) => `${n}`], aspd: ['เร็ว', (n) => pc(n / PLAYER.aspd)],
+  maxRes: ['Max Mana', (n) => `${n}`], resRegen: ['ฟื้น Mana', (n) => `${Math.round(n * 3 * 10) / 10}/เทิร์น`], aspd: ['เร็ว', (n) => pc(n / PLAYER.aspd)],
   crit: ['คริ', pc], spellCrit: ['เวทคริ', pc], critMul: ['ดาเมจคริ', pc], guard: ['ลดดาเมจ', pc], lifesteal: ['ดูดเลือด', pc], regen: ['ฟื้น HP/เทิร์น', (n) => pc(n * 1.5 / 100)],
   poison: ['พิษ stack/hit', (n) => `${n}`], poisonDmg: ['พิษแรง', (n) => `${n}`], smashMul: ['ทุบ(โนวิส)', (n) => `${n}x`],
   counter: ['สวนกลับ', pc], combo: ['คอมโบ', pc],
-  dodgeHeal: ['หลบ→ฟื้น HP', pc], revive: ['ลุกใหม่', (n) => `${n} ครั้ง/รอบ`], debuffRes: ['กันสถานะผิดปกติ', pc], waveShield: ['โล่ต้นเวฟ', (n) => `${pc(n)} HP`],
+  dodgeHeal: ['หลบ→ฟื้น HP', pc], revive: ['ลุกใหม่', (n) => `${n} ครั้ง/รอบ`],
+  burnDps: ['ติดไฟ', (n) => `${n}/เทิร์น`], healShield: ['ฮีลแล้วได้โล่', pc], dodgeEnergy: ['หลบ→Energy', (n) => `${n}`], counterRage: ['สวนกลับ→Rage', (n) => `${n}`],
+  mgUltAmp: ['ult ธาตุแรง', pc], thorns: ['โล่สะท้อนดาเมจ', pc], holyCounter: ['สวนกลับเป็นเวท (ใช้ M.ATK)', () => ''], rageGain: ['ได้ Rage', pc], startRage: ['เริ่มเวฟมี Rage', (n) => `${n}`],
+  pierce: ['ult ทะลวงเกราะ', pc], arUltBreak: ['ult ทำ BREAK', pc], mgUltMana: ['ร่าย ult คืน Mana', (n) => `${n}`], ultAmp: ['ult แรง', pc], ultShieldAdd: ['โล่จาก ult', (n) => `${pc(n)} HP`],
+  ultPoison: ['ult ติดพิษ', (n) => `${n} stack`], arDodgeShield: ['หลบ→โล่', (n) => `${pc(n)} HP`], arCritRes: ['คริ→Energy', (n) => `${n}`], counterShield: ['สวนกลับ→โล่', (n) => `${pc(n)} HP`],
+  poisonAmp: ['ดาเมจใส่มอนพิษ 10+ stack', pc], ultMulAdd: ['ult ตัวคูณ', (n) => `${n}x`], ultVsCharge: ['ult ใส่บอสที่กำลังชาร์จ', pc], ultRegen: ['หลัง ult ฟื้น HP/เทิร์น (3 เทิร์น)', pc],
+  autoCostCut: ['สกิลออโต้ใช้ resource ลดลง', (n) => `${n}`], autoLifesteal: ['สกิลออโต้ดูดเลือด', pc], spearRate: ['ได้หอกแสงต่อเทิร์น', pc], spearMul: ['หอกแสงแรง', (n) => `${n}x M.ATK`],
+  arLowHpBonus: ['ดาเมจใส่มอน HP<50%', pc], ultDodge: ['ult หลบแน่นอน', (n) => `${n} ครั้ง`], ultHits: ['ult แทง', (n) => `${n} ที`], mgUltCd: ['คูลดาวน์ ult', (n) => `${n} เทิร์น`],
+  resRegenCut: ['ฟื้น Mana ลดลง', pc], mgWaveBarrier: ['ต้นเวฟได้บาเรีย', (n) => `${n}x M.ATK`], debuffRes: ['กันสถานะผิดปกติ', pc], waveShield: ['โล่ต้นเวฟ', (n) => `${pc(n)} HP`],
 }
 export const BASE_NAME: Record<BaseStat, string> = { str: 'STR', vit: 'VIT', wis: 'WIS', dex: 'DEX', int: 'INT', luk: 'LUK', agi: 'AGI' }
 /** "STR +3 · P.ATK +8 · ดูดเลือด +6%" */
@@ -176,7 +184,9 @@ export function itemStatLine(it: { base?: Item['base']; mod: Partial<Stats> }): 
   else for (const k of keys) parts.push(`${BASE_NAME[k]} ${b[k]! > 0 ? '+' : ''}${b[k]}`)
   for (const k of Object.keys(it.mod) as (keyof Stats)[]) {
     const L = STAT_LABEL[k], v = it.mod[k]!
-    if (L) parts.push(`${L[0]} ${v > 0 ? '+' : '-'}${L[1](Math.abs(v))}`)
+    if (!L) continue
+    const num = L[1](Math.abs(v))
+    parts.push(num ? `${L[0]} ${k === 'resRegenCut' ? '' : v > 0 ? '+' : '-'}${num}` : L[0])
   }
   return parts.join(' · ')
 }
