@@ -1,6 +1,7 @@
 // One save slot in localStorage. Every read/write is guarded: private windows and sandboxed hosts
 // may throw or start empty, and the game must still run (it just won't remember).
 import { JOB_CHANGE, type JobId } from './data/jobs'
+import type { RefineLine } from './data/craft'
 import { FREE_GEMS, JOB_RULES, RACES, STAT_RULES, type BaseStat, type RaceId, type SkillId, EMPTY_ITEM, type EquipSlot, itemById, slotKind } from './data/meta'
 
 export interface SaveData {
@@ -37,6 +38,13 @@ export interface SaveData {
   cardSeen?: string[] // card book: every card ever found
   mats?: Record<string, number> // forge materials by id (data/materials.ts)
   grade?: Record<string, number> // item id -> forge grade 2..5 (missing = 1, data/craft.ts)
+  refine?: Record<string, number> // item id -> refine +1..+10 (missing = +0, data/refine.ts)
+  broken?: string[] // item ids broken by a failed refine: no stats / cards until repaired
+  refinePity?: Record<string, number> // item id -> failed refines in a row
+  refineLines?: Record<string, RefineLine[]> // item id -> bonus lines from +5 / +7 / +10 (index 0 / 1 / 2)
+  refineGems?: string[] // "itemId:7" / "itemId:10": free refine gems already paid out (kept after selling)
+  reroll?: { item: string; idx: number; line: RefineLine } // a rerolled line waiting for keep-old / take-new
+  fodder?: Record<string, number> // basic shop items kept as forge fodder, by item id (counts)
   lastDaily: string // yyyy-mm-dd of last free daily gems
   muted: boolean
   lowShake?: boolean // settings: ลดจอสั่น (camera shake x1/3)
@@ -228,4 +236,20 @@ export function pay(s: SaveData, c: { mats: Record<string, number>; zeny: number
   s.zeny -= c.zeny
   for (const [id, n] of Object.entries(c.mats)) { s.mats![id] -= n; if (s.mats![id] <= 0) delete s.mats![id] }
   return true
+}
+
+/** Forge fodder (basic shop items kept as counts, design 3.7). */
+export function addFodder(s: SaveData, id: string, n = 1) {
+  const bag = (s.fodder ??= {})
+  bag[id] = (bag[id] ?? 0) + n
+  if (bag[id] <= 0) delete bag[id]
+}
+/** Forget every forge record of an item that leaves the bag (sold / turned into fodder). */
+export function forgetForge(s: SaveData, id: string) {
+  if (s.grade) delete s.grade[id]
+  if (s.refine) delete s.refine[id]
+  if (s.refinePity) delete s.refinePity[id]
+  if (s.refineLines) delete s.refineLines[id]
+  if (s.broken) s.broken = s.broken.filter((x) => x !== id)
+  if (s.reroll?.item === id) delete s.reroll
 }

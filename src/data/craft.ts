@@ -89,17 +89,51 @@ export function craftCost(it: Item) {
 }
 
 const r3 = (n: number) => Math.round(n * 1000) / 1000
-/** The item as worn at grade g: positive stats grow by GRADE.pct[g], crafted bonuses join at grade 3 / 5. */
-export function gradeItem(it: Item, g = 1): Item {
-  g = Math.max(1, Math.min(gradeCap(it), g))
-  if (g <= 1) return it
-  const k = 1 + GRADE.pct[g]
-  const base: Partial<Record<BaseStat, number>> = {}
-  for (const [s, v] of Object.entries(it.base ?? {}) as [BaseStat, number][]) base[s] = v > 0 ? Math.round(v * k) : v
-  const mod: Partial<Stats> = {}
-  for (const [s, v] of Object.entries(it.mod) as [keyof Stats, number][]) mod[s] = SCALES.has(s) && v > 0 ? (FLAT.has(s) ? Math.round(v * k) : r3(v * k)) : v
-  if (it.craft) it.craft.bonus.forEach((b, i) => { if (g >= GRADE.bonusAt[i]) for (const [s, v] of Object.entries(b) as [keyof Stats, number][]) mod[s] = r3((mod[s] ?? 0) + v) })
-  return { ...it, base, mod }
+
+// ---------- refine +1..+10 (phase 2, design 3.5 / 3.5.1 / 3.6) ----------
+/** Refine rules. Gems only ever repair (Q 2026-11-03): never rate, break protection, mats, fodder or rerolls. */
+export const REFINE = {
+  max: 10,
+  pct: 0.05, // whole-item stats per +, added to the grade % (grade 5 +10 = x2.1)
+  rate: [1, 1, 1, 1, 1, 0.7, 0.55, 0.4, 0.3, 0.2, 0.12], // success chance to reach +n (index n)
+  pity: 0.1, // +10% per failed try in a row on the same item (reset on success)
+  lineAt: [5, 7, 10], // first time at these + : one random bonus line (small / mid / big)
+  gemsAt: { 7: 5, 10: 15 } as Record<number, number>, // free gems, first time per item id, ever
+  repairGems: 10,
+  goldRate: 0.1, // a line comes out gold this often...
+  goldMul: 1.5, // ...worth this much more
 }
+/** Starter gear and the empty slots can't be refined; crafted gear (price 0) can. */
+export const refinable = (it: Item) => it.price > 0 || !!it.craft
+/** Chance to reach +n after `pity` fails in a row. */
+export const refineRate = (n: number, pity = 0) => Math.min(1, (REFINE.rate[n] ?? 0) + pity * REFINE.pity)
+
+/** One random bonus line from refining. `stat` is a base stat, a Stats key, or hpPct / atkPct / matkPct. */
+export interface RefineLine { stat: string; val: number; gold?: 1 }
+const PCT_LINE: Record<string, 'maxHp' | 'atk' | 'matk'> = { hpPct: 'maxHp', atkPct: 'atk', matkPct: 'matk' }
+const BASE_KEYS = new Set(['str', 'vit', 'wis', 'dex', 'int', 'luk', 'agi'])
+
+/** The item as worn: grade + refine scale its positive stats, crafted bonuses join at grade 3 / 5, refine lines add on top (unscaled). */
+export function forgeItem(it: Item, g = 1, r = 0, lines: RefineLine[] = []): Item {
+  g = Math.max(1, Math.min(gradeCap(it), g))
+  r = refinable(it) ? Math.max(0, Math.min(REFINE.max, r)) : 0
+  if (g <= 1 && r <= 0 && !lines.length) return it
+  const k = (100 + Math.round(GRADE.pct[g] * 100) + Math.round(r * REFINE.pct * 100)) / 100 // whole percents: 1+.15+.15 must be 1.3, not 1.2999…
+  const base: Partial<Record<BaseStat, number>> = {}
+  for (const [s, v] of Object.entries(it.base ?? {}) as [BaseStat, number][]) base[s] = v > 0 ? Math.round(r3(v * k)) : v
+  const mod: Partial<Stats> = {}
+  for (const [s, v] of Object.entries(it.mod) as [keyof Stats, number][]) mod[s] = SCALES.has(s) && v > 0 ? (FLAT.has(s) ? Math.round(r3(v * k)) : r3(v * k)) : v
+  if (it.craft) it.craft.bonus.forEach((b, i) => { if (g >= GRADE.bonusAt[i]) for (const [s, v] of Object.entries(b) as [keyof Stats, number][]) mod[s] = r3((mod[s] ?? 0) + v) })
+  const pct: NonNullable<Item['pct']> = { ...(it.pct ?? {}) }
+  for (const l of lines) {
+    if (!l) continue
+    if (BASE_KEYS.has(l.stat)) base[l.stat as BaseStat] = (base[l.stat as BaseStat] ?? 0) + l.val
+    else if (PCT_LINE[l.stat]) pct[PCT_LINE[l.stat]] = r3((pct[PCT_LINE[l.stat]] ?? 0) + l.val)
+    else mod[l.stat as keyof Stats] = r3((mod[l.stat as keyof Stats] ?? 0) + l.val)
+  }
+  return { ...it, base, mod, ...(Object.keys(pct).length ? { pct } : {}) }
+}
+/** The item as worn at grade g (no refine). */
+export const gradeItem = (it: Item, g = 1) => forgeItem(it, g)
 /** "★2/5" */
 export const gradeStars = (g: number, cap: number) => `★${g}/${cap}`

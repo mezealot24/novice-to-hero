@@ -1,8 +1,8 @@
 import Phaser from 'phaser'
 import { COLORS, DUNGEONS, type Stats } from '../data/game-data'
 import { CARD_RULES, cardIcon, cardName, EQUIP_CARDS, TIER_COLOR, type EquipCard } from '../data/cards'
-import { gradeItem, gradeStars, gradeCap } from '../data/craft'
-import { BASE_STATS, canWear, gradeOf, cardFits, CERT_SLOTS_AT, EQUIP_SLOTS, offhandLocked, slotKind, type EquipSlot, COSTUMES, gearBase, heroStats, cardStatLine, itemStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText } from '../data/meta'
+import { gradeStars, gradeCap } from '../data/craft'
+import { BASE_STATS, canWear, forged, forgeTag, gradeOf, isBroken, refineOf, cardFits, CERT_SLOTS_AT, EQUIP_SLOTS, offhandLocked, slotKind, type EquipSlot, COSTUMES, gearBase, heroStats, cardStatLine, itemStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText } from '../data/meta'
 import { canChangeJob, equip, persist, resetTree, save, socketCard, unsocketCard } from '../save'
 import { branchesOf, lockReason, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
 import { JOB_CHANGE, JOBS } from '../data/jobs'
@@ -101,10 +101,11 @@ export class CharacterScene extends Phaser.Scene {
       b.add(g)
       b.add(txt(this, x + 10, y + 4, `${sl.icon} ${sl.name}`, 11, UI.sub))
       if (n) b.add(txt(this, x + 182, y + 4, `🃏${socketed(s, it).length}/${n}`, 11, UI.gold).setOrigin(1, 0))
-      if (gradeOf(s, it.id) > 1) b.add(txt(this, x + (n ? 140 : 182), y + 4, gradeStars(gradeOf(s, it.id), gradeCap(it)), 11, '#ffd36b').setOrigin(1, 0))
+      const r = refineOf(s, it.id), tag = [gradeOf(s, it.id) > 1 ? (r ? `★${gradeOf(s, it.id)}` : gradeStars(gradeOf(s, it.id), gradeCap(it))) : '', r ? `+${r}` : ''].filter(Boolean).join(' ') // short when refined (slot label room)
+      if (tag) b.add(txt(this, x + (n ? 140 : 182), y + 4, tag, 11, '#ffd36b').setOrigin(1, 0))
       b.add(txt(this, x + 10, y + 19, clip(`${it.icon} ${it.name}`, 15), 15, it.id.startsWith('none') ? UI.sub : UI.text, true))
-      const warn = off ? '🔒 ถืออาวุธ 2 มือ (ไม่ได้ค่าพลัง)' : !canWear(it, s.job) ? `⚠ ${wearText(it)} เท่านั้น` : ''
-      b.add(txt(this, x + 10, y + 41, clip(warn || itemStatLine(gradeItem(it, gradeOf(s, it.id))) || it.desc, 30), 10, warn ? UI.red : UI.green))
+      const warn = off ? '🔒 ถืออาวุธ 2 มือ (ไม่ได้ค่าพลัง)' : isBroken(s, it.id) ? '💔 แตก ไม่ได้ค่าพลัง (ซ่อมที่โรงตีเหล็ก)' : !canWear(it, s.job) ? `⚠ ${wearText(it)} เท่านั้น` : ''
+      b.add(txt(this, x + 10, y + 41, clip(warn || itemStatLine(forged(s, it)) || it.desc, 30), 10, warn ? UI.red : UI.green))
       const z = this.add.zone(x + 95, y + 30, 190, 60).setInteractive({ useHandCursor: true })
       z.on('pointerup', () => { this.slot = sl.id; this.bagPage = 0; this.render() })
       b.add(z)
@@ -120,7 +121,7 @@ export class CharacterScene extends Phaser.Scene {
         .map((it) => {
           // accessories: show when the item is already on the other side (wearing it here moves it over)
           const other = slot === 'acc' || slot === 'acc2' ? (s.equipped[slot === 'acc' ? 'acc2' : 'acc'] === it.id && it.id !== 'none' ? 'ใส่อีกข้าง' : '') : ''
-          return { id: it.id, label: `${it.icon} ${it.name}${gradeOf(s, it.id) > 1 ? ` ★${gradeOf(s, it.id)}` : ''}`, desc: canWear(it, s.job) ? itemStatLine(gradeItem(it, gradeOf(s, it.id))) || it.desc : `⚠ ${wearText(it)} เท่านั้น`, worn: s.equipped[slot] === it.id, tint: 0, off: !canWear(it, s.job), other }
+          return { id: it.id, label: `${it.icon} ${it.name}${forgeTag(s, it.id)}`, desc: !canWear(it, s.job) ? `⚠ ${wearText(it)} เท่านั้น` : isBroken(s, it.id) ? '💔 แตก: ไม่ได้ค่าพลังจนกว่าจะซ่อม' : itemStatLine(forged(s, it)) || it.desc, worn: s.equipped[slot] === it.id, tint: 0, off: !canWear(it, s.job), other }
         })
     const per = 6, pages = Math.max(1, Math.ceil(list.length / per))
     this.bagPage = Math.min(this.bagPage, pages - 1)

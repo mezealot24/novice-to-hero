@@ -45,9 +45,12 @@ if (process.env.EXTRA) {
   save.owned = [...save.owned, h, o, a2]
   save.equipped = { ...save.equipped, head: h, offhand: o, acc2: a2 }
 }
-// forge (design/item-acquisition-v1.md): WEAPON / ARMOR / ACC=<item id> swap gear in, GRADE=n puts every worn item at grade n
+// forge (design/item-acquisition-v1.md): WEAPON / ARMOR / ACC / HEAD / OFF=<item id> swap gear in, GRADE=n puts every worn item at grade n
 for (const [env, slot] of [['WEAPON', 'weapon'], ['ARMOR', 'armor'], ['ACC', 'acc'], ['HEAD', 'head'], ['OFF', 'offhand']]) if (process.env[env]) { save.owned.push(process.env[env]); save.equipped[slot] = process.env[env] }
 if (process.env.GRADE) save.grade = Object.fromEntries(Object.values(save.equipped).map((id) => [id, +process.env.GRADE]))
+// refine (phase 2): REFINE=n puts every worn item at +n (no bonus lines), BROKEN=1 marks them all broken
+if (process.env.REFINE) save.refine = Object.fromEntries(Object.values(save.equipped).map((id) => [id, +process.env.REFINE]))
+if (process.env.BROKEN) save.broken = Object.values(save.equipped)
 ;(async () => {
   const b = await chromium.launch()
   const p = await b.newPage()
