@@ -24,12 +24,12 @@ const s = (id: Skill2Id, job: JobId, icon: string, name: string, cost: number, c
   ({ id, job, icon, name, cost, cd, desc, plus, star })
 
 export const SKILL2: Skill2Def[] = [
-  // ⚔️ Swordsman (Rage)
-  s('sw_guard', 'swordsman', '🛡️', 'ตั้งการ์ด', 30, 4, '2 เทิร์น ดาเมจเข้า −40% + สวนกลับแน่นอน 1 ครั้ง',
+  // ⚔️ Swordsman (Mana since v28: pool 60, so costs are 0.6x the Rage-era 30/30/25)
+  s('sw_guard', 'swordsman', '🛡️', 'ตั้งการ์ด', 18, 4, '2 เทิร์น ดาเมจเข้า −40% + สวนกลับแน่นอน 1 ครั้ง',
     { icon: '🧱', name: 'การ์ดแน่น', desc: (lv) => `ดาเมจเข้า −${40 + lv * 5}%` }, { icon: '⏳', name: 'การ์ดเหล็ก', desc: 'ตั้งการ์ดนาน 3 เทิร์น + สวนแน่นอน 2 ครั้ง' }),
-  s('sw_blood', 'swordsman', '🩸', 'เลือดเดือด', 30, 4, '3 เทิร์น ดูดเลือด +15%',
+  s('sw_blood', 'swordsman', '🩸', 'เลือดเดือด', 18, 4, '3 เทิร์น ดูดเลือด +15%',
     { icon: '🍷', name: 'เลือดข้น', desc: (lv) => `ดูดเลือด +${15 + lv * 5}%` }, { icon: '👹', name: 'คลั่งเลือด', desc: 'ระหว่างเลือดเดือด ATK +15%' }),
-  s('sw_taunt', 'swordsman', '📣', 'ท้าทาย', 25, 4, 'มอนทุกตัวตีเบาลง 20% 2 เทิร์นของมัน',
+  s('sw_taunt', 'swordsman', '📣', 'ท้าทาย', 15, 4, 'มอนทุกตัวตีเบาลง 20% 2 เทิร์นของมัน',
     { icon: '😠', name: 'ข่มขวัญ', desc: (lv) => `มอนตีเบาลง ${20 + lv * 5}%` }, { icon: '🔔', name: 'ท้าซ้ำ', desc: 'ท้าทายนาน 3 เทิร์น + ได้ Rage 15' }),
   // 🏹 Archer (Energy)
   s('ar_rain', 'archer', '🌧️', 'ฝนธนู', 50, 3, 'ยิงใส่มอนทุกตัว 0.8x',

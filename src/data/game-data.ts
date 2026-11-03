@@ -105,15 +105,15 @@ export interface Stats {
   mgOverflow: number // auto skill x this when Mana >= 90% at turn start
   // ----- Swordsman talents (data/trees/swordsman.ts) -----
   cleaveAdd: number // + share of the basic swing's 2nd-monster cleave
-  startRage: number // Rage at every wave start
-  rageOnHurtAdd: number // + Rage when hit
+  startRage: number // Rage at every wave start (Swordsman on Mana: Mana refilled at wave start)
+  rageOnHurtAdd: number // + Rage when hit (Mana job: flat Mana when hit)
   autoLifesteal: number // + lifesteal on the auto skill only
   ultMulAdd: number // + ult damage multiplier (can be negative)
   ultAmp: number // run pick บดกระดูก: job ult damage x(1 + ultAmp) (Novice uses smashMul instead)
   ultShieldAdd: number // + ult shield share of max HP (can be negative)
   ultVsCharge: number // + damage share of the ult on a charging boss
   ultCounters: number // after the ult, this many landed hits are counters for sure
-  counterRage: number // Rage per counter
+  counterRage: number // Rage (or Mana) per counter
   counterShield: number // shield (share of max HP) per counter
   arDodgeShield: number // Archer tree โล่ลม: shield (share of max HP) per dodge, capped at 3x
   arUltBreak: number // Archer: ult damage counts this much extra toward BREAK
