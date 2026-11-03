@@ -3,7 +3,7 @@ import { afterDef, BATTLE, COLORS, COMMON_PERKS, hitChance, DUNGEONS, FONT_NUM, 
 import { EVENT_RULES, rollEvent, type EventDef } from '../data/events'
 import { COSTUMES, FREE_GEMS, heroStats, PER_POINT, RESOURCES, totalBase } from '../data/meta'
 import { CARD_RULES, cardById, cardName, cardOfMonster } from '../data/cards'
-import { JOBS, MAGE_SPELL, RES_RULES, skillPow, type JobDef } from '../data/jobs'
+import { JOBS, MAGE_SPELL, RES_RULES, SWORD_MANA, skillPow, type JobDef } from '../data/jobs'
 import { addCard, addXp, persist, save } from '../save'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
@@ -247,6 +247,7 @@ export class BattleScene extends Phaser.Scene {
 
   private async spawnRoom(i: number) {
     if (this.job.resource === 'rage') this.res = Math.min(RES_RULES.rageMax, this.st.startRage) // talent: เลือดร้อน
+    else if (this.st.startRage > 0) this.gainRes(this.st.startRage) // Swordsman on Mana: the same talent refills Mana at wave start
     const room = this.dg.rooms[i]
     const kinds: MonsterKind[] = []
     this.roomStart = this.mons.length
@@ -438,7 +439,7 @@ export class BattleScene extends Phaser.Scene {
   private shield = 0
   private dodgeCharges = 0
   private ctrCharges = 0 // Swordsman talent ท่าสวนพร้อม: sure counters left
-  /** Mana the ult costs (Mage); 0 for every other job. */
+  /** Mana the ult costs (Mage, Swordsman); 0 for every other job. */
   private ultCost() { return this.job.resource === 'mana' ? this.job.ult.cost ?? 0 : 0 }
   private resMax() { return this.job.resource === 'rage' ? RES_RULES.rageMax : this.job.resource === 'energy' ? RES_RULES.energyMax : this.st.maxRes }
   private ultTurns() {
@@ -453,6 +454,8 @@ export class BattleScene extends Phaser.Scene {
   private firstOffer = true
   private front() { return this.alive().sort((a, b) => a.slot - b.slot) }
   private gainRage(n: number) { if (this.job.resource === 'rage') this.res = Math.min(RES_RULES.rageMax, this.res + n * (1 + this.st.rageGain)) }
+  /** Flat resource gain for Mana/Energy jobs (talents that used to give Rage). */
+  private gainRes(n: number) { if (this.job.resource && this.job.resource !== 'rage') this.res = Math.min(this.resMax(), this.res + n) }
   private poisonMax() { return 12 + this.st.poisonCap }
   private burnMax() { return 10 + this.st.burnCap }
   private berserking() { return this.st.berserk > 0 && this.hp < this.st.maxHp * 0.3 }
@@ -592,7 +595,7 @@ export class BattleScene extends Phaser.Scene {
     switch (this.job.id) {
       case 'swordsman':
         await this.lunge(live[0], () => live.forEach((m) => this.strike(m, (1.4 + this.st.ultMulAdd) * hitPow * (1 + this.st.pskill) * (m.charging ? 1 + this.st.ultVsCharge : 1)))) // talents: ปราการ / ฟันทลาย
-        this.addShield(this.st.maxHp * Math.max(0, 0.25 + this.st.ultShieldAdd) * pow)
+        this.addShield(this.st.maxHp * Math.max(0, SWORD_MANA.ultShield + this.st.ultShieldAdd) * pow)
         if (this.st.ultCounters > 0) this.ctrCharges = this.st.ultCounters // talent: ท่าสวนพร้อม
         this.cameras.main.flash(120, 140, 170, 220)
         break
@@ -949,7 +952,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.ctrCharges > 0) this.ctrCharges-- // talent: ท่าสวนพร้อม (sure counter)
     else if (Math.random() >= this.st.counter) return
     this.counterCount++
-    if (this.st.counterRage > 0) this.gainRage(this.st.counterRage) // talent: เหล็กกล้า
+    if (this.st.counterRage > 0) { this.gainRage(this.st.counterRage); this.gainRes(this.st.counterRage) } // talent: เหล็กกล้า (Rage or Mana)
     if (this.st.counterShield > 0) this.addShield(this.st.maxHp * this.st.counterShield, true)
     this.floatText(HERO_X + 40, GROUND - 130, 'สวนกลับ!', '#f2b84b')
     const magic = this.job.attack === 'magic' || this.st.holyCounter > 0 // tree: "ศรัทธาสวน"
@@ -1018,6 +1021,7 @@ export class BattleScene extends Phaser.Scene {
     this.lastHurt = n
     if (this.relic === 'thornaura' && src && !src.dead) { this.damageMon(src, Math.max(1, Math.round(n * RELIC_RULES.thornaura.back)), false, '#7fd08c', true); this.floatText(src.spr.x, src.spr.y - src.spr.displayHeight - 30, '🌵 หนาม!', '#7fd08c') }
     this.gainRage(RES_RULES.rageOnHurt + this.st.rageOnHurtAdd) // talent: แค้นฝังใจ
+    if (this.st.rageOnHurtAdd > 0) this.gainRes(this.st.rageOnHurtAdd) // same talent on a Mana job: Mana when hit
     if (this.shield > 0) {
       const absorbed = Math.min(this.shield, n)
       this.shield -= absorbed; n -= absorbed

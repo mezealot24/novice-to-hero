@@ -10,7 +10,7 @@ export interface JobSkill { name: string; icon: string; desc: string }
 export interface JobDef {
   id: JobId; name: string; icon: string; tex: string; blurb: string; focus: string
   resource: Resource | null; attack: AttackStyle; tags: Tag[]; mod: Partial<Stats>
-  auto: JobSkill & { cost: number }; ult: JobSkill & { cd: number; cost?: number } // ult cost: Mana (Mage only for now)
+  auto: JobSkill & { cost: number }; ult: JobSkill & { cd: number; cost?: number } // ult cost: Mana (Mage, Swordsman)
 }
 
 export const JOB_CHANGE = { needClears: 1, classMaxJobLevel: 40 }
@@ -26,6 +26,14 @@ export const MAGE_SPELL = {
   fireBolt: 8, // card ลูกไฟ: Mana per fireball, skipped when Mana is short
 }
 
+/** Swordsman (Q 2026-11-03): Rage is gone, the knight runs on a small Mana pool like RO (design/swordsman-mana-nerf.md).
+ *  A STR/VIT build gets only the base pool and regen, so skills are rationed and the basic swing + counters carry the fight. */
+export const SWORD_MANA = {
+  auto: 20, // ฟันพายุ
+  ult: 25, // ดาบพิทักษ์ (plus its turn cooldown; booked ult waits for Mana like the Mage's)
+  ultShield: 0.25, // ดาบพิทักษ์ shield, share of max HP (unchanged from the Rage era: the bot showed trimming it only hurts low-level players)
+}
+
 export const JOBS: Record<JobId, JobDef> = {
   novice: {
     id: 'novice', name: 'โนวิส', icon: '🌱', tex: 'novice', blurb: 'มือใหม่ ทำได้ทุกอย่างนิดหน่อย', focus: 'อะไรก็ได้',
@@ -33,10 +41,10 @@ export const JOBS: Record<JobId, JobDef> = {
     auto: { name: '-', icon: '', cost: 0, desc: 'ยังไม่มี' }, ult: { name: 'ทุบ', icon: '💢', cd: 4, desc: 'ทุบมอนทุกตัว' },
   },
   swordsman: {
-    id: 'swordsman', name: 'นักดาบ', icon: '⚔️', tex: 'hero_swordsman', blurb: 'ยืนหน้า ถึก ฟันโดนหลายตัว', focus: 'STR · VIT',
-    resource: 'rage', attack: 'melee', tags: ['guard', 'blood'], mod: { maxHp: 40, def: 6, atk: 3, counter: 0.1 },
-    auto: { name: 'ฟันพายุ', icon: '🌪️', cost: 40, desc: 'Rage 40: ฟันมอนทุกตัว 1.3x P.ATK' },
-    ult: { name: 'ดาบพิทักษ์', icon: '🛡️', cd: 4, desc: 'ฟันมอนทุกตัว 1.4x + โล่ 25% ของ HP สูงสุด' },
+    id: 'swordsman', name: 'นักดาบ', icon: '⚔️', tex: 'hero_swordsman', blurb: 'ยืนหน้า ถึก ฟันโดนหลายตัว · Mana น้อย: สกิลออกได้จำกัด ดาเมจหลักมาจากฟันธรรมดา + สวนกลับ', focus: 'STR · VIT',
+    resource: 'mana', attack: 'melee', tags: ['guard', 'blood'], mod: { maxHp: 40, def: 6, atk: 3, counter: 0.1 },
+    auto: { name: 'ฟันพายุ', icon: '🌪️', cost: SWORD_MANA.auto, desc: `Mana ${SWORD_MANA.auto}: ฟันมอนทุกตัว 1.3x P.ATK` },
+    ult: { name: 'ดาบพิทักษ์', icon: '🛡️', cd: 4, cost: SWORD_MANA.ult, desc: `Mana ${SWORD_MANA.ult}: ฟันมอนทุกตัว 1.4x + โล่ ${SWORD_MANA.ultShield * 100}% ของ HP สูงสุด` },
   },
   archer: {
     id: 'archer', name: 'นักธนู', icon: '🏹', tex: 'hero_archer', blurb: 'ยิงจากไกล แม่น เร็ว ATK โตตาม DEX · หลบแล้วได้โล่ (สายพริ้วไหว)', focus: 'DEX · AGI',
