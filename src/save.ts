@@ -35,6 +35,8 @@ export interface SaveData {
   sockets?: Record<string, string[]> // item id -> card ids slotted in it
   cardPity?: Record<string, number> // kills of that card's monster since its last drop
   cardSeen?: string[] // card book: every card ever found
+  mats?: Record<string, number> // forge materials by id (data/materials.ts)
+  grade?: Record<string, number> // item id -> forge grade 2..5 (missing = 1, data/craft.ts)
   lastDaily: string // yyyy-mm-dd of last free daily gems
   muted: boolean
   lowShake?: boolean // settings: ลดจอสั่น (camera shake x1/3)
@@ -211,4 +213,19 @@ export function unsocketCard(s: SaveData, itemId: string, index: number) {
 /** Every card in an item back to the bag (before the item is sold). */
 export function unsocketAll(s: SaveData, itemId: string) {
   while (s.sockets?.[itemId]?.length) unsocketCard(s, itemId, 0)
+}
+
+// ---------- forge: materials + grades (data/materials.ts, data/craft.ts) ----------
+export function addMat(s: SaveData, id: string, n = 1) {
+  const bag = (s.mats ??= {})
+  bag[id] = (bag[id] ?? 0) + n
+}
+export const canPay = (s: SaveData, c: { mats: Record<string, number>; zeny: number }) =>
+  s.zeny >= c.zeny && Object.entries(c.mats).every(([id, n]) => (s.mats?.[id] ?? 0) >= n)
+/** Spend a forge cost; false (and nothing spent) when short. */
+export function pay(s: SaveData, c: { mats: Record<string, number>; zeny: number }): boolean {
+  if (!canPay(s, c)) return false
+  s.zeny -= c.zeny
+  for (const [id, n] of Object.entries(c.mats)) { s.mats![id] -= n; if (s.mats![id] <= 0) delete s.mats![id] }
+  return true
 }

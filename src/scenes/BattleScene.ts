@@ -6,7 +6,8 @@ import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster } from '../da
 import { JOBS, MAGE_SPELL, RES_RULES, SWORD_MANA, type JobDef } from '../data/jobs'
 import { skill2Picked } from '../data/tree'
 import type { Skill2Def } from '../data/skill2'
-import { addCard, addXp, persist, save } from '../save'
+import { addCard, addMat, addXp, persist, save } from '../save'
+import { MAT_RULES, matName, matOf } from '../data/materials'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
 import { button, fullscreenButton, go, type Btn } from '../ui'
@@ -78,6 +79,7 @@ export class BattleScene extends Phaser.Scene {
   private runXp = 0
   private runGems = 0
   private runCards: string[] = [] // equipment cards found this run (kept win or lose)
+  private runMats: Record<string, number> = {} // forge materials found this run (kept win or lose)
   private cardLuck = 1 // LUK bonus on card drops (same curve as rare drops)
   private settled = false
   private over = false
@@ -199,7 +201,7 @@ export class BattleScene extends Phaser.Scene {
     this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0
     this.heroSpr.setTexture(this.job.tex).setTint((COSTUMES.find((c) => c.id === s.costume) ?? COSTUMES[0]).tint).setAngle(0).setAlpha(1)
     this.perks = []; this.hits = 0
-    this.level = 1; this.xp = 0; this.zeny = 0; this.kills = 0; this.runXp = 0; this.runGems = 0; this.runCards = []
+    this.level = 1; this.xp = 0; this.zeny = 0; this.kills = 0; this.runXp = 0; this.runGems = 0; this.runCards = []; this.runMats = {}
     this.cardLuck = 1 + Math.min(PER_POINT.luk.dropCap, PER_POINT.luk.dropPct * totalBase(s).luk)
     this.settled = false; this.over = false; this.smashQueued = false
     this.startedAt = this.time.now
@@ -953,6 +955,19 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  /** Forge materials (design/item-acquisition-v1.md): this dungeon's common one from normal monsters, its boss one from minis / bosses. Summons (no card) drop nothing. */
+  private rollMat(m: Mon) {
+    if (m.revived || !cardsOfMonster(m.kind).length) return
+    const dg = this.dg.id, got: [string, number][] = []
+    if (m.def.ai === 'boss' && !m.def.mini) got.push([matOf(dg, true), MAT_RULES.boss.boss], [matOf(dg, false), MAT_RULES.boss.common])
+    else if (m.def.ai === 'boss') got.push([matOf(dg, true), MAT_RULES.mini.boss])
+    else if (Math.random() < MAT_RULES.normalRate) got.push([matOf(dg, false), 1])
+    got.forEach(([id, n], i) => {
+      this.runMats[id] = (this.runMats[id] ?? 0) + n
+      this.floatText(m.spr.x + 40, m.spr.y - 40 - i * 24, `${matName(id)} +${n}`, '#e8d9a8')
+    })
+  }
+
   private killMon(m: Mon) {
     m.dead = true
     if (this.st.lockOn > 0 && this.lockTarget === m && this.dodgeCharges < 1) { this.dodgeCharges = 1; this.floatText(HERO_X, GROUND - 100, '💨 ถอยตั้งหลัก', '#c9c9d6') } // archer ★ ล็อกเป้า: kill the locked target -> 1 sure dodge
@@ -974,6 +989,7 @@ export class BattleScene extends Phaser.Scene {
     const [a, b] = m.def.zeny
     this.coinsFly(m.spr.x, m.spr.y - 20, Phaser.Math.Between(a, b))
     this.rollCard(m)
+    this.rollMat(m)
     if (Math.random() < this.st.dropChance) { this.runGems++; this.floatText(m.spr.x, m.spr.y - 80, '💎 ของหายาก!', '#7fd7ff'); sfx.coin() }
     sfx.pop()
     m.dotTxt?.destroy()
@@ -1735,11 +1751,14 @@ export class BattleScene extends Phaser.Scene {
     const ups = addXp(this.runXp)
     s.gems += gems + this.runGems
     for (const id of this.runCards) addCard(s, id)
+    for (const [id, n] of Object.entries(this.runMats)) addMat(s, id, n)
     persist()
     const lines = [`+${this.zeny} zeny · +${this.runXp} EXP${s.gems > before ? ` · +${s.gems - before} เพชร` : ''}`]
     if (ups.base) lines.push(`🎉 Base Lv ${s.baseLevel}! ได้แต้มสถานะเพิ่ม`)
     if (ups.job) lines.push(`✨ Job Lv ${s.jobLevel}! ได้แต้มสกิลเพิ่ม`)
     if (this.runCards.length) lines.push(`🃏 ได้การ์ด: ${this.runCards.map((id) => cardName(cardById(id)!)).join(', ')} (ใส่ได้ที่หน้าตัวละคร)`)
+    const mats = Object.entries(this.runMats)
+    if (mats.length) lines.push(`🔨 วัตถุดิบ: ${mats.map(([id, n]) => `${matName(id)} x${n}`).join(', ')} (ใช้ที่โรงตีเหล็ก)`)
     return lines.join('\n')
   }
 

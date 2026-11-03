@@ -4,6 +4,7 @@ import { PLAYER, type Stats } from './game-data'
 import { talentMods, treeMods, type TalentSave, type TreeSave } from './tree'
 import { JOBS, type JobId } from './jobs'
 import { cardById, type EquipCard } from './cards'
+import { CRAFT_ITEMS, GRADE, gradeItem, type CraftInfo } from './craft'
 
 // ---------- base stats (Q's spec, 2026-11-02): 7 stats, points from Base Level ----------
 export type BaseStat = 'str' | 'vit' | 'wis' | 'dex' | 'int' | 'luk' | 'agi'
@@ -91,7 +92,7 @@ export const slotKind = (sl: EquipSlot): Slot => (sl === 'acc2' ? 'acc' : sl)
 // jobs = who can wear it (none = everyone). req = when the shop sells it: 'job' after the first job change,
 // 'd2' after beating ป่าหมาป่าเงา. Item ids are save data: never rename or remove one.
 export type ItemReq = 'job' | 'd2' | 'd3' | 'd4'
-export interface Item { id: string; slot: Slot; name: string; icon: string; price: number; desc: string; base?: Partial<Record<BaseStat, number>>; mod: Partial<Stats>; jobs?: JobId[]; req?: ItemReq; slots?: number; twoHand?: boolean }
+export interface Item { id: string; slot: Slot; name: string; icon: string; price: number; desc: string; base?: Partial<Record<BaseStat, number>>; mod: Partial<Stats>; jobs?: JobId[]; req?: ItemReq; slots?: number; twoHand?: boolean; craft?: CraftInfo }
 const SW: JobId[] = ['swordsman'], AR: JobId[] = ['archer'], MG: JobId[] = ['mage'], CL: JobId[] = ['cleric'], TH: JobId[] = ['thief']
 export const ITEMS: Item[] = [
   // ----- weapons: everyone -----
@@ -173,16 +174,18 @@ export const ITEMS: Item[] = [
   { id: 'o_starorb', slot: 'offhand', name: 'ลูกแก้วดวงดาว', icon: '🌟', price: 1100, desc: 'ของดัน 2: เวทแรง เวทคริ Mana ฟื้นไว', base: { int: 3 }, mod: { matk: 8, spellCrit: 0.03, resRegen: 1 }, jobs: MG, req: 'd2' },
   { id: 'o_maingauche', slot: 'offhand', name: 'มีดปัด', icon: '🔪', price: 480, desc: 'ปัดป้อง แทงซ้ำ', base: { agi: 1 }, mod: { flee: 4, combo: 0.04 }, jobs: TH, req: 'job' },
   { id: 'o_scorpion', slot: 'offhand', name: 'เหล็กในแมงป่อง', icon: '🦂', price: 1100, desc: 'ของดัน 2: พิษแรง แทงรัว', base: { luk: 2 }, mod: { poisonDmg: 1, combo: 0.05, dodgeHeal: 0.01 }, jobs: TH, req: 'd2' },
+  // ----- forge only (data/craft.ts) -----
+  ...CRAFT_ITEMS,
 ]
 export const itemById = (id: string) => ITEMS.find((i) => i.id === id) ?? ITEMS[0]
 /** Can this job wear it? (no `jobs` list = everyone) */
 /** Card slots (design/equipment-cards.md): starter gear 0, dungeon 2+ weapons 2, everything else 1. */
-export function slotCount(it: Item): number {
-  if (it.slots !== undefined) return it.slots
-  if (it.price === 0) return 0
-  if (it.slot === 'weapon' && it.req && it.req !== 'job') return 2
-  return 1
+export function slotCount(it: Item, grade = 1): number {
+  const n = it.slots !== undefined ? it.slots : it.price === 0 ? 0 : it.slot === 'weapon' && it.req && it.req !== 'job' ? 2 : 1
+  return grade >= GRADE.slotAt ? Math.max(n, Math.min(GRADE.slotMax, n + 1)) : n // forge grade 4: +1 card slot
 }
+/** Forge grade of an owned item (1 = never upgraded). */
+export const gradeOf = (s: { grade?: Record<string, number> }, id: string) => s.grade?.[id] ?? 1
 export const canWear = (it: Item, job: JobId) => !it.jobs || it.jobs.includes(job)
 /** Is it on sale yet? */
 export function itemUnlocked(it: Item, s: { job: JobId; clearsBy?: Record<string, number> }) {
@@ -213,6 +216,7 @@ const STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => string]>> 
   autoCostCut: ['สกิลออโต้ใช้ resource ลดลง', (n) => `${n}`], autoLifesteal: ['สกิลออโต้ดูดเลือด', pc], spearRate: ['ได้หอกแสงต่อเทิร์น', pc], spearMul: ['หอกแสงแรง', (n) => `${n}x M.ATK`],
   arLowHpBonus: ['ดาเมจใส่มอน HP<50%', pc], ultDodge: ['ult หลบแน่นอน', (n) => `${n} ครั้ง`], ultHits: ['ult แทง', (n) => `${n} ที`], mgUltCd: ['คูลดาวน์ ult', (n) => `${n} เทิร์น`],
   resRegenCut: ['ฟื้น Mana ลดลง', pc], mgWaveBarrier: ['ต้นเวฟได้บาเรีย', (n) => `${n}x M.ATK`], debuffRes: ['กันสถานะผิดปกติ', pc], waveShield: ['โล่ต้นเวฟ', (n) => `${pc(n)} HP`],
+  smashCd: ['คูลดาวน์ท่าไม้ตาย', (n) => `${Math.round(n / 1500)} เทิร์น`], berserk: ['HP<30%: ATK +40% ดูดเลือด x2', () => ''], overhealShield: ['ฮีลเกินเต็มกลายเป็นโล่', () => ''], ctrAoe: ['สวนกลับโดนมอนทุกตัว 0.5x', () => ''],
 }
 export const BASE_NAME: Record<BaseStat, string> = { str: 'STR', vit: 'VIT', wis: 'WIS', dex: 'DEX', int: 'INT', luk: 'LUK', agi: 'AGI' }
 /** "STR +3 · P.ATK +8 · ดูดเลือด +6%" */
@@ -262,21 +266,21 @@ export const SUPPORTER_PRICE = 300 // gems: badge + gold name, no stats
 export const FREE_GEMS = { firstClear: 50, clear: 5, levelUp: 10, daily: 20 }
 
 // ---------- combine everything into the hero's starting stats ----------
-export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; sockets?: Record<string, string[]> }
+export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; sockets?: Record<string, string[]>; grade?: Record<string, number> }
 
 /** Items the hero actually gets stats from (gear for another job stays on but does nothing). */
 export function wornItems(s: StatsInput): Item[] {
   const job = s.job ?? 'novice'
   const locked = offhandLocked(s)
-  return (Object.keys(s.equipped) as EquipSlot[]).filter((sl) => !(sl === 'offhand' && locked)).map((sl) => itemById(s.equipped[sl]!)).filter((it) => canWear(it, job))
+  return (Object.keys(s.equipped) as EquipSlot[]).filter((sl) => !(sl === 'offhand' && locked)).map((sl) => itemById(s.equipped[sl]!)).filter((it) => canWear(it, job)).map((it) => gradeItem(it, gradeOf(s, it.id)))
 }
 /** A two-handed weapon in hand turns the off-hand slot off (its item stays on but gives nothing). */
 export const offhandLocked = (s: { equipped: Partial<Record<EquipSlot, string>> }) => !!itemById(s.equipped.weapon ?? '').twoHand
 /** Headgear and off-hand take armor cards for now (no head/shield cards yet); both accessory slots take acc cards. */
 export const cardFits = (cd: EquipCard, it: Item) => cd.slot === it.slot || (cd.slot === 'armor' && (it.slot === 'head' || it.slot === 'offhand'))
 /** Cards slotted in this item (unknown ids and extra cards past the slot count are ignored). */
-export function socketed(s: { sockets?: Record<string, string[]> }, it: Item): EquipCard[] {
-  return (s.sockets?.[it.id] ?? []).slice(0, slotCount(it)).map(cardById).filter((x): x is EquipCard => !!x)
+export function socketed(s: { sockets?: Record<string, string[]>; grade?: Record<string, number> }, it: Item): EquipCard[] {
+  return (s.sockets?.[it.id] ?? []).slice(0, slotCount(it, gradeOf(s, it.id))).map(cardById).filter((x): x is EquipCard => !!x)
 }
 /** Cards in worn gear the hero gets stats from. */
 export const wornCards = (s: StatsInput) => wornItems(s).flatMap((it) => socketed(s, it))
