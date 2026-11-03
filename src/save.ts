@@ -134,7 +134,7 @@ export function persist() {
   try { localStorage.setItem(KEY, JSON.stringify(cache)) } catch { /* storage blocked: keep playing in memory */ }
 }
 
-/** v37 Thief rework (Q 2026-11-03): D.Strike max 10 -> 5 and gates ทักษะ 2. Refund the extra D.Strike points, and the ทักษะ 2 points of a save that took one before D.Strike was full. */
+/** v42 Thief rework (Q 2026-11-03): D.Strike max 10 -> 5 and gates ทักษะ 2. Refund the extra D.Strike points, and the ทักษะ 2 points of a save that took one before D.Strike was full. */
 function migrateThiefWeb(s: SaveData) {
   const t = s.jobTree
   if (s.job !== 'thief' || !t) return
