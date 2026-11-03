@@ -55,6 +55,9 @@ if (process.env.CRAFTED) {
 for (const [env, slot] of [['WEAPON', 'weapon'], ['ARMOR', 'armor'], ['ACC', 'acc'], ['HEAD', 'head'], ['OFF', 'offhand']]) if (process.env[env]) { save.owned.push(process.env[env]); save.equipped[slot] = process.env[env] }
 if (process.env.GRADE) save.grade = Object.fromEntries(Object.values(save.equipped).map((id) => [id, +process.env.GRADE]))
 // refine (phase 2): REFINE=n puts every worn item at +n (no bonus lines), BROKEN=1 marks them all broken
+// SOCK='{"<item id>":["card id",...]}' slots cards (bag gets them too) · TAL='{"1":{"id":"th_t1c","rank":2}}' sets talents
+if (process.env.SOCK) { save.sockets = JSON.parse(process.env.SOCK); save.cards = {}; for (const ids of Object.values(save.sockets)) for (const id of ids) save.cards[id] = (save.cards[id] ?? 0) + 1 }
+if (process.env.TAL) save.jobTalents = JSON.parse(process.env.TAL)
 if (process.env.REFINE) save.refine = Object.fromEntries(Object.values(save.equipped).map((id) => [id, +process.env.REFINE]))
 if (process.env.BROKEN) save.broken = Object.values(save.equipped)
 ;(async () => {
