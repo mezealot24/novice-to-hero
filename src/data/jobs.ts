@@ -21,6 +21,8 @@ export const RES_RULES = {
 }
 /** Mage (Q 2026-11-03): no Mana Shield; every spell costs Mana, the basic attack is a weak free magic bolt. */
 export const MAGE_SPELL = {
+  autoMul: 0.9, // ลูกไฟระเบิด x M.ATK (1.1 until the class rebalance 2026-11-03)
+  barrier: 1.5, // ult barrier x M.ATK (2 until the class rebalance)
   basicMul: 0.6, // basic attack: magic projectile 0.6x M.ATK, free
   boltPerHit: 2, // card Lightning Bolt: Mana per hit, cast only when Mana covers every hit
   fireBolt: 8, // card ลูกไฟ: Mana per fireball, skipped when Mana is short
@@ -31,8 +33,13 @@ export const MAGE_SPELL = {
 export const SWORD_MANA = {
   auto: 20, // ฟันพายุ
   ult: 25, // ดาบพิทักษ์ (plus its turn cooldown; booked ult waits for Mana like the Mage's)
-  ultShield: 0.15, // ดาบพิทักษ์ shield, share of max HP (0.25 in the Rage era; Q chose the armour trim 2026-11-03)
+  autoMul: 1.15, // ฟันพายุ x P.ATK (1.3 until the class rebalance 2026-11-03)
+  ultMul: 1.2, // ดาบพิทักษ์ x P.ATK (1.4 until the class rebalance)
+  ultShield: 0.1, // ดาบพิทักษ์ (0.15 until the class rebalance 2026-11-03) shield, share of max HP (0.25 in the Rage era; Q chose the armour trim 2026-11-03)
 }
+
+/** Cleric kit numbers (class rebalance 2026-11-03: was heal 22%, ult shield 35% + heal 15%; gear/cards should make up the gap). */
+export const CLERIC_KIT = { heal: 0.12, ultShield: 0.15, ultHeal: 0.08, smite: 1.4 }
 
 export const JOBS: Record<JobId, JobDef> = {
   novice: {
@@ -42,9 +49,9 @@ export const JOBS: Record<JobId, JobDef> = {
   },
   swordsman: {
     id: 'swordsman', name: 'นักดาบ', icon: '⚔️', tex: 'hero_swordsman', blurb: 'ยืนหน้า ถึก ฟันโดนหลายตัว · Mana น้อย: สกิลออกได้จำกัด ดาเมจหลักมาจากฟันธรรมดา + สวนกลับ', focus: 'STR · VIT',
-    resource: 'mana', attack: 'melee', tags: ['guard', 'blood'], mod: { maxHp: 40, def: 6, atk: 3, counter: 0.05 },
-    auto: { name: 'ฟันพายุ', icon: '🌪️', cost: SWORD_MANA.auto, desc: `Mana ${SWORD_MANA.auto}: ฟันมอนทุกตัว 1.3x P.ATK` },
-    ult: { name: 'ดาบพิทักษ์', icon: '🛡️', cd: 4, cost: SWORD_MANA.ult, desc: `Mana ${SWORD_MANA.ult}: ฟันมอนทุกตัว 1.4x + โล่ ${SWORD_MANA.ultShield * 100}% ของ HP สูงสุด` },
+    resource: 'mana', attack: 'melee', tags: ['guard', 'blood'], mod: { counter: 0.02 },
+    auto: { name: 'ฟันพายุ', icon: '🌪️', cost: SWORD_MANA.auto, desc: `Mana ${SWORD_MANA.auto}: ฟันมอนทุกตัว ${SWORD_MANA.autoMul}x P.ATK` },
+    ult: { name: 'ดาบพิทักษ์', icon: '🛡️', cd: 4, cost: SWORD_MANA.ult, desc: `Mana ${SWORD_MANA.ult}: ฟันมอนทุกตัว ${SWORD_MANA.ultMul}x + โล่ ${SWORD_MANA.ultShield * 100}% ของ HP สูงสุด` },
   },
   archer: {
     id: 'archer', name: 'นักธนู', icon: '🏹', tex: 'hero_archer', blurb: 'ยิงจากไกล แม่น เร็ว ATK โตตาม DEX · หลบแล้วได้โล่ (สายพริ้วไหว)', focus: 'DEX · AGI',
@@ -54,15 +61,15 @@ export const JOBS: Record<JobId, JobDef> = {
   },
   mage: {
     id: 'mage', name: 'จอมเวท', icon: '🔮', tex: 'hero_mage', blurb: 'เวทแรง ตีทั้งกลุ่ม ไม่มีวันพลาด แต่ตัวบาง · ตีปกติเป็นลูกเวทเบาๆ ดาเมจจริงมาจากสกิลที่ต้องใช้ Mana', focus: 'INT · WIS',
-    resource: 'mana', attack: 'magic', tags: ['fire', 'storm', 'crit'], mod: { matk: 10, maxRes: 20, maxHp: 15 },
-    auto: { name: 'ลูกไฟระเบิด', icon: '🔥', cost: 36, desc: 'Mana 36: ไฟใส่ทุกตัว 1.1x M.ATK (ติดไฟถ้ามีพรเผาไหม้)' },
-    ult: { name: 'เวทธาตุ', icon: '☄️', cd: 5, cost: 30, desc: 'Mana 30: เลือกธาตุตอนเริ่มรอบ · ⚡ สายฟ้า เป้าเดียว 6 ฮิต (0.3–1.2x/ฮิต) · 🔥 ไฟ 2x + เผาซ้อน · ❄️ น้ำแข็ง 1.6x + ช้า/แช่แข็ง · ทุกธาตุได้บาเรีย 2x M.ATK' },
+    resource: 'mana', attack: 'magic', tags: ['fire', 'storm', 'crit'], mod: { maxRes: 20, maxHp: 10 },
+    auto: { name: 'ลูกไฟระเบิด', icon: '🔥', cost: 36, desc: `Mana 36: ไฟใส่ทุกตัว ${MAGE_SPELL.autoMul}x M.ATK (ติดไฟถ้ามีพรเผาไหม้)` },
+    ult: { name: 'เวทธาตุ', icon: '☄️', cd: 5, cost: 30, desc: `Mana 30: เลือกธาตุตอนเริ่มรอบ · ⚡ สายฟ้า เป้าเดียว 6 ฮิต (0.3–1.2x/ฮิต) · 🔥 ไฟ 2x + เผาซ้อน · ❄️ น้ำแข็ง 1.6x + ช้า/แช่แข็ง · ทุกธาตุได้บาเรีย ${MAGE_SPELL.barrier}x M.ATK` },
   },
   cleric: {
     id: 'cleric', name: 'นักบวช', icon: '✨', tex: 'hero_cleric', blurb: 'ฮีลตัวเอง มีโล่ ยืนนานที่สุด', focus: 'WIS · INT',
-    resource: 'mana', attack: 'melee', tags: ['holy', 'guard'], mod: { maxHp: 20, healAmp: 0.15, shieldAmp: 0.15, mdef: 0.05, matk: 4 },
-    auto: { name: 'ฮีล / แสงศักดิ์สิทธิ์', icon: '💖', cost: 25, desc: 'Mana 25: HP ต่ำกว่า 75% ฮีล 22% · ไม่งั้นยิงแสงใส่ 2 ตัวหน้า 2x M.ATK' },
-    ult: { name: 'พรคุ้มครอง', icon: '🙏', cd: 4, desc: 'โล่ 35% ของ HP สูงสุด + ฮีล 15%' },
+    resource: 'mana', attack: 'melee', tags: ['holy', 'guard'], mod: { maxHp: 10, mdef: 0.05 },
+    auto: { name: 'ฮีล / แสงศักดิ์สิทธิ์', icon: '💖', cost: 25, desc: `Mana 25: HP ต่ำกว่า 75% ฮีล ${Math.round(CLERIC_KIT.heal * 100)}% · ไม่งั้นยิงแสงใส่ 2 ตัวหน้า ${CLERIC_KIT.smite}x M.ATK` },
+    ult: { name: 'พรคุ้มครอง', icon: '🙏', cd: 4, desc: `โล่ ${Math.round(CLERIC_KIT.ultShield * 100)}% ของ HP สูงสุด + ฮีล ${Math.round(CLERIC_KIT.ultHeal * 100)}%` },
   },
   thief: {
     id: 'thief', name: 'โจร', icon: '🗡️', tex: 'hero_thief', blurb: 'เร็ว หลบเก่ง แทงสองที ติดพิษ · Double Strike: มีโอกาสตีเพิ่ม 1 ที · เงาบาง: มอนตีโดนอย่างน้อย 70% (อาชีพอื่น 80%)', focus: 'AGI · LUK',

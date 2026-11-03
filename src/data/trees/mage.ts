@@ -13,6 +13,7 @@ export const tree: ClassTree = {
   nodes: [
     n('mage_core1', 'mage_core', 0, '🔷', 'แก่นเวท', 3, (lv) => `Max Mana +${lv * 8}`, (lv) => ({ maxRes: 8 * lv })), // v21: was Mana Shield (removed)
     n('mage_core2', 'mage_core', 0, '🧘', 'สมาธิ', 3, (lv) => `ฟื้น Mana +${lv * 2}/เทิร์น`, (lv) => ({ resRegen: (2 / 3) * lv })),
+    n('mage_core3', 'mage_core', 0, '💪', 'กายสู่เวท', 3, (lv) => `STR ${[30, 60, 100][lv - 1]}% นับเป็น INT ด้วย (M.ATK + Max Mana)`, (lv) => ({ strToInt: [0.3, 0.6, 1][lv - 1] })), // Q 2026-11-03: off-stat STR is useful for Mage
     n('mage_l1', 'mage_l', 1, '⚡', 'กระแสแรง', 3, (lv) => `ult สายฟ้า +${lv} ฮิต`, (lv) => ({ lightHits: lv })),
     n('mage_l2', 'mage_l', 2, '🌩️', 'ฟ้าแตกแขนง', 3, (lv) => `ทุกฮิตสายฟ้า ${lv * 8}% แตกเป็นฮิตเพิ่มใส่ตัวสุ่ม`, (lv) => ({ lightChain: 0.08 * lv })),
     n('mage_l3', 'mage_l', 3, '✴️', 'ประจุ', 3, (lv) => `M.ATK +${lv * 4}`, (lv) => ({ matk: 4 * lv })),

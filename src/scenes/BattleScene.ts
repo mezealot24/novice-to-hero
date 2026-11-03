@@ -3,7 +3,7 @@ import { afterDef, BATTLE, doubleAtkChance, COLORS, COMMON_PERKS, hitChance, DUN
 import { EVENT_RULES, rollEvent, type EventDef } from '../data/events'
 import { COSTUMES, FREE_GEMS, heroStats, PER_POINT, RESOURCES, totalBase } from '../data/meta'
 import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster } from '../data/cards'
-import { JOBS, MAGE_SPELL, RES_RULES, SWORD_MANA, type JobDef } from '../data/jobs'
+import { CLERIC_KIT, JOBS, MAGE_SPELL, RES_RULES, SWORD_MANA, type JobDef } from '../data/jobs'
 import { skill2Picked } from '../data/tree'
 import type { Skill2Def } from '../data/skill2'
 import { addCard, addMat, addXp, persist, save } from '../save'
@@ -687,7 +687,7 @@ export class BattleScene extends Phaser.Scene {
     const live = this.front()
     switch (this.job.id) {
       case 'swordsman':
-        await this.lunge(live[0], () => live.forEach((m) => { const d = this.strike(m, 1.3 * pow * (1 + this.st.pskill)); if (this.st.autoLifesteal > 0) this.heal(d * this.st.autoLifesteal, true) })) // talent: พายุโลหิต
+        await this.lunge(live[0], () => live.forEach((m) => { const d = this.strike(m, SWORD_MANA.autoMul * pow * (1 + this.st.pskill)); if (this.st.autoLifesteal > 0) this.heal(d * this.st.autoLifesteal, true) })) // talent: พายุโลหิต
         break
       case 'archer':
         if (this.st.arAim > 0) { // talent ศรเล็ง: 2 aimed shots at the front, + crit
@@ -703,18 +703,18 @@ export class BattleScene extends Phaser.Scene {
       case 'mage':
         this.burst(700, GROUND - 30, 0xff8c42, 30, 300)
         for (const m of live) {
-          this.strike(m, 1.1 * pow * (this.overflow ? this.st.mgOverflow : 1), true, '#ff8c42')
+          this.strike(m, MAGE_SPELL.autoMul * pow * (this.overflow ? this.st.mgOverflow : 1), true, '#ff8c42')
           if (this.st.burnDps > 0 && !m.dead) { m.burn = this.st.burnDps; m.burnTurns = 3; this.dotIcon(m) }
           if (this.st.autoBurn > 0 && this.element === 'fire' && !m.dead) { m.burnStacks = Math.min(this.burnMax(), m.burnStacks + this.st.autoBurn); m.burnStackTurns = 3; this.dotIcon(m) } // tree
         }
         await this.wait(BATTLE.stepMs * 0.6)
         break
       case 'cleric':
-        if (this.hp < this.st.maxHp * (0.75 - this.st.healAt)) { this.skillHeal(this.st.maxHp * 0.22 * pow); this.burst(HERO_X, GROUND - 40, 0x6fd08c, 18, 160) }
+        if (this.hp < this.st.maxHp * (0.75 - this.st.healAt)) { this.skillHeal(this.st.maxHp * CLERIC_KIT.heal * pow); this.burst(HERO_X, GROUND - 40, 0x6fd08c, 18, 160) }
         else if (this.st.judge > 0 && ++this.smiteCount % 3 === 0) { // tree ★B: วันพิพากษา
           this.callout('⚖️ พิพากษา!', W / 2, 170); this.burst(700, GROUND - 30, 0xf6e27a, 30, 320)
           for (const m of live) { const d = this.strike(m, 2.2 * pow * (1 + this.st.smiteMul), true, '#f6e27a'); if (!m.dead) m.marked = 2; if (this.st.smiteVamp > 0) this.heal(d * this.st.smiteVamp, true) }
-        } else for (const m of live.slice(0, 2 + this.st.smiteTargets)) await this.shoot(m, 0xf6e27a, () => { const d = this.strike(m, 2 * pow * (1 + this.st.smiteMul), true, '#f6e27a'); if (this.st.smiteVamp > 0) this.heal(d * this.st.smiteVamp, true) })
+        } else for (const m of live.slice(0, 2 + this.st.smiteTargets)) await this.shoot(m, 0xf6e27a, () => { const d = this.strike(m, CLERIC_KIT.smite * pow * (1 + this.st.smiteMul), true, '#f6e27a'); if (this.st.smiteVamp > 0) this.heal(d * this.st.smiteVamp, true) })
         await this.wait(BATTLE.stepMs * 0.4)
         break
       case 'thief':
@@ -731,7 +731,7 @@ export class BattleScene extends Phaser.Scene {
     const live = this.front()
     switch (this.job.id) {
       case 'swordsman':
-        await this.lunge(live[0], () => live.forEach((m) => this.strike(m, (1.4 + this.st.ultMulAdd) * hitPow * (1 + this.st.pskill) * (m.charging ? 1 + this.st.ultVsCharge : 1)))) // talents: ปราการ / ฟันทลาย
+        await this.lunge(live[0], () => live.forEach((m) => this.strike(m, (SWORD_MANA.ultMul + this.st.ultMulAdd) * hitPow * (1 + this.st.pskill) * (m.charging ? 1 + this.st.ultVsCharge : 1)))) // talents: ปราการ / ฟันทลาย
         this.addShield(this.st.maxHp * Math.max(0, SWORD_MANA.ultShield + this.st.ultShieldAdd) * pow)
         if (this.st.ultCounters > 0) this.ctrCharges = this.st.ultCounters // talent: ท่าสวนพร้อม
         this.cameras.main.flash(120, 140, 170, 220)
@@ -763,8 +763,8 @@ export class BattleScene extends Phaser.Scene {
         break
       }
       case 'cleric':
-        this.addShield(this.st.maxHp * 0.35 * pow * (this.alive().some((m) => m.charging) ? 1 + this.st.ultChargeShield : 1)) // talent: ใต้ปีกเทพ
-        this.skillHeal(this.st.maxHp * 0.15 * pow)
+        this.addShield(this.st.maxHp * CLERIC_KIT.ultShield * pow * (this.alive().some((m) => m.charging) ? 1 + this.st.ultChargeShield : 1)) // talent: ใต้ปีกเทพ
+        this.skillHeal(this.st.maxHp * CLERIC_KIT.ultHeal * pow)
         this.burst(HERO_X, GROUND - 50, 0xf6e27a, 24, 200)
         if (this.st.ultHoly > 0) for (const m of this.alive()) this.strike(m, this.st.ultHoly, true, '#f6e27a') // talent: แสงลงทัณฑ์
         if (this.st.ultRegen > 0) this.ultRegenTurns = 3 // talent: พรยืนยาว
@@ -821,7 +821,7 @@ export class BattleScene extends Phaser.Scene {
       this.callout('❄️ ผลึกแตก!', W / 2, 170)
       for (const m of this.alive()) this.strike(m, m.frozen ? 1.5 : 0.75, true, '#9fe3ff')
     }
-    if (!noBarrier) this.addShield(this.st.matk * (2 + (el === 'ice' ? this.st.iceBarrier : 0)) * pow * (1 - this.st.mgBarrierCut))
+    if (!noBarrier) this.addShield(this.st.matk * (MAGE_SPELL.barrier + (el === 'ice' ? this.st.iceBarrier : 0)) * pow * (1 - this.st.mgBarrierCut))
     await this.wait(300)
   }
 

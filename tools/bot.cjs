@@ -45,6 +45,12 @@ if (process.env.EXTRA) {
   save.owned = [...save.owned, h, o, a2]
   save.equipped = { ...save.equipped, head: h, offhand: o, acc2: a2 }
 }
+// CRAFTED=1: forged kit for the class (d3 craft weapon, emerald mail, lich ring at D5) at GRADE 4 / REFINE 5 unless set; pair with EXTRA=1
+if (process.env.CRAFTED) {
+  const w = { swordsman: 'c_herosword', archer: 'c_sealbow', mage: 'c_sealstaff', cleric: 'c_dawnmace', thief: 'c_rustfang' }[job]
+  process.env.WEAPON ||= w; process.env.ARMOR ||= 'c_emeraldmail'; if (D >= 5) process.env.ACC ||= 'c_lichring'
+  process.env.GRADE ||= '4'; process.env.REFINE ||= '5'
+}
 // forge (design/item-acquisition-v1.md): WEAPON / ARMOR / ACC / HEAD / OFF=<item id> swap gear in, GRADE=n puts every worn item at grade n
 for (const [env, slot] of [['WEAPON', 'weapon'], ['ARMOR', 'armor'], ['ACC', 'acc'], ['HEAD', 'head'], ['OFF', 'offhand']]) if (process.env[env]) { save.owned.push(process.env[env]); save.equipped[slot] = process.env[env] }
 if (process.env.GRADE) save.grade = Object.fromEntries(Object.values(save.equipped).map((id) => [id, +process.env.GRADE]))
