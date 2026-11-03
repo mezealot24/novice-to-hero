@@ -1,7 +1,8 @@
 import Phaser from 'phaser'
-import { COLORS, type Stats } from '../data/game-data'
-import { BASE_STATS, canWear, CERT_SLOTS_AT, COSTUMES, gearBase, heroStats, itemStatLine, ITEMS, itemById, JOB_RULES, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText, type Slot } from '../data/meta'
-import { canChangeJob, persist, resetTree, save } from '../save'
+import { COLORS, DUNGEONS, type Stats } from '../data/game-data'
+import { CARD_RULES, cardIcon, cardName, EQUIP_CARDS, TIER_COLOR, type EquipCard } from '../data/cards'
+import { BASE_STATS, canWear, CERT_SLOTS_AT, COSTUMES, gearBase, heroStats, cardStatLine, itemStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText, type Slot } from '../data/meta'
+import { canChangeJob, persist, resetTree, save, socketCard, unsocketCard } from '../save'
 import { branchesOf, branchSpent, lockReason, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentsOf, treeSpent } from '../data/tree'
 import { JOB_CHANGE, JOBS, skillPow } from '../data/jobs'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
@@ -13,6 +14,9 @@ export class CharacterScene extends Phaser.Scene {
   private tab = 0
   private slot: Slot | 'costume' = 'weapon'
   private bagPage = 0
+  private cardPage = 0
+  private cardBook = false
+  private bookDg = 0
   constructor() { super('character') }
 
   create(data: { tab?: number }) {
@@ -21,16 +25,17 @@ export class CharacterScene extends Phaser.Scene {
     this.tab = data?.tab ?? 0
     topBar(this, '👤 ตัวละคร', () => go(this, 'hub'))
     this.drawPreview()
-    tabs(this, 330, 84, ['🎒 อุปกรณ์', '📊 สถานะ', '✨ สกิล', '🌳 ต้นสกิล', '⭐ ทาเลนต์'], 118, (i) => { this.tab = i; this.render() }, this.tab)
+    tabs(this, 330, 84, ['🎒 อุปกรณ์', '🃏 การ์ด', '📊 สถานะ', '✨ สกิล', '🌳 ต้นสกิล', '⭐ ทาเลนต์'], 94, (i) => { this.tab = i; this.render() }, this.tab)
   }
 
   private render() {
     this.body?.destroy()
     this.body = this.add.container(0, 0)
     if (this.tab === 0) this.equipTab()
-    else if (this.tab === 1) this.statusTab()
-    else if (this.tab === 2) this.skillTab()
-    else if (this.tab === 3) this.treeTab()
+    else if (this.tab === 1) this.cardTab()
+    else if (this.tab === 2) this.statusTab()
+    else if (this.tab === 3) this.skillTab()
+    else if (this.tab === 4) this.treeTab()
     else this.talentTab()
   }
 
@@ -60,7 +65,7 @@ export class CharacterScene extends Phaser.Scene {
   private equipTab() {
     const s = save(), b = this.body!
     const slots: { id: Slot | 'costume'; name: string; icon: string; cur: string; desc: string }[] = [
-      ...SLOTS.map((sl) => { const it = itemById(s.equipped[sl.id]); return { id: sl.id, name: sl.name, icon: sl.icon, cur: `${it.icon} ${it.name}`, desc: canWear(it, s.job) ? itemStatLine(it) || it.desc : `⚠ ${wearText(it)} เท่านั้น (ไม่ได้ค่าพลัง)` } }),
+      ...SLOTS.map((sl) => { const it = itemById(s.equipped[sl.id]); const n = slotCount(it); return { id: sl.id, name: sl.name, icon: sl.icon, cur: `${it.icon} ${it.name}${n ? `  🃏${socketed(s, it).length}/${n}` : ''}`, desc: canWear(it, s.job) ? itemStatLine(it) || it.desc : `⚠ ${wearText(it)} เท่านั้น (ไม่ได้ค่าพลัง)` } }),
       { id: 'costume', name: 'ชุดแต่งกาย', icon: '👗', cur: (COSTUMES.find((c) => c.id === s.costume) ?? COSTUMES[0]).name, desc: 'เปลี่ยนสีอย่างเดียว ไม่มีค่าพลัง' },
     ]
     slots.forEach((sl, i) => {
@@ -106,7 +111,79 @@ export class CharacterScene extends Phaser.Scene {
     b.add(button(this, 860, 538, 140, 38, this.slot === 'costume' ? '💎 ร้านเพชร' : '🛒 ร้านค้า', () => go(this, this.slot === 'costume' ? 'gemshop' : 'shop'), { size: 15, fill: 0x5a5f8a, color: UI.text }))
   }
 
-  // ---------- tab 2: base stats ----------
+  // ---------- tab 2: equipment cards (design/equipment-cards.md) ----------
+  private cardTab() {
+    const s = save(), b = this.body!
+    // worn gear + its card slots: tap a filled slot to take the card out (free)
+    SLOTS.forEach((sl, i) => {
+      const it = itemById(s.equipped[sl.id]), n = slotCount(it), cards = socketed(s, it), y = 112 + i * 54
+      b.add(panel(this, 330, y, 616, 48, UI.panel, UI.line, 10))
+      b.add(txt(this, 342, y + 5, `${sl.icon} ${sl.name}`, 11, UI.sub))
+      b.add(txt(this, 342, y + 21, clip(`${it.icon} ${it.name}`, 14), 15, canWear(it, s.job) ? UI.text : UI.red, true))
+      if (!n) b.add(txt(this, 520, y + 16, 'ไม่มีช่องการ์ด', 13, UI.sub))
+      for (let k = 0; k < n; k++) {
+        const cd = cards[k], x = 588 + k * 182
+        if (cd) b.add(button(this, x, y + 24, 174, 38, `${cardIcon(cd)} ${clip(cardName(cd).replace(/^การ์ด(มินิบอส| MVP)?/, ''), 11)}  ✕`, () => {
+          unsocketCard(s, it.id, k); persist(); toast(this, `ถอด${cardName(cd)}กลับเข้ากระเป๋าแล้ว`); this.redraw()
+        }, { size: 13, fill: 0x5a5f8a, color: TIER_COLOR[cd.tier] }))
+        else b.add(txt(this, x, y + 24, '[ ช่องว่าง ]', 13, UI.sub).setOrigin(0.5))
+      }
+    })
+    b.add(button(this, 860, 290, 168, 34, this.cardBook ? '🎒 การ์ดในกระเป๋า' : '📖 สมุดการ์ด', () => { this.cardBook = !this.cardBook; this.cardPage = 0; this.render() }, { size: 14, fill: 0x5a5f8a, color: UI.text }))
+    if (this.cardBook) this.cardBookView(); else this.cardBagView()
+  }
+
+  private cardBagView() {
+    const s = save(), b = this.body!
+    const bag = s.cards ?? {}
+    const list = EQUIP_CARDS.filter((cd) => (bag[cd.id] ?? 0) > 0)
+    b.add(txt(this, 330, 280, 'การ์ดในกระเป๋า · กด "ใส่" = ใส่ช่องว่างของชิ้นที่ใส่อยู่', 13, UI.sub))
+    if (!list.length) { b.add(txt(this, 640, 420, 'ยังไม่มีการ์ดในกระเป๋าค่ะ\nล้มมอนในดันแล้วมีโอกาสได้การ์ดของมอนตัวนั้น\n(ตีตัวเดิมไปเรื่อยๆ ยังไงก็ได้แน่นอน)', 15, UI.sub).setOrigin(0.5).setAlign('center')); return }
+    const per = 6, pages = Math.ceil(list.length / per)
+    this.cardPage = Math.min(this.cardPage, pages - 1)
+    if (pages > 1) {
+      b.add(button(this, 700, 540, 44, 34, '◀', () => { this.cardPage--; this.render() }, { size: 15 }).setEnabled(this.cardPage > 0))
+      b.add(txt(this, 745, 540, `${this.cardPage + 1}/${pages}`, 14, UI.text, true).setOrigin(0.5))
+      b.add(button(this, 790, 540, 44, 34, '▶', () => { this.cardPage++; this.render() }, { size: 15 }).setEnabled(this.cardPage < pages - 1))
+    }
+    list.slice(this.cardPage * per, this.cardPage * per + per).forEach((cd, i) => {
+      const x = 330 + (i % 2) * 310, y = 314 + Math.floor(i / 2) * 70
+      const it = itemById(s.equipped[cd.slot]), free = slotCount(it) - socketed(s, it).length
+      b.add(panel(this, x, y, 302, 64, UI.panel, Phaser.Display.Color.HexStringToColor(TIER_COLOR[cd.tier]).color, 10))
+      b.add(txt(this, x + 10, y + 5, `${cardIcon(cd)} ${clip(cardName(cd), 20)} ×${bag[cd.id]}`, 14, TIER_COLOR[cd.tier], true))
+      b.add(txt(this, x + 10, y + 26, `${SLOTS.find((q) => q.id === cd.slot)!.icon} ${clip(cardStatLine(cd), 34)}`, 11, UI.green).setWordWrapWidth(200))
+      b.add(button(this, x + 262, y + 18, 70, 28, 'ใส่', () => {
+        if (!socketCard(s, it.id, cd.id, slotCount(it))) { toast(this, slotCount(it) ? 'ช่องเต็มแล้ว ถอดการ์ดเก่าก่อนนะคะ' : `${it.name} ไม่มีช่องการ์ดค่ะ`, UI.red); return }
+        persist(); toast(this, `ใส่${cardName(cd)}ใน ${it.name} แล้ว!`); this.redraw()
+      }, { size: 14 }).setEnabled(free > 0))
+      const sell = CARD_RULES.sell[cd.tier]
+      b.add(button(this, x + 262, y + 48, 70, 24, `ขาย ${sell}z`, () =>
+        confirm(this, `ขาย${cardName(cd)} 1 ใบ?`, `ได้ ${sell} zeny · สมุดการ์ดยังจำไว้ ไม่หาย`, 'ขาย', () => {
+          bag[cd.id]--; if (bag[cd.id] <= 0) delete bag[cd.id]
+          s.zeny += sell; persist(); this.redraw()
+        }), { size: 11, fill: 0x5a5f8a, color: UI.text }))
+    })
+  }
+
+  private cardBookView() {
+    const s = save(), b = this.body!
+    const seen = new Set(s.cardSeen ?? [])
+    b.add(txt(this, 330, 280, `สมุดการ์ด · เจอแล้ว ${EQUIP_CARDS.filter((cd) => seen.has(cd.id)).length}/${EQUIP_CARDS.length} ใบ`, 13, UI.sub))
+    DUNGEONS.forEach((dg, i) => {
+      b.add(button(this, 352 + i * 56, 318, 50, 30, `ดัน${i + 1}`, () => { this.bookDg = i; this.render() }, { size: 12, fill: i === this.bookDg ? COLORS.gold : 0x5a5f8a, color: i === this.bookDg ? UI.ink : UI.text }))
+    })
+    const dg = DUNGEONS[this.bookDg]
+    b.add(txt(this, 640, 310, dg.name, 15, UI.gold, true))
+    const list: EquipCard[] = EQUIP_CARDS.filter((cd) => cd.dungeon === dg.id)
+    list.forEach((cd, i) => {
+      const x = 330 + (i % 3) * 206, y = 342 + Math.floor(i / 3) * 52, got = seen.has(cd.id)
+      b.add(panel(this, x, y, 200, 46, got ? UI.panel : 0x1d2140, got ? Phaser.Display.Color.HexStringToColor(TIER_COLOR[cd.tier]).color : UI.line, 8))
+      b.add(txt(this, x + 8, y + 4, got ? `${cardIcon(cd)} ${clip(cardName(cd), 17)}` : `❓ ${cd.tier === 'normal' ? '???' : cd.tier === 'mini' ? '??? (มินิบอส)' : '??? (บอส)'}`, 13, got ? TIER_COLOR[cd.tier] : UI.sub, true))
+      b.add(txt(this, x + 8, y + 25, got ? `${SLOTS.find((q) => q.id === cd.slot)!.icon} ${clip(cardStatLine(cd), 27)}` : `ดรอปใน${dg.name}`, 10, got ? UI.green : UI.sub))
+    })
+  }
+
+  // ---------- tab 3: base stats ----------
   private statusTab() {
     const s = save(), b = this.body!
     const total = totalBase(s), gear = gearBase(s)

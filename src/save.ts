@@ -29,6 +29,10 @@ export interface SaveData {
   clears: number
   bestRoom: number
   clearsBy?: Record<string, number> // per dungeon id (d1, d2, ...)
+  cards?: Record<string, number> // equipment cards in the bag (not slotted), by card id (data/cards.ts)
+  sockets?: Record<string, string[]> // item id -> card ids slotted in it
+  cardPity?: Record<string, number> // kills of that card's monster since its last drop
+  cardSeen?: string[] // card book: every card ever found
   lastDaily: string // yyyy-mm-dd of last free daily gems
   muted: boolean
 }
@@ -132,4 +136,33 @@ export function resetTree(s: SaveData): number {
   const n = Object.values(s.jobTree ?? {}).reduce((a, v) => a + v, 0)
   s.jobTree = {}
   return n
+}
+
+// ---------- equipment cards (data/cards.ts, design/equipment-cards.md) ----------
+export function addCard(s: SaveData, id: string, n = 1) {
+  const bag = (s.cards ??= {})
+  bag[id] = (bag[id] ?? 0) + n
+  const seen = (s.cardSeen ??= [])
+  if (!seen.includes(id)) seen.push(id)
+}
+/** Put a card from the bag into the first free slot of an item. */
+export function socketCard(s: SaveData, itemId: string, cardId: string, max: number): boolean {
+  const bag = (s.cards ??= {}), sock = ((s.sockets ??= {})[itemId] ??= [])
+  if ((bag[cardId] ?? 0) <= 0 || sock.length >= max) return false
+  bag[cardId]--
+  if (bag[cardId] <= 0) delete bag[cardId]
+  sock.push(cardId)
+  return true
+}
+/** Take one card out (free, the card goes back to the bag). */
+export function unsocketCard(s: SaveData, itemId: string, index: number) {
+  const sock = s.sockets?.[itemId]
+  if (!sock || index >= sock.length) return
+  const [id] = sock.splice(index, 1)
+  addCard(s, id)
+  if (!sock.length) delete s.sockets![itemId]
+}
+/** Every card in an item back to the bag (before the item is sold). */
+export function unsocketAll(s: SaveData, itemId: string) {
+  while (s.sockets?.[itemId]?.length) unsocketCard(s, itemId, 0)
 }

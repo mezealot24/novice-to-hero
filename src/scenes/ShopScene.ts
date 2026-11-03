@@ -1,8 +1,8 @@
 import Phaser from 'phaser'
 import { COLORS, type Stats } from '../data/game-data'
 import { JOBS } from '../data/jobs'
-import { canWear, heroStats, itemStatLine, itemUnlocked, ITEMS, REQ_TEXT, SELL_RATE, SLOTS, wearText, type Item, type Slot } from '../data/meta'
-import { persist, save } from '../save'
+import { canWear, heroStats, itemStatLine, itemUnlocked, ITEMS, REQ_TEXT, SELL_RATE, slotCount, SLOTS, wearText, type Item, type Slot } from '../data/meta'
+import { persist, save, unsocketAll } from '../save'
 import { sfx } from '../sfx'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
 
@@ -53,7 +53,7 @@ export class ShopScene extends Phaser.Scene {
       b.add(txt(this, x + 60, y + 10, it.name, 18, UI.text, true))
       b.add(txt(this, x + 60, y + 36, owned ? (worn ? 'ใส่อยู่' : 'มีแล้ว') : `${it.price} zeny`, 14, owned ? UI.green : UI.gold, true))
       b.add(txt(this, x + cw - 12, y + 38, wearText(it), 11, wear ? UI.sub : UI.red).setOrigin(1, 0))
-      const line = txt(this, x + 14, y + 60, itemStatLine(it), 13, '#9fe3a8', true).setWordWrapWidth(cw - 28)
+      const line = txt(this, x + 14, y + 60, `${itemStatLine(it)}${slotCount(it) ? ` · 🃏 ช่องการ์ด ${slotCount(it)}` : ''}`, 13, '#9fe3a8', true).setWordWrapWidth(cw - 28)
       const desc = txt(this, x + 14, line.y + line.height + 3, it.desc, 12, UI.sub).setWordWrapWidth(cw - 28)
       b.add([line, desc])
       if (open && wear) b.add(txt(this, x + 14, desc.y + desc.height + 2, this.compare(it), 11, '#d8d4f0').setWordWrapWidth(cw - 28))
@@ -69,7 +69,7 @@ export class ShopScene extends Phaser.Scene {
         const sell = Math.floor(it.price * SELL_RATE)
         b.add(button(this, x + cw / 2 + 70, by, 120, 36, `ขาย +${sell}`, () =>
           confirm(this, `ขาย ${it.name}?`, `ได้คืน ${sell} zeny (ครึ่งราคา)`, 'ขาย', () => {
-            s.owned = s.owned.filter((id) => id !== it.id); s.zeny += sell; persist(); sfx.coin(); this.refreshWallet(); this.render()
+            unsocketAll(s, it.id); s.owned = s.owned.filter((id) => id !== it.id); s.zeny += sell; persist(); sfx.coin(); this.refreshWallet(); this.render()
           }), { size: 15, fill: 0x5a5f8a, color: UI.text }))
       }
     })

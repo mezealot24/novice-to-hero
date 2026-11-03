@@ -1,9 +1,10 @@
 import Phaser from 'phaser'
 import { afterDef, BATTLE, COLORS, COMMON_PERKS, hitChance, DUNGEONS, FONT_NUM, FONT_UI, H, MONSTERS, PERKS, perkDesc, PLAYER, RULES, SET_BONUS, TAGS, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Perk, type Stats, type Tag } from '../data/game-data'
 import { EVENT_RULES, rollEvent, type EventDef } from '../data/events'
-import { COSTUMES, FREE_GEMS, heroStats, RESOURCES } from '../data/meta'
+import { COSTUMES, FREE_GEMS, heroStats, PER_POINT, RESOURCES, totalBase } from '../data/meta'
+import { CARD_RULES, cardById, cardName, cardOfMonster } from '../data/cards'
 import { JOBS, MAGE_SPELL, RES_RULES, skillPow, type JobDef } from '../data/jobs'
-import { addXp, persist, save } from '../save'
+import { addCard, addXp, persist, save } from '../save'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
 import { button, fullscreenButton, go, type Btn } from '../ui'
@@ -74,6 +75,8 @@ export class BattleScene extends Phaser.Scene {
   private kills = 0
   private runXp = 0
   private runGems = 0
+  private runCards: string[] = [] // equipment cards found this run (kept win or lose)
+  private cardLuck = 1 // LUK bonus on card drops (same curve as rare drops)
   private settled = false
   private over = false
   private paused = false
@@ -193,7 +196,8 @@ export class BattleScene extends Phaser.Scene {
     this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0
     this.heroSpr.setTexture(this.job.tex).setTint((COSTUMES.find((c) => c.id === s.costume) ?? COSTUMES[0]).tint).setAngle(0).setAlpha(1)
     this.perks = []; this.hits = 0
-    this.level = 1; this.xp = 0; this.zeny = 0; this.kills = 0; this.runXp = 0; this.runGems = 0
+    this.level = 1; this.xp = 0; this.zeny = 0; this.kills = 0; this.runXp = 0; this.runGems = 0; this.runCards = []
+    this.cardLuck = 1 + Math.min(PER_POINT.luk.dropCap, PER_POINT.luk.dropPct * totalBase(s).luk)
     this.settled = false; this.over = false; this.smashQueued = false
     this.startedAt = this.time.now
     this.eventLog = []; this.lockTarget = undefined; this.lockStacks = 0; this.hawkTurn = 0; this.breakCount = 0; this.revivedCount = 0; this.spears = 0; this.spearAcc = 0; this.ultRegenTurns = 0; this.smiteCount = 0; this.counterCount = 0; this.comboCount = 0; this.peakTurns = 0; this.turnsLog = []
@@ -814,6 +818,20 @@ export class BattleScene extends Phaser.Scene {
     sfx.door()
   }
 
+  /** Equipment card drop (design/equipment-cards.md): base rate x LUK, guaranteed after `pity` kills of that monster. */
+  private rollCard(m: Mon) {
+    const cd = cardOfMonster(m.kind)
+    if (!cd || m.revived) return
+    const pity = (save().cardPity ??= {})
+    const n = (pity[cd.id] ?? 0) + 1
+    if (Math.random() < CARD_RULES.rate[cd.tier] * this.cardLuck || n >= CARD_RULES.pity[cd.tier]) {
+      pity[cd.id] = 0
+      this.runCards.push(cd.id)
+      this.callout(`🃏 ได้${cardName(cd)}!`, m.spr.x, m.spr.y - 130)
+      sfx.coin()
+    } else pity[cd.id] = n
+  }
+
   private killMon(m: Mon) {
     m.dead = true
     if (this.st.lockOn > 0 && this.lockTarget === m && this.dodgeCharges < 1) { this.dodgeCharges = 1; this.floatText(HERO_X, GROUND - 100, '💨 ถอยตั้งหลัก', '#c9c9d6') } // archer ★ ล็อกเป้า: kill the locked target -> 1 sure dodge
@@ -834,6 +852,7 @@ export class BattleScene extends Phaser.Scene {
     this.gainXp(m.def.xp)
     const [a, b] = m.def.zeny
     this.coinsFly(m.spr.x, m.spr.y - 20, Phaser.Math.Between(a, b))
+    this.rollCard(m)
     if (Math.random() < this.st.dropChance) { this.runGems++; this.floatText(m.spr.x, m.spr.y - 80, '💎 ของหายาก!', '#7fd7ff'); sfx.coin() }
     sfx.pop()
     m.dotTxt?.destroy()
@@ -1555,10 +1574,12 @@ export class BattleScene extends Phaser.Scene {
     const before = s.gems
     const ups = addXp(this.runXp)
     s.gems += gems + this.runGems
+    for (const id of this.runCards) addCard(s, id)
     persist()
     const lines = [`+${this.zeny} zeny · +${this.runXp} EXP${s.gems > before ? ` · +${s.gems - before} เพชร` : ''}`]
     if (ups.base) lines.push(`🎉 Base Lv ${s.baseLevel}! ได้แต้มสถานะเพิ่ม`)
     if (ups.job) lines.push(`✨ Job Lv ${s.jobLevel}! ได้แต้มสกิลเพิ่ม`)
+    if (this.runCards.length) lines.push(`🃏 ได้การ์ด: ${this.runCards.map((id) => cardName(cardById(id)!)).join(', ')} (ใส่ได้ที่หน้าตัวละคร)`)
     return lines.join('\n')
   }
 

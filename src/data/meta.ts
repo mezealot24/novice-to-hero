@@ -3,6 +3,7 @@
 import { PLAYER, type Stats } from './game-data'
 import { talentMods, treeMods, type TalentSave, type TreeSave } from './tree'
 import { JOBS, type JobId } from './jobs'
+import { cardById, type EquipCard } from './cards'
 
 // ---------- base stats (Q's spec, 2026-11-02): 7 stats, points from Base Level ----------
 export type BaseStat = 'str' | 'vit' | 'wis' | 'dex' | 'int' | 'luk' | 'agi'
@@ -73,7 +74,7 @@ export const SLOTS: { id: Slot; name: string; icon: string }[] = [
 // jobs = who can wear it (none = everyone). req = when the shop sells it: 'job' after the first job change,
 // 'd2' after beating ป่าหมาป่าเงา. Item ids are save data: never rename or remove one.
 export type ItemReq = 'job' | 'd2' | 'd3' | 'd4'
-export interface Item { id: string; slot: Slot; name: string; icon: string; price: number; desc: string; base?: Partial<Record<BaseStat, number>>; mod: Partial<Stats>; jobs?: JobId[]; req?: ItemReq }
+export interface Item { id: string; slot: Slot; name: string; icon: string; price: number; desc: string; base?: Partial<Record<BaseStat, number>>; mod: Partial<Stats>; jobs?: JobId[]; req?: ItemReq; slots?: number }
 const SW: JobId[] = ['swordsman'], AR: JobId[] = ['archer'], MG: JobId[] = ['mage'], CL: JobId[] = ['cleric'], TH: JobId[] = ['thief']
 export const ITEMS: Item[] = [
   // ----- weapons: everyone -----
@@ -135,6 +136,13 @@ export const ITEMS: Item[] = [
 ]
 export const itemById = (id: string) => ITEMS.find((i) => i.id === id) ?? ITEMS[0]
 /** Can this job wear it? (no `jobs` list = everyone) */
+/** Card slots (design/equipment-cards.md): starter gear 0, dungeon 2+ weapons 2, everything else 1. */
+export function slotCount(it: Item): number {
+  if (it.slots !== undefined) return it.slots
+  if (it.price === 0) return 0
+  if (it.slot === 'weapon' && it.req && it.req !== 'job') return 2
+  return 1
+}
 export const canWear = (it: Item, job: JobId) => !it.jobs || it.jobs.includes(job)
 /** Is it on sale yet? */
 export function itemUnlocked(it: Item, s: { job: JobId; clearsBy?: Record<string, number> }) {
@@ -156,11 +164,11 @@ const STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => string]>> 
   crit: ['คริ', pc], spellCrit: ['เวทคริ', pc], critMul: ['ดาเมจคริ', pc], guard: ['ลดดาเมจ', pc], lifesteal: ['ดูดเลือด', pc], regen: ['ฟื้น HP/เทิร์น', (n) => pc(n * 1.5 / 100)],
   poison: ['พิษ stack/hit', (n) => `${n}`], poisonDmg: ['พิษแรง', (n) => `${n}`], smashMul: ['ทุบ(โนวิส)', (n) => `${n}x`],
   counter: ['สวนกลับ', pc], combo: ['คอมโบ', pc],
-  dodgeHeal: ['หลบ→ฟื้น HP', pc], debuffRes: ['กันสถานะผิดปกติ', pc], waveShield: ['โล่ต้นเวฟ', (n) => `${pc(n)} HP`],
+  dodgeHeal: ['หลบ→ฟื้น HP', pc], revive: ['ลุกใหม่', (n) => `${n} ครั้ง/รอบ`], debuffRes: ['กันสถานะผิดปกติ', pc], waveShield: ['โล่ต้นเวฟ', (n) => `${pc(n)} HP`],
 }
 export const BASE_NAME: Record<BaseStat, string> = { str: 'STR', vit: 'VIT', wis: 'WIS', dex: 'DEX', int: 'INT', luk: 'LUK', agi: 'AGI' }
 /** "STR +3 · P.ATK +8 · ดูดเลือด +6%" */
-export function itemStatLine(it: Item): string {
+export function itemStatLine(it: { base?: Item['base']; mod: Partial<Stats> }): string {
   const parts: string[] = []
   const b = it.base ?? {}
   const keys = Object.keys(b) as BaseStat[]
@@ -171,6 +179,12 @@ export function itemStatLine(it: Item): string {
     if (L) parts.push(`${L[0]} ${v > 0 ? '+' : '-'}${L[1](Math.abs(v))}`)
   }
   return parts.join(' · ')
+}
+/** Card effect line, including the "% of max HP / ATK" part. */
+export function cardStatLine(cd: EquipCard): string {
+  const p = cd.pct ?? {}, sg = (n: number) => `${n > 0 ? '+' : '-'}${pc(Math.abs(n))}`
+  const extra = [p.maxHp ? `HP สูงสุด ${sg(p.maxHp)}` : '', p.atk ? `P.ATK ${sg(p.atk)}` : '', p.matk ? `M.ATK ${sg(p.matk)}` : ''].filter(Boolean)
+  return [...extra, itemStatLine(cd)].filter(Boolean).join(' · ')
 }
 /** "นักดาบ, นักบวช" or "ทุกอาชีพ" */
 export const wearText = (it: Item) => it.jobs ? it.jobs.map((j) => `${JOBS[j].icon}${JOBS[j].name}`).join(' ') : 'ทุกอาชีพ'
@@ -198,17 +212,23 @@ export const SUPPORTER_PRICE = 300 // gems: badge + gold name, no stats
 export const FREE_GEMS = { firstClear: 50, clear: 5, levelUp: 10, daily: 20 }
 
 // ---------- combine everything into the hero's starting stats ----------
-export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Record<Slot, string>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number }
+export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Record<Slot, string>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; sockets?: Record<string, string[]> }
 
 /** Items the hero actually gets stats from (gear for another job stays on but does nothing). */
 export function wornItems(s: StatsInput): Item[] {
   const job = s.job ?? 'novice'
   return (Object.keys(s.equipped) as Slot[]).map((sl) => itemById(s.equipped[sl])).filter((it) => canWear(it, job))
 }
+/** Cards slotted in this item (unknown ids and extra cards past the slot count are ignored). */
+export function socketed(s: { sockets?: Record<string, string[]> }, it: Item): EquipCard[] {
+  return (s.sockets?.[it.id] ?? []).slice(0, slotCount(it)).map(cardById).filter((x): x is EquipCard => !!x)
+}
+/** Cards in worn gear the hero gets stats from. */
+export const wornCards = (s: StatsInput) => wornItems(s).flatMap((it) => socketed(s, it))
 /** Base stats from gear only (shown as "+N ของ" on the status tab). */
 export function gearBase(s: StatsInput): Record<BaseStat, number> {
   const out = { str: 0, vit: 0, wis: 0, dex: 0, int: 0, luk: 0, agi: 0 }
-  for (const it of wornItems(s)) for (const k of Object.keys(it.base ?? {}) as BaseStat[]) out[k] += it.base![k]!
+  for (const it of [...wornItems(s), ...wornCards(s)]) for (const k of Object.keys(it.base ?? {}) as BaseStat[]) out[k] += it.base![k]!
   return out
 }
 /** Spent points + race + gear: what every derived stat is computed from. */
@@ -246,6 +266,11 @@ export function heroStats(s: StatsInput): Stats {
   for (const m of treeMods(s.jobTree, job.id)) add(m)
   for (const m of talentMods(s.jobTalents, job.id, s.jobLevel ?? 1)) add(m)
   for (const it of wornItems(s)) add(it.mod)
+  const cards = wornCards(s)
+  for (const cd of cards) add(cd.mod)
+  const pct = { maxHp: 0, atk: 0, matk: 0 }
+  for (const cd of cards) for (const k of Object.keys(cd.pct ?? {}) as (keyof typeof pct)[]) pct[k] += cd.pct![k]!
+  st.maxHp = Math.max(1, Math.round(st.maxHp * (1 + pct.maxHp))); st.atk *= 1 + pct.atk; st.matk *= 1 + pct.matk
   for (const sk of SKILLS) if (s.skills[sk.id] > 0 && (sk.id !== 'smash' || job.id === 'novice')) add(sk.mod(s.skills[sk.id]))
   st.smashCd = Math.max(2500, st.smashCd)
   st.aspd = Math.max(0.6, st.aspd)
