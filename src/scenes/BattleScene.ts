@@ -1143,12 +1143,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private async slam(m: Mon) {
-    await this.tween({ targets: m.spr, y: m.spr.y - 120, duration: 220, ease: 'Quad.easeOut' })
-    await this.tween({ targets: m.spr, y: GROUND, duration: 150, ease: 'Quad.easeIn' })
-    this.shake(300, 0.02)
-    this.burst(m.spr.x, GROUND, COLORS.telegraph, 24, 320)
-    sfx.slam()
-    if (this.riposte(m)) { await this.wait(300); return }
+    const home = m.spr.x
+    await this.slamMotion(m)
+    if (this.riposte(m)) { await this.wait(300); if (!m.dead) await this.tween({ targets: [m.spr, m.shadow], x: home, duration: 260 }); m.spr.setAngle(0); return }
     const hit = this.hurtHero((m.def.dmg + 8) * BATTLE.monDmgMul * (m.def.slamMul ?? 1.6) * this.monMul(m), !!m.def.slamMagic, 999, m) // slam can't be fled, only lucky-dodged / shielded
     if (m.stored > 0) await this.soulStrike(m)
     if (hit) {
@@ -1159,7 +1156,80 @@ export class BattleScene extends Phaser.Scene {
       this.heroGauge = Math.max(-100, this.heroGauge - lost)
       if (lost >= 10) this.floatText(HERO_X, GROUND - 120, 'มึน!', '#f2b84b')
     }
+    if (!m.dead && Math.abs(m.spr.x - home) > 4) await this.tween({ targets: [m.spr, m.shadow], x: home, duration: 260, ease: 'Quad.easeOut' })
+    m.spr.setAngle(0)
     await this.wait(300)
+  }
+
+  /** The charged attack's look, per boss (MonsterDef.slamAnim). Ends where the hit lands; slam() walks it home after. */
+  private async slamMotion(m: Mon) {
+    const c = m.def.slamColor ?? COLORS.telegraph
+    const sx = m.spr.scaleX, sy = m.spr.scaleY
+    switch (m.def.slamAnim ?? 'stomp') {
+      case 'pounce': { // crouch, leap in an arc onto the hero, claws
+        await this.tween({ targets: m.spr, scaleY: sy * 0.8, scaleX: sx * 1.1, duration: 140, yoyo: true })
+        this.tweens.add({ targets: [m.spr, m.shadow], x: HERO_X + 70, duration: 320, ease: 'Sine.easeIn' })
+        await this.tween({ targets: m.spr, y: GROUND - 110, duration: 160, ease: 'Quad.easeOut' })
+        await this.tween({ targets: m.spr, y: GROUND, duration: 160, ease: 'Quad.easeIn' })
+        this.slashFx(HERO_X + 10, GROUND - 50); this.slashFx(HERO_X - 10, GROUND - 70)
+        this.burst(HERO_X, GROUND - 50, c, 16, 220)
+        this.shake(200, 0.012); sfx.swing()
+        break
+      }
+      case 'cleave': { // march in, raise the blade, one huge sweep
+        await this.tween({ targets: [m.spr, m.shadow], x: HERO_X + 90, duration: 280, ease: 'Quad.easeIn' })
+        await this.tween({ targets: m.spr, angle: 18, duration: 220, ease: 'Back.easeIn' })
+        await this.tween({ targets: m.spr, angle: -28, duration: 90, ease: 'Quad.easeOut' })
+        const s = this.add.image(HERO_X + 10, GROUND - 60, 'slash').setDepth(9000).setScale(1.4).setTint(c)
+        this.tweens.add({ targets: s, scale: 2, alpha: 0, duration: 260, onComplete: () => s.destroy() })
+        this.burst(HERO_X, GROUND - 50, c, 18, 260)
+        this.shake(260, 0.016); sfx.slam()
+        break
+      }
+      case 'shot': { // recoil and fire one big projectile
+        this.tweens.add({ targets: m.spr, x: m.spr.x + 24, duration: 90, yoyo: true })
+        const b = this.add.image(m.spr.x - 30, m.spr.y - m.spr.displayHeight * 0.5, 'dot').setTint(c).setScale(4.5, 3).setDepth(9000)
+        sfx.swing()
+        await this.tween({ targets: b, x: HERO_X + 10, y: GROUND - 50, duration: 260, ease: 'Quad.easeIn' })
+        b.destroy()
+        this.burst(HERO_X, GROUND - 50, c, 26, 320)
+        this.cameras.main.flash(90, 255, 200, 140)
+        this.shake(260, 0.016); sfx.slam()
+        break
+      }
+      case 'cast': { // rise, glow, and loose a spell orb (Mirage's Soul Strike bolts follow on their own)
+        await this.tween({ targets: [m.spr], y: GROUND - 30, duration: 220, ease: 'Sine.easeOut' })
+        m.spr.setTint(c)
+        this.burst(m.spr.x, m.spr.y - m.spr.displayHeight * 0.6, c, 14, 120, true)
+        await this.wait(160)
+        const o = this.add.image(m.spr.x - 20, m.spr.y - m.spr.displayHeight * 0.6, 'dot').setTint(c).setScale(3.5).setDepth(9000)
+        this.tweens.add({ targets: o, angle: 360, duration: 300 })
+        await this.tween({ targets: o, x: HERO_X, y: GROUND - 50, scale: 5, duration: 300, ease: 'Quad.easeIn' })
+        o.destroy()
+        m.spr.clearTint()
+        this.burst(HERO_X, GROUND - 50, c, 22, 260, true)
+        this.cameras.main.flash(110, 200, 160, 255)
+        this.tweens.add({ targets: m.spr, y: GROUND, duration: 200 })
+        this.shake(220, 0.012); sfx.slam()
+        break
+      }
+      case 'bite': { // lunge with three snapping bites
+        await this.tween({ targets: [m.spr, m.shadow], x: HERO_X + 110, duration: 240, ease: 'Quad.easeIn' })
+        for (let i = 0; i < 3; i++) {
+          await this.tween({ targets: m.spr, x: HERO_X + 70, angle: -10, duration: 70, yoyo: true })
+          this.burst(HERO_X + 10, GROUND - 40 - i * 18, c, 8, 160)
+          sfx.hit(); this.shake(90, 0.008)
+        }
+        break
+      }
+      default: { // stomp: big jump and a ground slam
+        await this.tween({ targets: m.spr, y: m.spr.y - 120, duration: 220, ease: 'Quad.easeOut' })
+        await this.tween({ targets: m.spr, y: GROUND, duration: 150, ease: 'Quad.easeIn' })
+        this.shake(300, 0.02)
+        this.burst(m.spr.x, GROUND, c, 24, 320)
+        sfx.slam()
+      }
+    }
   }
 
   /** Mirage Soul Strike (Q 2026-11-03, RO style): the damage it stored fires back as magic bolts.
