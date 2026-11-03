@@ -10,7 +10,6 @@ export interface TreeNode {
   id: string; branch: string; tier: 0 | 1 | 2 | 3 | 4; name: string; icon: string; max: number
   desc: (lv: number) => string; mod: (lv: number) => Partial<Stats>
   parent?: string // skill web: needs >= 1 point in this node first (filled in by data/tree.ts)
-  parentLv?: number // ...or at least this many points in the parent (Thief Double Slash needs Double Strike Lv 5)
   kind?: 'pow' | 's2root' | 's2plus' | 's2star' // generated web nodes (data/tree.ts); undefined = class tree node
   s2?: string // Skill 2 id for the s2* kinds
 }

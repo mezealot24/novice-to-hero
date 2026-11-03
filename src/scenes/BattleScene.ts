@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { afterDef, BATTLE, doubleAtkChance, doubleSlash, COLORS, COMMON_PERKS, hitChance, DUNGEONS, FONT_NUM, FONT_UI, H, MONSTERS, PERKS, perkDesc, PLAYER, RULES, SET_BONUS, TAGS, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Perk, type Stats, type Tag } from '../data/game-data'
+import { afterDef, BATTLE, doubleAtkChance, COLORS, COMMON_PERKS, hitChance, DUNGEONS, FONT_NUM, FONT_UI, H, MONSTERS, PERKS, perkDesc, PLAYER, RULES, SET_BONUS, TAGS, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Perk, type Stats, type Tag } from '../data/game-data'
 import { EVENT_RULES, rollEvent, type EventDef } from '../data/events'
 import { COSTUMES, FREE_GEMS, heroStats, PER_POINT, RESOURCES, totalBase } from '../data/meta'
 import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster } from '../data/cards'
@@ -478,7 +478,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** One physical/magic hit. RO-style crit: physical only, rolled first; a crit always hits (skips flee) and ignores DEF.
    *  Magic never misses and never crits. Returns damage dealt. */
-  private strike(m: Mon, mul: number, magic = false, color?: string, pierce = 0, flat = 0): number {
+  private strike(m: Mon, mul: number, magic = false, color?: string, pierce = 0): number {
     if (m.dead || this.hp <= 0) return 0
     const crit = Math.random() < (magic ? this.st.spellCrit : this.st.crit + (this.buf.hawk > 0 ? 0.2 + 0.05 * this.st.s2Lv : 0)) // magic crits only with spellCrit (talent/item/card) · Skill 2 ตาเหยี่ยว
     if (!magic && !crit && Math.random() > hitChance(this.st.hit, m.def.flee ?? 5)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
@@ -488,7 +488,6 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.arLowHpBonus > 0 && m.hp < m.def.hp * 0.5) mul *= 1 + this.st.arLowHpBonus // archer talent เก็บตัวเปราะ r2
     if (crit && this.st.arCritRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arCritRes) // archer talent ลมหายใจนักล่า
     const r = this.roll(mul, magic, crit)
-    if (flat > 0) r.dmg += Math.round(flat * (r.crit ? this.st.critMul : 1)) // flat skill bonus (Thief ดับเบิลสแลช)
     if (!magic && !crit) r.dmg = m.def.def ? Math.max(1, Math.round(afterDef(r.dmg, m.def.def * (1 - Math.min(1, pierce))))) : r.dmg
     this.damageMon(m, r.dmg, r.crit, color)
     if (!magic && this.st.poison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.poison); m.poisonDmg = this.st.poisonDmg; this.dotIcon(m) }
@@ -501,10 +500,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Thief passive Double Strike: chance of +1 hit (Q: unlike RO, it can crit). */
-  private doubleAttack(m: Mon, mul: number, flat = 0) {
+  private doubleAttack(m: Mon, mul: number) {
     if (this.st.doubleAtk <= 0 || m.dead || Math.random() >= doubleAtkChance(this.st.doubleAtk)) return
     this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 22, 'DOUBLE!', '#ffd36b')
-    this.strike(m, mul, false, undefined, 0, flat)
+    this.strike(m, mul)
   }
 
   /** While true, melee hits stay at the monster (combo chain, Thief ult) and the hero walks home once at the end via goHome(). */
@@ -683,7 +682,7 @@ export class BattleScene extends Phaser.Scene {
 
   private async autoSkill() {
     const pow = 1 + this.st.s1Pow // skill web: ทักษะ 1 +power node
-    await this.skillName(this.job.id === 'thief' && this.st.dSlash > 0 ? { name: 'Double Slash', icon: '⚔️' } : this.job.auto)
+    await this.skillName(this.job.auto)
     const live = this.front()
     switch (this.job.id) {
       case 'swordsman':
@@ -718,12 +717,7 @@ export class BattleScene extends Phaser.Scene {
         await this.wait(BATTLE.stepMs * 0.4)
         break
       case 'thief':
-        if (this.st.dSlash > 0) await this.lunge(live[0], () => { // tree: Double Slash (RO style) replaces แทงพิษ: 2 hits on the front monster + up to 3 more, each target can Double Strike once
-          const d = doubleSlash(this.st.dSlash), ts = live.slice(0, 4), mul = d.mul * pow, flat = d.flat * pow
-          for (let i = 0; i < 2; i++) for (const m of ts) this.strike(m, mul, false, undefined, 0, flat)
-          for (const m of ts) this.doubleAttack(m, mul, flat)
-        })
-        else await this.lunge(live[0], () => { const m = live[0]; this.strike(m, 1.6 * pow); if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + 3); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) } })
+        await this.lunge(live[0], () => { const m = live[0]; this.strike(m, 1.6 * pow); this.doubleAttack(m, 1.6 * pow); if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + 3); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) } })
         break
     }
   }
