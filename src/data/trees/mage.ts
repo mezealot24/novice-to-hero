@@ -28,8 +28,8 @@ export const tree: ClassTree = {
   ],
   talents: [
     // row 1 (Job Lv 5): ธาตุถนัด
-    t('mg_t0a', 1, '⚡', 'ลูกศิษย์สายฟ้า', 2, (r) => r === 1 ? 'การ์ดเลเวลอัปใบแรกมี Lightning Bolt เสมอ · ult สายฟ้า +10%' : 'การ์ดใบแรกมี Lightning Bolt · ult สายฟ้า +20% · Bolt +1 ฮิต', (r) => ({ mgFirstCard: 1, mgLightAmp: 0.1 * r, boltHits: r === 2 ? 1 : 0 })),
-    t('mg_t0b', 1, '🔥', 'ลูกศิษย์เปลวไฟ', 2, (r) => r === 1 ? 'การ์ดเลเวลอัปใบแรกมี "ลูกไฟ" เสมอ · ult ไฟ +10%' : 'การ์ดใบแรกมี "ลูกไฟ" · ult ไฟ +20% · ult เผา +1 stack', (r) => ({ mgFirstCard: 2, mgFireAmp: 0.1 * r, mgFireStack: r === 2 ? 1 : 0 })),
+    t('mg_t0a', 1, '⚡', 'ลูกศิษย์สายฟ้า', 2, (r) => r === 1 ? 'พรเลเวลอัปครั้งแรกมี Lightning Bolt เสมอ · ult สายฟ้า +10%' : 'พรแรกมี Lightning Bolt · ult สายฟ้า +20% · Bolt +1 ฮิต', (r) => ({ mgFirstCard: 1, mgLightAmp: 0.1 * r, boltHits: r === 2 ? 1 : 0 })),
+    t('mg_t0b', 1, '🔥', 'ลูกศิษย์เปลวไฟ', 2, (r) => r === 1 ? 'พรเลเวลอัปครั้งแรกมี "ลูกไฟ" เสมอ · ult ไฟ +10%' : 'พรแรกมี "ลูกไฟ" · ult ไฟ +20% · ult เผา +1 stack', (r) => ({ mgFirstCard: 2, mgFireAmp: 0.1 * r, mgFireStack: r === 2 ? 1 : 0 })),
     t('mg_t0c', 1, '❄️', 'ลูกศิษย์น้ำแข็ง', 2, (r) => `เริ่มทุกเวฟด้วยบาเรีย ${r === 1 ? '1' : '1.6'}x M.ATK · ult น้ำแข็ง +${r * 10}%`, (r) => ({ mgWaveBarrier: r === 1 ? 1 : 1.6, mgIceAmp: 0.1 * r })),
     // row 2 (Job Lv 10): สไตล์ Mana
     t('mg_t1a', 2, '🏺', 'คลังมานา', 2, (r) => `Max Mana +${r === 1 ? 25 : 45} · ฟื้น Mana −20%`, (r) => ({ maxRes: r === 1 ? 25 : 45, resRegenCut: 0.2 })), // v21: was ปราการมานา (Mana Shield removed)

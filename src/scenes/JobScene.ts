@@ -41,7 +41,7 @@ export class JobScene extends Phaser.Scene {
         `พลัง: ${res ? res.name : '-'}`,
         `อัตโนมัติ: ${j.auto.icon} ${j.auto.name}`,
         `กดเอง: ${j.ult.icon} ${j.ult.name}`,
-        `การ์ด: ${tags} + ⭐ทั่วไป`,
+        `พร: ${tags} + ⭐ทั่วไป`,
       ].join('\n'), 12, '#d8d4f0').setWordWrapWidth(cw - 22).setLineSpacing(5)
       const z = this.add.zone(x, 86 + ch / 2, cw, ch).setInteractive({ useHandCursor: true })
       z.on('pointerup', () => { this.pick = id; sfx.pop(); draw(); detail.setText(this.detail()) })

@@ -47,7 +47,7 @@ export const JOBS: Record<JobId, JobDef> = {
   mage: {
     id: 'mage', name: 'จอมเวท', icon: '🔮', tex: 'hero_mage', blurb: 'เวทแรง ตีทั้งกลุ่ม ไม่มีวันพลาด แต่ตัวบาง · ตีปกติเป็นลูกเวทเบาๆ ดาเมจจริงมาจากสกิลที่ต้องใช้ Mana', focus: 'INT · WIS',
     resource: 'mana', attack: 'magic', tags: ['fire', 'storm', 'crit'], mod: { matk: 10, maxRes: 20, maxHp: 15 },
-    auto: { name: 'ลูกไฟระเบิด', icon: '🔥', cost: 36, desc: 'Mana 36: ไฟใส่ทุกตัว 1.1x M.ATK (ติดไฟถ้ามีการ์ดเผา)' },
+    auto: { name: 'ลูกไฟระเบิด', icon: '🔥', cost: 36, desc: 'Mana 36: ไฟใส่ทุกตัว 1.1x M.ATK (ติดไฟถ้ามีพรเผาไหม้)' },
     ult: { name: 'เวทธาตุ', icon: '☄️', cd: 5, cost: 30, desc: 'Mana 30: เลือกธาตุตอนเริ่มรอบ · ⚡ สายฟ้า เป้าเดียว 6 ฮิต (0.3–1.2x/ฮิต) · 🔥 ไฟ 2x + เผาซ้อน · ❄️ น้ำแข็ง 1.6x + ช้า/แช่แข็ง · ทุกธาตุได้บาเรีย 2x M.ATK' },
   },
   cleric: {

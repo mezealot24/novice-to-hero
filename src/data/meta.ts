@@ -23,7 +23,7 @@ export const BASE_STATS: { id: BaseStat; name: string; role: string; desc: strin
   { id: 'wis', name: 'WIS', role: 'ใจแข็ง', desc: 'ฮีล/โล่แรง +1% · M.DEF% · ต้านทาน (tenacity) · ฟื้นมานา' },
   { id: 'dex', name: 'DEX', role: 'ความแม่น', desc: 'Hit +1 · P.ATK ขั้นต่ำ +0.5% (ดาเมจนิ่งขึ้น)' },
   { id: 'int', name: 'INT', role: 'เวทมนตร์', desc: 'M.ATK +2 · Max Mana +3' },
-  { id: 'luk', name: 'LUK', role: 'ดวง', desc: 'คริ +1% ต่อ 3 LUK · หลบโชคดี · การ์ดตำนาน · อีเวนต์หายาก · ดรอปหายาก' },
+  { id: 'luk', name: 'LUK', role: 'ดวง', desc: 'คริ +1% ต่อ 3 LUK · หลบโชคดี · พรตำนาน · อีเวนต์หายาก · ดรอปหายาก' },
   { id: 'agi', name: 'AGI', role: 'ความเร็ว', desc: 'ความเร็วเทิร์น +1.5% (ได้ตีบ่อยขึ้น) · Flee +1 · คอมโบ (ตีซ้ำ)' },
 ]
 export const RESOURCES = {

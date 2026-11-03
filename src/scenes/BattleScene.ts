@@ -1109,7 +1109,7 @@ export class BattleScene extends Phaser.Scene {
       this.time.paused = true
       const c = this.add.container(0, 0).setDepth(30000)
       c.add(this.add.rectangle(W / 2, H / 2, W, H, COLORS.night, 0.8).setInteractive())
-      c.add(this.add.text(W / 2, 64, `เลเวล ${this.level}! เลือก 1 อย่าง`, { fontFamily: FONT_UI, fontSize: '30px', fontStyle: 'bold', color: '#f2b84b' }).setOrigin(0.5))
+      c.add(this.add.text(W / 2, 64, `เลเวล ${this.level}! เลือกพร 1 อย่าง`, { fontFamily: FONT_UI, fontSize: '30px', fontStyle: 'bold', color: '#f2b84b' }).setOrigin(0.5))
       const cw = 272, ch = 250, gap = 24
       const x0 = W / 2 - ((offers.length - 1) * (cw + gap)) / 2
       const keys: string[] = []
@@ -1133,7 +1133,7 @@ export class BattleScene extends Phaser.Scene {
         const icon = this.add.text(0, -ch / 2 + 44, tag.icon, { fontSize: '40px' }).setOrigin(0.5)
         const name = this.add.text(0, -ch / 2 + 96, p.name, { fontFamily: FONT_UI, fontSize: '24px', fontStyle: 'bold', color: '#2b2238' }).setOrigin(0.5)
         const desc = this.add.text(0, -ch / 2 + 128, p.desc, { fontFamily: FONT_UI, fontSize: '16px', color: '#4a3f5c', align: 'center', wordWrap: { width: cw - 36 }, lineSpacing: 4 }).setOrigin(0.5, 0)
-        const foot = this.add.text(0, ch / 2 - 22, p.tag === 'common' ? 'การ์ดทั่วไป · เลือกซ้ำได้' : `${p.id === 'stm1' ? `Lv ${boltLv + 1}/${BOLT_MAX_LV} · ` : ''}สาย${tag.name} ${n >= 3 ? '3/3 ✓ ครบเซ็ตแล้ว' : `${n}/3${n === 2 && SET_BONUS[p.tag] ? ' · ครบเซ็ตเมื่อเลือก!' : ''}`}`, { fontFamily: FONT_UI, fontSize: '14px', color: tag.color, fontStyle: 'bold', stroke: '#2b2238', strokeThickness: 2 }).setOrigin(0.5)
+        const foot = this.add.text(0, ch / 2 - 22, p.tag === 'common' ? 'พรทั่วไป · เลือกซ้ำได้' : `${p.id === 'stm1' ? `Lv ${boltLv + 1}/${BOLT_MAX_LV} · ` : ''}สาย${tag.name} ${n >= 3 ? '3/3 ✓ ครบเซ็ตแล้ว' : `${n}/3${n === 2 && SET_BONUS[p.tag] ? ' · ครบเซ็ตเมื่อเลือก!' : ''}`}`, { fontFamily: FONT_UI, fontSize: '14px', color: tag.color, fontStyle: 'bold', stroke: '#2b2238', strokeThickness: 2 }).setOrigin(0.5)
         const key = this.add.text(-cw / 2 + 14, -ch / 2 + 10, `${i + 1}`, { fontFamily: FONT_NUM, fontSize: '16px', color: '#8d7244' })
         card.add([bg, icon, name, desc, foot, key]).setSize(cw, ch).setInteractive({ useHandCursor: true })
         card.on('pointerover', () => card.setScale(1.04))
@@ -1160,7 +1160,7 @@ export class BattleScene extends Phaser.Scene {
       case 'camp': {
         const c = await this.choose(ev, [
           { label: `🔥 พักฟื้น HP ${R.campHeal * 100}%`, sub: `ตอนนี้ HP ${Math.round(this.hp)}/${Math.round(this.st.maxHp)}` },
-          { label: `⚔️ ซ้อมดาบ EXP +${R.campXp}`, sub: 'ได้การ์ดใบถัดไปเร็วขึ้น' },
+          { label: `⚔️ ซ้อมดาบ EXP +${R.campXp}`, sub: 'ได้พรครั้งถัดไปเร็วขึ้น' },
         ])
         if (c === 0) { this.heal(this.st.maxHp * R.campHeal); this.burst(HERO_X, GROUND - 40, 0xff8c42, 14, 140) }
         else { this.gainXp(R.campXp); this.runXp += R.campXp; this.floatText(HERO_X, GROUND - 110, `EXP +${R.campXp}`, '#7fd7ff') }
@@ -1182,7 +1182,7 @@ export class BattleScene extends Phaser.Scene {
       case 'merchant': {
         const c = await this.choose(ev, [
           { label: `🧪 ยาฟื้น HP ${R.potionHeal * 100}%`, sub: `${potion} zeny`, off: this.zeny < potion },
-          { label: '🃏 การ์ด 1 ใน 3', sub: `${card} zeny`, off: this.zeny < card },
+          { label: '🙏 พร 1 ใน 3', sub: `${card} zeny`, off: this.zeny < card },
           { label: '👋 ไม่ซื้อ', sub: `มี ${this.zeny} zeny` },
         ])
         if (c === 0) { this.zeny -= potion; this.heal(this.st.maxHp * R.potionHeal); sfx.coin() }
@@ -1216,7 +1216,7 @@ export class BattleScene extends Phaser.Scene {
         break
       }
       case 'fairy': {
-        await this.choose(ev, [{ label: '🧚 รับพร', sub: 'เลือกการ์ดตำนาน (แรง x2) 1 ใน 3' }])
+        await this.choose(ev, [{ label: '🧚 รับพร', sub: 'เลือกพรตำนาน (แรง x2) 1 ใน 3' }])
         await this.offerPerks(true)
         break
       }
@@ -1569,7 +1569,7 @@ export class BattleScene extends Phaser.Scene {
     const rewards = this.settle(false)
     this.panel([
       { text: this.timedOut ? 'หมดเวลา!' : 'ล้มแล้ว...', size: 44, color: '#ff7a7a', bold: true },
-      ...(this.timedOut ? [{ text: `เกิน ${this.turnLimit} เทิร์นในการสู้ครั้งนี้ · ลองเพิ่มดาเมจ (ATK, คริ, การ์ดโจมตี) ดูนะคะ`, size: 16, color: '#ffb0b0' }] : []),
+      ...(this.timedOut ? [{ text: `เกิน ${this.turnLimit} เทิร์นในการสู้ครั้งนี้ · ลองเพิ่มดาเมจ (ATK, คริ, พรสายโจมตี) ดูนะคะ`, size: 16, color: '#ffb0b0' }] : []),
       { text: `${this.dg.name} · ไปถึงด่าน ${this.room + 1}/${this.dg.rooms.length} · ล้มมอนไป ${this.kills} ตัว`, size: 19 },
       { text: rewards, size: 19, color: '#f2b84b' },
       { text: 'ของที่เก็บมาไม่หาย! ลองซื้ออาวุธหรือลงแต้มสถานะที่เมือง แล้วมาใหม่นะ', size: 16, color: '#a9a6c7' },
