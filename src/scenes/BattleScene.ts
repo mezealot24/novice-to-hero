@@ -949,15 +949,16 @@ export class BattleScene extends Phaser.Scene {
   /** dot = damage over time / reflected damage: no executioner bonus and never reflected back. */
   private damageMon(m: Mon, dmg: number, crit: boolean, color?: string, dot = false) {
     if (m.dead) return
-    if ((m.marked ?? 0) > 0) dmg = Math.round(dmg * 1.15) // cleric ★B: ตราบาป
-    if (this.st.lateDmg > 0 && this.fightTurns >= 12) dmg = Math.round(dmg * (1 + this.st.lateDmg)) // cleric talent: อรุณรุ่ง
-    if (this.st.poisonAmp > 0 && m.poison >= 10) dmg = Math.round(dmg * (1 + this.st.poisonAmp)) // Thief talent: กัดกร่อน
-    if (!dot && this.relic === 'executioner' && m.hp < m.def.hp * RELIC_RULES.executioner.below) dmg = Math.round(dmg * (1 + RELIC_RULES.executioner.mul))
+    dmg = Math.ceil(dmg) // whole numbers only (Q: round up), so shown == applied
+    if ((m.marked ?? 0) > 0) dmg = Math.ceil(dmg * 1.15) // cleric ★B: ตราบาป
+    if (this.st.lateDmg > 0 && this.fightTurns >= 12) dmg = Math.ceil(dmg * (1 + this.st.lateDmg)) // cleric talent: อรุณรุ่ง
+    if (this.st.poisonAmp > 0 && m.poison >= 10) dmg = Math.ceil(dmg * (1 + this.st.poisonAmp)) // Thief talent: กัดกร่อน
+    if (!dot && this.relic === 'executioner' && m.hp < m.def.hp * RELIC_RULES.executioner.below) dmg = Math.ceil(dmg * (1 + RELIC_RULES.executioner.mul))
     if (!dot && m.reflect > 0 && dmg > 0 && this.hp > 0) this.reflectHurt(m, dmg * m.reflect)
     if (!dot && m.absorb > 0 && dmg > 0) { m.stored += dmg * m.absorb; this.dotIcon(m) } // Mirage: stores it for the Soul Strike
     if (m.shield > 0) { // monster shield (turtle wall, ice armor, bone shield) soaks first
-      const a = Math.min(m.shield, dmg)
-      m.shield -= a; dmg -= a
+      const a = Math.min(Math.ceil(m.shield), dmg)
+      m.shield = Math.max(0, m.shield - a); dmg -= a
       this.floatText(m.spr.x + 30, m.spr.y - m.spr.displayHeight - 20, `🛡️-${Math.round(a)}`, '#9fe3ff')
       if (m.shield <= 0) { m.shield = 0; this.dotIcon(m) }
       if (dmg <= 0) return
@@ -1307,14 +1308,14 @@ export class BattleScene extends Phaser.Scene {
     if (Math.random() > hitChance(monHit, this.st.flee, 0.8 - this.st.fleeFloor)) return dodged('EVADE!', '#9fe3ff') // Thief เงาบาง lowers the floor
     const ab = this.hx.armorBreak > 0 ? BATTLE.armorBreakMul : 1 // เกราะแตก: P.DEF / M.DEF count half
     const raw = magic ? dmg * (1 - this.st.mdef * ab) : afterDef(dmg, this.st.def * ab)
-    let n = Math.max(1, Math.round(raw * (1 - this.st.guard) * (this.buf.guard > 0 ? 1 - (0.4 + 0.05 * this.st.s2Lv) : 1))) // Skill 2 ตั้งการ์ด
+    let n = Math.max(1, Math.ceil(raw * (1 - this.st.guard) * (this.buf.guard > 0 ? 1 - (0.4 + 0.05 * this.st.s2Lv) : 1))) // Skill 2 ตั้งการ์ด
     this.lastHurt = n
     if (this.relic === 'thornaura' && src && !src.dead) { this.damageMon(src, Math.max(1, Math.round(n * RELIC_RULES.thornaura.back)), false, '#7fd08c', true); this.floatText(src.spr.x, src.spr.y - src.spr.displayHeight - 30, '🌵 หนาม!', '#7fd08c') }
     this.gainRage(RES_RULES.rageOnHurt + this.st.rageOnHurtAdd) // talent: แค้นฝังใจ
     if (this.st.rageOnHurtAdd > 0) this.gainRes(this.st.rageOnHurtAdd) // same talent on a Mana job: Mana when hit
     if (this.shield > 0) {
-      const absorbed = Math.min(this.shield, n)
-      this.shield -= absorbed; n -= absorbed
+      const absorbed = Math.min(Math.ceil(this.shield), n)
+      this.shield = Math.max(0, this.shield - absorbed); n -= absorbed
       this.floatText(HERO_X, GROUND - 110, `🛡️ -${absorbed}`, '#9fe3ff')
       if (this.shield <= 0 && this.st.barrierBoom > 0) { // mage talent บาเรียระเบิด
         this.callout('💥 บาเรียระเบิด!', HERO_X + 120, GROUND - 160)
@@ -1324,7 +1325,7 @@ export class BattleScene extends Phaser.Scene {
       if (n <= 0) return true
     }
     if (this.buf.mshield > 0 && this.job.resource === 'mana' && this.res > 0) { // Skill 2 Mana Shield (active, v27)
-      const paid = Math.min(Math.floor(this.res), Math.round(n * (0.4 + 0.05 * this.st.s2Lv)))
+      const paid = Math.min(Math.floor(this.res), Math.ceil(n * (0.4 + 0.05 * this.st.s2Lv)))
       this.res -= paid; n -= paid
       if (paid > 0) this.floatText(HERO_X, GROUND - 110, `🔷 -${paid}`, '#5aa0ff')
       if (n <= 0) return true
@@ -1356,8 +1357,8 @@ export class BattleScene extends Phaser.Scene {
   private heal(n: number, quiet = false) {
     const before = this.hp
     if (this.hx.burn > 0) n *= 1 - BATTLE.burnHealCut // burning: healing on the hero is cut
-    const want = Math.round(this.hp + n * (1 + this.st.healAmp))
-    if (this.st.overhealShield > 0 && want > this.st.maxHp) this.shield = Math.min(this.st.maxHp * 0.5, this.shield + want - this.st.maxHp) // tree: "ไฟชำระ" (cap 50% max HP)
+    const want = Math.ceil(this.hp + n * (1 + this.st.healAmp))
+    if (this.st.overhealShield > 0 && want > this.st.maxHp) this.shield = Math.min(Math.ceil(this.st.maxHp * 0.5), this.shield + want - this.st.maxHp) // tree: "ไฟชำระ" (cap 50% max HP)
     this.hp = Math.min(this.st.maxHp, want)
     if (this.relic === 'bloodpact' && want > this.st.maxHp) { // Blood Pact: overheal becomes shield (capped)
       const cap = Math.round(this.st.maxHp * RELIC_RULES.bloodpact.shieldCap)
@@ -1670,7 +1671,7 @@ export class BattleScene extends Phaser.Scene {
   private healMon(m: Mon, n: number, quiet = false) {
     if (m.dead || n <= 0) return
     const cut = this.healCut(m)
-    const got = Math.round(Math.min(m.def.hp - m.hp, n * (1 - cut)))
+    const got = Math.min(Math.ceil(m.def.hp - m.hp), Math.ceil(n * (1 - cut)))
     if (got <= 0) return
     m.hp += got
     if (!quiet || cut > 0) this.damageNumber(m.spr.x, m.spr.y - m.spr.displayHeight, got, false, '#6fd08c', true)
@@ -1759,8 +1760,8 @@ export class BattleScene extends Phaser.Scene {
 
   /** Poison / burn tick on the hero: shields soak it, it can't be dodged, and it can knock the hero out. */
   private dotHurt(dmg: number, icon: string, color: string) {
-    let n = Math.max(1, Math.round(dmg))
-    if (this.shield > 0) { const a = Math.min(this.shield, n); this.shield -= a; n -= a; if (n <= 0) return }
+    let n = Math.max(1, Math.ceil(dmg))
+    if (this.shield > 0) { const a = Math.min(Math.ceil(this.shield), n); this.shield = Math.max(0, this.shield - a); n -= a; if (n <= 0) return }
     this.hp = Math.max(this.hpFloor, this.hp - n)
     this.minHpPct = Math.min(this.minHpPct, this.hp / this.st.maxHp)
     this.damageNumber(HERO_X, GROUND - 70, n, false, color)
@@ -1770,9 +1771,9 @@ export class BattleScene extends Phaser.Scene {
 
   /** Reflected damage from a mirror monster: magic, never misses. Thorn Aura halves it. */
   private reflectHurt(m: Mon, dmg: number) {
-    let n = Math.round(dmg * (1 - this.st.mdef * (this.hx.armorBreak > 0 ? BATTLE.armorBreakMul : 1)) * (this.relic === 'thornaura' ? 1 - RELIC_RULES.thornaura.reflectCut : 1))
+    let n = Math.ceil(dmg * (1 - this.st.mdef * (this.hx.armorBreak > 0 ? BATTLE.armorBreakMul : 1)) * (this.relic === 'thornaura' ? 1 - RELIC_RULES.thornaura.reflectCut : 1))
     if (n <= 0) return
-    if (this.shield > 0) { const a = Math.min(this.shield, n); this.shield -= a; n -= a; if (n <= 0) return }
+    if (this.shield > 0) { const a = Math.min(Math.ceil(this.shield), n); this.shield = Math.max(0, this.shield - a); n -= a; if (n <= 0) return }
     this.hp = Math.max(this.hpFloor, this.hp - n)
     this.minHpPct = Math.min(this.minHpPct, this.hp / this.st.maxHp)
     this.damageNumber(HERO_X, GROUND - 70, n, false, '#c9e0ff')
@@ -2164,6 +2165,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** RO double-attack style: after a combo chain, the summed damage pops big and yellow above the last target and hangs ~1.3 s. */
   private comboTotal(x: number, y: number, total: number, hits: number) {
+    total = Math.ceil(total)
     const ty = y - 62
     const tag = this.add.text(x, ty - 30, `${hits} HIT`, { fontFamily: FONT_NUM, fontSize: '16px', color: '#ffe9a8', stroke: '#14172b', strokeThickness: 5 }).setOrigin(0.5).setDepth(10001)
     const t = this.add.text(x, ty, `${total}`, { fontFamily: FONT_NUM, fontSize: `${36 + Math.min(3, hits - 2) * 6}px`, color: '#ffd34d', stroke: '#14172b', strokeThickness: 7 }).setOrigin(0.5).setDepth(10001).setScale(1.9)
@@ -2202,6 +2204,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private damageNumber(x: number, y: number, n: number, crit: boolean, color?: string, heal = false) {
+    n = Math.ceil(n) // safety net: never show a fraction
     const t = this.add.text(x + Phaser.Math.Between(-10, 10), y, heal ? `+${n}` : crit ? `${n}!` : `${n}`, {
       fontFamily: FONT_NUM, fontSize: crit ? '40px' : '24px', color: color ?? (crit ? '#ffd34d' : '#f6eedc'), stroke: '#14172b', strokeThickness: crit ? 7 : 5,
     }).setOrigin(0.5).setDepth(9999)
