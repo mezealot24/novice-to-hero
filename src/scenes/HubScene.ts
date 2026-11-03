@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { COLORS, DUNGEONS, H, W } from '../data/game-data'
-import { COSTUMES, FREE_GEMS, JOB_RULES, RACES, STAT_RULES } from '../data/meta'
+import { COSTUMES, FREE_GEMS, isBroken, itemById, JOB_RULES, RACES, STAT_RULES } from '../data/meta'
 import { canChangeJob, persist, save, today, wipe } from '../save'
 import { JOB_CHANGE, JOBS } from '../data/jobs'
 import { setMuted } from '../sfx'
@@ -69,8 +69,13 @@ export class HubScene extends Phaser.Scene {
       const b = button(this, 856, y + (compact ? 18 : 26), 130, compact ? 34 : 50, locked ? '🔒' : 'ลุย!', () => {
         // playtest: a locked dungeon still opens, after a warning
         const why = d.unlock === 'job' ? 'แนะนำให้เคลียร์ดัน 1 แล้วเปลี่ยนอาชีพก่อน\nโนวิสจะยากมาก' : `แนะนำให้เคลียร์${prevName(d.unlock)}ก่อน มอนแรงมาก`
-        if (locked) { confirm(this, `${d.name} ยังล็อกอยู่`, `${why} (โหมดทดสอบ: ลองได้)`, 'ลองเลย', () => go(this, 'battle', { d: i })); return }
-        go(this, 'battle', { d: i })
+        // broken gear (failed refine) gives nothing: say so in red before the run (design 3.5)
+        const broken = Object.values(s.equipped).filter((id, k, all) => isBroken(s, id) && all.indexOf(id) === k).map((id) => itemById(id).name)
+        const start = () => broken.length
+          ? confirm(this, '💔 มีของแตกอยู่', `${broken.join(', ')} แตกอยู่ ไม่ได้ค่าพลังและการ์ด\nซ่อมได้ที่ 🔨 โรงตีเหล็ก`, 'ลุยเลย', () => go(this, 'battle', { d: i }), 'ยังก่อน')
+          : go(this, 'battle', { d: i })
+        if (locked) { confirm(this, `${d.name} ยังล็อกอยู่`, `${why} (โหมดทดสอบ: ลองได้)`, 'ลองเลย', start); return }
+        start()
       }, { size: compact ? 17 : 20, fill: locked ? 0x4a4e6e : undefined, color: locked ? UI.sub : undefined })
       const nextLocked = i === DUNGEONS.length - 1 || isLocked(DUNGEONS[i + 1])
       if (!locked && nextLocked) this.tweens.add({ targets: b, scale: 1.05, duration: 700, yoyo: true, repeat: -1 })

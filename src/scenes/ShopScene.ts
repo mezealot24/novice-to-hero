@@ -1,8 +1,9 @@
 import Phaser from 'phaser'
 import { COLORS, type Stats } from '../data/game-data'
 import { JOBS } from '../data/jobs'
-import { canWear, gradeOf, heroStats, itemStatLine, itemUnlocked, ITEMS, REQ_TEXT, SELL_RATE, slotCount, SLOTS, wearText, type Item, type Slot } from '../data/meta'
-import { equip, isWorn, persist, save, unsocketAll } from '../save'
+import { canWear, forgeTag, gradeOf, heroStats, refineOf, itemStatLine, itemUnlocked, ITEMS, REQ_TEXT, SELL_RATE, slotCount, SLOTS, wearText, type Item, type Slot } from '../data/meta'
+import { addFodder, equip, forgetForge, isWorn, persist, save, unsocketAll } from '../save'
+import { isFodder } from '../data/refine'
 import { sfx } from '../sfx'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
 
@@ -51,7 +52,8 @@ export class ShopScene extends Phaser.Scene {
       b.add(panel(this, x, y, cw, ch, open ? UI.panel : 0x1d2140, owned ? COLORS.gold : UI.line))
       b.add(txt(this, x + 14, y + 10, it.icon, 30).setAlpha(open ? 1 : 0.5))
       b.add(txt(this, x + 60, y + 10, it.name, 18, UI.text, true))
-      b.add(txt(this, x + 60, y + 36, owned ? `${worn ? 'ใส่อยู่' : 'มีแล้ว'}${gradeOf(s, it.id) > 1 ? ` · ★${gradeOf(s, it.id)}` : ''}` : `${it.price} zeny`, 14, owned ? UI.green : UI.gold, true))
+      const fod = isFodder(it) && s.fodder?.[it.id] ? ` · 🔩x${s.fodder[it.id]}` : ''
+      b.add(txt(this, x + 60, y + 36, owned ? `${worn ? 'ใส่อยู่' : 'มีแล้ว'}${forgeTag(s, it.id)}${fod}` : `${it.price} zeny${fod}`, 14, owned ? UI.green : UI.gold, true))
       b.add(txt(this, x + cw - 12, y + 38, wearText(it), 11, wear ? UI.sub : UI.red).setOrigin(1, 0))
       const line = txt(this, x + 14, y + 60, `${itemStatLine(it)}${slotCount(it) ? ` · 🃏 ช่องการ์ด ${slotCount(it)}` : ''}`, 13, '#9fe3a8', true).setWordWrapWidth(cw - 28)
       const desc = txt(this, x + 14, line.y + line.height + 3, it.desc, 12, UI.sub).setWordWrapWidth(cw - 28)
@@ -60,17 +62,24 @@ export class ShopScene extends Phaser.Scene {
       const by = y + ch - 26
       if (!open) {
         b.add(txt(this, x + cw / 2, by, `🔒 ${REQ_TEXT[it.req!]}`, 14, UI.sub).setOrigin(0.5))
-      } else if (!owned) {
-        b.add(button(this, x + cw / 2, by, cw - 32, 38, `ซื้อ ${it.price} zeny`, () => this.buy(it), { size: 16 }).setEnabled(s.zeny >= it.price))
-      } else if (worn) {
-        b.add(txt(this, x + cw / 2, by, '✓ ใส่อยู่ (ถอดก่อนถึงจะขายได้)', 13, UI.green).setOrigin(0.5))
       } else {
-        b.add(button(this, x + cw / 2 - 70, by, 120, 36, wear ? 'ใส่เลย' : 'อาชีพนี้ใส่ไม่ได้', () => { equip(s, it.id); persist(); this.render() }, { size: wear ? 15 : 12 }).setEnabled(wear))
-        const sell = Math.floor(it.price * SELL_RATE)
-        b.add(button(this, x + cw / 2 + 70, by, 120, 36, `ขาย +${sell}`, () =>
-          confirm(this, `ขาย ${it.name}?`, `ได้คืน ${sell} zeny (ครึ่งราคา)${gradeOf(s, it.id) > 1 ? `\n⚠ ขั้น ★${gradeOf(s, it.id)} ที่อัปไว้จะหายด้วยนะคะ` : ''}`, 'ขาย', () => {
-            unsocketAll(s, it.id); if (s.grade) delete s.grade[it.id]; s.owned = s.owned.filter((id) => id !== it.id); s.zeny += sell; persist(); sfx.coin(); this.refreshWallet(); this.render()
-          }), { size: 15, fill: 0x5a5f8a, color: UI.text }))
+        // basic shop items: one more as forge fodder (design 3.7), same price
+        const fw = isFodder(it) ? 74 : 0, mid = x + cw / 2 - fw / 2
+        if (fw) b.add(button(this, x + cw - 16 - 30, by, 60, 36, '+🔩', () => this.buyFodder(it), { size: 15, fill: 0x8a6fd1, color: UI.text }).setEnabled(s.zeny >= it.price))
+        if (!owned) {
+          b.add(button(this, mid, by, cw - 32 - fw, 38, `ซื้อ ${it.price} zeny`, () => this.buy(it), { size: 16 }).setEnabled(s.zeny >= it.price))
+        } else if (worn) {
+          b.add(txt(this, mid, by, '✓ ใส่อยู่ (ถอดก่อนถึงจะขายได้)', 13, UI.green).setOrigin(0.5))
+        } else {
+          const bw = fw ? 96 : 120, gap = fw ? 52 : 70
+          b.add(button(this, mid - gap, by, bw, 36, wear ? 'ใส่เลย' : 'อาชีพนี้ใส่ไม่ได้', () => { equip(s, it.id); persist(); this.render() }, { size: wear ? 15 : 12 }).setEnabled(wear))
+          const sell = Math.floor(it.price * SELL_RATE)
+          const lost = [gradeOf(s, it.id) > 1 ? `ขั้น ★${gradeOf(s, it.id)}` : '', refineOf(s, it.id) ? `ตีบวก +${refineOf(s, it.id)} และค่าพิเศษ` : ''].filter(Boolean).join(' · ')
+          b.add(button(this, mid + gap, by, bw, 36, `ขาย +${sell}`, () =>
+            confirm(this, `ขาย ${it.name}?`, `ได้คืน ${sell} zeny (ครึ่งราคา)${lost ? `\n⚠ ${lost} ที่ทำไว้จะหายด้วยนะคะ` : ''}`, 'ขาย', () => {
+              unsocketAll(s, it.id); forgetForge(s, it.id); s.owned = s.owned.filter((id) => id !== it.id); s.zeny += sell; persist(); sfx.coin(); this.refreshWallet(); this.render()
+            }), { size: 15, fill: 0x5a5f8a, color: UI.text }))
+        }
       }
     })
     if (!items.length) b.add(txt(this, 480, 330, 'ยังไม่มีของสำหรับอาชีพนี้ในช่องนี้ค่ะ\nกดปุ่มกรองด้านบนเพื่อดูของทุกอาชีพ', 16, UI.sub).setOrigin(0.5).setAlign('center'))
@@ -82,6 +91,17 @@ export class ShopScene extends Phaser.Scene {
     const now = heroStats(s)
     const next = heroStats({ ...s, equipped: { ...s.equipped, [shopSlot(s.equipped, it)]: it.id } })
     return compareLine(now, next)
+  }
+
+  /** Buy one as forge fodder (a count, not a bag item). */
+  private buyFodder(it: Item) {
+    const s = save()
+    if (s.zeny < it.price) { toast(this, 'zeny ไม่พอค่ะ ไปลุยดันก่อนนะ', UI.red); return }
+    s.zeny -= it.price
+    addFodder(s, it.id)
+    persist(); sfx.coin(); this.refreshWallet()
+    toast(this, `🔩 ${it.name} เข้ากองเชื้อหลอมแล้ว (x${s.fodder![it.id]}) ใช้ตีบวก/ซ่อมที่โรงตีเหล็กค่ะ`)
+    this.render()
   }
 
   private buy(it: Item) {

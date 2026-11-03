@@ -4,7 +4,7 @@ import { PLAYER, type Stats } from './game-data'
 import { talentMods, treeMods, type TalentSave, type TreeSave } from './tree'
 import { JOBS, type JobId } from './jobs'
 import { cardById, type EquipCard } from './cards'
-import { CRAFT_ITEMS, GRADE, gradeItem, type CraftInfo } from './craft'
+import { CRAFT_ITEMS, forgeItem, GRADE, type CraftInfo, type RefineLine } from './craft'
 
 // ---------- base stats (Q's spec, 2026-11-02): 7 stats, points from Base Level ----------
 export type BaseStat = 'str' | 'vit' | 'wis' | 'dex' | 'int' | 'luk' | 'agi'
@@ -92,7 +92,7 @@ export const slotKind = (sl: EquipSlot): Slot => (sl === 'acc2' ? 'acc' : sl)
 // jobs = who can wear it (none = everyone). req = when the shop sells it: 'job' after the first job change,
 // 'd2' after beating ป่าหมาป่าเงา. Item ids are save data: never rename or remove one.
 export type ItemReq = 'job' | 'd2' | 'd3' | 'd4'
-export interface Item { id: string; slot: Slot; name: string; icon: string; price: number; desc: string; base?: Partial<Record<BaseStat, number>>; mod: Partial<Stats>; jobs?: JobId[]; req?: ItemReq; slots?: number; twoHand?: boolean; craft?: CraftInfo }
+export interface Item { id: string; slot: Slot; name: string; icon: string; price: number; desc: string; base?: Partial<Record<BaseStat, number>>; mod: Partial<Stats>; jobs?: JobId[]; req?: ItemReq; slots?: number; twoHand?: boolean; craft?: CraftInfo; pct?: { maxHp?: number; atk?: number; matk?: number } }
 const SW: JobId[] = ['swordsman'], AR: JobId[] = ['archer'], MG: JobId[] = ['mage'], CL: JobId[] = ['cleric'], TH: JobId[] = ['thief']
 export const ITEMS: Item[] = [
   // ----- weapons: everyone -----
@@ -186,6 +186,15 @@ export function slotCount(it: Item, grade = 1): number {
 }
 /** Forge grade of an owned item (1 = never upgraded). */
 export const gradeOf = (s: { grade?: Record<string, number> }, id: string) => s.grade?.[id] ?? 1
+/** Forge state of an owned item: refine +0..+10, broken (refine failed, no stats or cards until repaired), bonus lines. */
+export interface ForgeState { grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]> }
+export const refineOf = (s: ForgeState, id: string) => s.refine?.[id] ?? 0
+export const isBroken = (s: ForgeState, id: string) => !!s.broken?.includes(id)
+export const linesOf = (s: ForgeState, id: string) => s.refineLines?.[id] ?? []
+/** The item with its grade, refine and bonus lines applied (what it gives when worn and not broken). */
+export const forged = (s: ForgeState, it: Item) => forgeItem(it, gradeOf(s, it.id), refineOf(s, it.id), linesOf(s, it.id))
+/** " ★3 +7 💔" name tag for lists (empty for a plain item). */
+export const forgeTag = (s: ForgeState, id: string) => `${gradeOf(s, id) > 1 ? ` ★${gradeOf(s, id)}` : ''}${refineOf(s, id) ? ` +${refineOf(s, id)}` : ''}${isBroken(s, id) ? ' 💔' : ''}`
 export const canWear = (it: Item, job: JobId) => !it.jobs || it.jobs.includes(job)
 /** Is it on sale yet? */
 export function itemUnlocked(it: Item, s: { job: JobId; clearsBy?: Record<string, number> }) {
@@ -220,8 +229,12 @@ const STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => string]>> 
 }
 export const BASE_NAME: Record<BaseStat, string> = { str: 'STR', vit: 'VIT', wis: 'WIS', dex: 'DEX', int: 'INT', luk: 'LUK', agi: 'AGI' }
 /** "STR +3 · P.ATK +8 · ดูดเลือด +6%" */
-export function itemStatLine(it: { base?: Item['base']; mod: Partial<Stats> }): string {
+export function itemStatLine(it: { base?: Item['base']; mod: Partial<Stats>; pct?: Item['pct'] }): string {
   const parts: string[] = []
+  const p = it.pct ?? {}, sg = (n: number) => `${n > 0 ? '+' : '-'}${pc(Math.abs(n))}` // "% of max HP / ATK" (cards, refine lines)
+  if (p.maxHp) parts.push(`HP สูงสุด ${sg(p.maxHp)}`)
+  if (p.atk) parts.push(`P.ATK ${sg(p.atk)}`)
+  if (p.matk) parts.push(`M.ATK ${sg(p.matk)}`)
   const b = it.base ?? {}
   const keys = Object.keys(b) as BaseStat[]
   if (keys.length === 7 && keys.every((k) => b[k] === b.str)) parts.push(`ทุกค่าสถานะ +${b.str}`)
@@ -235,11 +248,7 @@ export function itemStatLine(it: { base?: Item['base']; mod: Partial<Stats> }): 
   return parts.join(' · ')
 }
 /** Card effect line, including the "% of max HP / ATK" part. */
-export function cardStatLine(cd: EquipCard): string {
-  const p = cd.pct ?? {}, sg = (n: number) => `${n > 0 ? '+' : '-'}${pc(Math.abs(n))}`
-  const extra = [p.maxHp ? `HP สูงสุด ${sg(p.maxHp)}` : '', p.atk ? `P.ATK ${sg(p.atk)}` : '', p.matk ? `M.ATK ${sg(p.matk)}` : ''].filter(Boolean)
-  return [...extra, itemStatLine(cd)].filter(Boolean).join(' · ')
-}
+export const cardStatLine = (cd: EquipCard): string => itemStatLine(cd)
 /** "นักดาบ, นักบวช" or "ทุกอาชีพ" */
 export const wearText = (it: Item) => it.jobs ? it.jobs.map((j) => `${JOBS[j].icon}${JOBS[j].name}`).join(' ') : 'ทุกอาชีพ'
 export const SELL_RATE = 0.5
@@ -266,13 +275,13 @@ export const SUPPORTER_PRICE = 300 // gems: badge + gold name, no stats
 export const FREE_GEMS = { firstClear: 50, clear: 5, levelUp: 10, daily: 20 }
 
 // ---------- combine everything into the hero's starting stats ----------
-export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; sockets?: Record<string, string[]>; grade?: Record<string, number> }
+export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; sockets?: Record<string, string[]>; grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]> }
 
-/** Items the hero actually gets stats from (gear for another job stays on but does nothing). */
+/** Items the hero actually gets stats from (gear for another job, or broken by a failed refine, stays on but does nothing). */
 export function wornItems(s: StatsInput): Item[] {
   const job = s.job ?? 'novice'
   const locked = offhandLocked(s)
-  return (Object.keys(s.equipped) as EquipSlot[]).filter((sl) => !(sl === 'offhand' && locked)).map((sl) => itemById(s.equipped[sl]!)).filter((it) => canWear(it, job)).map((it) => gradeItem(it, gradeOf(s, it.id)))
+  return (Object.keys(s.equipped) as EquipSlot[]).filter((sl) => !(sl === 'offhand' && locked)).map((sl) => itemById(s.equipped[sl]!)).filter((it) => canWear(it, job) && !isBroken(s, it.id)).map((it) => forged(s, it))
 }
 /** A two-handed weapon in hand turns the off-hand slot off (its item stays on but gives nothing). */
 export const offhandLocked = (s: { equipped: Partial<Record<EquipSlot, string>> }) => !!itemById(s.equipped.weapon ?? '').twoHand
@@ -325,11 +334,12 @@ export function heroStats(s: StatsInput): Stats {
   add(job.mod)
   for (const m of treeMods(s.jobTree, job.id)) add(m)
   for (const m of talentMods(s.jobTalents, job.id, s.jobLevel ?? 1)) add(m)
-  for (const it of wornItems(s)) add(it.mod)
+  const worn = wornItems(s)
+  for (const it of worn) add(it.mod)
   const cards = wornCards(s)
   for (const cd of cards) add(cd.mod)
   const pct = { maxHp: 0, atk: 0, matk: 0 }
-  for (const cd of cards) for (const k of Object.keys(cd.pct ?? {}) as (keyof typeof pct)[]) pct[k] += cd.pct![k]!
+  for (const x of [...cards, ...worn]) for (const k of Object.keys(x.pct ?? {}) as (keyof typeof pct)[]) pct[k] += x.pct![k]! // refine lines: HP / ATK / M.ATK %
   st.maxHp = Math.max(1, Math.round(st.maxHp * (1 + pct.maxHp))); st.atk *= 1 + pct.atk; st.matk *= 1 + pct.matk
   for (const sk of SKILLS) if (s.skills[sk.id] > 0 && (sk.id !== 'smash' || job.id === 'novice')) add(sk.mod(s.skills[sk.id]))
   st.smashCd = Math.max(2500, st.smashCd)
