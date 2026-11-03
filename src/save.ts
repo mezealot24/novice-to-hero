@@ -1,7 +1,7 @@
 // One save slot in localStorage. Every read/write is guarded: private windows and sandboxed hosts
 // may throw or start empty, and the game must still run (it just won't remember).
 import { JOB_CHANGE, type JobId } from './data/jobs'
-import { FREE_GEMS, JOB_RULES, RACES, STAT_RULES, type BaseStat, type RaceId, type SkillId, type Slot } from './data/meta'
+import { FREE_GEMS, JOB_RULES, RACES, STAT_RULES, type BaseStat, type RaceId, type SkillId, EMPTY_ITEM, type EquipSlot, itemById, slotKind } from './data/meta'
 
 export interface SaveData {
   v: 1
@@ -24,7 +24,7 @@ export interface SaveData {
   zeny: number
   gems: number
   owned: string[] // item ids
-  equipped: Record<Slot, string>
+  equipped: Record<EquipSlot, string> // head / offhand / acc2 added in the equipment-screen update (filled on load)
   costumes: string[]
   costume: string
   supporter: boolean
@@ -50,7 +50,7 @@ export function newSave(name: string, race: RaceId): SaveData {
     jobLevel: 1, jobXp: 0, skillPoints: 0, skills: { smash: 1, firstaid: 0, tough: 0 }, job: 'novice', jobSkills: { auto: 1, ult: 1 },
     stats: { str: s, vit: s, wis: s, dex: s, int: s, luk: s, agi: s },
     zeny: 100, gems: 0,
-    owned: ['knife', 'cloth', 'none'], equipped: { weapon: 'knife', armor: 'cloth', acc: 'none' },
+    owned: ['knife', 'cloth', 'none', 'none_head', 'none_off'], equipped: { weapon: 'knife', armor: 'cloth', acc: 'none', head: 'none_head', offhand: 'none_off', acc2: 'none' },
     costumes: ['default'], costume: 'default', supporter: false,
     clears: 0, bestRoom: 0, lastDaily: '', muted: false,
   }
@@ -71,9 +71,42 @@ export function load(): SaveData | null {
     if (s.stats.wis === undefined) s.stats.wis = STAT_RULES.start // saves from before WIS existed
     if (!s.job) { s.job = 'novice'; s.jobSkills = { auto: 1, ult: 1 } }
     if (!s.web) migrateToWeb(s)
+    migrateGear(s)
     cache = s
     return s
   } catch { return null }
+}
+
+/** Saves from before the 6-slot equipment screen only had weapon / armor / acc: add the new empty slots.
+ * Additive only (nothing is removed), so it is safe to run on every load. Card sockets are keyed by item
+ * id, so they need no change. */
+function migrateGear(s: SaveData) {
+  const eq = (s.equipped ??= { weapon: 'knife', armor: 'cloth', acc: 'none', head: 'none_head', offhand: 'none_off', acc2: 'none' })
+  eq.head ??= 'none_head'; eq.offhand ??= 'none_off'; eq.acc2 ??= 'none'
+  eq.acc ??= 'none'
+  for (const id of ['none', 'none_head', 'none_off']) if (!s.owned.includes(id)) s.owned.push(id)
+  if (eq.acc2 !== 'none' && eq.acc2 === eq.acc) eq.acc2 = 'none' // one copy of each item: never worn twice
+}
+
+/** Wear an item. Accessories: `slot` picks the side; with no side it fills an empty side first. The same
+ * accessory can't be on both sides (one copy per id), so it moves over instead. */
+export function equip(s: SaveData, itemId: string, slot?: EquipSlot) {
+  const kind = itemById(itemId).slot
+  let at: EquipSlot = slot ?? kind
+  if (kind === 'acc' && !slot) at = s.equipped.acc === 'none' || s.equipped.acc2 !== 'none' ? 'acc' : 'acc2'
+  if (slotKind(at) !== kind) return
+  if (kind === 'acc' && itemId !== 'none') {
+    const other: EquipSlot = at === 'acc' ? 'acc2' : 'acc'
+    if (s.equipped[other] === itemId) s.equipped[other] = 'none'
+  }
+  s.equipped[at] = itemId
+}
+/** Is this item worn in any slot? */
+export const isWorn = (s: SaveData, itemId: string) => Object.values(s.equipped).includes(itemId)
+/** Take an item off (back to the empty item of that slot; weapon/armor have none, so they stay). */
+export function unequip(s: SaveData, slot: EquipSlot) {
+  const empty = EMPTY_ITEM[slotKind(slot)]
+  if (empty) s.equipped[slot] = empty
 }
 
 /** The current save; scenes after the title can rely on it existing. */

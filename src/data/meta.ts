@@ -63,18 +63,35 @@ export const RACES: Record<RaceId, Race> = {
 }
 
 // ---------- equipment (bought with zeny; nothing here is sold for real money) ----------
-export type Slot = 'weapon' | 'armor' | 'acc'
+// Slot = what kind of item it is (shop tab, card type). EquipSlot = where it is worn: 6 places, two of them
+// accessories (acc + acc2, both take 'acc' items). 'acc' keeps its old key so older saves still load.
+export type Slot = 'weapon' | 'armor' | 'acc' | 'head' | 'offhand'
+export type EquipSlot = Slot | 'acc2'
 export const SLOTS: { id: Slot; name: string; icon: string }[] = [
   { id: 'weapon', name: 'อาวุธ', icon: '🗡️' },
-  { id: 'armor', name: 'ชุดเกราะ', icon: '🥋' },
-  { id: 'acc', name: 'เครื่องประดับ', icon: '💍' },
+  { id: 'offhand', name: 'มือรอง', icon: '🛡️' },
+  { id: 'armor', name: 'เกราะ', icon: '🥋' },
+  { id: 'head', name: 'หมวก', icon: '🪖' },
+  { id: 'acc', name: 'ประดับ', icon: '💍' },
 ]
+/** Equipment screen order: left column head / weapon / armor, right column off-hand / acc L / acc R. */
+export const EQUIP_SLOTS: { id: EquipSlot; kind: Slot; name: string; icon: string }[] = [
+  { id: 'head', kind: 'head', name: 'หมวก', icon: '🪖' },
+  { id: 'weapon', kind: 'weapon', name: 'อาวุธ', icon: '🗡️' },
+  { id: 'armor', kind: 'armor', name: 'ชุดเกราะ', icon: '🥋' },
+  { id: 'offhand', kind: 'offhand', name: 'มือรอง', icon: '🛡️' },
+  { id: 'acc', kind: 'acc', name: 'ประดับ (ซ้าย)', icon: '💍' },
+  { id: 'acc2', kind: 'acc', name: 'ประดับ (ขวา)', icon: '💍' },
+]
+/** The empty item of each kind (weapon/armor always hold something). */
+export const EMPTY_ITEM: Partial<Record<Slot, string>> = { acc: 'none', head: 'none_head', offhand: 'none_off' }
+export const slotKind = (sl: EquipSlot): Slot => (sl === 'acc2' ? 'acc' : sl)
 // Gear gives base stats (STR/VIT/...) that run through the stat spec like spent points, plus direct
 // stats (Hit, Flee, Counter, Combo, lifesteal, shields...). One item per slot, so nothing stacks.
 // jobs = who can wear it (none = everyone). req = when the shop sells it: 'job' after the first job change,
 // 'd2' after beating ป่าหมาป่าเงา. Item ids are save data: never rename or remove one.
 export type ItemReq = 'job' | 'd2' | 'd3' | 'd4'
-export interface Item { id: string; slot: Slot; name: string; icon: string; price: number; desc: string; base?: Partial<Record<BaseStat, number>>; mod: Partial<Stats>; jobs?: JobId[]; req?: ItemReq; slots?: number }
+export interface Item { id: string; slot: Slot; name: string; icon: string; price: number; desc: string; base?: Partial<Record<BaseStat, number>>; mod: Partial<Stats>; jobs?: JobId[]; req?: ItemReq; slots?: number; twoHand?: boolean }
 const SW: JobId[] = ['swordsman'], AR: JobId[] = ['archer'], MG: JobId[] = ['mage'], CL: JobId[] = ['cleric'], TH: JobId[] = ['thief']
 export const ITEMS: Item[] = [
   // ----- weapons: everyone -----
@@ -87,7 +104,7 @@ export const ITEMS: Item[] = [
   // ----- weapons: Swordsman (lifesteal / counter) -----
   { id: 'w_bloodblade', slot: 'weapon', name: 'ดาบกระหายเลือด', icon: '🩸', price: 520, desc: 'สายดูดเลือด ตียิ่งเยอะยิ่งอึด', base: { str: 3 }, mod: { atk: 8, lifesteal: 0.06 }, jobs: SW, req: 'job' },
   { id: 'w_guardblade', slot: 'weapon', name: 'ดาบผู้พิทักษ์', icon: '🛡️', price: 560, desc: 'สายแทงก์ โดนตีแล้วสวนกลับ', base: { vit: 3 }, mod: { atk: 5, def: 4, counter: 0.12 }, jobs: SW, req: 'job' },
-  { id: 'w_berserkaxe', slot: 'weapon', name: 'ขวานคลั่งศึก', icon: '🪓', price: 1100, desc: 'ของดัน 2: ฟันพายุแรงขึ้น + ดูดเลือด', base: { str: 5 }, mod: { atk: 14, pskill: 0.15, lifesteal: 0.04 }, jobs: SW, req: 'd2' },
+  { id: 'w_berserkaxe', slot: 'weapon', name: 'ขวานคลั่งศึก', icon: '🪓', price: 1100, twoHand: true, desc: 'ของดัน 2 · อาวุธ 2 มือ (ใส่มือรองไม่ได้): ฟันพายุแรงขึ้น + ดูดเลือด', base: { str: 5 }, mod: { atk: 17, pskill: 0.15, lifesteal: 0.04 }, jobs: SW, req: 'd2' },
   // ----- weapons: Archer (crit -> shield / combo) -----
   { id: 'w_huntbow', slot: 'weapon', name: 'ธนูพราน', icon: '🏹', price: 520, desc: 'แม่นและคริบ่อย (คริ = ทะลุเกราะ โดนแน่)', base: { dex: 3 }, mod: { atk: 6, hit: 8, crit: 0.05 }, jobs: AR, req: 'job' },
   { id: 'w_hawkbow', slot: 'weapon', name: 'ธนูเหยี่ยวลม', icon: '🪶', price: 560, desc: 'ยิงรัว คริบ่อยขึ้น', base: { agi: 3 }, mod: { atk: 4, combo: 0.08, crit: 0.04 }, jobs: AR, req: 'job' },
@@ -133,6 +150,29 @@ export const ITEMS: Item[] = [
   // ----- Dungeon 4-5 prep: resist the new debuffs (design/dungeon-4-5-brutal.md) -----
   { id: 'r_amulet', slot: 'acc', name: 'เครื่องรางล้างพิษ', icon: '🧿', price: 1600, desc: 'ของดัน 3: กันสถานะผิดปกติ (เตรียมลุยบึงพิษ)', base: { vit: 2, wis: 2 }, mod: { debuffRes: 0.35, maxHp: 40, mdef: 0.04 }, req: 'd3' },
   { id: 'r_hydraheart', slot: 'acc', name: 'หัวใจไฮดรา', icon: '💚', price: 2600, desc: 'ของดัน 4: ทุกค่าสถานะ +3 · ฟื้น HP ทุกเทิร์น · กันสถานะผิดปกติ', base: { str: 3, vit: 3, wis: 3, dex: 3, int: 3, luk: 3, agi: 3 }, mod: { regen: 0.5, debuffRes: 0.25 }, req: 'd4' },
+  // ----- headgear (equipment screen v1, design/equipment-screen-v1.md): lighter than armor -----
+  { id: 'none_head', slot: 'head', name: 'ว่าง', icon: '▫️', price: 0, desc: 'ยังไม่ใส่หมวก', mod: {} },
+  { id: 'h_bandana', slot: 'head', name: 'ผ้าโพกหัว', icon: '🎀', price: 120, desc: 'หมวกแรกของนักผจญภัย', mod: { maxHp: 15, def: 2 } },
+  { id: 'h_cap', slot: 'head', name: 'หมวกนักผจญภัย', icon: '🧢', price: 260, desc: 'บังแดด ตาไว', base: { dex: 1 }, mod: { hit: 4, flee: 2 } },
+  { id: 'h_ribbon', slot: 'head', name: 'โบว์ดวงดี', icon: '🎗️', price: 300, desc: 'ดวงดี คริบ่อย', base: { luk: 2 }, mod: { crit: 0.03, dropChance: 0.02 } },
+  { id: 'h_helm', slot: 'head', name: 'หมวกเหล็ก', icon: '⛑️', price: 520, desc: 'หนา มึนน้อยลง', base: { vit: 2 }, mod: { maxHp: 35, def: 6, tenacity: 0.08 }, jobs: ['swordsman', 'cleric'], req: 'job' },
+  { id: 'h_ranger', slot: 'head', name: 'หมวกพราน', icon: '🤠', price: 520, desc: 'เล็งแม่น คริบ่อย', base: { dex: 2 }, mod: { hit: 5, crit: 0.03 }, jobs: AR, req: 'job' },
+  { id: 'h_witch', slot: 'head', name: 'หมวกแม่มดดาว', icon: '🎩', price: 520, desc: 'เวทแรงขึ้น Mana เยอะขึ้น', base: { int: 2 }, mod: { matk: 5, maxRes: 15 }, jobs: MG, req: 'job' },
+  { id: 'h_halo', slot: 'head', name: 'รัศมีศักดิ์สิทธิ์', icon: '😇', price: 520, desc: 'ฮีลแรงขึ้น กันเวท', base: { wis: 2 }, mod: { healAmp: 0.06, mdef: 0.04 }, jobs: CL, req: 'job' },
+  { id: 'h_hood', slot: 'head', name: 'ฮู้ดเงา', icon: '🥷', price: 520, desc: 'หลบเก่ง หลบโชคดี', base: { agi: 2 }, mod: { flee: 5, luckyDodge: 0.02 }, jobs: TH, req: 'job' },
+  { id: 'h_crown', slot: 'head', name: 'มงกุฎวีรชน', icon: '👑', price: 1500, desc: 'ของดัน 3: ทุกค่าสถานะ +2', base: { str: 2, vit: 2, wis: 2, dex: 2, int: 2, luk: 2, agi: 2 }, mod: { maxHp: 30 }, req: 'd3' },
+  // ----- off-hand: every class has its own kind (shield / quiver / orb / parrying dagger) -----
+  { id: 'none_off', slot: 'offhand', name: 'ว่าง', icon: '▫️', price: 0, desc: 'มือรองว่าง', mod: {} },
+  { id: 'o_buckler', slot: 'offhand', name: 'บัคเลอร์ไม้', icon: '🪵', price: 180, desc: 'โล่เบา ใช้ได้ทุกอาชีพ', mod: { maxHp: 15, def: 4 } },
+  { id: 'o_ironshield', slot: 'offhand', name: 'โล่เหล็ก', icon: '🛡️', price: 420, desc: 'โล่หนัก ทนแต่ช้าลงนิด', base: { vit: 2 }, mod: { maxHp: 30, def: 8, counter: 0.04, aspd: -0.05 }, jobs: ['novice', 'swordsman', 'cleric'] },
+  { id: 'o_holyshield', slot: 'offhand', name: 'โล่ศักดิ์สิทธิ์', icon: '✨', price: 560, desc: 'โล่แรงขึ้น กันเวท', base: { wis: 2 }, mod: { def: 5, shieldAmp: 0.1, mdef: 0.04 }, jobs: CL, req: 'job' },
+  { id: 'o_tower', slot: 'offhand', name: 'โล่ปราการ', icon: '🏰', price: 1100, desc: 'ของดัน 2: กำแพงเหล็ก สวนกลับบ่อย', base: { vit: 3 }, mod: { maxHp: 50, def: 12, counter: 0.06, tenacity: 0.1 }, jobs: SW, req: 'd2' },
+  { id: 'o_quiver', slot: 'offhand', name: 'กระบอกธนูหนัง', icon: '🎯', price: 480, desc: 'ลูกธนูคม ยิงแม่น', base: { dex: 2 }, mod: { hit: 5, crit: 0.02 }, jobs: AR, req: 'job' },
+  { id: 'o_windquiver', slot: 'offhand', name: 'กระบอกธนูลมกรด', icon: '🌬️', price: 1100, desc: 'ของดัน 2: ยิงรัว คริแรง', base: { agi: 2 }, mod: { combo: 0.05, crit: 0.03, critMul: 0.1 }, jobs: AR, req: 'd2' },
+  { id: 'o_orb', slot: 'offhand', name: 'ลูกแก้วเวท', icon: '🫧', price: 480, desc: 'เวทแรงขึ้น Mana เยอะขึ้น', base: { int: 2 }, mod: { matk: 4, maxRes: 15 }, jobs: MG, req: 'job' },
+  { id: 'o_starorb', slot: 'offhand', name: 'ลูกแก้วดวงดาว', icon: '🌟', price: 1100, desc: 'ของดัน 2: เวทแรง เวทคริ Mana ฟื้นไว', base: { int: 3 }, mod: { matk: 8, spellCrit: 0.03, resRegen: 1 }, jobs: MG, req: 'd2' },
+  { id: 'o_maingauche', slot: 'offhand', name: 'มีดปัด', icon: '🔪', price: 480, desc: 'ปัดป้อง แทงซ้ำ', base: { agi: 1 }, mod: { flee: 4, combo: 0.04 }, jobs: TH, req: 'job' },
+  { id: 'o_scorpion', slot: 'offhand', name: 'เหล็กในแมงป่อง', icon: '🦂', price: 1100, desc: 'ของดัน 2: พิษแรง แทงรัว', base: { luk: 2 }, mod: { poisonDmg: 1, combo: 0.05, dodgeHeal: 0.01 }, jobs: TH, req: 'd2' },
 ]
 export const itemById = (id: string) => ITEMS.find((i) => i.id === id) ?? ITEMS[0]
 /** Can this job wear it? (no `jobs` list = everyone) */
@@ -222,13 +262,18 @@ export const SUPPORTER_PRICE = 300 // gems: badge + gold name, no stats
 export const FREE_GEMS = { firstClear: 50, clear: 5, levelUp: 10, daily: 20 }
 
 // ---------- combine everything into the hero's starting stats ----------
-export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Record<Slot, string>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; sockets?: Record<string, string[]> }
+export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; sockets?: Record<string, string[]> }
 
 /** Items the hero actually gets stats from (gear for another job stays on but does nothing). */
 export function wornItems(s: StatsInput): Item[] {
   const job = s.job ?? 'novice'
-  return (Object.keys(s.equipped) as Slot[]).map((sl) => itemById(s.equipped[sl])).filter((it) => canWear(it, job))
+  const locked = offhandLocked(s)
+  return (Object.keys(s.equipped) as EquipSlot[]).filter((sl) => !(sl === 'offhand' && locked)).map((sl) => itemById(s.equipped[sl]!)).filter((it) => canWear(it, job))
 }
+/** A two-handed weapon in hand turns the off-hand slot off (its item stays on but gives nothing). */
+export const offhandLocked = (s: { equipped: Partial<Record<EquipSlot, string>> }) => !!itemById(s.equipped.weapon ?? '').twoHand
+/** Headgear and off-hand take armor cards for now (no head/shield cards yet); both accessory slots take acc cards. */
+export const cardFits = (cd: EquipCard, it: Item) => cd.slot === it.slot || (cd.slot === 'armor' && (it.slot === 'head' || it.slot === 'offhand'))
 /** Cards slotted in this item (unknown ids and extra cards past the slot count are ignored). */
 export function socketed(s: { sockets?: Record<string, string[]> }, it: Item): EquipCard[] {
   return (s.sockets?.[it.id] ?? []).slice(0, slotCount(it)).map(cardById).filter((x): x is EquipCard => !!x)

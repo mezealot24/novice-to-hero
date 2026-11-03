@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { COLORS, type Stats } from '../data/game-data'
 import { JOBS } from '../data/jobs'
 import { canWear, heroStats, itemStatLine, itemUnlocked, ITEMS, REQ_TEXT, SELL_RATE, slotCount, SLOTS, wearText, type Item, type Slot } from '../data/meta'
-import { persist, save, unsocketAll } from '../save'
+import { equip, isWorn, persist, save, unsocketAll } from '../save'
 import { sfx } from '../sfx'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
 
@@ -21,7 +21,7 @@ export class ShopScene extends Phaser.Scene {
     this.page = 0
     this.refreshWallet = topBar(this, '🛒 ร้านค้า', () => go(this, 'hub'))
     txt(this, 24, 72, 'ลุงร้านค้า: "ของทุกชิ้นซื้อด้วย zeny จากในดันเท่านั้น ไม่ขายของแรงด้วยเงินจริงนะหลาน"', 15, UI.sub)
-    tabs(this, 24, 118, SLOTS.map((s) => `${s.icon} ${s.name}`), 196, (i) => { this.slot = SLOTS[i].id; this.page = 0; this.render() })
+    tabs(this, 24, 118, SLOTS.map((s) => `${s.icon} ${s.name}`), 112, (i) => { this.slot = SLOTS[i].id; this.page = 0; this.render() })
   }
 
   private list(): Item[] {
@@ -46,7 +46,7 @@ export class ShopScene extends Phaser.Scene {
     const cw = 296, ch = 196
     items.forEach((it, i) => {
       const x = 24 + (i % 3) * (cw + 12), y = 152 + Math.floor(i / 3) * (ch + 12)
-      const owned = s.owned.includes(it.id), worn = s.equipped[it.slot] === it.id
+      const owned = s.owned.includes(it.id), worn = isWorn(s, it.id)
       const open = itemUnlocked(it, s), wear = canWear(it, s.job)
       b.add(panel(this, x, y, cw, ch, open ? UI.panel : 0x1d2140, owned ? COLORS.gold : UI.line))
       b.add(txt(this, x + 14, y + 10, it.icon, 30).setAlpha(open ? 1 : 0.5))
@@ -65,7 +65,7 @@ export class ShopScene extends Phaser.Scene {
       } else if (worn) {
         b.add(txt(this, x + cw / 2, by, '✓ ใส่อยู่ (ถอดก่อนถึงจะขายได้)', 13, UI.green).setOrigin(0.5))
       } else {
-        b.add(button(this, x + cw / 2 - 70, by, 120, 36, wear ? 'ใส่เลย' : 'อาชีพนี้ใส่ไม่ได้', () => { s.equipped[it.slot] = it.id; persist(); this.render() }, { size: wear ? 15 : 12 }).setEnabled(wear))
+        b.add(button(this, x + cw / 2 - 70, by, 120, 36, wear ? 'ใส่เลย' : 'อาชีพนี้ใส่ไม่ได้', () => { equip(s, it.id); persist(); this.render() }, { size: wear ? 15 : 12 }).setEnabled(wear))
         const sell = Math.floor(it.price * SELL_RATE)
         b.add(button(this, x + cw / 2 + 70, by, 120, 36, `ขาย +${sell}`, () =>
           confirm(this, `ขาย ${it.name}?`, `ได้คืน ${sell} zeny (ครึ่งราคา)`, 'ขาย', () => {
@@ -80,7 +80,7 @@ export class ShopScene extends Phaser.Scene {
   private compare(it: Item): string {
     const s = save()
     const now = heroStats(s)
-    const next = heroStats({ ...s, equipped: { ...s.equipped, [it.slot]: it.id } })
+    const next = heroStats({ ...s, equipped: { ...s.equipped, [shopSlot(s.equipped, it)]: it.id } })
     return compareLine(now, next)
   }
 
@@ -90,10 +90,16 @@ export class ShopScene extends Phaser.Scene {
     s.zeny -= it.price
     s.owned.push(it.id)
     persist(); sfx.coin(); this.refreshWallet()
-    if (canWear(it, s.job)) confirm(this, `ได้ ${it.icon} ${it.name}!`, 'ใส่เลยไหมคะ?', 'ใส่เลย', () => { s.equipped[it.slot] = it.id; persist(); this.render() }, 'ไว้ก่อน')
+    if (canWear(it, s.job)) confirm(this, `ได้ ${it.icon} ${it.name}!`, 'ใส่เลยไหมคะ?', 'ใส่เลย', () => { equip(s, it.id); persist(); this.render() }, 'ไว้ก่อน')
     else toast(this, `ได้ ${it.name} แล้ว (ใส่ได้เมื่อเป็น ${wearText(it)})`)
     this.render()
   }
+}
+
+/** Which worn slot a new item would replace (accessories: an empty side first, else the left one). */
+function shopSlot(eq: Record<string, string>, it: Item): string {
+  if (it.slot !== 'acc') return it.slot
+  return eq.acc === 'none' || eq.acc2 !== 'none' ? 'acc' : 'acc2'
 }
 
 /** Short "HP +30 · คริ +5%" diff between two stat blocks (used by the shop and the bag). */
