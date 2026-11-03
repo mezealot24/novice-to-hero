@@ -61,7 +61,7 @@ if (D >= 4) { // Dungeon 4-5 profiles: Lv 15 (45 points) / Lv 20 (60 points) + d
         if (B.pendingPick) B.pendingPick(B.miniWon && !B.relic && RELIC ? 0 : Math.floor(Math.random() * 3))
         const boss = B.alive().find((m) => m.def.ai === 'boss')
         // duelist never charges: ult when she is not in parry stance
-        const want = !boss || boss.charging || (boss.def.mini === 'duelist' && !boss.parry) || (boss.def.mini && !boss.def.charge)
+        const want = !boss || boss.charging || (boss.def.mini === 'duelist' && !boss.parry) || (boss.def.mini && !(boss.def.charge || boss.def.breakPct))
         if (B.smashCdLeft <= 0 && !B.smashQueued && want) B.queueSmash()
         await new Promise((r) => setTimeout(r, 15))
       }
