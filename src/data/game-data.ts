@@ -252,6 +252,7 @@ export type MonsterKind = 'jellop' | 'wolf' | 'king' | 'minijellop' | 'bat' | 's
   | 'skeleton' | 'wisp' | 'gargoyle' | 'duelist' | 'hunter' | 'gunner' | 'drainer' | 'deathknight'
   | 'toad' | 'lizardshaman' | 'hornet' | 'turtleguard' | 'bloater' | 'spiderling' | 'venomqueen' | 'frostgiant' | 'hydra'
   | 'hellknight' | 'hexwitch' | 'imp' | 'necropriest' | 'wraith' | 'shard' | 'mirage' | 'warlord' | 'lich'
+  | 'mimic' | 'mimicking' | 'goldjellop' // event monsters (design/roadmap-and-events-v1.md): stats scale with the dungeon tier at spawn
 export type MiniKind = 'duelist' | 'hunter' | 'gunner' | 'drainer' | 'venomqueen' | 'frostgiant' | 'mirage' | 'warlord'
 
 // ----- Dungeon 4-5 (design/dungeon-4-5-brutal.md): data-driven monster skills, debuffs on the hero, boss phases -----
@@ -330,6 +331,7 @@ export interface MonsterDef {
   absorb?: number // stores this share of every direct hit; the charged attack fires it back as Soul Strike bolts (Q 2026-11-03, Mirage)
   deathBlast?: number // explodes on death: (dmg) x monDmgMul x this as magic (Flee / lucky dodge / shield all work)
   phases?: BossPhase[]
+  passive?: boolean // event monster that never attacks (เจลล็อปทองคำ: it only runs)
 }
 
 export const MONSTERS: Record<MonsterKind, MonsterDef> = {
@@ -403,6 +405,11 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
       { at: 0.7, name: 'โล่กระดูก! สะท้อนดาเมจ + ปีศาจระเบิด', shield: 0.12, reflect: 0.2, summon: ['imp', 2] },
       { at: 0.35, name: 'พิธีกรรมสุดท้าย! เร็วขึ้น ชาร์จถี่', heal: 0.08, speed: 1.3, dmg: 1.15, chargeEvery: 2, cleanse: true, slamFx: { burn: 3, weaken: 2, silence: 2 }, summon: ['hellknight', 1] },
     ] },
+  // ----- event monsters (data/events.ts eventMon scales hp / dmg / def by dungeon tier) -----
+  mimic: { name: 'มิมิค', tex: 'mimic', hp: 60, dmg: 10, xp: 2, ai: 'hopper', moveSpeed: 260, radius: 16, zeny: [0, 0], idleMs: [600, 1000], hit: 28 },
+  mimicking: { name: 'ราชามิมิค', title: 'หีบทองกินคน', tex: 'mimicking', hp: 360, dmg: 11, xp: 6, ai: 'boss', moveSpeed: 240, radius: 38, zeny: [0, 0], idleMs: [700, 1000], hit: 32,
+    charge: true, chargeEvery: 3, slamName: 'งับทั้งตัว!', slamAnim: 'bite', slamColor: 0xf2b84b, slamMul: 1.5 },
+  goldjellop: { name: 'เจลล็อปทองคำ', tex: 'goldjellop', hp: 100, dmg: 0, xp: 4, ai: 'hopper', moveSpeed: 320, radius: 15, zeny: [0, 0], idleMs: [300, 600], flee: 20, passive: true },
   alpha: { name: 'จ่าฝูงเงา', tex: 'alpha', hp: 1600, dmg: 30, xp: 0, ai: 'boss', moveSpeed: 260, radius: 40, zeny: [35, 45], idleMs: [700, 1000], def: 25, flee: 12, hit: 30, summon: 'shadowwolf', slamName: 'หอนเรียกพลัง! กระโจนตาหน้า', slamAnim: 'pounce', slamColor: 0x8a7ab8, charge: true,
     phases: [{ at: 0.4, name: 'หอนคลั่ง! เร็วขึ้น กัดแล้วอ่อนแรง', speed: 1.25, onHit: { weaken: 1 } }] },
 }
@@ -507,7 +514,7 @@ export const BATTLE = {
   monSpeed: { jellop: 8, minijellop: 9, wolf: 13, king: 8, bat: 16, shroom: 7, boar: 9, shadowwolf: 14, alpha: 11,
     skeleton: 10, wisp: 14, gargoyle: 7, duelist: 15, hunter: 13, gunner: 14, drainer: 10, deathknight: 11,
     toad: 10, lizardshaman: 9, hornet: 17, turtleguard: 7, bloater: 8, spiderling: 15, venomqueen: 14, frostgiant: 9, hydra: 11,
-    hellknight: 10, hexwitch: 11, imp: 17, necropriest: 9, wraith: 15, shard: 14, mirage: 14, warlord: 12, lich: 11 } as Record<MonsterKind, number>,
+    hellknight: 10, hexwitch: 11, imp: 17, necropriest: 9, wraith: 15, shard: 14, mirage: 14, warlord: 12, lich: 11, mimic: 11, mimicking: 10, goldjellop: 12 } as Record<MonsterKind, number>,
   monDmgMul: 0.55, // monster hit = def.dmg * this
   cleave: 0.5, // hero's swing also hits the 2nd monster for this share
   regenPerTurn: 1.5, // regen stat (%/s in real-time) -> % of max HP per hero turn

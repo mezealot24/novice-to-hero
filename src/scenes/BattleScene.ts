@@ -1,8 +1,9 @@
 import Phaser from 'phaser'
 import { afterDef, BATTLE, doubleAtkChance, COLORS, COMMON_PERKS, hitChance, DUNGEONS, FONT_NUM, FONT_UI, H, MONSTERS, PERKS, perkDesc, PLAYER, RULES, SET_BONUS, TAGS, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Perk, type Stats, type Tag } from '../data/game-data'
-import { EVENT_RULES, rollEvent, type EventDef } from '../data/events'
-import { COSTUMES, FREE_GEMS, heroStats, PER_POINT, RESOURCES, totalBase } from '../data/meta'
-import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster } from '../data/cards'
+import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
+import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
+import { COSTUMES, FREE_GEMS, heroStats, PER_POINT, RESOURCES, totalBase, type BaseStat } from '../data/meta'
+import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster, EQUIP_CARDS } from '../data/cards'
 import { CLERIC_KIT, JOBS, MAGE_SPELL, RES_RULES, SWORD_MANA, type JobDef } from '../data/jobs'
 import { skill2Picked } from '../data/tree'
 import type { Skill2Def } from '../data/skill2'
@@ -124,6 +125,7 @@ export class BattleScene extends Phaser.Scene {
   miniKind: MonsterKind | null = null
   miniWon = false
   testRelic?: RelicId
+  testEvent?: EventId // bot hook: every post-wave event is this one
   minHpPct = 1 // playtest: lowest HP share this run
   parryCount = 0
   freezeCount = 0
@@ -135,6 +137,12 @@ export class BattleScene extends Phaser.Scene {
   resistCount = 0
   private roomStart = 0
   private debuffTxt?: Phaser.GameObjects.Text
+  /** Event v2 (scenes/battle-events.ts): per-run flags, the HP an event fight can't push the hero below, 777 crit wave */
+  flags: RunFlags = newFlags()
+  private hpFloor = 0
+  private starsOn = false
+  private sayN = 0
+  private fortuneTxt?: Phaser.GameObjects.Text
 
   init(data?: { d?: number }) {
     this.dg = DUNGEONS[data?.d ?? 0] ?? DUNGEONS[0]
@@ -208,11 +216,12 @@ export class BattleScene extends Phaser.Scene {
     this.eventLog = []; this.lockTarget = undefined; this.lockStacks = 0; this.hawkTurn = 0; this.revivedCount = 0; this.spears = 0; this.spearAcc = 0; this.ultRegenTurns = 0; this.smiteCount = 0; this.counterCount = 0; this.comboCount = 0; this.comboLevel = 0; this.lowShake = !!save().lowShake; this.peakTurns = 0; this.turnsLog = []
     this.minHpPct = 1; this.relic = null; this.miniKind = null; this.miniWon = false; this.parryCount = 0; this.freezeCount = 0; this.harvest = 0; this.enemyAttacks = 0
     this.hx = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0 }; this.debuffCount = 0; this.resistCount = 0
+    this.flags = newFlags(); this.hpFloor = 0; this.starsOn = false
     const rooms = this.dg.rooms
     this.runElement = null
     if (this.job.id === 'mage') {
       const els = Object.keys(ELEMENTS) as Element[]
-      const c = await this.choose({ id: 'camp', name: 'เลือกธาตุท่าไม้ตาย', icon: '🔮', desc: 'รอบนี้ "เวทธาตุ" จะใช้ธาตุไหน?', weight: 0, rare: false },
+      const c = await this.choose({ name: 'เลือกธาตุท่าไม้ตาย', icon: '🔮', desc: 'รอบนี้ "เวทธาตุ" จะใช้ธาตุไหน?' },
         els.map((e) => ({ label: `${ELEMENTS[e].icon} ${ELEMENTS[e].name}`, sub: ELEMENTS[e].sub })))
       if (id !== this.runId) return
       this.element = els[c]
@@ -227,6 +236,7 @@ export class BattleScene extends Phaser.Scene {
       if (id !== this.runId) return
       if (!won) { this.over = true; await this.wait(700); this.showGameOver(); return }
       this.heal(this.st.maxHp * RULES.healOnClear)
+      if (this.flags.eliteReward) this.eliteReward()
       this.gainXp(RULES.xpOnClear); this.runXp += RULES.xpOnClear
       await this.levelUps()
       // the 1v1 mini boss gives a top-tier skill instead of an event; other waves (not the boss) lead to one event
@@ -267,6 +277,12 @@ export class BattleScene extends Phaser.Scene {
       for (const [k, n] of room.spawn) for (let j = 0; j < n; j++) kinds.push(k)
     }
     kinds.slice(0, SLOT_X.length).forEach((k, j) => this.addMon(k, j))
+    if (this.flags.elite && !room.mini && !room.boss) { // event ทางแยก: this wave is elite
+      const E = EVENT_RULES.forkElite
+      this.flags.elite = false; this.flags.eliteReward = true
+      for (const m of this.mons.slice(this.roomStart)) { m.def = { ...m.def, hp: Math.round(m.def.hp * E.hp), dmg: m.def.dmg * E.dmg }; m.hp = m.def.hp; m.spr.setTint(0xff9a8a) }
+      this.callout('🔥 ทางอันตราย: มอนแกร่งขึ้น!', W / 2, 250)
+    }
     if (this.job.id === 'archer') { // archer talents: ก้าวถอย / สมาธิพราน
       if (this.st.arWaveDodge > 0) this.dodgeCharges = Math.max(this.dodgeCharges, this.st.arWaveDodge)
       if (this.st.arStartFull > 0) this.res = this.resMax()
@@ -344,6 +360,8 @@ export class BattleScene extends Phaser.Scene {
       const want = Math.round(this.st.maxHp * RELIC_RULES.aegis.shield * (1 + this.st.shieldAmp))
       if (this.shield < want) { this.shield = want; this.floatText(HERO_X, GROUND - 100, `🛡️ โล่อมตะ ${want}`, '#9fe3ff') }
     }
+    if (Object.keys(this.flags.pendingFx).length) { this.applyFx(this.flags.pendingFx); this.flags.pendingFx = {} } // event trap / runes
+    if (this.flags.stars) { this.flags.stars = false; this.starsOn = true; this.applyMod({ crit: 1 }); this.callout('🌠 777! คริทุกฮิต', W / 2, 250) }
     while (this.alive().length && this.hp > 0) {
       const a = this.nextActor()
       if (a.hero) {
@@ -360,6 +378,7 @@ export class BattleScene extends Phaser.Scene {
     }
     this.turnsLog.push(this.fightTurns)
     this.hx = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0 } // debuffs end with the fight
+    if (this.starsOn) { this.starsOn = false; this.applyMod({ crit: -1 }) }
     return this.hp > 0
   }
 
@@ -1035,6 +1054,7 @@ export class BattleScene extends Phaser.Scene {
     if (!m.dead && m.chill > 0) { m.chill--; if (!m.chill && !m.charging) m.spr.clearTint(); this.dotIcon(m) }
     if (!m.dead && m.frozen) { m.frozen = false; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10, '❄️ แข็งอยู่', '#9fe3ff'); await this.wait(250); return }
     if (m.dead) { await this.wait(200); return }
+    if (m.def.passive) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10, '💨 วิ่งวน!', '#f2c94c'); await this.wait(200); return } // event เจลล็อปทองคำ
     m.iced = m.ice > 0
     if (m.iced) { // Ice Age: weaker hits for N turns, freeze chance doubles every turn
       m.ice--
@@ -1299,7 +1319,7 @@ export class BattleScene extends Phaser.Scene {
       if (paid > 0) this.floatText(HERO_X, GROUND - 110, `🔷 -${paid}`, '#5aa0ff')
       if (n <= 0) return true
     }
-    this.hp = Math.max(0, this.hp - n)
+    this.hp = Math.max(this.hpFloor, this.hp - n)
     if (this.st.mgEmergency > 0 && !this.emergencyUsed && this.hp > 0 && this.hp < this.st.maxHp * 0.3) { // mage talent มานาฉุกเฉิน
       this.emergencyUsed = true; this.res = this.resMax()
       if (this.st.mgEmergency >= 2) this.addShield(this.st.matk * 2, true)
@@ -1391,7 +1411,7 @@ export class BattleScene extends Phaser.Scene {
       if (!offers.length) { done(); return }
       const legend = new Set<Perk>()
       offers.forEach((p, i) => {
-        if (!allLegend && Math.random() >= this.st.legendChance) return
+        if (!allLegend && !this.flags.allLegend && Math.random() >= this.st.legendChance) return
         const mod: Perk['mod'] = {}
         for (const k of Object.keys(p.mod) as (keyof Perk['mod'])[]) mod[k] = k === 'fireEvery' ? Math.max(1, p.mod[k]! - 1) : k === 'revive' ? 1 : p.mod[k]! * 2
         offers[i] = { ...p, name: `✦ ${p.name}`, desc: `${p.desc}\n(ตำนาน: แรง x2)`, mod }
@@ -1439,81 +1459,180 @@ export class BattleScene extends Phaser.Scene {
     })
   }
 
-  // ---------- post-wave events (data/events.ts) ----------
+  // ---------- post-wave events v2 (logic: scenes/battle-events.ts, numbers: data/events.ts) ----------
   private async postWaveEvent() {
     await this.walk(500)
-    const R = EVENT_RULES, t = this.dg.tier
-    const potion = R.potionCost * t, card = R.cardCost * t
-    const ev = rollEvent(this.st.eventChance, this.zeny >= potion)
-    this.eventLog.push(ev.id)
-    if (ev.rare) { sfx.win(); this.cameras.main.flash(200, 255, 230, 150) } else sfx.door()
-    switch (ev.id) {
-      case 'camp': {
-        const c = await this.choose(ev, [
-          { label: `🔥 พักฟื้น HP ${R.campHeal * 100}%`, sub: `ตอนนี้ HP ${Math.round(this.hp)}/${Math.round(this.st.maxHp)}` },
-          { label: `⚔️ ซ้อมดาบ EXP +${R.campXp}`, sub: 'ได้พรครั้งถัดไปเร็วขึ้น' },
-        ])
-        if (c === 0) { this.heal(this.st.maxHp * R.campHeal); this.burst(HERO_X, GROUND - 40, 0xff8c42, 14, 140) }
-        else { this.gainXp(R.campXp); this.runXp += R.campXp; this.floatText(HERO_X, GROUND - 110, `EXP +${R.campXp}`, '#7fd7ff') }
-        break
-      }
-      case 'chest': {
-        await this.choose(ev, [{ label: '🔓 เปิดหีบ', sub: 'zeny + ลุ้นเพชร (ดรอปหายาก)' }])
-        this.coinsFly(HERO_X + 80, GROUND - 40, Phaser.Math.Between(R.chestZeny[0] * t, R.chestZeny[1] * t))
-        if (Math.random() < this.st.dropChance * R.chestGemChance) { this.runGems++; this.floatText(HERO_X + 80, GROUND - 110, '💎 เจอเพชร!', '#7fd7ff') }
-        break
-      }
-      case 'shrine': {
-        const pool = Phaser.Utils.Array.Shuffle([...COMMON_PERKS]).slice(0, 2)
-        const c = await this.choose(ev, pool.map((p) => ({ label: `${TAGS.common.icon} ${p.name}`, sub: p.desc })))
-        this.applyMod(pool[c].mod)
-        this.callout(`⛩️ ได้พร: ${pool[c].name}`, HERO_X + 60, GROUND - 140)
-        break
-      }
-      case 'merchant': {
-        const c = await this.choose(ev, [
-          { label: `🧪 ยาฟื้น HP ${R.potionHeal * 100}%`, sub: `${potion} zeny`, off: this.zeny < potion },
-          { label: '🙏 พร 1 ใน 3', sub: `${card} zeny`, off: this.zeny < card },
-          { label: '👋 ไม่ซื้อ', sub: `มี ${this.zeny} zeny` },
-        ])
-        if (c === 0) { this.zeny -= potion; this.heal(this.st.maxHp * R.potionHeal); sfx.coin() }
-        if (c === 1) { this.zeny -= card; sfx.coin(); await this.offerPerks() }
-        break
-      }
-      case 'spring': {
-        const good = Math.min(0.9, R.springGood + this.st.eventChance)
-        const c = await this.choose(ev, [
-          { label: '🥤 ดื่ม!', sub: `โชคดี ${Math.round(good * 100)}%: ฮีล ${R.springHeal * 100}% + ATK +${R.springAtk}` },
-          { label: '🚶 เดินผ่าน', sub: 'ไม่เสี่ยงดีกว่า' },
-        ])
-        if (c === 1) break
-        if (Math.random() < good) {
-          this.heal(this.st.maxHp * R.springHeal); this.applyMod({ atk: R.springAtk, matk: R.springAtk })
-          this.callout(`✨ สดชื่น! ATK +${R.springAtk}`, HERO_X + 60, GROUND - 140)
-        } else {
-          const n = Math.min(this.hp - 1, Math.round(this.st.maxHp * R.springHurt))
-          this.hp -= n; sfx.hurt()
-          this.damageNumber(HERO_X, GROUND - 70, n, false, '#b48aff')
-          this.callout('🤢 ท้องเสีย...', HERO_X + 60, GROUND - 140)
-        }
-        break
-      }
-      case 'goldchest': {
-        await this.choose(ev, [{ label: '🔓 เปิดหีบทอง', sub: `zeny ก้อนใหญ่ + เพชร ${R.goldGems}` }])
-        this.coinsFly(HERO_X + 80, GROUND - 40, Phaser.Math.Between(R.goldZeny[0] * t, R.goldZeny[1] * t))
-        this.runGems += R.goldGems
-        this.burst(HERO_X + 80, GROUND - 40, COLORS.gold, 30, 260)
-        this.floatText(HERO_X + 80, GROUND - 120, `💎 +${R.goldGems}`, '#7fd7ff')
-        break
-      }
-      case 'fairy': {
-        await this.choose(ev, [{ label: '🧚 รับพร', sub: 'เลือกพรตำนาน (แรง x2) 1 ใน 3' }])
-        await this.offerPerks(true)
-        break
-      }
-    }
+    await runPostWaveEvent(this.eventHost())
     await this.wait(500)
     await this.levelUps()
+  }
+
+  /** What the event handlers may touch: a narrow view of this scene. */
+  private eventHost(): EventHost {
+    const self = this
+    return {
+      tier: this.dg.tier, st: this.st, flags: this.flags,
+      stat: (k: BaseStat) => totalBase(save())[k],
+      hp: () => this.hp,
+      zeny: () => this.zeny,
+      nextIsWave: () => { const r = this.dg.rooms[this.room + 1]; return !!r && !r.mini && !r.boss },
+      miniPool: () => this.dg.rooms.find((r) => r.mini)?.miniPool ?? MINI_POOL,
+      log: (id) => { this.eventLog.push(id) },
+      forced: () => this.testEvent,
+      choose: (p, o) => this.choose(p, o),
+      roll: (label, chance) => this.rollCheck(label, chance),
+      reveal: (text, color) => this.reveal(text, color),
+      perks: (legend) => this.offerPerks(!!legend),
+      applyMod: (mod) => this.applyMod(mod),
+      heal: (share) => { this.heal(this.st.maxHp * share); this.burst(HERO_X, GROUND - 40, 0x6fd08c, 14, 140) },
+      hurt: (share) => {
+        const n = Math.min(this.hp - 1, Math.round(this.st.maxHp * share))
+        if (n <= 0) return
+        this.hp -= n; sfx.hurt()
+        this.minHpPct = Math.min(this.minHpPct, this.hp / this.st.maxHp)
+        this.damageNumber(HERO_X, GROUND - 70, n, false, '#ff7a7a')
+      },
+      gainZeny: (n) => { if (n > 0) this.coinsFly(HERO_X + 80, GROUND - 40, n) },
+      spend: (n) => { this.zeny = Math.max(0, this.zeny - n); sfx.coin() },
+      gainXp: (n) => { this.gainXp(n); this.runXp += n },
+      gems: (n) => {
+        const give = Math.max(0, Math.min(n, EVENT_RULES.gemCap - this.flags.gems))
+        this.flags.gems += give; this.runGems += give
+        return give
+      },
+      card: (kind) => {
+        const pool = EQUIP_CARDS.filter((c) => (kind ? c.monster === kind : c.dungeon === this.dg.id))
+        if (!pool.length) return undefined
+        const cd = pool[Phaser.Math.Between(0, pool.length - 1)]
+        this.runCards.push(cd.id); sfx.coin()
+        return cardName(cd)
+      },
+      mat: (boss, n) => {
+        const id = matOf(this.dg.id, boss)
+        this.runMats[id] = (this.runMats[id] ?? 0) + n
+        this.floatText(HERO_X + 60, GROUND - 120, `${matName(id)} +${n}`, '#e8d9a8')
+      },
+      fortune: () => save().fortune ?? 0,
+      setFortune: (n) => { save().fortune = n; persist() },
+      addFortune: (n, why) => {
+        if (this.dg.tier < FORTUNE.minTier) return
+        const s = save(), before = s.fortune ?? 0
+        s.fortune = Math.min(FORTUNE.max, Math.round(before + n))
+        if (s.fortune > before) this.floatText(W - 170, 70, `🍀 +${s.fortune - before}${why ? ` ${why}` : ''}`, '#8fe08a')
+      },
+      curse: (c: Curse) => this.addCurse(c),
+      cleanse: () => {
+        if (this.flags.curseHp > 0) { this.st.maxHp += this.flags.curseHp; this.hp += this.flags.curseHp }
+        this.flags.curseHp = 0; this.flags.curseDmg = 0; this.flags.curses = []
+        this.say('🕯️ ล้างคำสาปแล้ว!', '#9fe3ff')
+      },
+      shieldShare: (share) => { this.shield = Math.max(this.shield, Math.round(this.st.maxHp * share)); this.floatText(HERO_X, GROUND - 100, `🛡️ โล่ ${this.shield}`, '#9fe3ff') },
+      fight: (kind, o) => this.eventFight(kind, o),
+      say: (text, color) => this.say(text, color),
+      sound: (k) => { sfx[k]() },
+      flash: (big) => {
+        this.cameras.main.flash(big ? 450 : 200, 255, 230, 150)
+        if (big) { this.burst(W / 2, H / 2, COLORS.gold, 40, 420, true); self.shake(250, 0.01) }
+      },
+    }
+  }
+
+  private say(text: string, color?: string) {
+    this.callout(text, HERO_X + 120, GROUND - 150 - (this.sayN++ % 3) * 32, color)
+  }
+
+  private addCurse(c: Curse) {
+    const R = EVENT_RULES
+    this.flags.curses.push(c)
+    if (c === 'frail') {
+      const n = Math.round(this.st.maxHp * R.curseHpCut)
+      this.st.maxHp -= n; this.hp = Math.max(1, Math.min(this.hp, this.st.maxHp)); this.flags.curseHp += n
+      this.say(`💀 คำสาปร่างเปราะ: Max HP -${n}`, '#b48aff')
+    } else {
+      this.flags.curseDmg += R.curseMonDmg
+      this.say(`💀 คำสาปถูกล่า: มอนตีแรง +${Math.round(R.curseMonDmg * 100)}%`, '#b48aff')
+    }
+    sfx.hurt()
+  }
+
+  /** Event ทางแยก: the elite wave was cleared. */
+  private eliteReward() {
+    this.flags.eliteReward = false
+    const R = EVENT_RULES, t = this.dg.tier
+    this.callout('🔥 ผ่านทางอันตรายได้! รางวัลก้อนโต', W / 2, 250)
+    this.coinsFly(HERO_X + 80, GROUND - 40, Phaser.Math.Between(R.chestZeny[0] * t, R.chestZeny[1] * t) * R.forkZeny)
+    const id = matOf(this.dg.id, false)
+    this.runMats[id] = (this.runMats[id] ?? 0) + 1
+    this.floatText(HERO_X + 60, GROUND - 120, `${matName(id)} +1`, '#e8d9a8')
+  }
+
+  /** Dice animation for a stat check. The bot runs time fast, so this stays short. */
+  private async rollCheck(label: string, chance: number) {
+    const need = Math.round(chance * 100), roll = Phaser.Math.Between(1, 100), ok = roll <= need
+    const c = this.add.container(W / 2, H / 2 - 40).setDepth(31000)
+    c.add(this.add.rectangle(0, 0, 360, 150, COLORS.night, 0.92).setStrokeStyle(3, COLORS.gold))
+    c.add(this.add.text(0, -48, `🎲 ${label} · ต้องได้ ≤ ${need}`, { fontFamily: FONT_UI, fontSize: '18px', color: '#d8d4f0' }).setOrigin(0.5))
+    const num = this.add.text(0, 6, '', { fontFamily: FONT_NUM, fontSize: '44px', color: '#f6eedc', stroke: '#14172b', strokeThickness: 6 }).setOrigin(0.5)
+    c.add(num)
+    for (let i = 0; i < 8; i++) { num.setText(`${Phaser.Math.Between(1, 100)}`); sfx.pop(); await this.wait(55) }
+    num.setText(`${roll}`).setColor(ok ? '#8fe08a' : '#ff7a7a')
+    c.add(this.add.text(0, 52, ok ? '✅ สำเร็จ!' : '❌ พลาด...', { fontFamily: FONT_UI, fontSize: '22px', fontStyle: 'bold', color: ok ? '#8fe08a' : '#ff7a7a' }).setOrigin(0.5))
+    if (ok) sfx.win(); else sfx.hurt()
+    await this.wait(650)
+    c.destroy()
+    return ok
+  }
+
+  private async reveal(text: string, color = '#f2b84b') {
+    const t = this.add.text(W / 2, H / 2 - 40, text, { fontFamily: FONT_UI, fontSize: '44px', fontStyle: 'bold', color, stroke: '#14172b', strokeThickness: 8 }).setOrigin(0.5).setDepth(31000).setScale(0.6)
+    sfx.door()
+    await this.tween({ targets: t, scale: 1, duration: 220, ease: 'Back.easeOut' })
+    await this.wait(700)
+    t.destroy()
+  }
+
+  /** An event fight: the hero can't drop below the floor (a loss costs at most eventFightLoss of max HP), and the
+   *  monsters run once the hero has used `turns` turns. Not a wave: no turn log, no room heal, no game over. */
+  private async eventFight(kind: MonsterKind, o: { hp?: number; dmg?: number; def?: number; mul?: { hp: number; dmg: number }; turns: number; tint?: number; alpha?: number }) {
+    const id = this.runId, start = this.mons.length
+    const m = this.addMon(kind, 0)
+    const base = m.def
+    const hp = Math.round(o.hp ?? base.hp * (o.mul?.hp ?? 1)), dmg = o.dmg ?? base.dmg * (o.mul?.dmg ?? 1)
+    m.def = { ...base, hp, dmg, def: o.def ?? base.def }; m.hp = hp
+    if (o.tint) m.spr.setTint(o.tint)
+    if (o.alpha) m.spr.setAlpha(o.alpha)
+    this.banner(`${m.def.name}${m.def.title ? ` · ${m.def.title}` : ''}`, `มีเวลา ${o.turns} เทิร์น · แพ้ไม่ตาย เสีย HP ไม่เกิน ${Math.round(EVENT_RULES.eventFightLoss * 100)}%`)
+    await this.wait(800)
+    this.fightTurns = 0; this.timedOut = false; this.turnLimit = o.turns
+    const floor = Math.max(1, Math.round(this.hp - this.st.maxHp * EVENT_RULES.eventFightLoss))
+    this.hpFloor = floor
+    const mine = () => this.mons.slice(start).filter((x) => !x.dead)
+    while (mine().length && this.hp > this.hpFloor) {
+      const a = this.nextActor()
+      if (a.hero) {
+        if (this.fightTurns >= this.turnLimit) break
+        this.fightTurns++
+        const left = this.turnLimit - this.fightTurns
+        if (left === 2 || left === 1) this.callout(`⏳ อีก ${left} เทิร์นมันจะหนี!`, W / 2, 150)
+        await this.heroTurn()
+      } else await this.monTurn(a.m)
+      if (id !== this.runId) { this.hpFloor = 0; return { won: false, share: 0 } }
+      await this.levelUps()
+      await this.wait(90)
+    }
+    this.hpFloor = 0
+    this.hx = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0 }
+    if (this.heroSpr.angle !== 0) { this.heroSpr.setAngle(0).setAlpha(1) }
+    const share = Math.min(1, 1 - Math.max(0, m.hp) / hp)
+    const left = mine()
+    if (!left.length) { await this.wait(400); return { won: true, share: 1 } }
+    for (const x of left) {
+      x.dead = true; x.dotTxt?.destroy(); x.dotTxt = undefined
+      this.tweens.add({ targets: [x.spr, x.shadow], x: W + 140, duration: 520, ease: 'Quad.easeIn', onComplete: () => this.removeMon(x) })
+    }
+    this.callout(this.hp <= floor ? '🤕 ไม่ไหวแล้ว... มันหนีไป' : '💨 มันหนีไปแล้ว!', W / 2, 200)
+    await this.wait(700)
+    return { won: false, share }
   }
 
   // ---------- Dungeon 3: mini boss mechanics + top-tier skills (data/relics.ts) ----------
@@ -1528,7 +1647,7 @@ export class BattleScene extends Phaser.Scene {
   private monMul(m: Mon) {
     let k = m.iced ? 1 - RELIC_RULES.iceage.atkDown : 1
     if (m.def.mini === 'hunter' && this.hp < this.st.maxHp * 0.5) k *= 1.2
-    return k * m.dmgMul * (m.atkUpTurns > 0 ? 1 + m.atkUp : 1) * (m.weakTurns > 0 ? 1 - m.weakPct : 1)
+    return k * m.dmgMul * (m.atkUpTurns > 0 ? 1 + m.atkUp : 1) * (m.weakTurns > 0 ? 1 - m.weakPct : 1) * (1 + this.flags.curseDmg)
   }
 
   /** Heal cut on a monster: Hellfire 5%/stack (max 50%), otherwise 25% while any normal burn is on it. */
@@ -1632,7 +1751,7 @@ export class BattleScene extends Phaser.Scene {
   private dotHurt(dmg: number, icon: string, color: string) {
     let n = Math.max(1, Math.round(dmg))
     if (this.shield > 0) { const a = Math.min(this.shield, n); this.shield -= a; n -= a; if (n <= 0) return }
-    this.hp = Math.max(0, this.hp - n)
+    this.hp = Math.max(this.hpFloor, this.hp - n)
     this.minHpPct = Math.min(this.minHpPct, this.hp / this.st.maxHp)
     this.damageNumber(HERO_X, GROUND - 70, n, false, color)
     this.floatText(HERO_X - 30, GROUND - 120, icon, color)
@@ -1644,7 +1763,7 @@ export class BattleScene extends Phaser.Scene {
     let n = Math.round(dmg * (1 - this.st.mdef * (this.hx.armorBreak > 0 ? BATTLE.armorBreakMul : 1)) * (this.relic === 'thornaura' ? 1 - RELIC_RULES.thornaura.reflectCut : 1))
     if (n <= 0) return
     if (this.shield > 0) { const a = Math.min(this.shield, n); this.shield -= a; n -= a; if (n <= 0) return }
-    this.hp = Math.max(0, this.hp - n)
+    this.hp = Math.max(this.hpFloor, this.hp - n)
     this.minHpPct = Math.min(this.minHpPct, this.hp / this.st.maxHp)
     this.damageNumber(HERO_X, GROUND - 70, n, false, '#c9e0ff')
     if (Math.random() < 0.3) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '🪞 สะท้อน!', '#c9e0ff')
@@ -1745,7 +1864,7 @@ export class BattleScene extends Phaser.Scene {
     let ids: RelicId[] = [...sig, rest[Phaser.Math.Between(0, rest.length - 1)]]
     if (this.testRelic) ids = [this.testRelic, ...ids.filter((x) => x !== this.testRelic)].slice(0, 3) // bot hook
     sfx.win(); this.cameras.main.flash(220, 255, 230, 150)
-    const c = await this.choose({ id: 'fairy', name: 'สกิลขั้นสูงสุด!', icon: '👑', desc: `ชนะ ${MONSTERS[this.miniKind ?? 'duelist'].name}! เลือกพลัง 1 อย่าง ติดตัวจนจบรอบนี้`, weight: 0, rare: true },
+    const c = await this.choose({ name: 'สกิลขั้นสูงสุด!', icon: '👑', desc: `ชนะ ${MONSTERS[this.miniKind ?? 'duelist'].name}! เลือกพลัง 1 อย่าง ติดตัวจนจบรอบนี้`, rare: true },
       ids.map((r) => ({ label: `${RELICS[r].icon} ${RELICS[r].name}`, sub: RELICS[r].desc })))
     const r = ids[c]
     this.relic = r
@@ -1761,15 +1880,16 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Event panel: icon, name, text and 1-3 option buttons. Resolves with the picked index. */
-  private choose(ev: EventDef, opts: { label: string; sub: string; off?: boolean }[]) {
+  private choose(ev: Panel, opts: Opt[]) {
     return new Promise<number>((done) => {
       this.time.paused = true
       const c = this.add.container(0, 0).setDepth(30000)
       c.add(this.add.rectangle(W / 2, H / 2, W, H, COLORS.night, 0.78).setInteractive())
-      const box = this.add.rectangle(W / 2, H / 2, 620, 380, ev.rare ? 0x3a2f1a : 0x22284a, 0.96).setStrokeStyle(4, ev.rare ? COLORS.gold : 0x5a5f8a)
+      const jp = ev.tier === 'jackpot', wide = opts.length > 3
+      const box = this.add.rectangle(W / 2, H / 2, wide ? 860 : 620, 400, jp ? 0x4a1f3a : ev.rare ? 0x3a2f1a : 0x22284a, 0.96).setStrokeStyle(jp ? 6 : 4, jp ? 0xff8cc6 : ev.rare ? COLORS.gold : 0x5a5f8a)
       c.add(box)
       c.add(this.add.text(W / 2, H / 2 - 150, ev.icon, { fontSize: '52px' }).setOrigin(0.5))
-      c.add(this.add.text(W / 2, H / 2 - 98, ev.name, { fontFamily: FONT_UI, fontSize: '28px', fontStyle: 'bold', color: ev.rare ? '#f2b84b' : '#f6eedc' }).setOrigin(0.5))
+      c.add(this.add.text(W / 2, H / 2 - 98, ev.name, { fontFamily: FONT_UI, fontSize: '28px', fontStyle: 'bold', color: jp ? '#ffd86b' : ev.rare ? '#f2b84b' : '#f6eedc' }).setOrigin(0.5))
       c.add(this.add.text(W / 2, H / 2 - 64, ev.desc, { fontFamily: FONT_UI, fontSize: '16px', color: '#a9a6c7', align: 'center', wordWrap: { width: 560 } }).setOrigin(0.5, 0))
       const keys: string[] = []
       const finish = (i: number) => {
@@ -1780,14 +1900,14 @@ export class BattleScene extends Phaser.Scene {
         this.time.paused = false
         done(i)
       }
-      const bw = opts.length === 1 ? 300 : opts.length === 2 ? 270 : 186, gap = 14
+      const bw = opts.length === 1 ? 300 : opts.length === 2 ? 270 : opts.length === 3 ? 186 : 196, gap = 14
       const x0 = W / 2 - ((opts.length - 1) * (bw + gap)) / 2
       opts.forEach((o, i) => {
         const x = x0 + i * (bw + gap), y = H / 2 + 70
         const b = button(this, x, y, bw, 70, o.label, () => finish(i), { size: 17, fill: o.off ? 0x4a4e6e : COLORS.gold, color: o.off ? '#8a87a8' : undefined })
         c.add(b)
         c.add(this.add.text(x, y + 50, o.sub, { fontFamily: FONT_UI, fontSize: '13px', color: o.off ? '#8a87a8' : '#d8d4f0', align: 'center', wordWrap: { width: bw } }).setOrigin(0.5, 0))
-        const k = `keydown-${['ONE', 'TWO', 'THREE'][i]}`
+        const k = `keydown-${['ONE', 'TWO', 'THREE', 'FOUR'][i]}`
         keys.push(k)
         this.input.keyboard!.on(k, () => finish(i))
       })
@@ -1860,7 +1980,8 @@ export class BattleScene extends Phaser.Scene {
 
   private buildText() {
     const r = this.relic ? `${RELICS[this.relic].icon}${RELICS[this.relic].name}  ` : ''
-    return r + (Object.keys(TAGS) as Tag[]).map((t) => [t, this.tagCount(t)] as const).filter(([, n]) => n > 0).map(([t, n]) => `${TAGS[t].icon}${n}`).join(' ')
+    const f = this.flags, ev = `${f.clover ? '🍀' : ''}${f.allLegend ? '🌠' : ''}${f.curses.length ? `💀${f.curses.length}` : ''}`
+    return (ev ? ev + '  ' : '') + r + (Object.keys(TAGS) as Tag[]).map((t) => [t, this.tagCount(t)] as const).filter(([, n]) => n > 0).map(([t, n]) => `${TAGS[t].icon}${n}`).join(' ')
   }
 
   private showGameOver() {
@@ -1915,6 +2036,7 @@ export class BattleScene extends Phaser.Scene {
     this.speedBtn = button(this, W - 90, 110, 70, 38, '▶ x1', () => this.setFast(!this.fast), { size: 15, fill: 0x2a2e50, color: '#f6eedc' }).setDepth(15003) as Btn
     this.smashBtn = button(this, W - 100, H - 70, 160, 84, 'ทุบ!', () => this.queueSmash(), { size: 22 }).setDepth(15003) as Btn
     this.s2Txt = this.add.text(W - 100, H - 124, '', { fontSize: '13px', color: '#7fd7ff', fontStyle: 'bold', stroke: '#14172b', strokeThickness: 3 }).setOrigin(0.5).setDepth(15003)
+    this.fortuneTxt = this.add.text(W - 250, 34, '', { fontFamily: FONT_UI, fontSize: '14px', color: '#8fe08a', stroke: '#14172b', strokeThickness: 4 }).setDepth(15001)
     this.debuffTxt = this.add.text(22, 98, '', { fontFamily: FONT_UI, fontSize: '15px', color: '#ffb0e0', stroke: '#14172b', strokeThickness: 4 }).setDepth(15001)
     this.setFast(false)
   }
@@ -1941,6 +2063,12 @@ export class BattleScene extends Phaser.Scene {
     } else this.hudTxt.res.setText('')
     this.hudTxt.lv.setText(`Lv ${this.level}`).setPosition(hpW + 24, 12)
     this.hudTxt.zeny.setText(`${this.zeny}`)
+    if (this.dg.tier >= FORTUNE.minTier) { // Fortune meter (kept across runs): full = the next event is a JACKPOT
+      const f = Math.min(1, (save().fortune ?? 0) / FORTUNE.max), bx = W - 228, by = 40, bw = 110
+      g.fillStyle(COLORS.night, 0.8).fillRoundedRect(bx - 2, by - 2, bw + 4, 12, 4)
+      g.fillStyle(f >= 1 ? 0xffd86b : 0x5fbf5a).fillRoundedRect(bx, by, Math.max(0, bw * f), 8, 3)
+      this.fortuneTxt?.setText(f >= 1 ? '🍀 JACKPOT!' : '🍀').setPosition(f >= 1 ? bx - 4 : W - 250, by + (f >= 1 ? 10 : -6))
+    } else this.fortuneTxt?.setText('')
     const left = this.turnLimit - this.fightTurns
     this.hudTxt.room.setText(`${this.dg.name} · ด่าน ${this.room + 1}/${this.dg.rooms.length} · ⏳ ${this.alive().length ? `${left}/${this.turnLimit} เทิร์น` : '-'}`).setColor(this.alive().length && left <= 3 ? '#ff7a7a' : '#f6eedc').setPosition(18, this.job.resource ? 68 : 54)
     this.hudTxt.build.setText(this.buildText()).setY(14)
@@ -2095,8 +2223,8 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  private callout(text: string, x: number, y: number) {
-    const t = this.add.text(x, y, text, { fontFamily: FONT_UI, fontSize: '22px', fontStyle: 'bold', color: '#f2b84b', stroke: '#14172b', strokeThickness: 6 }).setOrigin(0.5).setDepth(9999)
+  private callout(text: string, x: number, y: number, color = '#f2b84b') {
+    const t = this.add.text(x, y, text, { fontFamily: FONT_UI, fontSize: '22px', fontStyle: 'bold', color, stroke: '#14172b', strokeThickness: 6 }).setOrigin(0.5).setDepth(9999)
     this.tweens.add({ targets: t, y: y - 20, alpha: 0, delay: 1300, duration: 500, onComplete: () => t.destroy() })
   }
 
