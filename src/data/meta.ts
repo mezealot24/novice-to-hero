@@ -17,7 +17,7 @@ export const PER_POINT = {
   int: { matk: 2, maxRes: 3 },
   wis: { healAmp: 0.01, shieldAmp: 0.01, mdefK: 150, resRegen: 0.05, tenacityK: 200 },
   agi: { aspdPct: 0.015, flee: 1, comboK: 120 },
-  luk: { crit: 0.01 / 3, /* Q: every 3 LUK = +1% crit (only stat that gives crit) */ dodgeK: 300, legendPer: 0.0007, legendCap: 0.1, dropPct: 0.005, dropCap: 0.5, eventPer: 0.005, eventCap: 0.3 },
+  luk: { spear: 0.005, spearCap: 0.25, /* Cleric: +0.5% light spear chance per LUK per turn, cap 25% */ crit: 0.01 / 3, /* Q: every 3 LUK = +1% crit (only stat that gives crit) */ dodgeK: 300, legendPer: 0.0007, legendCap: 0.1, dropPct: 0.005, dropCap: 0.5, eventPer: 0.005, eventCap: 0.3 },
 }
 export const BASE_STATS: { id: BaseStat; name: string; role: string; desc: string }[] = [
   { id: 'str', name: 'STR', role: 'พลังกาย', desc: 'P.ATK สูงสุด +2 · ดาเมจสกิลกายภาพ +0.5%' },
@@ -25,7 +25,7 @@ export const BASE_STATS: { id: BaseStat; name: string; role: string; desc: strin
   { id: 'wis', name: 'WIS', role: 'ใจแข็ง', desc: 'ฮีล/โล่แรง +1% · M.DEF% · ต้านทาน (tenacity) · ฟื้นมานา' },
   { id: 'dex', name: 'DEX', role: 'ความแม่น', desc: 'Hit +1 · P.ATK ขั้นต่ำ +0.5% (ดาเมจนิ่งขึ้น)' },
   { id: 'int', name: 'INT', role: 'เวทมนตร์', desc: 'M.ATK +2 · Max Mana +3' },
-  { id: 'luk', name: 'LUK', role: 'ดวง', desc: 'คริ +1% ต่อ 3 LUK · หลบโชคดี · พรตำนาน · อีเวนต์หายาก · ดรอปหายาก' },
+  { id: 'luk', name: 'LUK', role: 'ดวง', desc: 'คริ +1% ต่อ 3 LUK · นักบวช: โอกาสเรียกหอกแสง · หลบโชคดี · พรตำนาน · อีเวนต์หายาก · ดรอปหายาก' },
   { id: 'agi', name: 'AGI', role: 'ความเร็ว', desc: 'ความเร็วเทิร์น +1.5% (ได้ตีบ่อยขึ้น) · Flee +1 · คอมโบ (ตีซ้ำ)' },
 ]
 export const RESOURCES = {
@@ -304,8 +304,8 @@ export function heroStats(s: StatsInput): Stats {
   const d = (k: BaseStat) => b[k] - STAT_RULES.start
   const P = PER_POINT
   const job = JOBS[s.job ?? 'novice']
-  // ranged jobs draw P.ATK from DEX instead of STR (stat spec v1); Thief draws it from AGI (design/thief-buff-v1.md, Q OK 2026-11-03)
-  st.atk += P.str.atk * d(job.attack === 'ranged' ? 'dex' : job.id === 'thief' ? 'agi' : 'str'); st.pskill += P.str.pskill * b.str
+  // ranged jobs draw P.ATK from DEX instead of STR (stat spec v1)
+  st.atk += P.str.atk * d(job.attack === 'ranged' ? 'dex' : 'str'); st.pskill += P.str.pskill * b.str
   st.hit += P.dex.hit * b.dex; st.minPct = Math.min(0.95, st.minPct + P.dex.minPct * b.dex)
   st.maxHp = (st.maxHp + P.vit.maxHp * d('vit')) * (1 + P.vit.maxHpPct * b.vit); st.def += P.vit.def * b.vit; st.regen += P.vit.regen * b.vit
   st.matk += P.int.matk * d('int'); st.maxRes += P.int.maxRes * d('int')
@@ -313,6 +313,7 @@ export function heroStats(s: StatsInput): Stats {
   st.mdef += b.wis / (b.wis + P.wis.mdefK); st.tenacity += b.wis / (b.wis + P.wis.tenacityK); st.resRegen += P.wis.resRegen * b.wis
   st.aspd *= 1 + P.agi.aspdPct * d('agi'); st.flee += P.agi.flee * b.agi; st.combo += d('agi') / (d('agi') + P.agi.comboK)
   st.counter += d('vit') / (d('vit') + P.vit.counterK) // VIT = minor counter; cards/gear are the major source
+  if (job.id === 'cleric') st.spearLuck = Math.min(P.luk.spearCap, P.luk.spear * b.luk) // v37 Q: LUK -> light spear chance
   st.crit += P.luk.crit * b.luk; st.luckyDodge += b.luk / (b.luk + P.luk.dodgeK)
   st.legendChance = Math.min(P.luk.legendCap, st.legendChance + P.luk.legendPer * b.luk)
   st.dropChance *= 1 + Math.min(P.luk.dropCap, P.luk.dropPct * b.luk)

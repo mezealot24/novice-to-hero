@@ -4,7 +4,7 @@ const [html, job, runsArg] = process.argv.slice(2)
 const RUNS = +runsArg || 8
 const alloc = {
   swordsman: { str: 8, vit: 7 }, archer: { dex: 8, agi: 7 }, mage: { int: 8, wis: 7 },
-  cleric: { wis: 8, int: 7 }, thief: { agi: 8, luk: 7 },
+  cleric: { wis: 8, int: 7 }, thief: process.env.TH_LUK ? { agi: 8, luk: 7 } : { agi: 8, str: 7 }, // Q 2026-11-03: Thief damage comes from STR
 }[job]
 const D = +(process.env.D || 1)
 const stats = { str: 1, vit: 1, wis: 1, dex: 1, int: 1, luk: 1, agi: 1 }
@@ -34,6 +34,7 @@ if (D >= 4) { // Dungeon 4-5 profiles: Lv 15 (45 points) / Lv 20 (60 points) + d
   const lvTo = (lv) => Math.min(5, Math.round(((lv || 1) - 1) * 10 / 12))
   const t = { [`${job}_s1p`]: lvTo(save.jobSkills.auto), [`${job}_ultp`]: lvTo(save.jobSkills.ult) }
   if (process.env.S2) { t[process.env.S2] = 1; t[process.env.S2 + '_p'] = +(process.env.PL ?? 0); if (process.env.STAR) { t[process.env.S2 + '_p'] = 3; t[process.env.S2 + '_x'] = 1 } }
+  if (process.env.TREEX) Object.assign(t, JSON.parse(process.env.TREEX)) // extra web nodes, e.g. {"thief_core1":5}
   Object.assign(save, { web: 1, jobTree: t, jobSkills: { auto: 1, ult: 1 } })
 }
 // EXTRA=1: also wear headgear + off-hand for the class and a second accessory (equipment screen v1)

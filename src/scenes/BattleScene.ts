@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { afterDef, BATTLE, COLORS, COMMON_PERKS, hitChance, DUNGEONS, FONT_NUM, FONT_UI, H, MONSTERS, PERKS, perkDesc, PLAYER, RULES, SET_BONUS, TAGS, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Perk, type Stats, type Tag } from '../data/game-data'
+import { afterDef, BATTLE, doubleAtkChance, COLORS, COMMON_PERKS, hitChance, DUNGEONS, FONT_NUM, FONT_UI, H, MONSTERS, PERKS, perkDesc, PLAYER, RULES, SET_BONUS, TAGS, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Perk, type Stats, type Tag } from '../data/game-data'
 import { EVENT_RULES, rollEvent, type EventDef } from '../data/events'
 import { COSTUMES, FREE_GEMS, heroStats, PER_POINT, RESOURCES, totalBase } from '../data/meta'
 import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster } from '../data/cards'
@@ -379,6 +379,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.job.id !== 'cleric') return
     if (this.ultRegenTurns > 0) { this.ultRegenTurns--; this.heal(this.st.maxHp * this.st.ultRegen) } // cleric talent: พรยืนยาว
     this.spearAcc += this.st.spearRate
+    if (Math.random() < this.st.spearLuck) { this.spears++; this.floatText(HERO_X + 30, GROUND - 170, '🍀 หอกแสง!', '#f6e27a') } // v37 Q: LUK calls light spears
     while (this.spearAcc >= 1) { this.spearAcc--; this.spears++ }
     await this.fireSpears()
   }
@@ -499,6 +500,13 @@ export class BattleScene extends Phaser.Scene {
     return r.dmg
   }
 
+  /** Thief passive Double Strike: chance of +1 hit (Q: unlike RO, it can crit). */
+  private doubleAttack(m: Mon, mul: number) {
+    if (this.st.doubleAtk <= 0 || m.dead || Math.random() >= doubleAtkChance(this.st.doubleAtk)) return
+    this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 22, 'DOUBLE!', '#ffd36b')
+    this.strike(m, mul)
+  }
+
   /** While true, melee hits stay at the monster (combo chain, Thief ult) and the hero walks home once at the end via goHome(). */
   private stayIn = false
 
@@ -567,7 +575,7 @@ export class BattleScene extends Phaser.Scene {
       await this.shoot(f, 0xf6eedc, () => this.strike(f, mul))
     }
     else if (kind === 'mage') await this.shoot(f, 0x9f7bff, () => this.strike(f, MAGE_SPELL.basicMul, true, '#c9a8ff')) // weak free magic bolt; real damage = Mana spells
-    else if (kind === 'thief') await this.lunge(f, () => { this.strike(f, 0.6); this.strike(f, 0.6) })
+    else if (kind === 'thief') await this.lunge(f, () => { this.strike(f, 0.6); this.strike(f, 0.6); this.doubleAttack(f, 0.6) })
     else if (kind === 'cleric') await this.lunge(f, () => { this.strike(f, 1); this.strike(f, 0.9, true, '#f6e27a') }) // mace + holy spark (M.ATK); 0.6 -> 0.9 so Cleric beats the boss turn limit
     else await this.lunge(f, () => { const cl = BATTLE.cleave + this.st.cleaveAdd; if (live[1]) { this.strike(f, 1); this.strike(live[1], cl) } else this.strike(f, 1 + (kind === 'swordsman' ? cl : 0)) }) // novice, swordsman: cleave (+talent ฟันกวาด) · swordsman alone vs 1 monster: the cleave lands on it too
     this.hits++
@@ -588,7 +596,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.res < k.cost) return
     if (this.smashQueued && this.smashCdLeft <= 0 && this.res - k.cost < this.ultCost()) return // keep Mana for the booked ult
     if (k.id === 'mg_mshield' && B.mshield > 0) return
-    if (k.id === 'cl_renew' && (B.renew > 0 || this.hp >= this.st.maxHp * 0.9)) return
+    if (k.id === 'cl_renew' && (B.renew > 0 || this.hp >= this.st.maxHp)) return
     if (k.id === 'sw_guard' && B.guard > 0) return
     this.res -= k.cost
     this.s2Cd = Math.max(1, k.cd - (k.id === 'cl_bless' && this.st.s2Star ? 1 : 0))
@@ -710,7 +718,7 @@ export class BattleScene extends Phaser.Scene {
         await this.wait(BATTLE.stepMs * 0.4)
         break
       case 'thief':
-        await this.lunge(live[0], () => { const m = live[0]; this.strike(m, 1.6 * pow); if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + 3); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) } })
+        await this.lunge(live[0], () => { const m = live[0]; this.strike(m, 1.6 * pow); this.doubleAttack(m, 1.6 * pow); if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + 3); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) } })
         break
     }
   }
