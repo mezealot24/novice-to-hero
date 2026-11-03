@@ -27,7 +27,7 @@ export const BASE_STATS: { id: BaseStat; name: string; role: string; desc: strin
   { id: 'dex', name: 'DEX', role: 'ความแม่น', desc: 'Hit +1 · P.ATK ขั้นต่ำ +0.5% (ดาเมจนิ่งขึ้น) · นักดาบ: สวนกลับ +0.2% · นักบวช: หอกแสงแรง +1%' },
   { id: 'int', name: 'INT', role: 'เวทมนตร์', desc: 'M.ATK +2 · Max Mana +3 · โจร: ดาเมจพิษ +0.1/stack' },
   { id: 'luk', name: 'LUK', role: 'ดวง', desc: 'คริ +1% ต่อ 3 LUK · นักบวช: โอกาสเรียกหอกแสง · จอมเวท: คริเวท +1% ต่อ 6 LUK · หลบโชคดี · พรตำนาน · อีเวนต์หายาก · ดรอปหายาก' },
-  { id: 'agi', name: 'AGI', role: 'ความเร็ว', desc: 'ความเร็วเทิร์น +1.5% (ได้ตีบ่อยขึ้น) · Flee +1 · คอมโบ (ตีซ้ำ)' },
+  { id: 'agi', name: 'AGI', role: 'ความเร็ว', desc: 'ความเร็วเทิร์น +1.5% (ได้ตีบ่อยขึ้น) · Flee +1 · คอมโบ (ตีซ้ำ) · โจร: เงาพริ้วแรง +2%' },
 ]
 export const RESOURCES = {
   mana: { name: 'Mana', color: 0x5aa0ff, desc: 'ฟื้นเองตามเวลา (INT ช่วยให้ฟื้นไวขึ้น)' },
@@ -320,6 +320,7 @@ export function heroStats(s: StatsInput): Stats {
   st.maxHp = (st.maxHp + P.vit.maxHp * d('vit')) * (1 + P.vit.maxHpPct * b.vit); st.def += P.vit.def * b.vit; st.regen += P.vit.regen * b.vit
   st.matk += P.int.matk * d('int'); st.maxRes += P.int.maxRes * d('int')
   if (job.id === 'thief') st.poisonDmg += 0.1 * d('int') // Q 2026-11-03: off-stat use, Thief poison +0.1 per INT point per stack
+  if (job.id === 'thief') st.thUltAgi = 0.02 * d('agi') // Q 2026-11-03: เงาพริ้ว +2% per AGI point
   st.healAmp += P.wis.healAmp * b.wis; st.shieldAmp += P.wis.shieldAmp * b.wis
   st.mdef += b.wis / (b.wis + P.wis.mdefK); st.tenacity += b.wis / (b.wis + P.wis.tenacityK); st.resRegen += P.wis.resRegen * b.wis
   st.aspd *= 1 + P.agi.aspdPct * d('agi'); st.flee += P.agi.flee * b.agi; st.combo += d('agi') / (d('agi') + P.agi.comboK)

@@ -514,17 +514,23 @@ export class BattleScene extends Phaser.Scene {
     if (!magic && this.st.poison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.poison); m.poisonDmg = this.st.poisonDmg; this.dotIcon(m) }
     if (this.relic === 'hellfire' && !m.dead) { m.hell++; this.dotIcon(m) }
     const ls = this.st.lifesteal + (this.buf.blood > 0 ? 0.15 + 0.05 * this.st.s2Lv : 0) // Skill 2 เลือดเดือด
-    if (ls > 0) this.heal(r.dmg * ls * (this.berserking() ? 2 : 1) * (this.st.bloodKing > 0 && this.hp < this.st.maxHp * 0.4 ? 2 : 1), true) // Thief ★ ราชันย์โลหิต
+    if (ls > 0 && this.lsMul > 0) this.heal(r.dmg * ls * this.lsMul * (this.berserking() ? 2 : 1) * (this.st.bloodKing > 0 && this.hp < this.st.maxHp * 0.4 ? 2 : 1), true) // Thief ★ ราชันย์โลหิต
     if (r.crit) sfx.crit(); else sfx.hit()
     this.gainRage(RES_RULES.rageOnHit)
     return r.dmg
   }
 
-  /** Thief passive Double Strike: chance of +1 hit (Q: unlike RO, it can crit). */
+  /** Q 2026-11-03: lifesteal works only on basic attacks + combo hits (1), the D.Strike extra hit (0.33); skills, actives and passives 0. */
+  private lsMul = 0
+
+  /** Thief passive Double Strike: chance of +1 hit (Q: unlike RO, it can crit; lifesteals at 33%). */
   private doubleAttack(m: Mon, mul: number) {
     if (this.st.doubleAtk <= 0 || m.dead || Math.random() >= doubleAtkChance(this.st.doubleAtk)) return
     this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 22, 'DOUBLE!', '#ffd36b')
+    const prev = this.lsMul
+    this.lsMul = 0.33
     this.strike(m, mul)
+    this.lsMul = prev
   }
 
   /** While true, melee hits stay at the monster (combo chain, Thief ult) and the hero walks home once at the end via goHome(). */
@@ -585,6 +591,7 @@ export class BattleScene extends Phaser.Scene {
     let f = live[0]
     if (!f) return
     const kind = this.job.id
+    this.lsMul = 1 // basic hit + combo: full lifesteal (reset below, before card procs)
     if (kind === 'archer') {
       if (this.st.arSnipeLow > 0) { const low = live.slice().sort((a, b) => a.hp - b.hp)[0]; if (low) f = low } // talent เก็บตัวเปราะ
       let mul = 1
@@ -598,6 +605,7 @@ export class BattleScene extends Phaser.Scene {
     else if (kind === 'thief') await this.lunge(f, () => { this.strike(f, 0.6); this.strike(f, 0.6); this.doubleAttack(f, 0.6) })
     else if (kind === 'cleric') await this.lunge(f, () => { this.strike(f, 1); this.strike(f, 0.9, true, '#f6e27a') }) // mace + holy spark (M.ATK); 0.6 -> 0.9 so Cleric beats the boss turn limit
     else await this.lunge(f, () => { const cl = BATTLE.cleave + this.st.cleaveAdd; if (live[1]) { this.strike(f, 1); this.strike(live[1], cl) } else this.strike(f, 1 + (kind === 'swordsman' ? cl : 0)) }) // novice, swordsman: cleave (+talent ฟันกวาด) · swordsman alone vs 1 monster: the cleave lands on it too
+    this.lsMul = 0
     this.hits++
     if (this.st.fireEvery > 0 && this.hits % this.st.fireEvery === 0) {
       if (this.job.id !== 'mage') await this.fireBolt()
@@ -799,7 +807,7 @@ export class BattleScene extends Phaser.Scene {
           const m = t[Phaser.Math.Between(0, t.length - 1)]
           this.heroSpr.setAlpha(0.4)
           await this.lunge(m, () => {
-            this.strike(m, 0.7 * hitPow)
+            this.strike(m, 0.7 * hitPow * (1 + this.st.thUltAgi)) // Q: scales with AGI
             if (this.st.ultPoison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.ultPoison); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) } // talent: มีดอาบพิษ
           })
         }

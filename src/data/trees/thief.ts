@@ -29,7 +29,7 @@ export const tree: ClassTree = {
     n('thief_c2', 'thief_crit', 2, '💀', 'จุดตาย', 3, (lv) => `ดาเมจคริ +${lv * 10}%`, (lv) => ({ critMul: 0.1 * lv })),
     n('thief_c3', 'thief_crit', 3, '⚡', 'คริชาร์จ', 3, (lv) => `คริแล้ว Energy +${lv * 5}`, (lv) => ({ arCritRes: 5 * lv })),
     n('thief_c4', 'thief_crit', 4, '🪓', 'เพชฌฆาต', 1, () => 'คริใส่มอนที่ HP ต่ำกว่า 30% แรง ×1.5', () => ({ thExecute: 1 })),
-    n('thief_l1', 'thief_blood', 1, '🩸', 'คมเลือด', 3, (lv) => `ดูดเลือด +${lv * 3}%`, (lv) => ({ lifesteal: 0.03 * lv })),
+    n('thief_l1', 'thief_blood', 1, '🩸', 'คมเลือด', 3, (lv) => `ดูดเลือด +${lv * 3}% (ตีปกติ + คอมโบ · D.Strike ได้ 33%)`, (lv) => ({ lifesteal: 0.03 * lv })),
     n('thief_l2', 'thief_blood', 2, '🧪', 'เลือดพิษ', 3, (lv) => `พิษบนมอนทำดาเมจแล้ว ฮีลเรา ${lv * 10}% ของดาเมจพิษ`, (lv) => ({ poisonLeech: 0.1 * lv })),
     n('thief_l3', 'thief_blood', 3, '🦇', 'กระหายเลือด', 3, (lv) => `ฆ่ามอนได้ ฟื้น ${lv * 2}% HP สูงสุด`, (lv) => ({ killHeal: 0.02 * lv })),
     n('thief_l4', 'thief_blood', 4, '👑', 'ราชันย์โลหิต', 1, () => 'HP ต่ำกว่า 40%: ดูดเลือด ×2', () => ({ bloodKing: 1 })),
