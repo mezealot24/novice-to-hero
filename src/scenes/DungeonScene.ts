@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { COLORS, COLS, DUNGEON, FONT_NUM, FONT_UI, H, PERKS, ROWS, RULES, TAGS, TILE, W, type MonsterKind, type Perk } from '../data/game-data'
+import { COLORS, COLS, DUNGEON, FONT_NUM, FONT_UI, H, PERKS, perkDesc, ROWS, RULES, TAGS, TILE, W, type MonsterKind, type Perk } from '../data/game-data'
 import { Hero } from '../entities/Hero'
 import { Monster } from '../entities/Monster'
 import { sfx, unlock } from '../sfx'
@@ -290,7 +290,7 @@ export class DungeonScene extends Phaser.Scene {
 
     const c = this.add.container(0, 0).setDepth(30000)
     c.add(this.add.rectangle(W / 2, H / 2, W, H, COLORS.night, 0.8).setInteractive())
-    c.add(this.add.text(W / 2, 64, `เลเวล ${this.level}! เลือก 1 อย่าง`, { fontFamily: FONT_UI, fontSize: '30px', fontStyle: 'bold', color: '#f2b84b' }).setOrigin(0.5))
+    c.add(this.add.text(W / 2, 64, `เลเวล ${this.level}! เลือกพร 1 อย่าง`, { fontFamily: FONT_UI, fontSize: '30px', fontStyle: 'bold', color: '#f2b84b' }).setOrigin(0.5))
     const cw = 272, ch = 250, gap = 24
     const x0 = W / 2 - ((offers.length - 1) * (cw + gap)) / 2
     const pick = (p: Perk) => {
@@ -313,7 +313,7 @@ export class DungeonScene extends Phaser.Scene {
       if (leg) this.tweens.add({ targets: card, angle: { from: -1.5, to: 1.5 }, duration: 300, yoyo: true, repeat: -1 })
       const icon = this.add.text(0, -ch / 2 + 44, tag.icon, { fontSize: '40px' }).setOrigin(0.5)
       const name = this.add.text(0, -ch / 2 + 96, p.name, { fontFamily: FONT_UI, fontSize: '24px', fontStyle: 'bold', color: '#2b2238' }).setOrigin(0.5)
-      const desc = this.add.text(0, -ch / 2 + 128, p.desc, { fontFamily: FONT_UI, fontSize: '16px', color: '#4a3f5c', align: 'center', wordWrap: { width: cw - 36 }, lineSpacing: 4 }).setOrigin(0.5, 0)
+      const desc = this.add.text(0, -ch / 2 + 128, perkDesc(p.desc), { fontFamily: FONT_UI, fontSize: '16px', color: '#4a3f5c', align: 'center', wordWrap: { width: cw - 36 }, lineSpacing: 4 }).setOrigin(0.5, 0)
       const foot = this.add.text(0, ch / 2 - 22, `สาย${tag.name} ${n}/3${n === 2 ? ' · ครบเซ็ตเมื่อเลือก!' : ''}`, { fontFamily: FONT_UI, fontSize: '14px', color: tag.color, fontStyle: 'bold', stroke: '#2b2238', strokeThickness: 2 }).setOrigin(0.5)
       const key = this.add.text(-cw / 2 + 14, -ch / 2 + 10, `${i + 1}`, { fontFamily: FONT_NUM, fontSize: '16px', color: '#8d7244' })
       card.add([bg, icon, name, desc, foot, key]).setSize(cw, ch).setInteractive({ useHandCursor: true })

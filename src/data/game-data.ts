@@ -109,6 +109,7 @@ export interface Stats {
   rageOnHurtAdd: number // + Rage when hit
   autoLifesteal: number // + lifesteal on the auto skill only
   ultMulAdd: number // + ult damage multiplier (can be negative)
+  ultAmp: number // run pick บดกระดูก: job ult damage x(1 + ultAmp) (Novice uses smashMul instead)
   ultShieldAdd: number // + ult shield share of max HP (can be negative)
   ultVsCharge: number // + damage share of the ult on a charging boss
   ultCounters: number // after the ult, this many landed hits are counters for sure
@@ -156,7 +157,7 @@ export const PLAYER: Stats = {
   aspd: 1.6, range: 110, crit: 0, critMul: 1.4, /* Q: crit only from items, skill tree, talents (+ in-run cards) */ speed: 190,
   guard: 0, lifesteal: 0, regen: 0, fireEvery: 0, boltMul: 2, burnDps: 0, poison: 0, poisonDmg: 2,
   smashMul: 3, smashCd: 6000, smashCost: 0, revive: 0, counter: 0, combo: 0, dodgeHeal: 0, waveShield: 0,
-  thorns: 0, rageGain: 0, autoCostCut: 0, ctrAoe: 0, berserk: 0, pierce: 0, lockOn: 0, dodgeStrike: 0, lightMax: 0, overload: 0, lightLuck: 0, burnCap: 0, autoBurn: 0, fireSpread: 0, chillPlus: 0, brittle: 0, shatter: 0, reviveHp: 0, smiteTargets: 0, holyCounter: 0, overhealShield: 0, poisonCap: 0, poisonSpread: 0, fleeFloor: 0, waveDodge: 0, dodgeEnergy: 0, ultDodge: 0, ultHits: 0, ultPoison: 0, poisonAmp: 0, lightHits: 0, lightChain: 0, burnTick: 0, chillSlow: 0, iceBarrier: 0, boltHits: 0, boltCharge: 0, stormSet: 0, mgLightAmp: 0, mgFireAmp: 0, mgIceAmp: 0, mgFirstCard: 0, mgFireStack: 0, mgWaveBarrier: 0, resRegenCut: 0, mgUltAmp: 0, elemWheel: 0, mgBarrierCut: 0, barrierBoom: 0, mgEmergency: 0, mgDoubleCast: 0, mgUltCd: 0, mgUltMana: 0, mgOverflow: 0, cleaveAdd: 0, startRage: 0, rageOnHurtAdd: 0, autoLifesteal: 0, ultMulAdd: 0, ultShieldAdd: 0, ultVsCharge: 0, ultCounters: 0, counterRage: 0, counterShield: 0, arDodgeShield: 0, arUltBreak: 0, arWaveDodge: 0, arSnipeLow: 0, arLowHpBonus: 0, arVolley: 0, arAim: 0, arAimCrit: 0, arUltSplash: 0, arUltDodge: 0, arUltMulCut: 0, arHawk: 0, arStartFull: 0, arTurnRes: 0, arCritRes: 0, arDodgeRes: 0, debuffRes: 0, healAt: 0, atone: 0, judge: 0, smiteMul: 0, smiteVamp: 0, healShield: 0, spearStart: 0, spearRate: 0, spearMul: 0, spearHeal: 0, ultRegen: 0, ultHoly: 0, ultChargeShield: 0, bossShield: 0, lateDmg: 0, spellCrit: 0, // Novice: cooldown only (resources come with job change)
+  thorns: 0, rageGain: 0, autoCostCut: 0, ctrAoe: 0, berserk: 0, pierce: 0, lockOn: 0, dodgeStrike: 0, lightMax: 0, overload: 0, lightLuck: 0, burnCap: 0, autoBurn: 0, fireSpread: 0, chillPlus: 0, brittle: 0, shatter: 0, reviveHp: 0, smiteTargets: 0, holyCounter: 0, overhealShield: 0, poisonCap: 0, poisonSpread: 0, fleeFloor: 0, waveDodge: 0, dodgeEnergy: 0, ultDodge: 0, ultHits: 0, ultPoison: 0, poisonAmp: 0, lightHits: 0, lightChain: 0, burnTick: 0, chillSlow: 0, iceBarrier: 0, boltHits: 0, boltCharge: 0, stormSet: 0, mgLightAmp: 0, mgFireAmp: 0, mgIceAmp: 0, mgFirstCard: 0, mgFireStack: 0, mgWaveBarrier: 0, resRegenCut: 0, mgUltAmp: 0, elemWheel: 0, mgBarrierCut: 0, barrierBoom: 0, mgEmergency: 0, mgDoubleCast: 0, mgUltCd: 0, mgUltMana: 0, mgOverflow: 0, cleaveAdd: 0, startRage: 0, rageOnHurtAdd: 0, autoLifesteal: 0, ultMulAdd: 0, ultAmp: 0, ultShieldAdd: 0, ultVsCharge: 0, ultCounters: 0, counterRage: 0, counterShield: 0, arDodgeShield: 0, arUltBreak: 0, arWaveDodge: 0, arSnipeLow: 0, arLowHpBonus: 0, arVolley: 0, arAim: 0, arAimCrit: 0, arUltSplash: 0, arUltDodge: 0, arUltMulCut: 0, arHawk: 0, arStartFull: 0, arTurnRes: 0, arCritRes: 0, arDodgeRes: 0, debuffRes: 0, healAt: 0, atone: 0, judge: 0, smiteMul: 0, smiteVamp: 0, healShield: 0, spearStart: 0, spearRate: 0, spearMul: 0, spearHeal: 0, ultRegen: 0, ultHoly: 0, ultChargeShield: 0, bossShield: 0, lateDmg: 0, spellCrit: 0, // Novice: cooldown only (resources come with job change)
 }
 
 export const RULES = {
@@ -183,6 +184,8 @@ export const TAGS: Record<Tag, { name: string; icon: string; color: string }> = 
 }
 
 export interface Perk { id: string; tag: Tag; name: string; desc: string; mod: Partial<Stats> }
+/** Perk text names the player's own ult: '{ult}' becomes e.g. 'ท่าไม้ตาย 👤 เงาพริ้ว' (Thief) or 'ท่าไม้ตาย 💢 ทุบ' (Novice). */
+export const perkDesc = (desc: string, ult?: { icon: string; name: string }) => desc.split('{ult}').join(ult ? `ท่าไม้ตาย ${ult.icon} ${ult.name}` : 'ท่าไม้ตาย')
 
 // Pick 1 of 3 on every level up. 3 perks of one tag = set bonus (SET_BONUS).
 export const PERKS: Perk[] = [
@@ -192,14 +195,14 @@ export const PERKS: Perk[] = [
   { id: 'spd1', tag: 'speed', name: 'มือไว', desc: 'ความเร็วโจมตี +25%', mod: { aspd: 0.4 } },
   { id: 'spd2', tag: 'speed', name: 'ฝีเท้าเบา', desc: 'ตีเร็ว +15% · Flee +6', mod: { aspd: 0.24, flee: 6 } },
   { id: 'spd4', tag: 'speed', name: 'ฟันรัว', desc: 'โอกาสคอมโบ (ตีซ้ำ) +12%', mod: { combo: 0.12 } },
-  { id: 'spd3', tag: 'speed', name: 'สมาธินิ่ง', desc: 'ทุบคูลดาวน์ -1 เทิร์น · Flee +8', mod: { smashCd: -1500, flee: 8 } },
+  { id: 'spd3', tag: 'speed', name: 'สมาธินิ่ง', desc: '{ult} คูลดาวน์ -1 เทิร์น · Flee +8', mod: { smashCd: -1500, flee: 8 } },
   { id: 'grd1', tag: 'guard', name: 'หนังหนา', desc: 'HP สูงสุด +50 (ฟื้นเท่าที่เพิ่ม)', mod: { maxHp: 50 } },
   { id: 'grd2', tag: 'guard', name: 'โล่ไม้', desc: 'รับดาเมจน้อยลง 15%', mod: { guard: 0.15 } },
   { id: 'grd3', tag: 'guard', name: 'ลมหายใจ', desc: 'ฟื้น HP 1.5% ทุกเทิร์น', mod: { regen: 1 } },
   { id: 'grd4', tag: 'guard', name: 'ท่าสวน', desc: 'โอกาสสวนกลับ +15% เมื่อโดนตี', mod: { counter: 0.15 } },
   { id: 'bld1', tag: 'blood', name: 'ดูดเลือด', desc: 'ฟื้น HP 12% ของดาเมจที่ทำได้', mod: { lifesteal: 0.12 } },
   { id: 'bld2', tag: 'blood', name: 'คลั่งเลือด', desc: 'ATK +6', mod: { atk: 6 } },
-  { id: 'bld3', tag: 'blood', name: 'ทุบกระดูก', desc: 'ท่าไม้ตายแรงขึ้น x2', mod: { smashMul: 3 } },
+  { id: 'bld3', tag: 'blood', name: 'บดกระดูก', desc: 'ดาเมจ{ult} x2', mod: { smashMul: 3, ultAmp: 1 } },
   { id: 'fir1', tag: 'fire', name: 'ลูกไฟ', desc: 'ทุกการตีครั้งที่ 3 ยิงลูกไฟใส่ศัตรูที่ไกลที่สุด (x2 M.ATK)', mod: { fireEvery: 3 } },
   { id: 'fir2', tag: 'fire', name: 'เผาไหม้', desc: 'ลูกไฟติดไฟ เผา 6 ดาเมจ/เทิร์น 3 เทิร์น', mod: { burnDps: 6 } },
   { id: 'fir3', tag: 'fire', name: 'ลูกไฟใหญ่', desc: 'ลูกไฟแรงขึ้น +2x M.ATK', mod: { boltMul: 2 } },

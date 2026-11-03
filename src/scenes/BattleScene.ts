@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { afterDef, BATTLE, COLORS, COMMON_PERKS, hitChance, DUNGEONS, FONT_NUM, FONT_UI, H, MONSTERS, PERKS, PLAYER, RULES, SET_BONUS, TAGS, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Perk, type Stats, type Tag } from '../data/game-data'
+import { afterDef, BATTLE, COLORS, COMMON_PERKS, hitChance, DUNGEONS, FONT_NUM, FONT_UI, H, MONSTERS, PERKS, perkDesc, PLAYER, RULES, SET_BONUS, TAGS, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Perk, type Stats, type Tag } from '../data/game-data'
 import { EVENT_RULES, rollEvent, type EventDef } from '../data/events'
 import { COSTUMES, FREE_GEMS, heroStats, RESOURCES } from '../data/meta'
 import { JOBS, MAGE_SPELL, RES_RULES, skillPow, type JobDef } from '../data/jobs'
@@ -438,7 +438,8 @@ export class BattleScene extends Phaser.Scene {
   private ultCost() { return this.job.resource === 'mana' ? this.job.ult.cost ?? 0 : 0 }
   private resMax() { return this.job.resource === 'rage' ? RES_RULES.rageMax : this.job.resource === 'energy' ? RES_RULES.energyMax : this.st.maxRes }
   private ultTurns() {
-    const t = this.job.id === 'novice' ? this.smashTurns() : Math.max(2, this.job.ult.cd + this.st.mgUltCd)
+    const cdCut = Math.round((PLAYER.smashCd - this.st.smashCd) / BATTLE.msPerTurn) // run pick สมาธินิ่ง: every job's ult, not just Novice Smash
+    const t = this.job.id === 'novice' ? this.smashTurns() : Math.max(2, this.job.ult.cd + this.st.mgUltCd - cdCut)
     return this.relic === 'haste' ? Math.max(2, t - RELIC_RULES.haste.cd) : t
   }
   private overflow = false
@@ -580,12 +581,13 @@ export class BattleScene extends Phaser.Scene {
 
   private async ultimate() {
     const pow = skillPow(this.jobSkills.ult)
+    const hitPow = pow * (1 + this.st.ultAmp) // run pick บดกระดูก: damage only, shields/heals stay
     await this.skillName(this.job.ult)
     sfx.slam()
     const live = this.front()
     switch (this.job.id) {
       case 'swordsman':
-        await this.lunge(live[0], () => live.forEach((m) => this.strike(m, (1.4 + this.st.ultMulAdd) * pow * (1 + this.st.pskill) * (m.charging ? 1 + this.st.ultVsCharge : 1)))) // talents: ปราการ / ฟันทลาย
+        await this.lunge(live[0], () => live.forEach((m) => this.strike(m, (1.4 + this.st.ultMulAdd) * hitPow * (1 + this.st.pskill) * (m.charging ? 1 + this.st.ultVsCharge : 1)))) // talents: ปราการ / ฟันทลาย
         this.addShield(this.st.maxHp * Math.max(0, 0.25 + this.st.ultShieldAdd) * pow)
         if (this.st.ultCounters > 0) this.ctrCharges = this.st.ultCounters // talent: ท่าสวนพร้อม
         this.cameras.main.flash(120, 140, 170, 220)
@@ -598,8 +600,8 @@ export class BattleScene extends Phaser.Scene {
           this.tweens.add({ targets: this.heroSpr, x: HERO_X - 40, duration: 120, yoyo: true })
           this.ultFiring = true
           await this.shoot(t, 0xfff3a0, () => {
-            this.strike(t, (5 - this.st.arUltMulCut) * pow, false, undefined, this.st.pierce); this.burst(t.spr.x, t.spr.y - 30, 0xfff3a0, 20, 260)
-            if (this.st.arUltSplash > 0) for (const o of this.alive()) if (o !== t) this.strike(o, this.st.arUltSplash * pow, false, undefined, this.st.pierce) // talent ศรเจาะทะลุ
+            this.strike(t, (5 - this.st.arUltMulCut) * hitPow, false, undefined, this.st.pierce); this.burst(t.spr.x, t.spr.y - 30, 0xfff3a0, 20, 260)
+            if (this.st.arUltSplash > 0) for (const o of this.alive()) if (o !== t) this.strike(o, this.st.arUltSplash * hitPow, false, undefined, this.st.pierce) // talent ศรเจาะทะลุ
           })
           this.ultFiring = false
           this.cameras.main.shake(160, 0.012)
@@ -632,7 +634,7 @@ export class BattleScene extends Phaser.Scene {
           const m = t[Phaser.Math.Between(0, t.length - 1)]
           this.heroSpr.setAlpha(0.4)
           await this.lunge(m, () => {
-            this.strike(m, 0.7 * pow)
+            this.strike(m, 0.7 * hitPow)
             if (this.st.ultPoison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.ultPoison); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) } // talent: มีดอาบพิษ
           })
         }
@@ -1132,7 +1134,7 @@ export class BattleScene extends Phaser.Scene {
         const bg = this.add.rectangle(0, 0, cw, ch, leg ? 0xffe08a : 0xf4e6c8).setStrokeStyle(leg ? 7 : 4, leg ? 0xff8c42 : Phaser.Display.Color.HexStringToColor(tag.color).color)
         const icon = this.add.text(0, -ch / 2 + 44, tag.icon, { fontSize: '40px' }).setOrigin(0.5)
         const name = this.add.text(0, -ch / 2 + 96, p.name, { fontFamily: FONT_UI, fontSize: '24px', fontStyle: 'bold', color: '#2b2238' }).setOrigin(0.5)
-        const desc = this.add.text(0, -ch / 2 + 128, p.desc, { fontFamily: FONT_UI, fontSize: '16px', color: '#4a3f5c', align: 'center', wordWrap: { width: cw - 36 }, lineSpacing: 4 }).setOrigin(0.5, 0)
+        const desc = this.add.text(0, -ch / 2 + 128, perkDesc(p.desc, this.job.ult), { fontFamily: FONT_UI, fontSize: '16px', color: '#4a3f5c', align: 'center', wordWrap: { width: cw - 36 }, lineSpacing: 4 }).setOrigin(0.5, 0)
         const foot = this.add.text(0, ch / 2 - 22, p.tag === 'common' ? 'พรทั่วไป · เลือกซ้ำได้' : `${p.id === 'stm1' ? `Lv ${boltLv + 1}/${BOLT_MAX_LV} · ` : ''}สาย${tag.name} ${n >= 3 ? '3/3 ✓ ครบเซ็ตแล้ว' : `${n}/3${n === 2 && SET_BONUS[p.tag] ? ' · ครบเซ็ตเมื่อเลือก!' : ''}`}`, { fontFamily: FONT_UI, fontSize: '14px', color: tag.color, fontStyle: 'bold', stroke: '#2b2238', strokeThickness: 2 }).setOrigin(0.5)
         const key = this.add.text(-cw / 2 + 14, -ch / 2 + 10, `${i + 1}`, { fontFamily: FONT_NUM, fontSize: '16px', color: '#8d7244' })
         card.add([bg, icon, name, desc, foot, key]).setSize(cw, ch).setInteractive({ useHandCursor: true })
