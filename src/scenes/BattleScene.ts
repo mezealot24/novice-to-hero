@@ -35,7 +35,7 @@ interface Mon {
   shield: number // absorbs hero damage first
   atkUp: number; atkUpTurns: number // warcry: + damage share for its own next N turns
   phase: number // boss phases entered so far
-  speedMul: number; dmgMul: number; reflect: number; chargeEvery: number
+  speedMul: number; dmgMul: number; reflect: number; absorb: number; stored: number; chargeEvery: number
   skills: MonSkill[]; onHit?: HitFx; slamFx?: HitFx
   revived: boolean // came back once (necro): can't be raised again
   weakTurns: number; weakPct: number // hero Skill 2 ท้าทาย: hits weaker for its next N turns
@@ -55,7 +55,7 @@ const MINI_HINT: Record<string, string> = {
   drainer: 'เวทดูดชีวิต · ต่ำกว่าครึ่งฟื้น HP ทุกเทิร์น · ท่าชาร์จดูดเลือดเต็ม · ทุก 4 เทิร์นปิดปาก 1 เทิร์น',
   venomqueen: 'กัดติดพิษ · พ่นใยทำให้ใช้ท่าไม้ตายไม่ได้ 2 เทิร์น · ชาร์จห่อใย = โดนมัดเสียเทิร์น · ครึ่งเลือดฟักลูก',
   frostgiant: 'P.DEF สูงมาก (คริ/เวททะลุ) · ทุกทีเกราะเราแตก · ชาร์จทุก 3 เทิร์น ทุบแล้วแข็ง · 40% ได้เกราะน้ำแข็ง',
-  mirage: 'สะท้อนดาเมจ 30% (ตีแรงเจ็บเอง) · ตีทีเราอ่อนแรง · ครึ่งเลือดแตกเศษกระจกที่ระเบิดได้',
+  mirage: 'เก็บดาเมจที่โดน 30% (🔮) แล้วชาร์จยิงคืนเป็นโซลสไตรค์ 5 ลูก · เตรียมโล่/หลบตอนชาร์จ · ตีทีเราอ่อนแรง · ครึ่งเลือดเก็บ 40% + เศษกระจก',
   warlord: 'ทุก 3 เทิร์นคลั่งเลือดแรงขึ้นสะสม! ต้องจบไว · ดูดเลือด · ต่ำกว่า 30% เร็วมาก',
 }
 const FX_ICON: Record<keyof HitFx, string> = { poison: '☠️', burn: '🔥', weaken: '💔', armorBreak: '🛡️💥', silence: '🤐', freeze: '❄️' }
@@ -291,7 +291,7 @@ export class BattleScene extends Phaser.Scene {
     const spr = this.add.image(W + 80, y, def.tex).setOrigin(0.5, 1).setScale(kind === 'minijellop' ? 1.1 : big ? 1.6 : 1.5).setDepth(y)
     if (FACES_RIGHT.includes(kind)) spr.setFlipX(true)
     const m: Mon = { kind, def, spr, shadow, hp: def.hp, gauge: gauge ?? Phaser.Math.Between(0, 40), dead: false, slot, turns: 0, charging: false, summoned: false, burnStacks: 0, burnStackTurns: 0, chill: 0, frozen: false, burn: 0, burnTurns: 0, poison: 0, poisonDmg: 0, parry: false, ice: 0, iceChance: 0, iced: false, hell: 0, harvestMark: 0,
-      shield: 0, atkUp: 0, atkUpTurns: 0, phase: 0, speedMul: 1, dmgMul: 1, reflect: def.reflect ?? 0, chargeEvery: def.chargeEvery ?? BATTLE.slamEvery, skills: def.skills ?? [], onHit: def.onHit, slamFx: def.slamFx, revived: false, weakTurns: 0, weakPct: 0 }
+      shield: 0, atkUp: 0, atkUpTurns: 0, phase: 0, speedMul: 1, dmgMul: 1, reflect: def.reflect ?? 0, absorb: def.absorb ?? 0, stored: 0, chargeEvery: def.chargeEvery ?? BATTLE.slamEvery, skills: def.skills ?? [], onHit: def.onHit, slamFx: def.slamFx, revived: false, weakTurns: 0, weakPct: 0 }
     this.mons.push(m)
     this.tweens.add({ targets: [spr, shadow], x, duration: 600, ease: 'Quad.easeOut', delay: slot * 90 })
     return m
@@ -918,6 +918,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.poisonAmp > 0 && m.poison >= 10) dmg = Math.round(dmg * (1 + this.st.poisonAmp)) // Thief talent: กัดกร่อน
     if (!dot && this.relic === 'executioner' && m.hp < m.def.hp * RELIC_RULES.executioner.below) dmg = Math.round(dmg * (1 + RELIC_RULES.executioner.mul))
     if (!dot && m.reflect > 0 && dmg > 0 && this.hp > 0) this.reflectHurt(m, dmg * m.reflect)
+    if (!dot && m.absorb > 0 && dmg > 0) { m.stored += dmg * m.absorb; this.dotIcon(m) } // Mirage: stores it for the Soul Strike
     if (m.shield > 0) { // monster shield (turtle wall, ice armor, bone shield) soaks first
       const a = Math.min(m.shield, dmg)
       m.shield -= a; dmg -= a
@@ -1149,6 +1150,7 @@ export class BattleScene extends Phaser.Scene {
     sfx.slam()
     if (this.riposte(m)) { await this.wait(300); return }
     const hit = this.hurtHero((m.def.dmg + 8) * BATTLE.monDmgMul * (m.def.slamMul ?? 1.6) * this.monMul(m), !!m.def.slamMagic, 999, m) // slam can't be fled, only lucky-dodged / shielded
+    if (m.stored > 0) await this.soulStrike(m)
     if (hit) {
       this.monLeech(m, m.def.mini === 'hunter' || m.def.mini === 'drainer' ? 1 : undefined) // the big drain heals all of it
       if (m.slamFx) this.applyFx(m.slamFx, m)
@@ -1158,6 +1160,21 @@ export class BattleScene extends Phaser.Scene {
       if (lost >= 10) this.floatText(HERO_X, GROUND - 120, 'มึน!', '#f2b84b')
     }
     await this.wait(300)
+  }
+
+  /** Mirage Soul Strike (Q 2026-11-03, RO style): the damage it stored fires back as magic bolts.
+   *  Telegraphed by the charge; each bolt can't be fled but lucky dodge, dodge charges, shields and M.DEF work. */
+  private async soulStrike(m: Mon) {
+    const total = Math.min(m.stored, this.st.maxHp * BATTLE.soulCap) * (this.relic === 'thornaura' ? 1 - RELIC_RULES.thornaura.reflectCut : 1)
+    m.stored = 0; this.dotIcon(m)
+    if (m.dead || this.hp <= 0 || total <= 0) return
+    this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, `🔮 โซลสไตรค์ ${Math.round(total)}!`, '#c9a8ff')
+    for (let i = 0; i < BATTLE.soulBolts && this.hp > 0; i++) {
+      const b = this.add.image(m.spr.x - 20, m.spr.y - 60 - i * 8, 'dot').setTint(0xc9a8ff).setScale(1.8).setDepth(9000)
+      await this.tween({ targets: b, x: HERO_X, y: GROUND - 50, duration: 110 })
+      b.destroy()
+      this.hurtHero(total / BATTLE.soulBolts, true, 999, m)
+    }
   }
 
   /** Returns false when the hit was dodged. */
@@ -1243,7 +1260,7 @@ export class BattleScene extends Phaser.Scene {
 
   private dotIcon(m: Mon) {
     if (!m.dotTxt) m.dotTxt = this.add.text(0, 0, '', { fontSize: '14px' }).setOrigin(0.5).setDepth(9500)
-    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${m.reflect > 0 ? '🪞' : ''}`)
+    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${m.reflect > 0 ? '🪞' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
   }
 
   // ---------- xp / perks ----------
@@ -1633,6 +1650,7 @@ export class BattleScene extends Phaser.Scene {
     if (p.dmg) m.dmgMul *= p.dmg
     if (p.chargeEvery) m.chargeEvery = p.chargeEvery
     if (p.reflect !== undefined) m.reflect = p.reflect
+    if (p.absorb !== undefined) m.absorb = p.absorb
     if (p.skills) m.skills = p.skills
     if (p.onHit) m.onHit = p.onHit
     if (p.slamFx) m.slamFx = p.slamFx

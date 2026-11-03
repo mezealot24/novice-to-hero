@@ -284,6 +284,7 @@ export interface BossPhase {
   shield?: number // shield of this share of max HP on entering
   summon?: [MonsterKind, number]
   reflect?: number // from now on reflects this share of every direct hit
+  absorb?: number // from now on stores this share of every direct hit for the Soul Strike
   skills?: MonSkill[] // replaces the skill list
   onHit?: HitFx // replaces the hit effect
   slamFx?: HitFx // replaces the charged attack's effect
@@ -321,6 +322,7 @@ export interface MonsterDef {
   slamFx?: HitFx // boss: the charged attack also puts this on the hero
   skills?: MonSkill[]
   reflect?: number // reflects this share of every direct hit (strike / Smash) back as magic damage
+  absorb?: number // stores this share of every direct hit; the charged attack fires it back as Soul Strike bolts (Q 2026-11-03, Mirage)
   deathBlast?: number // explodes on death: (dmg) x monDmgMul x this as magic (Flee / lucky dodge / shield all work)
   phases?: BossPhase[]
 }
@@ -383,8 +385,8 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
   wraith: { name: 'ภูตกระจก', tex: 'wraith', hp: 300, dmg: 46, xp: 10, ai: 'dasher', moveSpeed: 500, radius: 14, zeny: [6, 9], idleMs: [500, 900], magic: true, flee: 36, hit: 40, reflect: 0.25 },
   shard: { name: 'เศษกระจก', tex: 'shard', hp: 220, dmg: 30, xp: 3, ai: 'dasher', moveSpeed: 500, radius: 11, zeny: [1, 2], idleMs: [400, 800], magic: true, flee: 30, hit: 40, deathBlast: 1.8 },
   mirage: { name: 'มิราจ', title: 'ภูตกระจกพันหน้า', tex: 'mirage', hp: 2600, dmg: 52, xp: 16, ai: 'boss', mini: 'mirage', moveSpeed: 300, radius: 32, zeny: [60, 80], idleMs: [600, 900], magic: true, slamMagic: true, def: 20, flee: 34, hit: 44,
-    reflect: 0.3, onHit: { weaken: 2 }, chargeEvery: 4, slamMul: 1.8, slamName: 'กระจกพันบาน! สะท้อนทุกอย่าง', slamFx: { weaken: 3, silence: 1 }, charge: true,
-    phases: [{ at: 0.5, name: 'แตกร่าง! เศษกระจกระเบิดได้', summon: ['shard', 2], reflect: 0.4 }] },
+    absorb: 0.3, onHit: { weaken: 2 }, chargeEvery: 4, slamMul: 1.2, slamName: 'โซลสไตรค์กระจก! ยิงดาเมจที่เก็บไว้คืน', slamFx: { weaken: 3, silence: 1 }, charge: true,
+    phases: [{ at: 0.5, name: 'แตกร่าง! เศษกระจกระเบิดได้ + เก็บดาเมจมากขึ้น', summon: ['shard', 2], absorb: 0.4 }] },
   warlord: { name: 'บารัค', title: 'ขุนศึกคลั่งโลหิต', tex: 'warlord', hp: 2700, dmg: 50, xp: 16, ai: 'boss', mini: 'warlord', moveSpeed: 300, radius: 36, zeny: [60, 80], idleMs: [600, 900], def: 60, flee: 15, hit: 44, lifesteal: 0.2,
     onHit: { armorBreak: 2 }, chargeEvery: 4, slamMul: 2, slamName: 'ขวานผ่าภูผา! ฟันทะลุเกราะ', charge: true,
     skills: [{ kind: 'warcry', every: 3, pow: 0.25, turns: 99, self: true, name: 'คลั่งเลือด (สะสม)' }],
@@ -519,4 +521,5 @@ export const BATTLE = {
   poisonPct: 0.01, poisonCap: 8, // per stack per hero turn, share of max HP (Lv-15 bot: 1.2%/cap 10 killed Thief in wave 1-2)
   burnPct: 0.03, burnHealCut: 0.4,
   weakenMul: 0.75, armorBreakMul: 0.5,
+  soulBolts: 5, soulCap: 0.4, // Mirage Soul Strike: stored damage fires as N magic bolts, total capped at this share of hero max HP
 }
