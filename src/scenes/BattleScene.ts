@@ -497,14 +497,24 @@ export class BattleScene extends Phaser.Scene {
     return r.dmg
   }
 
+  /** While true, melee hits stay at the monster (combo chain, Thief ult) and the hero walks home once at the end via goHome(). */
+  private stayIn = false
+
   private async lunge(m: Mon, fn: () => void) {
-    const step = BATTLE.stepMs
-    await this.tween({ targets: this.heroSpr, x: m.spr.x - 70, duration: step * 0.35, ease: 'Quad.easeIn' })
+    const step = BATTLE.stepMs, tx = m.spr.x - 70
+    if (Math.abs(this.heroSpr.x - tx) < 6) { // already in front of it: short pull-back jab instead of a full dash
+      await this.tween({ targets: this.heroSpr, x: tx - 14, duration: step * 0.1, ease: 'Quad.easeOut' })
+      await this.tween({ targets: this.heroSpr, x: tx, duration: step * 0.1, ease: 'Quad.easeIn' })
+    } else await this.tween({ targets: this.heroSpr, x: tx, duration: step * 0.35, ease: 'Quad.easeIn' })
     this.slashFx(m.spr.x - 20, GROUND - 40)
     sfx.swing()
     fn()
     this.shake(60, 0.004)
-    await this.tween({ targets: this.heroSpr, x: HERO_X, duration: step * 0.35, ease: 'Quad.easeOut' })
+    if (!this.stayIn) await this.goHome()
+  }
+
+  private async goHome() {
+    if (Math.abs(this.heroSpr.x - HERO_X) > 1) await this.tween({ targets: this.heroSpr, x: HERO_X, duration: BATTLE.stepMs * 0.35, ease: 'Quad.easeOut' })
   }
 
   private async shoot(m: Mon, color: number, fn: () => void) {
@@ -519,9 +529,12 @@ export class BattleScene extends Phaser.Scene {
   /** Basic attack, then AGI combo: each success chains one more (up to BATTLE.comboMax). */
   private async basicAttack() {
     this.comboSum = { on: true, per: new Map() } // RO-style: each hit shows its own white number, the chain total pops big + yellow at the end
+    let extra = 0 // roll the chain first (same odds as before) so the hero knows to stay at the monster between hits
+    while (extra < BATTLE.comboMax && Math.random() < this.st.combo) extra++
+    this.stayIn = extra > 0
     await this.basicOnce()
     let hits = 1
-    for (let n = 0; n < BATTLE.comboMax && this.alive().length && Math.random() < this.st.combo; n++) {
+    for (let n = 0; n < extra && this.alive().length; n++) {
       this.comboCount++
       this.comboLevel = n + 2
       sfx.combo(n + 2)
@@ -533,6 +546,8 @@ export class BattleScene extends Phaser.Scene {
     let best: { dmg: number, x: number, y: number } | undefined // total for the monster that took the most (cleave splash shows only its own numbers)
     for (const v of this.comboSum.per.values()) if (!best || v.dmg > best.dmg) best = v
     if (hits >= 2 && best) this.comboTotal(best.x, best.y, best.dmg, hits)
+    this.stayIn = false
+    await this.goHome()
   }
 
   private async basicOnce() {
@@ -748,6 +763,7 @@ export class BattleScene extends Phaser.Scene {
         break
       case 'thief':
         this.dodgeCharges = 2 + this.st.ultDodge // talent: เงาซ้อน
+        this.stayIn = true // dart from monster to monster, walk home once at the end
         for (let i = 0; i < 4 + this.st.ultHits; i++) { // talent: พายุมีด
           const t = this.alive(); if (!t.length) break
           const m = t[Phaser.Math.Between(0, t.length - 1)]
@@ -757,7 +773,9 @@ export class BattleScene extends Phaser.Scene {
             if (this.st.ultPoison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.ultPoison); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) } // talent: มีดอาบพิษ
           })
         }
+        this.stayIn = false
         this.heroSpr.setAlpha(1)
+        await this.goHome()
         break
     }
   }
@@ -1062,14 +1080,40 @@ export class BattleScene extends Phaser.Scene {
       if (this.st.ctrAoe > 0) for (const o of this.alive()) if (o !== m) this.strike(o, 0.5, magic) // tree: "สวนพายุ"
     }
     if (this.job.attack !== 'melee') { await this.shoot(m, magic ? 0x9f7bff : 0xf6eedc, hit); return }
+    // melee: wind back, dash in with an afterimage, knock the attacker back and chase it a little, then walk home
     const step = BATTLE.stepMs
-    await this.tween({ targets: this.heroSpr, x: m.spr.x - 40, duration: step * 0.2, ease: 'Quad.easeIn' })
+    await this.tween({ targets: this.heroSpr, x: HERO_X - 18, duration: step * 0.1, ease: 'Quad.easeOut' })
+    this.afterimage(0xffd27a)
+    sfx.dash()
+    await this.tween({ targets: this.heroSpr, x: m.spr.x - 40, duration: step * 0.14, ease: 'Quad.easeIn' })
     this.slashFx(m.spr.x - 10, GROUND - 40)
     sfx.swing()
     hit()
     this.shake(70, 0.005)
-    if (!m.dead) this.tweens.add({ targets: [m.spr, m.shadow], x: m.spr.x + 40, duration: step * 0.2, ease: 'Quad.easeOut' })
+    if (!m.dead) this.tweens.add({ targets: [m.spr, m.shadow], x: m.spr.x + 110, duration: step * 0.25, ease: 'Quad.easeOut' })
+    await this.tween({ targets: this.heroSpr, x: this.heroSpr.x + 50, duration: step * 0.15, ease: 'Quad.easeOut' })
     await this.tween({ targets: this.heroSpr, x: HERO_X, duration: step * 0.3, ease: 'Quad.easeOut' })
+  }
+
+  /** Fire-and-forget melee dash for counters that happen inside a sync hit check (dodge → strike back). */
+  private dashStrike(m: Mon) {
+    const step = BATTLE.stepMs
+    this.time.delayedCall(200, () => { // let the evade sidestep (90 ms yoyo) finish first
+      if (m.dead || this.hp <= 0) return
+      this.afterimage(0xc9c9d6)
+      sfx.dash()
+      this.tweens.add({ targets: this.heroSpr, x: m.spr.x - 40, duration: step * 0.14, ease: 'Quad.easeIn', onComplete: () => {
+        if (!m.dead) { this.slashFx(m.spr.x - 10, GROUND - 40); sfx.swing(); this.strike(m, BATTLE.counterMul) ; this.shake(60, 0.004) }
+        this.tweens.add({ targets: this.heroSpr, x: HERO_X, duration: step * 0.3, ease: 'Quad.easeOut' })
+      } })
+    })
+  }
+
+  /** Fading copy of the hero (dash / evade trail). */
+  private afterimage(tint: number, dx = 0) {
+    const g = this.add.image(this.heroSpr.x, this.heroSpr.y, this.heroSpr.texture.key).setOrigin(0.5, 1).setScale(this.heroSpr.scaleX, this.heroSpr.scaleY)
+      .setFlipX(this.heroSpr.flipX).setTintFill(tint).setAlpha(0.55).setDepth(this.heroSpr.depth - 1)
+    this.tweens.add({ targets: g, x: g.x + dx, alpha: 0, duration: 260, onComplete: () => g.destroy() })
   }
 
   /** Out of turns: the monsters win this fight (the run ends like a knock-out). */
@@ -1106,7 +1150,11 @@ export class BattleScene extends Phaser.Scene {
     this.lastHurt = 0
     const dodged = (label: string, color: string) => {
       this.evadeJuice(label, color)
-      if (this.st.dodgeStrike > 0 && src && !src.dead) { this.floatText(HERO_X + 40, GROUND - 130, 'สวนจากเงา!', '#c9c9d6'); this.counterCount++; this.strike(src, BATTLE.counterMul, this.job.attack === 'magic') } // tree
+      if (this.st.dodgeStrike > 0 && src && !src.dead) { // tree ★: strike back from the shadows (melee dashes in after the sidestep)
+        this.floatText(HERO_X + 40, GROUND - 130, 'สวนจากเงา!', '#c9c9d6'); this.counterCount++
+        if (this.job.attack === 'melee') this.dashStrike(src)
+        else this.strike(src, BATTLE.counterMul, this.job.attack === 'magic')
+      }
       if (this.st.dodgeHeal > 0) this.heal(this.st.maxHp * this.st.dodgeHeal) // gear: dodging heals a little (Thief)
       if (this.st.arDodgeShield > 0 && this.shield < this.st.maxHp * this.st.arDodgeShield * 3) this.addShield(Math.min(this.st.maxHp * this.st.arDodgeShield, this.st.maxHp * this.st.arDodgeShield * 3 - this.shield)) // archer tree โล่ลม
       if (this.st.arDodgeRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arDodgeRes) // archer ★ ยิงถอย
@@ -1896,9 +1944,7 @@ export class BattleScene extends Phaser.Scene {
   private evadeJuice(label: string, color: string) {
     this.popWord(HERO_X, GROUND - 100, label, color, 22, 1.4)
     sfx.evade()
-    const ghost = this.add.image(this.heroSpr.x, this.heroSpr.y, this.heroSpr.texture.key).setOrigin(0.5, 1).setScale(this.heroSpr.scaleX, this.heroSpr.scaleY)
-      .setFlipX(this.heroSpr.flipX).setTintFill(0x9fe3ff).setAlpha(0.55).setDepth(this.heroSpr.depth - 1)
-    this.tweens.add({ targets: ghost, x: ghost.x + 26, alpha: 0, duration: 260, onComplete: () => ghost.destroy() })
+    this.afterimage(0x9fe3ff, 26)
     this.tweens.add({ targets: this.heroSpr, x: HERO_X - 34, duration: 90, yoyo: true, ease: 'Quad.easeOut', onComplete: () => { this.heroSpr.x = HERO_X } })
   }
 
