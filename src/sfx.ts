@@ -50,6 +50,10 @@ export const sfx = {
   swing: () => noise(0.08, 0.25, 2500),
   hit: () => { tone('square', 220, 90, 0.08, 0.3); noise(0.05, 0.3, 800) },
   crit: () => { tone('square', 440, 120, 0.12, 0.35); noise(0.09, 0.4, 600) },
+  critBoom: () => { tone('sine', 160, 45, 0.22, 0.5); tone('triangle', 1200, 600, 0.1, 0.18, 0.02) }, // low thump + glint under the crit hit
+  combo: (k: number) => { const f = 440 * Math.pow(2, (k - 2) * 4 / 12); tone('triangle', f, f * 1.5, 0.09, 0.28) }, // climbs a major third per hit
+  clang: () => { tone('square', 1480, 1320, 0.14, 0.2); tone('square', 2217, 1975, 0.12, 0.12); noise(0.06, 0.35, 3000) }, // metal on metal
+  evade: () => noise(0.16, 0.22, 4500),
   hurt: () => tone('sawtooth', 180, 60, 0.2, 0.4),
   dash: () => noise(0.12, 0.3, 3500),
   coin: () => { tone('triangle', 1320, 1320, 0.06, 0.25); tone('triangle', 1760, 1760, 0.08, 0.25, 0.05) },
