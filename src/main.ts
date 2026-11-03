@@ -6,6 +6,7 @@ import { TitleScene } from './scenes/TitleScene'
 import { CreateScene } from './scenes/CreateScene'
 import { HubScene } from './scenes/HubScene'
 import { CharacterScene } from './scenes/CharacterScene'
+import { ForgeScene } from './scenes/ForgeScene'
 import { ShopScene } from './scenes/ShopScene'
 import { GemShopScene } from './scenes/GemShopScene'
 import { BattleScene } from './scenes/BattleScene'
@@ -37,7 +38,7 @@ async function boot() {
     physics: { default: 'arcade', arcade: { debug: false } },
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     input: { activePointers: 3 },
-    scene: [BootScene, TitleScene, CreateScene, HubScene, CharacterScene, ShopScene, GemShopScene, JobScene, BattleScene, DungeonScene],
+    scene: [BootScene, TitleScene, CreateScene, HubScene, CharacterScene, ShopScene, ForgeScene, GemShopScene, JobScene, BattleScene, DungeonScene],
   })
   // handle for automated playtests
   ;(window as unknown as { __nth: Phaser.Game }).__nth = game

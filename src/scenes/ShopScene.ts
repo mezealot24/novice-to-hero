@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { COLORS, type Stats } from '../data/game-data'
 import { JOBS } from '../data/jobs'
-import { canWear, heroStats, itemStatLine, itemUnlocked, ITEMS, REQ_TEXT, SELL_RATE, slotCount, SLOTS, wearText, type Item, type Slot } from '../data/meta'
+import { canWear, gradeOf, heroStats, itemStatLine, itemUnlocked, ITEMS, REQ_TEXT, SELL_RATE, slotCount, SLOTS, wearText, type Item, type Slot } from '../data/meta'
 import { equip, isWorn, persist, save, unsocketAll } from '../save'
 import { sfx } from '../sfx'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
@@ -51,7 +51,7 @@ export class ShopScene extends Phaser.Scene {
       b.add(panel(this, x, y, cw, ch, open ? UI.panel : 0x1d2140, owned ? COLORS.gold : UI.line))
       b.add(txt(this, x + 14, y + 10, it.icon, 30).setAlpha(open ? 1 : 0.5))
       b.add(txt(this, x + 60, y + 10, it.name, 18, UI.text, true))
-      b.add(txt(this, x + 60, y + 36, owned ? (worn ? 'ใส่อยู่' : 'มีแล้ว') : `${it.price} zeny`, 14, owned ? UI.green : UI.gold, true))
+      b.add(txt(this, x + 60, y + 36, owned ? `${worn ? 'ใส่อยู่' : 'มีแล้ว'}${gradeOf(s, it.id) > 1 ? ` · ★${gradeOf(s, it.id)}` : ''}` : `${it.price} zeny`, 14, owned ? UI.green : UI.gold, true))
       b.add(txt(this, x + cw - 12, y + 38, wearText(it), 11, wear ? UI.sub : UI.red).setOrigin(1, 0))
       const line = txt(this, x + 14, y + 60, `${itemStatLine(it)}${slotCount(it) ? ` · 🃏 ช่องการ์ด ${slotCount(it)}` : ''}`, 13, '#9fe3a8', true).setWordWrapWidth(cw - 28)
       const desc = txt(this, x + 14, line.y + line.height + 3, it.desc, 12, UI.sub).setWordWrapWidth(cw - 28)
@@ -68,8 +68,8 @@ export class ShopScene extends Phaser.Scene {
         b.add(button(this, x + cw / 2 - 70, by, 120, 36, wear ? 'ใส่เลย' : 'อาชีพนี้ใส่ไม่ได้', () => { equip(s, it.id); persist(); this.render() }, { size: wear ? 15 : 12 }).setEnabled(wear))
         const sell = Math.floor(it.price * SELL_RATE)
         b.add(button(this, x + cw / 2 + 70, by, 120, 36, `ขาย +${sell}`, () =>
-          confirm(this, `ขาย ${it.name}?`, `ได้คืน ${sell} zeny (ครึ่งราคา)`, 'ขาย', () => {
-            unsocketAll(s, it.id); s.owned = s.owned.filter((id) => id !== it.id); s.zeny += sell; persist(); sfx.coin(); this.refreshWallet(); this.render()
+          confirm(this, `ขาย ${it.name}?`, `ได้คืน ${sell} zeny (ครึ่งราคา)${gradeOf(s, it.id) > 1 ? `\n⚠ ขั้น ★${gradeOf(s, it.id)} ที่อัปไว้จะหายด้วยนะคะ` : ''}`, 'ขาย', () => {
+            unsocketAll(s, it.id); if (s.grade) delete s.grade[it.id]; s.owned = s.owned.filter((id) => id !== it.id); s.zeny += sell; persist(); sfx.coin(); this.refreshWallet(); this.render()
           }), { size: 15, fill: 0x5a5f8a, color: UI.text }))
       }
     })

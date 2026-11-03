@@ -1,7 +1,8 @@
 import Phaser from 'phaser'
 import { COLORS, DUNGEONS, type Stats } from '../data/game-data'
 import { CARD_RULES, cardIcon, cardName, EQUIP_CARDS, TIER_COLOR, type EquipCard } from '../data/cards'
-import { BASE_STATS, canWear, cardFits, CERT_SLOTS_AT, EQUIP_SLOTS, offhandLocked, slotKind, type EquipSlot, COSTUMES, gearBase, heroStats, cardStatLine, itemStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText } from '../data/meta'
+import { gradeItem, gradeStars, gradeCap } from '../data/craft'
+import { BASE_STATS, canWear, gradeOf, cardFits, CERT_SLOTS_AT, EQUIP_SLOTS, offhandLocked, slotKind, type EquipSlot, COSTUMES, gearBase, heroStats, cardStatLine, itemStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText } from '../data/meta'
 import { canChangeJob, equip, persist, resetTree, save, socketCard, unsocketCard } from '../save'
 import { branchesOf, lockReason, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
 import { JOB_CHANGE, JOBS } from '../data/jobs'
@@ -93,16 +94,17 @@ export class CharacterScene extends Phaser.Scene {
     b.add(button(this, 638, 284, 200, 30, `👗 ${costume.name}`, () => { this.slot = 'costume'; this.bagPage = 0; this.render() }, { size: 13, fill: onC ? COLORS.gold : 0x5a5f8a, color: onC ? UI.ink : UI.text }))
     EQUIP_SLOTS.forEach((sl, i) => {
       const x = i < 3 ? 330 : 756, y = 112 + (i % 3) * 66, on = sl.id === this.slot
-      const it = itemById(s.equipped[sl.id]), n = slotCount(it), off = sl.id === 'offhand' && locked
+      const it = itemById(s.equipped[sl.id]), n = slotCount(it, gradeOf(s, it.id)), off = sl.id === 'offhand' && locked
       const g = this.add.graphics()
       g.fillStyle(on ? 0x34396a : UI.panel, 1).fillRoundedRect(x, y, 190, 60, 12)
       g.lineStyle(on ? 3 : 2, on ? COLORS.gold : UI.line).strokeRoundedRect(x, y, 190, 60, 12)
       b.add(g)
       b.add(txt(this, x + 10, y + 4, `${sl.icon} ${sl.name}`, 11, UI.sub))
       if (n) b.add(txt(this, x + 182, y + 4, `🃏${socketed(s, it).length}/${n}`, 11, UI.gold).setOrigin(1, 0))
+      if (gradeOf(s, it.id) > 1) b.add(txt(this, x + (n ? 140 : 182), y + 4, gradeStars(gradeOf(s, it.id), gradeCap(it)), 11, '#ffd36b').setOrigin(1, 0))
       b.add(txt(this, x + 10, y + 19, clip(`${it.icon} ${it.name}`, 15), 15, it.id.startsWith('none') ? UI.sub : UI.text, true))
       const warn = off ? '🔒 ถืออาวุธ 2 มือ (ไม่ได้ค่าพลัง)' : !canWear(it, s.job) ? `⚠ ${wearText(it)} เท่านั้น` : ''
-      b.add(txt(this, x + 10, y + 41, clip(warn || itemStatLine(it) || it.desc, 30), 10, warn ? UI.red : UI.green))
+      b.add(txt(this, x + 10, y + 41, clip(warn || itemStatLine(gradeItem(it, gradeOf(s, it.id))) || it.desc, 30), 10, warn ? UI.red : UI.green))
       const z = this.add.zone(x + 95, y + 30, 190, 60).setInteractive({ useHandCursor: true })
       z.on('pointerup', () => { this.slot = sl.id; this.bagPage = 0; this.render() })
       b.add(z)
@@ -118,7 +120,7 @@ export class CharacterScene extends Phaser.Scene {
         .map((it) => {
           // accessories: show when the item is already on the other side (wearing it here moves it over)
           const other = slot === 'acc' || slot === 'acc2' ? (s.equipped[slot === 'acc' ? 'acc2' : 'acc'] === it.id && it.id !== 'none' ? 'ใส่อีกข้าง' : '') : ''
-          return { id: it.id, label: `${it.icon} ${it.name}`, desc: canWear(it, s.job) ? itemStatLine(it) || it.desc : `⚠ ${wearText(it)} เท่านั้น`, worn: s.equipped[slot] === it.id, tint: 0, off: !canWear(it, s.job), other }
+          return { id: it.id, label: `${it.icon} ${it.name}${gradeOf(s, it.id) > 1 ? ` ★${gradeOf(s, it.id)}` : ''}`, desc: canWear(it, s.job) ? itemStatLine(gradeItem(it, gradeOf(s, it.id))) || it.desc : `⚠ ${wearText(it)} เท่านั้น`, worn: s.equipped[slot] === it.id, tint: 0, off: !canWear(it, s.job), other }
         })
     const per = 6, pages = Math.max(1, Math.ceil(list.length / per))
     this.bagPage = Math.min(this.bagPage, pages - 1)
@@ -148,7 +150,7 @@ export class CharacterScene extends Phaser.Scene {
     const s = save(), b = this.body!
     // worn gear + its card slots: tap a filled slot to take the card out (free)
     EQUIP_SLOTS.forEach((sl, i) => {
-      const it = itemById(s.equipped[sl.id]), n = slotCount(it), cards = socketed(s, it), y = 108 + i * 31
+      const it = itemById(s.equipped[sl.id]), n = slotCount(it, gradeOf(s, it.id)), cards = socketed(s, it), y = 108 + i * 31
       b.add(panel(this, 330, y, 616, 28, UI.panel, UI.line, 8))
       b.add(txt(this, 340, y + 6, sl.icon, 13))
       b.add(txt(this, 364, y + 6, clip(`${it.icon} ${it.name}`, 16), 13, canWear(it, s.job) ? UI.text : UI.red, true))
@@ -182,13 +184,13 @@ export class CharacterScene extends Phaser.Scene {
       const x = 330 + (i % 2) * 310, y = 326 + Math.floor(i / 2) * 70
       // first worn item this card fits that still has a free slot (armor cards also fit headgear + off-hand)
       const fits = EQUIP_SLOTS.map((q) => itemById(s.equipped[q.id])).filter((w) => cardFits(cd, w) && canWear(w, s.job))
-      const it = fits.find((w) => slotCount(w) > socketed(s, w).length) ?? fits[0] ?? itemById(s.equipped[cd.slot === 'acc' ? 'acc' : 'armor'])
-      const free = slotCount(it) - socketed(s, it).length
+      const it = fits.find((w) => slotCount(w, gradeOf(s, w.id)) > socketed(s, w).length) ?? fits[0] ?? itemById(s.equipped[cd.slot === 'acc' ? 'acc' : 'armor'])
+      const free = slotCount(it, gradeOf(s, it.id)) - socketed(s, it).length
       b.add(panel(this, x, y, 302, 64, UI.panel, Phaser.Display.Color.HexStringToColor(TIER_COLOR[cd.tier]).color, 10))
       b.add(txt(this, x + 10, y + 5, `${cardIcon(cd)} ${clip(cardName(cd), 20)} ×${bag[cd.id]}`, 14, TIER_COLOR[cd.tier], true))
       b.add(txt(this, x + 10, y + 25, `${SLOTS.find((q) => q.id === cd.slot)!.icon} ${clip(cardStatLine(cd), 70)}`, 10, UI.green).setWordWrapWidth(212).setLineSpacing(0))
       b.add(button(this, x + 262, y + 18, 70, 28, 'ใส่', () => {
-        if (!socketCard(s, it.id, cd.id, slotCount(it))) { toast(this, slotCount(it) ? 'ช่องเต็มแล้ว ถอดการ์ดเก่าก่อนนะคะ' : `${it.name} ไม่มีช่องการ์ดค่ะ`, UI.red); return }
+        if (!socketCard(s, it.id, cd.id, slotCount(it, gradeOf(s, it.id)))) { toast(this, slotCount(it, gradeOf(s, it.id)) ? 'ช่องเต็มแล้ว ถอดการ์ดเก่าก่อนนะคะ' : `${it.name} ไม่มีช่องการ์ดค่ะ`, UI.red); return }
         persist(); toast(this, `ใส่${cardName(cd)}ใน ${it.name} แล้ว!`); this.redraw()
       }, { size: 14 }).setEnabled(free > 0))
       const sell = CARD_RULES.sell[cd.tier]

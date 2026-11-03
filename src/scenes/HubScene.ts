@@ -77,21 +77,22 @@ export class HubScene extends Phaser.Scene {
     })
 
     // ---- menu grid (right bottom) ----
-    const gx = 428, gy = 326, bw = 250, bh = 104, gap = 8
+    const gx = 428, gy = 326, bw = 164, bh = 104, gap = 8
     const tile = (i: number, icon: string, label: string, sub: string, fill: number, onClick: () => void) => {
-      const x = gx + (i % 2) * (bw + gap) + bw / 2, y = gy + Math.floor(i / 2) * (bh + gap) + bh / 2
-      button(this, x, y, bw, bh, `${icon} ${label}\n`, onClick, { fill, color: UI.text, size: 22 })
-      txt(this, x, y + 22, sub, 14, '#d8d4f0').setOrigin(0.5)
+      const x = gx + (i % 3) * (bw + gap) + bw / 2, y = gy + Math.floor(i / 3) * (bh + gap) + bh / 2
+      button(this, x, y, bw, bh, `${icon} ${label}\n`, onClick, { fill, color: UI.text, size: 19 })
+      txt(this, x, y + 22, sub, 12, '#d8d4f0').setOrigin(0.5).setAlign('center').setWordWrapWidth(bw - 12)
     }
-    tile(0, '🛒', 'ร้านค้า', 'อาวุธ ชุดเกราะ เครื่องประดับ', 0x3d6e4c, () => go(this, 'shop'))
-    tile(1, '💎', 'ร้านเพชร', 'เติมเงิน · ชุดแต่งกาย', 0x2f6a8a, () => go(this, 'gemshop'))
-    tile(2, '🎁', 'เพชรฟรีรายวัน', s.lastDaily === today() ? 'รับแล้ววันนี้' : `+${FREE_GEMS.daily} รับได้เลย`, 0x6a4a8a, () => {
+    tile(0, '🛒', 'ร้านค้า', 'อาวุธ เกราะ ประดับ', 0x3d6e4c, () => go(this, 'shop'))
+    tile(1, '🔨', 'โรงตีเหล็ก', 'ตีของ · อัปขั้น', 0x8a5a2f, () => go(this, 'forge'))
+    tile(2, '💎', 'ร้านเพชร', 'เติมเงิน · ชุดแต่งกาย', 0x2f6a8a, () => go(this, 'gemshop'))
+    tile(3, '🎁', 'เพชรฟรีรายวัน', s.lastDaily === today() ? 'รับแล้ววันนี้' : `+${FREE_GEMS.daily} รับได้เลย`, 0x6a4a8a, () => {
       if (s.lastDaily === today()) { toast(this, 'วันนี้รับไปแล้ว พรุ่งนี้มาใหม่นะคะ', UI.sub); return }
       s.lastDaily = today(); s.gems += FREE_GEMS.daily; persist(); refreshWallet()
       toast(this, `ได้เพชรฟรี +${FREE_GEMS.daily}`, UI.gem)
       this.time.delayedCall(500, () => this.scene.restart())
     })
-    tile(3, '⚙️', 'ตั้งค่า', s.muted ? 'เสียง: ปิด' : 'เสียง: เปิด', 0x4a4e6e, () => this.settings())
+    tile(4, '⚙️', 'ตั้งค่า', s.muted ? 'เสียง: ปิด' : 'เสียง: เปิด', 0x4a4e6e, () => this.settings())
 
     if (data?.fresh) this.time.delayedCall(250, () => toast(this, `ยินดีต้อนรับ ${s.name}! ลองกด "ออกผจญภัย" ได้เลย`))
     if (s.webRefund) { // v27 skill web migration notice (once)
