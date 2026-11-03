@@ -39,8 +39,10 @@ for (const c of CLASS_TREES) {
       desc: (lv) => `${label} แรง +${Math.round(lv * TREE_RULES.powPer * 100)}%`, mod: (lv) => (line === 's1' ? { s1Pow: TREE_RULES.powPer * lv } : { ultPow: TREE_RULES.powPer * lv }) })
   }
   webBranches.push({ id: `${job}_s2`, job, name: 'ทักษะ 2', icon: '🔀', blurb: 'เลือก 1 จาก 3', line: 's2' })
+  const gate = c.s2Gate
+  if (gate) webNodes.push({ ...gate, branch: `${job}_s2` })
   for (const k of skill2Of(job)) {
-    webNodes.push({ id: `${k.id}`, branch: `${job}_s2`, tier: 0, icon: k.icon, name: k.name, max: 1, kind: 's2root', s2: k.id,
+    webNodes.push({ id: `${k.id}`, branch: `${job}_s2`, tier: 0, icon: k.icon, name: k.name, max: 1, kind: 's2root', s2: k.id, ...(gate ? { parent: gate.id, parentLv: gate.max } : {}),
       desc: () => `${k.desc} · ${RESOURCE_NAME[J.resource ?? 'mana']} ${k.cost} · คูลดาวน์ ${k.cd} เทิร์น · ร่ายเองอัตโนมัติ`, mod: () => ({}) })
     webNodes.push({ id: `${k.id}_p`, branch: `${job}_s2`, tier: 1, icon: k.plus.icon, name: k.plus.name, max: TREE_RULES.s2PlusMax, kind: 's2plus', s2: k.id, parent: k.id,
       desc: k.plus.desc, mod: (lv) => ({ s2Lv: lv }) })
@@ -77,6 +79,7 @@ export function lockReason(t: TreeSave, job: JobId, node: TreeNode): string {
   const lv = t[node.id] ?? 0
   if (lv >= node.max) return 'เต็มแล้ว'
   if (node.parent && !(t[node.parent] ?? 0)) return `ลง "${nodeById(node.parent)?.name ?? ''}" ก่อน`
+  if (node.parent && node.parentLv && (t[node.parent] ?? 0) < node.parentLv) return `ลง "${nodeById(node.parent)?.name ?? ''}" ให้เต็ม ${node.parentLv} ก่อน`
   if (node.kind === 's2root') {
     const other = skill2Picked(t, job)
     if (other && other.id !== node.s2) return `เลือก "${other.name}" ไปแล้ว (รีเซ็ตเพื่อเปลี่ยน)`

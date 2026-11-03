@@ -10,6 +10,7 @@ export interface TreeNode {
   id: string; branch: string; tier: 0 | 1 | 2 | 3 | 4; name: string; icon: string; max: number
   desc: (lv: number) => string; mod: (lv: number) => Partial<Stats>
   parent?: string // skill web: needs >= 1 point in this node first (filled in by data/tree.ts)
+  parentLv?: number // ...or at least this many (Thief: ทักษะ 2 roots need D.Strike 5/5)
   kind?: 'pow' | 's2root' | 's2plus' | 's2star' // generated web nodes (data/tree.ts); undefined = class tree node
   s2?: string // Skill 2 id for the s2* kinds
 }
@@ -22,7 +23,7 @@ export interface TalentDef {
   desc: (rank: number) => string; mod: (rank: number) => Partial<Stats>
 }
 /** One class's content, in data/trees/<job>.ts. */
-export interface ClassTree { branches: TreeBranch[]; nodes: TreeNode[]; talents: TalentDef[] }
+export interface ClassTree { branches: TreeBranch[]; nodes: TreeNode[]; talents: TalentDef[]; s2Gate?: TreeNode } // s2Gate: node every ทักษะ 2 root hangs under (max it first)
 
 export const talent = (id: string, row: TalentDef['row'], icon: string, name: string, max: TalentDef['max'], desc: (rank: number) => string, mod: (rank: number) => Partial<Stats>): TalentDef =>
   ({ id, row, icon, name, max, desc, mod })

@@ -506,6 +506,7 @@ export class BattleScene extends Phaser.Scene {
     if (m.chill > 0 && this.st.brittle > 0) mul *= 1 + this.st.brittle // tree: ice "เปราะ"
     if (this.ultFiring && m.charging && this.st.arUltBreak > 0) mul *= 1 + this.st.arUltBreak // archer tree/talent: ult vs a charging boss
     if (this.st.arLowHpBonus > 0 && m.hp < m.def.hp * 0.5) mul *= 1 + this.st.arLowHpBonus // archer talent เก็บตัวเปราะ r2
+    if (crit && this.st.thExecute > 0 && m.hp < m.def.hp * 0.3) mul *= 1.5 // Thief ★ เพชฌฆาต
     if (crit && this.st.arCritRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arCritRes) // archer talent ลมหายใจนักล่า
     const r = this.roll(mul, magic, crit)
     if (!magic && !crit) r.dmg = m.def.def ? Math.max(1, Math.round(afterDef(r.dmg, m.def.def * (1 - Math.min(1, pierce))))) : r.dmg
@@ -513,7 +514,7 @@ export class BattleScene extends Phaser.Scene {
     if (!magic && this.st.poison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.poison); m.poisonDmg = this.st.poisonDmg; this.dotIcon(m) }
     if (this.relic === 'hellfire' && !m.dead) { m.hell++; this.dotIcon(m) }
     const ls = this.st.lifesteal + (this.buf.blood > 0 ? 0.15 + 0.05 * this.st.s2Lv : 0) // Skill 2 เลือดเดือด
-    if (ls > 0) this.heal(r.dmg * ls * (this.berserking() ? 2 : 1), true)
+    if (ls > 0) this.heal(r.dmg * ls * (this.berserking() ? 2 : 1) * (this.st.bloodKing > 0 && this.hp < this.st.maxHp * 0.4 ? 2 : 1), true) // Thief ★ ราชันย์โลหิต
     if (r.crit) sfx.crit(); else sfx.hit()
     this.gainRage(RES_RULES.rageOnHit)
     return r.dmg
@@ -998,6 +999,7 @@ export class BattleScene extends Phaser.Scene {
 
   private killMon(m: Mon) {
     m.dead = true
+    if (this.st.killHeal > 0 && this.hp > 0) this.heal(this.st.maxHp * this.st.killHeal) // Thief กระหายเลือด
     if (this.st.lockOn > 0 && this.lockTarget === m && this.dodgeCharges < 1) { this.dodgeCharges = 1; this.floatText(HERO_X, GROUND - 100, '💨 ถอยตั้งหลัก', '#c9c9d6') } // archer ★ ล็อกเป้า: kill the locked target -> 1 sure dodge
     const others = this.alive()
     if (this.st.fireSpread > 0 && m.burnStacks > 0) for (const o of others) { o.burnStacks = Math.min(this.burnMax(), o.burnStacks + Math.ceil(m.burnStacks / 2)); o.burnStackTurns = 3; this.dotIcon(o) } // tree
@@ -1041,7 +1043,7 @@ export class BattleScene extends Phaser.Scene {
     if ((m.marked ?? 0) > 0) m.marked!--
     // damage over time first
     if (m.burnTurns > 0) { m.burnTurns--; this.damageMon(m, m.burn, false, '#ff8c42', true); if (!m.burnTurns) this.dotIcon(m) }
-    if (!m.dead && m.poison > 0) this.damageMon(m, m.poison * m.poisonDmg, false, '#a77be0', true)
+    if (!m.dead && m.poison > 0) { this.damageMon(m, m.poison * m.poisonDmg, false, '#a77be0', true); if (this.st.poisonLeech > 0) this.heal(m.poison * m.poisonDmg * this.st.poisonLeech, true) } // Thief เลือดพิษ
     if (!m.dead && m.burnStackTurns > 0) {
       m.burnStackTurns--
       this.damageMon(m, Math.round(m.burnStacks * this.st.matk * (0.12 + this.st.burnTick)), false, '#ff8c42', true)

@@ -328,12 +328,13 @@ export class CharacterScene extends Phaser.Scene {
     }
     lineCols('s1', `${job.auto.icon} ทักษะ 1`)
     { const from = cols.length
-      const s2 = nodesOf(`${s.job}_s2`)
-      for (const r of s2.filter((n) => n.kind === 's2root')) cols.push({ group: 's2', cells: s2.filter((n) => n.s2 === r.s2).map((n) => ({ n, row: n.tier })) })
-      groups.push({ name: '🔀 ทักษะ 2 (เลือก 1)', from, to: cols.length - 1 }) }
+      const s2 = nodesOf(`${s.job}_s2`), gate = s2.find((n) => !n.kind), dy = gate ? 1 : 0 // Thief: D.Strike sits above the 3 roots
+      for (const r of s2.filter((n) => n.kind === 's2root')) cols.push({ group: 's2', cells: s2.filter((n) => n.s2 === r.s2).map((n) => ({ n, row: n.tier + dy })) })
+      if (gate) cols[from + 1].cells.unshift({ n: gate, row: 0 })
+      groups.push({ name: gate ? `${gate.icon} ${gate.name} → ทักษะ 2 (เลือก 1)` : '🔀 ทักษะ 2 (เลือก 1)', from, to: cols.length - 1 }) }
     lineCols('ult', `${job.ult.icon} Ult`)
     const core = brs.filter((x) => x.line === 'core')
-    if (core.length) { const from = cols.length; for (const br of core) cols.push({ group: 'core', cells: nodesOf(br.id).map((n, i) => ({ n, row: i })) }); groups.push({ name: `${core[0].icon} ${core[0].name}`, from, to: cols.length - 1 }) }
+    for (const br of core) { cols.push({ group: 'core', cells: nodesOf(br.id).map((n, i) => ({ n, row: i })) }); groups.push({ name: `${br.icon} ${br.name}`, from: cols.length - 1, to: cols.length - 1 }) } // one header per core column
 
     const gap = 6, x0 = 330, wAll = 620
     const cw = Math.min(118, (wAll - gap * (cols.length - 1)) / cols.length), nw = cw, nh = 50, top = 176, rh = 62

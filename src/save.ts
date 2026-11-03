@@ -82,6 +82,7 @@ export function load(): SaveData | null {
     if (s.stats.wis === undefined) s.stats.wis = STAT_RULES.start // saves from before WIS existed
     if (!s.job) { s.job = 'novice'; s.jobSkills = { auto: 1, ult: 1 } }
     if (!s.web) migrateToWeb(s)
+    migrateThiefWeb(s)
     migrateGear(s)
     cache = s
     return s
@@ -133,6 +134,15 @@ export function persist() {
   try { localStorage.setItem(KEY, JSON.stringify(cache)) } catch { /* storage blocked: keep playing in memory */ }
 }
 
+/** v37 Thief rework (Q 2026-11-03): D.Strike max 10 -> 5 and gates ทักษะ 2. Refund the extra D.Strike points, and the ทักษะ 2 points of a save that took one before D.Strike was full. */
+function migrateThiefWeb(s: SaveData) {
+  const t = s.jobTree
+  if (s.job !== 'thief' || !t) return
+  let back = 0
+  if ((t.thief_core1 ?? 0) > 5) { back += t.thief_core1 - 5; t.thief_core1 = 5 }
+  if ((t.thief_core1 ?? 0) < 5) for (const id of Object.keys(t)) if (/^th_(smoke|pick|wound)/.test(id) && t[id] > 0) { back += t[id]; delete t[id] }
+  s.skillPoints += back
+}
 /** v27 skill web: class skill levels and the old tree become web nodes with new rules, so refund every point once. */
 function migrateToWeb(s: SaveData) {
   const back = s.job === 'novice' ? 0 : Math.max(0, (s.jobSkills?.auto ?? 1) - 1) + Math.max(0, (s.jobSkills?.ult ?? 1) - 1) + resetTree(s)
