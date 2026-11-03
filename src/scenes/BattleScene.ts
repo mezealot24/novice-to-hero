@@ -379,6 +379,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.job.id !== 'cleric') return
     if (this.ultRegenTurns > 0) { this.ultRegenTurns--; this.heal(this.st.maxHp * this.st.ultRegen) } // cleric talent: พรยืนยาว
     this.spearAcc += this.st.spearRate
+    if (Math.random() < this.st.spearLuck) { this.spears++; this.floatText(HERO_X + 30, GROUND - 170, '🍀 หอกแสง!', '#f6e27a') } // v37 Q: LUK calls light spears
     while (this.spearAcc >= 1) { this.spearAcc--; this.spears++ }
     await this.fireSpears()
   }
@@ -595,7 +596,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.res < k.cost) return
     if (this.smashQueued && this.smashCdLeft <= 0 && this.res - k.cost < this.ultCost()) return // keep Mana for the booked ult
     if (k.id === 'mg_mshield' && B.mshield > 0) return
-    if (k.id === 'cl_renew' && (B.renew > 0 || this.hp >= this.st.maxHp * 0.9)) return
+    if (k.id === 'cl_renew' && (B.renew > 0 || this.hp >= this.st.maxHp)) return
     if (k.id === 'sw_guard' && B.guard > 0) return
     this.res -= k.cost
     this.s2Cd = Math.max(1, k.cd - (k.id === 'cl_bless' && this.st.s2Star ? 1 : 0))
