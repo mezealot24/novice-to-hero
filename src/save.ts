@@ -15,8 +15,10 @@ export interface SaveData {
   skillPoints: number
   skills: Record<SkillId, number>
   job: JobId
-  jobSkills: { auto: number; ult: number }
-  jobTree?: Record<string, number> // skill tree node -> level (data/tree.ts), current job only
+  jobSkills: { auto: number; ult: number } // retired in skill web v1 (always 1/1): power now comes from the web's +power nodes
+  jobTree?: Record<string, number> // skill web node -> level (data/tree.ts, design/skill-web-v1.md), current job only
+  web?: 1 // save migrated to the skill web (v27)
+  webRefund?: number // skill points refunded by that migration, shown once in town
   jobTalents?: Record<string, { id: string; rank: number }> // talent row "1".."4" -> pick + rank; Talent Points are derived from Job Lv (data/tree.ts)
   stats: Record<BaseStat, number>
   zeny: number
@@ -44,7 +46,7 @@ let cache: SaveData | null = null
 export function newSave(name: string, race: RaceId): SaveData {
   const s = STAT_RULES.start
   return {
-    v: 1, name, race, baseLevel: 1, baseXp: 0, statPoints: 3,
+    v: 1, web: 1, name, race, baseLevel: 1, baseXp: 0, statPoints: 3,
     jobLevel: 1, jobXp: 0, skillPoints: 0, skills: { smash: 1, firstaid: 0, tough: 0 }, job: 'novice', jobSkills: { auto: 1, ult: 1 },
     stats: { str: s, vit: s, wis: s, dex: s, int: s, luk: s, agi: s },
     zeny: 100, gems: 0,
@@ -68,6 +70,7 @@ export function load(): SaveData | null {
     if (s.v !== 1 || !RACES[s.race]) return null
     if (s.stats.wis === undefined) s.stats.wis = STAT_RULES.start // saves from before WIS existed
     if (!s.job) { s.job = 'novice'; s.jobSkills = { auto: 1, ult: 1 } }
+    if (!s.web) migrateToWeb(s)
     cache = s
     return s
   } catch { return null }
@@ -84,6 +87,16 @@ export function setSave(s: SaveData) { cache = s; persist() }
 export function persist() {
   if (!cache) return
   try { localStorage.setItem(KEY, JSON.stringify(cache)) } catch { /* storage blocked: keep playing in memory */ }
+}
+
+/** v27 skill web: class skill levels and the old tree become web nodes with new rules, so refund every point once. */
+function migrateToWeb(s: SaveData) {
+  const back = s.job === 'novice' ? 0 : Math.max(0, (s.jobSkills?.auto ?? 1) - 1) + Math.max(0, (s.jobSkills?.ult ?? 1) - 1) + resetTree(s)
+  s.skillPoints += back
+  if (back > 0) s.webRefund = back
+  s.jobSkills = { auto: 1, ult: 1 }
+  s.web = 1
+  try { localStorage.setItem(KEY, JSON.stringify(s)) } catch { /* ignore */ }
 }
 
 export function wipe() {
@@ -120,11 +133,10 @@ export const today = () => new Date().toISOString().slice(0, 10)
 
 export const canChangeJob = (s: SaveData) => s.job === 'novice' && s.clears >= JOB_CHANGE.needClears
 
-/** Become a base class. Job Lv restarts at 1; class skills start at Lv 1. Novice skill points carry over. */
+/** Become a base class. Job Lv restarts at 1; the skill web starts empty. Novice skill points carry over. */
 export function changeJob(job: JobId) {
   const s = save()
-  if (s.job !== 'novice') s.skillPoints += s.jobSkills.auto - 1 + s.jobSkills.ult - 1 // refund class skills on a re-pick
-  s.skillPoints += resetTree(s)
+  s.skillPoints += resetTree(s) // the skill web holds every class point (refund on a re-pick)
   s.jobTalents = {}
   s.job = job
   s.jobLevel = 1; s.jobXp = 0

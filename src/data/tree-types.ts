@@ -3,10 +3,15 @@
 import type { Stats } from './game-data'
 import type { JobId } from './jobs'
 
-export interface TreeBranch { id: string; job: JobId; name: string; icon: string; blurb: string }
+export type WebLine = 's1' | 's2' | 'ult' | 'core'
+/** line: which column group of the skill web the branch sits in (set by data/tree.ts for class branches). */
+export interface TreeBranch { id: string; job: JobId; name: string; icon: string; blurb: string; line?: WebLine }
 export interface TreeNode {
   id: string; branch: string; tier: 0 | 1 | 2 | 3 | 4; name: string; icon: string; max: number
   desc: (lv: number) => string; mod: (lv: number) => Partial<Stats>
+  parent?: string // skill web: needs >= 1 point in this node first (filled in by data/tree.ts)
+  kind?: 'pow' | 's2root' | 's2plus' | 's2star' // generated web nodes (data/tree.ts); undefined = class tree node
+  s2?: string // Skill 2 id for the s2* kinds
 }
 
 /** Talent: 4 rows that open at Job Lv 5/10/20/30 (TALENT_RULES.rowsAt); pick 1 of the row's 3 options.
