@@ -503,14 +503,21 @@ export class BattleScene extends Phaser.Scene {
 
   /** Basic attack, then AGI combo: each success chains one more (up to BATTLE.comboMax). */
   private async basicAttack() {
+    this.comboSum = { on: true, per: new Map() } // RO-style: each hit shows its own white number, the chain total pops big + yellow at the end
     await this.basicOnce()
+    let hits = 1
     for (let n = 0; n < BATTLE.comboMax && this.alive().length && Math.random() < this.st.combo; n++) {
       this.comboCount++
       this.comboLevel = n + 2
-      this.comboPop(n + 2)
+      sfx.combo(n + 2)
       await this.basicOnce()
+      hits++
     }
     this.comboLevel = 0
+    this.comboSum.on = false
+    let best: { dmg: number, x: number, y: number } | undefined // total for the monster that took the most (cleave splash shows only its own numbers)
+    for (const v of this.comboSum.per.values()) if (!best || v.dmg > best.dmg) best = v
+    if (hits >= 2 && best) this.comboTotal(best.x, best.y, best.dmg, hits)
   }
 
   private async basicOnce() {
@@ -798,6 +805,7 @@ export class BattleScene extends Phaser.Scene {
       if (m.chargeDmg >= m.def.hp * m.def.breakPct) this.breakCharge(m)
     }
     this.damageNumber(m.spr.x, m.spr.y - m.spr.displayHeight, dmg, crit, color)
+    if (this.comboSum.on && !dot) { const e = this.comboSum.per.get(m) ?? { dmg: 0, x: 0, y: 0 }; e.dmg += dmg; e.x = m.spr.x; e.y = m.spr.y - m.spr.displayHeight; this.comboSum.per.set(m, e) }
     if (crit && !dot) this.critJuice(m)
     else if (this.comboLevel >= 2 && !dot) { this.hitStop(20 + 12 * this.comboLevel); this.shake(60, 0.002 + 0.0015 * this.comboLevel) }
     m.spr.setTintFill(0xffffff)
@@ -1754,11 +1762,15 @@ export class BattleScene extends Phaser.Scene {
 
   private heroTint() { this.heroSpr.setTint((COSTUMES.find((c) => c.id === save().costume) ?? COSTUMES[0]).tint) }
 
-  /** Combo: the label grows and the pitch climbs with each extra hit. */
-  private comboPop(k: number) {
-    const col = k >= 4 ? '#f2b84b' : k === 3 ? '#9fe3ff' : '#7fd7ff'
-    this.popWord(HERO_X + 10, GROUND - 130 - (k - 2) * 8, `${k} HIT!`, col, 20 + (k - 2) * 6)
-    sfx.combo(k)
+  private comboSum = { on: false, per: new Map<Mon, { dmg: number, x: number, y: number }>() }
+
+  /** RO double-attack style: after a combo chain, the summed damage pops big and yellow above the last target and hangs ~1.3 s. */
+  private comboTotal(x: number, y: number, total: number, hits: number) {
+    const ty = y - 62
+    const tag = this.add.text(x, ty - 30, `${hits} HIT`, { fontFamily: FONT_NUM, fontSize: '16px', color: '#ffe9a8', stroke: '#14172b', strokeThickness: 5 }).setOrigin(0.5).setDepth(10001)
+    const t = this.add.text(x, ty, `${total}`, { fontFamily: FONT_NUM, fontSize: `${36 + Math.min(3, hits - 2) * 6}px`, color: '#ffd34d', stroke: '#14172b', strokeThickness: 7 }).setOrigin(0.5).setDepth(10001).setScale(1.9)
+    this.tweens.add({ targets: t, scale: 1, duration: 260, ease: 'Back.easeOut' })
+    this.tweens.add({ targets: [t, tag], y: '-=18', alpha: 0, delay: 1300, duration: 400, onComplete: () => { t.destroy(); tag.destroy() } })
   }
 
   /** Counter: clang + spark, hero flashes white, short freeze, then the strike back. */
