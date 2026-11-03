@@ -36,6 +36,14 @@ if (D >= 4) { // Dungeon 4-5 profiles: Lv 15 (45 points) / Lv 20 (60 points) + d
   if (process.env.S2) { t[process.env.S2] = 1; t[process.env.S2 + '_p'] = +(process.env.PL ?? 0); if (process.env.STAR) { t[process.env.S2 + '_p'] = 3; t[process.env.S2 + '_x'] = 1 } }
   Object.assign(save, { web: 1, jobTree: t, jobSkills: { auto: 1, ult: 1 } })
 }
+// EXTRA=1: also wear headgear + off-hand for the class and a second accessory (equipment screen v1)
+if (process.env.EXTRA) {
+  const hi = D >= 2
+  const [h, o] = { swordsman: ['h_helm', hi ? 'o_tower' : 'o_ironshield'], archer: ['h_ranger', hi ? 'o_windquiver' : 'o_quiver'], mage: ['h_witch', hi ? 'o_starorb' : 'o_orb'], cleric: ['h_halo', 'o_holyshield'], thief: ['h_hood', hi ? 'o_scorpion' : 'o_maingauche'] }[job]
+  const a2 = hi ? 'fang' : 'clover'
+  save.owned = [...save.owned, h, o, a2]
+  save.equipped = { ...save.equipped, head: h, offhand: o, acc2: a2 }
+}
 ;(async () => {
   const b = await chromium.launch()
   const p = await b.newPage()
