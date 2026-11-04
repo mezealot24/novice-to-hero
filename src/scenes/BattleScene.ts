@@ -113,6 +113,8 @@ export class BattleScene extends Phaser.Scene {
   hardGap = 0
   /** Bot / test hook: the open choice (event or card) picks option i. */
   pendingPick?: (i: number) => void
+  /** Bot / debug: what the open level-up offer holds (PICK=smart in tools/bot.cjs). */
+  pendingOffers?: { id: string; legend: boolean; up: boolean; own: boolean; general: boolean }[]
   eventLog: string[] = []
   /** Playtest counters (bots read these). */
   counterCount = 0
@@ -1659,6 +1661,7 @@ export class BattleScene extends Phaser.Scene {
         if (!c.active) return
         keys.forEach((k) => this.input.keyboard!.removeAllListeners(k))
         this.pendingPick = undefined
+        this.pendingOffers = undefined
         c.destroy()
         this.time.paused = false
         this.takePerk(p)
@@ -1686,6 +1689,7 @@ export class BattleScene extends Phaser.Scene {
         this.input.keyboard!.once(k, () => pick(p))
       })
       this.pendingPick = (i) => pick(offers[Math.min(i, offers.length - 1)])
+      this.pendingOffers = offers.map((p) => ({ id: p.id, legend: p.rarity === 'legend', up: lv(p.id) > 0, own: own.includes(p.line), general: p.line === 'common' }))
     })
   }
 

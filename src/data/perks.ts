@@ -76,7 +76,7 @@ export const LINES: Record<Line, { name: string; icon: string; color: string }> 
 export const JOB_LINES: Record<JobId, Line[]> = {
   novice: ['weapon', 'guard', 'life', 'fire', 'venom', 'focus'],
   swordsman: ['guard', 'life', 'weapon', 'focus'],
-  archer: ['weapon', 'focus', 'storm'],
+  archer: ['weapon', 'focus', 'guard'], // พร v2 tuning: ⚡ is magic (70/30), so it is no longer an Archer line
   mage: ['fire', 'storm', 'ice', 'focus'],
   cleric: ['holy', 'guard', 'life'],
   thief: ['venom', 'weapon', 'life'],
@@ -120,7 +120,7 @@ export const PERKS_V2: PerkDef[] = [
   // ---------- ☠️ venom ----------
   c('ven_coat', 'venom', '🧪', 'เคลือบพิษ', ['ทุกฮิตกายภาพติดพิษ 1 stack', 'ทุกฮิตกายภาพติดพิษ 2 stack'], { mod: [{ poison: 1 }, { poison: 2 }] }),
   c('ven_strong', 'venom', '☠️', 'พิษเข้มข้น', ['พิษแรง +2 ต่อ stack', 'พิษแรง +4 ต่อ stack'], { mod: [{ poisonDmg: 2 }, { poisonDmg: 4 }] }),
-  c('ven_brew', 'venom', '⚗️', 'นักปรุงยา', ['ตีศัตรูที่ติดพิษแรงขึ้น +15%', 'ตีศัตรูที่ติดพิษแรงขึ้น +25%'], { pk: [{ vsPoison: 0.15 }, { vsPoison: 0.25 }] }),
+  c('ven_brew', 'venom', '⚗️', 'นักปรุงยา', ['ตีศัตรูที่ติดพิษแรงขึ้น +20%', 'ตีศัตรูที่ติดพิษแรงขึ้น +35%'], { pk: [{ vsPoison: 0.2 }, { vsPoison: 0.35 }] }),
   c('ven_ult', 'venom', '💀', 'ท่าไม้ตายพิษ', ['ใช้{ult}แล้ว ศัตรูทุกตัวติดพิษ 3 stack', 'ใช้{ult}แล้ว ศัตรูทุกตัวติดพิษ 5 stack'], { proc: { on: 'ult', fx: 'poison', count: [3, 5] } }),
   c('ven_thorn', 'venom', '🌵', 'หนามพิษ', ['โดนตีแล้ว คนตีติดพิษ 2 stack', 'โดนตีแล้ว คนตีติดพิษ 3 stack'], { proc: { on: 'hurt', fx: 'poison', count: [2, 3] } }),
   // ---------- 🛡️ guard ----------
@@ -128,8 +128,8 @@ export const PERKS_V2: PerkDef[] = [
   c('grd_ult', 'guard', '🛡️', 'โล่ท่าไม้ตาย', ['ใช้{ult}แล้วได้โล่ 10% HP', 'ใช้{ult}แล้วได้โล่ 15% HP'], { proc: { on: 'ult', fx: 'shield', amt: [0.1, 0.15] } }),
   c('grd_basic', 'guard', '🔰', 'โล่ตีธรรมดา', ['ตีธรรมดา 15% ได้โล่ 4% HP', 'ตีธรรมดา 25% ได้โล่ 4% HP'], { proc: { on: 'basic', fx: 'shield', chance: [0.15, 0.25], amt: [0.04, 0.04] } }),
   c('grd_low', 'guard', '🆘', 'โล่คับขัน', ['HP ต่ำกว่า 30% ครั้งแรกในไฟต์ ได้โล่ 25% HP', 'HP ต่ำกว่า 30% ได้โล่ 35% HP'], { proc: { on: 'lowHp', fx: 'shield', amt: [0.25, 0.35] } }),
-  c('grd_tough', 'guard', '🪨', 'แกร่ง', ['รับดาเมจน้อยลง 10%', 'รับดาเมจน้อยลง 15%'], { mod: [{ guard: 0.1 }, { guard: 0.15 }] }),
-  c('grd_hp', 'guard', '🐘', 'หนังหนา', ['HP สูงสุด +50', 'HP สูงสุด +90'], { mod: [{ maxHp: 50 }, { maxHp: 90 }] }),
+  c('grd_tough', 'guard', '🪨', 'แกร่ง', ['รับดาเมจน้อยลง 12%', 'รับดาเมจน้อยลง 20%'], { mod: [{ guard: 0.12 }, { guard: 0.2 }] }),
+  c('grd_hp', 'guard', '🐘', 'หนังหนา', ['HP สูงสุด +60', 'HP สูงสุด +110'], { mod: [{ maxHp: 60 }, { maxHp: 110 }] }),
   // ---------- 💚 life ----------
   c('lif_breath', 'life', '🍃', 'ลมหายใจ', ['ฟื้น HP 1.5% ทุกเทิร์น', 'ฟื้น HP 2.5% ทุกเทิร์น'], { mod: [{ regen: 1 }, { regen: 5 / 3 }] }),
   c('lif_hits', 'life', '💗', 'ฮิตฟื้นกาย', ['ทุก 4 ฮิต ฟื้น HP 3%', 'ทุก 3 ฮิต ฟื้น HP 4%'], { proc: { on: 'hits', fx: 'heal', every: [4, 3], amt: [0.03, 0.04] } }),
@@ -138,16 +138,16 @@ export const PERKS_V2: PerkDef[] = [
   c('lif_reap', 'life', '🌾', 'เก็บเกี่ยว', ['ล้มศัตรูแล้วฟื้น HP 3%', 'ล้มศัตรูแล้วฟื้น HP 5%'], { proc: { on: 'kill', fx: 'heal', amt: [0.03, 0.05] } }),
   c('lif_steal', 'life', '🩸', 'ดูดเลือด', ['ตีปกติ+คอมโบ ดูดเลือด 6% ของดาเมจ', 'ดูดเลือด 10% (เพดาน 40%)'], { mod: [{ lifesteal: 0.06 }, { lifesteal: 0.1 }] }),
   // ---------- ⚔️ weapon ----------
-  c('wpn_eye', 'weapon', '🎯', 'ตาเหยี่ยว', ['โอกาสคริ +12%', 'โอกาสคริ +20%'], { mod: [{ crit: 0.12 }, { crit: 0.2 }] }),
-  c('wpn_vital', 'weapon', '💥', 'จุดตาย', ['ดาเมจคริ +40%', 'ดาเมจคริ +70%'], { mod: [{ critMul: 0.4 }, { critMul: 0.7 }] }),
-  c('wpn_flurry', 'weapon', '🌀', 'ฟันรัว', ['โอกาสคอมโบ +10%', 'โอกาสคอมโบ +15% (เพดาน 50%)'], { mod: [{ combo: 0.1 }, { combo: 0.15 }] }),
-  c('wpn_ctr', 'weapon', '🤺', 'ท่าสวน', ['โอกาสสวนกลับ +12%', 'โอกาสสวนกลับ +18%'], { mod: [{ counter: 0.12 }, { counter: 0.18 }] }),
-  c('wpn_heavy', 'weapon', '🔨', 'สวนหนัก', ['ดาเมจสวนกลับ +25%', 'ดาเมจสวนกลับ +45%'], { pk: [{ counterDmg: 0.25 }, { counterDmg: 0.45 }] }),
+  c('wpn_eye', 'weapon', '🎯', 'ตาเหยี่ยว', ['โอกาสคริ +15%', 'โอกาสคริ +25%'], { mod: [{ crit: 0.15 }, { crit: 0.25 }] }),
+  c('wpn_vital', 'weapon', '💥', 'จุดตาย', ['ดาเมจคริ +60%', 'ดาเมจคริ +100%'], { mod: [{ critMul: 0.6 }, { critMul: 1 }] }),
+  c('wpn_flurry', 'weapon', '🌀', 'ฟันรัว', ['โอกาสคอมโบ +12%', 'โอกาสคอมโบ +20% (เพดาน 50%)'], { mod: [{ combo: 0.12 }, { combo: 0.2 }] }),
+  c('wpn_ctr', 'weapon', '🤺', 'ท่าสวน', ['โอกาสสวนกลับ +15%', 'โอกาสสวนกลับ +24%'], { mod: [{ counter: 0.15 }, { counter: 0.24 }] }),
+  c('wpn_heavy', 'weapon', '🔨', 'สวนหนัก', ['ดาเมจสวนกลับ +30%', 'ดาเมจสวนกลับ +50%'], { pk: [{ counterDmg: 0.3 }, { counterDmg: 0.5 }] }),
   c('wpn_drill', 'weapon', '🗡️', 'ฝึกตี', ['ตีปกติ (และคอมโบ) แรง +20%', 'ตีปกติแรง +35%'], { pk: [{ basicDmg: 0.2 }, { basicDmg: 0.35 }] }),
-  c('wpn_quick', 'weapon', '💨', 'มือไว', ['ความเร็วเทิร์น +12%', 'ความเร็วเทิร์น +20%'], { mod: [{ aspd: 0.192 }, { aspd: 0.32 }] }),
+  c('wpn_quick', 'weapon', '💨', 'มือไว', ['ความเร็วเทิร์น +20%', 'ความเร็วเทิร์น +32%'], { mod: [{ aspd: 0.32 }, { aspd: 0.512 }] }),
   // ---------- 💢 focus ----------
-  c('foc_calm', 'focus', '🧘', 'สมาธินิ่ง', ['{ult} คูลดาวน์ −1 เทิร์น', ''], { max: 1, mod: [{ smashCd: -1500 }, { smashCd: -1500 }] }),
-  c('foc_bone', 'focus', '🦴', 'บดกระดูก', ['ดาเมจ{ult} +40%', 'ดาเมจ{ult} +70%'], { mod: [{ ultAmp: 0.4, smashMul: 1.2 }, { ultAmp: 0.7, smashMul: 2.1 }] }),
+  c('foc_calm', 'focus', '🧘', 'สมาธินิ่ง', ['{ult} คูลดาวน์ −1 เทิร์น · Flee +8', ''], { max: 1, mod: [{ smashCd: -1500, flee: 8 }, { smashCd: -1500, flee: 8 }] }),
+  c('foc_bone', 'focus', '🦴', 'บดกระดูก', ['ดาเมจ{ult} +60%', 'ดาเมจ{ult} +100%'], { mod: [{ ultAmp: 0.6, smashMul: 1.8 }, { ultAmp: 1, smashMul: 3 }] }),
   c('foc_wake', 'focus', '🔋', 'ปลุกพลัง', ['เริ่มทุกไฟต์ Mana/Energy/Rage +25', 'เริ่มทุกไฟต์ +45'], { needsRes: true, proc: { on: 'fightStart', fx: 'res', amt: [25, 45] } }),
   c('foc_pray', 'focus', '🙏', 'ภาวนา', ['ทุกเทิร์น Mana/Energy/Rage +2', 'ทุกเทิร์น +4'], { needsRes: true, pk: [{ resTurn: 2 }, { resTurn: 4 }] }),
 

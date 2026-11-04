@@ -1,5 +1,5 @@
 // usage: node bot.cjs <html> <job> <runs>   MODE=tower TOWER_MAX=15 (climb then leave) · MODE=daily SEED=yyyymmdd · START=n tower start floor · TMO=ms per run
-// EVENT=id forces every post-wave event · พร v2: PERK=id[,id] puts that card in slot 1 of every level-up and the bot takes slot 1 · MYTHIC=id same as RELIC=id
+// EVENT=id forces every post-wave event · PICK=smart takes the best-looking level-up card instead of a random one · พร v2: PERK=id[,id] puts that card in slot 1 of every level-up and the bot takes slot 1 · MYTHIC=id same as RELIC=id
 // env: ALLOC='{"str":8,"int":7}' overrides the class stat spread · GEAR=1 class gear · D=2 dungeon 3 (Lv 10 hero, dungeon-2 gear) · D=4 Lv 15 hero for dungeon 4 · D=5 Lv 20 + หัวใจไฮดรา for dungeon 5 · DUN=index · RELIC=id force a pick
 const { chromium } = require('playwright')
 const [html, job, runsArg] = process.argv.slice(2)
@@ -77,7 +77,7 @@ if (process.env.BROKEN) save.broken = Object.values(save.equipped)
   await p.waitForFunction(() => window.__nth && window.__nth.scene.isActive('title'), null, { timeout: 30000 })
   const res = []
   for (let r = 0; r < RUNS; r++) {
-    res.push(await p.evaluate(async ([first, RELIC, D, DUN, HARD, MODE, TOWER_MAX, SEED, TMO, START, PERK, EVENT]) => {
+    res.push(await p.evaluate(async ([first, RELIC, D, DUN, HARD, MODE, TOWER_MAX, SEED, TMO, START, PERK, EVENT, SMART]) => {
       const g = window.__nth, R = g.renderer
       R.preRender = () => {}; R.render = () => {}; R.postRender = () => {} // test only: skip drawing
       if (first) { g.scene.getScenes(true).forEach((s) => s.scene.stop()); g.scene.start('battle', MODE ? { mode: MODE, ...(SEED ? { seed: SEED } : {}), ...(START ? { startFloor: START } : {}) } : { d: DUN, hard: !!HARD }) }
@@ -92,7 +92,10 @@ if (process.env.BROKEN) save.broken = Object.values(save.equipped)
       const t0 = Date.now()
       while (!B.over && Date.now() - t0 < TMO) {
         B.time.timeScale = 15; B.tweens.timeScale = 15
-        if (B.pendingPick) B.pendingPick((B.miniWon && !B.relic && RELIC) || PERK ? 0 : Math.floor(Math.random() * 4)) // v48: 4 picks (old builds clamp)
+        if (B.pendingPick) { // v48: 4 picks (old builds clamp) · PICK=smart: legendary > "+" > own line > general > other lines (พร v2 builds)
+          const o = SMART && B.pendingOffers, score = (x) => (x.legend ? 4 : x.up ? 3 : x.own ? 2 : x.general ? 1 : 0) + Math.random() * 0.5
+          B.pendingPick((B.miniWon && !B.relic && RELIC) || PERK ? 0 : o ? o.reduce((bi, x, i) => (score(x) > score(o[bi]) ? i : bi), 0) : Math.floor(Math.random() * 4))
+        }
         const boss = B.alive().find((m) => m.def.ai === 'boss')
         // duelist never charges: ult when she is not in parry stance
         const want = !boss || boss.charging || (boss.def.mini === 'duelist' && !boss.parry) || (boss.def.mini && !(boss.def.charge || boss.def.breakPct))
@@ -101,7 +104,7 @@ if (process.env.BROKEN) save.broken = Object.values(save.equipped)
       }
       const bm = B.mons.find((m) => m.def.ai === 'boss')
       return { perks: B.perkList ? B.perkList() : '', imm: B.immortal ?? null, floor: B.towerFloor, mode: B.run.modeId, where: B.run.where(B.room), muts: B.run.mutators.map((m) => m.id).join('+'), mats: Object.values(B.runMats || {}).reduce((a, n) => a + n, 0), maxHp: Math.round(B.st.maxHp), minHp: B.minHpPct, mini: B.miniKind, miniWon: B.miniWon, relic: B.relic, parry: B.parryCount, frz: B.freezeCount, tl: (B.turnsLog || []).join('/'), win: B.over && B.hp > 0 && !B.timedOut, room: B.room, hp: Math.round(B.hp), bossHp: bm ? Math.max(0, Math.round(bm.hp)) : null, breaks: B.breakCount ?? 0, revived: B.revivedCount ?? 0, ctr: B.counterCount ?? 0, combo: B.comboCount ?? 0, el: B.job.id === 'mage' ? B.element : '', s2: B.s2Count ?? 0, to: !!B.timedOut, dbf: B.debuffCount ?? 0, peak: B.peakTurns ?? 0, ms: Date.now() - t0 }
-    }, [r === 0, process.env.RELIC || '', D,  process.env.DUN ? +process.env.DUN : D >= 4 ? D - 1 : D, !!process.env.HARD, process.env.MODE || '', +(process.env.TOWER_MAX || 15), +(process.env.SEED || 0), +(process.env.TMO || 120000), +(process.env.START || 0), process.env.PERK || '', process.env.EVENT || '']))
+    }, [r === 0, process.env.RELIC || '', D,  process.env.DUN ? +process.env.DUN : D >= 4 ? D - 1 : D, !!process.env.HARD, process.env.MODE || '', +(process.env.TOWER_MAX || 15), +(process.env.SEED || 0), +(process.env.TMO || 120000), +(process.env.START || 0), process.env.PERK || '', process.env.EVENT || '', process.env.PICK === 'smart']))
   }
   if (process.env.DEBUG) console.log(JSON.stringify(res))
   const wins = res.filter((x) => x.win).length
