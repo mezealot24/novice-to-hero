@@ -285,6 +285,8 @@ export interface HitFx {
   armorBreak?: number // N hero turns: P.DEF and M.DEF count half
   silence?: number // N hero turns: the ultimate / Smash can't be cast (it stays queued)
   freeze?: number // hero turn gauge lost (tenacity reduces it); 100 = skip a whole turn
+  slow?: number // N hero turns (Q 2026-11-04, frostgiant Frozen Heart): hero attack speed x BATTLE.frozenHeart
+  web?: number // N hero turns (Q 2026-11-04, venomqueen พ่นใยมัดตัว): Can't Evade (no Flee / lucky dodge) and AGI -50%
 }
 export type MonSkillKind = 'heal' | 'shield' | 'warcry' | 'curse' | 'summon' | 'revive' | 'haste' | 'bolt' | 'strike'
 /** A monster turn spent on a skill instead of an attack: used on every `every`-th turn of that monster when it makes sense. */
@@ -351,6 +353,9 @@ export interface MonsterDef {
   lifesteal?: number // heals this share of the damage it deals (heal cut from burn reduces it)
   chargeEvery?: number // boss: charges every Nth turn (default BATTLE.slamEvery)
   slamMul?: number // boss: charged attack = (dmg + 8) * monDmgMul * this (default 1.6)
+  iceSkin?: boolean // frostgiant passive (BATTLE.iceSkin): a hero hit that lands leaves ice thorns: hero damage cut for a few turns
+  toxicSkin?: boolean // venomqueen passive (BATTLE.toxicSkin): takes less damage, poisons whoever hits it, shrugs debuffs, softens crits
+  venom?: { dmg: number; turns: number; dex: number } // charged attack (Venom Strike): adds `dex` to its M.ATK and leaves a magic DoT that doubles every hero turn
   vengeance?: boolean // death knight โล่แห่งความแค้น (BATTLE.vengeance)
   fixedFlee?: number // hero hits (physical, magic, crits) miss this share of the time, whatever Hit is (Maiden: 0.5)
   razor?: number // on-hit (Q 2026-11-04, hunter Blood Razor): each landed normal / combo hit adds magic damage = this share of the hero's current HP
@@ -420,11 +425,13 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
   bloater: { name: 'คางคกพองลม', tex: 'bloater', hp: 210, dmg: 30, xp: 8, ai: 'hopper', moveSpeed: 180, radius: 17, zeny: [5, 7], idleMs: [800, 1300], hit: 30, deathBlast: 2, onHit: { poison: 1 } },
   spiderling: { name: 'ลูกแมงมุม', tex: 'spiderling', hp: 160, dmg: 26, xp: 3, ai: 'dasher', moveSpeed: 480, radius: 11, zeny: [1, 2], idleMs: [400, 800], flee: 30, hit: 36, onHit: { poison: 1 } },
   venomqueen: { name: 'เวโนมิร่า', title: 'ราชินีใยพิษ', tex: 'venomqueen', hp: 2300, dmg: 44, matk: 48, xp: 14, ai: 'boss', mini: 'venomqueen', moveSpeed: 300, radius: 34, zeny: [45, 60], idleMs: [600, 900], def: 30, flee: 25, hit: 40,
-    onHit: { poison: 2 }, chargeEvery: 4, slamMul: 1.5, slamName: 'ห่อใยพิษ! จะโดนมัด', slamFx: { freeze: 100, poison: 3 }, slamAnim: 'shot', slamColor: 0xd8f0c0, slamMagic: true, charge: true,
-    skills: [{ kind: 'curse', every: 3, name: 'พ่นใยปิดปาก', fx: { silence: 2 } }],
+    onHit: { poison: 2 }, chargeEvery: 4, slamMul: 1, slamName: '🕷️ Venom Strike! พิษทวีคูณ', slamAnim: 'shot', slamColor: 0xd8f0c0, slamMagic: true, charge: true,
+    venom: { dmg: 30, turns: 4, dex: 40 }, toxicSkin: true, // Q 2026-11-04 Monster DB comment
+    skills: [{ kind: 'curse', every: 3, name: '🕸️ พ่นใยมัดตัว', fx: { web: 2 } }],
     phases: [{ at: 0.5, name: 'ฟักไข่! ลูกแมงมุมออกมา', summon: ['spiderling', 2], speed: 1.15 }] },
   frostgiant: { name: 'กลาเซียร์', title: 'ยักษ์ธารน้ำแข็ง', tex: 'frostgiant', hp: 2600, dmg: 50, matk: 54, xp: 14, ai: 'boss', mini: 'frostgiant', moveSpeed: 240, radius: 40, zeny: [45, 60], idleMs: [700, 1000], def: 100, flee: 5, hit: 34,
     onHit: { armorBreak: 2 }, chargeEvery: 3, slamMul: 1.7, slamName: 'ทุบธารน้ำแข็ง! แช่แข็งทั้งตัว', slamFx: { freeze: 100 }, slamAnim: 'stomp', slamColor: 0x9fe3ff, slamMagic: true, charge: true,
+    iceSkin: true, // Q 2026-11-04 Monster DB comment
     phases: [{ at: 0.4, name: 'เกราะน้ำแข็งพันปี!', shield: 0.18, dmg: 1.2, cleanse: true }],
     skills: [{ kind: 'bolt', every: 5, pow: 1.2, name: 'หอกน้ำแข็ง', fx: { freeze: 40 } }] },
   hydra: { name: 'ไฮดรามรกต', tex: 'hydra', hp: 4800, dmg: 54, matk: 56, xp: 0, ai: 'boss', moveSpeed: 240, radius: 46, zeny: [90, 120], idleMs: [700, 1000], def: 45, flee: 15, hit: 40,
@@ -675,6 +682,10 @@ export const BATTLE = {
     espadaEvery: 10, espadaHits: 4, espadaMin: 0.03, espadaMax: 0.1, // phase 2: mark turn (immortal), then 4 crit thrusts of 3-10% hero max HP (Q asked 4-16%: bot died to it)
   },
   frenzyAt: 0.5, frenzySpeed: 1.4, frenzyLifesteal: 0.6, // hunter below 50% HP
+  toxicSkin: { dr: 0.05, poison: 1, tenacity: 0.5, critCut: 0.5 }, // venomqueen (Q 2026-11-04): -5% P/M damage taken, 1 poison on the hero per landed hit, debuffs on it wear off 2x as fast, crit bonus vs it halved
+  web: { agi: 0.5 },
+  frozenHeart: 0.5, // hero attack speed x this while slowed
+  iceSkin: { turns: 2, dmgCut: 0.15 }, // frostgiant (Q 2026-11-04): hitting it = ❄️ หนามน้ำแข็ง, hero damage -15% for 2 hero turns (refreshes) // พ่นใยมัดตัว: hero AGI x this while webbed
   vengeance: { share: 0.5, turns: 3, cd: 3, dotPct: 0.03, dotMatk: 0.3 }, // death knight (Q 2026-11-04): 50% of a hit it lands -> shield for 3 of its turns (then 3-turn cooldown); while it holds, hero takes 3% max HP + M.ATK x 0.3 magic each of its turns
   maiden: { at: 0.5, turns: 22, tint: 0xff9ad0 }, // drainer: under 50% HP she turns immortal and calls the Maiden (same max HP / M.ATK); +22 turns to the limit (bot timed out at +12)
   bulletTime: { at: 0.25, countdown: 3, hits: 25, bonusMin: 0.01, bonusMax: 0.25 }, // gunner (Q 2026-11-04): under 25% HP, 3-turn countdown, then 25 shots of her normal shot x (1 + 1-25%)
@@ -759,8 +770,8 @@ const KITS: Partial<Record<MonsterKind, Pick<MonsterDef, 'crit' | 'combo' | 'cou
   gunner: { crit: 0.15, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, hits: 4, pow: 0.4, name: '🔫 ระดมยิง' }] },
   drainer: { crit: 0.1, add: [{ kind: 'bolt', every: 4, pow: 1.3, name: '🌑 ดูดวิญญาณ', fx: { weaken: 2 } }] },
   deathknight: { counter: 0.15, crit: 0.1, trueSight: { after: 2, turns: 3 }, vengeance: true, add: [{ kind: 'strike', every: 5, pow: 2.8, magic: true, alone: 2, name: '⚔️ ดาบมรณะ' }] }, // Q 2026-11-04: magic, x2 with no undead at its side
-  venomqueen: { combo: 0.25, crit: 0.08, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, hits: 2, pow: 0.7, name: '🦂 เหล็กไนคู่', fx: { poison: 2 } }] },
-  frostgiant: { counter: 0.15, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 5, pow: 1.6, name: '🧊 ทุบธารน้ำแข็ง', fx: { freeze: 50 } }] },
+  venomqueen: { combo: 0.25, crit: 0.08, add: [{ kind: 'strike', every: 2, hits: 2, pow: 0.7, name: '🦂 เหล็กใน', fx: { poison: 4 } }] }, // Q: no ตาเหยี่ยว (the web does that job)
+  frostgiant: { counter: 0.15, add: [{ kind: 'strike', every: 5, pow: 1.6, name: '🧊 ทุบธารน้ำแข็ง', fx: { freeze: 50 } }, { kind: 'curse', every: 4, name: '💙 Frozen Heart', fx: { slow: 2 } }] }, // Q: Frozen Heart replaces ตาเหยี่ยว
   hydra: { combo: 0.3, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'bolt', every: 4, hits: 3, pow: 0.5, name: '🐍 พ่นพิษสามหัว', fx: { poison: 1 } }] },
   mirage: { crit: 0.15, add: [{ kind: 'bolt', every: 5, hits: 2, pow: 0.7, name: '🪞 ภาพลวงสองเงา' }] },
   warlord: { counter: 0.2, crit: 0.15, combo: 0.15, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 5, hits: 2, pow: 0.9, name: '🪓 ขวานคู่ผ่าฟ้า', fx: { armorBreak: 1 } }] },
