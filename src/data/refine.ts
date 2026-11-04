@@ -6,7 +6,7 @@ import type { SaveData } from '../save'
 import type { Stats } from './game-data'
 import type { JobId } from './jobs'
 import { matOf } from './materials'
-import { matDungeon, REFINE, refinable, refineRate, type RefineLine } from './craft'
+import { matDungeon, REFINE, refinable, refineFee, refineRate, type RefineLine } from './craft'
 import { BASE_NAME, isBroken, itemStatLine, ITEMS, linesOf, refineOf, type BaseStat, type Item, type Slot } from './meta'
 
 // ---------- fodder: basic shop items (no job lock, no unlock, not crafted) ----------
@@ -14,12 +14,12 @@ export const isFodder = (it: Item) => it.price > 0 && !it.jobs && !it.req && !it
 export const FODDER: Item[] = ITEMS.filter(isFodder)
 /** Refine tiers: +1~+4 / +5~+7 / +8~+10. */
 export const refineTier = (n: number) => (n <= 4 ? 0 : n <= 7 ? 1 : 2)
-// Zeny / fodder cut from the spec (50/100/150 x + and fodder >=200z / >=400z): bot income is ~46z per ดัน1 run and
-// ~213z per ดัน3 run, so the spec made one +7 cost ~24 ดัน3 runs (+10 ~100). Now +7 ~8 runs, +10 ~34 (2026-11-03).
+// Fodder / mats per tier. Zeny is the per-step curve refineFee(n) in craft.ts (v53: was 10/20/40 x n per tier).
+// Bot income is ~46z per ดัน1 run and ~213z per ดัน3 run.
 const TIER = [
-  { fodderMin: 0, common: 2, boss: 0, zeny: 10 },
-  { fodderMin: 0, common: 4, boss: 0, zeny: 20 },
-  { fodderMin: 200, common: 6, boss: 1, zeny: 40 },
+  { fodderMin: 0, common: 2, boss: 0 },
+  { fodderMin: 0, common: 4, boss: 0 },
+  { fodderMin: 200, common: 6, boss: 1 },
 ]
 /** Cheapest fodder price a tier asks for. A slot whose dearest basic item is cheaper (off-hand: buckler 180z)
  * takes its dearest one instead, so every slot can reach +10. */
@@ -39,10 +39,11 @@ export const fodderFits = (need: FodderNeed) => FODDER.filter((f) => f.slot === 
 /** Cost of one try at +n. */
 export function refineCost(it: Item, n: number): ForgeCost {
   const t = TIER[refineTier(n)], dg = matDungeon(it)
-  return { mats: { [matOf(dg, false)]: t.common, ...(t.boss ? { [matOf(dg, true)]: t.boss } : {}) }, zeny: t.zeny * n, fodder: { slot: it.slot, min: fodderMin(it.slot, refineTier(n)) } }
+  return { mats: { [matOf(dg, false)]: t.common, ...(t.boss ? { [matOf(dg, true)]: t.boss } : {}) }, zeny: refineFee(n), fodder: { slot: it.slot, min: fodderMin(it.slot, refineTier(n)) } }
 }
-/** Material repair: any fodder of the same slot + 2 common materials. Always cheaper than gems. */
-export const repairCost = (it: Item): ForgeCost => ({ mats: { [matOf(matDungeon(it), false)]: 2 }, zeny: 0, fodder: { slot: it.slot, min: 0 } })
+/** Material repair: any fodder of the same slot + 2 common materials + half the fee of the item's current +.
+ * Always cheaper than gems (worst case +9: 185z + cheapest fodder). */
+export const repairCost = (it: Item, r = 0): ForgeCost => ({ mats: { [matOf(matDungeon(it), false)]: 2 }, zeny: Math.round((refineFee(r) * REFINE.repairFee) / 5) * 5, fodder: { slot: it.slot, min: 0 } })
 export const gemRepairCost: ForgeCost = { mats: {}, zeny: 0, gems: REFINE.repairGems }
 /** Reroll one bonus line (idx 0 / 1 / 2 = the +5 / +7 / +10 line). Never gems. */
 export function rerollCost(it: Item, idx: number): ForgeCost {
@@ -62,6 +63,32 @@ export function spend(s: Wallet, c: ForgeCost): Item | null | false {
   s.gems -= c.gems ?? 0
   for (const [id, n] of Object.entries(c.mats)) { s.mats![id] -= n; if (s.mats![id] <= 0) delete s.mats![id] }
   if (f) { s.fodder![f.id]--; if (s.fodder![f.id] <= 0) delete s.fodder![f.id] }
+  return f
+}
+
+// ---------- auto-buy fodder (Q 2026-11-04: no trip to the shop) ----------
+/** The fodder that would be bought for a cost: the cheapest that fits, only when the stash has none. */
+export function fodderToBuy(s: Wallet, c: ForgeCost): Item | undefined {
+  if (!c.fodder || pickFodder(s.fodder, c.fodder)) return undefined
+  return fodderFits(c.fodder)[0]
+}
+/** Zeny a press really takes: the fee plus the fodder bought at shop price. */
+export const totalZeny = (s: Wallet, c: ForgeCost) => c.zeny + (fodderToBuy(s, c)?.price ?? 0)
+/** Zeny still missing for a press (0 = enough). */
+export const zenyShort = (s: Wallet, c: ForgeCost) => Math.max(0, totalZeny(s, c) - s.zeny)
+/** canAfford, counting a fodder bought on the spot. */
+export function canAffordAuto(s: Wallet, c: ForgeCost) {
+  if (!c.fodder || pickFodder(s.fodder, c.fodder)) return canAfford(s, c)
+  return !!fodderToBuy(s, c) && canAfford(s, { ...c, fodder: undefined, zeny: totalZeny(s, c) })
+}
+/** Buy the missing fodder (all or nothing, only when the whole press is affordable). Returns what was bought. */
+function buyMissing(s: Wallet, c: ForgeCost): Item | null | false {
+  if (!canAffordAuto(s, c)) return false
+  const f = fodderToBuy(s, c)
+  if (!f) return null
+  s.zeny -= f.price
+  const bag = (s.fodder ??= {})
+  bag[f.id] = (bag[f.id] ?? 0) + 1
   return f
 }
 
@@ -132,29 +159,32 @@ export function lineText(l: RefineLine): string {
 // ---------- actions on the save ----------
 export type RefineResult =
   | { ok: false; why: 'short' | 'broken' | 'max' | 'cant' }
-  | { ok: true; success: boolean; n: number; rate: number; fodder: Item | null; line?: RefineLine; gems?: number }
+  | { ok: true; success: boolean; n: number; rate: number; fodder: Item | null; bought?: Item; line?: RefineLine; gems?: number }
 
 /** Chance shown on the button for the next try. */
 export const nextRate = (s: SaveData, it: Item) => refineRate(refineOf(s, it.id) + 1, s.refinePity?.[it.id] ?? 0)
 
 /** One refine try at +(r+1). Success: +1 (and the bonus line / free gems the first time at +5 / +7 / +10).
  * Fail: the item breaks (keeps its +, grade, cards and lines; gives nothing until repaired), pity +1. */
-export function tryRefine(s: SaveData, it: Item, rnd: () => number = Math.random): RefineResult {
+export function tryRefine(s: SaveData, it: Item, rnd: () => number = Math.random, autoBuy = false): RefineResult {
   if (!refinable(it)) return { ok: false, why: 'cant' }
   if (isBroken(s, it.id)) return { ok: false, why: 'broken' }
   const r = refineOf(s, it.id)
   if (r >= REFINE.max) return { ok: false, why: 'max' }
-  const n = r + 1, rate = nextRate(s, it)
-  const fodder = spend(s, refineCost(it, n))
+  const n = r + 1, rate = nextRate(s, it), cost = refineCost(it, n)
+  const bought = autoBuy ? buyMissing(s, cost) : null
+  if (bought === false) return { ok: false, why: 'short' }
+  const fodder = spend(s, cost)
   if (fodder === false) return { ok: false, why: 'short' }
+  const by = bought ? { bought } : {}
   if (rnd() >= rate) {
     ;(s.broken ??= []).push(it.id)
     ;(s.refinePity ??= {})[it.id] = (s.refinePity[it.id] ?? 0) + 1
-    return { ok: true, success: false, n, rate, fodder }
+    return { ok: true, success: false, n, rate, fodder, ...by }
   }
   ;(s.refine ??= {})[it.id] = n
   if (s.refinePity) delete s.refinePity[it.id]
-  const out: RefineResult = { ok: true, success: true, n, rate, fodder }
+  const out: RefineResult = { ok: true, success: true, n, rate, fodder, ...by }
   const idx = REFINE.lineAt.indexOf(n), lines = linesOf(s, it.id)
   if (idx >= 0 && !lines[idx]) {
     const arr = ((s.refineLines ??= {})[it.id] ??= [])
@@ -164,10 +194,12 @@ export function tryRefine(s: SaveData, it: Item, rnd: () => number = Math.random
   if (gems && !(s.refineGems ??= []).includes(key)) { s.refineGems.push(key); s.gems += gems; out.gems = gems }
   return out
 }
-/** Repair a broken item with materials (any fodder of its slot + 2 common mats) or with gems. */
-export function repair(s: SaveData, it: Item, withGems = false): boolean {
+/** Repair a broken item with materials (any fodder of its slot + 2 common mats + zeny) or with gems. */
+export function repair(s: SaveData, it: Item, withGems = false, autoBuy = false): boolean {
   if (!isBroken(s, it.id)) return false
-  if (spend(s, withGems ? gemRepairCost : repairCost(it)) === false) return false
+  const cost = withGems ? gemRepairCost : repairCost(it, refineOf(s, it.id))
+  if (autoBuy && !withGems && buyMissing(s, cost) === false) return false
+  if (spend(s, cost) === false) return false
   s.broken = s.broken!.filter((x) => x !== it.id)
   return true
 }
