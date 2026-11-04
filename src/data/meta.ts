@@ -20,14 +20,15 @@ export const PER_POINT = {
   off: { swordDexCounter: 0.002, archerStrUlt: 0.01, clericDexSpear: 0.003, mageLukSpellCrit: 0.01 / 6 },
   luk: { spear: 0.005, spearCap: 0.25, /* Cleric: +0.5% light spear chance per LUK per turn, cap 25% */ crit: 0.01 / 3, /* Q: every 3 LUK = +1% crit (only stat that gives crit) */ dodgeK: 300, legendPer: 0.0007, legendCap: 0.1, dropPct: 0.005, dropCap: 0.5, eventPer: 0.005, eventCap: 0.3 },
 }
-export const BASE_STATS: { id: BaseStat; name: string; role: string; desc: string }[] = [
-  { id: 'str', name: 'STR', role: 'พลังกาย', desc: 'P.ATK สูงสุด +2 · ดาเมจสกิลกายภาพ +0.5% · นักธนู: ศรทะลวงแรง +1% · จอมเวท (โหนดกายสู่เวท): นับเป็น INT' },
-  { id: 'vit', name: 'VIT', role: 'ความอึด', desc: 'HP +10 และ +0.5% · P.DEF +0.5 · ฟื้น HP เล็กน้อย · สวนกลับนิดหน่อย' },
-  { id: 'wis', name: 'WIS', role: 'ใจแข็ง', desc: 'ฮีล/โล่แรง +1% · M.DEF% · ต้านทาน (tenacity) · ฟื้นมานา' },
-  { id: 'dex', name: 'DEX', role: 'ความแม่น', desc: 'Hit +1 · P.ATK ขั้นต่ำ +0.5% (ดาเมจนิ่งขึ้น) · นักดาบ: สวนกลับ +0.2% · นักบวช: หอกแสงแรง +1%' },
-  { id: 'int', name: 'INT', role: 'เวทมนตร์', desc: 'M.ATK +2 · Max Mana +3 · โจร: ดาเมจพิษ +0.1/stack' },
-  { id: 'luk', name: 'LUK', role: 'ดวง', desc: 'คริ +1% ต่อ 3 LUK · นักบวช: โอกาสเรียกหอกแสง · จอมเวท: คริเวท +1% ต่อ 6 LUK · หลบโชคดี · พรตำนาน · อีเวนต์หายาก · ดรอปหายาก' },
-  { id: 'agi', name: 'AGI', role: 'ความเร็ว', desc: 'ความเร็วเทิร์น +1.5% (ได้ตีบ่อยขึ้น) · Flee +1 · คอมโบ (ตีซ้ำ) · โจร: เงาพริ้วแรง +2%' },
+// What each stat does is in data/statInfo.ts (generic + current class only, numbers from PER_POINT).
+export const BASE_STATS: { id: BaseStat; name: string; role: string }[] = [
+  { id: 'str', name: 'STR', role: 'พลังกาย' },
+  { id: 'vit', name: 'VIT', role: 'ความอึด' },
+  { id: 'wis', name: 'WIS', role: 'ใจแข็ง' },
+  { id: 'dex', name: 'DEX', role: 'ความแม่น' },
+  { id: 'int', name: 'INT', role: 'เวทมนตร์' },
+  { id: 'luk', name: 'LUK', role: 'ดวง' },
+  { id: 'agi', name: 'AGI', role: 'ความเร็ว' },
 ]
 export const RESOURCES = {
   mana: { name: 'Mana', color: 0x5aa0ff, desc: 'ฟื้นเองตามเวลา (INT ช่วยให้ฟื้นไวขึ้น)' },
