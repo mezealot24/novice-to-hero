@@ -624,6 +624,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Basic attack, then AGI combo: each success chains one more (up to BATTLE.comboMax). */
   private async basicAttack() {
+    const target = this.front()[0]
     this.comboSum = { on: true, per: new Map() } // RO-style: each hit shows its own white number, the chain total pops big + yellow at the end
     let extra = 0 // roll the chain first (same odds as before) so the hero knows to stay at the monster between hits
     while (extra < BATTLE.comboMax && Math.random() < this.st.combo) extra++
@@ -642,6 +643,7 @@ export class BattleScene extends Phaser.Scene {
     let best: { dmg: number, x: number, y: number } | undefined // total for the monster that took the most (cleave splash shows only its own numbers)
     for (const v of this.comboSum.per.values()) if (!best || v.dmg > best.dmg) best = v
     if (hits >= 2 && best) this.comboTotal(best.x, best.y, best.dmg, hits)
+    await this.monCounter(target) // v48: the target may strike back
     this.stayIn = false
     await this.goHome()
   }
@@ -1174,8 +1176,21 @@ export class BattleScene extends Phaser.Scene {
     const shots = m.def.shots ?? 1
     for (let i = 0; i < shots && this.hp > 0 && !m.dead; i++) {
       if (this.riposte(m)) continue
-      const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m), !!m.def.magic, m.def.hit ?? 15, m)
+      const cr = this.monCrit(m)
+      const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m)
       if (landed) { this.monLeech(m); if (m.onHit) this.applyFx(m.onHit, m); await this.tryCounter(m) }
+    }
+    if (m.def.combo) { // v48 monster combo: chain extra hits like the hero (same cap)
+      let extra = 0
+      while (extra < BATTLE.comboMax && Math.random() < m.def.combo) extra++
+      for (let i = 0; i < extra && this.hp > 0 && !m.dead; i++) {
+        this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10 - i * 22, `คอมโบ x${i + 2}!`, '#ffb070')
+        this.tweens.add({ targets: m.spr, x: m.spr.x - 14, duration: 70, yoyo: true })
+        await this.wait(160)
+        const cr = this.monCrit(m)
+        const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * BATTLE.monComboMul * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m)
+        if (landed) this.monLeech(m)
+      }
     }
     await this.tween({ targets: [m.spr, m.shadow], x: home, duration: BATTLE.stepMs * 0.35, ease: 'Quad.easeOut' })
   }
@@ -1718,14 +1733,52 @@ export class BattleScene extends Phaser.Scene {
   private monMatk(m: Mon) { return m.def.matk ?? m.def.dmg }
 
   /** Monster spell (MonSkill 'bolt'): a magic projectile = M.ATK x pow. Can't be fled; lucky dodge, shields and M.DEF work. */
+  /** v48: a monster hit crits (def.crit): returns the damage multiplier and shows CRITICAL. */
+  private monCrit(m: Mon) {
+    if (!m.def.crit || Math.random() >= m.def.crit) return 1
+    this.floatText(HERO_X + 30, GROUND - 150, '💥 CRITICAL!', '#ff5a4e')
+    return BATTLE.monCritMul
+  }
+
   private async monBolt(m: Mon, sk: MonSkill) {
-    const c = m.def.slamColor ?? 0xb48aff
-    const b = this.add.image(m.spr.x - 20, m.spr.y - m.spr.displayHeight * 0.6, 'dot').setTint(c).setScale(2.6).setDepth(9000)
-    await this.tween({ targets: b, x: HERO_X + 10, y: GROUND - 50, duration: 220, ease: 'Quad.easeIn' })
-    b.destroy()
-    this.burst(HERO_X, GROUND - 50, c, 12, 180, true)
-    const landed = this.hurtHero(this.monMatk(m) * BATTLE.monDmgMul * (sk.pow ?? 1.3) * this.monMul(m), true, 999, m)
-    if (landed && sk.fx) this.applyFx(sk.fx, m)
+    const fxColor = sk.fx?.burn ? 0xff6a2a : sk.fx?.freeze ? 0x9fe3ff : sk.fx?.poison ? 0x7fd04c : sk.name.includes('⚡') || sk.fx?.silence ? 0xfff07a : undefined
+    const c = fxColor ?? m.def.slamColor ?? 0xb48aff
+    const hits = sk.hits ?? 1
+    let fxDone = false
+    for (let i = 0; i < hits && this.hp > 0 && !m.dead; i++) {
+      const b = this.add.image(m.spr.x - 20, m.spr.y - m.spr.displayHeight * 0.6 - (i % 2) * 30, 'dot').setTint(c).setScale(sk.big ? 3.4 : 2.6).setDepth(9000)
+      await this.tween({ targets: b, x: HERO_X + 10, y: GROUND - 50, duration: hits > 1 ? 140 : 220, ease: 'Quad.easeIn' })
+      b.destroy()
+      this.burst(HERO_X, GROUND - 50, c, sk.big ? 18 : 12, 180, true)
+      if (sk.big) this.shake(120, 0.008)
+      const landed = this.hurtHero(this.monMatk(m) * BATTLE.monDmgMul * (sk.pow ?? 1.3) * this.monMul(m) * this.monCrit(m), true, 999, m)
+      if (landed && sk.fx && !fxDone) { fxDone = true; this.applyFx(sk.fx, m) } // the debuff rides on the first hit that lands
+    }
+  }
+
+  /** v48 physical skill: dash in and hit `hits` times at pow x ATK (each hit rolls Flee unless it crits). */
+  private async monStrike(m: Mon, sk: MonSkill) {
+    const home = m.spr.x
+    await this.tween({ targets: [m.spr, m.shadow], x: HERO_X + 70, duration: BATTLE.stepMs * 0.3, ease: 'Quad.easeIn' })
+    let fxDone = false
+    for (let i = 0; i < (sk.hits ?? 1) && this.hp > 0 && !m.dead; i++) {
+      if (i) { this.tweens.add({ targets: m.spr, x: m.spr.x - 14, duration: 60, yoyo: true }); await this.wait(130) }
+      const cr = this.monCrit(m)
+      const landed = this.hurtHero(m.def.dmg * BATTLE.monDmgMul * (sk.pow ?? 1.3) * this.monMul(m) * cr, false, cr > 1 ? 999 : m.def.hit ?? 15, m)
+      if (landed) { this.monLeech(m); if (sk.fx && !fxDone) { fxDone = true; this.applyFx(sk.fx, m) } }
+    }
+    await this.tween({ targets: [m.spr, m.shadow], x: home, duration: BATTLE.stepMs * 0.3, ease: 'Quad.easeOut' })
+  }
+
+  /** v48 monster counter: right after the hero's basic attack, the target may strike back (def.counter). */
+  private async monCounter(m: Mon | undefined) {
+    if (!m || m.dead || m.frozen || m.charging || !m.def.counter || this.hp <= 0 || Math.random() >= m.def.counter) return
+    this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '↩️ สวนกลับ!', '#ff9a6a')
+    this.tweens.add({ targets: m.spr, x: m.spr.x - 24, duration: 90, yoyo: true })
+    await this.wait(150)
+    const cr = this.monCrit(m)
+    const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * BATTLE.monCounterMul * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m)
+    if (landed) this.monLeech(m)
   }
 
   /** Monster hit multiplier: Ice Age weakens it, the hunter smells blood when the hero is low. */
@@ -1883,8 +1936,10 @@ export class BattleScene extends Phaser.Scene {
 
   /** A skill instead of an attack, on every `every`-th turn when it has a use. Returns true if one was used. */
   private async useSkill(m: Mon) {
-    for (const sk of m.skills) {
-      if (m.turns % sk.every) continue
+    for (const raw of m.skills) {
+      if (m.turns % raw.every) continue
+      const sk = raw.pick ? raw.pick[Phaser.Math.Between(0, raw.pick.length - 1)] : raw // spell rotation
+      if (sk.big) { this.callout(`${m.def.name}: ${sk.name}!`, W / 2, 190, '#ff7ad0'); this.cameras.main.flash(220, 200, 80, 255); await this.wait(350) }
       const allies = this.alive()
       let done = false
       if (sk.kind === 'heal') {
@@ -1900,6 +1955,7 @@ export class BattleScene extends Phaser.Scene {
       } else if (sk.kind === 'haste') { for (const t of allies) if (t !== m) t.gauge += sk.pow ?? 30; done = true }
       else if (sk.kind === 'curse' && sk.fx) { this.applyFx(sk.fx, m); done = true }
       else if (sk.kind === 'bolt') { await this.monBolt(m, sk); done = true }
+      else if (sk.kind === 'strike') { await this.monStrike(m, sk); done = true }
       else if (sk.kind === 'summon' && sk.summon) done = this.summonAdds(sk.summon[0], sk.summon[1]) > 0
       else if (sk.kind === 'revive') {
         const corpse = this.mons.slice(this.roomStart).find((x) => x.dead && !x.revived && x.def.ai !== 'boss' && x !== m)
@@ -1912,9 +1968,9 @@ export class BattleScene extends Phaser.Scene {
         }
       }
       if (!done) continue
-      this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10, `✦ ${sk.name}`, sk.kind === 'curse' || sk.kind === 'bolt' ? '#ffb0e0' : '#b0ffc8')
+      this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10, `✦ ${sk.name}`, sk.kind === 'curse' || sk.kind === 'bolt' || sk.kind === 'strike' ? '#ffb0e0' : '#b0ffc8')
       this.tweens.add({ targets: m.spr, scaleY: m.spr.scaleY * 1.12, duration: 140, yoyo: true })
-      this.burst(m.spr.x, m.spr.y - 40, sk.kind === 'curse' || sk.kind === 'bolt' ? 0xc03070 : 0x6fd08c, 12, 140)
+      this.burst(m.spr.x, m.spr.y - 40, sk.kind === 'curse' || sk.kind === 'bolt' || sk.kind === 'strike' ? 0xc03070 : 0x6fd08c, 12, 140)
       await this.wait(BATTLE.stepMs)
       return true
     }
