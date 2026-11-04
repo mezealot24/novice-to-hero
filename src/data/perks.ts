@@ -34,6 +34,9 @@ export const PROC_RULES = {
   /** Mage pays Mana for magic procs (spec default): per zap, per fire / ice effect */
   mageZap: 2, mageFire: 8, mageIce: 4,
 }
+/** Level-up offer: each of the 3 line slots comes from the job's own lines (JOB_LINES) this often, else from any line.
+ *  พร v2 tuning: magic cards run on 70/30 magic power, so a physical job drew too many weak cards from a fully random pool. */
+export const OFFER_RULES = { ownLine: 0.5, lean: 0.6 }
 
 /** Run-only numbers the cards add (Stats stays the persistent hero sheet). */
 export interface PerkStats {
