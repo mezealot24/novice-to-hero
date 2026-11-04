@@ -14,7 +14,7 @@ import { MAT_RULES, matName, matOf } from '../data/materials'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
 import { HARD_POWER, matchScale, overpowerMul, TOWER_POWER } from '../data/power'
-import { levelDropMul, roomLevel, statMonster } from '../data/mon-stats'
+import { legacyLevel, levelDropMul, roomLevel, scaleOf, skillMul, slamScaleOf, statMonster, withStats } from '../data/mon-stats'
 import { foldAffixes } from '../data/affixes'
 import { buildRun, MODES, towerFloorLoot, type ModeArgs, type RunConfig, type RunRoom } from '../data/modes'
 import { button, fullscreenButton, go, type Btn } from '../ui'
@@ -376,7 +376,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private addMon(kind: MonsterKind, slot: number, gauge?: number) {
-    const def = MONSTERS[kind].statAlloc && this.dg.level ? this.statDef(MONSTERS[kind]) : this.hardDef(this.modeDef(this.buffDef(MONSTERS[kind]), kind))
+    const def = MONSTERS[kind].statAlloc && this.dg.level ? this.statDef(MONSTERS[kind]) : this.hardDef(this.modeDef(this.buffDef(this.legacyStats(kind)), kind))
     const big = def.ai === 'boss'
     const x = this.roomDef(this.room)?.mixed ? MIX_X[slot] ?? SLOT_X[slot] : big ? 720 : SLOT_X[slot] // tower mixed fight: adds in front, big ones behind
     const y = GROUND + (slot % 2 ? 14 : -4)
@@ -409,6 +409,12 @@ export class BattleScene extends Phaser.Scene {
     if (this.hard && out.ai === 'boss' && !out.passive) { this.hardAffix(out); if (this.run.corrupt?.tyrant) this.hardAffix(out) }
     if (!out.passive) this.aff.mon(out) // corruption: tower affixes reused
     return out
+  }
+
+  /** v68: 7 stats on an old monster at its home dungeon's level (numbers stay as tuned; see mon-stats withStats). */
+  private legacyStats(kind: MonsterKind): MonsterDef {
+    const d = MONSTERS[kind], src = this.dg
+    return withStats(d, kind, legacyLevel(kind, d, src), { hard: this.hard, statMul: this.run.corrupt?.statMul })
   }
 
   /** v56 global monster buff by dungeon tier (BATTLE.monBuff): HP, ATK and M.ATK. */
@@ -1511,7 +1517,7 @@ export class BattleScene extends Phaser.Scene {
     const home = m.spr.x
     await this.slamMotion(m)
     if (this.riposte(m)) { await this.wait(300); if (!m.dead) await this.tween({ targets: [m.spr, m.shadow], x: home, duration: 260 }); m.spr.setAngle(0); return }
-    const hit = this.hurtHero(((m.def.slamMagic ? this.monMatk(m) + (m.def.venom ? m.def.venom.dex * this.matkScale(m) : 0) : m.def.dmg) + 8) * BATTLE.monDmgMul * (m.def.slamMul ?? 1.6) * this.monMul(m), !!m.def.slamMagic, 999, m) // slam can't be fled, only lucky-dodged / shielded
+    const hit = this.hurtHero(((m.def.slamMagic ? this.monMatk(m) + (m.def.venom ? m.def.venom.dex * this.matkScale(m) : 0) : m.def.dmg) + 8) * BATTLE.monDmgMul * (m.def.slamMul ?? 1.6) * skillMul(m.def, slamScaleOf(m.def)) * this.monMul(m), !!m.def.slamMagic, 999, m) // slam can't be fled, only lucky-dodged / shielded
     if (m.stored > 0) await this.soulStrike(m)
     if (hit) {
       this.monLeech(m, m.def.mini === 'hunter' || m.def.mini === 'drainer' ? 1 : undefined) // the big drain heals all of it
@@ -2222,7 +2228,7 @@ export class BattleScene extends Phaser.Scene {
       b.destroy()
       this.burst(HERO_X, GROUND - 50, c, sk.big ? 18 : 12, 180, true)
       if (sk.big) this.shake(120, 0.008)
-      const landed = this.hurtHero(this.monMatk(m) * BATTLE.monDmgMul * (sk.pow ?? 1.3) * this.monMul(m) * this.monCrit(m), true, 999, m)
+      const landed = this.hurtHero(this.monMatk(m) * BATTLE.monDmgMul * this.skPow(m, sk, 1.3) * this.monMul(m) * this.monCrit(m), true, 999, m)
       if (landed && sk.fx && !fxDone) { fxDone = true; this.applyFx(sk.fx, m) } // the debuff rides on the first hit that lands
     }
   }
@@ -2237,7 +2243,7 @@ export class BattleScene extends Phaser.Scene {
       const cr = this.monCrit(m)
       const alone = sk.alone && !this.alive().some((x) => x !== m) ? sk.alone : 1
       if (alone > 1 && i === 0) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, `ไร้ศพข้างกาย! ×${alone}`, '#c9a8ff')
-      const landed = this.hurtHero(m.def.dmg * BATTLE.monDmgMul * (sk.pow ?? 1.3) * this.monMul(m) * cr * alone, !!sk.magic, sk.magic || cr > 1 ? 999 : m.def.hit ?? 15, m)
+      const landed = this.hurtHero(m.def.dmg * BATTLE.monDmgMul * this.skPow(m, sk, 1.3) * this.monMul(m) * cr * alone, !!sk.magic, sk.magic || cr > 1 ? 999 : m.def.hit ?? 15, m)
       if (landed) { this.monLeech(m); if (sk.fx && !fxDone) { fxDone = true; this.applyFx(sk.fx, m) } }
     }
     if (sk.drain && this.hp > 0 && !m.dead) { // hunter ตะปบจุดตาย: drain the hero's blood as magic damage, heal by it
@@ -2575,6 +2581,9 @@ export class BattleScene extends Phaser.Scene {
     return free.length
   }
 
+  /** v68: a skill's pow x the caster's scaling stat (mon-stats skillMul; 1 for a monster without stats). */
+  private skPow(m: Mon, sk: MonSkill, dflt: number) { return (sk.pow ?? dflt) * skillMul(m.def, scaleOf(sk)) }
+
   /** A skill instead of an attack, on every `every`-th turn when it has a use. Returns true if one was used. */
   private async useSkill(m: Mon) {
     for (const raw of m.skills) {
@@ -2585,15 +2594,15 @@ export class BattleScene extends Phaser.Scene {
       let done = false
       if (sk.kind === 'heal') {
         const t = sk.self ? m : allies.filter((a) => a.hp < a.def.hp * 0.8).sort((a, b) => a.hp / a.def.hp - b.hp / b.def.hp)[0]
-        if (t && t.hp < t.def.hp * 0.8) { this.healMon(t, t.def.hp * (sk.pow ?? 0.15)); done = true }
+        if (t && t.hp < t.def.hp * 0.8) { this.healMon(t, t.def.hp * this.skPow(m, sk, 0.15)); done = true }
       } else if (sk.kind === 'shield') {
-        for (const t of sk.self ? [m] : allies) { t.shield = Math.max(t.shield, Math.round(t.def.hp * (sk.pow ?? 0.1))); this.dotIcon(t) }
+        for (const t of sk.self ? [m] : allies) { t.shield = Math.max(t.shield, Math.round(t.def.hp * this.skPow(m, sk, 0.1))); this.dotIcon(t) }
         done = true
       } else if (sk.kind === 'warcry') {
-        if (sk.self) { m.atkUp += sk.pow ?? 0.2; m.atkUpTurns = sk.turns ?? 3 }
-        else for (const t of allies) { t.atkUp = Math.max(t.atkUp, sk.pow ?? 0.2); t.atkUpTurns = Math.max(t.atkUpTurns, (sk.turns ?? 3) + (t === m ? 1 : 0)); this.dotIcon(t) }
+        if (sk.self) { m.atkUp += this.skPow(m, sk, 0.2); m.atkUpTurns = sk.turns ?? 3 }
+        else for (const t of allies) { t.atkUp = Math.max(t.atkUp, this.skPow(m, sk, 0.2)); t.atkUpTurns = Math.max(t.atkUpTurns, (sk.turns ?? 3) + (t === m ? 1 : 0)); this.dotIcon(t) }
         this.dotIcon(m); done = true
-      } else if (sk.kind === 'haste') { for (const t of allies) if (t !== m) t.gauge += sk.pow ?? 30; done = true }
+      } else if (sk.kind === 'haste') { for (const t of allies) if (t !== m) t.gauge += this.skPow(m, sk, 30); done = true }
       else if (sk.kind === 'curse' && sk.fx) { this.applyFx(sk.fx, m); done = true }
       else if (sk.kind === 'bolt') { await this.monBolt(m, sk); done = true }
       else if (sk.kind === 'strike') { await this.monStrike(m, sk); done = true }
@@ -2604,7 +2613,7 @@ export class BattleScene extends Phaser.Scene {
         if (corpse && slot !== undefined) {
           corpse.revived = true
           const r = this.addMon(corpse.kind, slot, 0)
-          r.revived = true; r.hp = Math.round(r.def.hp * (sk.pow ?? 0.5))
+          r.revived = true; r.hp = Math.round(r.def.hp * Math.min(1, this.skPow(m, sk, 0.5)))
           done = true
         }
       }
