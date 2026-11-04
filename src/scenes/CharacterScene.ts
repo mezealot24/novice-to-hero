@@ -6,6 +6,7 @@ import { BASE_STATS, canWear, forged, forgeTag, gradeOf, isBroken, refineOf, car
 import { canChangeJob, equip, persist, resetTree, save, socketCard, unsocketCard } from '../save'
 import { branchesOf, lockReason, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
 import { JOB_CHANGE, JOBS } from '../data/jobs'
+import { askRepick } from './JobScene'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
 
 // Character sheet: preview on the left, three tabs on the right (equipment, status, skills).
@@ -293,8 +294,8 @@ export class CharacterScene extends Phaser.Scene {
     })
     b.add(txt(this, 330, y0 + 100, '🌳 ทาเลนต์ & เปลี่ยนอาชีพ', 16, UI.text, true))
     if (canChangeJob(s) || s.job !== 'novice') {
-      b.add(txt(this, 330, y0 + 126, s.job === 'novice' ? 'ล้มบอสดันแรกแล้ว! ไปเลือกอาชีพได้เลย' : 'ลงแต้มสกิลอาชีพได้ที่ 🕸️ ใยสกิล · เปลี่ยนอาชีพใหม่ได้ฟรีช่วงทดลอง (คืนแต้มให้)', 13, UI.gold).setWordWrapWidth(420))
-      b.add(button(this, 850, y0 + 132, 150, 36, '🎓 อาชีพ', () => go(this, 'job'), { size: 15 }))
+      b.add(txt(this, 330, y0 + 126, s.job === 'novice' ? 'ล้มบอสดันแรกแล้ว! ไปเลือกอาชีพได้เลย' : `ลงแต้มสกิลอาชีพได้ที่ 🕸️ ใยสกิล · เปลี่ยนอาชีพใหม่ได้ด้วย 💎${JOB_CHANGE.repickGems} (คืนแต้มใยสกิลครบ Job Lv คงเดิม)`, 13, UI.gold).setWordWrapWidth(420))
+      b.add(button(this, 850, y0 + 132, 150, 36, s.job === 'novice' ? '🎓 อาชีพ' : `🔄 💎${JOB_CHANGE.repickGems}`, () => s.job === 'novice' ? go(this, 'job') : askRepick(this), { size: 15 }))
     } else b.add(txt(this, 330, y0 + 126, 'ปลดล็อกเมื่อล้มบอสดันแรก (ราชาเจลล็อป) · มี 5 อาชีพ: นักดาบ นักธนู จอมเวท นักบวช โจร', 13, UI.sub).setWordWrapWidth(600))
   }
 

@@ -13,7 +13,9 @@ export interface JobDef {
   auto: JobSkill & { cost: number }; ult: JobSkill & { cd: number; cost?: number } // ult cost: Mana (Mage, Swordsman)
 }
 
-export const JOB_CHANGE = { needClears: 1, classMaxJobLevel: 40 }
+/** repickGems (Q 2026-11-04): a class can switch to another base class for gems. Pure respec: Job Lv/EXP stay,
+ *  the skill web refunds every point, talents clear (re-place them free). Gems are earnable free, so this stays cheap. */
+export const JOB_CHANGE = { needClears: 1, classMaxJobLevel: 40, repickGems: 30 }
 export const RES_RULES = {
   rageMax: 100, rageOnHit: 12, rageOnHurt: 8,
   energyMax: 100, energyPerTurn: 25,

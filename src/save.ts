@@ -202,6 +202,24 @@ export function changeJob(job: JobId) {
   persist()
 }
 
+export const canRepickJob = (s: SaveData) => s.job !== 'novice'
+
+/** Class -> another base class for JOB_CHANGE.repickGems (Q 2026-11-04). Unlike changeJob, Job Lv + EXP stay:
+ *  skill points are earned per Job Lv, so restarting Job Lv while keeping the points would let every re-pick farm
+ *  them again. Web points come back as skill points, talents clear (derived from Job Lv, re-place free).
+ *  Base Lv, stat points, items, cards, zeny and the remaining gems are untouched. False (nothing spent) when short. */
+export function repickJob(job: JobId): boolean {
+  const s = save()
+  if (!canRepickJob(s) || job === s.job || job === 'novice' || s.gems < JOB_CHANGE.repickGems) return false
+  s.gems -= JOB_CHANGE.repickGems
+  s.skillPoints += resetTree(s)
+  s.jobTalents = {}
+  s.job = job
+  s.jobSkills = { auto: 1, ult: 1 }
+  persist()
+  return true
+}
+
 /** Free skill tree reset: clears the tree and returns the points it held (not yet added back). */
 export function resetTree(s: SaveData): number {
   const n = Object.values(s.jobTree ?? {}).reduce((a, v) => a + v, 0)
