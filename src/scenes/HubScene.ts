@@ -3,6 +3,7 @@ import { COLORS, DUNGEONS, H, HARD, hardGap, hardMul, W } from '../data/game-dat
 import { COSTUMES, FREE_GEMS, isBroken, itemById, JOB_RULES, RACES, STAT_RULES } from '../data/meta'
 import { canChangeJob, persist, save, today, wipe } from '../save'
 import { JOB_CHANGE, JOBS } from '../data/jobs'
+import { dailyOf, dailySeed, MODES, PANEL_MODES } from '../data/modes'
 import { setMuted } from '../sfx'
 import { backdrop, button, confirm, fullscreenButton, go, panel, toast, topBar, txt, UI } from '../ui'
 
@@ -107,6 +108,7 @@ export class HubScene extends Phaser.Scene {
       toast(this, `ได้เพชรฟรี +${FREE_GEMS.daily}`, UI.gem)
       this.time.delayedCall(500, () => this.scene.restart())
     })
+    tile(5, '🎮', 'โหมด', 'หอคอย · ท้าทายรายวัน', 0x7a3a6a, () => this.modes())
     tile(4, '⚙️', 'ตั้งค่า', s.muted ? 'เสียง: ปิด' : 'เสียง: เปิด', 0x4a4e6e, () => this.settings())
 
     if (data?.fresh) this.time.delayedCall(250, () => toast(this, `ยินดีต้อนรับ ${s.name}! ลองกด "ออกผจญภัย" ได้เลย`))
@@ -115,6 +117,33 @@ export class HubScene extends Phaser.Scene {
       delete s.webRefund; persist()
       this.time.delayedCall(300, () => confirm(this, '✨ ระบบสกิลใหม่!', `สกิลกับต้นสกิลรวมเป็นหน้าเดียวแล้ว + มีทักษะ 2 ให้เลือก\nคืนแต้มสกิลให้ ${n} แต้ม ไปลงใหม่ได้ฟรีค่ะ`, 'ไปหน้าสกิล', () => go(this, 'character', { tab: 3 })))
     }
+  }
+
+  /** 🎮 mode select (design/game-modes-v1.md §5): one row per mode, unlock state + best record. */
+  private modes() {
+    const s = save()
+    const c = this.add.container(0, 0).setDepth(40000)
+    c.add(this.add.rectangle(W / 2, H / 2, W, H, UI.night, 0.8).setInteractive())
+    c.add(panel(this, W / 2 - 400, H / 2 - 250, 800, 500, UI.panelHi, COLORS.gold))
+    c.add(txt(this, W / 2, H / 2 - 232, '🎮 โหมดท้าทาย', 26, UI.gold, true).setOrigin(0.5, 0))
+    PANEL_MODES.forEach((id, i) => {
+      const m = MODES[id], y = H / 2 - 180 + i * 190, u = m.unlock(s)
+      c.add(panel(this, W / 2 - 380, y, 760, 176, 0x2a3358))
+      c.add(txt(this, W / 2 - 360, y + 12, `${m.icon} ${m.name}`, 22, u.ok ? UI.text : UI.sub, true))
+      c.add(txt(this, W / 2 + 200, y + 18, u.ok ? m.record(s) : `🔒 ${u.why}`, 14, u.ok ? UI.gold : '#ff9a9a').setOrigin(1, 0))
+      let body = m.desc
+      if (id === 'daily') {
+        const seed = dailySeed(), d = dailyOf(seed)
+        body = `วันนี้: ${d.dg.name} · ${d.mutators.map((x) => `${x.icon} ${x.name} (${x.desc})`).join(' · ')}\n${m.desc}`
+      }
+      c.add(txt(this, W / 2 - 360, y + 46, body, 13, UI.sub).setWordWrapWidth(560).setLineSpacing(4))
+      const startIt = () => go(this, 'battle', { mode: id })
+      c.add(button(this, W / 2 + 290, y + 88, 130, 56, u.ok ? 'ลุย!' : '🔒', () => {
+        if (!u.ok) { confirm(this, `${m.name} ยังล็อกอยู่`, `${u.why} (โหมดทดสอบ: ลองได้)`, 'ลองเลย', startIt); return }
+        startIt()
+      }, { size: 20, fill: u.ok ? undefined : 0x4a4e6e, color: u.ok ? undefined : UI.sub }))
+    })
+    c.add(button(this, W / 2, H / 2 + 218, 200, 44, 'ปิด', () => c.destroy(), { size: 18, fill: 0x5a5f8a, color: UI.text }))
   }
 
   private settings() {
