@@ -3,7 +3,7 @@ import { COLORS, DUNGEONS, H, W } from '../data/game-data'
 import { JOBS } from '../data/jobs'
 import { canWear, forged, gradeOf, isBroken, itemStatLine, ITEMS, linesOf, refineOf, slotCount, SLOTS, wearText, type Item } from '../data/meta'
 import { craftCost, CRAFT_ITEMS, GRADE, gradeCap, gradeCost, gradeItem, gradeStars, REFINE, refinable } from '../data/craft'
-import { canAfford, FODDER, fodderFits, fodderMin, gemRepairCost, lineText, nextRate, pickFodder, refineCost, repair, repairCost, reroll, rerollCost, settleReroll, tryRefine, type ForgeCost } from '../data/refine'
+import { canAfford, canAffordAuto, FODDER, fodderFits, fodderMin, fodderToBuy, gemRepairCost, lineText, nextRate, pickFodder, refineCost, repair, repairCost, reroll, rerollCost, settleReroll, totalZeny, tryRefine, zenyShort, type ForgeCost } from '../data/refine'
 import { MAT_RULES, MATS, matById } from '../data/materials'
 import { addFodder, canPay, equip, forgetForge, isWorn, pay, persist, save } from '../save'
 import { sfx } from '../sfx'
@@ -49,7 +49,7 @@ export class ForgeScene extends Phaser.Scene {
     b.add(txt(this, 884, 118, `${this.page + 1}/${pages}`, 15, UI.text, true).setOrigin(0.5))
     b.add(button(this, 936, 118, 44, 40, '▶', () => { this.page++; this.render() }, { size: 16 }).setEnabled(this.page < pages - 1))
     if (this.tab === 'fodder') {
-      b.add(txt(this, 24, 146, 'เชื้อหลอม = ของร้านพื้นฐาน (ไม่ล็อกอาชีพ) ใช้ตีบวกและซ่อม · ต้องเป็นช่องเดียวกับของที่ตี', 13, UI.sub))
+      b.add(txt(this, 24, 146, 'เชื้อหลอม = ของร้านพื้นฐาน ใช้ตีบวก/ซ่อม (ช่องเดียวกัน) · ไม่มีก็ได้ ตอนตีจะซื้อให้อัตโนมัติ (ถามก่อนเสมอ)', 13, UI.sub))
       all.slice(this.page * per, this.page * per + per).forEach((it, i) => this.fodderCard(it, 24 + (i % 3) * 308, 170 + Math.floor(i / 3) * 100))
       return
     }
@@ -175,9 +175,9 @@ export class ForgeScene extends Phaser.Scene {
     if (has) b.add(button(this, x + cw - 40, lt.y + 10, 64, 24, s.reroll?.item === it.id ? '🎲 เลือก' : '🎲', () => this.linesView(it), { size: 13, fill: 0x8a6fd1, color: UI.text }))
     const by = y + ch - 24
     if (broken) {
-      const mc = repairCost(it)
+      const mc = repairCost(it, r), short = zenyShort(s, mc)
       b.add(this.costText(x + 14, by - 30, mc, cw - 28, '🔧 '))
-      b.add(button(this, x + 78, by, 128, 34, '🔧 ซ่อม', () => this.doRepair(it, false), { size: 15 }).setEnabled(canAfford(s, mc)))
+      b.add(button(this, x + 78, by, 128, 34, short && !canAffordAuto(s, mc) && this.matsOk(mc) ? `ขาด ${short}z` : `🔧 ${totalZeny(s, mc)}z`, () => this.doRepair(it, false), { size: 15 }).setEnabled(canAffordAuto(s, mc)))
       b.add(button(this, x + cw - 78, by, 128, 34, `💎${REFINE.repairGems} ซ่อม`, () => this.doRepair(it, true), { size: 15, fill: 0x5a5f8a, color: UI.text }).setEnabled(canAfford(s, gemRepairCost)))
       return
     }
@@ -185,13 +185,28 @@ export class ForgeScene extends Phaser.Scene {
     const n = r + 1, rate = nextRate(s, it), cost = refineCost(it, n)
     const gift = REFINE.lineAt.includes(n) && !lines[REFINE.lineAt.indexOf(n)] ? ' 🎁' : ''
     b.add(this.costText(x + 14, by - 30, cost, cw - 28))
-    b.add(button(this, x + cw / 2, by, cw - 32, 34, `ตี +${n} · สำเร็จ ${Math.round(rate * 100)}%${gift}`, () => this.doRefine(it), { size: 15, fill: rate < 1 ? 0xff9f5a : undefined }).setEnabled(canAfford(s, cost)))
+    const ok = canAffordAuto(s, cost), short = zenyShort(s, cost)
+    const label = !ok && short && this.matsOk(cost) ? `ตี +${n} · ขาด ${short}z` : `ตี +${n} · ${totalZeny(s, cost)}z · ${Math.round(rate * 100)}%${gift}`
+    b.add(button(this, x + cw / 2, by, cw - 32, 34, label, () => this.askRefine(it), { size: 15, fill: rate < 1 ? 0xff9f5a : undefined }).setEnabled(ok))
   }
 
-  private doRefine(it: Item) {
+  /** Mats + gems are there (so a short press is only about zeny). */
+  private matsOk(c: ForgeCost) {
+    return canAfford(save(), { ...c, zeny: 0, fodder: undefined })
+  }
+
+  /** When the press buys fodder, one confirm lists everything it takes. Never charge silently. */
+  private askRefine(it: Item) {
+    const s = save(), n = refineOf(s, it.id) + 1, cost = refineCost(it, n), f = fodderToBuy(s, cost)
+    if (!f) { this.doRefine(it); return }
+    const total = totalZeny(s, cost)
+    confirm(this, `ตี ${it.name} +${n}?`, `ไม่มีเชื้อหลอม ซื้อให้อัตโนมัติ:\n🔩 ${f.icon} ${f.name} ${f.price}z + ค่าตี ${cost.zeny}z\nรวม ${total}z · เหลือ ${s.zeny - total}z · สำเร็จ ${Math.round(nextRate(s, it) * 100)}%`, `ซื้อ+ตี ${total}z`, () => this.doRefine(it, true))
+  }
+
+  private doRefine(it: Item, autoBuy = false) {
     const s = save()
     const before = Math.round(nextRate(s, it) * 100)
-    const res = tryRefine(s, it)
+    const res = tryRefine(s, it, Math.random, autoBuy)
     if (!res.ok) { toast(this, res.why === 'short' ? 'วัตถุดิบ เชื้อหลอม หรือ zeny ยังไม่พอค่ะ' : 'ตีชิ้นนี้ต่อไม่ได้ค่ะ', UI.red); return }
     persist(); this.refreshWallet()
     if (res.success) {
@@ -206,9 +221,17 @@ export class ForgeScene extends Phaser.Scene {
     this.render()
   }
 
-  private doRepair(it: Item, gems: boolean) {
+  private doRepair(it: Item, gems: boolean, autoBuy = false) {
     const s = save()
-    if (!repair(s, it, gems)) { toast(this, gems ? 'เพชรไม่พอค่ะ' : 'เชื้อหลอมหรือวัตถุดิบยังไม่พอค่ะ', UI.red); return }
+    if (!gems && !autoBuy) {
+      const cost = repairCost(it, refineOf(s, it.id)), f = fodderToBuy(s, cost)
+      if (f) {
+        const total = totalZeny(s, cost)
+        confirm(this, `ซ่อม ${it.name}?`, `ไม่มีเชื้อหลอม ซื้อให้อัตโนมัติ:\n🔩 ${f.icon} ${f.name} ${f.price}z${cost.zeny ? ` + ค่าซ่อม ${cost.zeny}z` : ''}\nรวม ${total}z · เหลือ ${s.zeny - total}z`, `ซื้อ+ซ่อม ${total}z`, () => this.doRepair(it, false, true))
+        return
+      }
+    }
+    if (!repair(s, it, gems, autoBuy)) { toast(this, gems ? 'เพชรไม่พอค่ะ' : 'เชื้อหลอมหรือวัตถุดิบยังไม่พอค่ะ', UI.red); return }
     persist(); sfx.coin(); this.refreshWallet()
     toast(this, `🔧 ซ่อม ${it.name} แล้ว กลับมาใช้ได้เต็มที่ค่ะ`, UI.green)
     this.render()
@@ -293,15 +316,16 @@ export class ForgeScene extends Phaser.Scene {
     if (cost.fodder) {
       const f = pickFodder(s.fodder, cost.fodder), name = SLOTS.find((q) => q.id === cost.fodder!.slot)?.name ?? ''
       const fits = fodderFits(cost.fodder)
-      parts.push(f ? `🔩${f.name} ${s.fodder![f.id]}/1` : `✗🔩${name}ร้าน${cost.fodder.min ? `≥${cost.fodder.min}z` : ''}${fits[0] ? ` (เช่น ${fits[0].name})` : ''}`)
+      parts.push(f ? `🔩${f.name} ${s.fodder![f.id]}/1` : fits[0] ? `🛒🔩${fits[0].name} ${fits[0].price}z` : `✗🔩${name}ร้าน${cost.fodder.min ? `≥${cost.fodder.min}z` : ''}`)
     }
     for (const [id, n] of Object.entries(cost.mats)) {
       const have = s.mats?.[id] ?? 0, m = matById(id)
       parts.push(`${have >= n ? '' : '✗'}${m?.icon ?? ''}${m?.name ?? id} ${have}/${n}`)
     }
-    if (cost.zeny) parts.push(`${s.zeny >= cost.zeny ? '' : '✗'}${cost.zeny}z`)
+    const auto = cost.fodder ? totalZeny(s, cost as ForgeCost) : cost.zeny
+    if (cost.zeny) parts.push(`${s.zeny >= auto ? '' : '✗'}${cost.fodder ? (prefix ? 'ค่าซ่อม ' : 'ค่าตี ') : ''}${cost.zeny}z`)
     if (cost.gems) parts.push(`${s.gems >= cost.gems ? '' : '✗'}💎${cost.gems}`)
-    const ok = canAfford(s, cost)
+    const ok = cost.fodder ? canAffordAuto(s, cost as ForgeCost) : canAfford(s, cost)
     const t = txt(this, x, y, prefix + parts.join(' · '), 12, ok ? UI.text : '#ffb0b0')
     if (t.width > w) t.setText(prefix + parts.map((p) => p.replace(/(\S+?)[\u0E00-\u0E7F]+ (\d+\/\d+)/u, '$1 $2').replace(/ \(เช่น [^)]+\)/u, '')).join(' · ')) // too long: icons only (names are on the วัตถุดิบ tab)
     if (t.width > w) t.setText(t.text.replace(/🔩[\u0E00-\u0E7F]+(ร้าน)?/u, '🔩')) // still too long: "✗🔩≥400z"

@@ -102,7 +102,15 @@ export const REFINE = {
   repairGems: 10,
   goldRate: 0.1, // a line comes out gold this often...
   goldMul: 1.5, // ...worth this much more
+  // Zeny fee per try climbs every step (Q 2026-11-04 "แพงขึ้นเรื่อยๆ ต่อขั้น"): fee(n) = feeBase x feeGrowth^(n-1), rounded to 5z.
+  // 25 35 50 70 95 135 190 265 370 515. Expected total incl. fodder + repairs (sim, weapon): +5 ~500z (2-3 ดัน3 runs),
+  // +7 ~1.2k, +10 ~8.7k (late game; the old flat 10/20/40 x n table was ~7.3k with a jump at +8).
+  feeBase: 25,
+  feeGrowth: 1.4,
+  repairFee: 0.5, // material repair also costs this share of the fee for the item's current +
 }
+/** Zeny fee for one try at +n. */
+export const refineFee = (n: number) => (n <= 0 ? 0 : Math.round((REFINE.feeBase * REFINE.feeGrowth ** (n - 1)) / 5) * 5)
 /** Starter gear and the empty slots can't be refined; crafted gear (price 0) can. */
 export const refinable = (it: Item) => it.price > 0 || !!it.craft
 /** Chance to reach +n after `pity` fails in a row. */

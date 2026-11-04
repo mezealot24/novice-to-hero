@@ -271,3 +271,10 @@
 2. **ของร้านพื้นฐานเป็นวัตถุดิบได้** (เชื้อหลอม) · ตีบวกพลาดของแตก → ซ่อมด้วยวัตถุดิบ หรือเพชร
 3. (17:00) ตี +5 / +7 / +10 ได้ **ค่าสุ่มพิเศษ** → ข้อ 3.5.1 (ตุ๊กตาเพิ่มสุ่มใหม่แบบเลือกเก็บได้)
 4. ของดันที่ร้านขายอยู่: คิวให้ตุ๊กตาเลือก → **ปล่อยขายในร้านต่อ** (ไม่กระทบใคร ไม่ต้องแก้เซฟ) · ของดันชิ้นใหม่ + ของช่องหมวก/มือรองระดับสูง = Craft เท่านั้น
+
+## v53 update (2026-11-04): auto-buy fodder + per-step refine fee
+
+- **Auto-buy fodder**: refine/repair no longer needs a trip to the shop. If the stash has no fitting fodder, the button total includes the cheapest fitting shop item at shop price; pressing it opens one confirm listing fodder price + fee + total + zeny left. Not enough zeny = button disabled showing `ขาด Nz`. Manual fodder buying (shop / เชื้อ tab) stays.
+- **Fee curve** (`REFINE.feeBase` 25 × `feeGrowth` 1.4^(n-1), rounded to 5z, `refineFee()` in `src/data/craft.ts`): +1..+10 = 25 35 50 70 95 135 190 265 370 515. Replaces the flat 10/20/40 × n per tier. Mats and fodder tiers unchanged.
+- **Repair** now also costs `REFINE.repairFee` (50%) of the fee for the item's current + (e.g. +7 broken: 95z + fodder + 2 mats); gem repair (10 gems) unchanged and still dearer.
+- Expected total zeny from +0 (sim incl. fodder + repairs, weapon): +5 ~500z, +7 ~1.2k, +10 ~8.7k (old table ~420 / 1.1k / 7.3k). Combat stats per + unchanged, so bot balance is not affected.
