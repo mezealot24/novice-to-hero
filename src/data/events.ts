@@ -10,6 +10,8 @@ export type EventId =
   | 'camp' | 'chest' | 'shrine' | 'merchant' | 'spring' | 'slots' | 'cursed' | 'door' | 'trap' | 'runes' | 'blood' | 'fork' | 'traveler'
   // rare
   | 'goldchest' | 'fairy' | 'goldjellop' | 'goddess' | 'market' | 'ghost'
+  // rare, พร v2 🌈 immortal cards (only while the run has none)
+  | 'altar' | 'darkmirror' | 'nest'
   // jackpot (only from a full Fortune meter)
   | 'vault' | 'mimicking' | 'clover' | 'stars'
 export type EventTier = 'common' | 'rare' | 'jackpot'
@@ -46,6 +48,9 @@ export const EVENTS: EventDef[] = [
   ev('goddess', 'rare', 20, '🃏', 'เทพีแห่งโชค', 'อีเวนต์หายาก! การ์ดคว่ำ 3 ใบ เลือกได้ 1 ใบ (LUK สูง = แอบดูได้)', { minTier: 2 }),
   ev('market', 'rare', 15, '🕶️', 'ตลาดมืด', 'อีเวนต์หายาก! ของดีราคาแพง (LUK สูง = ต่อราคาได้)', { minTier: 3 }),
   ev('ghost', 'rare', 15, '👻', 'วิญญาณนักรบเร่ร่อน', 'อีเวนต์หายาก! วิญญาณขอดวลอีกครั้ง ชนะได้การ์ดของมัน', { minTier: 3 }),
+  ev('altar', 'rare', 8, '👼', 'แท่นบูชาแสง', 'อีเวนต์หายาก! แสงสีรุ้งส่องลงมา... ถวายเครื่องบูชาเพื่อรับ 🌈 พรอมตะ', { minTier: 2 }),
+  ev('darkmirror', 'rare', 8, '🪞', 'กระจกเงาปีศาจ', 'อีเวนต์หายาก! เงาในกระจกยิ้มให้... ยื่นมือเข้าไปเพื่อรับ 🌈 พรอมตะ', { minTier: 2 }),
+  ev('nest', 'rare', 8, '🪺', 'รังนกยักษ์', 'อีเวนต์หายาก! มีไข่ทองคำในรังนกยักษ์ แต่แม่นกเฝ้าอยู่', { minTier: 2 }),
   // ----- jackpot (Fortune meter full; the best one the hero's LUK reaches) -----
   ev('vault', 'jackpot', 1, '🏦', 'ห้องสมบัติลับ', 'JACKPOT! มาตรดวงเต็ม เจอห้องสมบัติลับ เลือกได้ 2 อย่าง', { minLuk: 0 }),
   ev('mimicking', 'jackpot', 1, '👑', 'หีบมิมิคราชา', 'JACKPOT! หีบยักษ์มีมงกุฎ... มันขยับ! ชนะได้การ์ดแน่นอน', { minLuk: 20 }),
@@ -90,6 +95,8 @@ export const EVENT_RULES = {
   kingZeny: 5,
   cloverCheck: 0.2, // clover jackpot: + this to every check for the rest of the run
   starsGems: 5,
+  altarZeny: 35, // x tier: offering at the light altar (or pass a WIS check)
+  nestTurns: 12, nestHp: 1.5, // mother bird = event mimic numbers, HP x1.5
   gemCap: 8, // most gems events can give in one run
 }
 
@@ -126,10 +133,12 @@ export function slotsResult(r: SlotFace[]): 'gems' | 'legend' | 'jackpot' | 'cur
 }
 
 /** Pick one event. `rareChance` = hero eventChance (+ boosts). Never the same event twice in a row. */
-export function rollEvent(rareChance: number, tier: number, opts: { canShop: boolean; canSpin: boolean; canFork: boolean; last?: EventId }, rnd = Math.random): EventDef {
+const IMMORTAL_EVENTS: EventId[] = ['altar', 'darkmirror', 'nest']
+export function rollEvent(rareChance: number, tier: number, opts: { canShop: boolean; canSpin: boolean; canFork: boolean; canImmortal?: boolean; last?: EventId }, rnd = Math.random): EventDef {
   const want: EventTier = rnd() < rareChance ? 'rare' : 'common'
   const ok = (e: EventDef) => e.tier === want && (e.minTier ?? 1) <= tier && e.id !== opts.last
     && (opts.canShop || e.id !== 'merchant') && (opts.canSpin || e.id !== 'slots') && (opts.canFork || e.id !== 'fork')
+    && (opts.canImmortal !== false || !IMMORTAL_EVENTS.includes(e.id))
   const pool = EVENTS.filter(ok)
   let r = rnd() * pool.reduce((a, e) => a + e.weight, 0)
   for (const e of pool) { r -= e.weight; if (r < 0) return e }

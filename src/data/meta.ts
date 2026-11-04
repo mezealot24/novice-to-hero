@@ -18,7 +18,7 @@ export const PER_POINT = {
   wis: { healAmp: 0.01, shieldAmp: 0.01, mdefK: 150, resRegen: 0.05, tenacityK: 200 },
   agi: { aspdPct: 0.015, flee: 1, comboK: 120 },
   off: { swordDexCounter: 0.002, archerStrUlt: 0.01, clericDexSpear: 0.003, mageLukSpellCrit: 0.01 / 6 },
-  luk: { spear: 0.005, spearCap: 0.25, /* Cleric: +0.5% light spear chance per LUK per turn, cap 25% */ crit: 0.01 / 3, /* Q: every 3 LUK = +1% crit (only stat that gives crit) */ dodgeK: 300, legendPer: 0.0007, legendCap: 0.1, dropPct: 0.005, dropCap: 0.5, eventPer: 0.005, eventCap: 0.3 },
+  luk: { spear: 0.005, spearCap: 0.25, /* Cleric: +0.5% light spear chance per LUK per turn, cap 25% */ crit: 0.01 / 3, /* Q: every 3 LUK = +1% crit (only stat that gives crit) */ dodgeK: 300, legendPer: 0.0007, legendCap: 0.15, /* พร v2: base 6% + LUK, cap 15% */ dropPct: 0.005, dropCap: 0.5, eventPer: 0.005, eventCap: 0.3 },
 }
 // What each stat does is in data/statInfo.ts (generic + current class only, numbers from PER_POINT).
 export const BASE_STATS: { id: BaseStat; name: string; role: string }[] = [

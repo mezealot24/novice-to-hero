@@ -5,6 +5,7 @@ import { hasSave, load } from '../save'
 import { JOBS } from '../data/jobs'
 import { setMuted } from '../sfx'
 import { backdrop, button, confirm, fullscreenButton, go, txt, UI } from '../ui'
+import { PREVIEW, PREVIEW_JOBS, previewHero } from '../preview-kit'
 
 // First screen: logo, a novice bouncing on the hill, Continue / New game.
 export class TitleScene extends Phaser.Scene {
@@ -36,6 +37,10 @@ export class TitleScene extends Phaser.Scene {
     }
     if (!hasSave()) txt(this, W / 2, by + 74, 'เกมจะบันทึกอัตโนมัติในเครื่องนี้', 15, UI.sub).setOrigin(0.5)
 
+    if (PREVIEW) { // playtest link only: start as a ready-made Lv 20 hero
+      txt(this, W / 2, H - 116, '🧪 ลิงก์ทดลอง: ตัวทดสอบ Lv 20 (เกียร์คราฟต์ +5 · ดัน 1-4 ผ่านแล้ว · แต้มยังไม่ลง)', 14, UI.gold).setOrigin(0.5)
+      PREVIEW_JOBS.forEach((j, i) => button(this, W / 2 + (i - 2) * 150, H - 78, 140, 44, `${JOBS[j].icon} ${JOBS[j].name}`, () => { previewHero(j); go(this, 'hub') }, { size: 16, fill: 0x3a6b4a, color: UI.text }))
+    }
     txt(this, 16, H - 28, 'v0.3 · M3 shell · ภาพชั่วคราว', 13, UI.sub)
     fullscreenButton(this, W - 30, 30)
   }

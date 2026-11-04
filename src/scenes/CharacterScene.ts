@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { COLORS, doubleAtkChance, DUNGEONS, type Stats } from '../data/game-data'
-import { autoInfo, skill2Info, ultInfo, type InfoRow } from '../data/skill-math'
+import { autoInfo, magicPower, skill2Info, ultInfo, type InfoRow } from '../data/skill-math'
 import { skill2ById } from '../data/skill2'
 import { CARD_RULES, cardIcon, cardName, EQUIP_CARDS, TIER_COLOR, type EquipCard } from '../data/cards'
 import { gradeStars, gradeCap } from '../data/craft'
@@ -475,7 +475,7 @@ export function derivedRows(st: Stats): [string, string][] {
   return [
     ['HP', `${Math.round(st.maxHp)}`],
     ['P.ATK (ต่ำ~สูง)', `${Math.round(st.atk * st.minPct)}~${Math.round(st.atk)}`],
-    ['M.ATK', `${Math.round(st.matk)}`],
+    ['M.ATK / พลังเวท (70%M+30%P)', `${Math.round(st.matk)} / ${Math.round(magicPower(st))}`], // พร v2: magic hits use magic power
     ['ดาเมจสกิลกายภาพ', `+${(st.pskill * 100).toFixed(1)}%`],
     ['P.DEF / M.DEF', `${st.def.toFixed(1)} (-${Math.round(100 - 10000 / (100 + st.def))}%) / ${pct(st.mdef)}`],
     ['Hit / Flee', `${Math.round(st.hit)} / ${Math.round(st.flee)}`],

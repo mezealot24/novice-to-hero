@@ -2,6 +2,7 @@
 // BattleScene hands over a small EventHost, so this file never touches battle internals directly.
 // Design: design/roadmap-and-events-v1.md.
 import { COMMON_PERKS, type HitFx, type MonsterKind, type Stats } from '../data/game-data'
+import { IMMORTAL_RULES, IMMORTALS, type ImmortalId } from '../data/perks'
 import type { BaseStat } from '../data/meta'
 import {
   CHECK_NAME, checkChance, EVENT_RULES as R, eventById, eventMon, FORTUNE, fortuneGain, jackpotFor, nextJackpot, rollEvent,
@@ -49,6 +50,9 @@ export interface EventHost {
   /** big centred text for a moment (slot reels, card reveal) */
   reveal(text: string, color?: string): Promise<void>
   perks(legend?: boolean): Promise<void>
+  /** พร v2 🌈 immortal card this run (1 max), and granting one */
+  immortal(): ImmortalId | null
+  grantImmortal(id: ImmortalId): void
   applyMod(mod: Partial<Stats>): void
   heal(share: number): void
   /** lose a share of max HP; never kills */
@@ -276,7 +280,7 @@ const HANDLERS: Record<EventId, Handler> = {
     if (ok) { const c = h.card(); if (c) h.say(`🃏 ได้${c}!`, '#f2b84b') }
   },
   async fairy(h, ev) {
-    await h.choose(ev, [{ label: '🧚 รับพร', sub: 'เลือกพรตำนาน (แรง x2) 1 ใน 3' }])
+    await h.choose(ev, [{ label: '🧚 รับพร', sub: 'เลือกพร 🟠 ตำนาน (ของสายที่มีอยู่แล้ว)' }])
     await h.perks(true)
   },
   async goldjellop(h, ev) {
@@ -293,7 +297,7 @@ const HANDLERS: Record<EventId, Handler> = {
   async goddess(h, ev) {
     type Gift = { id: 'legend' | 'gems' | 'zeny' | 'empty'; label: string }
     const gifts = shuffle<Gift>([
-      { id: 'legend', label: '✦ พรตำนาน' }, { id: 'gems', label: '💎 เพชร 3' }, { id: 'zeny', label: '🪙 zeny ก้อนโต' }, { id: 'empty', label: '💨 ว่างเปล่า' },
+      { id: 'legend', label: '🟠 พรตำนาน' }, { id: 'gems', label: '💎 เพชร 3' }, { id: 'zeny', label: '🪙 zeny ก้อนโต' }, { id: 'empty', label: '💨 ว่างเปล่า' },
     ]).slice(0, 3)
     const peek = Math.min(2, Math.floor(luk(h) / R.goddessPeekPer))
     const c = await h.choose({ ...ev, desc: `${ev.desc}\nLUK ${luk(h)}: แอบดูได้ ${peek} ใบ${peek < 2 ? ` (ทุก ${R.goddessPeekPer} LUK = 1 ใบ)` : ''}` },
@@ -310,7 +314,7 @@ const HANDLERS: Record<EventId, Handler> = {
     const perk = Math.round(R.marketPerk * t * (1 - d)), card = Math.round(R.marketCard * t * (1 - d)), fix = Math.round(R.marketCleanse * t * (1 - d))
     const cursed = h.flags.curses.length > 0
     const c = await h.choose(ev, [
-      { label: '✦ พรตำนาน', sub: `${perk} zeny${off}`, off: h.zeny() < perk },
+      { label: '🟠 พรตำนาน', sub: `${perk} zeny${off}`, off: h.zeny() < perk },
       { label: '🃏 การ์ดดันนี้', sub: `${card} zeny${off}`, off: h.zeny() < card },
       cursed ? { label: '🕯️ ล้างคำสาป', sub: `${fix} zeny${off}`, off: h.zeny() < fix } : { label: '🧪 ยาเต็มหลอด', sub: `ฮีล 100% · ${fix} zeny${off}`, off: h.zeny() < fix },
       { label: '👋 ไป', sub: `มี ${h.zeny()} zeny` },
@@ -330,11 +334,46 @@ const HANDLERS: Record<EventId, Handler> = {
     if (r.won) { const n = h.card(kind); if (n) h.say(`🃏 ได้${n}!`, '#f2b84b'); else h.mat(true, 1) }
     else h.say('👻 วิญญาณจางหายไป...', '#9fb8ff')
   },
+  // ---------------- rare: พร v2 🌈 immortal cards ----------------
+  async altar(h, ev) {
+    const cost = R.altarZeny * h.tier, A = IMMORTALS.angel
+    const cs = checkChance('wis', h.stat('wis'), bonus(h))
+    const c = await h.choose(ev, [
+      { label: `🪙 ถวาย ${cost} zeny`, sub: `ได้ ${A.icon} ${A.name} แน่นอน\n${A.desc}`, off: h.zeny() < cost },
+      { label: `🧘 ภาวนา ${pc(cs)}`, sub: `ใช้ WIS ${h.stat('wis')}\nผ่าน: ได้ ${A.icon} ${A.name}\nพลาด: ไม่ได้อะไร` },
+      { label: '🚶 เดินผ่าน', sub: 'ไม่ต้องการพร' },
+    ])
+    if (c === 2) return
+    if (c === 0) h.spend(cost)
+    else if (!(await doCheck(h, 'wis'))) { h.say('แสงจางหายไป...', '#a9a6c7'); return }
+    h.grantImmortal('angel')
+  },
+  async darkmirror(h, ev) {
+    const D = IMMORTALS.demon
+    const c = await h.choose(ev, [
+      { label: '🖐️ ยื่นมือเข้าไป', sub: `ได้ ${D.icon} ${D.name}\n${D.desc}\nแลกกับ: HP สูงสุด −${pc(IMMORTAL_RULES.demonHpCost)} จนจบรอบ` },
+      { label: '🚶 ไม่แตะ', sub: 'เงานั่นดูไม่น่าไว้ใจ' },
+    ])
+    if (c === 1) return
+    h.grantImmortal('demon')
+  },
+  async nest(h, ev) {
+    const E = IMMORTALS.egg
+    const c = await h.choose(ev, [
+      { label: '⚔️ สู้แม่นก', sub: `ชนะ: ได้ ${E.icon} ${E.name}\n${E.desc}\nแพ้: เสีย HP ไม่เกิน ${pc(R.eventFightLoss)}` },
+      { label: '🚶 ปล่อยไว้', sub: 'แม่นกดุเกินไป' },
+    ])
+    if (c === 1) return
+    const mon = eventMon('mimic', h.tier) // scaled by dungeon tier (the gargoyle's own DEF 90 is a D3 wall)
+    const r = await h.fight('gargoyle', { ...mon, hp: Math.round(mon.hp * R.nestHp), turns: R.nestTurns, tint: 0xffd86b })
+    if (r.won) h.grantImmortal('egg')
+    else h.say('🪺 แม่นกไล่เราออกมา...', '#a9a6c7')
+  },
   // ---------------- jackpot ----------------
   async vault(h, ev) {
     type Loot = { id: 'legend' | 'zeny' | 'gems' | 'heal'; label: string; sub: string }
     const all: Loot[] = [
-      { id: 'legend', label: '✦ พรตำนาน', sub: 'เลือก 1 ใน 3 แรง x2' },
+      { id: 'legend', label: '🟠 พรตำนาน', sub: 'เลือกพรตำนานของสายที่มี' },
       { id: 'zeny', label: `🪙 zeny x${R.vaultZeny}`, sub: 'กองทองท่วมหัว' },
       { id: 'gems', label: `💎 เพชร ${R.vaultGems}`, sub: 'เก็บไว้ซื้อชุด/ซ่อมของ' },
       { id: 'heal', label: '💖 ฟื้นเต็ม + โล่', sub: `ฮีล 100% + โล่ ${pc(R.vaultShield)}` },
@@ -385,7 +424,7 @@ export async function runPostWaveEvent(h: EventHost) {
     let rare = F.clover ? 1 : h.st.eventChance
     if (F.karma > 0) { rare = Math.max(rare, F.karma); F.karma = 0 }
     const potion = Math.round(R.potionCost * h.tier * (1 - discount(h)))
-    ev = rollEvent(rare, h.tier, { canShop: h.zeny() >= potion, canSpin: h.zeny() >= R.slotsCost * h.tier, canFork: h.nextIsWave(), last: F.last })
+    ev = rollEvent(rare, h.tier, { canShop: h.zeny() >= potion, canSpin: h.zeny() >= R.slotsCost * h.tier, canFork: h.nextIsWave(), canImmortal: !h.immortal(), last: F.last })
     if (meterOn) h.addFortune(fortuneGain(luk(h)))
   }
   F.last = ev.id

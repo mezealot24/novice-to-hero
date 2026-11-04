@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
-import { COLORS, H, TAGS, W } from '../data/game-data'
+import { COLORS, H, W } from '../data/game-data'
+import { JOB_LINES, LINES } from '../data/perks'
 import { BASE_JOBS, JOB_CHANGE, JOBS, type JobId } from '../data/jobs'
 import { RESOURCES } from '../data/meta'
 import { canRepickJob, changeJob, repickJob, save } from '../save'
@@ -46,7 +47,7 @@ export class JobScene extends Phaser.Scene {
       txt(this, x, 214, `${j.icon} ${j.name}`, 20, UI.text, true).setOrigin(0.5)
       txt(this, x, 238, j.focus, 14, UI.gold, true).setOrigin(0.5)
       const res = j.resource ? RESOURCES[j.resource] : null
-      const tags = j.tags.map((t) => `${TAGS[t].icon}${TAGS[t].name}`).join(' ')
+      const tags = (JOB_LINES[j.id] ?? []).map((l) => `${LINES[l].icon}${LINES[l].name}`).join(' ') // พร v2 own lines
       txt(this, x - cw / 2 + 12, 258, [
         j.blurb,
         `พลัง: ${res ? res.name : '-'}`,
