@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { afterDef, BATTLE, doubleAtkChance, COLORS, COMMON_PERKS, hitChance, DUNGEONS, FONT_NUM, FONT_UI, H, MONSTERS, PERKS, perkDesc, PLAYER, RULES, SET_BONUS, TAGS, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Perk, type Stats, type Tag } from '../data/game-data'
+import { afterDef, BATTLE, doubleAtkChance, COLORS, COMMON_PERKS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, hardMul, FONT_UI, H, MONSTERS, PERKS, perkDesc, PLAYER, RULES, SET_BONUS, TAGS, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Perk, type Stats, type Tag } from '../data/game-data'
 import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
 import { COSTUMES, FREE_GEMS, heroStats, PER_POINT, RESOURCES, totalBase, type BaseStat } from '../data/meta'
@@ -36,7 +36,7 @@ interface Mon {
   shield: number // absorbs hero damage first
   atkUp: number; atkUpTurns: number // warcry: + damage share for its own next N turns
   phase: number // boss phases entered so far
-  speedMul: number; dmgMul: number; reflect: number; absorb: number; stored: number; chargeEvery: number
+  speedMul: number; dmgMul: number; affix?: string; reflect: number; absorb: number; stored: number; chargeEvery: number
   skills: MonSkill[]; onHit?: HitFx; slamFx?: HitFx
   revived: boolean // came back once (necro): can't be raised again
   weakTurns: number; weakPct: number // hero Skill 2 ท้าทาย: hits weaker for its next N turns
@@ -103,6 +103,9 @@ export class BattleScene extends Phaser.Scene {
   constructor() { super('battle') }
 
   private dg: DungeonDef = DUNGEONS[0]
+  /** Hard mode (v47): replay of a cleared dungeon, monsters scale with Base Lv (data/game-data.ts HARD). gap = levels above the dungeon's recLv. */
+  hard = false
+  hardGap = 0
   /** Bot / test hook: the open choice (event or card) picks option i. */
   pendingPick?: (i: number) => void
   eventLog: string[] = []
@@ -144,8 +147,9 @@ export class BattleScene extends Phaser.Scene {
   private sayN = 0
   private fortuneTxt?: Phaser.GameObjects.Text
 
-  init(data?: { d?: number }) {
+  init(data?: { d?: number; hard?: boolean }) {
     this.dg = DUNGEONS[data?.d ?? 0] ?? DUNGEONS[0]
+    this.hard = !!data?.hard
     this.mons = []; this.queueIcons = []; this.overlay = undefined; this.paused = false; this.over = false
     this.time.paused = false
   }
@@ -200,6 +204,7 @@ export class BattleScene extends Phaser.Scene {
     this.mons.forEach((m) => this.removeMon(m)); this.mons = []
     const s = save()
     this.st = heroStats(s)
+    this.hardGap = this.hard ? hardGap(this.dg.id, s.baseLevel) : 0
     this.hp = this.st.maxHp; this.smashCdLeft = 0; this.heroGauge = 0; this.zapCount = 0; this.emergencyUsed = false; this.firstOffer = true
     this.job = JOBS[s.job ?? 'novice']
     this.s2 = this.job.id === 'novice' ? undefined : skill2Picked(s.jobTree, this.job.id); this.s2Cd = 0
@@ -299,19 +304,57 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private addMon(kind: MonsterKind, slot: number, gauge?: number) {
-    const def = MONSTERS[kind]
+    const def = this.hardDef(MONSTERS[kind])
     const big = def.ai === 'boss'
     const x = big ? 720 : SLOT_X[slot]
     const y = GROUND + (slot % 2 ? 14 : -4)
     const shadow = this.add.image(W + 80, y + 2, 'shadow').setScale((def.radius * 2.4) / 60 * 1.4, 1.2).setDepth(y - 1)
     const spr = this.add.image(W + 80, y, def.tex).setOrigin(0.5, 1).setScale(kind === 'minijellop' ? 1.1 : big ? 1.6 : 1.5).setDepth(y)
     if (FACES_RIGHT.includes(kind)) spr.setFlipX(true)
+    if (this.hard) spr.setTint(HARD.tint)
+    const affix = this.hard && def.ai === 'boss' ? this.lastAffix : undefined
     const m: Mon = { kind, def, spr, shadow, hp: def.hp, gauge: gauge ?? Phaser.Math.Between(0, 40), dead: false, slot, turns: 0, charging: false, summoned: false, burnStacks: 0, burnStackTurns: 0, chill: 0, frozen: false, burn: 0, burnTurns: 0, poison: 0, poisonDmg: 0, parry: false, ice: 0, iceChance: 0, iced: false, hell: 0, harvestMark: 0,
-      shield: 0, atkUp: 0, atkUpTurns: 0, phase: 0, speedMul: 1, dmgMul: 1, reflect: def.reflect ?? 0, absorb: def.absorb ?? 0, stored: 0, chargeEvery: def.chargeEvery ?? BATTLE.slamEvery, skills: def.skills ?? [], onHit: def.onHit, slamFx: def.slamFx, revived: false, weakTurns: 0, weakPct: 0 }
+      shield: 0, atkUp: 0, atkUpTurns: 0, phase: 0, speedMul: 1, dmgMul: 1, reflect: def.reflect ?? 0, absorb: def.absorb ?? 0, stored: 0, chargeEvery: def.chargeEvery ?? BATTLE.slamEvery, skills: def.skills ?? [], onHit: def.onHit, slamFx: def.slamFx, revived: false, weakTurns: 0, weakPct: 0, affix }
+    if (affix) m.speedMul = this.lastSpeed
+    if (affix) this.time.delayedCall(700, () => this.callout(`🔥 ${def.name}: ${affix}`, W / 2, 205))
     this.mons.push(m)
     this.tweens.add({ targets: [spr, shadow], x, duration: 600, ease: 'Quad.easeOut', delay: slot * 90 })
     return m
   }
+
+  /** Hard mode: HP / ATK / M.ATK / Hit scaled by the hero's Base Lv over the dungeon's recLv. */
+  private hardDef(def: MonsterDef): MonsterDef {
+    if (!this.hard) return def
+    const k = hardMul(this.dg.id, this.hardGap)
+    const out: MonsterDef = { ...def, hp: Math.round(def.hp * k.hp), dmg: def.dmg * k.atk, ...(def.matk ? { matk: def.matk * k.atk } : {}), hit: (def.hit ?? 15) + HARD.hitPerLv * Math.min(25, this.hardGap) }
+    if (def.ai === 'boss' && !def.passive) this.hardAffix(out)
+    return out
+  }
+
+  /** Hard mode: a mini boss / boss rolls 1 extra skill + 1 passive (final bosses of dungeon 3+: 2 passives). */
+  private hardAffix(d: MonsterDef) {
+    const pick = <T,>(a: T[]) => a[Phaser.Math.Between(0, a.length - 1)]
+    const sk = pick(HARD_SKILLS.filter((x) => !(d.skills ?? []).some((y) => y.kind === x.kind && JSON.stringify(y.fx) === JSON.stringify(x.fx))))
+    d.skills = [...(d.skills ?? []), sk] // own skills keep priority
+    if (d.phases) d.phases = d.phases.map((p) => (p.skills ? { ...p, skills: [...p.skills, sk] } : p))
+    const pool = HARD_PASSIVES.filter((p) => !(p.onHit && d.onHit) && !(p.reflect && (d.reflect || d.absorb)) && !(p.lifesteal && d.lifesteal))
+    const n = !d.mini && this.dg.tier >= 3 ? 2 : 1
+    const got: string[] = []
+    this.lastSpeed = 1
+    for (let i = 0; i < n && pool.length; i++) {
+      const p = pool.splice(Phaser.Math.Between(0, pool.length - 1), 1)[0]
+      got.push(p.name)
+      if (p.lifesteal) d.lifesteal = (d.lifesteal ?? 0) + p.lifesteal
+      if (p.reflect) d.reflect = (d.reflect ?? 0) + p.reflect
+      if (p.onHit) d.onHit = p.onHit
+      if (p.def) d.def = (d.def ?? 0) + p.def
+      if (p.speed) this.lastSpeed = p.speed
+      if (p.enrage) d.phases = [...(d.phases ?? []), { at: 0.35, name: p.name, dmg: p.enrage, speed: 1.15 }].sort((a, b) => b.at - a.at)
+    }
+    this.lastAffix = `${sk.name} · ${got.join(' · ')}`
+  }
+  private lastAffix = ''
+  private lastSpeed = 1
 
   private removeMon(m: Mon) { m.spr.destroy(); m.shadow.destroy(); m.dotTxt?.destroy() }
   private alive() { return this.mons.filter((m) => !m.dead) }
@@ -355,6 +398,7 @@ export class BattleScene extends Phaser.Scene {
     this.fightTurns = 0; this.timedOut = false
     const room = this.dg.rooms[this.room]
     this.turnLimit = room?.turnLimit ?? (room?.boss ? BATTLE.bossTurnLimit : BATTLE.turnLimit)
+    if (this.hard) this.turnLimit = Math.round(this.turnLimit * HARD.turnMul)
     if (this.relic === 'iceage') this.castIceAge()
     if (this.relic === 'aegis') { // โล่อมตะ: shield at every fight start (tops up, never stacks)
       const want = Math.round(this.st.maxHp * RELIC_RULES.aegis.shield * (1 + this.st.shieldAmp))
@@ -1996,12 +2040,17 @@ export class BattleScene extends Phaser.Scene {
     if (this.settled) return ''
     this.settled = true
     const s = save()
+    if (this.hard) { // hard mode: zeny / account EXP / forge mats scaled up (in-run EXP stays normal)
+      const k = hardMul(this.dg.id, this.hardGap).reward
+      this.zeny = Math.round(this.zeny * k); this.runXp = Math.round(this.runXp * k)
+      for (const id of Object.keys(this.runMats)) this.runMats[id] = Math.ceil(this.runMats[id] * HARD.mats)
+    }
     s.zeny += this.zeny
     if (this.dg.id === 'd1') s.bestRoom = Math.max(s.bestRoom, this.room + (won ? 1 : 0))
     let gems = 0
     if (won) {
-      const by = (s.clearsBy ??= { d1: s.clears })
-      gems += (by[this.dg.id] ?? 0) === 0 ? FREE_GEMS.firstClear : FREE_GEMS.clear
+      const by = this.hard ? (s.hardClearsBy ??= {}) : (s.clearsBy ??= { d1: s.clears })
+      gems += (by[this.dg.id] ?? 0) === 0 ? FREE_GEMS.firstClear : FREE_GEMS.clear // first hard clear also pays the first-clear gems
       by[this.dg.id] = (by[this.dg.id] ?? 0) + 1
       s.clears++
     }
@@ -2041,7 +2090,7 @@ export class BattleScene extends Phaser.Scene {
     const secs = Math.round((this.time.now - this.startedAt) / 1000)
     const rewards = this.settle(true)
     this.panel([
-      { text: 'เคลียร์ดันแล้ว!', size: 44, color: '#f2b84b', bold: true },
+      { text: this.hard ? '🔥 เคลียร์โหมดยากแล้ว!' : 'เคลียร์ดันแล้ว!', size: 44, color: '#f2b84b', bold: true },
       { text: `ล้ม${this.dg.boss}ได้ใน ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} นาที · ${this.kills} ตัว · HP เหลือ ${this.hp}`, size: 19 },
       { text: rewards, size: 19, color: '#f2b84b' },
       { text: `build: ${this.buildText() || '-'} · Lv ${this.level}`, size: 16, color: '#a9a6c7' },
@@ -2112,7 +2161,8 @@ export class BattleScene extends Phaser.Scene {
       this.fortuneTxt?.setText(f >= 1 ? '🍀 JACKPOT!' : '🍀').setPosition(f >= 1 ? bx - 4 : W - 250, by + (f >= 1 ? 10 : -6))
     } else this.fortuneTxt?.setText('')
     const left = this.turnLimit - this.fightTurns
-    this.hudTxt.room.setText(`${this.dg.name} · ด่าน ${this.room + 1}/${this.dg.rooms.length} · ⏳ ${this.alive().length ? `${left}/${this.turnLimit} เทิร์น` : '-'}`).setColor(this.alive().length && left <= 3 ? '#ff7a7a' : '#f6eedc').setPosition(18, this.job.resource ? 68 : 54)
+    const affix = this.alive().find((m) => m.affix)?.affix
+    this.hudTxt.room.setText(`${this.hard ? `🔥ยาก Lv+${this.hardGap} · ` : ''}${this.dg.name} · ด่าน ${this.room + 1}/${this.dg.rooms.length} · ⏳ ${this.alive().length ? `${left}/${this.turnLimit} เทิร์น` : '-'}${affix ? `\n${affix}` : ''}`).setColor(this.alive().length && left <= 3 ? '#ff7a7a' : '#f6eedc').setPosition(18, this.job.resource ? 68 : 54)
     this.hudTxt.build.setText(this.buildText()).setY(14)
     const X = this.hx
     this.debuffTxt?.setText([X.poison > 0 ? `☠️${X.poison}` : '', X.burn > 0 ? `🔥${X.burn}` : '', X.weaken > 0 ? `💔${X.weaken}` : '', X.armorBreak > 0 ? `🛡️💥${X.armorBreak}` : '', X.silence > 0 ? `🤐${X.silence}` : ''].filter(Boolean).join(' ')).setY(this.job.resource ? 92 : 78)
