@@ -36,7 +36,7 @@ interface Mon {
   burn: number; burnTurns: number; poison: number; poisonDmg: number; dotTxt?: Phaser.GameObjects.Text
   marked?: number // Cleric ★ judgement: turns of +15% damage taken
   parry: boolean // duelist Riposte stance: immortal until her next turn, every blocked hit is riposted
-  riposteLeft?: number; duelHeal?: number; duelHealTurns?: number; espadaNext?: number; espadaArmed?: boolean // duelist kit (Q 2026-11-04)
+  riposteLeft?: number; bulletCd?: number; maiden?: Mon; maidenDone?: boolean; drainStats?: number; vengTurns?: number; vengCd?: number; bulletDone?: boolean; duelHeal?: number; duelHealTurns?: number; espadaNext?: number; espadaArmed?: boolean // duelist kit (Q 2026-11-04)
   ice: number; iceChance: number; iced: boolean // Ice Age: turns left, freeze chance this turn, attack is weakened this turn
   hell: number // Hellfire stacks (no cap)
   harvestMark: number // Soul Harvest: boss HP steps already counted
@@ -59,9 +59,9 @@ const ELEMENTS: Record<Element, { icon: string; name: string; sub: string }> = {
 type Actor = { hero: true } | { hero: false; m: Mon }
 const MINI_HINT: Record<string, string> = {
   duelist: 'ทุก 3 เทิร์นแทงจุดตาย (ดาเมจจริง) · ตั้งท่า Riposte = อมตะ ตีเข้าไปโดนสวน 80% · อย่าใช้ท่าไม้ตายตอนนั้น · ต่ำกว่า 40% เปิดจุดตายแล้วพุ่งแทง 4 ครั้ง',
-  hunter: 'ดูดเลือดทุกครั้งที่กัด · HP ต่ำกว่าครึ่งจะคลั่ง เร็วขึ้น · ไฟตัดฮีลได้',
-  gunner: 'ยิงรัว 3 นัด (Flee ช่วยหลบทีละนัด) · ชาร์จจรวดยักษ์ = เตรียมกันด้วยท่าไม้ตาย · ครึ่งเลือดยิงติดไฟ',
-  drainer: 'เวทดูดชีวิต · ต่ำกว่าครึ่งฟื้น HP ทุกเทิร์น · ท่าชาร์จดูดเลือดเต็ม · ทุก 4 เทิร์นปิดปาก 1 เทิร์น',
+  hunter: 'ดูดเลือดทุกครั้งที่กัด + Blood Razor ตามเลือดที่เราเหลือ · เราเลือดต่ำกว่าครึ่ง มันเร็วขึ้น 75% คอมโบถี่ · ไฟตัดฮีลได้',
+  gunner: 'HP ต่ำกว่า 25% นับถอยหลัง 3 เทิร์นแล้วระดมยิง 25 นัด รีบปิดเกมหรือเปิดโล่ · ยิงรัว 3 นัด (Flee ช่วยหลบทีละนัด) · ชาร์จจรวดยักษ์ = เตรียมกันด้วยท่าไม้ตาย · ครึ่งเลือดยิงติดไฟ',
+  drainer: 'HP ต่ำกว่าครึ่งเรียกเมเดน (อมตะจนกว่าเมเดนจะตาย · เมเดนหลบ 50% ทุกครั้ง · เผาทุกเทิร์น) · เวทดูดชีวิต · ต่ำกว่าครึ่งฟื้น HP ทุกเทิร์น · ท่าชาร์จดูดเลือดเต็ม · ทุก 4 เทิร์นปิดปาก 1 เทิร์น',
   venomqueen: 'กัดติดพิษ · พ่นใยทำให้ใช้ท่าไม้ตายไม่ได้ 2 เทิร์น · ชาร์จห่อใย = โดนมัดเสียเทิร์น · ครึ่งเลือดฟักลูก',
   frostgiant: 'P.DEF สูงมาก (คริ/เวททะลุ) · ทุกทีเกราะเราแตก · ชาร์จทุก 3 เทิร์น ทุบแล้วแข็ง · 40% ได้เกราะน้ำแข็ง',
   mirage: 'เก็บดาเมจที่โดน 30% (🔮) แล้วชาร์จยิงคืนเป็นโซลสไตรค์ 5 ลูก · เตรียมโล่/หลบตอนชาร์จ · ตีทีเราอ่อนแรง · ครึ่งเลือดเก็บ 40% + เศษกระจก',
@@ -249,6 +249,7 @@ export class BattleScene extends Phaser.Scene {
     this.run = buildRun(s, this.modeArgs) // a retry rebuilds the run (new tower floors, same daily seed)
     this.retheme(this.run.themeAt(0))
     const mut = this.run.mut
+    this.drained = 0; this.drainDelta = undefined
     this.st = heroStats(mut.lukMul !== 1 ? { ...s, stats: { ...s.stats, luk: Math.round(s.stats.luk * mut.lukMul) } } : s) // mutator ดวงพุ่ง
     this.st.maxHp = Math.round(this.st.maxHp * mut.heroMul.maxHp); this.st.atk *= mut.heroMul.atk; this.st.matk *= mut.heroMul.matk
     this.towerFloor = 0; this.bank = { zeny: 0, mats: {} }; this.leftTower = false
@@ -483,7 +484,15 @@ export class BattleScene extends Phaser.Scene {
 
   private monSpeed(m: Mon) {
     const frenzy = m.def.mini === 'hunter' && m.hp < m.def.hp * BATTLE.frenzyAt ? BATTLE.frenzySpeed : 1
-    return (m.def.speed ?? BATTLE.monSpeed[m.kind] ?? 10) * (m.chill > 0 ? Math.max(0.3, 0.6 - this.st.chillSlow) : 1) * frenzy * m.speedMul
+    const scent = this.scent(m) ? BATTLE.scentSpeed : 1 // hunter กลิ่นเลือด: the hero is low
+    return (m.def.speed ?? BATTLE.monSpeed[m.kind] ?? 10) * (m.chill > 0 ? Math.max(0.3, 0.6 - this.st.chillSlow) : 1) * Math.max(frenzy, scent) * m.speedMul
+  }
+  private scent(m: Mon) { return m.def.mini === 'hunter' && this.hp > 0 && this.hp < this.st.maxHp * BATTLE.scentAt }
+  /** hunter Blood Razor: a landed normal hit adds magic damage from the hero's current HP. */
+  private razor(m: Mon) {
+    if (!m.def.razor || this.hp <= 0 || m.dead) return
+    const n = this.hp * m.def.razor
+    if (n >= 1 && this.hurtHero(n, true, 999, m)) this.floatText(HERO_X + 30, GROUND - 150, '🩸 Blood Razor', '#ff7a9a')
   }
 
   /** Preview the next N turns for the queue strip (pure simulation on copies). */
@@ -503,6 +512,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private async fight(id: number): Promise<boolean> {
+    this.undrain()
     this.fightTurns = 0; this.timedOut = false
     this.lowHpDone = false; this.demonOn = false; this.demonDone = false; this.comboAtkN = 0; this.fightUlts = 0; this.lowRegen = { turns: 0, amt: 0 }
     const room = this.roomDef(this.room)
@@ -712,6 +722,7 @@ export class BattleScene extends Phaser.Scene {
     const crit = Math.random() < (magic ? this.st.spellCrit : this.st.crit + (this.buf.hawk > 0 ? S2N.hawkCrit(this.st.s2Lv) : 0)) // magic crits only with spellCrit (talent/item/card) · Skill 2 ตาเหยี่ยว
     if (!magic && !crit && Math.random() > hitChance(this.st.hit, m.def.flee ?? 5)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
     if (!magic && m.def.luckyDodge && Math.random() < m.def.luckyDodge) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, '🍀 หลบ!', '#a9a6c7'); return 0 } // D6+ stat monsters: LUK lucky dodge (even vs crits, like the hero's)
+    if (m.def.fixedFlee && Math.random() < m.def.fixedFlee) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS 👻', '#e0a8ff'); return 0 } // Maiden: always 50%
     if (this.skillHits) mul *= 1 - this.skillCut() // spell vamp drawbacks: skill / ult damage cut
     const brittle = Math.max(this.st.brittle, this.px('vsChill')) // tree: ice "เปราะ" · card เปราะน้ำแข็ง + gear/cards (the higher one)
     if (m.chill > 0 && brittle > 0) mul *= 1 + brittle
@@ -1217,6 +1228,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.lateDmg > 0 && this.fightTurns >= 12) dmg = Math.ceil(dmg * (1 + this.st.lateDmg)) // cleric talent: อรุณรุ่ง
     if (this.st.poisonAmp > 0 && m.poison >= 10) dmg = Math.ceil(dmg * (1 + this.st.poisonAmp)) // Thief talent: กัดกร่อน
     if (!dot && this.relic === 'executioner' && m.hp < m.def.hp * RELIC_RULES.executioner.below) dmg = Math.ceil(dmg * (1 + RELIC_RULES.executioner.mul))
+    if (m.maiden && !m.maiden.dead && dmg > 0) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'อมตะ! (ฆ่าเมเดนก่อน)', '#e0a8ff'); return }
     if ((m.parry || m.espadaArmed) && dmg > 0) { // duelist: Riposte stance / Grandado Espada mark turn = immortal
       this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, m.parry ? 'ปัด!' : 'อมตะ!', '#c9e0ff')
       if (m.parry && !dot && this.hp > 0) this.riposteHit(m, dmg)
@@ -1242,6 +1254,7 @@ export class BattleScene extends Phaser.Scene {
       const steps = Math.floor((1 - m.hp / m.def.hp) / RELIC_RULES.harvest.bossStep)
       while (m.harvestMark < steps) { m.harvestMark++; this.harvestSoul() }
     }
+    if (m.def.mini === 'drainer' && !m.maidenDone && m.hp > 0 && m.hp < m.def.hp * BATTLE.maiden.at) this.summonMaiden(m)
     if (m.hp <= 0) this.killMon(m)
     else while (m.def.phases && m.phase < m.def.phases.length && m.hp < m.def.hp * m.def.phases[m.phase].at) this.enterPhase(m, m.def.phases[m.phase++])
   }
@@ -1329,6 +1342,13 @@ export class BattleScene extends Phaser.Scene {
     if (m.weakTurns > 0 && --m.weakTurns === 0) this.dotIcon(m)
     if ((m.trueTurns ?? 0) > 0 && --m.trueTurns! === 0) this.dotIcon(m)
     if ((m.marked ?? 0) > 0) m.marked!--
+    if (m.drainStats && !m.dead && this.hp > 0) this.deathRealm(m, m.drainStats)
+    if (m.vengCd) m.vengCd--
+    if (m.vengTurns && !m.dead) {
+      const V = BATTLE.vengeance
+      if (m.shield > 0 && this.hp > 0 && this.hurtHero(this.st.maxHp * V.dotPct + this.monMatk(m) * V.dotMatk, true, 999)) this.floatText(HERO_X, GROUND - 150, '🖤 ความแค้นกัดกิน', '#c9a8ff')
+      if (--m.vengTurns === 0) { m.shield = 0; m.vengCd = V.cd; this.dotIcon(m) }
+    }
     // damage over time first
     if (m.burnTurns > 0) { m.burnTurns--; this.withSrc('fire', () => this.damageMon(m, Math.max(1, Math.round(m.burn * this.dotMul())), false, '#ff8c42', true)); if (!m.burnTurns) this.dotIcon(m) }
     if (!m.dead && m.poison > 0) { this.withSrc('poison', () => this.damageMon(m, Math.max(1, Math.round(m.poison * m.poisonDmg * this.dotMul())), false, '#a77be0', true)); if (this.st.poisonLeech > 0) this.heal(m.poison * m.poisonDmg * this.st.poisonLeech, true) } // Thief เลือดพิษ
@@ -1360,6 +1380,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     if (m.def.mini === 'duelist' && await this.duelTurn(m)) return
+    if (m.def.mini === 'gunner' && await this.bulletTime(m)) return
 
     if (!m.charging && await this.useSkill(m)) return
 
@@ -1391,18 +1412,18 @@ export class BattleScene extends Phaser.Scene {
       if (this.riposte(m)) continue
       const cr = this.monCrit(m)
       const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m)
-      if (landed) { this.monLeech(m); if (m.onHit) this.applyFx(m.onHit, m); if (this.procs('hurt', m) > 0) await this.wait(90); await this.tryCounter(m) }
+      if (landed) { this.monLeech(m); this.razor(m); if (m.onHit) this.applyFx(m.onHit, m); if (this.procs('hurt', m) > 0) await this.wait(90); await this.tryCounter(m) }
     }
     if (m.def.combo) { // v49 monster combo: chain extra hits like the hero (same cap)
       let extra = 0
-      while (extra < BATTLE.comboMax && Math.random() < m.def.combo - this.st.ignoreCombo) extra++ // hero Ignore Combo (AGI / gear)
+      while (extra < BATTLE.comboMax && Math.random() < m.def.combo + (this.scent(m) ? BATTLE.scentCombo : 0) - this.st.ignoreCombo) extra++ // hero Ignore Combo (AGI / gear)
       for (let i = 0; i < extra && this.hp > 0 && !m.dead; i++) {
         this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10 - i * 22, `คอมโบ x${i + 2}!`, '#ffb070')
         this.tweens.add({ targets: m.spr, x: m.spr.x - 14, duration: 70, yoyo: true })
         await this.wait(160)
         const cr = this.monCrit(m)
         const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * BATTLE.monComboMul * (1 - this.st.comboDR) * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m)
-        if (landed) this.monLeech(m)
+        if (landed) { this.monLeech(m); this.razor(m) }
       }
     }
     await this.tween({ targets: [m.spr, m.shadow], x: home, duration: BATTLE.stepMs * 0.35, ease: 'Quad.easeOut' })
@@ -1604,6 +1625,10 @@ export class BattleScene extends Phaser.Scene {
     const raw = magic ? dmg * (1 - this.st.mdef * ab) : afterDef(dmg, this.st.def * ab)
     let n = Math.max(1, Math.ceil(raw * (1 - this.st.guard) * (this.buf.guard > 0 ? 1 - S2N.guardCut(this.st.s2Lv) : 1) * this.takenMul())) // Skill 2 ตั้งการ์ด · พร v2
     this.lastHurt = n
+    if (src?.def.vengeance && n > 0 && !src.dead && !src.vengTurns && !src.vengCd) { // death knight โล่แห่งความแค้น
+      src.shield += n * BATTLE.vengeance.share; src.vengTurns = BATTLE.vengeance.turns; this.dotIcon(src)
+      this.floatText(src.spr.x, src.spr.y - src.spr.displayHeight - 30, `🛡️ โล่แห่งความแค้น +${Math.round(n * BATTLE.vengeance.share)}`, '#c9a8ff')
+    }
     if (this.relic === 'thornaura' && src && !src.dead) { this.damageMon(src, Math.max(1, Math.round(n * RELIC_RULES.thornaura.back)), false, '#7fd08c', true); this.floatText(src.spr.x, src.spr.y - src.spr.displayHeight - 30, '🌵 หนาม!', '#7fd08c') }
     this.gainRage(RES_RULES.rageOnHurt + this.st.rageOnHurtAdd) // talent: แค้นฝังใจ
     if (this.st.rageOnHurtAdd > 0) this.gainRes(this.st.rageOnHurtAdd) // same talent on a Mana job: Mana when hit
@@ -2193,8 +2218,14 @@ export class BattleScene extends Phaser.Scene {
     for (let i = 0; i < (sk.hits ?? 1) && this.hp > 0 && !m.dead; i++) {
       if (i) { this.tweens.add({ targets: m.spr, x: m.spr.x - 14, duration: 60, yoyo: true }); await this.wait(130) }
       const cr = this.monCrit(m)
-      const landed = this.hurtHero(m.def.dmg * BATTLE.monDmgMul * (sk.pow ?? 1.3) * this.monMul(m) * cr, false, cr > 1 ? 999 : m.def.hit ?? 15, m)
+      const alone = sk.alone && !this.alive().some((x) => x !== m) ? sk.alone : 1
+      if (alone > 1 && i === 0) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, `ไร้ศพข้างกาย! ×${alone}`, '#c9a8ff')
+      const landed = this.hurtHero(m.def.dmg * BATTLE.monDmgMul * (sk.pow ?? 1.3) * this.monMul(m) * cr * alone, !!sk.magic, sk.magic || cr > 1 ? 999 : m.def.hit ?? 15, m)
       if (landed) { this.monLeech(m); if (sk.fx && !fxDone) { fxDone = true; this.applyFx(sk.fx, m) } }
+    }
+    if (sk.drain && this.hp > 0 && !m.dead) { // hunter ตะปบจุดตาย: drain the hero's blood as magic damage, heal by it
+      const before = this.hp
+      if (this.hurtHero(this.hp * sk.drain, true, 999, m)) { this.healMon(m, Math.max(0, before - this.hp)); this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '🩸 ดูดเลือด!', '#ff7a9a') }
     }
     await this.tween({ targets: [m.spr, m.shadow], x: home, duration: BATTLE.stepMs * 0.3, ease: 'Quad.easeOut' })
   }
@@ -2210,10 +2241,9 @@ export class BattleScene extends Phaser.Scene {
     if (landed) this.monLeech(m)
   }
 
-  /** Monster hit multiplier: Ice Age weakens it, the hunter smells blood when the hero is low. */
+  /** Monster hit multiplier: Ice Age weakens it. */
   private monMul(m: Mon) {
     let k = m.iced ? 1 - RELIC_RULES.iceage.atkDown : 1
-    if (m.def.mini === 'hunter' && this.hp < this.st.maxHp * 0.5) k *= 1.2
     return k * m.dmgMul * (m.atkUpTurns > 0 ? 1 + m.atkUp : 1) * (m.weakTurns > 0 ? 1 - m.weakPct : 1) * (1 + this.flags.curseDmg) * (m.chill > 0 ? 1 - this.px('chillWeak') : 1) // card กัดเย็น
   }
 
@@ -2276,6 +2306,75 @@ export class BattleScene extends Phaser.Scene {
     m.duelHeal = (m.duelHealTurns ? (m.duelHeal ?? 0) * m.duelHealTurns : 0) + n
     m.duelHealTurns = BATTLE.duel.healTurns
     m.duelHeal = m.duelHeal / m.duelHealTurns
+  }
+
+  /** Death Realm (Q 2026-11-04): the hero loses `n` points of every base stat this fight; derived stats move by the
+   *  exact difference heroStats() gives for one point less of everything, and come back at the next fight. */
+  private drained = 0
+  private drainDelta?: Partial<Record<keyof Stats, number>>
+  private deathRealm(m: Mon, n: number) {
+    const s = save(), base = s.stats as Record<string, number>
+    if (Object.values(base).some((v) => v - this.drained - n < 1)) return // never below 1
+    if (!this.drainDelta) {
+      const a = heroStats(s) as unknown as Record<string, number>
+      const b = heroStats({ ...s, stats: Object.fromEntries(Object.entries(base).map(([k, v]) => [k, v - 1])) as typeof s.stats }) as unknown as Record<string, number>
+      this.drainDelta = Object.fromEntries(Object.keys(a).filter((k) => typeof a[k] === 'number' && a[k] !== b[k]).map((k) => [k, b[k] - a[k]])) as Partial<Record<keyof Stats, number>>
+    }
+    this.shiftStats(n)
+    this.drained += n
+    m.dmgMul += 0.01 * n
+    this.floatText(HERO_X, GROUND - 160, `💀 Death Realm: All Stat -${n} (รวม -${this.drained})`, '#c9a8ff')
+  }
+  private shiftStats(n: number) {
+    const st = this.st as unknown as Record<string, number>
+    for (const [k, d] of Object.entries(this.drainDelta ?? {})) st[k] += (d as number) * n
+    this.hp = Math.max(1, Math.min(this.hp, this.st.maxHp))
+  }
+  private undrain() {
+    if (!this.drained) return
+    this.shiftStats(-this.drained)
+    this.drained = 0
+  }
+
+  /** Drainer Summon Maiden (Q 2026-11-04): she turns immortal and calls a Maiden ghost with her max HP and M.ATK. */
+  private summonMaiden(m: Mon) {
+    m.maidenDone = true
+    const slot = this.freeSlots()[0]
+    if (slot === undefined) return
+    const g = this.addMon('maiden', slot, 0)
+    g.summoned = true
+    g.def = { ...g.def, hp: m.def.hp, matk: m.def.matk ?? m.def.dmg, hit: m.def.hit }
+    g.hp = g.def.hp
+    g.spr.setTint(BATTLE.maiden.tint)
+    m.maiden = g
+    this.turnLimit += BATTLE.maiden.turns
+    this.callout(`👻 ${m.def.name}: Summon Maiden! อมตะจนกว่าเมเดนจะตาย`, W / 2, 205, '#e0a8ff')
+    this.cameras.main.flash(200, 200, 120, 255)
+  }
+
+  /** Gunner Bullet Time (Q 2026-11-04): under 25% HP she counts down 3 of her turns (still shooting), then fires 25 shots. */
+  private async bulletTime(m: Mon): Promise<boolean> {
+    const B = BATTLE.bulletTime, top = m.spr.y - m.spr.displayHeight - 10
+    if (m.bulletDone || this.hp <= 0) return false
+    if (m.bulletCd === undefined) {
+      if (m.hp >= m.def.hp * B.at) return false
+      m.bulletCd = B.countdown
+      this.callout(`⏳ ${m.def.name}: Bullet Time! อีก ${B.countdown} เทิร์นจะระดมยิง ${B.hits} นัด`, W / 2, 205)
+      m.spr.setTint(0xffc070)
+      return false
+    }
+    if (--m.bulletCd > 0) { this.floatText(m.spr.x, top, `⏳ Bullet Time ${m.bulletCd}…`, '#ffc070'); return false }
+    m.bulletDone = true; m.spr.clearTint()
+    this.callout(`🔫 ${m.def.name}: BULLET TIME!!`, W / 2, 205)
+    for (let i = 0; i < B.hits && this.hp > 0 && !m.dead; i++) {
+      this.tweens.add({ targets: m.spr, x: m.spr.x + 6, duration: 30, yoyo: true })
+      this.burst(HERO_X + Phaser.Math.Between(-10, 30), GROUND - Phaser.Math.Between(30, 90), 0xffc070, 3, 60)
+      const cr = this.monCrit(m)
+      this.hurtHero(m.def.dmg * BATTLE.monDmgMul * (1 + Phaser.Math.FloatBetween(B.bonusMin, B.bonusMax)) * this.monMul(m) * cr, false, cr > 1 ? 999 : m.def.hit ?? 15, m)
+      await this.wait(70)
+    }
+    await this.wait(250)
+    return true
   }
 
   /** Duelist turn script (before the normal attack). Returns true when the turn was used. */
@@ -2476,6 +2575,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Boss phase: heal / shield / adds on entering, then faster, harder, new tricks. */
   private enterPhase(m: Mon, p: BossPhase) {
+    if (p.drainStats) m.drainStats = p.drainStats
     this.callout(`⚠️ ${m.def.name}: ${p.name}`, W / 2, 190)
     this.cameras.main.flash(200, 255, 80, 80)
     this.shake(220, 0.012)

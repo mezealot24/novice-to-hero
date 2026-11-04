@@ -272,6 +272,7 @@ export type MonsterKind = 'jellop' | 'wolf' | 'king' | 'minijellop' | 'bat' | 's
   | 'hellknight' | 'hexwitch' | 'imp' | 'necropriest' | 'wraith' | 'shard' | 'mirage' | 'warlord' | 'lich'
   | 'dewsprite' | 'bonepriest'
   | 'mummy' | 'jackal' | 'sandscorp' | 'dunewraith' | 'scarab' | 'sunpriest' | 'sphinx' | 'jackallord' | 'pharaoh' // D6
+  | 'maiden' // drainer's Summon Maiden (Q 2026-11-04)
   | 'mimic' | 'mimicking' | 'goldjellop' // event monsters (design/roadmap-and-events-v1.md): stats scale with the dungeon tier at spawn
 export type MiniKind = 'duelist' | 'hunter' | 'gunner' | 'drainer' | 'venomqueen' | 'frostgiant' | 'mirage' | 'warlord' | 'sphinx' | 'jackallord'
 
@@ -296,6 +297,9 @@ export interface MonSkill {
   fx?: HitFx // curse: what lands on the hero (can't miss, debuffRes can resist) · bolt: rides on the spell if it lands
   summon?: [MonsterKind, number] // summon: kind, how many (free slots only)
   self?: boolean // heal / shield: only on itself
+  magic?: boolean // strike: dealt as magic (vs M.DEF, Flee can't dodge) from ATK — death knight ดาบมรณะ
+  alone?: number // strike: x this when no other monster stands with it
+  drain?: number // strike (Q 2026-11-04, hunter): after it lands, drains this share of the hero's current HP as magic damage and heals itself by it
   hits?: number // bolt / strike: this many hits of pow each (each rolls its own crit; strike hits each roll Flee)
   pick?: MonSkill[] // cast a random one of these instead (spell rotation: Mordecus' elements)
   big?: boolean // legendary spell: big callout + screen flash
@@ -315,6 +319,7 @@ export interface BossPhase {
   skills?: MonSkill[] // replaces the skill list
   onHit?: HitFx // replaces the hit effect
   slamFx?: HitFx // replaces the charged attack's effect
+  drainStats?: number // Death Realm (Q 2026-11-04): every one of its turns the hero loses this many points of every base stat for the rest of the fight; it gets +1% damage per point
   cleanse?: boolean // drops its burns / poison / chill on entering
 }
 
@@ -346,6 +351,9 @@ export interface MonsterDef {
   lifesteal?: number // heals this share of the damage it deals (heal cut from burn reduces it)
   chargeEvery?: number // boss: charges every Nth turn (default BATTLE.slamEvery)
   slamMul?: number // boss: charged attack = (dmg + 8) * monDmgMul * this (default 1.6)
+  vengeance?: boolean // death knight โล่แห่งความแค้น (BATTLE.vengeance)
+  fixedFlee?: number // hero hits (physical, magic, crits) miss this share of the time, whatever Hit is (Maiden: 0.5)
+  razor?: number // on-hit (Q 2026-11-04, hunter Blood Razor): each landed normal / combo hit adds magic damage = this share of the hero's current HP
   trueSight?: { after: number; turns: number } // v56 anti-AGI: after the hero evades it `after` times, its physical hits ignore Flee + lucky dodge for `turns` of its turns
   shots?: number // each attack is this many small hits, each rolls hit/flee on its own
   // ----- Dungeon 4-5 -----
@@ -401,7 +409,7 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
     skills: [{ kind: 'curse', every: 4, name: 'มนต์ปิดปาก', fx: { silence: 1 } }] },
   deathknight: { name: 'อัศวินมรณะ', tex: 'deathknight', hp: 3200, dmg: 50, matk: 58, xp: 0, ai: 'boss', moveSpeed: 240, radius: 42, zeny: [60, 80], idleMs: [700, 1000], def: 35, flee: 12, hit: 36, lifesteal: 0.2, summon: 'skeleton', slamName: 'ดาบมรณะ! ฟันกวาดวิญญาณ', slamAnim: 'cleave', slamColor: 0x9a6aff, slamMagic: true, charge: true,
     skills: [{ kind: 'revive', every: 4, pow: 0.5, name: 'ปลุกศพ' }],
-    phases: [{ at: 0.35, name: 'วิญญาณมรณะตื่น! เร็วขึ้น ชาร์จถี่', speed: 1.2, chargeEvery: 2 }] },
+    phases: [{ at: 0.35, name: '💀 Death Realm! ดูด All Stat ทุกเทิร์น', drainStats: 1 }] }, // Q 2026-11-04 Monster DB comment (was: speed x1.2, charge every 2)
   // ----- Dungeon 4: บึงพิษมรกต. Monsters that heal, shield, poison and explode (design/dungeon-4-5-brutal.md) -----
   toad: { name: 'คางคกพิษ', tex: 'toad', hp: 270, dmg: 40, xp: 8, ai: 'hopper', moveSpeed: 220, radius: 16, zeny: [5, 7], idleMs: [700, 1200], def: 25, hit: 34, onHit: { poison: 2 } },
   lizardshaman: { name: 'หมอผีกิ้งก่า', tex: 'lizardshaman', hp: 240, dmg: 34, matk: 38, xp: 9, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [5, 8], idleMs: [700, 1200], magic: true, hit: 34,
@@ -435,6 +443,9 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
   necropriest: { name: 'นักบวชมรณะ', tex: 'necropriest', hp: 380, dmg: 40, matk: 44, xp: 11, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [7, 10], idleMs: [700, 1200], magic: true, hit: 38,
     skills: [{ kind: 'revive', every: 3, pow: 0.5, name: 'ปลุกศพ' }, { kind: 'heal', every: 2, pow: 0.15, name: 'มนต์ดำฟื้นกาย' }] },
   wraith: { name: 'ภูตกระจก', tex: 'wraith', hp: 300, dmg: 46, matk: 50, xp: 10, ai: 'dasher', moveSpeed: 500, radius: 14, zeny: [6, 9], idleMs: [500, 900], magic: true, flee: 36, hit: 40, reflect: 0.1 }, // v49: 0.25 -> 0.1 (Q: reflect shields too annoying)
+  // Q 2026-11-04 คาร์วอส Summon Maiden: HP / M.ATK copied from the drainer when she is called; no DEF / M.DEF, hero hits land only 50% of the time
+  maiden: { name: 'เมเดน', title: 'ผีสาวพันธนาการ', tex: 'wraith', hp: 1000, dmg: 30, matk: 40, xp: 0, ai: 'dasher', moveSpeed: 400, radius: 16, zeny: [0, 0], idleMs: [500, 900], magic: true, def: 0, hit: 40, fixedFlee: 0.5,
+    skills: [{ kind: 'bolt', every: 1, pow: 1, name: '👻 คำสาปเมเดน', fx: { burn: 1 } }] },
   shard: { name: 'เศษกระจก', tex: 'shard', hp: 220, dmg: 30, matk: 34, xp: 3, ai: 'dasher', moveSpeed: 500, radius: 11, zeny: [1, 2], idleMs: [400, 800], magic: true, flee: 30, hit: 40, deathBlast: 1.8 },
   mirage: { name: 'มิราจ', title: 'ภูตกระจกพันหน้า', tex: 'mirage', hp: 2600, dmg: 52, matk: 56, xp: 16, ai: 'boss', mini: 'mirage', moveSpeed: 300, radius: 32, zeny: [60, 80], idleMs: [600, 900], magic: true, slamMagic: true, def: 20, flee: 34, hit: 44,
     absorb: 0.3, onHit: { weaken: 2 }, chargeEvery: 4, slamMul: 1.2, slamName: 'โซลสไตรค์กระจก! ยิงดาเมจที่เก็บไว้คืน', slamFx: { weaken: 3, silence: 1 }, slamAnim: 'cast', slamColor: 0xc9a8ff, charge: true,
@@ -638,7 +649,7 @@ export const BATTLE = {
   monSpeed: { jellop: 8, minijellop: 9, wolf: 13, king: 8, bat: 16, shroom: 7, boar: 9, shadowwolf: 14, alpha: 11,
     skeleton: 10, wisp: 14, gargoyle: 7, duelist: 15, hunter: 13, gunner: 14, drainer: 10, deathknight: 11,
     toad: 10, lizardshaman: 9, hornet: 17, turtleguard: 7, bloater: 8, spiderling: 15, venomqueen: 14, frostgiant: 9, hydra: 11,
-    hellknight: 10, hexwitch: 11, imp: 17, necropriest: 9, wraith: 15, shard: 14, mirage: 14, warlord: 12, lich: 11, dewsprite: 13, bonepriest: 9, mimic: 11, mimicking: 10, goldjellop: 12,
+    hellknight: 10, hexwitch: 11, imp: 17, necropriest: 9, wraith: 15, maiden: 11, shard: 14, mirage: 14, warlord: 12, lich: 11, dewsprite: 13, bonepriest: 9, mimic: 11, mimicking: 10, goldjellop: 12,
     mummy: 10, jackal: 14, sandscorp: 13, dunewraith: 13, scarab: 8, sunpriest: 10, sphinx: 12, jackallord: 14, pharaoh: 11 /* D6: fallback only, stat monsters use def.speed (AGI) */ } as Record<MonsterKind, number>,
   monDmgMul: 0.55, // monster hit = def.dmg * this
   // v56 (Q: "มอนกากไป"): every spawned monster's HP / ATK / M.ATK and every turn limit, by dungeon tier 1..5
@@ -664,6 +675,10 @@ export const BATTLE = {
     espadaEvery: 10, espadaHits: 4, espadaMin: 0.03, espadaMax: 0.1, // phase 2: mark turn (immortal), then 4 crit thrusts of 3-10% hero max HP (Q asked 4-16%: bot died to it)
   },
   frenzyAt: 0.5, frenzySpeed: 1.4, frenzyLifesteal: 0.6, // hunter below 50% HP
+  vengeance: { share: 0.5, turns: 3, cd: 3, dotPct: 0.03, dotMatk: 0.3 }, // death knight (Q 2026-11-04): 50% of a hit it lands -> shield for 3 of its turns (then 3-turn cooldown); while it holds, hero takes 3% max HP + M.ATK x 0.3 magic each of its turns
+  maiden: { at: 0.5, turns: 22, tint: 0xff9ad0 }, // drainer: under 50% HP she turns immortal and calls the Maiden (same max HP / M.ATK); +22 turns to the limit (bot timed out at +12)
+  bulletTime: { at: 0.25, countdown: 3, hits: 25, bonusMin: 0.01, bonusMax: 0.25 }, // gunner (Q 2026-11-04): under 25% HP, 3-turn countdown, then 25 shots of her normal shot x (1 + 1-25%)
+  scentAt: 0.5, scentSpeed: 1.75, scentCombo: 0.5, // hunter กลิ่นเลือด (Q 2026-11-04): hero below 50% HP -> turn speed +75%, combo +50%
   demonAt: 0.5, demonRegen: 0.02, // drainer below 50% HP: regen share of max HP per turn
   // ----- Dungeon 4-5: debuffs on the hero (HitFx) -----
   poisonPct: 0.01, poisonCap: 8, // per stack per hero turn, share of max HP (Lv-15 bot: 1.2%/cap 10 killed Thief in wave 1-2)
@@ -732,7 +747,7 @@ export const HARD_PASSIVES: HardPassive[] = [
 
 // ===== v49 monster kits (Q 2026-11-04: "ให้แต่ละตัวมี stat combo, counter, cri, สกิลโหดๆ"): merged into MONSTERS below =====
 // skills are appended after the monster's own (own skills keep priority on shared turns).
-const KITS: Partial<Record<MonsterKind, Pick<MonsterDef, 'crit' | 'combo' | 'counter' | 'trueSight'> & { add?: MonSkill[] }>> = {
+const KITS: Partial<Record<MonsterKind, Pick<MonsterDef, 'crit' | 'combo' | 'counter' | 'trueSight' | 'razor' | 'vengeance'> & { add?: MonSkill[] }>> = {
   wolf: { crit: 0.08 }, boar: { crit: 0.1 }, shadowwolf: { combo: 0.2, crit: 0.05 }, bat: { combo: 0.15 },
   skeleton: { counter: 0.1 }, gargoyle: { counter: 0.15 }, hornet: { combo: 0.3, trueSight: { after: 3, turns: 2 } }, turtleguard: { counter: 0.15 },
   hellknight: { counter: 0.15, crit: 0.1, trueSight: { after: 3, turns: 2 } }, wraith: { crit: 0.1 }, spiderling: { combo: 0.2 },
@@ -740,10 +755,10 @@ const KITS: Partial<Record<MonsterKind, Pick<MonsterDef, 'crit' | 'combo' | 'cou
   king: { crit: 0.06, add: [{ kind: 'strike', every: 5, pow: 1.6, name: '🟢 ทับแบน', fx: { freeze: 30 } }] },
   alpha: { combo: 0.25, crit: 0.1, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, hits: 3, pow: 0.6, name: '🐺 กรงเล็บพายุ' }] },
   duelist: { counter: 0.15, crit: 0.12, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 5, hits: 3, pow: 0.55, name: '🤺 แทงสามจังหวะ' }] },
-  hunter: { crit: 0.15, combo: 0.15, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, pow: 1.5, name: '🩸 ตะปบจุดตาย', fx: { poison: 2 } }] },
+  hunter: { crit: 0.15, combo: 0.15, trueSight: { after: 2, turns: 3 }, razor: 0.05, add: [{ kind: 'strike', every: 4, pow: 2.5, drain: 0.1, name: '🩸 ตะปบจุดตาย' }] }, // Q 2026-11-04 Monster DB comment
   gunner: { crit: 0.15, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, hits: 4, pow: 0.4, name: '🔫 ระดมยิง' }] },
   drainer: { crit: 0.1, add: [{ kind: 'bolt', every: 4, pow: 1.3, name: '🌑 ดูดวิญญาณ', fx: { weaken: 2 } }] },
-  deathknight: { counter: 0.15, crit: 0.1, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 5, pow: 1.8, name: '⚔️ ดาบมรณะ', fx: { armorBreak: 2 } }] },
+  deathknight: { counter: 0.15, crit: 0.1, trueSight: { after: 2, turns: 3 }, vengeance: true, add: [{ kind: 'strike', every: 5, pow: 2.8, magic: true, alone: 2, name: '⚔️ ดาบมรณะ' }] }, // Q 2026-11-04: magic, x2 with no undead at its side
   venomqueen: { combo: 0.25, crit: 0.08, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, hits: 2, pow: 0.7, name: '🦂 เหล็กไนคู่', fx: { poison: 2 } }] },
   frostgiant: { counter: 0.15, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 5, pow: 1.6, name: '🧊 ทุบธารน้ำแข็ง', fx: { freeze: 50 } }] },
   hydra: { combo: 0.3, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'bolt', every: 4, hits: 3, pow: 0.5, name: '🐍 พ่นพิษสามหัว', fx: { poison: 1 } }] },
