@@ -94,7 +94,7 @@ function buyMissing(s: Wallet, c: ForgeCost): Item | null | false {
 
 // ---------- random bonus lines (3.5.1) ----------
 type Kind = 'atk' | 'def' | 'any'
-interface LineDef { stat: string; vals: [number, number, number]; kind: Kind; w: number; off?: JobId[] }
+interface LineDef { stat: string; vals: [number, number, number]; kind: Kind; w: number; off?: JobId[]; slots?: Slot[] }
 // Who gets nothing from a stat (checked against BattleScene / heroStats, 2026-11-03):
 const NO_MANA: JobId[] = ['archer', 'thief', 'novice'] // Energy jobs + Novice (Swordsman runs on Mana since v28)
 const NO_MAGIC: JobId[] = ['swordsman', 'archer', 'thief', 'novice'] // M.ATK / spell crit
@@ -122,6 +122,15 @@ export const LINE_POOL: LineDef[] = [
   { stat: 'spellVamp', vals: [0.01, 0.02, 0.03], kind: 'atk', w: 0.5 }, // Q 2026-11-04: skill lifesteal comes from crafting / events / advanced skills
   { stat: 'maxRes', vals: [5, 8, 12], kind: 'def', w: 0.5, off: NO_MANA },
   { stat: 'resRegen', vals: [0.5, 1, 1.5], kind: 'def', w: 0.5, off: NO_MANA },
+  // พร v2 numbers (Q 2026-11-04 grill): mid line ~1/4 of the card's level 1, only on these slots. Battle caps card + gear (perks.ts OUTSIDE_CAP).
+  { stat: 'basicDmg', vals: [0.03, 0.05, 0.07], kind: 'atk', w: 0.3, slots: ['weapon'] },
+  { stat: 'counterDmg', vals: [0.05, 0.075, 0.1], kind: 'atk', w: 0.3, slots: ['weapon'] },
+  { stat: 'vsBurn', vals: [0.02, 0.04, 0.06], kind: 'atk', w: 0.3, slots: ['weapon'] },
+  { stat: 'vsChill', vals: [0.02, 0.04, 0.06], kind: 'atk', w: 0.3, slots: ['weapon'] },
+  { stat: 'vsPoison', vals: [0.03, 0.05, 0.07], kind: 'atk', w: 0.3, slots: ['weapon'] },
+  { stat: 'chillWeak', vals: [0.02, 0.04, 0.06], kind: 'def', w: 0.3, slots: ['armor', 'offhand'] },
+  { stat: 'spearShield', vals: [0.03, 0.05, 0.07], kind: 'def', w: 0.3, slots: ['armor', 'offhand'], off: ['swordsman', 'archer', 'mage', 'thief', 'novice'] }, // holy spears: Priest
+  { stat: 'resTurn', vals: [0.3, 0.5, 0.8], kind: 'def', w: 0.5, slots: ['acc'], off: ['novice'] },
 ]
 /** Base stats a job gets nothing from (x0.25 when the "base stat" row picks one). */
 // STR: P.ATK for melee non-Thief + pskill · INT: M.ATK + Max Mana (Swordsman uses Mana) · LUK: crit, lucky dodge, drops for all
@@ -140,7 +149,7 @@ function pickWeighted<T>(xs: T[], w: (x: T) => number, rnd: () => number): T {
 }
 /** Roll one line for `it` (idx 0 / 1 / 2 = small / mid / big), weighted by slot and by the job refining it. */
 export function rollLine(it: Item, idx: number, job: JobId, rnd: () => number = Math.random): RefineLine {
-  const def = pickWeighted(LINE_POOL, (d) => d.w * slotBias(it.slot, d.kind) * jobBias(d.off, job), rnd)
+  const def = pickWeighted(LINE_POOL, (d) => (d.slots && !d.slots.includes(it.slot) ? 0 : d.w * slotBias(it.slot, d.kind) * jobBias(d.off, job)), rnd)
   const stat = def.stat === 'base' ? pickWeighted(BASES, (b) => jobBias(BASE_OFF[b], job), rnd) : def.stat
   const gold = rnd() < REFINE.goldRate
   const v = def.vals[idx]

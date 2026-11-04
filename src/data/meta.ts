@@ -227,6 +227,8 @@ const STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => string]>> 
   autoCostCut: ['สกิลออโต้ใช้ resource ลดลง', (n) => `${n}`], spellVamp: ['ดูดเลือดสกิล', pc], skillDmgCut: ['ดาเมจสกิลลดลง', pc], spearRate: ['ได้หอกแสงต่อเทิร์น', pc], spearMul: ['หอกแสงแรง', (n) => `${n}x M.ATK`],
   arLowHpBonus: ['ดาเมจใส่มอน HP<50%', pc], ultDodge: ['ult หลบแน่นอน', (n) => `${n} ครั้ง`], ultHits: ['ult แทง', (n) => `${n} ที`], mgUltCd: ['คูลดาวน์ ult', (n) => `${n} เทิร์น`],
   resRegenCut: ['ฟื้น Mana ลดลง', pc], mgWaveBarrier: ['ต้นเวฟได้บาเรีย', (n) => `${n}x M.ATK`], debuffRes: ['กันสถานะผิดปกติ', pc], waveShield: ['โล่ต้นเวฟ', (n) => `${pc(n)} HP`],
+  vsBurn: ['ตีศัตรูติดไฟ', pc], vsChill: ['ตีศัตรูที่เย็นอยู่', pc], vsPoison: ['ตีศัตรูติดพิษ', pc], chillWeak: ['ศัตรูเย็นตีเบาลง', pc],
+  spearShield: ['โอกาสหอกแสงให้โล่', pc], counterDmg: ['ดาเมจสวนกลับ', pc], basicDmg: ['ตีปกติแรง', pc], resTurn: ['Mana/Energy/Rage ต่อเทิร์น', (n) => `${n}`],
   smashCd: ['คูลดาวน์ท่าไม้ตาย', (n) => `${Math.round(n / 1500)} เทิร์น`], berserk: ['HP<30%: ATK +40% ดูดเลือด x2', () => ''], overhealShield: ['ฮีลเกินเต็มกลายเป็นโล่', () => ''], ctrAoe: ['สวนกลับโดนมอนทุกตัว 0.5x', () => ''],
 }
 export const BASE_NAME: Record<BaseStat, string> = { str: 'STR', vit: 'VIT', wis: 'WIS', dex: 'DEX', int: 'INT', luk: 'LUK', agi: 'AGI' }

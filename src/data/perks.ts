@@ -173,6 +173,14 @@ export const PERKS_V2: PerkDef[] = [
   L('foc_L1', 'focus', '💢', 'เปิดฉากเต็มแรง', ['{ult}ครั้งแรกในไฟต์ +100% · ครั้งต่อไป −25%', 'ครั้งแรก +150%'], { pk: [{ openUlt: 1 }, { openUlt: 1.5 }] }),
 ]
 
+/** พร v2 numbers that gear refine lines + monster cards also give (Q 2026-11-04 grill: gear ~1/4 of the card, monster card ~1/2).
+ *  In a run the hero uses card + gear/cards, capped at capMul x the card's "+" value, so stacking never runs away. */
+export const OUTSIDE_KEYS = ['vsBurn', 'vsChill', 'vsPoison', 'chillWeak', 'spearShield', 'counterDmg', 'basicDmg', 'resTurn'] as const
+export type OutsideKey = (typeof OUTSIDE_KEYS)[number]
+export const OUTSIDE_RULES = { capMul: 2 }
+export const OUTSIDE_CAP = Object.fromEntries(OUTSIDE_KEYS.map((k) =>
+  [k, OUTSIDE_RULES.capMul * Math.max(0, ...PERKS_V2.map((p) => p.pk?.[1]?.[k] ?? 0))])) as Record<OutsideKey, number>
+
 /** ⭐ general cards (always the 4th slot): the v1 common cards, stack forever (ขนนกฟีนิกซ์ once per run). */
 export const GENERAL_PERKS: PerkDef[] = COMMON_PERKS.map((p) => ({
   id: p.id, line: 'common', rarity: 'common', icon: '⭐', name: p.name, desc: [p.desc, p.desc], max: p.mod.revive ? 1 : 99, mod: [p.mod, p.mod],

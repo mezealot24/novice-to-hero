@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { afterDef, BATTLE, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats } from '../data/game-data'
-import { ELEM_SRC, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, PERKS_V2, OFFER_RULES, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
+import { ELEM_SRC, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, PERKS_V2, OFFER_RULES, OUTSIDE_CAP, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type OutsideKey, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
 import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
 import { COSTUMES, FREE_GEMS, heroStats, PER_POINT, RESOURCES, totalBase, type BaseStat } from '../data/meta'
@@ -590,7 +590,7 @@ export class BattleScene extends Phaser.Scene {
       for (let i = 0; i < n; i++) {
         for (const m of this.alive()) { this.strike(m, mul, true, '#f6e27a'); if (this.pk.spearBurn > 0) this.addBurn(m, this.pk.spearBurn, false) } // legend หอกเพลิง
         if (this.st.spearHeal > 0) this.heal(this.st.maxHp * this.st.spearHeal, true)
-        if (this.pk.spearShield > 0 && Math.random() < this.pk.spearShield) this.addShield(this.st.maxHp * PROC_RULES.spearShield, true) // หอกคุ้มกาย
+        if (this.px('spearShield') > 0 && Math.random() < this.px('spearShield')) this.addShield(this.st.maxHp * PROC_RULES.spearShield, true) // หอกคุ้มกาย
       }
     })
     if (this.relic === 'magicspear') this.withSrc('fire', () => { for (const m of this.alive()) { this.strike(m, PROC_POW.firewave!, true, '#ff8c42'); this.addBurn(m, 1) } })
@@ -609,7 +609,7 @@ export class BattleScene extends Phaser.Scene {
   private async heroAct() {
     if (this.st.regen > 0) this.heal(this.st.maxHp * this.st.regen * BATTLE.regenPerTurn / 100, true)
     if (this.lowRegen.turns > 0) { this.lowRegen.turns--; this.heal(this.st.maxHp * this.lowRegen.amt) } // ฟื้นยามคับขัน
-    if (this.pk.resTurn > 0) { this.gainRage(this.pk.resTurn); this.gainRes(this.pk.resTurn) } // ภาวนา
+    const rt = this.px('resTurn'); if (rt > 0) { this.gainRage(rt); this.gainRes(rt) } // ภาวนา
     if (this.smashCdLeft > 0) this.smashCdLeft--
     if (this.relic === 'storm' && this.fightTurns % RELIC_RULES.storm.every === 0) { await this.lightningWrath(); if (!this.alive().length) return }
     // resource tick
@@ -686,7 +686,7 @@ export class BattleScene extends Phaser.Scene {
     const crit = Math.random() < (magic ? this.st.spellCrit : this.st.crit + (this.buf.hawk > 0 ? S2N.hawkCrit(this.st.s2Lv) : 0)) // magic crits only with spellCrit (talent/item/card) · Skill 2 ตาเหยี่ยว
     if (!magic && !crit && Math.random() > hitChance(this.st.hit, m.def.flee ?? 5)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
     if (this.skillHits) mul *= 1 - this.skillCut() // spell vamp drawbacks: skill / ult damage cut
-    const brittle = Math.max(this.st.brittle, this.pk.vsChill) // tree: ice "เปราะ" · card เปราะน้ำแข็ง (the higher one)
+    const brittle = Math.max(this.st.brittle, this.px('vsChill')) // tree: ice "เปราะ" · card เปราะน้ำแข็ง + gear/cards (the higher one)
     if (m.chill > 0 && brittle > 0) mul *= 1 + brittle
     if (this.ultFiring && m.charging && this.st.arUltBreak > 0) mul *= 1 + this.st.arUltBreak // archer tree/talent: ult vs a charging boss
     if (this.st.arLowHpBonus > 0 && m.hp < m.def.hp * 0.5) mul *= 1 + this.st.arLowHpBonus // archer talent เก็บตัวเปราะ r2
@@ -1777,21 +1777,23 @@ export class BattleScene extends Phaser.Scene {
   private withSrc<T>(src: Src, fn: () => T): T { const p = this.src; this.src = src; try { return fn() } finally { this.src = p } }
   private perkLv(id: string) { return this.perks.find((o) => o.def.id === id)?.lv ?? 0 }
   private comboChance() { return (this.st.combo + (this.relic === 'wolf' ? RELIC_RULES.wolf.combo : 0)) * (this.relic === 'wizard' ? RELIC_RULES.wizard.chanceMul : 1) }
+  /** พร v2 number in a run: card + gear lines / monster cards, capped (perks.ts OUTSIDE_CAP). */
+  private px(k: OutsideKey) { return Math.min(OUTSIDE_CAP[k], this.pk[k] + this.st[k]) }
   private counterChance() { return this.st.counter * (this.relic === 'wizard' ? RELIC_RULES.wizard.chanceMul : 1) }
 
   /** Damage multiplier by source tag: masteries, style-switch mythics, card mods, glass, demon form, open-strong ult. */
   private srcMul(m: Mon, dot: boolean) {
-    const src = this.src, P = this.pk, rel = this.relic
+    const src = this.src, rel = this.relic
     let k = 1
     for (const ms of this.masteries) k *= ms.src === src ? 1 + ms.amp : 1 - ms.cut
     const basic = src === 'basic' || src === 'combo', skill = src === 'skill' || src === 'ult'
-    if (basic) k *= 1 + P.basicDmg
-    if (src === 'counter') k *= 1 + P.counterDmg
+    if (basic) k *= 1 + this.px('basicDmg')
+    if (src === 'counter') k *= 1 + this.px('counterDmg')
     if (rel === 'wolf') k *= src === 'combo' || src === 'counter' ? 1 + RELIC_RULES.wolf.comboCounter : skill ? 1 - RELIC_RULES.wolf.skillCut : 1
     if (rel === 'wizard' && skill) k *= 1 + RELIC_RULES.wizard.skill
     if (rel === 'queen') k *= ELEM_SRC.has(src) ? 1 + RELIC_RULES.queen.elem : basic ? 1 - RELIC_RULES.queen.basicCut : 1
-    if (!dot && P.vsBurn > 0 && (m.burnStackTurns > 0 || m.burnTurns > 0 || m.hell > 0)) k *= 1 + P.vsBurn
-    if (!dot && P.vsPoison > 0 && m.poison > 0) k *= 1 + P.vsPoison
+    if (!dot && this.px('vsBurn') > 0 && (m.burnStackTurns > 0 || m.burnTurns > 0 || m.hell > 0)) k *= 1 + this.px('vsBurn')
+    if (!dot && m.poison > 0) k *= 1 + this.px('vsPoison')
     if (rel === 'glass' && this.hp < this.st.maxHp * RELIC_RULES.glass.below) k *= 1 + RELIC_RULES.glass.dmg
     if (this.demonOn) k *= 1 + IMMORTAL_RULES.demonDmg
     if (src === 'ult') k *= this.ultOpen
@@ -2170,7 +2172,7 @@ export class BattleScene extends Phaser.Scene {
   private monMul(m: Mon) {
     let k = m.iced ? 1 - RELIC_RULES.iceage.atkDown : 1
     if (m.def.mini === 'hunter' && this.hp < this.st.maxHp * 0.5) k *= 1.2
-    return k * m.dmgMul * (m.atkUpTurns > 0 ? 1 + m.atkUp : 1) * (m.weakTurns > 0 ? 1 - m.weakPct : 1) * (1 + this.flags.curseDmg) * (m.chill > 0 ? 1 - this.pk.chillWeak : 1) // card กัดเย็น
+    return k * m.dmgMul * (m.atkUpTurns > 0 ? 1 + m.atkUp : 1) * (m.weakTurns > 0 ? 1 - m.weakPct : 1) * (1 + this.flags.curseDmg) * (m.chill > 0 ? 1 - this.px('chillWeak') : 1) // card กัดเย็น
   }
 
   /** Heal cut on a monster: Hellfire 5%/stack (max 50%), otherwise 25% while any normal burn is on it. */
