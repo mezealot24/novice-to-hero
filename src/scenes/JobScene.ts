@@ -1,12 +1,21 @@
 import Phaser from 'phaser'
 import { COLORS, H, TAGS, W } from '../data/game-data'
-import { BASE_JOBS, JOBS, type JobId } from '../data/jobs'
+import { BASE_JOBS, JOB_CHANGE, JOBS, type JobId } from '../data/jobs'
 import { RESOURCES } from '../data/meta'
-import { changeJob, save } from '../save'
+import { canRepickJob, changeJob, repickJob, save } from '../save'
 import { sfx } from '../sfx'
-import { backdrop, button, confirm, go, txt, UI } from '../ui'
+import { backdrop, button, confirm, go, toast, txt, UI } from '../ui'
 
-// Job change: pick one of the 5 base classes. (Playtest period: re-picking later is free.)
+const REPICK_BODY = `ใช้ 💎${JOB_CHANGE.repickGems} เปลี่ยนเป็นอาชีพอื่น\nคืนแต้มใยสกิลทั้งหมด · ล้างทาเลนต์ (ลงใหม่ได้ฟรี)\nเก็บไว้: Base Lv, Job Lv, สถานะ, ของ, การ์ด, zeny`
+
+/** 🔄 re-pick entry (Hub + character screen): gem check, then the job screen. Gems are paid only on the final pick. */
+export function askRepick(scene: Phaser.Scene) {
+  const s = save(), cost = JOB_CHANGE.repickGems
+  if (s.gems < cost) { toast(scene, `เพชรไม่พอ ต้องใช้ 💎${cost} (มี ${s.gems})\nรับฟรีได้ที่ 🎁 เพชรฟรีรายวัน · เลเวลอัป`, UI.sub); return }
+  confirm(scene, '🔄 เปลี่ยนอาชีพใหม่?', `${REPICK_BODY}\nจ่ายเพชรตอนกดเลือกอาชีพใหม่เท่านั้นค่ะ`, 'ไปเลือก', () => go(scene, 'job'))
+}
+
+// Job change: Novice picks one of the 5 base classes; a class can re-pick another one for gems (v52).
 export class JobScene extends Phaser.Scene {
   private pick: JobId = 'swordsman'
   constructor() { super('job') }
@@ -14,12 +23,14 @@ export class JobScene extends Phaser.Scene {
   create() {
     backdrop(this, false)
     const s = save()
-    this.pick = s.job === 'novice' ? 'swordsman' : s.job
-    txt(this, W / 2, 30, '🎓 เลือกอาชีพแรก', 28, UI.gold, true).setOrigin(0.5)
-    txt(this, W / 2, 62, s.job === 'novice' ? 'ล้มราชาเจลล็อปแล้ว โนวิสพร้อมเติบโต! Job Lv เริ่มใหม่ที่ 1 สกิลโนวิสยังติดตัว' : 'ช่วงทดลอง: เปลี่ยนอาชีพใหม่ได้ฟรี แต้มสกิลอาชีพคืนให้ครบ', 15, UI.sub).setOrigin(0.5)
+    const repick = canRepickJob(s)
+    const list = BASE_JOBS.filter((id) => id !== s.job) // a re-pick never offers the current class
+    this.pick = list[0]
+    txt(this, W / 2, 30, repick ? `🔄 เปลี่ยนอาชีพใหม่ (ตอนนี้: ${JOBS[s.job].icon} ${JOBS[s.job].name})` : '🎓 เลือกอาชีพแรก', 28, UI.gold, true).setOrigin(0.5)
+    txt(this, W / 2, 62, repick ? `ใช้ 💎${JOB_CHANGE.repickGems} (มี ${s.gems}) · คืนแต้มใยสกิลครบ ล้างทาเลนต์ · Job Lv ${s.jobLevel} คงเดิม` : 'ล้มราชาเจลล็อปแล้ว โนวิสพร้อมเติบโต! Job Lv เริ่มใหม่ที่ 1 สกิลโนวิสยังติดตัว', 15, UI.sub).setOrigin(0.5)
 
     const cw = 178, ch = 400, gap = 8
-    const x0 = W / 2 - ((BASE_JOBS.length - 1) * (cw + gap)) / 2
+    const x0 = W / 2 - ((list.length - 1) * (cw + gap)) / 2
     const frames: { id: JobId; g: Phaser.GameObjects.Graphics; x: number }[] = []
     const draw = () => frames.forEach((f) => {
       const on = f.id === this.pick
@@ -27,7 +38,7 @@ export class JobScene extends Phaser.Scene {
       f.g.fillStyle(on ? 0x34396a : UI.panel, 0.97).fillRoundedRect(f.x - cw / 2, 86, cw, ch, 14)
       f.g.lineStyle(on ? 4 : 2, on ? COLORS.gold : UI.line).strokeRoundedRect(f.x - cw / 2, 86, cw, ch, 14)
     })
-    BASE_JOBS.forEach((id, i) => {
+    list.forEach((id, i) => {
       const j = JOBS[id], x = x0 + i * (cw + gap)
       frames.push({ id, g: this.add.graphics(), x })
       const spr = this.add.image(x, 160, j.tex).setScale(2)
@@ -51,7 +62,14 @@ export class JobScene extends Phaser.Scene {
     button(this, 70, H - 36, 110, 42, '‹ กลับ', () => go(this, 'hub'), { fill: 0x5a5f8a, color: UI.text, size: 17 })
     button(this, W - 120, H - 36, 200, 50, 'เป็นอาชีพนี้!', () => {
       const j = JOBS[this.pick]
-      confirm(this, `เป็น${j.name}?`, `${j.blurb}\nเลือกแล้วยังเปลี่ยนได้ฟรีในช่วงทดลองค่ะ`, 'ตกลง', () => {
+      if (repick) {
+        confirm(this, `เปลี่ยนเป็น${j.name}? 💎${JOB_CHANGE.repickGems}`, REPICK_BODY, `จ่าย 💎${JOB_CHANGE.repickGems}`, () => {
+          if (!repickJob(this.pick)) { toast(this, `เพชรไม่พอ ต้องใช้ 💎${JOB_CHANGE.repickGems}`, UI.sub); return }
+          sfx.win(); go(this, 'hub')
+        })
+        return
+      }
+      confirm(this, `เป็น${j.name}?`, `${j.blurb}\nเปลี่ยนเป็นอาชีพอื่นทีหลังได้ด้วย 💎${JOB_CHANGE.repickGems}`, 'ตกลง', () => {
         changeJob(this.pick); sfx.win(); go(this, 'hub')
       })
     }, { size: 20 })

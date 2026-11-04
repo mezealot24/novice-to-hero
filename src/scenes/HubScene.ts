@@ -5,6 +5,7 @@ import { canChangeJob, persist, save, today, wipe } from '../save'
 import { JOB_CHANGE, JOBS } from '../data/jobs'
 import { dailyOf, dailySeed, MODES, PANEL_MODES } from '../data/modes'
 import { setMuted } from '../sfx'
+import { askRepick } from './JobScene'
 import { backdrop, button, confirm, fullscreenButton, go, panel, toast, topBar, txt, UI } from '../ui'
 
 // Town / main menu. Everything branches from here and every run comes back here.
@@ -42,6 +43,9 @@ export class HubScene extends Phaser.Scene {
     if (canChangeJob(s)) {
       const jb = button(this, 214, 448, 300, 44, '🎓 เปลี่ยนอาชีพได้แล้ว!', () => go(this, 'job'), { size: 18 })
       this.tweens.add({ targets: jb, scale: 1.05, duration: 600, yoyo: true, repeat: -1 })
+    } else if (s.job !== 'novice') { // v52: re-pick another class for gems
+      if (notes.length) txt(this, 214, 432, `✨ ${notes.join(' · ')}`, 13, UI.gold).setOrigin(0.5)
+      button(this, 214, notes.length ? 459 : 450, 280, 34, `🔄 เปลี่ยนอาชีพใหม่ 💎${JOB_CHANGE.repickGems}`, () => askRepick(this), { size: 15, fill: 0x4a5a8a, color: UI.text })
     } else txt(this, 214, 446, notes.length ? `✨ ${notes.join(' · ')}` : `เคลียร์ดัน ${s.clears} ครั้ง`, 15, notes.length ? UI.gold : UI.sub).setOrigin(0.5).setAlign('center').setWordWrapWidth(340)
     button(this, 214, 506, 330, 52, '👤 ตัวละคร / อุปกรณ์ / สถานะ', () => go(this, 'character'), { fill: 0x5a5f8a, color: UI.text, size: 18 })
 
