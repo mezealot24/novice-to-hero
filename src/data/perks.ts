@@ -177,9 +177,9 @@ export const PERKS_V2: PerkDef[] = [
  *  In a run the hero uses card + gear/cards, capped at capMul x the card's "+" value, so stacking never runs away. */
 export const OUTSIDE_KEYS = ['vsBurn', 'vsChill', 'vsPoison', 'chillWeak', 'spearShield', 'counterDmg', 'basicDmg', 'resTurn'] as const
 export type OutsideKey = (typeof OUTSIDE_KEYS)[number]
-export const OUTSIDE_RULES = { capMul: 2 }
+export const OUTSIDE_RULES = { capMul: 2, uncapped: ['counterDmg'] as string[] } // Q 2026-11-04 17:51: "Counter Dmg ทะลุ Cap ได้"
 export const OUTSIDE_CAP = Object.fromEntries(OUTSIDE_KEYS.map((k) =>
-  [k, OUTSIDE_RULES.capMul * Math.max(0, ...PERKS_V2.map((p) => p.pk?.[1]?.[k] ?? 0))])) as Record<OutsideKey, number>
+  [k, OUTSIDE_RULES.uncapped.includes(k) ? Infinity : OUTSIDE_RULES.capMul * Math.max(0, ...PERKS_V2.map((p) => p.pk?.[1]?.[k] ?? 0))])) as Record<OutsideKey, number>
 
 /** ⭐ general cards (always the 4th slot): the v1 common cards, stack forever (ขนนกฟีนิกซ์ once per run). */
 export const GENERAL_PERKS: PerkDef[] = COMMON_PERKS.map((p) => ({
