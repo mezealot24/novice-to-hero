@@ -9,6 +9,7 @@ import { canChangeJob, equip, persist, resetTree, save, socketCard, unsocketCard
 import { BRANCHES, branchesOf, lockReason, skill2Picked, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
 import { JOB_CHANGE, JOBS, type JobId } from '../data/jobs'
 import { statLines } from '../data/statInfo'
+import { powerParts } from '../data/power'
 import { askRepick } from './JobScene'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
 
@@ -56,7 +57,7 @@ export class CharacterScene extends Phaser.Scene {
     this.preview = c
     c.add(panel(this, 16, 70, 298, 490))
     const st = heroStats(s)
-    const rows = derivedRows(st)
+    const rows: [string, string][] = [['⚡ Hero Power', `${powerParts(st, s.job).power}`], ...derivedRows(st)] // v59: the number monsters scale to
     if (this.tab === 0) {
       // equipment screen (RO style): hero sits between the gear slots, so this side is a stats panel
       c.add(txt(this, 165, 82, `${s.supporter ? '🌟 ' : ''}${s.name}`, 18, s.supporter ? UI.gold : UI.text, true).setOrigin(0.5, 0))
@@ -69,9 +70,9 @@ export class CharacterScene extends Phaser.Scene {
         c.add(txt(this, x + 128, y + 3, `${tot[bs.id]}`, 12, UI.text, true).setOrigin(1, 0))
       })
       rows.forEach(([k, v], i) => {
-        const y = 236 + i * 21
-        c.add(txt(this, 30, y, k, 12, UI.sub))
-        c.add(txt(this, 300, y, v, 12, UI.text, true).setOrigin(1, 0))
+        const y = 236 + i * 20
+        c.add(txt(this, 30, y, k, 12, i === 0 ? UI.gold : UI.sub, i === 0))
+        c.add(txt(this, 300, y, v, 12, i === 0 ? UI.gold : UI.text, true).setOrigin(1, 0))
       })
       return
     }
@@ -81,9 +82,9 @@ export class CharacterScene extends Phaser.Scene {
     c.add(txt(this, 165, 244, `${RACES[s.race].icon} ${RACES[s.race].name} · ${JOBS[s.job].icon} ${JOBS[s.job].name}`, 15, UI.sub).setOrigin(0.5))
     c.add(txt(this, 165, 268, `Base Lv ${s.baseLevel} · Job Lv ${s.jobLevel}/${s.job === 'novice' ? JOB_RULES.maxJobLevel : JOB_CHANGE.classMaxJobLevel}`, 14, UI.text).setOrigin(0.5))
     rows.forEach(([k, v], i) => {
-      const y = 290 + i * 16.2
-      c.add(txt(this, 30, y, k, 12, UI.sub))
-      c.add(txt(this, 300, y, v, 12, UI.text, true).setOrigin(1, 0))
+      const y = 288 + i * 16.2
+      c.add(txt(this, 30, y, k, 12, i === 0 ? UI.gold : UI.sub, i === 0))
+      c.add(txt(this, 300, y, v, 12, i === 0 ? UI.gold : UI.text, true).setOrigin(1, 0))
     })
   }
 

@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { afterDef, BATTLE, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, hardMul, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats } from '../data/game-data'
+import { afterDef, BATTLE, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats } from '../data/game-data'
 import { ELEM_SRC, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, PERKS_V2, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
 import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
@@ -13,6 +13,8 @@ import { addCard, addMat, addXp, persist, save, ultMode } from '../save'
 import { MAT_RULES, matName, matOf } from '../data/materials'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
+import { HARD_POWER, matchScale, overpowerMul, TOWER_POWER } from '../data/power'
+import { foldAffixes } from '../data/affixes'
 import { buildRun, MODES, towerFloorLoot, type ModeArgs, type RunConfig, type RunRoom } from '../data/modes'
 import { button, fullscreenButton, go, type Btn } from '../ui'
 
@@ -43,7 +45,7 @@ interface Mon {
   speedMul: number; dmgMul: number; affix?: string; reflect: number; absorb: number; stored: number; chargeEvery: number
   skills: MonSkill[]; onHit?: HitFx; slamFx?: HitFx
   revived: boolean // came back once (necro): can't be raised again
-  evaded?: number; trueTurns?: number // v56 trueSight: hero evades counted, then 🎯 its physical hits always land
+  clone?: boolean; evaded?: number; trueTurns?: number // v56 trueSight: hero evades counted, then 🎯 its physical hits always land
   weakTurns: number; weakPct: number // hero Skill 2 ท้าทาย: hits weaker for its next N turns
 }
 type Element = 'lightning' | 'fire' | 'ice'
@@ -111,6 +113,12 @@ export class BattleScene extends Phaser.Scene {
   /** Hard mode (v47): replay of a cleared dungeon, monsters scale with Base Lv (data/game-data.ts HARD). gap = levels above the dungeon's recLv. */
   hard = false
   hardGap = 0
+  /** v59: hard-mode monster multiplier from Hero Power (HUD shows it), normal-dungeon drop share when over-geared. */
+  hardK = { hp: 1, atk: 1 }
+  dropMul = 1
+  /** v59 tower: affixes live on the current floor (folded), monsters enraged this fight (bots read enrageCount). */
+  private aff = foldAffixes([])
+  enrageCount = 0
   /** Bot / test hook: the open choice (event or card) picks option i. */
   pendingPick?: (i: number) => void
   eventLog: string[] = []
@@ -239,6 +247,9 @@ export class BattleScene extends Phaser.Scene {
     this.st.maxHp = Math.round(this.st.maxHp * mut.heroMul.maxHp); this.st.atk *= mut.heroMul.atk; this.st.matk *= mut.heroMul.matk
     this.towerFloor = 0; this.bank = { zeny: 0, mats: {} }; this.leftTower = false
     this.hardGap = this.hard ? hardGap(this.dg.id, s.baseLevel) : 0
+    if (this.hard) { const m = matchScale(this.run.pp, this.dg.id); this.hardK = { hp: m.hp * HARD_POWER.target, atk: m.atk * HARD_POWER.target } } else this.hardK = { hp: 1, atk: 1 }
+    this.dropMul = this.run.modeId === 'dungeon' ? overpowerMul(this.run.power, this.dg.id) : 1
+    this.aff = foldAffixes([]); this.enrageCount = 0
     this.hp = this.st.maxHp; this.smashCdLeft = 0; this.heroGauge = 0; this.zapCount = 0; this.emergencyUsed = false; this.firstOffer = true
     this.job = JOBS[s.job ?? 'novice']
     this.s2 = this.job.id === 'novice' ? undefined : skill2Picked(s.jobTree, this.job.id); this.s2Cd = 0
@@ -319,6 +330,11 @@ export class BattleScene extends Phaser.Scene {
     const room = this.roomDef(i)!
     const kinds: MonsterKind[] = []
     this.roomStart = this.mons.length
+    if (this.run.affixesAt) { // v59 tower: one more floor rule every 10 floors
+      const next = foldAffixes(this.run.affixesAt(room)), fresh = next.defs.filter((a) => !this.aff.defs.includes(a))
+      this.aff = next
+      if (fresh.length) { this.banner(`🗼 กฎใหม่ของหอคอย: ${fresh.map((a) => `${a.icon} ${a.name}`).join(' · ')}`, fresh.map((a) => a.desc).join(' · ')); await this.wait(1400) }
+    }
     if (room.mini) {
       const pool = room.miniPool ?? MINI_POOL
       this.miniKind = pool[Phaser.Math.Between(0, pool.length - 1)]
@@ -382,10 +398,11 @@ export class BattleScene extends Phaser.Scene {
   /** Tower / daily (RunConfig.scale): level + floor + mutator multipliers; tower bosses also roll the hard-mode affixes. */
   private modeDef(def: MonsterDef, kind?: MonsterKind): MonsterDef {
     const room = this.roomDef(this.room), k = room ? this.run.scale(room, kind) : null
-    this.modeSpeed = k?.speed ?? 1
+    this.modeSpeed = (k?.speed ?? 1) * this.aff.speed
     if (!k) return def
     const out: MonsterDef = { ...def, hp: Math.round(def.hp * k.hp), dmg: def.dmg * k.atk, ...(def.matk ? { matk: def.matk * k.atk } : {}), hit: (def.hit ?? 15) + k.hit }
     if (this.run.affix && !this.hard && def.ai === 'boss' && !def.passive) this.hardAffix(out)
+    if (!def.passive) this.aff.mon(out) // v59 tower floor affixes
     return out
   }
   private modeSpeed = 1
@@ -393,7 +410,8 @@ export class BattleScene extends Phaser.Scene {
   /** Hard mode: HP / ATK / M.ATK / Hit scaled by the hero's Base Lv over the dungeon's recLv. */
   private hardDef(def: MonsterDef): MonsterDef {
     if (!this.hard) return def
-    const k = hardMul(this.dg.id, this.hardGap)
+    // v59: HP x hero offense, ATK x hero survival, both over the dungeon's reference build, x target (power.ts matchScale)
+    const k = this.hardK
     const out: MonsterDef = { ...def, hp: Math.round(def.hp * k.hp), dmg: def.dmg * k.atk, ...(def.matk ? { matk: def.matk * k.atk } : {}), hit: (def.hit ?? 15) + HARD.hitPerLv * Math.min(25, this.hardGap) }
     if (def.ai === 'boss' && !def.passive) this.hardAffix(out)
     return out
@@ -404,6 +422,7 @@ export class BattleScene extends Phaser.Scene {
     const pick = <T,>(a: T[]) => a[Phaser.Math.Between(0, a.length - 1)]
     const sk = pick(HARD_SKILLS.filter((x) => !(d.skills ?? []).some((y) => y.kind === x.kind && JSON.stringify(y.fx) === JSON.stringify(x.fx))))
     d.skills = [...(d.skills ?? []), sk] // own skills keep priority
+    d.trueSight = HARD_POWER.bossSight // v59 anti-evasion (Q: Flee 159 Thief made bosses useless): 1 dodge -> sure hits for 3 turns
     if (d.phases) d.phases = d.phases.map((p) => (p.skills ? { ...p, skills: [...p.skills, sk] } : p))
     const pool = HARD_PASSIVES.filter((p) => !(p.onHit && d.onHit) && !(p.reflect && (d.reflect || d.absorb)) && !(p.lifesteal && d.lifesteal))
     const n = !d.mini && this.dg.tier >= 3 ? 2 : 1
@@ -484,6 +503,7 @@ export class BattleScene extends Phaser.Scene {
         if (this.fightTurns >= this.turnLimit) { await this.timeUp(); return false }
         this.fightTurns++
         this.peakTurns = Math.max(this.peakTurns, this.fightTurns)
+        this.enrageTick(room)
         const left = this.turnLimit - this.fightTurns
         if (left === 3 || left === 1) this.callout(`⏳ เหลืออีก ${left} เทิร์น!`, W / 2, 150)
         await this.heroTurn()
@@ -497,6 +517,15 @@ export class BattleScene extends Phaser.Scene {
     this.hx = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0 } // debuffs end with the fight
     if (this.starsOn) { this.starsOn = false; this.applyMod({ crit: -1 }) }
     return this.hp > 0
+  }
+
+  /** v59 tower: a fight that drags past N hero turns enrages every monster (+x damage per hero turn, stacking). */
+  private enrageTick(room: RunRoom | null) {
+    const after = room && this.run.enrageAfter ? this.run.enrageAfter(room) : 0
+    if (!after || this.fightTurns <= after) return
+    for (const m of this.alive()) m.dmgMul *= 1 + TOWER_POWER.enragePer
+    this.enrageCount++
+    if (this.fightTurns === after + 1) this.callout(`😡 มอนคลั่ง! แรงขึ้น ${Math.round(TOWER_POWER.enragePer * 100)}% ทุกเทิร์น`, W / 2, 175, '#ff7a7a')
   }
 
   // ---------- hero turn ----------
@@ -1181,7 +1210,7 @@ export class BattleScene extends Phaser.Scene {
     const pity = (save().cardPity ??= {})
     for (const cd of cardsOfMonster(m.kind)) {
       const n = (pity[cd.id] ?? 0) + 1
-      if (Math.random() < cardRate(cd) * this.cardLuck || n >= cardPityMax(cd)) {
+      if (Math.random() < cardRate(cd) * this.cardLuck * this.dropMul || n >= cardPityMax(cd)) {
         pity[cd.id] = 0
         this.runCards.push(cd.id)
         this.callout(`🃏 ได้${cardName(cd)}!`, m.spr.x, m.spr.y - 130 - (cd.v2 ? 40 : 0))
@@ -1196,7 +1225,7 @@ export class BattleScene extends Phaser.Scene {
     const dg = this.dg.id, got: [string, number][] = []
     if (m.def.ai === 'boss' && !m.def.mini) got.push([matOf(dg, true), MAT_RULES.boss.boss], [matOf(dg, false), MAT_RULES.boss.common])
     else if (m.def.ai === 'boss') got.push([matOf(dg, true), MAT_RULES.mini.boss])
-    else if (Math.random() < MAT_RULES.normalRate) got.push([matOf(dg, false), 1])
+    else if (Math.random() < MAT_RULES.normalRate * this.dropMul) got.push([matOf(dg, false), 1])
     got.forEach(([id, n], i) => {
       this.runMats[id] = (this.runMats[id] ?? 0) + n
       this.floatText(m.spr.x + 40, m.spr.y - 40 - i * 24, `${matName(id)} +${n}`, '#e8d9a8')
@@ -1221,6 +1250,14 @@ export class BattleScene extends Phaser.Scene {
       this.shake(180, 0.012)
       sfx.slam()
       this.hurtHero(m.def.dmg * BATTLE.monDmgMul * m.def.deathBlast, true, m.def.hit ?? 15)
+    }
+    if (this.aff.split > 0 && !m.clone && !m.summoned && m.def.ai !== 'boss' && this.hp > 0) { // tower affix แยกร่าง
+      const sl = this.freeSlots().find((x) => x !== m.slot) ?? this.freeSlots()[0]
+      if (sl != null) { // right away, so the fight can't end before the copy arrives; the copy drops nothing (revived)
+        const c = this.addMon(m.kind, sl, 0), hp = Math.max(1, Math.round(c.def.hp * this.aff.split))
+        c.clone = true; c.revived = true; c.def = { ...c.def, hp }; c.hp = hp; c.spr.setAlpha(0.75)
+        this.callout(`🧬 ${m.def.name}แยกร่าง!`, SLOT_X[sl] ?? W / 2, GROUND - 140)
+      }
     }
     this.runXp += m.def.xp
     this.gainXp(m.def.xp)
@@ -1577,7 +1614,7 @@ export class BattleScene extends Phaser.Scene {
   private heal(n: number, quiet = false) {
     const before = this.hp
     if (this.hx.burn > 0) n *= 1 - BATTLE.burnHealCut // burning: healing on the hero is cut
-    n *= this.run.mut.healMul // daily mutator แผลเรื้อรัง
+    n *= this.run.mut.healMul * this.aff.healMul // daily mutator แผลเรื้อรัง · tower affix แผลลึก
     const want = Math.ceil(this.hp + n * (1 + this.st.healAmp))
     if (this.st.overhealShield > 0 && want > this.st.maxHp) this.shield = Math.min(Math.ceil(this.st.maxHp * 0.5), this.shield + want - this.st.maxHp) // tree: "ไฟชำระ" (cap 50% max HP)
     else if (this.pk.overheal > 0 && want > this.st.maxHp) { const cap = Math.ceil(this.st.maxHp * this.pk.overheal); if (this.shield < cap) this.shield = Math.min(cap, this.shield + want - this.st.maxHp) } // legend ฮีลล้นเป็นโล่
@@ -2477,11 +2514,11 @@ export class BattleScene extends Phaser.Scene {
     this.settled = true
     const s = save()
     if (this.hard) { // hard mode: zeny / account EXP / forge mats scaled up (in-run EXP stays normal)
-      const k = hardMul(this.dg.id, this.hardGap).reward
+      const k = HARD.reward * (this.hardK.hp / HARD_POWER.target) ** HARD.rewardPow
       this.zeny = Math.round(this.zeny * k); this.runXp = Math.round(this.runXp * k)
       for (const id of Object.keys(this.runMats)) this.runMats[id] = Math.ceil(this.runMats[id] * HARD.mats)
     }
-    this.zeny = Math.round(this.zeny * this.run.mut.zenyMul) // daily mutators
+    this.zeny = Math.round(this.zeny * this.run.mut.zenyMul * this.dropMul) // daily mutators · v59 over-geared normal dungeon
     const mode = MODES[this.run.modeId].reward(s, this.run, { won, left: this.leftTower, floor: this.towerFloor, bank: this.bank })
     if (mode) { this.zeny += mode.zeny; for (const [id, n] of Object.entries(mode.mats)) this.runMats[id] = (this.runMats[id] ?? 0) + n }
     s.zeny += this.zeny
@@ -2647,7 +2684,7 @@ export class BattleScene extends Phaser.Scene {
     } else this.fortuneTxt?.setText('')
     const left = this.turnLimit - this.fightTurns
     const affix = this.alive().find((m) => m.affix)?.affix
-    this.hudTxt.room.setText(`${this.hard ? `🔥ยาก Lv+${this.hardGap} · ` : ''}${this.run.where(this.room)} · ⏳ ${this.alive().length ? `${left}/${this.turnLimit} เทิร์น` : '-'}${affix ? `\n${affix}` : ''}`).setColor(this.alive().length && left <= 3 ? '#ff7a7a' : '#f6eedc').setPosition(18, this.job.resource ? 68 : 54)
+    this.hudTxt.room.setText(`${this.hard ? `🔥ยาก HP x${this.hardK.hp.toFixed(1)} ATK x${this.hardK.atk.toFixed(1)} · ` : ''}${this.aff.defs.length ? `${this.aff.defs.map((a) => a.icon).join('')} · ` : ''}${this.run.where(this.room)} · ⏳ ${this.alive().length ? `${left}/${this.turnLimit} เทิร์น` : '-'}${affix ? `\n${affix}` : ''}`).setColor(this.alive().length && left <= 3 ? '#ff7a7a' : '#f6eedc').setPosition(18, this.job.resource ? 68 : 54)
     this.hudTxt.build.setText(this.buildText()).setY(14)
     const X = this.hx
     this.debuffTxt?.setText([X.poison > 0 ? `☠️${X.poison}` : '', X.burn > 0 ? `🔥${X.burn}` : '', X.weaken > 0 ? `💔${X.weaken}` : '', X.armorBreak > 0 ? `🛡️💥${X.armorBreak}` : '', X.silence > 0 ? `🤐${X.silence}` : ''].filter(Boolean).join(' ')).setY(this.job.resource ? 92 : 78)
