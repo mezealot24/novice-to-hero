@@ -14,6 +14,7 @@ import { MAT_RULES, matName, matOf } from '../data/materials'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
 import { HARD_POWER, matchScale, overpowerMul, TOWER_POWER } from '../data/power'
+import { levelDropMul, roomLevel, statMonster } from '../data/mon-stats'
 import { foldAffixes } from '../data/affixes'
 import { buildRun, MODES, towerFloorLoot, type ModeArgs, type RunConfig, type RunRoom } from '../data/modes'
 import { button, fullscreenButton, go, type Btn } from '../ui'
@@ -65,6 +66,8 @@ const MINI_HINT: Record<string, string> = {
   frostgiant: 'P.DEF สูงมาก (คริ/เวททะลุ) · ทุกทีเกราะเราแตก · ชาร์จทุก 3 เทิร์น ทุบแล้วแข็ง · 40% ได้เกราะน้ำแข็ง',
   mirage: 'เก็บดาเมจที่โดน 30% (🔮) แล้วชาร์จยิงคืนเป็นโซลสไตรค์ 5 ลูก · เตรียมโล่/หลบตอนชาร์จ · ตีทีเราอ่อนแรง · ครึ่งเลือดเก็บ 40% + เศษกระจก',
   warlord: 'ทุก 3 เทิร์นคลั่งเลือดแรงขึ้นสะสม! ต้องจบไว · ดูดเลือด · ต่ำกว่า 30% เร็วมาก',
+  sphinx: 'สายเวท มี M.DEF สูง (สายกายภาพได้เปรียบ) · ลำแสง 3 ลูกทุก 3 เทิร์น · ชาร์จปริศนา = ใบ้ + อ่อนแรง · ครึ่งเลือดได้โล่และแรงขึ้น',
+  jackallord: 'AGI สูง หลบเก่ง ตีรัว + สวนกลับ · หลบได้ 2 ครั้งแล้วตาเหยี่ยวโดนแน่ · ครึ่งเลือดเรียกหมาไน 2 ตัว',
 }
 const FX_ICON: Record<keyof HitFx, string> = { poison: '☠️', burn: '🔥', weaken: '💔', armorBreak: '🛡️💥', silence: '🤐', freeze: '❄️' }
 
@@ -249,10 +252,11 @@ export class BattleScene extends Phaser.Scene {
     this.st = heroStats(mut.lukMul !== 1 ? { ...s, stats: { ...s.stats, luk: Math.round(s.stats.luk * mut.lukMul) } } : s) // mutator ดวงพุ่ง
     this.st.maxHp = Math.round(this.st.maxHp * mut.heroMul.maxHp); this.st.atk *= mut.heroMul.atk; this.st.matk *= mut.heroMul.matk
     this.towerFloor = 0; this.bank = { zeny: 0, mats: {} }; this.leftTower = false
-    this.hardGap = this.hard ? hardGap(this.dg.id, s.baseLevel) : 0
-    if (this.hard) { const m = matchScale(this.run.pp, this.dg.id); this.hardK = { hp: m.hp * HARD_POWER.target, atk: m.atk * HARD_POWER.target } } else this.hardK = { hp: 1, atk: 1 }
-    this.dropMul = this.run.modeId === 'dungeon' ? overpowerMul(this.run.power, this.dg.id) : 1
-    this.aff = foldAffixes([]); this.enrageCount = 0
+    this.hardGap = this.hard && !this.dg.level ? hardGap(this.dg.id, s.baseLevel) : 0
+    if (this.hard && !this.dg.level) { const m = matchScale(this.run.pp, this.dg.id); this.hardK = { hp: m.hp * HARD_POWER.target, atk: m.atk * HARD_POWER.target } }
+    else this.hardK = this.hard ? { hp: HARD_POWER.target, atk: HARD_POWER.target } : { hp: 1, atk: 1 } // D6+ fixed level: reward = HARD.reward x corruption
+    this.dropMul = this.run.modeId === 'dungeon' ? (this.dg.level ? levelDropMul(s.baseLevel, this.dg.level) : overpowerMul(this.run.power, this.dg.id)) : 1
+    this.aff = foldAffixes(this.run.corrupt?.affixes ?? []); this.enrageCount = 0
     this.hp = this.st.maxHp; this.smashCdLeft = 0; this.heroGauge = 0; this.zapCount = 0; this.emergencyUsed = false; this.firstOffer = true
     this.job = JOBS[s.job ?? 'novice']
     this.s2 = this.job.id === 'novice' ? undefined : skill2Picked(s.jobTree, this.job.id); this.s2Cd = 0
@@ -281,7 +285,7 @@ export class BattleScene extends Phaser.Scene {
       this.runElement = this.element
     }
     if (this.run.mutators.length) { // daily: show the day's rules before the first wave
-      this.banner(`🎲 กฎวันนี้: ${this.run.mutators.map((m) => `${m.icon} ${m.name}`).join(' · ')}`, this.run.mutators.map((m) => m.desc).join(' · '))
+      this.banner(`${this.run.corrupt ? `☠️ Corruption (รางวัล x${this.run.corrupt.reward.toFixed(2)})` : "🎲 กฎวันนี้"}: ${this.run.mutators.map((m) => `${m.icon} ${m.name}`).join(' · ')}`, this.run.mutators.map((m) => m.desc).join(' · '))
       await this.wait(1600)
       if (id !== this.runId) return
     }
@@ -371,7 +375,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private addMon(kind: MonsterKind, slot: number, gauge?: number) {
-    const def = this.hardDef(this.modeDef(this.buffDef(MONSTERS[kind]), kind))
+    const def = MONSTERS[kind].statAlloc && this.dg.level ? this.statDef(MONSTERS[kind]) : this.hardDef(this.modeDef(this.buffDef(MONSTERS[kind]), kind))
     const big = def.ai === 'boss'
     const x = this.roomDef(this.room)?.mixed ? MIX_X[slot] ?? SLOT_X[slot] : big ? 720 : SLOT_X[slot] // tower mixed fight: adds in front, big ones behind
     const y = GROUND + (slot % 2 ? 14 : -4)
@@ -390,6 +394,20 @@ export class BattleScene extends Phaser.Scene {
     this.mons.push(m)
     this.tweens.add({ targets: [spr, shadow], x, duration: 600, ease: 'Quad.easeOut', delay: slot * 90 })
     return m
+  }
+
+  /** D6+ level dungeon: numbers from the monster's 7 stats at the room's level (data/mon-stats.ts). No Hero Power scaling;
+   * 🔥 hard = +50% stat points on every tier, boss / mini affixes, and the run's corruption (affixes + stat boosts). */
+  private statDef(base: MonsterDef): MonsterDef {
+    const lv = this.roomDef(this.room)?.lv ?? roomLevel(this.dg.level!, this.dg.rooms, this.room)
+    const out = statMonster(base, lv, { hard: this.hard, statMul: this.run.corrupt?.statMul })
+    const mut = this.run.mut
+    if (mut.monHp !== 1) out.hp = Math.round(out.hp * mut.monHp)
+    if (mut.monAtk !== 1) { out.dmg *= mut.monAtk; out.matk = (out.matk ?? out.dmg) * mut.monAtk }
+    this.modeSpeed = mut.monSpeed * this.aff.speed
+    if (this.hard && out.ai === 'boss' && !out.passive) { this.hardAffix(out); if (this.run.corrupt?.tyrant) this.hardAffix(out) }
+    if (!out.passive) this.aff.mon(out) // corruption: tower affixes reused
+    return out
   }
 
   /** v56 global monster buff by dungeon tier (BATTLE.monBuff): HP, ATK and M.ATK. */
@@ -465,7 +483,7 @@ export class BattleScene extends Phaser.Scene {
 
   private monSpeed(m: Mon) {
     const frenzy = m.def.mini === 'hunter' && m.hp < m.def.hp * BATTLE.frenzyAt ? BATTLE.frenzySpeed : 1
-    return BATTLE.monSpeed[m.kind] * (m.chill > 0 ? Math.max(0.3, 0.6 - this.st.chillSlow) : 1) * frenzy * m.speedMul
+    return (m.def.speed ?? BATTLE.monSpeed[m.kind] ?? 10) * (m.chill > 0 ? Math.max(0.3, 0.6 - this.st.chillSlow) : 1) * frenzy * m.speedMul
   }
 
   /** Preview the next N turns for the queue strip (pure simulation on copies). */
@@ -693,6 +711,7 @@ export class BattleScene extends Phaser.Scene {
     if (m.dead || this.hp <= 0) return 0
     const crit = Math.random() < (magic ? this.st.spellCrit : this.st.crit + (this.buf.hawk > 0 ? S2N.hawkCrit(this.st.s2Lv) : 0)) // magic crits only with spellCrit (talent/item/card) · Skill 2 ตาเหยี่ยว
     if (!magic && !crit && Math.random() > hitChance(this.st.hit, m.def.flee ?? 5)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
+    if (!magic && m.def.luckyDodge && Math.random() < m.def.luckyDodge) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, '🍀 หลบ!', '#a9a6c7'); return 0 } // D6+ stat monsters: LUK lucky dodge (even vs crits, like the hero's)
     if (this.skillHits) mul *= 1 - this.skillCut() // spell vamp drawbacks: skill / ult damage cut
     const brittle = Math.max(this.st.brittle, this.px('vsChill')) // tree: ice "เปราะ" · card เปราะน้ำแข็ง + gear/cards (the higher one)
     if (m.chill > 0 && brittle > 0) mul *= 1 + brittle
@@ -702,6 +721,8 @@ export class BattleScene extends Phaser.Scene {
     if (crit && this.st.arCritRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arCritRes) // archer talent ลมหายใจนักล่า
     const r = this.roll(mul, magic, crit)
     if (!magic && !crit) r.dmg = m.def.def ? Math.max(1, Math.round(afterDef(r.dmg, m.def.def * (1 - Math.min(1, pierce))))) : r.dmg
+    if (magic && m.def.mdef) r.dmg = Math.max(1, Math.round(r.dmg * (1 - m.def.mdef))) // D6+ stat monsters: WIS M.DEF
+    if (r.crit && m.def.statDef?.critDR) r.dmg = Math.max(1, Math.round(r.dmg * Math.max(1 / (this.st.critMul || 1), 1 - m.def.statDef.critDR))) // LUK crit DR, never below a normal hit
     this.damageMon(m, r.dmg, r.crit, color)
     if (this.skillHits) { this.skillHits.dmg += r.dmg; this.skillHits.mons.add(m) }
     if (!magic && this.st.poison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.poison); m.poisonDmg = this.st.poisonDmg; this.dotIcon(m) }
@@ -1794,7 +1815,8 @@ export class BattleScene extends Phaser.Scene {
   private monCombo(m: Mon) {
     const t = m.def.mini ? 'mini' : m.def.ai === 'boss' ? 'boss' : 'normal', add = this.hard || this.run.endless ? COMBO.hardAdd : 0
     const a = t === 'normal' ? 0 : add
-    return { ignore: COMBO.ignore[t] + a, basicDR: COMBO.basicDR[t], comboDR: COMBO.comboDR[t] + a, ignoreCounter: COMBO.ignoreCounter[t] + a, counterDR: COMBO.counterDR[t] + a }
+    const sd = m.def.statDef // D6+ stat monsters: AGI / DEX / VIT like the hero (x/(x+400))
+    return { ignore: COMBO.ignore[t] + a + (sd?.ignoreCombo ?? 0), basicDR: COMBO.basicDR[t], comboDR: COMBO.comboDR[t] + a + (sd?.comboDR ?? 0), ignoreCounter: COMBO.ignoreCounter[t] + a + (sd?.ignoreCounter ?? 0), counterDR: COMBO.counterDR[t] + a + (sd?.counterDR ?? 0) }
   }
   private comboChance() { return (this.st.combo + (this.relic === 'wolf' ? RELIC_RULES.wolf.combo : 0)) * (this.relic === 'wizard' ? RELIC_RULES.wizard.chanceMul : 1) }
   /** พร v2 number in a run: card + gear lines / monster cards, capped (perks.ts OUTSIDE_CAP). */
@@ -2615,6 +2637,8 @@ export class BattleScene extends Phaser.Scene {
       const k = HARD.reward * (this.hardK.hp / HARD_POWER.target) ** HARD.rewardPow
       this.zeny = Math.round(this.zeny * k); this.runXp = Math.round(this.runXp * k)
       for (const id of Object.keys(this.runMats)) this.runMats[id] = Math.ceil(this.runMats[id] * HARD.mats)
+      const ck = this.run.corrupt?.reward ?? 1 // D6+ corruption: every penalty pays (data/corruptions.ts)
+      if (ck !== 1) { this.zeny = Math.round(this.zeny * ck); this.runXp = Math.round(this.runXp * ck); for (const id of Object.keys(this.runMats)) this.runMats[id] = Math.ceil(this.runMats[id] * ck) }
     }
     this.zeny = Math.round(this.zeny * this.run.mut.zenyMul * this.dropMul) // daily mutators · v59 over-geared normal dungeon
     const mode = MODES[this.run.modeId].reward(s, this.run, { won, left: this.leftTower, floor: this.towerFloor, bank: this.bank })
@@ -2782,7 +2806,7 @@ export class BattleScene extends Phaser.Scene {
     } else this.fortuneTxt?.setText('')
     const left = this.turnLimit - this.fightTurns
     const affix = this.alive().find((m) => m.affix)?.affix
-    this.hudTxt.room.setText(`${this.hard ? `🔥ยาก HP x${this.hardK.hp.toFixed(1)} ATK x${this.hardK.atk.toFixed(1)} · ` : ''}${this.aff.defs.length ? `${this.aff.defs.map((a) => a.icon).join('')} · ` : ''}${this.run.where(this.room)} · ⏳ ${this.alive().length ? `${left}/${this.turnLimit} เทิร์น` : '-'}${affix ? `\n${affix}` : ''}`).setColor(this.alive().length && left <= 3 ? '#ff7a7a' : '#f6eedc').setPosition(18, this.job.resource ? 68 : 54)
+    this.hudTxt.room.setText(`${this.dg.level ? `Lv${this.roomDef(this.room)?.lv ?? roomLevel(this.dg.level, this.dg.rooms, this.room)}${this.hard ? ' 🔥ยาก' : ''} · ` : this.hard ? `🔥ยาก HP x${this.hardK.hp.toFixed(1)} ATK x${this.hardK.atk.toFixed(1)} · ` : ''}${this.run.corrupt ? `${this.run.corrupt.list.map((c) => c.icon).join('')} · ` : this.aff.defs.length ? `${this.aff.defs.map((a) => a.icon).join('')} · ` : ''}${this.run.where(this.room)} · ⏳ ${this.alive().length ? `${left}/${this.turnLimit} เทิร์น` : '-'}${affix ? `\n${affix}` : ''}`).setColor(this.alive().length && left <= 3 ? '#ff7a7a' : '#f6eedc').setPosition(18, this.job.resource ? 68 : 54)
     this.hudTxt.build.setText(this.buildText()).setY(14)
     const X = this.hx
     this.debuffTxt?.setText([X.poison > 0 ? `☠️${X.poison}` : '', X.burn > 0 ? `🔥${X.burn}` : '', X.weaken > 0 ? `💔${X.weaken}` : '', X.armorBreak > 0 ? `🛡️💥${X.armorBreak}` : '', X.silence > 0 ? `🤐${X.silence}` : ''].filter(Boolean).join(' ')).setY(this.job.resource ? 92 : 78)

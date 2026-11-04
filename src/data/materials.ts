@@ -15,6 +15,8 @@ export const MATS: Mat[] = [
   { id: 'b_d4', name: 'น้ำดีไฮดรา', icon: '🧪', dungeon: 'd4', boss: true },
   { id: 'm_d5', name: 'ผงกระดูกอเวจี', icon: '🦴', dungeon: 'd5', boss: false },
   { id: 'b_d5', name: 'ผลึกวิญญาณลิช', icon: '🔮', dungeon: 'd5', boss: true },
+  { id: 'm_d6', name: 'ผ้าพันศพทองคำ', icon: '🎗️', dungeon: 'd6', boss: false },
+  { id: 'b_d6', name: 'ตราประทับสุริยะ', icon: '☀️', dungeon: 'd6', boss: true },
 ]
 
 export const MAT_RULES = {

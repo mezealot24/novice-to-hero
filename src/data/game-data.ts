@@ -1,3 +1,5 @@
+import type { Archetype, StatAlloc } from './mon-stats'
+import type { BaseStat } from './meta'
 // ===== All tunable numbers live here, so balance changes never touch game logic. =====
 
 export const TILE = 48
@@ -269,8 +271,9 @@ export type MonsterKind = 'jellop' | 'wolf' | 'king' | 'minijellop' | 'bat' | 's
   | 'toad' | 'lizardshaman' | 'hornet' | 'turtleguard' | 'bloater' | 'spiderling' | 'venomqueen' | 'frostgiant' | 'hydra'
   | 'hellknight' | 'hexwitch' | 'imp' | 'necropriest' | 'wraith' | 'shard' | 'mirage' | 'warlord' | 'lich'
   | 'dewsprite' | 'bonepriest'
+  | 'mummy' | 'jackal' | 'sandscorp' | 'dunewraith' | 'scarab' | 'sunpriest' | 'sphinx' | 'jackallord' | 'pharaoh' // D6
   | 'mimic' | 'mimicking' | 'goldjellop' // event monsters (design/roadmap-and-events-v1.md): stats scale with the dungeon tier at spawn
-export type MiniKind = 'duelist' | 'hunter' | 'gunner' | 'drainer' | 'venomqueen' | 'frostgiant' | 'mirage' | 'warlord'
+export type MiniKind = 'duelist' | 'hunter' | 'gunner' | 'drainer' | 'venomqueen' | 'frostgiant' | 'mirage' | 'warlord' | 'sphinx' | 'jackallord'
 
 // ----- Dungeon 4-5 (design/dungeon-4-5-brutal.md): data-driven monster skills, debuffs on the hero, boss phases -----
 /** What a landed monster hit (or a skill / charged attack) puts on the hero. Turns count hero turns. */
@@ -358,6 +361,18 @@ export interface MonsterDef {
   crit?: number // chance a hit / spell crits: x BATTLE.monCritMul and can't be fled (lucky dodge / shield still work)
   combo?: number // after a normal attack: chance to chain another hit, up to BATTLE.comboMax extra (each x BATTLE.monComboMul)
   counter?: number // when the hero's basic attack lands on it: chance to strike back right away (normal hit x BATTLE.monCounterMul)
+  // ----- D6+ stat monsters (data/mon-stats.ts, Q 2026-11-04): numbers come from 7 base stats at the room's level -----
+  statAlloc?: Archetype | StatAlloc // how its stat points are split (archetype or own weights). Set = def / hit / flee / crit / combo / counter are bonuses on top
+  bodyMul?: { hp?: number; dmg?: number; matk?: number } // x on the stat-built HP / ATK / M.ATK (a heavy body, a frail caster ...)
+  speedMul?: number // x on the AGI turn speed
+  // filled in by statMonster (never written by hand):
+  lv?: number
+  base?: Record<BaseStat, number>
+  mdef?: number // M.DEF share (WIS): the hero's magic hits deal x (1 - mdef)
+  luckyDodge?: number // LUK: chance the hero's physical hit misses outright
+  tenacity?: number // WIS: debuff turns / freeze on it are shorter
+  speed?: number // turn speed (AGI), replaces BATTLE.monSpeed
+  statDef?: { ignoreCombo: number; ignoreCounter: number; comboDR: number; counterDR: number; critDR: number } // from AGI / DEX / VIT / LUK like the hero
 }
 
 export const MONSTERS: Record<MonsterKind, MonsterDef> = {
@@ -459,6 +474,33 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
     skills: [{ kind: 'shield', every: 3, pow: 0.12, name: 'โล่กระดูก' }, { kind: 'heal', every: 4, pow: 0.15, name: 'มนต์ประสานกระดูก' }] },
   alpha: { name: 'จ่าฝูงเงา', tex: 'alpha', hp: 1600, dmg: 30, xp: 0, ai: 'boss', moveSpeed: 260, radius: 40, zeny: [35, 45], idleMs: [700, 1000], def: 25, flee: 12, hit: 30, summon: 'shadowwolf', slamName: 'หอนเรียกพลัง! กระโจนตาหน้า', slamAnim: 'pounce', slamColor: 0x8a7ab8, charge: true,
     phases: [{ at: 0.4, name: 'หอนคลั่ง! เร็วขึ้น กัดแล้วอ่อนแรง', speed: 1.25, onHit: { weaken: 1 } }] },
+  // ----- Dungeon 6: สุสานทรายกษัตริย์ (Lv 40-50). Stat monsters: hp / dmg / matk come from statAlloc at the room's Lv (data/mon-stats.ts);
+  // def / hit / flee / crit / combo / counter written here are bonuses on top of the stat numbers -----
+  mummy: { name: 'มัมมี่ทหารเฝ้าสุสาน', tex: 'mummy', statAlloc: 'bruiser', hp: 1, dmg: 1, xp: 14, ai: 'hopper', moveSpeed: 200, radius: 17, zeny: [10, 14], idleMs: [700, 1200],
+    bodyMul: { hp: 1.2 }, def: 10, onHit: { weaken: 1 }, counter: 0.1, skills: [{ kind: 'warcry', every: 4, pow: 0.25, turns: 3, name: 'คำสาปฟาโรห์ปลุกใจ' }] },
+  jackal: { name: 'หมาไนทะเลทราย', tex: 'jackal', statAlloc: 'skirmisher', hp: 1, dmg: 1, xp: 11, ai: 'dasher', moveSpeed: 560, radius: 14, zeny: [8, 11], idleMs: [500, 900],
+    bodyMul: { hp: 1.3, dmg: 1.4 }, combo: 0.1 },
+  sandscorp: { name: 'แมงป่องเพลิงทราย', tex: 'sandscorp', statAlloc: 'assassin', hp: 1, dmg: 1, xp: 13, ai: 'dasher', moveSpeed: 480, radius: 15, zeny: [9, 13], idleMs: [500, 900],
+    bodyMul: { hp: 1.3 }, def: 15, onHit: { poison: 2 }, crit: 0.05 },
+  dunewraith: { name: 'วิญญาณพายุทราย', tex: 'dunewraith', statAlloc: 'caster', hp: 1, dmg: 1, xp: 13, ai: 'dasher', moveSpeed: 500, radius: 14, zeny: [9, 13], idleMs: [500, 900], magic: true,
+    flee: 15, skills: [{ kind: 'bolt', every: 3, pow: 1.3, name: 'พายุทรายบาดตา', fx: { silence: 1 } }] },
+  scarab: { name: 'ด้วงสคารับทองแดง', tex: 'scarab', statAlloc: 'tank', hp: 1, dmg: 1, xp: 14, ai: 'hopper', moveSpeed: 170, radius: 17, zeny: [10, 14], idleMs: [900, 1400],
+    bodyMul: { dmg: 1.2 }, def: 50, counter: 0.15, skills: [{ kind: 'shield', every: 4, pow: 0.12, name: 'กระดองทองแดง' }] },
+  sunpriest: { name: 'นักบวชสุริยะดับ', tex: 'sunpriest', statAlloc: 'support', hp: 1, dmg: 1, xp: 13, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [9, 13], idleMs: [700, 1200], magic: true,
+    skills: [{ kind: 'heal', every: 2, pow: 0.15, name: 'แสงสุริยะดับฟื้นกาย' }, { kind: 'shield', every: 3, pow: 0.1, name: 'ม่านทรายทอง' }] },
+  sphinx: { name: 'เนฟธีส', title: 'สฟิงซ์ผู้ถามปริศนา', tex: 'sphinx', statAlloc: { int: 4, wis: 3, vit: 2, dex: 1 }, hp: 1, dmg: 1, xp: 22, ai: 'boss', mini: 'sphinx', moveSpeed: 260, radius: 38, zeny: [90, 120], idleMs: [600, 900],
+    magic: true, slamMagic: true, def: 20, crit: 0.1, chargeEvery: 4, slamMul: 1.5, slamName: 'ปริศนามรณะ! ตอบไม่ทัน = ใบ้', slamFx: { silence: 2, weaken: 2 }, slamAnim: 'cast', slamColor: 0xf2d27a, charge: true,
+    skills: [{ kind: 'bolt', every: 3, hits: 3, pow: 0.5, name: '🔺 ลำแสงพีระมิด' }, { kind: 'curse', every: 5, name: 'คำสาปปริศนา', fx: { armorBreak: 2 } }],
+    phases: [{ at: 0.5, name: 'ดวงตาสุริยะเปิด! เวทแรงขึ้น', dmg: 1.15, shield: 0.12, cleanse: true }] },
+  jackallord: { name: 'คาห์รัน', title: 'จ้าวหมาไนสองดาบ', tex: 'jackallord', statAlloc: { agi: 4, str: 3, luk: 2, dex: 1 }, hp: 1, dmg: 1, xp: 22, ai: 'boss', mini: 'jackallord', moveSpeed: 320, radius: 34, zeny: [90, 120], idleMs: [600, 900],
+    bodyMul: { hp: 0.9 }, def: 15, combo: 0.05, trueSight: { after: 2, turns: 3 }, chargeEvery: 4, slamMul: 1.8, slamName: 'ระบำสองดาบ! ฟันรัวไม่ยั้ง', slamAnim: 'pounce', slamColor: 0xffb35a, charge: true,
+    skills: [{ kind: 'strike', every: 3, hits: 3, pow: 0.5, name: '🗡️ สามคมจันทร์เสี้ยว', fx: { armorBreak: 1 } }],
+    phases: [{ at: 0.5, name: 'หอนเรียกฝูง! หมาไนมาช่วย', summon: ['jackal', 2], speed: 1.15 }] },
+  pharaoh: { name: 'เนเฟรู', title: 'ราชันย์ทรายนิรันดร์', tex: 'pharaoh', statAlloc: { str: 3, int: 3, vit: 3, wis: 2, dex: 1 }, hp: 1, dmg: 1, xp: 0, ai: 'boss', moveSpeed: 240, radius: 46, zeny: [220, 300], idleMs: [700, 1000],
+    def: 25, crit: 0.1, lifesteal: 0.1, summon: 'mummy', slamName: 'คำพิพากษาสุริยะ! ทรายทองถล่ม', slamMul: 1.7, slamMagic: true, slamFx: { burn: 2, armorBreak: 2 }, slamAnim: 'stomp', slamColor: 0xf2b84b, charge: true,
+    skills: [{ kind: 'bolt', every: 3, pow: 1.2, name: '☀️ เปลวสุริยะ', fx: { burn: 1 } }, { kind: 'curse', every: 5, name: 'คำสาปสุสาน', fx: { weaken: 3, poison: 2 } }, { kind: 'revive', every: 4, pow: 0.5, name: 'ปลุกองครักษ์' }],
+    phases: [{ at: 0.6, name: 'ตื่นจากโลง! โล่ทรายทอง + มัมมี่องครักษ์', shield: 0.12, summon: ['mummy', 2] },
+      { at: 0.3, name: 'สุริยคราส! เร็วขึ้น ชาร์จถี่', speed: 1.25, dmg: 1.15, chargeEvery: 2, cleanse: true, slamFx: { burn: 3, armorBreak: 3, silence: 1 } }] },
 }
 
 export interface RoomDef {
@@ -466,6 +508,7 @@ export interface RoomDef {
   spawn: [MonsterKind, number][]
   boss?: boolean
   turnLimit?: number // hero turns before the fight is lost (default BATTLE.turnLimit)
+  lv?: number // level dungeon (D6+): monster level in this room (default: spread over DungeonDef.level)
   mini?: boolean // 1v1 duel: spawn is ignored, one mini boss is drawn from MINI_POOL (data/relics.ts)
   miniPool?: MonsterKind[] // this duel draws from these instead of MINI_POOL (Dungeon 4-5)
 }
@@ -477,8 +520,9 @@ export interface DungeonDef {
   tier: number // event rewards scale with this
   sky: [number, number] // gradient top, bottom
   hills: number // tint on the far hills / trees
-  unlock: 'none' | 'job' | 'd2' | 'd3' | 'd4' // 'job' = after the first job change, 'dN' = after clearing dungeon N
+  unlock: 'none' | 'job' | 'd2' | 'd3' | 'd4' | 'd5' | 'd6' | 'd7' | 'd8' | 'd9' // 'job' = after the first job change, 'dN' = after clearing dungeon N
   rooms: RoomDef[]
+  level?: [number, number] // D6+: fixed monster level band; its stat monsters use data/mon-stats.ts (no Hero Power scaling)
 }
 
 export const DUNGEONS: DungeonDef[] = [{
@@ -528,6 +572,17 @@ export const DUNGEONS: DungeonDef[] = [{
     { title: 'เวฟ 3 · ระเบียงกระจก', spawn: [['wraith', 2], ['imp', 1], ['hexwitch', 1]] },
     { title: 'เวฟ 4 · กองทัพศพ', spawn: [['hellknight', 2], ['necropriest', 1], ['imp', 1]] },
     { title: 'ห้องบอส · จอมลิชโมรเดคัส', spawn: [['lich', 1]], boss: true, turnLimit: 56 },
+  ],
+}, {
+  // D6+ (Q 2026-11-04): fixed level band, monsters with 7 base stats (data/mon-stats.ts), no Hero Power scaling
+  id: 'd6', name: 'สุสานทรายกษัตริย์', boss: 'ราชันย์ทรายเนเฟรู', tier: 6, sky: [0x3a2410, 0xe8b060], hills: 0xd8a860, unlock: 'd5', level: [40, 50],
+  rooms: [
+    { title: 'เวฟ 1 · ประตูสุสาน', spawn: [['mummy', 2], ['jackal', 1]], lv: 40 },
+    { title: 'เวฟ 2 · ทางเดินอักษรภาพ', spawn: [['sandscorp', 2], ['dunewraith', 1], ['sunpriest', 1]], lv: 42 },
+    { title: 'สังเวียน · ดวล 1-1', spawn: [], mini: true, miniPool: ['sphinx', 'jackallord'], turnLimit: 45, lv: 46 },
+    { title: 'เวฟ 3 · ห้องเก็บสมบัติ', spawn: [['scarab', 1], ['jackal', 2], ['dunewraith', 1]], lv: 45 },
+    { title: 'เวฟ 4 · หน้าห้องบรรทม', spawn: [['mummy', 1], ['scarab', 1], ['sunpriest', 1]], lv: 48 },
+    { title: 'ห้องบอส · ราชันย์ทรายเนเฟรู', spawn: [['pharaoh', 1]], boss: true, turnLimit: 50, lv: 50 },
   ],
 }]
 /** Old single-dungeon name (DungeonScene, the unused real-time prototype, still reads it). */
@@ -583,7 +638,8 @@ export const BATTLE = {
   monSpeed: { jellop: 8, minijellop: 9, wolf: 13, king: 8, bat: 16, shroom: 7, boar: 9, shadowwolf: 14, alpha: 11,
     skeleton: 10, wisp: 14, gargoyle: 7, duelist: 15, hunter: 13, gunner: 14, drainer: 10, deathknight: 11,
     toad: 10, lizardshaman: 9, hornet: 17, turtleguard: 7, bloater: 8, spiderling: 15, venomqueen: 14, frostgiant: 9, hydra: 11,
-    hellknight: 10, hexwitch: 11, imp: 17, necropriest: 9, wraith: 15, shard: 14, mirage: 14, warlord: 12, lich: 11, dewsprite: 13, bonepriest: 9, mimic: 11, mimicking: 10, goldjellop: 12 } as Record<MonsterKind, number>,
+    hellknight: 10, hexwitch: 11, imp: 17, necropriest: 9, wraith: 15, shard: 14, mirage: 14, warlord: 12, lich: 11, dewsprite: 13, bonepriest: 9, mimic: 11, mimicking: 10, goldjellop: 12,
+    mummy: 10, jackal: 14, sandscorp: 13, dunewraith: 13, scarab: 8, sunpriest: 10, sphinx: 12, jackallord: 14, pharaoh: 11 /* D6: fallback only, stat monsters use def.speed (AGI) */ } as Record<MonsterKind, number>,
   monDmgMul: 0.55, // monster hit = def.dmg * this
   // v56 (Q: "มอนกากไป"): every spawned monster's HP / ATK / M.ATK and every turn limit, by dungeon tier 1..5
   monBuff: { hp: [1.05, 1.1, 1.18, 1.45, 1.45], dmg: [1.05, 1.1, 1.18, 1.36, 1.4], turns: [1, 1.04, 1.08, 1.16, 1.2] },
