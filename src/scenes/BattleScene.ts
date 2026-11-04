@@ -1463,37 +1463,46 @@ export class BattleScene extends Phaser.Scene {
 
   private offerPerks(allLegend = false) {
     return new Promise<void>((done) => {
-      // 2 cards from this job's tags (one from a tag already owned, so builds grow) + 1 common card, always
+      // v48 (Q 2026-11-04): 4 picks = 3 random from all classes' lines + 1 common, always
       const owned = new Set(this.perks.map((p) => p.id))
       const boltLv = this.perks.filter((p) => p.id === 'stm1').length
       // Mage: card lines follow the run's element (⚡ → storm only, 🔥 → fire only; ❄️ has no card line, so it keeps both)
       const banned: Tag[] = this.runElement === 'lightning' ? ['fire'] : this.runElement === 'fire' ? ['storm'] : []
-      const pool = PERKS.filter((p) => (p.id === 'stm1' ? boltLv < BOLT_MAX_LV : !owned.has(p.id)) && this.job.tags.includes(p.tag) && !banned.includes(p.tag) && (!['stm2', 'stm3'].includes(p.id) || boltLv > 0))
-        .map((p) => (p.id === 'stm1' && boltLv > 0 ? { ...p, name: `Lightning Bolt Lv${boltLv + 1}`, desc: 'Lightning Bolt +1 ฮิต', mod: { boltHits: 1 } } : p))
+      const open = (p: Perk) => (p.id === 'stm1' ? boltLv < BOLT_MAX_LV : !owned.has(p.id)) && !banned.includes(p.tag) && (!['stm2', 'stm3'].includes(p.id) || boltLv > 0)
+      const lvBolt = (p: Perk) => (p.id === 'stm1' && boltLv > 0 ? { ...p, name: `Lightning Bolt Lv${boltLv + 1}`, desc: 'Lightning Bolt +1 ฮิต', mod: { boltHits: 1 } } : p)
+      const pool = PERKS.filter((p) => open(p) && this.job.tags.includes(p.tag)).map(lvBolt)
+      // other classes' lines: only cards that work for this job (Mage's basic is magic, so poison / lifesteal on hit never proc; fire add-ons need ลูกไฟ first)
+      const magicBasic = this.job.id === 'mage'
+      const foreign = PERKS.filter((p) => open(p) && !this.job.tags.includes(p.tag)
+        && !(magicBasic && (p.tag === 'venom' || p.id === 'bld1'))
+        && (!['fir2', 'fir3'].includes(p.id) || this.st.fireEvery > 0)).map(lvBolt)
       const mine = this.perks.map((p) => p.tag)
       const offers: Perk[] = []
-      const take = (list: Perk[]) => { const left = list.filter((p) => !offers.includes(p)); if (left.length) offers.push(left[Phaser.Math.Between(0, left.length - 1)]) }
+      const take = (list: Perk[]) => { const left = list.filter((p) => !offers.some((o) => o.id === p.id)); if (left.length) { offers.push(left[Phaser.Math.Between(0, left.length - 1)]); return true } return false }
       if (this.firstOffer && this.st.mgFirstCard > 0) { const f = pool.find((p) => p.id === (this.st.mgFirstCard === 1 ? 'stm1' : 'fir1')); if (f) offers.push(f) } // mage talent row 1
       this.firstOffer = false
-      if (mine.length) take(pool.filter((p) => mine.includes(p.tag)))
-      while (offers.length < 2 && offers.length < pool.length) take(pool)
+      // Q 2026-11-04 (Capybara Go style): 3 cards rolled from every line, own class or not, then 1 common. One slot leans to a line already owned so builds still grow.
+      const all = [...pool, ...foreign]
+      if (mine.length && Math.random() < 0.6) take(all.filter((p) => mine.includes(p.tag)))
+      while (offers.length < 3 && take(all)) { /* random across all lines */ }
       const commons = COMMON_PERKS.filter((p) => !(p.mod.revive && owned.has(p.id)))
-      while (offers.length < 3) take(commons)
+      while (offers.length < 4 && take(commons)) { /* always ends with a common card */ }
+      const foreignIds = new Set(foreign.map((p) => p.id))
       if (!offers.length) { done(); return }
       const legend = new Set<Perk>()
       offers.forEach((p, i) => {
         if (!allLegend && !this.flags.allLegend && Math.random() >= this.st.legendChance) return
         const mod: Perk['mod'] = {}
         for (const k of Object.keys(p.mod) as (keyof Perk['mod'])[]) mod[k] = k === 'fireEvery' ? Math.max(1, p.mod[k]! - 1) : k === 'revive' ? 1 : p.mod[k]! * 2
-        offers[i] = { ...p, name: `✦ ${p.name}`, desc: `${p.desc}\n(ตำนาน: แรง x2)`, mod }
+        offers[i] = { ...p, name: `✦ ${p.name}`, desc: `${p.desc} · (ตำนาน: แรง x2)`, mod }
         legend.add(offers[i])
       })
       this.time.paused = true
       const c = this.add.container(0, 0).setDepth(30000)
       c.add(this.add.rectangle(W / 2, H / 2, W, H, COLORS.night, 0.8).setInteractive())
-      c.add(this.add.text(W / 2, 64, `เลเวล ${this.level}! เลือกพร 1 อย่าง`, { fontFamily: FONT_UI, fontSize: '30px', fontStyle: 'bold', color: '#f2b84b' }).setOrigin(0.5))
-      const cw = 272, ch = 250, gap = 24
-      const x0 = W / 2 - ((offers.length - 1) * (cw + gap)) / 2
+      c.add(this.add.text(W / 2, 44, `เลเวล ${this.level}! เลือกพร 1 อย่าง`, { fontFamily: FONT_UI, fontSize: '28px', fontStyle: 'bold', color: '#f2b84b' }).setOrigin(0.5))
+      const cw = 680, ch = 104, gap = 10 // v48: one column of 4 rows
+      const y0 = H / 2 + 26 - ((offers.length - 1) * (ch + gap)) / 2
       const keys: string[] = []
       const pick = (p: Perk) => {
         if (!c.active) return
@@ -1509,20 +1518,21 @@ export class BattleScene extends Phaser.Scene {
         done()
       }
       offers.forEach((p, i) => {
-        const tag = TAGS[p.tag], n = this.tagCount(p.tag), leg = legend.has(p)
-        const card = this.add.container(x0 + i * (cw + gap), H / 2 + 20)
-        const bg = this.add.rectangle(0, 0, cw, ch, leg ? 0xffe08a : 0xf4e6c8).setStrokeStyle(leg ? 7 : 4, leg ? 0xff8c42 : Phaser.Display.Color.HexStringToColor(tag.color).color)
-        const icon = this.add.text(0, -ch / 2 + 44, tag.icon, { fontSize: '40px' }).setOrigin(0.5)
-        const name = this.add.text(0, -ch / 2 + 96, p.name, { fontFamily: FONT_UI, fontSize: '24px', fontStyle: 'bold', color: '#2b2238' }).setOrigin(0.5)
-        const desc = this.add.text(0, -ch / 2 + 128, perkDesc(p.desc, this.job.ult), { fontFamily: FONT_UI, fontSize: '16px', color: '#4a3f5c', align: 'center', wordWrap: { width: cw - 36 }, lineSpacing: 4 }).setOrigin(0.5, 0)
-        const foot = this.add.text(0, ch / 2 - 22, p.tag === 'common' ? 'พรทั่วไป · เลือกซ้ำได้' : `${p.id === 'stm1' ? `Lv ${boltLv + 1}/${BOLT_MAX_LV} · ` : ''}สาย${tag.name} ${n >= 3 ? '3/3 ✓ ครบเซ็ตแล้ว' : `${n}/3${n === 2 && SET_BONUS[p.tag] ? ' · ครบเซ็ตเมื่อเลือก!' : ''}`}`, { fontFamily: FONT_UI, fontSize: '14px', color: tag.color, fontStyle: 'bold', stroke: '#2b2238', strokeThickness: 2 }).setOrigin(0.5)
-        const key = this.add.text(-cw / 2 + 14, -ch / 2 + 10, `${i + 1}`, { fontFamily: FONT_NUM, fontSize: '16px', color: '#8d7244' })
+        const tag = TAGS[p.tag], n = this.tagCount(p.tag), leg = legend.has(p), alien = foreignIds.has(p.id)
+        const card = this.add.container(W / 2, y0 + i * (ch + gap))
+        const bg = this.add.rectangle(0, 0, cw, ch, leg ? 0xffe08a : alien ? 0xe6e0f4 : 0xf4e6c8).setStrokeStyle(leg ? 6 : 4, leg ? 0xff8c42 : Phaser.Display.Color.HexStringToColor(tag.color).color)
+        const icon = this.add.text(-cw / 2 + 52, 0, tag.icon, { fontSize: '40px' }).setOrigin(0.5)
+        const name = this.add.text(-cw / 2 + 100, -ch / 2 + 12, p.name, { fontFamily: FONT_UI, fontSize: '22px', fontStyle: 'bold', color: '#2b2238' })
+        const desc = this.add.text(-cw / 2 + 100, -ch / 2 + 44, perkDesc(p.desc, this.job.ult), { fontFamily: FONT_UI, fontSize: '15px', color: '#4a3f5c', wordWrap: { width: cw - 120 }, lineSpacing: 2 })
+        const set = p.tag === 'common' ? 'พรทั่วไป · เลือกซ้ำได้' : `${alien ? '🌀 พรต่างสาย · ' : ''}${p.id === 'stm1' ? `Lv ${boltLv + 1}/${BOLT_MAX_LV} · ` : ''}สาย${tag.name} ${n >= 3 ? '3/3 ✓ ครบเซ็ตแล้ว' : `${n}/3${n === 2 && SET_BONUS[p.tag] ? ' · ครบเซ็ตเมื่อเลือก!' : ''}`}`
+        const foot = this.add.text(cw / 2 - 14, -ch / 2 + 14, set, { fontFamily: FONT_UI, fontSize: '14px', color: tag.color, fontStyle: 'bold', stroke: '#2b2238', strokeThickness: 2 }).setOrigin(1, 0)
+        const key = this.add.text(-cw / 2 + 10, -ch / 2 + 6, `${i + 1}`, { fontFamily: FONT_NUM, fontSize: '16px', color: '#8d7244' })
         card.add([bg, icon, name, desc, foot, key]).setSize(cw, ch).setInteractive({ useHandCursor: true })
-        card.on('pointerover', () => card.setScale(1.04))
+        card.on('pointerover', () => card.setScale(1.02))
         card.on('pointerout', () => card.setScale(1))
         card.on('pointerup', () => pick(p))
         c.add(card)
-        const k = `keydown-${['ONE', 'TWO', 'THREE'][i]}`
+        const k = `keydown-${['ONE', 'TWO', 'THREE', 'FOUR'][i]}`
         keys.push(k)
         this.input.keyboard!.once(k, () => pick(p))
       })
