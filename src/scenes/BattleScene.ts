@@ -1909,9 +1909,10 @@ export class BattleScene extends Phaser.Scene {
   /** Reflected damage from a mirror monster: magic, never misses. Thorn Aura halves it. */
   private reflectHurt(m: Mon, dmg: number) {
     let n = Math.ceil(dmg * (1 - this.st.mdef * (this.hx.armorBreak > 0 ? BATTLE.armorBreakMul : 1)) * (this.relic === 'thornaura' ? 1 - RELIC_RULES.thornaura.reflectCut : 1))
+    n = Math.min(n, Math.ceil(this.st.maxHp * BATTLE.reflectCap)) // Q 2026-11-04: one reflected hit is capped, so big burst can't one-shot you
     if (n <= 0) return
     if (this.shield > 0) { const a = Math.min(Math.ceil(this.shield), n); this.shield = Math.max(0, this.shield - a); n -= a; if (n <= 0) return }
-    this.hp = Math.max(this.hpFloor, this.hp - n)
+    this.hp = Math.max(this.hpFloor, 1, this.hp - n) // reflect alone never knocks the hero out
     this.minHpPct = Math.min(this.minHpPct, this.hp / this.st.maxHp)
     this.damageNumber(HERO_X, GROUND - 70, n, false, '#c9e0ff')
     if (Math.random() < 0.3) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '🪞 สะท้อน!', '#c9e0ff')
