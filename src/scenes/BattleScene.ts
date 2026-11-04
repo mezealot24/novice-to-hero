@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { afterDef, BATTLE, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats } from '../data/game-data'
-import { ELEM_SRC, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, PERKS_V2, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
+import { ELEM_SRC, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, PERKS_V2, OFFER_RULES, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
 import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
 import { COSTUMES, FREE_GEMS, heroStats, PER_POINT, RESOURCES, totalBase, type BaseStat } from '../data/meta'
@@ -122,6 +122,8 @@ export class BattleScene extends Phaser.Scene {
   enrageCount = 0
   /** Bot / test hook: the open choice (event or card) picks option i. */
   pendingPick?: (i: number) => void
+  /** Bot / debug: what the open level-up offer holds (PICK=smart in tools/bot.cjs). */
+  pendingOffers?: { id: string; legend: boolean; up: boolean; own: boolean; general: boolean }[]
   eventLog: string[] = []
   /** Playtest counters (bots read these). */
   counterCount = 0
@@ -444,7 +446,7 @@ export class BattleScene extends Phaser.Scene {
   private lastAffix = ''
   private lastSpeed = 1
 
-  private removeMon(m: Mon) { m.spr.destroy(); m.shadow.destroy(); m.dotTxt?.destroy() }
+  private removeMon(m: Mon) { m.spr.destroy(); m.shadow.destroy(); m.dotTxt?.destroy(); m.dotTxt = undefined }
   private alive() { return this.mons.filter((m) => !m.dead) }
   private smashTurns() { return Math.max(2, Math.round(this.st.smashCd / BATTLE.msPerTurn)) }
   private heroSpeed() { return BATTLE.heroSpeed * (this.st.aspd / PLAYER.aspd) * (this.relic === 'haste' ? 1 + RELIC_RULES.haste.speed : 1) }
@@ -1272,7 +1274,7 @@ export class BattleScene extends Phaser.Scene {
     this.rollMat(m)
     if (Math.random() < this.st.dropChance) { this.runGems++; this.floatText(m.spr.x, m.spr.y - 80, '💎 ของหายาก!', '#7fd7ff'); sfx.coin() }
     sfx.pop()
-    m.dotTxt?.destroy()
+    m.dotTxt?.destroy(); m.dotTxt = undefined
     this.tweens.add({ targets: [m.spr, m.shadow], alpha: 0, duration: 260, onComplete: () => this.removeMon(m) })
     this.tweens.add({ targets: m.spr, scaleY: 0.2, duration: 260 })
     // close ranks: survivors step forward
@@ -1628,6 +1630,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private dotIcon(m: Mon) {
+    if (m.dead || !m.spr.active) return // a DoT tick or card can land after the kill: its icon text is already gone (page error 'drawImage' of null)
     if (!m.dotTxt) m.dotTxt = this.add.text(0, 0, '', { fontSize: '14px' }).setOrigin(0.5).setDepth(9500)
     m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.reflect > 0 ? '🪞' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
   }
@@ -1678,10 +1681,12 @@ export class BattleScene extends Phaser.Scene {
       for (const id of this.testPerk ?? []) if (!offers.length) want(id) // bot hook
       if (this.firstOffer && this.st.mgFirstCard > 0) want(this.st.mgFirstCard === 1 ? 'stm_roar' : 'fir_ball') // mage talent row 1
       this.firstOffer = false
-      let lean = lines.size > 0 && Math.random() < 0.6 // one slot leans to a line already owned so builds still grow
+      const own = JOB_LINES[this.job.id] ?? []
+      let lean = lines.size > 0 && Math.random() < OFFER_RULES.lean // one slot leans to a line already owned so builds still grow
       while (offers.length < 3) {
         if ((forceLegend || this.flags.allLegend || Math.random() < this.st.legendChance) && take(legends)) continue
         if (lean) { lean = false; if (take(commons.filter((p) => lines.has(p.line)))) continue }
+        if (Math.random() < OFFER_RULES.ownLine && take(commons.filter((p) => own.includes(p.line)))) continue // own lines weigh more; other lines still show up (🌀)
         if (!take(commons) && !take(legends) && !take(generals)) break
       }
       while (offers.length < 4 && take(generals)) { /* always ends with a general card */ }
@@ -1697,12 +1702,12 @@ export class BattleScene extends Phaser.Scene {
         if (!c.active) return
         keys.forEach((k) => this.input.keyboard!.removeAllListeners(k))
         this.pendingPick = undefined
+        this.pendingOffers = undefined
         c.destroy()
         this.time.paused = false
         this.takePerk(p)
         done()
       }
-      const own = JOB_LINES[this.job.id] ?? []
       offers.forEach((p, i) => {
         const line = LINES[p.line], have = lv(p.id), up = have > 0 && p.max === 2, leg = p.rarity === 'legend', gen = p.line === 'common'
         const alien = !gen && !own.includes(p.line)
@@ -1724,6 +1729,7 @@ export class BattleScene extends Phaser.Scene {
         this.input.keyboard!.once(k, () => pick(p))
       })
       this.pendingPick = (i) => pick(offers[Math.min(i, offers.length - 1)])
+      this.pendingOffers = offers.map((p) => ({ id: p.id, legend: p.rarity === 'legend', up: lv(p.id) > 0, own: own.includes(p.line), general: p.line === 'common' }))
     })
   }
 
