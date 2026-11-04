@@ -13,7 +13,7 @@ export const RELICS: Record<RelicId, RelicDef> = {
   storm: { id: 'storm', name: 'สายฟ้าพิโรธ', icon: '🌩️', desc: 'ทุกเทิร์นที่ 5 ของเรา (5, 10, 15…) ฟ้าผ่าสุ่ม 8 ครั้ง ครั้งละ 0.75x (เวท ไม่พลาด)' },
   iceage: { id: 'iceage', name: 'ยุคน้ำแข็ง', icon: '🧊', desc: 'เริ่มทุกการต่อสู้: ศัตรูตีเบาลง 30% 5 เทิร์น · โอกาสแช่แข็ง 5% แล้วเพิ่ม x2 ทุกเทิร์น (บอสครึ่งเดียว)' },
   hellfire: { id: 'hellfire', name: 'ไฟโลกันตร์', icon: '🔥', desc: 'ทุก hit ติดไฟ 1 stack ซ้อนไม่จำกัด (ยิ่งเยอะยิ่งเพิ่มน้อยลง) · ตัดฮีลศัตรู 5%/stack สูงสุด 50%' },
-  bloodpact: { id: 'bloodpact', name: 'สัญญาเลือด', icon: '🩸', desc: 'ดูดเลือด +15% · ฮีลที่ล้นกลายเป็นโล่ (สูงสุด 30% HP)' },
+  bloodpact: { id: 'bloodpact', name: 'สัญญาเลือด', icon: '🩸', desc: 'ดูดเลือด +25% · ดูดเลือดสกิล +25% · ฮีลที่ล้นกลายเป็นโล่ (สูงสุด 30% HP) · แลกกับ: ดาเมจสกิล/ult −20% และไฟ/พิษ/ธาตุติดตัว −30%' },
   riposte: { id: 'riposte', name: 'ปัดป้องไร้ที่ติ', icon: '🤺', desc: 'ทุกการโจมตีครั้งที่ 3 ของศัตรู ปัดทิ้ง 0 ดาเมจ แล้วสวนกลับ 2x' },
   haste: { id: 'haste', name: 'เร่งเวลา', icon: '⏩', desc: 'ความเร็วเทิร์น +25% · ท่าไม้ตายคูลดาวน์ -1 เทิร์น' },
   harvest: { id: 'harvest', name: 'เก็บเกี่ยววิญญาณ', icon: '🐦‍⬛', desc: 'ล้มศัตรู 1 ตัว: ATK/M.ATK +4% (สูงสุด +40%) + ฮีล 8% · บอส HP ลดทุก 20% นับเป็น 1 ตัว' },
@@ -29,7 +29,7 @@ export const RELIC_RULES = {
   iceage: { turns: 5, atkDown: 0.3, freeze0: 0.05, freezeMul: 2, bossFreezeMul: 0.5 },
   // effective stacks = K * ln(1 + n / K): 10 stacks ~ 6.9, 30 ~ 14.4, 60 ~ 20.8 (normal fire: 1 stack = 1)
   hellfire: { k: 8, dmgPerStack: 0.15, cutPerStack: 0.05, cutMax: 0.5 },
-  bloodpact: { lifesteal: 0.15, shieldCap: 0.3 },
+  bloodpact: { lifesteal: 0.25, spellVamp: 0.25, skillCut: 0.2, dotCut: 0.3, shieldCap: 0.3 }, // Q 2026-11-04: strong vamp, weaker skills + elements
   riposte: { every: 3, mul: 2 },
   haste: { speed: 0.25, cd: 1 },
   harvest: { perKill: 0.04, max: 0.4, heal: 0.08, bossStep: 0.2 },

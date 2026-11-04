@@ -92,6 +92,7 @@ export const LINE_POOL: LineDef[] = [
   { stat: 'regen', vals: [0.133, 0.2, 0.333], kind: 'def', w: 1 }, // 1 regen = 1.5% HP/turn: shows +0.2% / +0.3% / +0.5%
   { stat: 'healAmp', vals: [0.02, 0.04, 0.06], kind: 'def', w: 1, off: ['swordsman', 'archer', 'mage', 'thief'] },
   { stat: 'lifesteal', vals: [0.01, 0.02, 0.03], kind: 'atk', w: 1 },
+  { stat: 'spellVamp', vals: [0.01, 0.02, 0.03], kind: 'atk', w: 0.5 }, // Q 2026-11-04: skill lifesteal comes from crafting / events / advanced skills
   { stat: 'maxRes', vals: [5, 8, 12], kind: 'def', w: 0.5, off: NO_MANA },
   { stat: 'resRegen', vals: [0.5, 1, 1.5], kind: 'def', w: 0.5, off: NO_MANA },
 ]

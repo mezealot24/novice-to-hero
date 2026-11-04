@@ -13,7 +13,7 @@ export const tree: ClassTree = {
     n('swordsman_a2', 'swordsman_a', 2, '🌵', 'โล่หนาม', 3, (lv) => `โล่รับดาเมจแล้วสะท้อนคืนตัวที่ตี ${lv * 15}%`, (lv) => ({ thorns: 0.15 * lv })),
     n('swordsman_a3', 'swordsman_a', 3, '🧱', 'ยืนหยัด', 3, (lv) => `P.DEF +${lv * 4} · ต้านทาน +${lv * 5}%`, (lv) => ({ def: 4 * lv, tenacity: 0.05 * lv })),
     n('swordsman_a4', 'swordsman_a', 4, '🌪️', 'สวนพายุ', 1, () => 'สวนกลับฟันโดนทุกตัว (ตัวอื่นโดน 0.5x)', () => ({ ctrAoe: 1 })),
-    n('swordsman_b1', 'swordsman_b', 1, '🩸', 'กระหายเลือด', 3, (lv) => `ดูดเลือด +${lv * 3}%`, (lv) => ({ lifesteal: 0.03 * lv })),
+    n('swordsman_b1', 'swordsman_b', 1, '🩸', 'กระหายเลือด', 3, (lv) => `ดูดเลือด +${lv * 2}% (ตีธรรมดา + คอมโบ)`, (lv) => ({ lifesteal: 0.02 * lv })),
     n('swordsman_b2', 'swordsman_b', 2, '😤', 'โทสะ', 3, (lv) => `ฟื้น Mana +${lv * 3}/เทิร์น (ช่วยมากตอนสู้บอสตัวเดียว)`, (lv) => ({ resRegen: lv })),
     n('swordsman_b3', 'swordsman_b', 3, '🗡️', 'ฟันพายุคม', 3, (lv) => `ฟันพายุใช้ Mana −${lv * 2} · ดาเมจสกิล +${lv * 5}%`, (lv) => ({ autoCostCut: 2 * lv, pskill: 0.05 * lv })),
     n('swordsman_b4', 'swordsman_b', 4, '👹', 'คลั่ง', 1, () => 'HP ต่ำกว่า 30%: ATK +40% และดูดเลือด x2', () => ({ berserk: 1 })),
@@ -26,7 +26,7 @@ export const tree: ClassTree = {
     // ----- row 2 · Job Lv 10 · Mana rhythm (ids keep their Rage-era names: they are save data) -----
     t('sw_t2a', 2, '🔥', 'เลือดร้อน', 2, (r) => `ต้นทุกเวฟฟื้น Mana +${r === 1 ? 15 : 25}`, (r) => ({ startRage: r === 1 ? 15 : 25 })),
     t('sw_t2b', 2, '💢', 'แค้นฝังใจ', 2, (r) => `โดนตีได้ Mana +${r === 1 ? 3 : 5}`, (r) => ({ rageOnHurtAdd: r === 1 ? 3 : 5 })),
-    t('sw_t2c', 2, '🌪️', 'พายุโลหิต', 2, (r) => `ฟันพายุดูดเลือดเพิ่ม ${r === 1 ? 10 : 16}% (เฉพาะสกิลนี้)`, (r) => ({ autoLifesteal: r === 1 ? 0.1 : 0.16 })),
+    t('sw_t2c', 2, '🌪️', 'พายุโลหิต', 2, (r) => `ดูดเลือดสกิล +${r === 1 ? 15 : 25}% (ตีหลายตัวได้ 1/3) · แลกกับดาเมจสกิล/ult −30%`, (r) => ({ spellVamp: r === 1 ? 0.15 : 0.25, skillDmgCut: 0.3 })),
     // ----- row 3 · Job Lv 20 · ดาบพิทักษ์ (ult) -----
     t('sw_t3a', 3, '🏰', 'ปราการ', 2, (r) => `ult: โล่ 15% → ${r === 1 ? 30 : 35}% · ดาเมจ 1.4x → 1.0x`, (r) => ({ ultShieldAdd: r === 1 ? 0.15 : 0.2, ultMulAdd: -0.4 })),
     t('sw_t3b', 3, '💥', 'ฟันทลาย', 2, (r) => `ult: ดาเมจ 1.4x → ${r === 1 ? '2.2' : '2.6'}x · บอสที่กำลังชาร์จโดน x1.5 · โล่ 15% → 5%`, (r) => ({ ultMulAdd: r === 1 ? 0.8 : 1.2, ultShieldAdd: -0.1, ultVsCharge: 0.5 })),

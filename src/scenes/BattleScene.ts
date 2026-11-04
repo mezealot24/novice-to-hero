@@ -4,7 +4,7 @@ import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
 import { COSTUMES, FREE_GEMS, heroStats, PER_POINT, RESOURCES, totalBase, type BaseStat } from '../data/meta'
 import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster, EQUIP_CARDS } from '../data/cards'
-import { CLERIC_KIT, JOBS, MAGE_SPELL, RES_RULES, SWORD_MANA, type JobDef } from '../data/jobs'
+import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, type JobDef } from '../data/jobs'
 import { skill2Picked } from '../data/tree'
 import type { Skill2Def } from '../data/skill2'
 import { addCard, addMat, addXp, persist, save } from '../save'
@@ -447,14 +447,14 @@ export class BattleScene extends Phaser.Scene {
       this.smashQueued = false
       this.smashCdLeft = this.ultTurns()
       this.res -= ultCost
-      await (this.job.id === 'novice' ? this.smash() : this.ultimate())
+      await this.asSkill(() => (this.job.id === 'novice' ? this.smash() : this.ultimate()))
       return
     }
     if (ultWaiting) this.floatText(HERO_X, GROUND - 140, `🔷 Mana ไม่พอ ult (${Math.floor(this.res)}/${ultCost})`, '#5aa0ff') // keep it booked, save Mana for it
     const autoCost = Math.max(10, this.job.auto.cost - this.st.autoCostCut)
     if (this.job.resource && !ultWaiting && this.res >= autoCost && this.alive().length) {
       this.res -= autoCost
-      await this.autoSkill()
+      await this.asSkill(() => this.autoSkill())
       return
     }
     await this.basicAttack()
@@ -503,6 +503,7 @@ export class BattleScene extends Phaser.Scene {
     const crit = Math.random() < (magic ? this.st.spellCrit : this.st.crit + (this.buf.hawk > 0 ? 0.2 + 0.05 * this.st.s2Lv : 0)) // magic crits only with spellCrit (talent/item/card) · Skill 2 ตาเหยี่ยว
     if (!magic && !crit && Math.random() > hitChance(this.st.hit, m.def.flee ?? 5)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
     if (m.parry) { this.parried(m); return 0 }
+    if (this.skillHits) mul *= 1 - this.skillCut() // spell vamp drawbacks: skill / ult damage cut
     if (m.chill > 0 && this.st.brittle > 0) mul *= 1 + this.st.brittle // tree: ice "เปราะ"
     if (this.ultFiring && m.charging && this.st.arUltBreak > 0) mul *= 1 + this.st.arUltBreak // archer tree/talent: ult vs a charging boss
     if (this.st.arLowHpBonus > 0 && m.hp < m.def.hp * 0.5) mul *= 1 + this.st.arLowHpBonus // archer talent เก็บตัวเปราะ r2
@@ -511,6 +512,7 @@ export class BattleScene extends Phaser.Scene {
     const r = this.roll(mul, magic, crit)
     if (!magic && !crit) r.dmg = m.def.def ? Math.max(1, Math.round(afterDef(r.dmg, m.def.def * (1 - Math.min(1, pierce))))) : r.dmg
     this.damageMon(m, r.dmg, r.crit, color)
+    if (this.skillHits) { this.skillHits.dmg += r.dmg; this.skillHits.mons.add(m) }
     if (!magic && this.st.poison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.poison); m.poisonDmg = this.st.poisonDmg; this.dotIcon(m) }
     if (this.relic === 'hellfire' && !m.dead) { m.hell++; this.dotIcon(m) }
     const ls = this.st.lifesteal + (this.buf.blood > 0 ? 0.15 + 0.05 * this.st.s2Lv : 0) // Skill 2 เลือดเดือด
@@ -522,6 +524,20 @@ export class BattleScene extends Phaser.Scene {
 
   /** Q 2026-11-03: lifesteal works only on basic attacks + combo hits (1), the D.Strike extra hit (0.33); skills, actives and passives 0. */
   private lsMul = 0
+  /** Spell vamp (Q 2026-11-04): skill hits are collected while a skill runs, then healed once; hitting several monsters heals 1/3. */
+  private skillHits: { dmg: number; mons: Set<Mon> } | null = null
+  private skillCut() { return Math.min(0.9, this.st.skillDmgCut + (this.buf.blood > 0 ? SPELL_VAMP.bloodCut : 0) + (this.relic === 'bloodpact' ? RELIC_RULES.bloodpact.skillCut : 0)) }
+  private spellVamp() { return Math.min(0.4, this.st.spellVamp + (this.buf.blood > 0 ? 0.15 + 0.05 * this.st.s2Lv : 0) + (this.relic === 'bloodpact' ? RELIC_RULES.bloodpact.spellVamp : 0)) }
+  /** relic สัญญาเลือด: burn / poison / hellfire ticks are weaker too (Q 2026-11-04) */
+  private dotMul() { return this.relic === 'bloodpact' ? 1 - RELIC_RULES.bloodpact.dotCut : 1 }
+  private async asSkill(fn: () => Promise<void>) {
+    this.skillHits = { dmg: 0, mons: new Set() }
+    try { await fn() } finally {
+      const h = this.skillHits; this.skillHits = null
+      const v = this.spellVamp()
+      if (v > 0 && h.dmg > 0 && this.hp > 0) this.heal(h.dmg * v * (h.mons.size > 1 ? SPELL_VAMP.aoe : 1) * (this.berserking() ? 2 : 1), true)
+    }
+  }
 
   /** Thief passive Double Strike: chance of +1 hit (Q: unlike RO, it can crit; lifesteals at 33%). */
   private doubleAttack(m: Mon, mul: number) {
@@ -629,7 +645,7 @@ export class BattleScene extends Phaser.Scene {
     this.res -= k.cost
     this.s2Cd = Math.max(1, k.cd - (k.id === 'cl_bless' && this.st.s2Star ? 1 : 0))
     this.s2Count++
-    await this.castSkill2(k)
+    await this.asSkill(() => this.castSkill2(k))
   }
 
   private async castSkill2(k: Skill2Def) {
@@ -715,7 +731,7 @@ export class BattleScene extends Phaser.Scene {
     const live = this.front()
     switch (this.job.id) {
       case 'swordsman':
-        await this.lunge(live[0], () => live.forEach((m) => { const d = this.strike(m, SWORD_MANA.autoMul * pow * (1 + this.st.pskill)); if (this.st.autoLifesteal > 0) this.heal(d * this.st.autoLifesteal, true) })) // talent: พายุโลหิต
+        await this.lunge(live[0], () => live.forEach((m) => { this.strike(m, SWORD_MANA.autoMul * pow * (1 + this.st.pskill)) }))
         break
       case 'archer':
         if (this.st.arAim > 0) { // talent ศรเล็ง: 2 aimed shots at the front, + crit
@@ -1051,15 +1067,15 @@ export class BattleScene extends Phaser.Scene {
     if (m.weakTurns > 0 && --m.weakTurns === 0) this.dotIcon(m)
     if ((m.marked ?? 0) > 0) m.marked!--
     // damage over time first
-    if (m.burnTurns > 0) { m.burnTurns--; this.damageMon(m, m.burn, false, '#ff8c42', true); if (!m.burnTurns) this.dotIcon(m) }
-    if (!m.dead && m.poison > 0) { this.damageMon(m, m.poison * m.poisonDmg, false, '#a77be0', true); if (this.st.poisonLeech > 0) this.heal(m.poison * m.poisonDmg * this.st.poisonLeech, true) } // Thief เลือดพิษ
+    if (m.burnTurns > 0) { m.burnTurns--; this.damageMon(m, Math.max(1, Math.round(m.burn * this.dotMul())), false, '#ff8c42', true); if (!m.burnTurns) this.dotIcon(m) }
+    if (!m.dead && m.poison > 0) { this.damageMon(m, Math.max(1, Math.round(m.poison * m.poisonDmg * this.dotMul())), false, '#a77be0', true); if (this.st.poisonLeech > 0) this.heal(m.poison * m.poisonDmg * this.st.poisonLeech, true) } // Thief เลือดพิษ
     if (!m.dead && m.burnStackTurns > 0) {
       m.burnStackTurns--
-      this.damageMon(m, Math.round(m.burnStacks * this.st.matk * (0.12 + this.st.burnTick)), false, '#ff8c42', true)
+      this.damageMon(m, Math.round(m.burnStacks * this.st.matk * (0.12 + this.st.burnTick) * this.dotMul()), false, '#ff8c42', true)
       if (!m.burnStackTurns) m.burnStacks = 0
       this.dotIcon(m)
     }
-    if (!m.dead && m.hell > 0) this.damageMon(m, Math.max(1, Math.round(hellEff(m.hell) * RELIC_RULES.hellfire.dmgPerStack * this.bestAtk())), false, '#ff5a2a', true)
+    if (!m.dead && m.hell > 0) this.damageMon(m, Math.max(1, Math.round(hellEff(m.hell) * RELIC_RULES.hellfire.dmgPerStack * this.bestAtk() * this.dotMul())), false, '#ff5a2a', true)
     if (!m.dead && m.def.mini === 'drainer' && m.hp < m.def.hp * BATTLE.demonAt) this.healMon(m, m.def.hp * BATTLE.demonRegen, true)
     m.parry = false
     if (!m.dead && m.chill > 0) { m.chill--; if (!m.chill && !m.charging) m.spr.clearTint(); this.dotIcon(m) }
@@ -1884,7 +1900,7 @@ export class BattleScene extends Phaser.Scene {
       this.applyMod({ crit: T.crit, critMul: T.critMul, combo: T.combo, counter: T.counter })
       this.st.combo = Math.min(0.5, this.st.combo); this.st.counter = Math.min(0.6, this.st.counter)
     }
-    if (r === 'bloodpact') { this.st.lifesteal = Math.min(0.55, this.st.lifesteal + RELIC_RULES.bloodpact.lifesteal) }
+    if (r === 'bloodpact') { this.st.lifesteal = Math.min(0.4, this.st.lifesteal + RELIC_RULES.bloodpact.lifesteal) } // Q 2026-11-04: cap stays 40% even with the pact
     if (r === 'haste') this.smashCdLeft = Math.max(0, this.smashCdLeft - RELIC_RULES.haste.cd)
     this.callout(`👑 ${RELICS[r].icon} ${RELICS[r].name}`, W / 2, 190)
     await this.wait(400)

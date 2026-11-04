@@ -434,7 +434,7 @@ export function derivedRows(st: Stats): [string, string][] {
     ['สวนกลับ / คอมโบ', `${pct(st.counter)} / ${pct(st.combo)}`],
     ['ความเร็วเทิร์น', `${(st.aspd / 1.6 * 10).toFixed(1)}`],
     ['ฟื้น HP / ฮีลแรง', `${(st.regen * 1.5).toFixed(2)}%/เทิร์น · +${pct(st.healAmp)}`],
-    ['ดูดเลือด / หลบ→ฟื้น HP', `${pct(st.lifesteal)} / ${(st.dodgeHeal * 100).toFixed(1)}%`],
+    ['ดูดเลือด / สกิล / หลบฟื้น', `${pct(st.lifesteal)} / ${pct(st.spellVamp)} / ${(st.dodgeHeal * 100).toFixed(1)}%`],
     ['ดาเมจคริ / โล่ต้นเวฟ', `${pct(st.critMul)} / ${pct(st.waveShield)}`],
     ['Max Mana / ฟื้น/เทิร์น', `${Math.round(st.maxRes)} / ${Math.round(st.resRegen * 3)}`],
     ['หลบโชคดี / ดรอปหายาก', `${(st.luckyDodge * 100).toFixed(1)}% / ${(st.dropChance * 100).toFixed(1)}%`],
