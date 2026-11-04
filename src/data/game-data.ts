@@ -333,6 +333,7 @@ export interface MonsterDef {
   lifesteal?: number // heals this share of the damage it deals (heal cut from burn reduces it)
   chargeEvery?: number // boss: charges every Nth turn (default BATTLE.slamEvery)
   slamMul?: number // boss: charged attack = (dmg + 8) * monDmgMul * this (default 1.6)
+  trueSight?: { after: number; turns: number } // v56 anti-AGI: after the hero evades it `after` times, its physical hits ignore Flee + lucky dodge for `turns` of its turns
   shots?: number // each attack is this many small hits, each rolls hit/flee on its own
   // ----- Dungeon 4-5 -----
   onHit?: HitFx // every landed hit also puts this on the hero
@@ -552,6 +553,8 @@ export const BATTLE = {
     toad: 10, lizardshaman: 9, hornet: 17, turtleguard: 7, bloater: 8, spiderling: 15, venomqueen: 14, frostgiant: 9, hydra: 11,
     hellknight: 10, hexwitch: 11, imp: 17, necropriest: 9, wraith: 15, shard: 14, mirage: 14, warlord: 12, lich: 11, dewsprite: 13, bonepriest: 9, mimic: 11, mimicking: 10, goldjellop: 12 } as Record<MonsterKind, number>,
   monDmgMul: 0.55, // monster hit = def.dmg * this
+  // v56 (Q: "มอนกากไป"): every spawned monster's HP / ATK / M.ATK and every turn limit, by dungeon tier 1..5
+  monBuff: { hp: [1.05, 1.1, 1.18, 1.45, 1.45], dmg: [1.05, 1.1, 1.18, 1.36, 1.4], turns: [1, 1.04, 1.08, 1.16, 1.2] },
   cleave: 0.5, // hero's swing also hits the 2nd monster for this share
   regenPerTurn: 1.5, // regen stat (%/s in real-time) -> % of max HP per hero turn
   resPerTurn: 1, // resRegen multiplier per hero turn
@@ -634,23 +637,23 @@ export const HARD_PASSIVES: HardPassive[] = [
 
 // ===== v49 monster kits (Q 2026-11-04: "ให้แต่ละตัวมี stat combo, counter, cri, สกิลโหดๆ"): merged into MONSTERS below =====
 // skills are appended after the monster's own (own skills keep priority on shared turns).
-const KITS: Partial<Record<MonsterKind, Pick<MonsterDef, 'crit' | 'combo' | 'counter'> & { add?: MonSkill[] }>> = {
+const KITS: Partial<Record<MonsterKind, Pick<MonsterDef, 'crit' | 'combo' | 'counter' | 'trueSight'> & { add?: MonSkill[] }>> = {
   wolf: { crit: 0.08 }, boar: { crit: 0.1 }, shadowwolf: { combo: 0.2, crit: 0.05 }, bat: { combo: 0.15 },
-  skeleton: { counter: 0.1 }, gargoyle: { counter: 0.15 }, hornet: { combo: 0.3 }, turtleguard: { counter: 0.15 },
-  hellknight: { counter: 0.15, crit: 0.1 }, wraith: { crit: 0.1 }, spiderling: { combo: 0.2 },
+  skeleton: { counter: 0.1 }, gargoyle: { counter: 0.15 }, hornet: { combo: 0.3, trueSight: { after: 3, turns: 2 } }, turtleguard: { counter: 0.15 },
+  hellknight: { counter: 0.15, crit: 0.1, trueSight: { after: 3, turns: 2 } }, wraith: { crit: 0.1 }, spiderling: { combo: 0.2 },
   // bosses / mini bosses: stats + a signature skill
   king: { crit: 0.06, add: [{ kind: 'strike', every: 5, pow: 1.6, name: '🟢 ทับแบน', fx: { freeze: 30 } }] },
-  alpha: { combo: 0.25, crit: 0.1, add: [{ kind: 'strike', every: 4, hits: 3, pow: 0.6, name: '🐺 กรงเล็บพายุ' }] },
-  duelist: { counter: 0.15, crit: 0.12, add: [{ kind: 'strike', every: 5, hits: 3, pow: 0.55, name: '🤺 แทงสามจังหวะ' }] },
-  hunter: { crit: 0.15, combo: 0.15, add: [{ kind: 'strike', every: 4, pow: 1.5, name: '🩸 ตะปบจุดตาย', fx: { poison: 2 } }] },
-  gunner: { crit: 0.15, add: [{ kind: 'strike', every: 4, hits: 4, pow: 0.4, name: '🔫 ระดมยิง' }] },
+  alpha: { combo: 0.25, crit: 0.1, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, hits: 3, pow: 0.6, name: '🐺 กรงเล็บพายุ' }] },
+  duelist: { counter: 0.15, crit: 0.12, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 5, hits: 3, pow: 0.55, name: '🤺 แทงสามจังหวะ' }] },
+  hunter: { crit: 0.15, combo: 0.15, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, pow: 1.5, name: '🩸 ตะปบจุดตาย', fx: { poison: 2 } }] },
+  gunner: { crit: 0.15, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, hits: 4, pow: 0.4, name: '🔫 ระดมยิง' }] },
   drainer: { crit: 0.1, add: [{ kind: 'bolt', every: 4, pow: 1.3, name: '🌑 ดูดวิญญาณ', fx: { weaken: 2 } }] },
-  deathknight: { counter: 0.15, crit: 0.1, add: [{ kind: 'strike', every: 5, pow: 1.8, name: '⚔️ ดาบมรณะ', fx: { armorBreak: 2 } }] },
-  venomqueen: { combo: 0.25, crit: 0.08, add: [{ kind: 'strike', every: 4, hits: 2, pow: 0.7, name: '🦂 เหล็กไนคู่', fx: { poison: 2 } }] },
-  frostgiant: { counter: 0.15, add: [{ kind: 'strike', every: 5, pow: 1.6, name: '🧊 ทุบธารน้ำแข็ง', fx: { freeze: 50 } }] },
-  hydra: { combo: 0.3, add: [{ kind: 'bolt', every: 4, hits: 3, pow: 0.5, name: '🐍 พ่นพิษสามหัว', fx: { poison: 1 } }] },
+  deathknight: { counter: 0.15, crit: 0.1, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 5, pow: 1.8, name: '⚔️ ดาบมรณะ', fx: { armorBreak: 2 } }] },
+  venomqueen: { combo: 0.25, crit: 0.08, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, hits: 2, pow: 0.7, name: '🦂 เหล็กไนคู่', fx: { poison: 2 } }] },
+  frostgiant: { counter: 0.15, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 5, pow: 1.6, name: '🧊 ทุบธารน้ำแข็ง', fx: { freeze: 50 } }] },
+  hydra: { combo: 0.3, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'bolt', every: 4, hits: 3, pow: 0.5, name: '🐍 พ่นพิษสามหัว', fx: { poison: 1 } }] },
   mirage: { crit: 0.15, add: [{ kind: 'bolt', every: 5, hits: 2, pow: 0.7, name: '🪞 ภาพลวงสองเงา' }] },
-  warlord: { counter: 0.2, crit: 0.15, combo: 0.15, add: [{ kind: 'strike', every: 5, hits: 2, pow: 0.9, name: '🪓 ขวานคู่ผ่าฟ้า', fx: { armorBreak: 1 } }] },
+  warlord: { counter: 0.2, crit: 0.15, combo: 0.15, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 5, hits: 2, pow: 0.9, name: '🪓 ขวานคู่ผ่าฟ้า', fx: { armorBreak: 1 } }] },
   lich: { crit: 0.15 },
 }
 for (const [k, kit] of Object.entries(KITS) as [MonsterKind, NonNullable<(typeof KITS)[MonsterKind]>][]) {
