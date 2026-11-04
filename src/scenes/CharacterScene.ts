@@ -1,11 +1,14 @@
 import Phaser from 'phaser'
-import { COLORS, DUNGEONS, type Stats } from '../data/game-data'
+import { COLORS, doubleAtkChance, DUNGEONS, type Stats } from '../data/game-data'
+import { autoInfo, skill2Info, ultInfo, type InfoRow } from '../data/skill-math'
+import { skill2ById } from '../data/skill2'
 import { CARD_RULES, cardIcon, cardName, EQUIP_CARDS, TIER_COLOR, type EquipCard } from '../data/cards'
 import { gradeStars, gradeCap } from '../data/craft'
-import { BASE_STATS, canWear, forged, forgeTag, gradeOf, isBroken, refineOf, cardFits, CERT_SLOTS_AT, EQUIP_SLOTS, offhandLocked, slotKind, type EquipSlot, COSTUMES, gearBase, heroStats, cardStatLine, itemStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText } from '../data/meta'
+import { BASE_STATS, canWear, forged, forgeTag, gradeOf, isBroken, refineOf, cardFits, CERT_SLOTS_AT, EQUIP_SLOTS, offhandLocked, slotKind, type EquipSlot, COSTUMES, gearBase, heroStats, cardStatLine, itemStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText, type BaseStat } from '../data/meta'
 import { canChangeJob, equip, persist, resetTree, save, socketCard, unsocketCard } from '../save'
-import { branchesOf, lockReason, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
-import { JOB_CHANGE, JOBS } from '../data/jobs'
+import { BRANCHES, branchesOf, lockReason, skill2Picked, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
+import { JOB_CHANGE, JOBS, type JobId } from '../data/jobs'
+import { statLines } from '../data/statInfo'
 import { askRepick } from './JobScene'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
 
@@ -22,6 +25,7 @@ export class CharacterScene extends Phaser.Scene {
   private bookV2 = false
   private skillBasic = false // skill tab: false = skill web, true = Novice skills + certificates + job
   private selNode = ''
+  private showDetail = false // skill web: detail panel over the web
   constructor() { super('character') }
 
   create(data: { tab?: number }) {
@@ -239,7 +243,7 @@ export class CharacterScene extends Phaser.Scene {
       b.add(txt(this, 404, y + 11, `${total[bs.id]}`, 22, UI.text, true))
       if (raceB) b.add(txt(this, 436, y + 8, `${raceB > 0 ? '+' : ''}${raceB} เผ่า`, 10, raceB > 0 ? UI.green : UI.red))
       if (gearB) b.add(txt(this, 436, y + 26, `+${gearB} ของ`, 10, '#7fd7ff'))
-      b.add(txt(this, 482, y + 8, bs.desc, 13, '#d8d4f0').setWordWrapWidth(320).setLineSpacing(2))
+      this.statDesc(b, bs.id, s.job, total[bs.id], 482, y + 4, 322, 44)
       const add = (n: number) => {
         n = Math.min(n, s.statPoints, STAT_RULES.max - s.stats[bs.id])
         if (n <= 0) return
@@ -256,6 +260,22 @@ export class CharacterScene extends Phaser.Scene {
         s.statPoints += spent; persist(); this.redraw()
       })
     }, { size: 15, fill: 0x5a5f8a, color: UI.text }))
+  }
+
+  /** Stat description: generic lines (light) + current-class lines (gold); shrinks the font until it fits the row. */
+  private statDesc(b: Phaser.GameObjects.Container, stat: BaseStat, job: JobId, total: number, x: number, y: number, w: number, h: number) {
+    const { generic, cls } = statLines(stat, job, total)
+    for (const size of [12, 11, 10, 9]) {
+      const g = txt(this, x, y, generic.join(' · '), size, '#d8d4f0').setWordWrapWidth(w).setLineSpacing(0)
+      const c = cls.length ? txt(this, x, y + g.height, `${JOBS[job].icon} ${cls.join(' · ')}`, size, UI.gold).setWordWrapWidth(w).setLineSpacing(0) : undefined
+      if (g.height + (c?.height ?? 0) <= h || size === 9) {
+        const pad = Math.max(0, (h - g.height - (c?.height ?? 0)) / 2) // center vertically in the row
+        g.y += pad; if (c) c.y += pad
+        b.add(g); if (c) b.add(c)
+        return
+      }
+      g.destroy(); c?.destroy()
+    }
   }
 
   // ---------- tab 3: skills, passives, talents ----------
@@ -372,12 +392,40 @@ export class CharacterScene extends Phaser.Scene {
     b.add(txt(this, 342, 505, `${n.icon} ${n.name}  ${lv}/${n.max}${n.kind === 's2root' ? '  · ทักษะ 2' : ''}`, 15, UI.gold, true))
     const now = lv ? n.desc(lv) : n.desc(1)
     const next = lv && lv < n.max ? `  → Lv ${lv + 1}: ${n.desc(lv + 1)}` : ''
-    b.add(txt(this, 342, 527, `${lv ? '' : 'Lv 1: '}${now}${next}`, 11, UI.green).setWordWrapWidth(500))
+    b.add(txt(this, 342, 527, `${lv ? '' : 'Lv 1: '}${now}${next}`, 11, UI.green).setWordWrapWidth(400))
     if (why && why !== 'เต็มแล้ว') b.add(txt(this, 342, 553, `🔒 ${why}`, 11, UI.sub))
     b.add(button(this, 900, 535, 84, 40, lv ? '+1' : 'เรียน', () => {
       if (s.skillPoints <= 0 || lockReason(t, s.job, n)) return
       t[n.id] = (t[n.id] ?? 0) + 1; s.skillPoints--; persist(); this.redraw()
     }, { size: 16 }).setEnabled(s.skillPoints > 0 && !why))
+    b.add(button(this, 806, 535, 96, 32, this.showDetail ? '✕ ปิด' : '📋 รายละเอียด', () => { this.showDetail = !this.showDetail; this.render() }, { size: 12, fill: this.showDetail ? COLORS.gold : 0x5a5f8a, color: this.showDetail ? UI.ink : UI.text }))
+    if (this.showDetail) this.detailPanel(n)
+  }
+
+  /** Skill detail (Q 2026-11-04): the node's real numbers with the hero's current stats, now vs one more level. */
+  private detailPanel(n: TreeNode) {
+    const s = save(), b = this.body!, t = s.jobTree ?? {}, lv = t[n.id] ?? 0
+    const d = nodeDetail(s, n)
+    const x = 330, y = 150, w = 620, h = 344
+    b.add(this.add.rectangle(x - 3, y, w + 6, h, 0x141834, 1).setOrigin(0)) // opaque: hide the web behind
+    b.add(panel(this, x - 3, y, w + 6, h, 0x141834, COLORS.gold, 10))
+    const block = this.add.zone(x - 3, y, w + 6, h).setOrigin(0).setInteractive() // the web under the panel stays untouchable
+    b.add(block)
+    b.add(txt(this, x + 10, y + 8, `${n.icon} ${n.name} · รายละเอียด`, 15, UI.gold, true))
+    b.add(txt(this, x + 10, y + 30, d.note, 10, UI.sub).setWordWrapWidth(w - 20).setLineSpacing(0))
+    const c1 = x + 300, c2 = x + 460, top = y + 58
+    b.add(txt(this, c1, top, lv ? `ตอนนี้ (Lv ${lv})` : 'ตอนนี้ (ยังไม่เรียน)', 12, UI.text, true))
+    b.add(txt(this, c2, top, lv < n.max ? `Lv ${lv + 1}` : 'เต็มแล้ว', 12, lv < n.max ? UI.green : UI.sub, true))
+    const rows = d.rows.slice(0, 13)
+    rows.forEach((r, i) => {
+      const ry = top + 22 + i * 20
+      if (r.section) { b.add(txt(this, x + 10, ry, r.label, 12, UI.gold, true)); return }
+      const changed = r.next !== undefined && r.next !== r.now
+      b.add(txt(this, x + 18, ry, clip(r.label, 40), 11, '#d8d4f0'))
+      b.add(txt(this, c1, ry, clip(r.now, 30), 11, UI.text))
+      if (r.next !== undefined) b.add(txt(this, c2, ry, clip(r.next, 30), 11, changed ? UI.green : UI.sub, changed))
+    })
+    if (!rows.length) b.add(txt(this, x + 10, top + 24, 'โหนดนี้เปลี่ยนการทำงานในการต่อสู้ ดูคำอธิบายด้านล่างนะคะ', 12, UI.sub))
   }
 
   // ---------- tab 4: talents (4 tiers by Job Lv, pick 1 of 3, free swap in town) ----------
@@ -441,6 +489,42 @@ export function derivedRows(st: Stats): [string, string][] {
     ['หลบโชคดี / ดรอปหายาก', `${(st.luckyDodge * 100).toFixed(1)}% / ${(st.dropChance * 100).toFixed(1)}%`],
     ['พรตำนาน / อีเวนต์', `${(st.legendChance * 100).toFixed(1)}% / ${pct(st.eventChance)}`],
   ]
+}
+
+type DetailRow = { label: string; now: string; next?: string; section?: boolean }
+/** Rows for the skill detail panel: the skill this node powers (all rows), other skills / stats that this level changes. */
+export function nodeDetail(s: ReturnType<typeof save>, n: TreeNode): { rows: DetailRow[]; note: string } {
+  const t = s.jobTree ?? {}, lv = t[n.id] ?? 0, job = s.job
+  const stOf = (tree: Record<string, number>) => heroStats({ ...s, jobTree: tree })
+  const nowT = t, nextT = lv < n.max ? { ...t, [n.id]: lv + 1 } : undefined
+  const stNow = stOf(nowT), stNext = nextT ? stOf(nextT) : undefined
+  const line = BRANCHES.find((x) => x.id === n.branch)?.line
+  const s2 = n.s2 ? skill2ById(n.s2) : undefined
+  type Sec = { name: string; info: (st: Stats, tree: Record<string, number>) => InfoRow[] | null; all: boolean }
+  const picked = (tree: Record<string, number>) => skill2Picked(tree, job)
+  const secs: Sec[] = [
+    { name: `${JOBS[job].auto.icon} ทักษะ 1: ${JOBS[job].auto.name}`, info: (st) => autoInfo(job, st), all: line === 's1' },
+    { name: `${JOBS[job].ult.icon} Ult: ${JOBS[job].ult.name}`, info: (st) => ultInfo(job, st), all: line === 'ult' },
+    { name: `${(s2 ?? picked(t))?.icon ?? '🔀'} ทักษะ 2: ${(s2 ?? picked(t))?.name ?? ''}`, all: !!s2,
+      info: (st, tree) => { const k = s2 ?? picked(tree); return k && (tree[k.id] ?? 0) > 0 ? skill2Info(k, st) : null } },
+  ]
+  const rows: DetailRow[] = []
+  for (const sec of secs) {
+    const a = sec.info(stNow, nowT), z = stNext && nextT ? sec.info(stNext, nextT) : undefined
+    if (!a && !z) continue
+    const labels = [...new Set([...(a ?? []), ...(z ?? [])].map((r) => r.label))]
+    const val = (list: InfoRow[] | null | undefined, l: string) => list?.find((r) => r.label === l)?.value ?? '−'
+    const out = labels.map((l) => ({ label: l, now: a ? val(a, l) : 'ยังไม่เรียน', next: z === undefined ? undefined : val(z, l) }))
+      .filter((r) => sec.all || (r.next !== undefined && r.next !== r.now))
+    if (out.length) rows.push({ label: sec.name, now: '', section: true }, ...out)
+  }
+  if (stNext) {
+    const a = derivedRows(stNow), z = derivedRows(stNext)
+    if (stNow.doubleAtk !== stNext.doubleAtk) { a.push(['โอกาส Double Strike', `${Math.round(doubleAtkChance(stNow.doubleAtk) * 100)}%`]); z.push(['โอกาส Double Strike', `${Math.round(doubleAtkChance(stNext.doubleAtk) * 100)}%`]) }
+    const ch = a.map(([k, v], i) => ({ label: k, now: v, next: z[i][1] })).filter((r) => r.now !== r.next)
+    if (ch.length) rows.push({ label: '📊 ค่าสถานะที่เปลี่ยน', now: '', section: true }, ...ch)
+  }
+  return { rows, note: `คำนวณจากค่าตอนนี้: P.ATK ${Math.round(stNow.atk * stNow.minPct)}~${Math.round(stNow.atk)} · M.ATK ${Math.round(stNow.matk)} · HP ${stNow.maxHp} · ดาเมจก่อนหัก DEF มอน ไม่รวมพร/รีลิกในดัน · ตัวเลขเขียว = เปลี่ยนเมื่อลงเพิ่ม 1 แต้ม` }
 }
 
 const clip = (t: string, n: number) => (t.length > n ? t.slice(0, n - 1) + '…' : t)
