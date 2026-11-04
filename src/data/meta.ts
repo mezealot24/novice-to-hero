@@ -1,6 +1,6 @@
 // ===== Out-of-run (meta) game data: races, base stats, equipment, costumes, top-up packs. =====
 // Everything a run starts from is computed by heroStats(save). Balance knobs live here.
-import { PLAYER, type Stats } from './game-data'
+import { COMBO, PLAYER, type Stats } from './game-data'
 import { talentMods, treeMods, type TalentSave, type TreeSave } from './tree'
 import { JOBS, type JobId } from './jobs'
 import { cardById, type EquipCard } from './cards'
@@ -16,7 +16,7 @@ export const PER_POINT = {
   vit: { maxHp: 10, maxHpPct: 0.005, def: 0.5, regen: 0.02, counterK: 300 },
   int: { matk: 2, maxRes: 3 },
   wis: { healAmp: 0.01, shieldAmp: 0.01, mdefK: 150, resRegen: 0.05, tenacityK: 200 },
-  agi: { aspdPct: 0.015, flee: 1, comboK: 120 },
+  agi: { aspdPct: 0.015, flee: 1, comboK: 360 /* Q 2026-11-04 combo rework: was 120 (AGI 64 = 34% -> 15%) */ },
   off: { swordDexCounter: 0.002, archerStrUlt: 0.01, clericDexSpear: 0.003, mageLukSpellCrit: 0.01 / 6 },
   luk: { spear: 0.005, spearCap: 0.25, /* Cleric: +0.5% light spear chance per LUK per turn, cap 25% */ crit: 0.01 / 3, /* Q: every 3 LUK = +1% crit (only stat that gives crit) */ dodgeK: 600, /* lucky dodge LUK/(LUK+K): Q 2026-11-04 nerf 300 -> 600 (LUK 50 = 7.7%, 100 = 14%, 200 = 25% cap; gear adds on top) */ legendPer: 0.0007, legendCap: 0.15, /* พร v2: base 6% + LUK, cap 15% */ dropPct: 0.005, dropCap: 0.5, eventPer: 0.005, eventCap: 0.3 },
 }
@@ -217,7 +217,7 @@ const STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => string]>> 
   maxRes: ['Max Mana', (n) => `${n}`], resRegen: ['ฟื้น Mana', (n) => `${Math.round(n * 3 * 10) / 10}/เทิร์น`], aspd: ['เร็ว', (n) => pc(n / PLAYER.aspd)],
   crit: ['คริ', pc], spellCrit: ['เวทคริ', pc], critMul: ['ดาเมจคริ', pc], guard: ['ลดดาเมจ', pc], lifesteal: ['ดูดเลือด', pc], regen: ['ฟื้น HP/เทิร์น', (n) => pc(n * 1.5 / 100)],
   poison: ['พิษ stack/hit', (n) => `${n}`], poisonDmg: ['พิษแรง', (n) => `${n}`], smashMul: ['ทุบ(โนวิส)', (n) => `${n}x`],
-  counter: ['สวนกลับ', pc], combo: ['คอมโบ', pc],
+  counter: ['สวนกลับ', pc], combo: ['คอมโบ', pc], comboCount: ['คอมโบต่อได้', (n) => `${n} ฮิต`], comboDmg: ['ดาเมจคอมโบ', pc],
   dodgeHeal: ['หลบ→ฟื้น HP', pc], revive: ['ลุกใหม่', (n) => `${n} ครั้ง/รอบ`],
   burnDps: ['ติดไฟ', (n) => `${n}/เทิร์น`], healShield: ['ฮีลแล้วได้โล่', pc], dodgeEnergy: ['หลบ→Energy', (n) => `${n}`], counterRage: ['สวนกลับ→Rage', (n) => `${n}`],
   mgUltAmp: ['ult ธาตุแรง', pc], thorns: ['โล่สะท้อนดาเมจ', pc], holyCounter: ['สวนกลับเป็นเวท (ใช้ M.ATK)', () => ''], rageGain: ['ได้ Rage', pc], startRage: ['เริ่มเวฟมี Rage', (n) => `${n}`],
@@ -369,8 +369,8 @@ export function heroStats(s: StatsInput): Stats {
   st.mdef = Math.min(0.75, st.mdef)
   st.tenacity = Math.min(0.75, st.tenacity)
   st.luckyDodge = Math.min(0.25, st.luckyDodge)
-  st.counter = Math.min(0.6, st.counter)
-  st.combo = Math.min(0.5, st.combo)
+  st.counter = Math.min(COMBO.rateCap, st.counter) // counter rework: may pass 100% vs Ignore Counter (was 60%)
+  st.combo = Math.min(COMBO.rateCap, st.combo)
   st.lifesteal = Math.min(0.4, st.lifesteal)
   st.spellVamp = Math.min(0.4, st.spellVamp)
   st.skillDmgCut = Math.min(0.9, st.skillDmgCut)

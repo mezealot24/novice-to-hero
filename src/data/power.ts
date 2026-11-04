@@ -8,7 +8,7 @@
 //              sustain from lifesteal / spell vamp / regen / heal amp, counters)
 //   power    = K * sqrt(offense * survival)  -> doubles when both sides double, so "monster x(P / P_ref)" on
 //              HP and ATK keeps a fight exactly as hard as it was at P_ref.
-import { afterDef, BATTLE, doubleAtkChance, hitChance, PLAYER, type Stats } from './game-data'
+import { afterDef, BATTLE, COMBO, comboExtra, doubleAtkChance, hitChance, PLAYER, type Stats } from './game-data'
 import type { JobId } from './jobs'
 import { heroStats, type StatsInput } from './meta'
 
@@ -30,7 +30,7 @@ export function powerParts(st: Stats, job: JobId = 'novice'): PowerParts {
   const phys = afterDef(st.atk * (1 + st.minPct) / 2, R.def) * hitChance(st.hit, R.flee) * (1 + Math.min(1, st.crit) * (st.critMul - 1))
   const magic = st.matk * (1 + Math.min(1, st.spellCrit) * (st.critMul - 1))
   const perHit = phys * (1 - m) + magic * m
-  const chain = (1 + st.combo * 1.5) * (1 + doubleAtkChance(st.doubleAtk))
+  const chain = (1 + comboExtra(st.combo, COMBO.baseCount + st.comboCount) * (1 + st.comboDmg)) * (1 + doubleAtkChance(st.doubleAtk))
   const skill = 1 + 0.5 * (st.pskill * (1 - m) + st.s1Pow + st.ultPow + st.ultAmp) - 0.5 * st.skillDmgCut
   const offense = perHit * chain * (st.aspd / PLAYER.aspd) * Math.max(0.3, skill)
   // ---- survival ----

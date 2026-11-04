@@ -116,6 +116,7 @@ export const LINE_POOL: LineDef[] = [
   { stat: 'critMul', vals: [0.05, 0.1, 0.15], kind: 'atk', w: 1 },
   { stat: 'counter', vals: [0.02, 0.03, 0.05], kind: 'def', w: 0.5 },
   { stat: 'combo', vals: [0.02, 0.03, 0.05], kind: 'atk', w: 0.5 },
+  { stat: 'comboDmg', vals: [0.04, 0.06, 0.1], kind: 'atk', w: 0.3, slots: ['weapon', 'acc'] }, // combo rework: Combo DMG%
   { stat: 'regen', vals: [0.133, 0.2, 0.333], kind: 'def', w: 1 }, // 1 regen = 1.5% HP/turn: shows +0.2% / +0.3% / +0.5%
   { stat: 'healAmp', vals: [0.02, 0.04, 0.06], kind: 'def', w: 1, off: ['swordsman', 'archer', 'mage', 'thief'] },
   { stat: 'lifesteal', vals: [0.01, 0.02, 0.03], kind: 'atk', w: 1 },

@@ -45,7 +45,9 @@ export interface Stats {
   smashCost: number // resource per Smash
   revive: number // times the hero gets back up this run (Phoenix card)
   counter: number // 0..1 chance to hit back when a monster's attack lands (cards/gear major, VIT minor)
-  combo: number // 0..1 chance a basic attack chains another one, up to BATTLE.comboMax extra (AGI)
+  combo: number // combo rate (AGI + gear): chance per extra hit, may pass 100% to beat monster Ignore Combo (COMBO.rateCap)
+  comboCount: number // extra combo hits on top of COMBO.baseCount (rare: wolf relic, เชี่ยวชาญคอมโบ, 2nd jobs)
+  comboDmg: number // combo hits: added inside the basic-damage bracket (1 + basicDmg + comboDmg - DR)
   dodgeHeal: number // share of max HP healed whenever a monster attack is dodged (Thief gear)
   waveShield: number // shield worth this share of max HP at the start of every wave (Swordsman / Cleric gear)
   // ----- skill tree hooks (data/tree.ts; 0 = off). Flags are 0/1. -----
@@ -176,7 +178,7 @@ export const PLAYER: Stats = {
   aspd: 1.6, range: 110, crit: 0, critMul: 1.4, /* Q: crit only from items, skill tree, talents (+ in-run cards) */ speed: 190,
   guard: 0, lifesteal: 0, regen: 0, fireEvery: 0, boltMul: 2, burnDps: 0, poison: 0, poisonDmg: 2,
   smashMul: 3, smashCd: 6000, smashCost: 0, revive: 0, counter: 0, combo: 0, dodgeHeal: 0, waveShield: 0,
-  thorns: 0, rageGain: 0, autoCostCut: 0, ctrAoe: 0, berserk: 0, pierce: 0, lockOn: 0, dodgeStrike: 0, doubleAtk: 0, thExecute: 0, poisonLeech: 0, killHeal: 0, bloodKing: 0, thUltAgi: 0, lightMax: 0, overload: 0, lightLuck: 0, burnCap: 0, autoBurn: 0, fireSpread: 0, chillPlus: 0, brittle: 0, vsBurn: 0, vsChill: 0, vsPoison: 0, chillWeak: 0, spearShield: 0, counterDmg: 0, basicDmg: 0, resTurn: 0, shatter: 0, reviveHp: 0, smiteTargets: 0, holyCounter: 0, overhealShield: 0, poisonCap: 0, poisonSpread: 0, fleeFloor: 0, waveDodge: 0, dodgeEnergy: 0, ultDodge: 0, ultHits: 0, ultPoison: 0, poisonAmp: 0, lightHits: 0, lightChain: 0, burnTick: 0, chillSlow: 0, iceBarrier: 0, boltHits: 0, boltCharge: 0, stormSet: 0, mgLightAmp: 0, mgFireAmp: 0, mgIceAmp: 0, mgFirstCard: 0, mgFireStack: 0, mgWaveBarrier: 0, resRegenCut: 0, mgUltAmp: 0, elemWheel: 0, mgBarrierCut: 0, barrierBoom: 0, mgEmergency: 0, mgDoubleCast: 0, mgUltCd: 0, mgUltMana: 0, mgOverflow: 0, cleaveAdd: 0, startRage: 0, rageOnHurtAdd: 0, spellVamp: 0, skillDmgCut: 0, ultMulAdd: 0, ultAmp: 0, ultShieldAdd: 0, ultVsCharge: 0, ultCounters: 0, counterRage: 0, counterShield: 0, arDodgeShield: 0, arUltBreak: 0, arWaveDodge: 0, arSnipeLow: 0, arLowHpBonus: 0, arVolley: 0, arAim: 0, arAimCrit: 0, arUltSplash: 0, arUltDodge: 0, arUltMulCut: 0, arHawk: 0, arStartFull: 0, arTurnRes: 0, arCritRes: 0, arDodgeRes: 0, debuffRes: 0, healAt: 0, atone: 0, judge: 0, smiteMul: 0, smiteVamp: 0, healShield: 0, spearStart: 0, spearRate: 0, spearMul: 0, spearHeal: 0, ultRegen: 0, ultHoly: 0, ultChargeShield: 0, bossShield: 0, lateDmg: 0, spellCrit: 0, spearLuck: 0, strToInt: 0, s1Pow: 0, ultPow: 0, s2Lv: 0, s2Star: 0, clUltAtk: 0, clUltLights: 0, clSpearShield: 0, clPurify: 0, // Novice: cooldown only (resources come with job change)
+  thorns: 0, rageGain: 0, autoCostCut: 0, ctrAoe: 0, berserk: 0, pierce: 0, lockOn: 0, dodgeStrike: 0, doubleAtk: 0, thExecute: 0, poisonLeech: 0, killHeal: 0, bloodKing: 0, thUltAgi: 0, lightMax: 0, overload: 0, lightLuck: 0, burnCap: 0, autoBurn: 0, fireSpread: 0, chillPlus: 0, brittle: 0, comboCount: 0, comboDmg: 0, vsBurn: 0, vsChill: 0, vsPoison: 0, chillWeak: 0, spearShield: 0, counterDmg: 0, basicDmg: 0, resTurn: 0, shatter: 0, reviveHp: 0, smiteTargets: 0, holyCounter: 0, overhealShield: 0, poisonCap: 0, poisonSpread: 0, fleeFloor: 0, waveDodge: 0, dodgeEnergy: 0, ultDodge: 0, ultHits: 0, ultPoison: 0, poisonAmp: 0, lightHits: 0, lightChain: 0, burnTick: 0, chillSlow: 0, iceBarrier: 0, boltHits: 0, boltCharge: 0, stormSet: 0, mgLightAmp: 0, mgFireAmp: 0, mgIceAmp: 0, mgFirstCard: 0, mgFireStack: 0, mgWaveBarrier: 0, resRegenCut: 0, mgUltAmp: 0, elemWheel: 0, mgBarrierCut: 0, barrierBoom: 0, mgEmergency: 0, mgDoubleCast: 0, mgUltCd: 0, mgUltMana: 0, mgOverflow: 0, cleaveAdd: 0, startRage: 0, rageOnHurtAdd: 0, spellVamp: 0, skillDmgCut: 0, ultMulAdd: 0, ultAmp: 0, ultShieldAdd: 0, ultVsCharge: 0, ultCounters: 0, counterRage: 0, counterShield: 0, arDodgeShield: 0, arUltBreak: 0, arWaveDodge: 0, arSnipeLow: 0, arLowHpBonus: 0, arVolley: 0, arAim: 0, arAimCrit: 0, arUltSplash: 0, arUltDodge: 0, arUltMulCut: 0, arHawk: 0, arStartFull: 0, arTurnRes: 0, arCritRes: 0, arDodgeRes: 0, debuffRes: 0, healAt: 0, atone: 0, judge: 0, smiteMul: 0, smiteVamp: 0, healShield: 0, spearStart: 0, spearRate: 0, spearMul: 0, spearHeal: 0, ultRegen: 0, ultHoly: 0, ultChargeShield: 0, bossShield: 0, lateDmg: 0, spellCrit: 0, spearLuck: 0, strToInt: 0, s1Pow: 0, ultPow: 0, s2Lv: 0, s2Star: 0, clUltAtk: 0, clUltLights: 0, clSpearShield: 0, clPurify: 0, // Novice: cooldown only (resources come with job change)
 }
 
 export const RULES = {
@@ -550,6 +552,26 @@ export const afterDef = (dmg: number, def: number) => dmg * 100 / (100 + Math.ma
 
 // ===== Turn-based side-scroll battle (BattleScene) =====
 // Turn order: everyone fills a gauge by `speed` per tick; at 100 they act. Faster = more turns.
+/** Hero combo, Capybara Go style (Q 2026-11-04 18:24 "เต็มสูตร + Combo DR"):
+ * - each basic attack chains baseCount + st.comboCount extra hits; each needs a roll at (combo rate - target's Ignore Combo), stop on a miss
+ * - combo rate has no 50% cap any more: it may pass 100% (rateCap) so it still lands vs high Ignore Combo
+ * - hit damage: x max(dmgFloor, 1 + basicDmg (+ comboDmg on combo hits) - basicDR (- comboDR on combo hits))
+ * Monster defence by tier (+hardAdd in hard mode / tower). Monster combos on the hero keep BATTLE.comboMax. */
+export const COMBO = {
+  baseCount: 1,
+  rateCap: 1.5,
+  dmgFloor: 0.2,
+  ignore: { normal: 0, mini: 0.15, boss: 0.25 },
+  basicDR: { normal: 0, mini: 0.05, boss: 0.1 },
+  comboDR: { normal: 0, mini: 0.1, boss: 0.15 },
+  hardAdd: 0.1, // Ignore Combo / Counter and Combo / Counter DR extra in hard mode / tower
+  // Counter, same model (Q 2026-11-04 18:26): rate may pass 100% vs Ignore Counter; dmg x max(dmgFloor, 1 + basicDmg + counterDmg - basicDR - counterDR)
+  ignoreCounter: { normal: 0, mini: 0.15, boss: 0.25 },
+  counterDR: { normal: 0, mini: 0.1, boss: 0.15 },
+}
+/** Expected extra hits per basic attack for a combo rate and chain length (rolls stop on the first miss). */
+export const comboExtra = (rate: number, count: number) => { const p = Math.max(0, Math.min(1, rate)); let e = 0, q = 1; for (let i = 0; i < count; i++) { q *= p; e += q } return e }
+
 export const BATTLE = {
   turnLimit: 20, // Q 2026-11-03: hero turns per wave fight; run out = the run is lost (stops pure-tank stalling)
   bossTurnLimit: 30, // boss fights (bot: damage builds 10-23 turns, pure tanks 36-43)
@@ -568,7 +590,7 @@ export const BATTLE = {
   slamStun: 45, // gauge the hero loses when slammed (tenacity reduces it)
   stepMs: 520, // one action's animation at x1
   msPerTurn: 1500, // smashCd (ms) -> hero turns of cooldown
-  comboMax: 2, // extra basic attacks a combo can chain
+  comboMax: 2, // monsters: extra basic attacks a combo can chain (heroes use COMBO below)
   counterMul: 0.8, // a counter hit = basic attack x this
   reviveHp: 0.3, // Phoenix card: share of max HP the hero gets back
   // ----- Dungeon 3 mini bosses -----
