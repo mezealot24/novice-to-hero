@@ -96,7 +96,7 @@ export function autoInfo(jobId: JobId, st: Stats): InfoRow[] {
     case 'cleric':
       out.push({ label: 'ตีปกติ ทุบประชิด (P.ATK)', value: hitText(st, clericBasic(), false) })
       out.push({ label: `ฮีล (HP < ${pct(KIT.clericHealBelow - st.healAt)})`, value: `${heal(st, st.matk * CLERIC_KIT.heal * pow)} HP` })
-      out.push({ label: `แสง ${KIT.clericSmiteTargets + st.smiteTargets} ตัวหน้า ดาเมจ/ตัว`, value: hitText(st, CLERIC_KIT.smite * pow * (1 + st.smiteMul), true) })
+      out.push({ label: `แสงหลังทุบ ${KIT.clericSmiteTargets + st.smiteTargets} ตัวหน้า ดาเมจ/ตัว`, value: hitText(st, CLERIC_KIT.smite * pow * (1 + st.smiteMul), true) })
       if (st.judge > 0) out.push({ label: `พิพากษา (ทุก ${KIT.clericJudgeEvery} ครั้ง)`, value: hitText(st, KIT.clericJudge * pow * (1 + st.smiteMul), true) })
       break
     case 'thief':
