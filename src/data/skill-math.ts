@@ -16,7 +16,9 @@ export const hitBase = (st: Stats, magic: boolean) => (magic ? magicBase(st) : p
 export const KIT = {
   archerAuto: 0.9, archerAutoShots: 2, archerVolleyShots: 3, archerUlt: 5,
   mageFire: 2, mageFireStacks: 3, mageIce: 1.6, mageIceChill: 3, mageLightHits: 6, mageLightLo: 0.3, mageLightHi: 1.2,
-  clericHealBelow: 0.75, clericSmiteTargets: 2, clericJudge: 2.2, clericJudgeEvery: 3, clericUltSpears: 2,
+  clericHealBelow: 0.75, clericSmiteTargets: 2, clericJudge: 2.2, clericJudgeEvery: 3,
+  // v58 Priest Ult web (Q 2026-11-04), linear per level: พรคุ้มครอง Lv5 = ult P.ATK +50% · พรอุ่นไอ Lv5 = counter +12.5%, Holy Light 3 -> 8 · เกราะแสง Lv3 = 6% shield per spear volley
+  clericUltAtkLv: 0.1, clericWarmCounterLv: 0.025, clericWarmLightLv: 1, clericSpearShieldLv: 0.02,
   spearBase: 0.3, spearMax: 8,
   thiefAuto: 1.6, thiefAutoPoison: 3, thiefUlt: 0.7, thiefUltHits: 4, thiefUltDodge: 2,
 }
@@ -32,7 +34,7 @@ export const S2N = {
   mshieldTake: (lv: number) => 0.4 + 0.05 * lv, mshieldTurns: (star: boolean) => (star ? 5 : 3),
   novaMul: (lv: number) => 0.8 + 0.15 * lv, novaChill: (star: boolean) => 2 + (star ? 1 : 0), novaPush: 15,
   arcaneMul: (lv: number) => 0.6 + 0.1 * lv, arcaneHits: (star: boolean) => 3 + (star ? 2 : 0),
-  renewHeal: (lv: number) => 0.06 + 0.01 * lv, renewTurns: (star: boolean) => (star ? 6 : 4),
+  renewHeal: (lv: number) => 0.3 + 0.05 * lv, renewTurns: (star: boolean) => (star ? 6 : 4), // heal x M.ATK per turn (Q 2026-11-04: Priest heals scale with M.ATK; was 6% +1%/lv max HP)
   blessShield: (lv: number) => 0.2 + 0.04 * lv,
   spearPlus: (lv: number) => 0.03 * lv, spearCount: (star: boolean) => (star ? 4 : 2), // หอกคม: +10%/lv of the 0.3x base
   smokeHeal: (lv: number) => 0.03 * lv, smokeDodges: (star: boolean) => (star ? 2 : 1),
@@ -52,6 +54,10 @@ export const ultCooldown = (job: JobDef, st: Stats) => {
 export const s2Cooldown = (k: Skill2Def, st: Stats) => Math.max(1, k.cd - (k.id === 'cl_bless' && st.s2Star ? 1 : 0))
 /** Light spear multiplier x M.ATK (Skill 2 หอกคม adds on top at run start). */
 export const spearMul = (st: Stats, s2?: Skill2Def) => KIT.spearBase + st.spearMul + (s2?.id === 'cl_spear' ? S2N.spearPlus(st.s2Lv) : 0)
+/** v58 Priest: ult smash multiplier x P.ATK (before ultAmp / pskill), Holy Light count, basic smash x P.ATK. */
+export const clericUltSmash = (st: Stats) => CLERIC_KIT.ultAtk * (1 + st.clUltAtk)
+export const clericUltLights = (st: Stats) => CLERIC_KIT.ultLights + st.clUltLights
+export const clericBasic = () => CLERIC_KIT.basic
 export const manaPerTurn = (st: Stats, mul: number) => st.resRegen * mul * (1 - st.resRegenCut)
 
 // ---------- detail rows for the skill screen ----------
@@ -83,7 +89,8 @@ export function autoInfo(jobId: JobId, st: Stats): InfoRow[] {
       if (st.mgOverflow > 0) out.push({ label: 'ตอน Mana ≥ 90% (พลังล้น)', value: hitText(st, MAGE_SPELL.autoMul * pow * st.mgOverflow, true) })
       break
     case 'cleric':
-      out.push({ label: `ฮีล (HP < ${pct(KIT.clericHealBelow - st.healAt)})`, value: `${heal(st, st.maxHp * CLERIC_KIT.heal * pow)} HP` })
+      out.push({ label: 'ตีปกติ ทุบประชิด (P.ATK)', value: hitText(st, clericBasic(), false) })
+      out.push({ label: `ฮีล (HP < ${pct(KIT.clericHealBelow - st.healAt)})`, value: `${heal(st, st.matk * CLERIC_KIT.heal * pow)} HP` })
       out.push({ label: `แสง ${KIT.clericSmiteTargets + st.smiteTargets} ตัวหน้า ดาเมจ/ตัว`, value: hitText(st, CLERIC_KIT.smite * pow * (1 + st.smiteMul), true) })
       if (st.judge > 0) out.push({ label: `พิพากษา (ทุก ${KIT.clericJudgeEvery} ครั้ง)`, value: hitText(st, KIT.clericJudge * pow * (1 + st.smiteMul), true) })
       break
@@ -120,9 +127,10 @@ export function ultInfo(jobId: JobId, st: Stats): InfoRow[] {
       break
     }
     case 'cleric':
-      out.push({ label: 'โล่', value: `${shield(st, st.maxHp * CLERIC_KIT.ultShield * pow)}` })
-      out.push({ label: 'ฮีล', value: `${heal(st, st.maxHp * CLERIC_KIT.ultHeal * pow)} HP` })
-      out.push({ label: `หอกแสง ${KIT.clericUltSpears} เล่ม ดาเมจ/ตัว`, value: hitText(st, spearMul(st), true) })
+      out.push({ label: 'ทุบทุกตัว (P.ATK)', value: hitText(st, clericUltSmash(st) * hitPow * (1 + st.pskill), false) })
+      out.push({ label: `Holy Light ${clericUltLights(st)} ลูก ตัวสุ่ม (M.ATK)`, value: hitText(st, CLERIC_KIT.ultLight * hitPow, true) })
+      out.push({ label: `โล่ ${CLERIC_KIT.ultShieldTurns} เทิร์น`, value: `${shield(st, st.maxHp * CLERIC_KIT.ultShield)} (รวมไม่เกิน ${r(st.maxHp * CLERIC_KIT.shieldCap)})` })
+      if (st.clPurify > 0) out.push({ label: 'ไฟชำระ: ล้างดีบัฟ + ฮีล (M.ATK)', value: `${heal(st, st.matk * CLERIC_KIT.purifyHeal)} HP` })
       if (st.ultHoly > 0) out.push({ label: 'แสงลงทัณฑ์/ตัว', value: hitText(st, st.ultHoly, true) })
       break
     case 'thief':
@@ -149,8 +157,8 @@ export function skill2Info(k: Skill2Def, st: Stats): InfoRow[] {
     case 'mg_mshield': add('Mana รับดาเมจแทน', `${pct(S2N.mshieldTake(lv))} · ${S2N.mshieldTurns(star)} เทิร์น`); break
     case 'mg_nova': add('ดาเมจ/ตัว (ทุกตัว)', hitText(st, S2N.novaMul(lv), true)); add('ช้า', `${S2N.novaChill(star)} เทิร์น${star ? ` · ผลักเทิร์น ${S2N.novaPush}` : ''}`); break
     case 'mg_arcane': add(`${S2N.arcaneHits(star)} ฮิต ดาเมจ/ฮิต`, hitText(st, S2N.arcaneMul(lv), true)); break
-    case 'cl_renew': { const turns = S2N.renewTurns(star), h = heal(st, st.maxHp * S2N.renewHeal(lv)); add('ฮีล/เทิร์น', `${h} HP × ${turns} เทิร์น = ${h * turns} HP`); break }
-    case 'cl_bless': add('โล่', `${shield(st, st.maxHp * S2N.blessShield(lv))}`); break
+    case 'cl_renew': { const turns = S2N.renewTurns(star), h = heal(st, st.matk * S2N.renewHeal(lv)); add('ฮีล/เทิร์น', `${h} HP × ${turns} เทิร์น = ${h * turns} HP`); break }
+    case 'cl_bless': add(`โล่ ${CLERIC_KIT.shieldTurns} เทิร์น`, `${shield(st, Math.min(st.maxHp * CLERIC_KIT.shieldCap, st.maxHp * S2N.blessShield(lv)))}`); break
     case 'cl_spear': add(`หอกแสง ${S2N.spearCount(star)} เล่ม ดาเมจ/ตัว`, hitText(st, spearMul(st, k), true)); break
     case 'th_smoke': add('หลบแน่นอน', `${S2N.smokeDodges(star)} ครั้ง`); if (lv) add('ฟื้น HP', `${heal(st, st.maxHp * S2N.smokeHeal(lv))}`); break
     case 'th_pick': add('แทงตัวหน้า', hitText(st, S2N.pickMul(star), false)); add('คืน Energy', `${S2N.pickRes(lv)}`); if (star) add('พิษ', `+${S2N.pickPoison} stack`); break

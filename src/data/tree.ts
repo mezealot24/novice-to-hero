@@ -2,6 +2,7 @@
 // + 1 shared node). Points = the same skill points as the class skills. Node N of a branch opens after
 // (N-1)*2 points in that branch and its parent node; a capstone (tier 4) needs 6, max 2 capstones per class.
 // Nodes only add stats; BattleScene reads the stats (thorns, lockOn, fireSpread...). Ids are save data: never rename.
+import { KIT } from './skill-math'
 import type { Stats } from './game-data'
 import type { ClassTree, TalentDef, TreeBranch, TreeNode } from './tree-types'
 export * from './tree-types'
@@ -36,7 +37,9 @@ for (const c of CLASS_TREES) {
     const sk = line === 's1' ? J.auto : J.ult, label = line === 's1' ? 'ทักษะ 1' : 'Ult'
     webBranches.push({ id: `${job}_${line}`, job, name: label, icon: sk.icon, blurb: sk.name, line })
     webNodes.push({ id: powId(job, line), branch: `${job}_${line}`, tier: 0, icon: sk.icon, name: `${sk.name}`, max: TREE_RULES.powMax, kind: 'pow',
-      desc: (lv) => `${label} แรง +${Math.round(lv * TREE_RULES.powPer * 100)}%`, mod: (lv) => (line === 's1' ? { s1Pow: TREE_RULES.powPer * lv } : { ultPow: TREE_RULES.powPer * lv }) })
+      ...(job === 'cleric' && line === 'ult' // v58 Q: Priest's พรคุ้มครอง node = ult P.ATK +10%/lv (Lv5 +50%)
+        ? { desc: (lv: number) => `Ult ทุบแรง +${Math.round(lv * KIT.clericUltAtkLv * 100)}% P.ATK`, mod: (lv: number) => ({ clUltAtk: KIT.clericUltAtkLv * lv }) }
+        : { desc: (lv: number) => `${label} แรง +${Math.round(lv * TREE_RULES.powPer * 100)}%`, mod: (lv: number) => (line === 's1' ? { s1Pow: TREE_RULES.powPer * lv } : { ultPow: TREE_RULES.powPer * lv }) }) })
   }
   webBranches.push({ id: `${job}_s2`, job, name: 'ทักษะ 2', icon: '🔀', blurb: 'เลือก 1 จาก 3', line: 's2' })
   const gate = c.s2Gate

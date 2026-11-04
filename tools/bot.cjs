@@ -1,5 +1,5 @@
 // usage: node bot.cjs <html> <job> <runs>   MODE=tower TOWER_MAX=15 (climb then leave) · MODE=daily SEED=yyyymmdd · START=n tower start floor · TMO=ms per run
-// env: GEAR=1 class gear · D=2 dungeon 3 (Lv 10 hero, dungeon-2 gear) · D=4 Lv 15 hero for dungeon 4 · D=5 Lv 20 + หัวใจไฮดรา for dungeon 5 · DUN=index · RELIC=id force a pick
+// env: ALLOC='{"str":8,"int":7}' overrides the class stat spread · GEAR=1 class gear · D=2 dungeon 3 (Lv 10 hero, dungeon-2 gear) · D=4 Lv 15 hero for dungeon 4 · D=5 Lv 20 + หัวใจไฮดรา for dungeon 5 · DUN=index · RELIC=id force a pick
 const { chromium } = require('playwright')
 const [html, job, runsArg] = process.argv.slice(2)
 const RUNS = +runsArg || 8
@@ -7,6 +7,7 @@ const alloc = {
   swordsman: { str: 8, vit: 7 }, archer: { dex: 8, agi: 7 }, mage: { int: 8, wis: 7 },
   cleric: { wis: 8, int: 7 }, thief: process.env.TH_LUK ? { agi: 8, luk: 7 } : { agi: 8, str: 7 }, // Q 2026-11-03: Thief damage comes from STR
 }[job]
+if (process.env.ALLOC) { for (const k in alloc) delete alloc[k]; Object.assign(alloc, JSON.parse(process.env.ALLOC)) } // e.g. ALLOC='{"str":8,"int":7}'
 const D = +(process.env.D || 1)
 const stats = { str: 1, vit: 1, wis: 1, dex: 1, int: 1, luk: 1, agi: 1 }
 for (const k in alloc) stats[k] += alloc[k]

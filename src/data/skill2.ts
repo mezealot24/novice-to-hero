@@ -4,6 +4,7 @@
 // ready, the resource covers the cost and its condition holds. BattleScene.castSkill2() runs the effect.
 // Its "+" node (max 3) sets Stats.s2Lv, its ★ node sets Stats.s2Star (one Skill 2 per class, so the keys are shared).
 import type { JobId } from './jobs'
+import { S2N } from './skill-math'
 
 export type Skill2Id =
   | 'sw_guard' | 'sw_blood' | 'sw_taunt'
@@ -46,9 +47,9 @@ export const SKILL2: Skill2Def[] = [
   s('mg_arcane', 'mage', '✨', 'ลูกศรเวท', 15, 2, 'เป้าเดียว (บอสก่อน) 3 ฮิต ฮิตละ 0.6x M.ATK',
     { icon: '➶', name: 'ศรคม', desc: (lv) => `ฮิตละ ${(0.6 + lv * 0.1).toFixed(1)}x` }, { icon: '🌠', name: 'ฝนดาว', desc: 'ลูกศรเวท +2 ฮิต' }),
   // ✨ Cleric (Mana)
-  s('cl_renew', 'cleric', '🌿', 'ฟื้นฟู', 40, 5, 'ฮีล 6% HP สูงสุด ทุกเทิร์น 4 เทิร์น (ร่ายเมื่อ HP ไม่เต็ม)', // v37 Q: easier to cast, costs more
-    { icon: '🍃', name: 'ฟื้นฟูลึก', desc: (lv) => `ฮีล ${6 + lv}%/เทิร์น` }, { icon: '🌳', name: 'ต้นไม้ชีวิต', desc: 'ฟื้นฟูนาน 6 เทิร์น' }),
-  s('cl_bless', 'cleric', '🔆', 'โล่แสง', 30, 4, 'โล่ 20% HP สูงสุด',
+  s('cl_renew', 'cleric', '🌿', 'ฟื้นฟู', 40, 5, `ฮีล ${S2N.renewHeal(0).toFixed(2)}x M.ATK ทุกเทิร์น 4 เทิร์น (ร่ายเมื่อ HP ไม่เต็ม)`, // v37 Q: easier to cast, costs more
+    { icon: '🍃', name: 'ฟื้นฟูลึก', desc: (lv) => `ฮีล ${S2N.renewHeal(lv).toFixed(2)}x M.ATK/เทิร์น` }, { icon: '🌳', name: 'ต้นไม้ชีวิต', desc: 'ฟื้นฟูนาน 6 เทิร์น' }),
+  s('cl_bless', 'cleric', '🔆', 'โล่แสง', 30, 4, 'โล่ 20% HP สูงสุด (อยู่ 3 เทิร์น)',
     { icon: '🔰', name: 'โล่หนา', desc: (lv) => `โล่ ${20 + lv * 4}% HP` }, { icon: '⏱️', name: 'พรไว', desc: 'คูลดาวน์ โล่แสง −1 เทิร์น' }),
   s('cl_spear', 'cleric', '🔱', 'หอกแสง', 20, 3, 'เรียกหอกแสง 2 เล่ม (ยิงทุกตัวตอนจบเทิร์น)',
     { icon: '⚜️', name: 'หอกคม', desc: (lv) => `หอกแรง +${lv * 10}%` }, { icon: '🌟', name: 'หอกสวรรค์', desc: 'เรียกหอก 4 เล่ม' }),
