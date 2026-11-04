@@ -1,4 +1,5 @@
-// usage: node bot.cjs <html> <job> <runs>   env: GEAR=1 class gear · D=2 dungeon 3 (Lv 10 hero, dungeon-2 gear) · D=4 Lv 15 hero for dungeon 4 · D=5 Lv 20 + หัวใจไฮดรา for dungeon 5 · DUN=index · RELIC=id force a pick
+// usage: node bot.cjs <html> <job> <runs>   MODE=tower TOWER_MAX=15 (climb then leave) · MODE=daily SEED=yyyymmdd · TMO=ms per run
+// env: GEAR=1 class gear · D=2 dungeon 3 (Lv 10 hero, dungeon-2 gear) · D=4 Lv 15 hero for dungeon 4 · D=5 Lv 20 + หัวใจไฮดรา for dungeon 5 · DUN=index · RELIC=id force a pick
 const { chromium } = require('playwright')
 const [html, job, runsArg] = process.argv.slice(2)
 const RUNS = +runsArg || 8
@@ -65,24 +66,26 @@ if (process.env.BROKEN) save.broken = Object.values(save.equipped)
 ;(async () => {
   const b = await chromium.launch()
   const p = await b.newPage()
-  p.on('pageerror', (e) => { if (process.env.DEBUG) console.error('pageerror', e.message) })
+  let errors = 0
+  p.on('pageerror', (e) => { errors++; if (process.env.DEBUG || process.env.MODE) console.error('pageerror', e.message) })
   await p.addInitScript((s) => { localStorage.setItem('novice-to-hero.save.v1', JSON.stringify(s)) }, save)
   await p.goto('file://' + html)
   await p.waitForFunction(() => window.__nth && window.__nth.scene.isActive('title'), null, { timeout: 30000 })
   await p.waitForFunction(() => window.__nth && window.__nth.scene.isActive('title'), null, { timeout: 30000 })
   const res = []
   for (let r = 0; r < RUNS; r++) {
-    res.push(await p.evaluate(async ([first, RELIC, D, DUN, HARD]) => {
+    res.push(await p.evaluate(async ([first, RELIC, D, DUN, HARD, MODE, TOWER_MAX, SEED, TMO]) => {
       const g = window.__nth, R = g.renderer
       R.preRender = () => {}; R.render = () => {}; R.postRender = () => {} // test only: skip drawing
-      if (first) { g.scene.getScenes(true).forEach((s) => s.scene.stop()); g.scene.start('battle', { d: DUN, hard: !!HARD }) }
+      if (first) { g.scene.getScenes(true).forEach((s) => s.scene.stop()); g.scene.start('battle', MODE ? { mode: MODE, ...(SEED ? { seed: SEED } : {}) } : { d: DUN, hard: !!HARD }) }
       while (!window.__battle || !window.__battle.st) await new Promise((r) => setTimeout(r, 30))
       const B = window.__battle
       if (RELIC) B.testRelic = RELIC
+      if (MODE === 'tower') B.autoTower = TOWER_MAX // climb to this floor, then leave
       if (!first) B.startRun()
       await new Promise((r) => setTimeout(r, 60))
       const t0 = Date.now()
-      while (!B.over && Date.now() - t0 < 120000) {
+      while (!B.over && Date.now() - t0 < TMO) {
         B.time.timeScale = 15; B.tweens.timeScale = 15
         if (B.pendingPick) B.pendingPick(B.miniWon && !B.relic && RELIC ? 0 : Math.floor(Math.random() * 4)) // v48: 4 picks (old builds clamp)
         const boss = B.alive().find((m) => m.def.ai === 'boss')
@@ -92,13 +95,14 @@ if (process.env.BROKEN) save.broken = Object.values(save.equipped)
         await new Promise((r) => setTimeout(r, 15))
       }
       const bm = B.mons.find((m) => m.def.ai === 'boss')
-      return { mats: Object.values(B.runMats || {}).reduce((a, n) => a + n, 0), maxHp: Math.round(B.st.maxHp), minHp: B.minHpPct, mini: B.miniKind, miniWon: B.miniWon, relic: B.relic, parry: B.parryCount, frz: B.freezeCount, tl: (B.turnsLog || []).join('/'), win: B.over && B.hp > 0 && !B.timedOut, room: B.room, hp: Math.round(B.hp), bossHp: bm ? Math.max(0, Math.round(bm.hp)) : null, breaks: B.breakCount ?? 0, revived: B.revivedCount ?? 0, ctr: B.counterCount ?? 0, combo: B.comboCount ?? 0, el: B.job.id === 'mage' ? B.element : '', s2: B.s2Count ?? 0, to: !!B.timedOut, dbf: B.debuffCount ?? 0, peak: B.peakTurns ?? 0, ms: Date.now() - t0 }
-    }, [r === 0, process.env.RELIC || '', D,  process.env.DUN ? +process.env.DUN : D >= 4 ? D - 1 : D, !!process.env.HARD]))
+      return { floor: B.towerFloor, mode: B.run.modeId, where: B.run.where(B.room), muts: B.run.mutators.map((m) => m.id).join('+'), mats: Object.values(B.runMats || {}).reduce((a, n) => a + n, 0), maxHp: Math.round(B.st.maxHp), minHp: B.minHpPct, mini: B.miniKind, miniWon: B.miniWon, relic: B.relic, parry: B.parryCount, frz: B.freezeCount, tl: (B.turnsLog || []).join('/'), win: B.over && B.hp > 0 && !B.timedOut, room: B.room, hp: Math.round(B.hp), bossHp: bm ? Math.max(0, Math.round(bm.hp)) : null, breaks: B.breakCount ?? 0, revived: B.revivedCount ?? 0, ctr: B.counterCount ?? 0, combo: B.comboCount ?? 0, el: B.job.id === 'mage' ? B.element : '', s2: B.s2Count ?? 0, to: !!B.timedOut, dbf: B.debuffCount ?? 0, peak: B.peakTurns ?? 0, ms: Date.now() - t0 }
+    }, [r === 0, process.env.RELIC || '', D,  process.env.DUN ? +process.env.DUN : D >= 4 ? D - 1 : D, !!process.env.HARD, process.env.MODE || '', +(process.env.TOWER_MAX || 15), +(process.env.SEED || 0), +(process.env.TMO || 120000)]))
   }
   if (process.env.DEBUG) console.log(JSON.stringify(res))
   const wins = res.filter((x) => x.win).length
   const minis = {}; for (const x of res) if (x.mini) { const k = x.mini; minis[k] = minis[k] || [0, 0, 0]; minis[k][0]++; if (x.miniWon) minis[k][1]++; if (x.win) minis[k][2]++ }
   const relics = {}; for (const x of res) if (x.relic) { relics[x.relic] = relics[x.relic] || [0, 0]; relics[x.relic][0]++; if (x.win) relics[x.relic][1]++ }
+  if (process.env.MODE) console.log(JSON.stringify({ job, mode: process.env.MODE, seed: process.env.SEED, wins, runs: RUNS, floors: res.map((x) => x.floor).join(','), at: res.filter((x) => !x.win).map((x) => x.where + (x.to ? ' (หมดเทิร์น)' : '')), muts: res[0]?.muts, minHp: Math.round(100 * res.reduce((a, x) => a + x.minHp, 0) / res.length), errors }))
   console.log(JSON.stringify({ job, wins, runs: RUNS, minHp: Math.round(100 * res.reduce((a, x) => a + x.minHp, 0) / res.length), mats: res.map((x) => x.mats).join(','), ...(D >= 2 ? { minis, relics } : {}), deaths: res.filter((x) => !x.win).map((x) => `r${x.room + 1}[${x.maxHp}]` + (x.bossHp != null ? `(boss ${x.bossHp})` : '')), breaks: res.reduce((a, x) => a + x.breaks, 0), revives: res.reduce((a, x) => a + x.revived, 0), ctr: res.reduce((a, x) => a + (x.ctr || 0), 0), combo: res.reduce((a, x) => a + (x.combo || 0), 0), timeouts: res.filter((x) => x.to).length, debuffs: res.reduce((a, x) => a + (x.dbf || 0), 0), peakTurns: res.map((x) => x.peak).join(','), s2casts: res.reduce((a, x) => a + (x.s2 || 0), 0), els: res.map((x) => (x.el ? x.el[0] : '') + (x.win ? 'W' : 'L')).join(' ') }))
   await b.close()
 })().catch((e) => { console.error(job, e.message); process.exit(1) })

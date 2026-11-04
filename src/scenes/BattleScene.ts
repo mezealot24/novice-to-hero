@@ -11,6 +11,7 @@ import { addCard, addMat, addXp, persist, save } from '../save'
 import { MAT_RULES, matName, matOf } from '../data/materials'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
+import { buildRun, MODES, towerFloorLoot, type ModeArgs, type RunConfig, type RunRoom } from '../data/modes'
 import { button, fullscreenButton, go, type Btn } from '../ui'
 
 // Side-scroll, turn-based (Capybara Go-like): the hero walks right, meets a group, and everyone
@@ -147,9 +148,21 @@ export class BattleScene extends Phaser.Scene {
   private sayN = 0
   private fortuneTxt?: Phaser.GameObjects.Text
 
-  init(data?: { d?: number; hard?: boolean }) {
-    this.dg = DUNGEONS[data?.d ?? 0] ?? DUNGEONS[0]
-    this.hard = !!data?.hard
+  /** Game mode of this run (data/modes.ts, design/game-modes-v1.md): rooms, scaling, mutators, HUD text. */
+  run!: RunConfig
+  private modeArgs: ModeArgs = {}
+  /** Endless Tower: floors cleared this run, the floor bank (kept in full on leaving, half on falling), bot hook: auto-climb to this floor then leave. */
+  towerFloor = 0
+  private bank: { zeny: number; mats: Record<string, number> } = { zeny: 0, mats: {} }
+  private leftTower = false
+  autoTower?: number
+  private sky?: Phaser.GameObjects.Graphics
+
+  init(data?: ModeArgs) {
+    this.modeArgs = { ...(data ?? {}) }
+    this.run = buildRun(save(), this.modeArgs)
+    this.dg = this.run.themeAt(0)
+    this.hard = this.run.modeId === 'hard'
     this.mons = []; this.queueIcons = []; this.overlay = undefined; this.paused = false; this.over = false
     this.time.paused = false
   }
@@ -180,15 +193,27 @@ export class BattleScene extends Phaser.Scene {
       }
       g.generateTexture('bg_mid', 480, 160); g.destroy()
     }
-    const sky = this.add.graphics().setDepth(-100)
-    const [top, bottom] = this.dg.sky
-    sky.fillGradientStyle(top, top, bottom, bottom, 1).fillRect(0, 0, W, GROUND - 40)
+    this.sky = this.add.graphics().setDepth(-100)
+    this.paintSky()
     this.far = this.add.tileSprite(0, GROUND - 230, W, 200, 'bg_far').setOrigin(0).setDepth(-90).setAlpha(0.9).setTint(this.dg.hills)
     this.mid = this.add.tileSprite(0, GROUND - 170, W, 160, 'bg_mid').setOrigin(0).setDepth(-80).setTint(this.dg.hills)
     this.ground = this.add.tileSprite(0, GROUND - 20, W, H - GROUND + 20, 'grass0').setOrigin(0).setDepth(-70)
     if (this.dg.tier > 1) this.ground.setTint(0x9a90c0)
     this.add.rectangle(0, GROUND - 22, W, 6, 0x3d6e4c).setOrigin(0).setDepth(-69)
   }
+
+  private paintSky() {
+    const [top, bottom] = this.dg.sky
+    this.sky?.clear().fillGradientStyle(top, top, bottom, bottom, 1).fillRect(0, 0, W, GROUND - 40)
+  }
+  /** Tower: a new theme every 10 floors repaints the sky and hills. */
+  private retheme(dg: DungeonDef) {
+    if (dg === this.dg) return
+    this.dg = dg
+    this.paintSky(); this.far.setTint(dg.hills); this.mid.setTint(dg.hills)
+    if (dg.tier > 1) this.ground.setTint(0x9a90c0)
+  }
+  private roomDef(i: number): RunRoom | null { return this.run.roomAt(i) }
 
   private scroll(px: number) {
     this.far.tilePositionX += px * 0.15
@@ -203,7 +228,12 @@ export class BattleScene extends Phaser.Scene {
     this.overlay?.destroy(); this.overlay = undefined
     this.mons.forEach((m) => this.removeMon(m)); this.mons = []
     const s = save()
-    this.st = heroStats(s)
+    this.run = buildRun(s, this.modeArgs) // a retry rebuilds the run (new tower floors, same daily seed)
+    this.retheme(this.run.themeAt(0))
+    const mut = this.run.mut
+    this.st = heroStats(mut.lukMul !== 1 ? { ...s, stats: { ...s.stats, luk: Math.round(s.stats.luk * mut.lukMul) } } : s) // mutator ดวงพุ่ง
+    this.st.maxHp = Math.round(this.st.maxHp * mut.heroMul.maxHp); this.st.atk *= mut.heroMul.atk; this.st.matk *= mut.heroMul.matk
+    this.towerFloor = 0; this.bank = { zeny: 0, mats: {} }; this.leftTower = false
     this.hardGap = this.hard ? hardGap(this.dg.id, s.baseLevel) : 0
     this.hp = this.st.maxHp; this.smashCdLeft = 0; this.heroGauge = 0; this.zapCount = 0; this.emergencyUsed = false; this.firstOffer = true
     this.job = JOBS[s.job ?? 'novice']
@@ -222,7 +252,7 @@ export class BattleScene extends Phaser.Scene {
     this.minHpPct = 1; this.relic = null; this.miniKind = null; this.miniWon = false; this.parryCount = 0; this.freezeCount = 0; this.harvest = 0; this.enemyAttacks = 0
     this.hx = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0 }; this.debuffCount = 0; this.resistCount = 0
     this.flags = newFlags(); this.hpFloor = 0; this.starsOn = false
-    const rooms = this.dg.rooms
+    if (Object.keys(mut.hero).length) this.applyMod(mut.hero)
     this.runElement = null
     if (this.job.id === 'mage') {
       const els = Object.keys(ELEMENTS) as Element[]
@@ -232,21 +262,34 @@ export class BattleScene extends Phaser.Scene {
       this.element = els[c]
       this.runElement = this.element
     }
-    for (let i = 0; i < rooms.length; i++) {
+    if (this.run.mutators.length) { // daily: show the day's rules before the first wave
+      this.banner(`🎲 กฎวันนี้: ${this.run.mutators.map((m) => `${m.icon} ${m.name}`).join(' · ')}`, this.run.mutators.map((m) => m.desc).join(' · '))
+      await this.wait(1600)
+      if (id !== this.runId) return
+    }
+    for (let i = 0; ; i++) {
+      const room = this.roomDef(i)
+      if (!room) break
       this.room = i
+      this.retheme(this.run.themeAt(i))
       await this.walk(i === 0 ? 700 : 1100)
       if (id !== this.runId) return
       await this.spawnRoom(i)
       const won = await this.fight(id)
       if (id !== this.runId) return
       if (!won) { this.over = true; await this.wait(700); this.showGameOver(); return }
-      this.heal(this.st.maxHp * RULES.healOnClear)
+      this.heal(this.st.maxHp * RULES.healOnClear * this.run.mut.waveHeal)
       if (this.flags.eliteReward) this.eliteReward()
       this.gainXp(RULES.xpOnClear); this.runXp += RULES.xpOnClear
       await this.levelUps()
       // the 1v1 mini boss gives a top-tier skill instead of an event; other waves (not the boss) lead to one event
-      if (rooms[i].mini) { this.miniWon = true; await this.offerRelic(); if (id !== this.runId) return }
-      else if (i < rooms.length - 1) { await this.postWaveEvent(); if (id !== this.runId) return }
+      if (room.mini) { this.miniWon = true; if (this.run.relicAfter(room, !!this.relic)) { await this.offerRelic(); if (id !== this.runId) return } }
+      for (let e = this.run.eventsAfter(i, room); e > 0; e--) { await this.postWaveEvent(); if (id !== this.runId) return }
+      if (this.run.endless && room.floorEnd && !(await this.floorCleared(room.floor ?? i + 1))) {
+        if (id !== this.runId) return
+        this.over = true; sfx.win(); await this.wait(400); this.showTowerLeave(); return
+      }
+      if (id !== this.runId) return
     }
     this.over = true
     sfx.win()
@@ -268,7 +311,7 @@ export class BattleScene extends Phaser.Scene {
   private async spawnRoom(i: number) {
     if (this.job.resource === 'rage') this.res = Math.min(RES_RULES.rageMax, this.st.startRage) // talent: เลือดร้อน
     else if (this.st.startRage > 0) this.gainRes(this.st.startRage) // Swordsman on Mana: the same talent refills Mana at wave start
-    const room = this.dg.rooms[i]
+    const room = this.roomDef(i)!
     const kinds: MonsterKind[] = []
     this.roomStart = this.mons.length
     if (room.mini) {
@@ -304,7 +347,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private addMon(kind: MonsterKind, slot: number, gauge?: number) {
-    const def = this.hardDef(MONSTERS[kind])
+    const def = this.hardDef(this.modeDef(MONSTERS[kind]))
     const big = def.ai === 'boss'
     const x = big ? 720 : SLOT_X[slot]
     const y = GROUND + (slot % 2 ? 14 : -4)
@@ -312,15 +355,29 @@ export class BattleScene extends Phaser.Scene {
     const spr = this.add.image(W + 80, y, def.tex).setOrigin(0.5, 1).setScale(kind === 'minijellop' ? 1.1 : big ? 1.6 : 1.5).setDepth(y)
     if (FACES_RIGHT.includes(kind)) spr.setFlipX(true)
     if (this.hard) spr.setTint(HARD.tint)
-    const affix = this.hard && def.ai === 'boss' ? this.lastAffix : undefined
+    else if (this.run.tint) spr.setTint(this.run.tint)
+    else if (this.run.affix && def.ai === 'boss') spr.setTint(HARD.tint)
+    const affix = (this.hard || this.run.affix) && def.ai === 'boss' ? this.lastAffix : undefined
     const m: Mon = { kind, def, spr, shadow, hp: def.hp, gauge: gauge ?? Phaser.Math.Between(0, 40), dead: false, slot, turns: 0, charging: false, summoned: false, burnStacks: 0, burnStackTurns: 0, chill: 0, frozen: false, burn: 0, burnTurns: 0, poison: 0, poisonDmg: 0, parry: false, ice: 0, iceChance: 0, iced: false, hell: 0, harvestMark: 0,
       shield: 0, atkUp: 0, atkUpTurns: 0, phase: 0, speedMul: 1, dmgMul: 1, reflect: def.reflect ?? 0, absorb: def.absorb ?? 0, stored: 0, chargeEvery: def.chargeEvery ?? BATTLE.slamEvery, skills: def.skills ?? [], onHit: def.onHit, slamFx: def.slamFx, revived: false, weakTurns: 0, weakPct: 0, affix }
     if (affix) m.speedMul = this.lastSpeed
+    m.speedMul *= this.modeSpeed
     if (affix) this.time.delayedCall(700, () => this.callout(`🔥 ${def.name}: ${affix}`, W / 2, 205))
     this.mons.push(m)
     this.tweens.add({ targets: [spr, shadow], x, duration: 600, ease: 'Quad.easeOut', delay: slot * 90 })
     return m
   }
+
+  /** Tower / daily (RunConfig.scale): level + floor + mutator multipliers; tower bosses also roll the hard-mode affixes. */
+  private modeDef(def: MonsterDef): MonsterDef {
+    const room = this.roomDef(this.room), k = room ? this.run.scale(room) : null
+    this.modeSpeed = k?.speed ?? 1
+    if (!k) return def
+    const out: MonsterDef = { ...def, hp: Math.round(def.hp * k.hp), dmg: def.dmg * k.atk, ...(def.matk ? { matk: def.matk * k.atk } : {}), hit: (def.hit ?? 15) + k.hit }
+    if (this.run.affix && !this.hard && def.ai === 'boss' && !def.passive) this.hardAffix(out)
+    return out
+  }
+  private modeSpeed = 1
 
   /** Hard mode: HP / ATK / M.ATK / Hit scaled by the hero's Base Lv over the dungeon's recLv. */
   private hardDef(def: MonsterDef): MonsterDef {
@@ -396,9 +453,10 @@ export class BattleScene extends Phaser.Scene {
 
   private async fight(id: number): Promise<boolean> {
     this.fightTurns = 0; this.timedOut = false
-    const room = this.dg.rooms[this.room]
+    const room = this.roomDef(this.room)
     this.turnLimit = room?.turnLimit ?? (room?.boss ? BATTLE.bossTurnLimit : BATTLE.turnLimit)
     if (this.hard) this.turnLimit = Math.round(this.turnLimit * HARD.turnMul)
+    if (room) this.turnLimit = Math.max(5, Math.round(this.turnLimit * this.run.turnMul(room))) // tower floors / daily ⏳ รีบเร่ง
     if (this.relic === 'iceage') this.castIceAge()
     if (this.relic === 'aegis') { // โล่อมตะ: shield at every fight start (tops up, never stacks)
       const want = Math.round(this.st.maxHp * RELIC_RULES.aegis.shield * (1 + this.st.shieldAmp))
@@ -1432,6 +1490,7 @@ export class BattleScene extends Phaser.Scene {
   private heal(n: number, quiet = false) {
     const before = this.hp
     if (this.hx.burn > 0) n *= 1 - BATTLE.burnHealCut // burning: healing on the hero is cut
+    n *= this.run.mut.healMul // daily mutator แผลเรื้อรัง
     const want = Math.ceil(this.hp + n * (1 + this.st.healAmp))
     if (this.st.overhealShield > 0 && want > this.st.maxHp) this.shield = Math.min(Math.ceil(this.st.maxHp * 0.5), this.shield + want - this.st.maxHp) // tree: "ไฟชำระ" (cap 50% max HP)
     this.hp = Math.min(this.st.maxHp, want)
@@ -1571,7 +1630,7 @@ export class BattleScene extends Phaser.Scene {
       stat: (k: BaseStat) => totalBase(save())[k],
       hp: () => this.hp,
       zeny: () => this.zeny,
-      nextIsWave: () => { const r = this.dg.rooms[this.room + 1]; return !!r && !r.mini && !r.boss },
+      nextIsWave: () => { const r = this.roomDef(this.room + 1); return !!r && !r.mini && !r.boss },
       miniPool: () => this.dg.rooms.find((r) => r.mini)?.miniPool ?? MINI_POOL,
       log: (id) => { this.eventLog.push(id) },
       forced: () => this.testEvent,
@@ -2090,7 +2149,7 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.pauseAll()
     this.panel([
       { text: 'พักก่อน', size: 40, color: '#f2b84b', bold: true },
-      { text: `${this.dg.name} · ด่าน ${this.room + 1}/${this.dg.rooms.length} · เก็บได้ ${this.zeny} zeny · ${this.kills} ตัว`, size: 19 },
+      { text: `${this.run.where(this.room)} · เก็บได้ ${this.zeny} zeny · ${this.kills} ตัว`, size: 19 },
       { text: 'กลับเมืองตอนนี้ได้ zeny กับ EXP ที่เก็บมาแล้วครบ ไม่หายค่ะ', size: 16, color: '#a9a6c7' },
     ], 'ลุยต่อ', () => { this.unpause() }, { label: 'กลับเมือง', onGo: () => { this.unpause(); this.runId++; this.settle(false); go(this, 'hub') } })
   }
@@ -2112,10 +2171,14 @@ export class BattleScene extends Phaser.Scene {
       this.zeny = Math.round(this.zeny * k); this.runXp = Math.round(this.runXp * k)
       for (const id of Object.keys(this.runMats)) this.runMats[id] = Math.ceil(this.runMats[id] * HARD.mats)
     }
+    this.zeny = Math.round(this.zeny * this.run.mut.zenyMul) // daily mutators
+    const mode = MODES[this.run.modeId].reward(s, this.run, { won, left: this.leftTower, floor: this.towerFloor, bank: this.bank })
+    if (mode) { this.zeny += mode.zeny; for (const [id, n] of Object.entries(mode.mats)) this.runMats[id] = (this.runMats[id] ?? 0) + n }
     s.zeny += this.zeny
-    if (this.dg.id === 'd1') s.bestRoom = Math.max(s.bestRoom, this.room + (won ? 1 : 0))
-    let gems = 0
-    if (won) {
+    if (this.run.modeId === 'dungeon' && this.dg.id === 'd1') s.bestRoom = Math.max(s.bestRoom, this.room + (won ? 1 : 0))
+    let gems = mode?.gems ?? 0
+    if (mode?.fortune) s.fortune = Math.min(FORTUNE.max, (s.fortune ?? 0) + mode.fortune)
+    if (won && !mode) {
       const by = this.hard ? (s.hardClearsBy ??= {}) : (s.clearsBy ??= { d1: s.clears })
       gems += (by[this.dg.id] ?? 0) === 0 ? FREE_GEMS.firstClear : FREE_GEMS.clear // first hard clear also pays the first-clear gems
       by[this.dg.id] = (by[this.dg.id] ?? 0) + 1
@@ -2127,7 +2190,7 @@ export class BattleScene extends Phaser.Scene {
     for (const id of this.runCards) addCard(s, id)
     for (const [id, n] of Object.entries(this.runMats)) addMat(s, id, n)
     persist()
-    const lines = [`+${this.zeny} zeny · +${this.runXp} EXP${s.gems > before ? ` · +${s.gems - before} เพชร` : ''}`]
+    const lines = [...(mode?.lines ?? []), `+${this.zeny} zeny · +${this.runXp} EXP${s.gems > before ? ` · +${s.gems - before} เพชร` : ''}`]
     if (ups.base) lines.push(`🎉 Base Lv ${s.baseLevel}! ได้แต้มสถานะเพิ่ม`)
     if (ups.job) lines.push(`✨ Job Lv ${s.jobLevel}! ได้แต้มสกิลเพิ่ม`)
     if (this.runCards.length) lines.push(`🃏 ได้การ์ด: ${this.runCards.map((id) => cardName(cardById(id)!)).join(', ')} (ใส่ได้ที่หน้าตัวละคร)`)
@@ -2147,17 +2210,43 @@ export class BattleScene extends Phaser.Scene {
     this.panel([
       { text: this.timedOut ? 'หมดเวลา!' : 'ล้มแล้ว...', size: 44, color: '#ff7a7a', bold: true },
       ...(this.timedOut ? [{ text: `เกิน ${this.turnLimit} เทิร์นในการสู้ครั้งนี้ · ลองเพิ่มดาเมจ (ATK, คริ, พรสายโจมตี) ดูนะคะ`, size: 16, color: '#ffb0b0' }] : []),
-      { text: `${this.dg.name} · ไปถึงด่าน ${this.room + 1}/${this.dg.rooms.length} · ล้มมอนไป ${this.kills} ตัว`, size: 19 },
+      { text: `${this.run.where(this.room)} · ล้มมอนไป ${this.kills} ตัว`, size: 19 },
       { text: rewards, size: 19, color: '#f2b84b' },
       { text: 'ของที่เก็บมาไม่หาย! ลองซื้ออาวุธหรือลงแต้มสถานะที่เมือง แล้วมาใหม่นะ', size: 16, color: '#a9a6c7' },
     ], 'ลองอีกครั้ง', () => { void this.startRun() }, { label: 'กลับเมือง', onGo: () => go(this, 'hub') })
+  }
+
+  /** Tower: bank this floor's loot, then climb on (true) or leave (false). */
+  private async floorCleared(f: number): Promise<boolean> {
+    this.towerFloor = f
+    const loot = towerFloorLoot(f, save().baseLevel)
+    this.bank.zeny += loot.zeny
+    for (const [id, n] of Object.entries(loot.mats)) this.bank.mats[id] = (this.bank.mats[id] ?? 0) + n
+    this.callout(`🗼 ผ่านชั้น ${f}! คลังรางวัล +${loot.zeny} zeny`, W / 2, 190)
+    await this.wait(500)
+    if (this.autoTower !== undefined) return f < this.autoTower // bot hook
+    const next = f + 1, kind = next % 10 === 0 ? ' · ⚔️ ดวลต่อเนื่อง' : next % 5 === 0 ? ' · 👹 บอส' : ''
+    const mats = Object.entries(this.bank.mats).map(([id, n]) => `${matName(id)} x${n}`).join(', ')
+    const c = await this.choose({ name: `ผ่านชั้น ${f} แล้ว!`, icon: '🗼', desc: `คลังรางวัลชั้น: ${this.bank.zeny} zeny${mats ? ` · ${mats}` : ''}\nออกตอนนี้ได้ครบ · ล้มชั้นถัดไปได้แค่ครึ่ง` },
+      [{ label: `⬆️ ขึ้นชั้น ${next}${kind}`, sub: 'มอนแกร่งขึ้นทุกชั้น' }, { label: '🏘️ กลับเมือง', sub: 'เก็บรางวัลชั้นครบ 100%' }])
+    return c === 0
+  }
+
+  private showTowerLeave() {
+    this.leftTower = true
+    const rewards = this.settle(true)
+    this.panel([
+      { text: `🗼 ไต่ได้ถึงชั้น ${this.towerFloor}!`, size: 44, color: '#f2b84b', bold: true },
+      { text: `${this.kills} ตัว · HP เหลือ ${this.hp} · build: ${this.buildText() || '-'} · Lv ${this.level}`, size: 17, color: '#a9a6c7' },
+      { text: rewards, size: 19, color: '#f2b84b' },
+    ], 'ไต่ใหม่', () => { void this.startRun() }, { label: 'กลับเมือง', onGo: () => go(this, 'hub') })
   }
 
   private showWin() {
     const secs = Math.round((this.time.now - this.startedAt) / 1000)
     const rewards = this.settle(true)
     this.panel([
-      { text: this.hard ? '🔥 เคลียร์โหมดยากแล้ว!' : 'เคลียร์ดันแล้ว!', size: 44, color: '#f2b84b', bold: true },
+      { text: this.hard ? '🔥 เคลียร์โหมดยากแล้ว!' : this.run.modeId === 'daily' ? '🎲 ผ่านท้าทายรายวัน!' : 'เคลียร์ดันแล้ว!', size: 44, color: '#f2b84b', bold: true },
       { text: `ล้ม${this.dg.boss}ได้ใน ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} นาที · ${this.kills} ตัว · HP เหลือ ${this.hp}`, size: 19 },
       { text: rewards, size: 19, color: '#f2b84b' },
       { text: `build: ${this.buildText() || '-'} · Lv ${this.level}`, size: 16, color: '#a9a6c7' },
@@ -2229,7 +2318,7 @@ export class BattleScene extends Phaser.Scene {
     } else this.fortuneTxt?.setText('')
     const left = this.turnLimit - this.fightTurns
     const affix = this.alive().find((m) => m.affix)?.affix
-    this.hudTxt.room.setText(`${this.hard ? `🔥ยาก Lv+${this.hardGap} · ` : ''}${this.dg.name} · ด่าน ${this.room + 1}/${this.dg.rooms.length} · ⏳ ${this.alive().length ? `${left}/${this.turnLimit} เทิร์น` : '-'}${affix ? `\n${affix}` : ''}`).setColor(this.alive().length && left <= 3 ? '#ff7a7a' : '#f6eedc').setPosition(18, this.job.resource ? 68 : 54)
+    this.hudTxt.room.setText(`${this.hard ? `🔥ยาก Lv+${this.hardGap} · ` : ''}${this.run.where(this.room)} · ⏳ ${this.alive().length ? `${left}/${this.turnLimit} เทิร์น` : '-'}${affix ? `\n${affix}` : ''}`).setColor(this.alive().length && left <= 3 ? '#ff7a7a' : '#f6eedc').setPosition(18, this.job.resource ? 68 : 54)
     this.hudTxt.build.setText(this.buildText()).setY(14)
     const X = this.hx
     this.debuffTxt?.setText([X.poison > 0 ? `☠️${X.poison}` : '', X.burn > 0 ? `🔥${X.burn}` : '', X.weaken > 0 ? `💔${X.weaken}` : '', X.armorBreak > 0 ? `🛡️💥${X.armorBreak}` : '', X.silence > 0 ? `🤐${X.silence}` : ''].filter(Boolean).join(' ')).setY(this.job.resource ? 92 : 78)
