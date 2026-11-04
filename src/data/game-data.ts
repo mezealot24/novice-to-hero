@@ -22,7 +22,7 @@ export interface Stats {
   hit: number // Hit points (DEX); vs Flee, see hitChance()
   flee: number // Flee points (AGI)
   luckyDodge: number // 0..1 dodge a hit completely (LUK)
-  legendChance: number // 0..1 a level-up card rolls legendary, x2 effect (LUK)
+  legendChance: number // 0..1 each level-up slot rolls a 🟠 legendary card (พร v2: needs a card of that line) (LUK)
   eventChance: number // 0..1 a room hides a treasure chest (LUK)
   dropChance: number // 0..1 a kill drops a rare item (LUK)
   maxRes: number // Mana / Rage / Energy cap
@@ -170,7 +170,7 @@ export interface Stats {
 
 export const PLAYER: Stats = {
   maxHp: 140, atk: 13, minPct: 0.5, matk: 10, pskill: 0, def: 0, mdef: 0, tenacity: 0, healAmp: 0, shieldAmp: 0,
-  hit: 10, flee: 5, luckyDodge: 0, legendChance: 0.03, eventChance: 0.1, dropChance: 0.04, maxRes: 60, resRegen: 3,
+  hit: 10, flee: 5, luckyDodge: 0, legendChance: 0.06, eventChance: 0.1, dropChance: 0.04, maxRes: 60, resRegen: 3,
   aspd: 1.6, range: 110, crit: 0, critMul: 1.4, /* Q: crit only from items, skill tree, talents (+ in-run cards) */ speed: 190,
   guard: 0, lifesteal: 0, regen: 0, fireEvery: 0, boltMul: 2, burnDps: 0, poison: 0, poisonDmg: 2,
   smashMul: 3, smashCd: 6000, smashCost: 0, revive: 0, counter: 0, combo: 0, dodgeHeal: 0, waveShield: 0,

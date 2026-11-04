@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
-import { afterDef, BATTLE, doubleAtkChance, COLORS, COMMON_PERKS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, hardMul, FONT_UI, H, MONSTERS, PERKS, perkDesc, PLAYER, RULES, SET_BONUS, TAGS, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Perk, type Stats, type Tag } from '../data/game-data'
+import { afterDef, BATTLE, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, hardMul, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats } from '../data/game-data'
+import { ELEM_SRC, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, PERKS_V2, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
 import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
 import { COSTUMES, FREE_GEMS, heroStats, PER_POINT, RESOURCES, totalBase, type BaseStat } from '../data/meta'
@@ -7,7 +8,7 @@ import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster, EQUIP_CARDS 
 import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, type JobDef } from '../data/jobs'
 import { skill2Picked } from '../data/tree'
 import type { Skill2Def } from '../data/skill2'
-import { autoCost, clericBasic, clericUltLights, clericUltSmash, hitBase, KIT, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
+import { autoCost, clericBasic, clericUltLights, clericUltSmash, hitBase, KIT, magicPower, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, ultMode } from '../save'
 import { MAT_RULES, matName, matOf } from '../data/materials'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
@@ -46,7 +47,6 @@ interface Mon {
   weakTurns: number; weakPct: number // hero Skill 2 ท้าทาย: hits weaker for its next N turns
 }
 type Element = 'lightning' | 'fire' | 'ice'
-const BOLT_MAX_LV = 5 // Lightning Bolt card: Lv1 + 4 repeats (design/skill-tree-mage.md)
 const ELEMENTS: Record<Element, { icon: string; name: string; sub: string }> = {
   lightning: { icon: '⚡', name: 'สายฟ้า', sub: 'เป้าเดียว ฟาด 6 ฮิต (0.3–1.2x ต่อฮิต) ฆ่าบอส' },
   fire: { icon: '🔥', name: 'ไฟ', sub: 'ดาเมจกลาง 2x + เผาซ้อน (ลดฮีลศัตรู)' },
@@ -72,7 +72,7 @@ export class BattleScene extends Phaser.Scene {
   private smashCdLeft = 0 // hero turns until Smash is ready (Novice: cooldown, no resource)
   private heroGauge = 0
   private heroSpr!: Phaser.GameObjects.Image
-  private perks: Perk[] = []
+  private perks: { def: PerkDef; lv: number }[] = [] // พร v2 cards this run (lv 2 = "+")
   private hits = 0
   // run
   private mons: Mon[] = []
@@ -247,7 +247,7 @@ export class BattleScene extends Phaser.Scene {
     this.res = this.job.resource === 'rage' ? 0 : this.resMax()
     this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0
     this.heroSpr.setTexture(this.job.tex).setTint((COSTUMES.find((c) => c.id === s.costume) ?? COSTUMES[0]).tint).setAngle(0).setAlpha(1)
-    this.perks = []; this.hits = 0
+    this.perks = []; this.hits = 0; this.pk = newPerkStats(); this.masteries = []; this.src = 'other'; this.immortal = null; this.eggN = 0; this.eggDef = 0
     this.level = 1; this.xp = 0; this.zeny = 0; this.kills = 0; this.runXp = 0; this.runGems = 0; this.runCards = []; this.runMats = {}
     this.cardLuck = 1 + Math.min(PER_POINT.luk.dropCap, PER_POINT.luk.dropPct * totalBase(s).luk)
     this.settled = false; this.over = false; this.smashQueued = false
@@ -283,6 +283,7 @@ export class BattleScene extends Phaser.Scene {
       if (id !== this.runId) return
       if (!won) { this.over = true; await this.wait(700); this.showGameOver(); return }
       this.heal(this.st.maxHp * RULES.healOnClear * this.run.mut.waveHeal)
+      if (this.immortal === 'egg' && this.eggN < IMMORTAL_RULES.eggMax) { this.eggN++; this.st.def += this.eggDef * IMMORTAL_RULES.eggStep; this.floatText(HERO_X, GROUND - 150, `🥚 ไข่ทองคำ +${Math.round(this.eggN * IMMORTAL_RULES.eggStep * 100)}%`, '#ffd86b') }
       if (this.flags.eliteReward) this.eliteReward()
       this.gainXp(RULES.xpOnClear); this.runXp += RULES.xpOnClear
       await this.levelUps()
@@ -463,6 +464,7 @@ export class BattleScene extends Phaser.Scene {
 
   private async fight(id: number): Promise<boolean> {
     this.fightTurns = 0; this.timedOut = false
+    this.lowHpDone = false; this.demonOn = false; this.demonDone = false; this.comboAtkN = 0; this.fightUlts = 0; this.lowRegen = { turns: 0, amt: 0 }
     const room = this.roomDef(this.room)
     this.turnLimit = room?.turnLimit ?? (room?.boss ? BATTLE.bossTurnLimit : BATTLE.turnLimit)
     this.turnLimit = Math.round(this.turnLimit * BATTLE.monBuff.turns[Math.max(0, Math.min(4, this.dg.tier - 1))])
@@ -475,6 +477,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (Object.keys(this.flags.pendingFx).length) { this.applyFx(this.flags.pendingFx); this.flags.pendingFx = {} } // event trap / runes
     if (this.flags.stars) { this.flags.stars = false; this.starsOn = true; this.applyMod({ crit: 1 }); this.callout('🌠 777! คริทุกฮิต', W / 2, 250) }
+    if (this.procs('fightStart') > 0) await this.wait(350) // พร v2: fight-start cards
     while (this.alive().length && this.hp > 0) {
       const a = this.nextActor()
       if (a.hero) {
@@ -490,6 +493,7 @@ export class BattleScene extends Phaser.Scene {
       await this.wait(90)
     }
     this.turnsLog.push(this.fightTurns)
+    this.demonOn = false
     this.hx = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0 } // debuffs end with the fight
     if (this.starsOn) { this.starsOn = false; this.applyMod({ crit: -1 }) }
     return this.hp > 0
@@ -510,12 +514,13 @@ export class BattleScene extends Phaser.Scene {
     if (X.weaken > 0) X.weaken--
     if (X.armorBreak > 0) X.armorBreak--
     if (X.silence > 0) X.silence--
-    if (this.job.id !== 'cleric') return
-    if (this.ultRegenTurns > 0) { this.ultRegenTurns--; this.heal(this.st.maxHp * this.st.ultRegen) } // cleric talent: พรยืนยาว
-    this.spearAcc += this.st.spearRate
-    if (Math.random() < this.st.spearLuck) { this.spears++; this.floatText(HERO_X + 30, GROUND - 170, '🍀 หอกแสง!', '#f6e27a') } // v37 Q: LUK calls light spears
-    while (this.spearAcc >= 1) { this.spearAcc--; this.spears++ }
-    await this.fireSpears()
+    if (this.job.id === 'cleric') {
+      if (this.ultRegenTurns > 0) { this.ultRegenTurns--; this.heal(this.st.maxHp * this.st.ultRegen) } // cleric talent: พรยืนยาว
+      this.spearAcc += this.st.spearRate
+      if (Math.random() < this.st.spearLuck) { this.spears++; this.floatText(HERO_X + 30, GROUND - 170, '🍀 หอกแสง!', '#f6e27a') } // v37 Q: LUK calls light spears
+      while (this.spearAcc >= 1) { this.spearAcc--; this.spears++ }
+    }
+    await this.fireSpears() // พร v2: ✨ cards give every job light spears
   }
 
   // ---------- Cleric: light spears (design/skill-tree-priest.md 3.1) ----------
@@ -548,10 +553,15 @@ export class BattleScene extends Phaser.Scene {
     if (!n || !this.alive().length || this.hp <= 0) return
     this.floatText(HERO_X + 30, GROUND - 140, `🔱 x${n}`, '#f6e27a')
     this.burst(700, GROUND - 40, 0xf6e27a, 10 + n * 2, 200)
-    for (let i = 0; i < n; i++) {
-      for (const m of this.alive()) this.strike(m, KIT.spearBase + this.st.spearMul, true, '#f6e27a')
-      if (this.st.spearHeal > 0) this.heal(this.st.maxHp * this.st.spearHeal, true)
-    }
+    const mul = (KIT.spearBase + this.st.spearMul) * (this.relic === 'magicspear' ? RELIC_RULES.magicspear.mul : 1) // mythic หอกเวท
+    this.withSrc('spear', () => {
+      for (let i = 0; i < n; i++) {
+        for (const m of this.alive()) { this.strike(m, mul, true, '#f6e27a'); if (this.pk.spearBurn > 0) this.addBurn(m, this.pk.spearBurn, false) } // legend หอกเพลิง
+        if (this.st.spearHeal > 0) this.heal(this.st.maxHp * this.st.spearHeal, true)
+        if (this.pk.spearShield > 0 && Math.random() < this.pk.spearShield) this.addShield(this.st.maxHp * PROC_RULES.spearShield, true) // หอกคุ้มกาย
+      }
+    })
+    if (this.relic === 'magicspear') this.withSrc('fire', () => { for (const m of this.alive()) { this.strike(m, PROC_POW.firewave!, true, '#ff8c42'); this.addBurn(m, 1) } })
     if (this.st.clSpearShield > 0) this.addShield(this.st.maxHp * this.st.clSpearShield) // v58 Ult web: เกราะแสง
     await this.wait(BATTLE.stepMs * 0.3)
   }
@@ -566,13 +576,15 @@ export class BattleScene extends Phaser.Scene {
 
   private async heroAct() {
     if (this.st.regen > 0) this.heal(this.st.maxHp * this.st.regen * BATTLE.regenPerTurn / 100, true)
+    if (this.lowRegen.turns > 0) { this.lowRegen.turns--; this.heal(this.st.maxHp * this.lowRegen.amt) } // ฟื้นยามคับขัน
+    if (this.pk.resTurn > 0) { this.gainRage(this.pk.resTurn); this.gainRes(this.pk.resTurn) } // ภาวนา
     if (this.smashCdLeft > 0) this.smashCdLeft--
     if (this.relic === 'storm' && this.fightTurns % RELIC_RULES.storm.every === 0) { await this.lightningWrath(); if (!this.alive().length) return }
     // resource tick
     if (this.job.resource === 'mana') this.res = Math.min(this.resMax(), this.res + this.st.resRegen * RES_RULES.manaPerTurnMul * (1 - this.st.resRegenCut))
     this.overflow = this.st.mgOverflow > 0 && this.job.resource === 'mana' && this.res >= this.resMax() * 0.9 // mage talent พลังล้น
-    if (this.st.boltHits > 0 && this.alive().length) await this.lightningBolt() // storm card: Lightning Bolt
-    if (this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + RES_RULES.energyPerTurn + this.st.arTurnRes)
+    if (this.alive().length && this.procs('turn') + this.procs('every2') > 0) { await this.wait(160); if (!this.alive().length) return } // พร v2: every-turn cards
+    if (this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + (RES_RULES.energyPerTurn + this.st.arTurnRes) * (1 - this.st.resRegenCut))
     await this.skill2Turn()
     if (!this.alive().length || this.hp <= 0) return
     if (this.st.arHawk > 0 && ++this.hawkTurn % 3 === 0) { const t = this.alive(); if (t.length) { const m = t[Phaser.Math.Between(0, t.length - 1)]; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, '🦅', '#f2d24b'); this.strike(m, this.st.arHawk, true, '#f2d24b') } } // archer talent เหยี่ยวคู่ใจ
@@ -584,14 +596,17 @@ export class BattleScene extends Phaser.Scene {
       this.smashQueued = false
       this.smashCdLeft = this.ultTurns()
       this.res -= ultCost
-      await this.asSkill(() => (this.job.id === 'novice' ? this.smash() : this.ultimate()))
+      this.ultOpen = this.pk.openUlt > 0 ? (this.fightUlts === 0 ? 1 + this.pk.openUlt : 0.75) : 1 // legend เปิดฉากเต็มแรง
+      this.fightUlts++
+      await this.asSkill(() => (this.job.id === 'novice' ? this.smash() : this.ultimate()), 'ult')
+      if (this.alive().length && this.procs('ult') > 0) await this.wait(220) // พร v2: after-ult cards
       return
     }
     if (ultWaiting) this.floatText(HERO_X, GROUND - 140, `🔷 Mana ไม่พอ ult (${Math.floor(this.res)}/${ultCost})`, '#5aa0ff') // keep it booked, save Mana for it
     const cost = autoCost(this.job, this.st)
     if (this.job.resource && !ultWaiting && this.res >= cost && this.alive().length) {
       this.res -= cost
-      await this.asSkill(() => this.autoSkill())
+      await this.asSkill(() => this.autoSkill(), 'skill')
       return
     }
     await this.basicAttack()
@@ -640,7 +655,8 @@ export class BattleScene extends Phaser.Scene {
     if (!magic && !crit && Math.random() > hitChance(this.st.hit, m.def.flee ?? 5)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
     if (m.parry) { this.parried(m); return 0 }
     if (this.skillHits) mul *= 1 - this.skillCut() // spell vamp drawbacks: skill / ult damage cut
-    if (m.chill > 0 && this.st.brittle > 0) mul *= 1 + this.st.brittle // tree: ice "เปราะ"
+    const brittle = Math.max(this.st.brittle, this.pk.vsChill) // tree: ice "เปราะ" · card เปราะน้ำแข็ง (the higher one)
+    if (m.chill > 0 && brittle > 0) mul *= 1 + brittle
     if (this.ultFiring && m.charging && this.st.arUltBreak > 0) mul *= 1 + this.st.arUltBreak // archer tree/talent: ult vs a charging boss
     if (this.st.arLowHpBonus > 0 && m.hp < m.def.hp * 0.5) mul *= 1 + this.st.arLowHpBonus // archer talent เก็บตัวเปราะ r2
     if (crit && this.st.thExecute > 0 && m.hp < m.def.hp * 0.3) mul *= 1.5 // Thief ★ เพชฌฆาต
@@ -666,9 +682,12 @@ export class BattleScene extends Phaser.Scene {
   private spellVamp() { return Math.min(0.4, this.st.spellVamp + (this.buf.blood > 0 ? S2N.bloodVamp(this.st.s2Lv) : 0) + (this.relic === 'bloodpact' ? RELIC_RULES.bloodpact.spellVamp : 0)) }
   /** relic สัญญาเลือด: burn / poison / hellfire ticks are weaker too (Q 2026-11-04) */
   private dotMul() { return this.relic === 'bloodpact' ? 1 - RELIC_RULES.bloodpact.dotCut : 1 }
-  private async asSkill(fn: () => Promise<void>) {
+  private async asSkill(fn: () => Promise<void>, src: Src) {
     this.skillHits = { dmg: 0, mons: new Set() }
+    const prev = this.src
+    this.src = src
     try { await fn() } finally {
+      this.src = prev
       const h = this.skillHits; this.skillHits = null
       const v = this.spellVamp()
       if (v > 0 && h.dmg > 0 && this.hp > 0) this.heal(h.dmg * v * (h.mons.size > 1 ? SPELL_VAMP.aoe : 1) * (this.berserking() ? 2 : 1), true)
@@ -744,12 +763,19 @@ export class BattleScene extends Phaser.Scene {
     const target = this.front()[0]
     this.comboSum = { on: true, per: new Map() } // RO-style: each hit shows its own white number, the chain total pops big + yellow at the end
     let extra = 0 // roll the chain first (same odds as before) so the hero knows to stay at the monster between hits
-    while (extra < BATTLE.comboMax && Math.random() < this.st.combo) extra++
+    while (extra < BATTLE.comboMax && Math.random() < this.comboChance()) extra++
     this.stayIn = extra > 0
     await this.basicOnce()
+    if (this.alive().length && this.procs('basic') > 0) await this.wait(120) // พร v2: on-basic-attack cards
+    if (this.immortal === 'angel' && this.fightTurns <= IMMORTAL_RULES.angelTurns && this.hp > 0) { // 🌈 พรนางฟ้า
+      const t = this.front()[0]
+      if (t) { this.withSrc('light', () => this.strike(t, IMMORTAL_RULES.angelMul, true, '#fff3a0')); this.burst(t.spr.x, t.spr.y - 30, 0xfff3a0, 8, 140) }
+      this.heal(this.st.maxHp * IMMORTAL_RULES.angelHeal, true)
+    }
     let hits = 1
     for (let n = 0; n < extra && this.alive().length; n++) {
       this.comboCount++
+      if (this.pk.comboAtk > 0) this.comboAtkN++ // legend เชี่ยวชาญคอมโบ
       this.comboLevel = n + 2
       sfx.combo(n + 2)
       await this.basicOnce()
@@ -771,6 +797,8 @@ export class BattleScene extends Phaser.Scene {
     if (!f) return
     const kind = this.job.id
     this.lsMul = 1 // basic hit + combo: full lifesteal (reset below, before card procs)
+    const prevSrc = this.src
+    this.src = this.comboLevel >= 2 ? 'combo' : 'basic'
     if (kind === 'archer') {
       if (this.st.arSnipeLow > 0) { const low = live.slice().sort((a, b) => a.hp - b.hp)[0]; if (low) f = low } // talent เก็บตัวเปราะ
       let mul = 1
@@ -785,11 +813,10 @@ export class BattleScene extends Phaser.Scene {
     else if (kind === 'cleric') await this.maceSmash(f, () => { this.strike(f, clericBasic()) }) // v58 Q: melee mace/book smash, P.ATK (STR) only; spells carry M.ATK
     else await this.lunge(f, () => { const cl = BATTLE.cleave + this.st.cleaveAdd; if (live[1]) { this.strike(f, 1); this.strike(live[1], cl) } else this.strike(f, 1 + (kind === 'swordsman' ? cl : 0)) }) // novice, swordsman: cleave (+talent ฟันกวาด) · swordsman alone vs 1 monster: the cleave lands on it too
     this.lsMul = 0
+    if (this.demonOn && !f.dead) this.addPoison(f, IMMORTAL_RULES.demonPoison) // 🌈 เงาปีศาจ
+    this.src = prevSrc
     this.hits++
-    if (this.st.fireEvery > 0 && this.hits % this.st.fireEvery === 0) {
-      if (this.job.id !== 'mage') await this.fireBolt()
-      else if (this.res >= MAGE_SPELL.fireBolt) { this.res -= MAGE_SPELL.fireBolt; await this.fireBolt() } // Mage: card spells cost Mana
-    }
+    if (this.alive().length && this.procs('hits') > 0) await this.wait(100) // พร v2: every-N-hits cards
   }
 
   /** Skill 2: buffs tick down, then it casts by itself (free extra action) when ready, paid for and useful. */
@@ -808,7 +835,7 @@ export class BattleScene extends Phaser.Scene {
     this.res -= k.cost
     this.s2Cd = s2Cooldown(k, this.st)
     this.s2Count++
-    await this.asSkill(() => this.castSkill2(k))
+    await this.asSkill(() => this.castSkill2(k), 'skill')
   }
 
   private async castSkill2(k: Skill2Def) {
@@ -1048,26 +1075,20 @@ export class BattleScene extends Phaser.Scene {
     this.zapTurn.set(m, n + 1)
     if (this.st.stormSet > 0) mul *= 1 + 0.1 * n
     this.zapCount++
-    const charged = this.st.boltCharge > 0 && this.zapCount % 10 === 0
+    const every = this.pk.zapCharge || (this.st.boltCharge > 0 ? 10 : 0) // legend ประจุสะสม
+    const charged = every > 0 && this.zapCount % every === 0
     if (charged) { mul *= 3; m.gauge -= 15; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '🔋 ประจุ!', txt) }
+    const proc = this.src === 'zap' // card lightning (not the Mage ult)
+    if (proc && fork && this.relic === 'superbolt' && Math.random() < RELIC_RULES.superbolt.chance) { // mythic อสนีเทพ
+      mul *= RELIC_RULES.superbolt.mul
+      this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 46, '⚡ อสนีเทพ!', '#fff07a')
+      for (const o of this.alive().filter((x) => x !== m).slice(0, 2)) this.strike(o, RELIC_RULES.superbolt.splash, true, txt)
+    }
     this.strike(m, mul, true, txt)
-    if (fork && this.element === 'lightning' && this.st.lightChain > 0 && Math.random() < this.st.lightChain) { // tree "ฟ้าแตกแขนง": never chains again
+    if (proc && fork && this.pk.chain > 0 && Math.random() < this.pk.chain) { // legend ฟ้าแตกแขนง: never chains again
       const l = this.alive(); if (l.length) this.zap(l[Phaser.Math.Between(0, l.length - 1)], mul, txt, false)
-    }
-  }
-
-  /** Storm card Lightning Bolt: N hits at 0.3x M.ATK, random targets, at the start of the hero's turn. */
-  private async lightningBolt() {
-    if (this.job.id === 'mage') { // Mage: card spells cost Mana (all hits or nothing)
-      const cost = this.st.boltHits * MAGE_SPELL.boltPerHit
-      if (this.res < cost) return
-      this.res -= cost
-    }
-    this.zapTurn.clear()
-    for (let i = 0; i < this.st.boltHits; i++) {
-      const l = this.alive(); if (!l.length) break
-      this.zap(l[Phaser.Math.Between(0, l.length - 1)], 0.3)
-      await this.wait(50)
+    } else if (fork && this.element === 'lightning' && this.st.lightChain > 0 && Math.random() < this.st.lightChain) { // tree "ฟ้าแตกแขนง": never chains again
+      const l = this.alive(); if (l.length) this.zap(l[Phaser.Math.Between(0, l.length - 1)], mul, txt, false)
     }
   }
 
@@ -1104,20 +1125,6 @@ export class BattleScene extends Phaser.Scene {
   /** Monster P.DEF (stat spec v1 formula). Magic skips this. */
   private armor(m: Mon, dmg: number) { return m.def.def ? Math.max(1, Math.round(afterDef(dmg, m.def.def))) : dmg }
 
-  private async fireBolt() {
-    const live = this.alive()
-    if (!live.length) return
-    const m = live[Phaser.Math.Between(0, live.length - 1)]
-    const b = this.add.image(HERO_X + 20, GROUND - 50, 'dot').setTint(0xff8c42).setScale(2.4).setDepth(9000)
-    await this.tween({ targets: b, x: m.spr.x, y: m.spr.y - 30, duration: 260 })
-    b.destroy()
-    if (m.dead) return
-    const r = this.roll(this.st.boltMul, true)
-    this.damageMon(m, r.dmg, r.crit, '#ff8c42')
-    this.burst(m.spr.x, m.spr.y - 30, 0xff8c42, 10, 160)
-    if (this.st.burnDps > 0 && !m.dead) { m.burn = this.st.burnDps; m.burnTurns = 3; this.dotIcon(m) }
-  }
-
   private async smash() {
     this.smashCdLeft = this.smashTurns()
     sfx.slam()
@@ -1139,7 +1146,7 @@ export class BattleScene extends Phaser.Scene {
   /** dot = damage over time / reflected damage: no executioner bonus and never reflected back. */
   private damageMon(m: Mon, dmg: number, crit: boolean, color?: string, dot = false) {
     if (m.dead) return
-    dmg = Math.ceil(dmg) // whole numbers only (Q: round up), so shown == applied
+    dmg = Math.ceil(dmg * this.srcMul(m, dot)) // พร v2 tags (masteries, style switches) · whole numbers only (Q: round up), so shown == applied
     if ((m.marked ?? 0) > 0) dmg = Math.ceil(dmg * 1.15) // cleric ★B: ตราบาป
     if (this.st.lateDmg > 0 && this.fightTurns >= 12) dmg = Math.ceil(dmg * (1 + this.st.lateDmg)) // cleric talent: อรุณรุ่ง
     if (this.st.poisonAmp > 0 && m.poison >= 10) dmg = Math.ceil(dmg * (1 + this.st.poisonAmp)) // Thief talent: กัดกร่อน
@@ -1204,6 +1211,8 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.fireSpread > 0 && m.burnStacks > 0) for (const o of others) { o.burnStacks = Math.min(this.burnMax(), o.burnStacks + Math.ceil(m.burnStacks / 2)); o.burnStackTurns = 3; this.dotIcon(o) } // tree
     if (this.st.poisonSpread > 0 && m.poison > 0) for (const o of others) { o.poison = Math.min(this.poisonMax(), o.poison + Math.ceil(m.poison / 2)); o.poisonDmg = Math.max(o.poisonDmg, m.poisonDmg); this.dotIcon(o) } // tree
     this.kills++
+    this.procs('kill', m) // พร v2: on-kill cards
+    if (this.relic === 'glass' && this.hp > 0) this.heal(this.st.maxHp * RELIC_RULES.glass.killHeal, true) // mythic แก้วร้าว
     if (this.relic === 'harvest') this.harvestSoul()
     if (this.relic === 'executioner' && this.smashCdLeft > 0) { this.smashCdLeft = Math.max(0, this.smashCdLeft - RELIC_RULES.executioner.cd); this.floatText(HERO_X, GROUND - 150, '🪓 ท่าไม้ตายเร็วขึ้น', '#f2b84b') }
     if (m.def.deathBlast && this.hp > 0) { // bloater / imp / mirror shard: blows up when it dies
@@ -1242,15 +1251,15 @@ export class BattleScene extends Phaser.Scene {
     if ((m.trueTurns ?? 0) > 0 && --m.trueTurns! === 0) this.dotIcon(m)
     if ((m.marked ?? 0) > 0) m.marked!--
     // damage over time first
-    if (m.burnTurns > 0) { m.burnTurns--; this.damageMon(m, Math.max(1, Math.round(m.burn * this.dotMul())), false, '#ff8c42', true); if (!m.burnTurns) this.dotIcon(m) }
-    if (!m.dead && m.poison > 0) { this.damageMon(m, Math.max(1, Math.round(m.poison * m.poisonDmg * this.dotMul())), false, '#a77be0', true); if (this.st.poisonLeech > 0) this.heal(m.poison * m.poisonDmg * this.st.poisonLeech, true) } // Thief เลือดพิษ
-    if (!m.dead && m.burnStackTurns > 0) {
+    if (m.burnTurns > 0) { m.burnTurns--; this.withSrc('fire', () => this.damageMon(m, Math.max(1, Math.round(m.burn * this.dotMul())), false, '#ff8c42', true)); if (!m.burnTurns) this.dotIcon(m) }
+    if (!m.dead && m.poison > 0) { this.withSrc('poison', () => this.damageMon(m, Math.max(1, Math.round(m.poison * m.poisonDmg * this.dotMul())), false, '#a77be0', true)); if (this.st.poisonLeech > 0) this.heal(m.poison * m.poisonDmg * this.st.poisonLeech, true) } // Thief เลือดพิษ
+    if (!m.dead && m.burnStackTurns > 0) { // ไฟลุก: stacks x magic power (พร v2: 70% M.ATK + 30% P.ATK)
       m.burnStackTurns--
-      this.damageMon(m, Math.round(m.burnStacks * this.st.matk * (0.12 + this.st.burnTick) * this.dotMul()), false, '#ff8c42', true)
+      this.withSrc('fire', () => this.damageMon(m, Math.max(1, Math.round(m.burnStacks * magicPower(this.st) * (0.12 + this.st.burnTick) * this.dotMul())), false, '#ff8c42', true))
       if (!m.burnStackTurns) m.burnStacks = 0
       this.dotIcon(m)
     }
-    if (!m.dead && m.hell > 0) this.damageMon(m, Math.max(1, Math.round(hellEff(m.hell) * RELIC_RULES.hellfire.dmgPerStack * this.bestAtk() * this.dotMul())), false, '#ff5a2a', true)
+    if (!m.dead && m.hell > 0) this.withSrc('fire', () => this.damageMon(m, Math.max(1, Math.round(hellEff(m.hell) * RELIC_RULES.hellfire.dmgPerStack * this.magicPow() * this.dotMul())), false, '#ff5a2a', true))
     if (!m.dead && m.def.mini === 'drainer' && m.hp < m.def.hp * BATTLE.demonAt) this.healMon(m, m.def.hp * BATTLE.demonRegen, true)
     m.parry = false
     if (!m.dead && m.chill > 0) { m.chill--; if (!m.chill && !m.charging) m.spr.clearTint(); this.dotIcon(m) }
@@ -1307,7 +1316,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.riposte(m)) continue
       const cr = this.monCrit(m)
       const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m)
-      if (landed) { this.monLeech(m); if (m.onHit) this.applyFx(m.onHit, m); await this.tryCounter(m) }
+      if (landed) { this.monLeech(m); if (m.onHit) this.applyFx(m.onHit, m); if (this.procs('hurt', m) > 0) await this.wait(90); await this.tryCounter(m) }
     }
     if (m.def.combo) { // v49 monster combo: chain extra hits like the hero (same cap)
       let extra = 0
@@ -1329,16 +1338,17 @@ export class BattleScene extends Phaser.Scene {
   private async tryCounter(m: Mon) {
     if (this.hp <= 0 || m.dead) return
     if (this.ctrCharges > 0) this.ctrCharges-- // talent: ท่าสวนพร้อม (sure counter)
-    else if (Math.random() >= this.st.counter) return
+    else if (Math.random() >= this.counterChance()) return
     this.counterCount++
+    this.procs('counter', m) // พร v2: on-counter cards (spears)
     if (this.st.counterRage > 0) { this.gainRage(this.st.counterRage); this.gainRes(this.st.counterRage) } // talent: เหล็กกล้า (Rage or Mana)
     if (this.st.counterShield > 0) this.addShield(this.st.maxHp * this.st.counterShield, true)
     this.counterJuice()
     const magic = this.job.attack === 'magic' || this.st.holyCounter > 0 // tree: "ศรัทธาสวน"
-    const hit = () => {
+    const hit = () => this.withSrc('counter', () => {
       this.strike(m, BATTLE.counterMul, magic, magic ? '#c9a8ff' : undefined)
       if (this.st.ctrAoe > 0) for (const o of this.alive()) if (o !== m) this.strike(o, 0.5, magic) // tree: "สวนพายุ"
-    }
+    })
     if (this.job.attack !== 'melee') { await this.shoot(m, magic ? 0x9f7bff : 0xf6eedc, hit); return }
     // melee: wind back, dash in with an afterimage, knock the attacker back and chase it a little, then walk home
     const step = BATTLE.stepMs
@@ -1363,7 +1373,7 @@ export class BattleScene extends Phaser.Scene {
       this.afterimage(0xc9c9d6)
       sfx.dash()
       this.tweens.add({ targets: this.heroSpr, x: m.spr.x - 40, duration: step * 0.14, ease: 'Quad.easeIn', onComplete: () => {
-        if (!m.dead) { this.slashFx(m.spr.x - 10, GROUND - 40); sfx.swing(); this.strike(m, BATTLE.counterMul) ; this.shake(60, 0.004) }
+        if (!m.dead) { this.slashFx(m.spr.x - 10, GROUND - 40); sfx.swing(); this.withSrc('counter', () => this.strike(m, BATTLE.counterMul)); this.shake(60, 0.004) }
         this.tweens.add({ targets: this.heroSpr, x: HERO_X, duration: step * 0.3, ease: 'Quad.easeOut' })
       } })
     })
@@ -1503,7 +1513,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.st.dodgeStrike > 0 && src && !src.dead) { // tree ★: strike back from the shadows (melee dashes in after the sidestep)
         this.floatText(HERO_X + 40, GROUND - 130, 'สวนจากเงา!', '#c9c9d6'); this.counterCount++
         if (this.job.attack === 'melee') this.dashStrike(src)
-        else this.strike(src, BATTLE.counterMul, this.job.attack === 'magic')
+        else this.withSrc('counter', () => this.strike(src, BATTLE.counterMul, this.job.attack === 'magic'))
       }
       if (this.st.dodgeHeal > 0) this.heal(this.st.maxHp * this.st.dodgeHeal) // gear: dodging heals a little (Thief)
       if (this.st.arDodgeShield > 0 && this.shield < this.st.maxHp * this.st.arDodgeShield * 3) this.addShield(Math.min(this.st.maxHp * this.st.arDodgeShield, this.st.maxHp * this.st.arDodgeShield * 3 - this.shield)) // archer tree โล่ลม
@@ -1517,7 +1527,7 @@ export class BattleScene extends Phaser.Scene {
     if (!sure && Math.random() > hitChance(monHit, this.st.flee, 0.8 - this.st.fleeFloor)) return dodged('EVADE!', '#9fe3ff') // Thief เงาบาง lowers the floor
     const ab = this.hx.armorBreak > 0 ? BATTLE.armorBreakMul : 1 // เกราะแตก: P.DEF / M.DEF count half
     const raw = magic ? dmg * (1 - this.st.mdef * ab) : afterDef(dmg, this.st.def * ab)
-    let n = Math.max(1, Math.ceil(raw * (1 - this.st.guard) * (this.buf.guard > 0 ? 1 - S2N.guardCut(this.st.s2Lv) : 1))) // Skill 2 ตั้งการ์ด
+    let n = Math.max(1, Math.ceil(raw * (1 - this.st.guard) * (this.buf.guard > 0 ? 1 - S2N.guardCut(this.st.s2Lv) : 1) * this.takenMul())) // Skill 2 ตั้งการ์ด · พร v2
     this.lastHurt = n
     if (this.relic === 'thornaura' && src && !src.dead) { this.damageMon(src, Math.max(1, Math.round(n * RELIC_RULES.thornaura.back)), false, '#7fd08c', true); this.floatText(src.spr.x, src.spr.y - src.spr.displayHeight - 30, '🌵 หนาม!', '#7fd08c') }
     this.gainRage(RES_RULES.rageOnHurt + this.st.rageOnHurtAdd) // talent: แค้นฝังใจ
@@ -1540,6 +1550,7 @@ export class BattleScene extends Phaser.Scene {
       if (n <= 0) return true
     }
     this.hp = Math.max(this.hpFloor, this.hp - n)
+    if (this.hp > 0) this.lowHpCheck()
     if (this.st.mgEmergency > 0 && !this.emergencyUsed && this.hp > 0 && this.hp < this.st.maxHp * 0.3) { // mage talent มานาฉุกเฉิน
       this.emergencyUsed = true; this.res = this.resMax()
       if (this.st.mgEmergency >= 2) this.addShield(this.st.matk * 2, true)
@@ -1569,6 +1580,7 @@ export class BattleScene extends Phaser.Scene {
     n *= this.run.mut.healMul // daily mutator แผลเรื้อรัง
     const want = Math.ceil(this.hp + n * (1 + this.st.healAmp))
     if (this.st.overhealShield > 0 && want > this.st.maxHp) this.shield = Math.min(Math.ceil(this.st.maxHp * 0.5), this.shield + want - this.st.maxHp) // tree: "ไฟชำระ" (cap 50% max HP)
+    else if (this.pk.overheal > 0 && want > this.st.maxHp) { const cap = Math.ceil(this.st.maxHp * this.pk.overheal); if (this.shield < cap) this.shield = Math.min(cap, this.shield + want - this.st.maxHp) } // legend ฮีลล้นเป็นโล่
     this.hp = Math.min(this.st.maxHp, want)
     if (this.relic === 'bloodpact' && want > this.st.maxHp) { // Blood Pact: overheal becomes shield (capped)
       const cap = Math.round(this.st.maxHp * RELIC_RULES.bloodpact.shieldCap)
@@ -1598,8 +1610,6 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  private tagCount(t: Tag) { return this.perks.filter((p) => p.tag === t).length }
-
   private applyMod(mod: Partial<Stats>) {
     for (const k of Object.keys(mod) as (keyof Stats)[]) {
       const v = mod[k]!
@@ -1607,46 +1617,37 @@ export class BattleScene extends Phaser.Scene {
       if (k === 'fireEvery') { this.st.fireEvery = this.st.fireEvery === 0 ? Math.max(1, v) : Math.max(1, this.st.fireEvery + v); continue }
       this.st[k] += v
       if (k === 'crit') this.st.spellCrit += v // card/relic crit also counts for magic (Q rule)
+      if (k === 'lifesteal') this.st.lifesteal = Math.min(0.4, this.st.lifesteal) // Q: lifesteal cap 40%
     }
     this.st.smashCost = Math.max(6, this.st.smashCost)
   }
 
-  private offerPerks(allLegend = false) {
+  /** พร v2 level-up pick (design/skills-v2.md §1.4): 3 cards from every line (owned + not yet maxed ones come back as "+"),
+   *  each slot may roll 🟠 legendary (only for lines the hero already has), then 1 ⭐ general card. `forceLegend` (events) tries legendary in every slot. */
+  private offerPerks(forceLegend = false) {
     return new Promise<void>((done) => {
-      // v48 (Q 2026-11-04): 4 picks = 3 random from all classes' lines + 1 common, always
-      const owned = new Set(this.perks.map((p) => p.id))
-      const boltLv = this.perks.filter((p) => p.id === 'stm1').length
-      // Mage: card lines follow the run's element (⚡ → storm only, 🔥 → fire only; ❄️ has no card line, so it keeps both)
-      const banned: Tag[] = this.runElement === 'lightning' ? ['fire'] : this.runElement === 'fire' ? ['storm'] : []
-      const open = (p: Perk) => (p.id === 'stm1' ? boltLv < BOLT_MAX_LV : !owned.has(p.id)) && !banned.includes(p.tag) && (!['stm2', 'stm3'].includes(p.id) || boltLv > 0)
-      const lvBolt = (p: Perk) => (p.id === 'stm1' && boltLv > 0 ? { ...p, name: `Lightning Bolt Lv${boltLv + 1}`, desc: 'Lightning Bolt +1 ฮิต', mod: { boltHits: 1 } } : p)
-      const pool = PERKS.filter((p) => open(p) && this.job.tags.includes(p.tag)).map(lvBolt)
-      // other classes' lines: only cards that work for this job (Mage's basic is magic, so poison / lifesteal on hit never proc; fire add-ons need ลูกไฟ first)
-      const magicBasic = this.job.id === 'mage'
-      const foreign = PERKS.filter((p) => open(p) && !this.job.tags.includes(p.tag)
-        && !(magicBasic && (p.tag === 'venom' || p.id === 'bld1'))
-        && (!['fir2', 'fir3'].includes(p.id) || this.st.fireEvery > 0)).map(lvBolt)
-      const mine = this.perks.map((p) => p.tag)
-      const offers: Perk[] = []
-      const take = (list: Perk[]) => { const left = list.filter((p) => !offers.some((o) => o.id === p.id)); if (left.length) { offers.push(left[Phaser.Math.Between(0, left.length - 1)]); return true } return false }
-      if (this.firstOffer && this.st.mgFirstCard > 0) { const f = pool.find((p) => p.id === (this.st.mgFirstCard === 1 ? 'stm1' : 'fir1')); if (f) offers.push(f) } // mage talent row 1
+      const lv = (id: string) => this.perkLv(id)
+      // Mage: the run's element bans a line (⚡ → no 🔥, 🔥 → no ⚡; ❄️ keeps both). Mage's magic basic can't use on-hit poison / lifesteal.
+      const banned: Line[] = this.runElement === 'lightning' ? ['fire'] : this.runElement === 'fire' ? ['storm'] : []
+      const ok = (p: PerkDef) => lv(p.id) < p.max && !banned.includes(p.line) && !(this.job.id === 'mage' && MAGE_SKIP.has(p.id)) && !(p.needsRes && !this.job.resource)
+      const lines = new Set(this.perks.filter((o) => o.def.rarity === 'common' && o.def.line !== 'common').map((o) => o.def.line))
+      const commons = PERKS_V2.filter((p) => p.rarity === 'common' && ok(p))
+      const legends = PERKS_V2.filter((p) => p.rarity === 'legend' && ok(p) && lines.has(p.line))
+      const generals = GENERAL_PERKS.filter(ok)
+      const offers: PerkDef[] = []
+      const take = (list: PerkDef[]) => { const left = list.filter((p) => !offers.includes(p)); if (left.length) { offers.push(left[Phaser.Math.Between(0, left.length - 1)]); return true } return false }
+      const want = (id: string) => { const p = PERKS_V2.find((x) => x.id === id); if (p && ok(p) && !offers.includes(p) && (p.rarity === 'common' || lines.has(p.line))) offers.push(p) }
+      for (const id of this.testPerk ?? []) if (!offers.length) want(id) // bot hook
+      if (this.firstOffer && this.st.mgFirstCard > 0) want(this.st.mgFirstCard === 1 ? 'stm_roar' : 'fir_ball') // mage talent row 1
       this.firstOffer = false
-      // Q 2026-11-04 (Capybara Go style): 3 cards rolled from every line, own class or not, then 1 common. One slot leans to a line already owned so builds still grow.
-      const all = [...pool, ...foreign]
-      if (mine.length && Math.random() < 0.6) take(all.filter((p) => mine.includes(p.tag)))
-      while (offers.length < 3 && take(all)) { /* random across all lines */ }
-      const commons = COMMON_PERKS.filter((p) => !(p.mod.revive && owned.has(p.id)))
-      while (offers.length < 4 && take(commons)) { /* always ends with a common card */ }
-      const foreignIds = new Set(foreign.map((p) => p.id))
+      let lean = lines.size > 0 && Math.random() < 0.6 // one slot leans to a line already owned so builds still grow
+      while (offers.length < 3) {
+        if ((forceLegend || this.flags.allLegend || Math.random() < this.st.legendChance) && take(legends)) continue
+        if (lean) { lean = false; if (take(commons.filter((p) => lines.has(p.line)))) continue }
+        if (!take(commons) && !take(legends) && !take(generals)) break
+      }
+      while (offers.length < 4 && take(generals)) { /* always ends with a general card */ }
       if (!offers.length) { done(); return }
-      const legend = new Set<Perk>()
-      offers.forEach((p, i) => {
-        if (!allLegend && !this.flags.allLegend && Math.random() >= this.st.legendChance) return
-        const mod: Perk['mod'] = {}
-        for (const k of Object.keys(p.mod) as (keyof Perk['mod'])[]) mod[k] = k === 'fireEvery' ? Math.max(1, p.mod[k]! - 1) : k === 'revive' ? 1 : p.mod[k]! * 2
-        offers[i] = { ...p, name: `✦ ${p.name}`, desc: `${p.desc} · (ตำนาน: แรง x2)`, mod }
-        legend.add(offers[i])
-      })
       this.time.paused = true
       const c = this.add.container(0, 0).setDepth(30000)
       c.add(this.add.rectangle(W / 2, H / 2, W, H, COLORS.night, 0.8).setInteractive())
@@ -1654,28 +1655,26 @@ export class BattleScene extends Phaser.Scene {
       const cw = 680, ch = 104, gap = 10 // v48: one column of 4 rows
       const y0 = H / 2 + 26 - ((offers.length - 1) * (ch + gap)) / 2
       const keys: string[] = []
-      const pick = (p: Perk) => {
+      const pick = (p: PerkDef) => {
         if (!c.active) return
         keys.forEach((k) => this.input.keyboard!.removeAllListeners(k))
         this.pendingPick = undefined
         c.destroy()
         this.time.paused = false
-        this.perks.push(p)
-        this.applyMod(p.mod)
-        this.callout(`${TAGS[p.tag].icon} ${p.name}`, HERO_X, GROUND - 140)
-        const set = SET_BONUS[p.tag]
-        if (set && this.tagCount(p.tag) === 3) { this.applyMod(set.mod); this.callout(`✨ ${set.desc}`, W / 2, 190); sfx.door() }
+        this.takePerk(p)
         done()
       }
+      const own = JOB_LINES[this.job.id] ?? []
       offers.forEach((p, i) => {
-        const tag = TAGS[p.tag], n = this.tagCount(p.tag), leg = legend.has(p), alien = foreignIds.has(p.id)
+        const line = LINES[p.line], have = lv(p.id), up = have > 0 && p.max === 2, leg = p.rarity === 'legend', gen = p.line === 'common'
+        const alien = !gen && !own.includes(p.line)
         const card = this.add.container(W / 2, y0 + i * (ch + gap))
-        const bg = this.add.rectangle(0, 0, cw, ch, leg ? 0xffe08a : alien ? 0xe6e0f4 : 0xf4e6c8).setStrokeStyle(leg ? 6 : 4, leg ? 0xff8c42 : Phaser.Display.Color.HexStringToColor(tag.color).color)
-        const icon = this.add.text(-cw / 2 + 52, 0, tag.icon, { fontSize: '40px' }).setOrigin(0.5)
-        const name = this.add.text(-cw / 2 + 100, -ch / 2 + 12, p.name, { fontFamily: FONT_UI, fontSize: '22px', fontStyle: 'bold', color: '#2b2238' })
-        const desc = this.add.text(-cw / 2 + 100, -ch / 2 + 44, perkDesc(p.desc, this.job.ult), { fontFamily: FONT_UI, fontSize: '15px', color: '#4a3f5c', wordWrap: { width: cw - 120 }, lineSpacing: 2 })
-        const set = p.tag === 'common' ? 'พรทั่วไป · เลือกซ้ำได้' : `${alien ? '🌀 พรต่างสาย · ' : ''}${p.id === 'stm1' ? `Lv ${boltLv + 1}/${BOLT_MAX_LV} · ` : ''}สาย${tag.name} ${n >= 3 ? '3/3 ✓ ครบเซ็ตแล้ว' : `${n}/3${n === 2 && SET_BONUS[p.tag] ? ' · ครบเซ็ตเมื่อเลือก!' : ''}`}`
-        const foot = this.add.text(cw / 2 - 14, -ch / 2 + 14, set, { fontFamily: FONT_UI, fontSize: '14px', color: tag.color, fontStyle: 'bold', stroke: '#2b2238', strokeThickness: 2 }).setOrigin(1, 0)
+        const bg = this.add.rectangle(0, 0, cw, ch, leg ? 0xffe08a : up ? 0xe2f4dc : alien ? 0xe6e0f4 : 0xf4e6c8).setStrokeStyle(leg ? 6 : 4, leg ? 0xff8c42 : Phaser.Display.Color.HexStringToColor(line.color).color)
+        const icon = this.add.text(-cw / 2 + 52, 0, p.icon, { fontSize: '40px' }).setOrigin(0.5)
+        const name = this.add.text(-cw / 2 + 100, -ch / 2 + 12, `${p.name}${up ? '+' : ''}`, { fontFamily: FONT_UI, fontSize: '22px', fontStyle: 'bold', color: leg ? '#a8420f' : '#2b2238' })
+        const desc = this.add.text(-cw / 2 + 100, -ch / 2 + 44, perkDesc(p.desc[up ? 1 : 0] || p.desc[0], this.job.ult), { fontFamily: FONT_UI, fontSize: '15px', color: '#4a3f5c', wordWrap: { width: cw - 120 }, lineSpacing: 2 })
+        const tag = gen ? 'พรทั่วไป · เลือกซ้ำได้' : `${leg ? '🟠 ตำนาน · ' : alien ? '🌀 พรต่างสาย · ' : ''}${line.icon} สาย${line.name}${up ? ' · ขั้น + (อัปจากที่มี)' : p.max === 2 ? ' · เลือกซ้ำ = +' : ''}`
+        const foot = this.add.text(cw / 2 - 14, -ch / 2 + 14, tag, { fontFamily: FONT_UI, fontSize: '14px', color: leg ? '#ff8c42' : line.color, fontStyle: 'bold', stroke: '#2b2238', strokeThickness: 2 }).setOrigin(1, 0)
         const key = this.add.text(-cw / 2 + 10, -ch / 2 + 6, `${i + 1}`, { fontFamily: FONT_NUM, fontSize: '16px', color: '#8d7244' })
         card.add([bg, icon, name, desc, foot, key]).setSize(cw, ch).setInteractive({ useHandCursor: true })
         card.on('pointerover', () => card.setScale(1.02))
@@ -1688,6 +1687,188 @@ export class BattleScene extends Phaser.Scene {
       })
       this.pendingPick = (i) => pick(offers[Math.min(i, offers.length - 1)])
     })
+  }
+
+  /** Own a card, or take it to "+": apply its stat / run-stat delta for that level. */
+  private takePerk(p: PerkDef) {
+    let o = this.perks.find((x) => x.def.id === p.id)
+    if (o) o.lv++
+    else { o = { def: p, lv: 1 }; this.perks.push(o) }
+    const repeat = p.max > 2
+    this.applyMod(levelDelta(p.mod, o.lv, repeat))
+    const d = levelDelta(p.pk, o.lv, repeat)
+    for (const k of Object.keys(d) as (keyof PerkStats)[]) this.pk[k] += d[k] ?? 0
+    if (p.mastery) {
+      const i = Math.min(o.lv, 2) - 1, ms = this.masteries.find((x) => x.id === p.id)
+      if (ms) { ms.amp = p.mastery.amp[i]; ms.cut = p.mastery.cut[i] } else this.masteries.push({ id: p.id, src: p.mastery.src, amp: p.mastery.amp[i], cut: p.mastery.cut[i] })
+    }
+    this.callout(`${p.rarity === 'legend' ? '🟠 ' : ''}${p.icon} ${p.name}${o.lv >= 2 && p.max === 2 ? '+' : ''}`, HERO_X, GROUND - 140)
+    if (p.rarity === 'legend') sfx.door()
+  }
+
+  // ---------- พร v2: Trigger x Effect (data/perks.ts) ----------
+  private pk: PerkStats = newPerkStats()
+  private masteries: { id: string; src: Src; amp: number; cut: number }[] = []
+  /** Damage source tag of whatever the hero is doing right now (basic / combo / counter / skill / ult / zap / fire ...). */
+  private src: Src = 'other'
+  private immortal: ImmortalId | null = null
+  private eggN = 0
+  private eggDef = 0
+  private lowHpDone = false
+  private demonOn = false
+  private demonDone = false
+  private comboAtkN = 0
+  private fightUlts = 0
+  private ultOpen = 1
+  private lowRegen = { turns: 0, amt: 0 }
+  private procDepth = 0
+  /** Bot hook (PERK=id,id): the first of these cards still open goes into slot 1 of every level-up offer. */
+  testPerk?: string[]
+  /** Bot / debug: card ids with level, e.g. "stm_roar+ grd_open". */
+  perkList() { return this.perks.map((o) => `${o.def.id}${o.lv >= 2 && o.def.max === 2 ? '+' : o.lv > 1 ? `x${o.lv}` : ''}`).join(' ') }
+
+  private withSrc<T>(src: Src, fn: () => T): T { const p = this.src; this.src = src; try { return fn() } finally { this.src = p } }
+  private perkLv(id: string) { return this.perks.find((o) => o.def.id === id)?.lv ?? 0 }
+  private comboChance() { return (this.st.combo + (this.relic === 'wolf' ? RELIC_RULES.wolf.combo : 0)) * (this.relic === 'wizard' ? RELIC_RULES.wizard.chanceMul : 1) }
+  private counterChance() { return this.st.counter * (this.relic === 'wizard' ? RELIC_RULES.wizard.chanceMul : 1) }
+
+  /** Damage multiplier by source tag: masteries, style-switch mythics, card mods, glass, demon form, open-strong ult. */
+  private srcMul(m: Mon, dot: boolean) {
+    const src = this.src, P = this.pk, rel = this.relic
+    let k = 1
+    for (const ms of this.masteries) k *= ms.src === src ? 1 + ms.amp : 1 - ms.cut
+    const basic = src === 'basic' || src === 'combo', skill = src === 'skill' || src === 'ult'
+    if (basic) k *= 1 + P.basicDmg
+    if (src === 'counter') k *= 1 + P.counterDmg
+    if (rel === 'wolf') k *= src === 'combo' || src === 'counter' ? 1 + RELIC_RULES.wolf.comboCounter : skill ? 1 - RELIC_RULES.wolf.skillCut : 1
+    if (rel === 'wizard' && skill) k *= 1 + RELIC_RULES.wizard.skill
+    if (rel === 'queen') k *= ELEM_SRC.has(src) ? 1 + RELIC_RULES.queen.elem : basic ? 1 - RELIC_RULES.queen.basicCut : 1
+    if (!dot && P.vsBurn > 0 && (m.burnStackTurns > 0 || m.burnTurns > 0 || m.hell > 0)) k *= 1 + P.vsBurn
+    if (!dot && P.vsPoison > 0 && m.poison > 0) k *= 1 + P.vsPoison
+    if (rel === 'glass' && this.hp < this.st.maxHp * RELIC_RULES.glass.below) k *= 1 + RELIC_RULES.glass.dmg
+    if (this.demonOn) k *= 1 + IMMORTAL_RULES.demonDmg
+    if (src === 'ult') k *= this.ultOpen
+    return k
+  }
+  /** Hero damage-taken multiplier from cards / mythics. */
+  private takenMul() {
+    const G = RELIC_RULES.glass
+    return (1 - Math.min(this.pk.hardenCap, this.pk.harden * this.fightTurns)) * (this.relic === 'glass' && this.hp < this.st.maxHp * G.below ? 1 + G.taken : 1)
+  }
+  /** First drop under 30% HP this fight (lowHp cards), and 🌈 เงาปีศาจ under 50%. */
+  private lowHpCheck() {
+    if (!this.lowHpDone && this.hp < this.st.maxHp * PROC_RULES.lowHpAt) { this.lowHpDone = true; this.procs('lowHp') }
+    if (this.immortal === 'demon' && !this.demonDone && this.hp < this.st.maxHp * IMMORTAL_RULES.demonAt) {
+      this.demonDone = true; this.demonOn = true
+      this.callout('😈 ร่างปีศาจ! ดาเมจ +50%', HERO_X + 120, GROUND - 160, '#ff6b9a')
+      this.burst(HERO_X, GROUND - 40, 0x9a2a5a, 20, 200)
+    }
+  }
+
+  /** Fire every owned card whose trigger is `on` (sync, so hit / kill / counter hooks can call it). Returns how many fired. */
+  private procs(on: Trigger, target?: Mon): number {
+    if (this.hp <= 0 || this.procDepth > 1 || !this.perks.length) return 0
+    let fired = 0
+    this.procDepth++
+    try {
+      for (const o of this.perks) {
+        const p = o.def.proc
+        if (!p) continue
+        const i = Math.min(o.lv, 2) - 1
+        if ((o.lv >= 2 && p.on2 ? p.on2 : p.on) !== on) continue
+        if (on === 'every2' && this.fightTurns % 2) continue
+        if (on === 'hits' && (!p.every || this.hits % p.every[i] !== 0)) continue
+        if (p.chance && Math.random() >= p.chance[i]) continue
+        if (this.runFx(o.def, p, i, target)) fired++
+      }
+    } finally { this.procDepth-- }
+    return fired
+  }
+
+  /** Mana a Mage pays for a magic card effect (spec default: Mage still pays for card spells). */
+  private procCost(fx: Effect, n: number) {
+    if (this.job.id !== 'mage') return 0
+    const R = PROC_RULES
+    return fx === 'zap' ? R.mageZap * n : fx === 'fireball' || fx === 'firewave' || fx === 'icewave' ? R.mageFire * n : fx === 'icespike' ? R.mageIce * n : 0
+  }
+
+  private runFx(def: PerkDef, p: Proc, i: number, target?: Mon): boolean {
+    const n = (p.count?.[i] ?? 1) + (def.id === 'stm_roar' ? this.st.boltHits : 0) // mage talent ลูกศิษย์สายฟ้า r2: Bolt +1 hit
+    const amt = p.amt?.[i] ?? 0, pow = p.pow ?? PROC_POW[p.fx] ?? 1
+    const hits = p.fx === 'zap' || p.fx === 'fireball' || p.fx === 'firewave' || p.fx === 'icespike' || p.fx === 'icewave' || p.fx === 'poison'
+    if (hits && !this.alive().length) return false
+    const cost = this.procCost(p.fx, n)
+    if (cost > 0) { if (this.res < cost) return false; this.res -= cost }
+    const pickT = () => { if (target && !target.dead) return target; const l = this.alive(); return l.length ? l[Phaser.Math.Between(0, l.length - 1)] : undefined }
+    switch (p.fx) {
+      case 'zap':
+        this.zapTurn.clear()
+        for (let k = 0; k < n; k++) { const l = this.alive(); if (!l.length) break; this.withSrc('zap', () => this.zap(l[Phaser.Math.Between(0, l.length - 1)], pow)) }
+        break
+      case 'fireball':
+        for (let k = 0; k < n; k++) {
+          const t = pickT(); if (!t) break
+          this.fireballFx(t)
+          this.withSrc('fire', () => this.strike(t, pow, true, '#ff8c42'))
+          this.addBurn(t, p.burn?.[i] ?? 1)
+        }
+        break
+      case 'firewave':
+        for (let k = 0; k < n; k++) {
+          this.burst(700, GROUND - 20, 0xff8c42, 18, 260)
+          for (const m of this.alive()) { this.withSrc('fire', () => this.strike(m, pow, true, '#ff8c42')); this.addBurn(m, p.burn?.[i] ?? 1) }
+        }
+        break
+      case 'icespike': { const t = pickT(); if (t) this.iceHit(t, pow, false); break }
+      case 'icewave':
+        this.burst(700, GROUND - 20, 0x9fe3ff, 16, 240)
+        for (const m of this.alive()) this.iceHit(m, pow, !!p.freeze2 && i === 1)
+        break
+      case 'spear': this.spears += n; this.floatText(HERO_X + 30, GROUND - 170, `🔱 +${n}`, '#f6e27a'); break
+      case 'poison': for (const m of target && !target.dead ? [target] : this.alive()) this.addPoison(m, n); break
+      case 'shield': this.addShield(this.st.maxHp * amt); break
+      case 'heal': this.heal(this.st.maxHp * amt); break
+      case 'regen': this.lowRegen = { turns: PROC_RULES.regenTurns, amt }; this.floatText(HERO_X, GROUND - 150, `🌱 ฟื้น ${Math.round(amt * 100)}%/เทิร์น`, '#6fd08c'); break
+      case 'res': this.gainRage(amt); this.gainRes(amt); break
+    }
+    return true
+  }
+
+  /** ไฟลุก stacks (Mage fire ult system). Fire cards add at least ไฟสามชั้น's count; Hellfire turns them into ♨️ stacks. */
+  private addBurn(m: Mon, stacks: number, fireCard = true) {
+    if (m.dead || stacks <= 0) return
+    const n = fireCard ? Math.max(stacks, this.pk.fireStacks) : stacks
+    if (this.relic === 'hellfire') m.hell += n
+    else { m.burnStacks = Math.min(this.burnMax(), m.burnStacks + n); m.burnStackTurns = PROC_RULES.burnTurns }
+    this.dotIcon(m)
+  }
+  private addPoison(m: Mon, n: number) {
+    if (m.dead || n <= 0) return
+    m.poison = Math.min(this.poisonMax(), m.poison + n); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m)
+  }
+  /** Ice spike: chill 2 turns; a chilled normal monster may freeze (10%, หนาวลึก higher); สัมผัสมรณะ may execute one under 30%. */
+  private iceHit(m: Mon, pow: number, sureFreeze: boolean) {
+    if (m.dead) return
+    const wasChill = m.chill > 0, boss = m.def.ai === 'boss'
+    if (!boss && this.pk.execute > 0 && m.hp < m.def.hp * 0.3 && Math.random() < this.pk.execute) {
+      this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '☠️ ประหาร!', '#9fe3ff')
+      this.withSrc('ice', () => this.damageMon(m, m.hp + m.shield, false, '#9fe3ff'))
+      return
+    }
+    this.withSrc('ice', () => this.strike(m, pow, true, '#9fe3ff'))
+    this.burst(m.spr.x, m.spr.y - 30, 0x9fe3ff, 6, 120)
+    if (m.dead) return
+    if (wasChill && !boss && !m.frozen && (sureFreeze || Math.random() < (this.pk.freeze || PROC_RULES.freezeBase))) {
+      m.frozen = true; this.freezeCount++
+      this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, 'แช่แข็ง!', '#9fe3ff')
+    }
+    m.chill = Math.max(m.chill, PROC_RULES.chillTurns + this.st.chillPlus + this.pk.chillExtra)
+    if (!m.charging) m.spr.setTint(0x9fe3ff)
+    this.dotIcon(m)
+  }
+  private fireballFx(m: Mon) {
+    const b = this.add.image(HERO_X + 20, GROUND - 50, 'dot').setTint(0xff8c42).setScale(2.4).setDepth(9000)
+    this.tweens.add({ targets: b, x: m.spr.x, y: m.spr.y - 30, duration: 200, onComplete: () => { b.destroy(); this.burst(m.spr.x, m.spr.y - 30, 0xff8c42, 10, 160) } })
   }
 
   // ---------- post-wave events v2 (logic: scenes/battle-events.ts, numbers: data/events.ts) ----------
@@ -1714,6 +1895,15 @@ export class BattleScene extends Phaser.Scene {
       roll: (label, chance) => this.rollCheck(label, chance),
       reveal: (text, color) => this.reveal(text, color),
       perks: (legend) => this.offerPerks(!!legend),
+      immortal: () => this.immortal,
+      grantImmortal: (id) => {
+        if (this.immortal) return
+        this.immortal = id
+        if (id === 'demon') { const cut = Math.round(this.st.maxHp * IMMORTAL_RULES.demonHpCost); this.st.maxHp -= cut; this.hp = Math.min(this.hp, this.st.maxHp) }
+        if (id === 'egg') this.eggDef = this.st.def
+        this.callout(`🌈 พรอมตะ: ${IMMORTALS[id].icon} ${IMMORTALS[id].name}`, W / 2, 190)
+        this.cameras.main.flash(260, 255, 220, 255); sfx.win()
+      },
       applyMod: (mod) => this.applyMod(mod),
       heal: (share) => { this.heal(this.st.maxHp * share); this.burst(HERO_X, GROUND - 40, 0x6fd08c, 14, 140) },
       hurt: (share) => {
@@ -1868,10 +2058,13 @@ export class BattleScene extends Phaser.Scene {
 
   // ---------- Dungeon 3: mini boss mechanics + top-tier skills (data/relics.ts) ----------
   private lastHurt = 0
-  private bestAtk() { return Math.max(this.st.atk, this.st.matk) * this.atkMul() }
+  /** พร v2: relic magic (Hellfire, Lightning Wrath) = magic power x the run's ATK buffs. */
+  private magicPow() { return magicPower(this.st) * this.atkMul() }
   private atkMul() {
     return (this.relic === 'trinity' ? 1 + RELIC_RULES.trinity.atkPct : 1) * (1 + this.harvest * RELIC_RULES.harvest.perKill) * (this.buf.blood > 0 && this.st.s2Star ? 1 + S2N.bloodAtk : 1)
       * (this.hx.weaken > 0 ? BATTLE.weakenMul : 1) * (this.relic === 'aegis' && this.shield > 0 ? 1 + RELIC_RULES.aegis.dmg : 1)
+      * (1 + Math.min(this.pk.comboAtkCap, this.pk.comboAtk * this.comboAtkN)) * (1 + Math.min(this.pk.veteranCap, this.pk.veteran * this.fightTurns)) // legends เชี่ยวชาญคอมโบ / ทหารผ่านศึก
+      * (1 + IMMORTAL_RULES.eggStep * this.eggN) // 🌈 ไข่ทองคำ
   }
 
   /** Monster M.ATK (Q 2026-11-04): magic attacks use matk when the monster has one. */
@@ -1930,7 +2123,7 @@ export class BattleScene extends Phaser.Scene {
   private monMul(m: Mon) {
     let k = m.iced ? 1 - RELIC_RULES.iceage.atkDown : 1
     if (m.def.mini === 'hunter' && this.hp < this.st.maxHp * 0.5) k *= 1.2
-    return k * m.dmgMul * (m.atkUpTurns > 0 ? 1 + m.atkUp : 1) * (m.weakTurns > 0 ? 1 - m.weakPct : 1) * (1 + this.flags.curseDmg)
+    return k * m.dmgMul * (m.atkUpTurns > 0 ? 1 + m.atkUp : 1) * (m.weakTurns > 0 ? 1 - m.weakPct : 1) * (1 + this.flags.curseDmg) * (m.chill > 0 ? 1 - this.pk.chillWeak : 1) // card กัดเย็น
   }
 
   /** Heal cut on a monster: Hellfire 5%/stack (max 50%), otherwise 25% while any normal burn is on it. */
@@ -1975,7 +2168,7 @@ export class BattleScene extends Phaser.Scene {
     this.counterCount++
     this.floatText(HERO_X, GROUND - 120, '🤺 ปัดป้อง!', '#c9e0ff')
     this.slashFx(m.spr.x - 20, GROUND - 40)
-    this.strike(m, RELIC_RULES.riposte.mul, this.job.attack === 'magic', this.job.attack === 'magic' ? '#c9a8ff' : undefined)
+    this.withSrc('counter', () => this.strike(m, RELIC_RULES.riposte.mul, this.job.attack === 'magic', this.job.attack === 'magic' ? '#c9a8ff' : undefined))
     return true
   }
 
@@ -1995,7 +2188,7 @@ export class BattleScene extends Phaser.Scene {
       const m = t[Phaser.Math.Between(0, t.length - 1)]
       const bolt = this.add.rectangle(m.spr.x, GROUND - 200, 6, 220, 0xbfe6ff).setOrigin(0.5, 0).setDepth(9000)
       this.tweens.add({ targets: bolt, alpha: 0, duration: 160, onComplete: () => bolt.destroy() })
-      this.damageMon(m, Math.max(1, Math.round(this.bestAtk() * Phaser.Math.FloatBetween(0.9, 1.1) * S.mul)), false, '#bfe6ff') // magic: no crit (RO rule)
+      this.withSrc('zap', () => this.damageMon(m, Math.max(1, Math.round(this.magicPow() * Phaser.Math.FloatBetween(0.9, 1.1) * S.mul)), false, '#bfe6ff')) // magic: no crit (RO rule)
       sfx.hit()
       await this.wait(70)
     }
@@ -2035,6 +2228,7 @@ export class BattleScene extends Phaser.Scene {
     let n = Math.max(1, Math.ceil(dmg))
     if (this.shield > 0) { const a = Math.min(Math.ceil(this.shield), n); this.shield = Math.max(0, this.shield - a); n -= a; if (n <= 0) return }
     this.hp = Math.max(this.hpFloor, this.hp - n)
+    if (this.hp > 0) this.lowHpCheck()
     this.minHpPct = Math.min(this.minHpPct, this.hp / this.st.maxHp)
     this.damageNumber(HERO_X, GROUND - 70, n, false, color)
     this.floatText(HERO_X - 30, GROUND - 120, icon, color)
@@ -2148,11 +2342,12 @@ export class BattleScene extends Phaser.Scene {
   /** After the duel: pick 1 of 3 top-tier skills (the mini boss's two + one random). */
   private async offerRelic() {
     const sig = MINI_RELICS[this.miniKind ?? 'duelist'] ?? ['trinity', 'storm']
-    const rest = (Object.keys(RELICS) as RelicId[]).filter((r) => !sig.includes(r))
+    const can = (r: RelicId) => { const n = RELICS[r].needs; return !n || this.perks.some((o) => o.def.line === n) } // transforms need a card of their line
+    const rest = (Object.keys(RELICS) as RelicId[]).filter((r) => !sig.includes(r) && can(r))
     let ids: RelicId[] = [...sig, rest[Phaser.Math.Between(0, rest.length - 1)]]
     if (this.testRelic) ids = [this.testRelic, ...ids.filter((x) => x !== this.testRelic)].slice(0, 3) // bot hook
     sfx.win(); this.cameras.main.flash(220, 255, 230, 150)
-    const c = await this.choose({ name: 'สกิลขั้นสูงสุด!', icon: '👑', desc: `ชนะ ${MONSTERS[this.miniKind ?? 'duelist'].name}! เลือกพลัง 1 อย่าง ติดตัวจนจบรอบนี้`, rare: true },
+    const c = await this.choose({ name: '🔴 พรเทพ!', icon: '👑', desc: `ชนะ ${MONSTERS[this.miniKind ?? 'duelist'].name}! เลือกพรเทพ 1 อย่าง ติดตัวจนจบรอบนี้ (มีได้ 1 ใบต่อรอบ)`, rare: true },
       ids.map((r) => ({ label: `${RELICS[r].icon} ${RELICS[r].name}`, sub: RELICS[r].desc })))
     const r = ids[c]
     this.relic = r
@@ -2163,6 +2358,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (r === 'bloodpact') { this.st.lifesteal = Math.min(0.4, this.st.lifesteal + RELIC_RULES.bloodpact.lifesteal) } // Q 2026-11-04: cap stays 40% even with the pact
     if (r === 'haste') this.smashCdLeft = Math.max(0, this.smashCdLeft - RELIC_RULES.haste.cd)
+    if (r === 'asura') { const A = RELIC_RULES.asura; this.applyMod({ crit: A.crit, critMul: A.critMul }); this.st.resRegenCut += A.regenCut; this.st.rageGain -= A.regenCut } // ร่างอสุรา
     this.callout(`👑 ${RELICS[r].icon} ${RELICS[r].name}`, W / 2, 190)
     await this.wait(400)
   }
@@ -2321,7 +2517,10 @@ export class BattleScene extends Phaser.Scene {
   private buildText() {
     const r = this.relic ? `${RELICS[this.relic].icon}${RELICS[this.relic].name}  ` : ''
     const f = this.flags, ev = `${f.clover ? '🍀' : ''}${f.allLegend ? '🌠' : ''}${f.curses.length ? `💀${f.curses.length}` : ''}`
-    return (ev ? ev + '  ' : '') + r + (Object.keys(TAGS) as Tag[]).map((t) => [t, this.tagCount(t)] as const).filter(([, n]) => n > 0).map(([t, n]) => `${TAGS[t].icon}${n}`).join(' ')
+    const im = this.immortal ? `🌈${IMMORTALS[this.immortal].icon}  ` : ''
+    const n = new Map<Line, number>(), leg = this.perks.filter((o) => o.def.rarity === 'legend').length
+    for (const o of this.perks) if (o.def.line !== 'common') n.set(o.def.line, (n.get(o.def.line) ?? 0) + Math.min(o.lv, 2))
+    return (ev ? ev + '  ' : '') + r + im + (leg ? `🟠${leg} ` : '') + [...n].map(([l, k]) => `${LINES[l].icon}${k}`).join(' ')
   }
 
   private showGameOver() {

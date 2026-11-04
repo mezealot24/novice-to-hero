@@ -1,13 +1,18 @@
 // ===== Skill math: the ONE place hero skill numbers live (BattleScene casts with these, CharacterScene shows them). =====
 // BattleScene adds run-only effects on top (relics, run picks, berserk, weaken, monster DEF/flee), so the
 // numbers shown in the skill detail panel are "before monster DEF, without run picks".
-// พร v2 (design/skills-v2.md, not built yet): magic will become 70% M.ATK + 30% P.ATK -> change magicBase() only.
+// พร v2 (Q 2026-11-04, design/skills-v2.md): every hero magic HIT uses magic power Pm = 70% M.ATK + 30% P.ATK
+// (LoL feel: physical builds still get something from magic procs). Heals and shields stay on M.ATK.
 import { BATTLE, PLAYER, type Stats } from './game-data'
 import { CLERIC_KIT, JOBS, MAGE_SPELL, SPELL_VAMP, SWORD_MANA, type JobDef, type JobId } from './jobs'
 import type { Skill2Def } from './skill2'
 
-/** Magic hit base before the skill multiplier: M.ATK 0.9–1.1x (a crit uses the top). */
-export const magicBase = (st: Stats) => ({ lo: st.matk * 0.9, hi: st.matk * 1.1 })
+/** Q 2026-11-04 rule: magic damage = 70% M.ATK + 30% P.ATK for ALL hero magic (Mage/Priest class skills too). */
+export const MAGIC_MIX = { matk: 0.7, atk: 0.3 }
+/** Magic power (Pm): what magic hits, burn stacks, Hellfire and Lightning Wrath scale with. */
+export const magicPower = (st: Stats) => st.matk * MAGIC_MIX.matk + st.atk * MAGIC_MIX.atk
+/** Magic hit base before the skill multiplier: Pm 0.9–1.1x (a crit uses the top). */
+export const magicBase = (st: Stats) => { const pm = magicPower(st); return { lo: pm * 0.9, hi: pm * 1.1 } }
 /** Physical hit base: P.ATK minPct–1x (DEX raises the floor; a crit uses the top and skips DEF). */
 export const physBase = (st: Stats) => ({ lo: st.atk * st.minPct, hi: st.atk })
 export const hitBase = (st: Stats, magic: boolean) => (magic ? magicBase(st) : physBase(st))
@@ -128,7 +133,7 @@ export function ultInfo(jobId: JobId, st: Stats): InfoRow[] {
     }
     case 'cleric':
       out.push({ label: 'ทุบทุกตัว (P.ATK)', value: hitText(st, clericUltSmash(st) * hitPow * (1 + st.pskill), false) })
-      out.push({ label: `Holy Light ${clericUltLights(st)} ลูก ตัวสุ่ม (M.ATK)`, value: hitText(st, CLERIC_KIT.ultLight * hitPow, true) })
+      out.push({ label: `Holy Light ${clericUltLights(st)} ลูก ตัวสุ่ม (พลังเวท)`, value: hitText(st, CLERIC_KIT.ultLight * hitPow, true) })
       out.push({ label: `โล่ ${CLERIC_KIT.ultShieldTurns} เทิร์น`, value: `${shield(st, st.maxHp * CLERIC_KIT.ultShield)} (รวมไม่เกิน ${r(st.maxHp * CLERIC_KIT.shieldCap)})` })
       if (st.clPurify > 0) out.push({ label: 'ไฟชำระ: ล้างดีบัฟ + ฮีล (M.ATK)', value: `${heal(st, st.matk * CLERIC_KIT.purifyHeal)} HP` })
       if (st.ultHoly > 0) out.push({ label: 'แสงลงทัณฑ์/ตัว', value: hitText(st, st.ultHoly, true) })
