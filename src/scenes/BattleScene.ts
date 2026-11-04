@@ -34,7 +34,8 @@ interface Mon {
   chill: number; frozen: boolean // Mage ice ult: chill = slowed turns left, frozen = skips its next turn
   burn: number; burnTurns: number; poison: number; poisonDmg: number; dotTxt?: Phaser.GameObjects.Text
   marked?: number // Cleric ★ judgement: turns of +15% damage taken
-  parry: boolean // duelist stance: the next hero hit is parried
+  parry: boolean // duelist Riposte stance: immortal until her next turn, every blocked hit is riposted
+  riposteLeft?: number; duelHeal?: number; duelHealTurns?: number; espadaNext?: number; espadaArmed?: boolean // duelist kit (Q 2026-11-04)
   ice: number; iceChance: number; iced: boolean // Ice Age: turns left, freeze chance this turn, attack is weakened this turn
   hell: number // Hellfire stacks (no cap)
   harvestMark: number // Soul Harvest: boss HP steps already counted
@@ -56,7 +57,7 @@ const ELEMENTS: Record<Element, { icon: string; name: string; sub: string }> = {
 }
 type Actor = { hero: true } | { hero: false; m: Mon }
 const MINI_HINT: Record<string, string> = {
-  duelist: 'ตั้งท่าปัดเมื่อไหร่ ตีครั้งแรกจะโดนปัด+สวน · อย่าใช้ท่าไม้ตายตอนนั้น · ต่ำกว่า 40% เร็วและแรงขึ้น',
+  duelist: 'ทุก 3 เทิร์นแทงจุดตาย (ดาเมจจริง) · ตั้งท่า Riposte = อมตะ ตีเข้าไปโดนสวน 80% · อย่าใช้ท่าไม้ตายตอนนั้น · ต่ำกว่า 40% เปิดจุดตายแล้วพุ่งแทง 4 ครั้ง',
   hunter: 'ดูดเลือดทุกครั้งที่กัด · HP ต่ำกว่าครึ่งจะคลั่ง เร็วขึ้น · ไฟตัดฮีลได้',
   gunner: 'ยิงรัว 3 นัด (Flee ช่วยหลบทีละนัด) · ชาร์จจรวดยักษ์ = เตรียมกันด้วยท่าไม้ตาย · ครึ่งเลือดยิงติดไฟ',
   drainer: 'เวทดูดชีวิต · ต่ำกว่าครึ่งฟื้น HP ทุกเทิร์น · ท่าชาร์จดูดเลือดเต็ม · ทุก 4 เทิร์นปิดปาก 1 เทิร์น',
@@ -682,7 +683,6 @@ export class BattleScene extends Phaser.Scene {
     if (m.dead || this.hp <= 0) return 0
     const crit = Math.random() < (magic ? this.st.spellCrit : this.st.crit + (this.buf.hawk > 0 ? S2N.hawkCrit(this.st.s2Lv) : 0)) // magic crits only with spellCrit (talent/item/card) · Skill 2 ตาเหยี่ยว
     if (!magic && !crit && Math.random() > hitChance(this.st.hit, m.def.flee ?? 5)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
-    if (m.parry) { this.parried(m); return 0 }
     if (this.skillHits) mul *= 1 - this.skillCut() // spell vamp drawbacks: skill / ult damage cut
     const brittle = Math.max(this.st.brittle, this.pk.vsChill) // tree: ice "เปราะ" · card เปราะน้ำแข็ง (the higher one)
     if (m.chill > 0 && brittle > 0) mul *= 1 + brittle
@@ -1180,6 +1180,11 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.lateDmg > 0 && this.fightTurns >= 12) dmg = Math.ceil(dmg * (1 + this.st.lateDmg)) // cleric talent: อรุณรุ่ง
     if (this.st.poisonAmp > 0 && m.poison >= 10) dmg = Math.ceil(dmg * (1 + this.st.poisonAmp)) // Thief talent: กัดกร่อน
     if (!dot && this.relic === 'executioner' && m.hp < m.def.hp * RELIC_RULES.executioner.below) dmg = Math.ceil(dmg * (1 + RELIC_RULES.executioner.mul))
+    if ((m.parry || m.espadaArmed) && dmg > 0) { // duelist: Riposte stance / Grandado Espada mark turn = immortal
+      this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, m.parry ? 'ปัด!' : 'อมตะ!', '#c9e0ff')
+      if (m.parry && !dot && this.hp > 0) this.riposteHit(m, dmg)
+      return
+    }
     if (!dot && m.reflect > 0 && dmg > 0 && this.hp > 0) this.reflectHurt(m, dmg * m.reflect)
     if (!dot && m.absorb > 0 && dmg > 0) { m.stored += dmg * m.absorb; this.dotIcon(m) } // Mirage: stores it for the Soul Strike
     if (m.shield > 0) { // monster shield (turtle wall, ice armor, bone shield) soaks first
@@ -1299,6 +1304,7 @@ export class BattleScene extends Phaser.Scene {
     if (!m.dead && m.hell > 0) this.withSrc('fire', () => this.damageMon(m, Math.max(1, Math.round(hellEff(m.hell) * RELIC_RULES.hellfire.dmgPerStack * this.magicPow() * this.dotMul())), false, '#ff5a2a', true))
     if (!m.dead && m.def.mini === 'drainer' && m.hp < m.def.hp * BATTLE.demonAt) this.healMon(m, m.def.hp * BATTLE.demonRegen, true)
     m.parry = false
+    if (!m.dead && (m.duelHealTurns ?? 0) > 0) { m.duelHealTurns!--; this.healMon(m, m.duelHeal ?? 0) }
     if (!m.dead && m.chill > 0) { m.chill--; if (!m.chill && !m.charging) m.spr.clearTint(); this.dotIcon(m) }
     if (!m.dead && m.frozen) { m.frozen = false; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10, '❄️ แข็งอยู่', '#9fe3ff'); await this.wait(250); return }
     if (m.dead) { await this.wait(200); return }
@@ -1316,12 +1322,7 @@ export class BattleScene extends Phaser.Scene {
         await this.wait(300); return
       }
     }
-    if (m.def.mini === 'duelist' && m.turns % BATTLE.parryEvery === 0) { // stance instead of attacking
-      m.parry = true
-      m.spr.setTint(0xc9e0ff)
-      this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10, '🤺 ตั้งท่าปัด! (อย่าเพิ่งใช้ท่าไม้ตาย)', '#c9e0ff')
-      await this.wait(BATTLE.stepMs); return
-    }
+    if (m.def.mini === 'duelist' && await this.duelTurn(m)) return
 
     if (!m.charging && await this.useSkill(m)) return
 
@@ -2187,15 +2188,81 @@ export class BattleScene extends Phaser.Scene {
     if (ls > 0 && this.lastHurt > 0) this.healMon(m, this.lastHurt * ls)
   }
 
-  /** Duelist stance: the hero's hit is parried and answered with a riposte. */
-  private parried(m: Mon) {
-    m.parry = false; this.parryCount++
-    m.spr.clearTint()
-    this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'ปัด!', '#c9e0ff')
-    this.slashFx(HERO_X + 40, GROUND - 50)
-    sfx.door()
-    const landed = this.hurtHero(m.def.dmg * BATTLE.monDmgMul * BATTLE.parryMul * this.monMul(m), false, 999)
-    if (landed) this.floatText(HERO_X, GROUND - 130, 'โดนสวน!', '#ff7a7a')
+  /** Duelist Riposte: a blocked hit comes back as 80% of itself, true damage, capped and never lethal (Q's reflect rule). */
+  private riposteHit(m: Mon, dmg: number) {
+    this.parryCount++
+    this.slashFx(HERO_X + 40, GROUND - 50); sfx.door()
+    const n = Math.min(Math.ceil(dmg * BATTLE.duel.ripostePct), Math.ceil(m.riposteLeft ?? 0)) // one stance answers at most riposteCap of max HP in total (multi-hit kits)
+    if (n <= 0) return
+    m.riposteLeft = (m.riposteLeft ?? 0) - n
+    if (this.trueHurt(m, n, false) > 0) this.floatText(HERO_X, GROUND - 130, '🤺 โดนสวน!', '#ff7a7a')
+  }
+
+  /** Duelist true damage: ignores Flee / DEF / M.DEF; lucky dodge and shields still work. Returns HP lost. */
+  private trueHurt(m: Mon, n: number, lethal: boolean, crit = false): number {
+    n = Math.ceil(n)
+    if (n <= 0 || this.hp <= 0) return 0
+    if (this.dodgeCharges > 0) { this.dodgeCharges--; this.evadeJuice('เงาพริ้ว!', '#c9c9d6'); return 0 }
+    if (Math.random() < this.st.luckyDodge) { this.evadeJuice('LUCKY!', '#6fd08c'); return 0 }
+    if (this.shield > 0) { const a = Math.min(Math.ceil(this.shield), n); this.shield = Math.max(0, this.shield - a); n -= a; if (n <= 0) { this.floatText(HERO_X, GROUND - 110, '🛡️ กันไว้', '#9fe3ff'); return 0 } }
+    const before = this.hp
+    this.hp = lethal ? this.hp - n : Math.max(this.hpFloor, 1, this.hp - n)
+    if (lethal && this.hp <= 0 && this.hpFloor > 0) this.hp = this.hpFloor
+    const lost = Math.max(0, before - Math.max(0, this.hp))
+    this.minHpPct = Math.min(this.minHpPct, Math.max(0, this.hp) / this.st.maxHp)
+    this.damageNumber(HERO_X, GROUND - 70, lost, crit, '#ffffff')
+    this.cameras.main.shake(crit ? 140 : 80, crit ? 0.008 : 0.004)
+    this.knockedOut()
+    void m
+    return lost
+  }
+
+  /** Duelist: damage dealt by her vital strikes heals her back over BATTLE.duel.healTurns of her turns. */
+  private duelHealAdd(m: Mon, n: number) {
+    if (n <= 0) return
+    m.duelHeal = (m.duelHealTurns ? (m.duelHeal ?? 0) * m.duelHealTurns : 0) + n
+    m.duelHealTurns = BATTLE.duel.healTurns
+    m.duelHeal = m.duelHeal / m.duelHealTurns
+  }
+
+  /** Duelist turn script (before the normal attack). Returns true when the turn was used. */
+  private async duelTurn(m: Mon): Promise<boolean> {
+    const D = BATTLE.duel, top = m.spr.y - m.spr.displayHeight - 10
+    if (m.espadaArmed) { // Grandado Espada: 4 crit thrusts at the marked vitals
+      m.espadaArmed = false; m.spr.clearTint()
+      this.callout(`⚔️ ${m.def.name}: กรันดาโด เอสปาดา!`, W / 2, 205)
+      let got = 0
+      for (let i = 0; i < D.espadaHits && this.hp > 0; i++) {
+        this.tweens.add({ targets: m.spr, x: HERO_X + 70, duration: 90, yoyo: true })
+        this.slashFx(HERO_X + 20 + i * 8, GROUND - 40 - i * 12)
+        got += this.trueHurt(m, this.st.maxHp * Phaser.Math.FloatBetween(D.espadaMin, D.espadaMax), true, true)
+        await this.wait(260)
+      }
+      this.duelHealAdd(m, got)
+      return true
+    }
+    if (m.phase > 0 && m.turns >= (m.espadaNext ?? 0)) { // phase 2: open every vital point, immortal while marking
+      m.espadaNext = m.turns + D.espadaEvery; m.espadaArmed = true
+      m.spr.setTint(0xffe08a)
+      this.floatText(m.spr.x, top, '✨ เปิดจุดตายทั้งหมด! (อมตะ · เทิร์นหน้าพุ่งแทง 4 ครั้ง)', '#ffe08a')
+      await this.wait(BATTLE.stepMs); return true
+    }
+    if (m.turns % BATTLE.parryEvery === 0) { // Riposte stance instead of attacking
+      m.parry = true; m.riposteLeft = this.st.maxHp * BATTLE.duel.riposteCap
+      m.spr.setTint(0xc9e0ff)
+      this.floatText(m.spr.x, top, '🤺 Riposte! อมตะ · ตีเข้ามาโดนสวน 80% (อย่าเพิ่งใช้ท่าไม้ตาย)', '#c9e0ff')
+      await this.wait(BATTLE.stepMs); return true
+    }
+    if (m.turns % D.vitalEvery === 0) { // passive: vital-point thrust, true damage
+      const src = this.roomDef(this.room)?.src ?? this.dg.id, lv = HARD.recLv[src] ?? 12
+      this.tweens.add({ targets: m.spr, x: HERO_X + 70, duration: 140, yoyo: true })
+      this.slashFx(HERO_X + 30, GROUND - 60)
+      this.floatText(m.spr.x, top, '🎯 แทงจุดตาย! (ดาเมจจริง)', '#ffd27a')
+      const got = this.trueHurt(m, this.st.maxHp * D.vitalPct + m.def.dmg * this.monMul(m) * lv * D.vitalLvMul, true)
+      this.duelHealAdd(m, got)
+      await this.wait(BATTLE.stepMs); return true
+    }
+    return false
   }
 
   /** Perfect Riposte skill: every Nth enemy attack is parried and countered. */
@@ -2458,7 +2525,7 @@ export class BattleScene extends Phaser.Scene {
     const boss = live.find((m) => m.def.ai === 'boss')
     if (boss) {
       if (boss.charging) return true
-      if (boss.def.mini === 'duelist') return !boss.parry || this.ultHeld >= 2
+      if (boss.def.mini === 'duelist') return !(boss.parry || boss.espadaArmed) || this.ultHeld >= 2
       if (boss.def.mini && !boss.def.charge) return true
       return this.ultHeld >= 3
     }
