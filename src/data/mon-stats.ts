@@ -183,7 +183,7 @@ export function withStats(d: MonsterDef, kind: MonsterKind, lv: number, o: StatM
  * So a specialist (high INT caster, 150-200% boss budget, hard mode +50%) casts harder, an off-stat caster a bit softer. */
 export interface SkillScale { stat: BaseStat; per?: number }
 export const SKILL_SCALE = {
-  per: 0.005, // +0.5% per point above ref
+  per: 0.003, // +0.3% per point above ref (0.5% cost D5 bot 15/20 -> 10/20 wins at the lich)
   min: 0.8, max: 1.5,
   byKind: { bolt: 'int', strike: 'str', heal: 'wis', shield: 'wis', warcry: 'str', haste: 'agi', revive: 'wis' } as Partial<Record<MonSkillKind, BaseStat>>,
   slam: { phys: 'str', magic: 'int' } as { phys: BaseStat; magic: BaseStat },
