@@ -316,23 +316,39 @@ export function totalBase(s: StatsInput): Record<BaseStat, number> {
   return out
 }
 
+/** 7 base stats -> derived stats: the part every body with stat points shares. The hero AND the D6+ stat monsters
+ * (data/mon-stats.ts, Q 2026-11-04) both call this, so Flee / Hit / crit / combo / M.DEF follow one set of formulas. */
+export function applyBase(st: Stats, b: Record<BaseStat, number>, atkStat: BaseStat = 'str') {
+  const d = (k: BaseStat) => b[k] - STAT_RULES.start
+  const P = PER_POINT
+  st.atk += P.str.atk * d(atkStat); st.pskill += P.str.pskill * b.str
+  st.hit += P.dex.hit * b.dex; st.minPct = Math.min(0.95, st.minPct + P.dex.minPct * b.dex)
+  st.maxHp = (st.maxHp + P.vit.maxHp * d('vit')) * (1 + P.vit.maxHpPct * b.vit); st.def += P.vit.def * b.vit; st.regen += P.vit.regen * b.vit
+  st.matk += P.int.matk * d('int'); st.maxRes += P.int.maxRes * d('int')
+  st.healAmp += P.wis.healAmp * b.wis; st.shieldAmp += P.wis.shieldAmp * b.wis
+  st.mdef += b.wis / (b.wis + P.wis.mdefK); st.tenacity += b.wis / (b.wis + P.wis.tenacityK); st.resRegen += P.wis.resRegen * b.wis
+  st.aspd *= 1 + P.agi.aspdPct * d('agi'); st.flee += P.agi.flee * b.agi; st.combo += d('agi') / (d('agi') + P.agi.comboK)
+  st.counter += d('vit') / (d('vit') + P.vit.counterK) // VIT = minor counter; cards/gear are the major source
+  st.crit += P.luk.crit * b.luk; st.luckyDodge += b.luk / (b.luk + P.luk.dodgeK)
+  st.legendChance = Math.min(P.luk.legendCap, st.legendChance + P.luk.legendPer * b.luk)
+  st.dropChance *= 1 + Math.min(P.luk.dropCap, P.luk.dropPct * b.luk)
+  st.eventChance = Math.min(P.luk.eventCap, st.eventChance + P.luk.eventPer * b.luk)
+}
+/** Combo / counter / crit defence from base stats (before gear + caps): AGI Ignore Combo, DEX Ignore Counter, VIT combo + counter DR, LUK crit DR. */
+export function baseDefence(b: Record<BaseStat, number>) {
+  const K = COMBO.defK, f = (x: number) => (x > 0 ? x / (x + K) : 0), d = (k: BaseStat) => b[k] - STAT_RULES.start
+  return { ignoreCombo: f(d('agi')), ignoreCounter: f(d('dex')), comboDR: f(d('vit')), counterDR: f(d('vit')), critDR: f(d('luk')) }
+}
+
 export function heroStats(s: StatsInput): Stats {
   const st: Stats = { ...PLAYER }
   const b = totalBase(s)
   const d = (k: BaseStat) => b[k] - STAT_RULES.start
   const P = PER_POINT
   const job = JOBS[s.job ?? 'novice']
-  // ranged jobs draw P.ATK from DEX instead of STR (stat spec v1)
-  st.atk += P.str.atk * d(job.attack === 'ranged' ? 'dex' : 'str'); st.pskill += P.str.pskill * b.str
-  st.hit += P.dex.hit * b.dex; st.minPct = Math.min(0.95, st.minPct + P.dex.minPct * b.dex)
-  st.maxHp = (st.maxHp + P.vit.maxHp * d('vit')) * (1 + P.vit.maxHpPct * b.vit); st.def += P.vit.def * b.vit; st.regen += P.vit.regen * b.vit
-  st.matk += P.int.matk * d('int'); st.maxRes += P.int.maxRes * d('int')
+  applyBase(st, b, job.attack === 'ranged' ? 'dex' : 'str') // ranged jobs draw P.ATK from DEX instead of STR (stat spec v1)
   if (job.id === 'thief') st.poisonDmg += 0.1 * d('int') // Q 2026-11-03: off-stat use, Thief poison +0.1 per INT point per stack
   if (job.id === 'thief') st.thUltAgi = 0.02 * d('agi') // Q 2026-11-03: เงาพริ้ว +2% per AGI point
-  st.healAmp += P.wis.healAmp * b.wis; st.shieldAmp += P.wis.shieldAmp * b.wis
-  st.mdef += b.wis / (b.wis + P.wis.mdefK); st.tenacity += b.wis / (b.wis + P.wis.tenacityK); st.resRegen += P.wis.resRegen * b.wis
-  st.aspd *= 1 + P.agi.aspdPct * d('agi'); st.flee += P.agi.flee * b.agi; st.combo += d('agi') / (d('agi') + P.agi.comboK)
-  st.counter += d('vit') / (d('vit') + P.vit.counterK) // VIT = minor counter; cards/gear are the major source
   // off-stats (Q 2026-11-03): each class gets one use for a stat its kit otherwise ignores (design/class-rebalance-v1.md)
   if (job.id === 'swordsman') st.counter += P.off.swordDexCounter * d('dex') // DEX: parry -> more counters
   if (job.id === 'archer') st.ultAmp += P.off.archerStrUlt * d('str') // STR: heavier draw on ศรทะลวง
@@ -344,10 +360,6 @@ export function heroStats(s: StatsInput): Stats {
     st.matk += P.int.matk * extra; st.maxRes += P.int.maxRes * extra
   }
   if (job.id === 'cleric') st.spearLuck = Math.min(P.luk.spearCap, P.luk.spear * b.luk) // v37 Q: LUK -> light spear chance
-  st.crit += P.luk.crit * b.luk; st.luckyDodge += b.luk / (b.luk + P.luk.dodgeK)
-  st.legendChance = Math.min(P.luk.legendCap, st.legendChance + P.luk.legendPer * b.luk)
-  st.dropChance *= 1 + Math.min(P.luk.dropCap, P.luk.dropPct * b.luk)
-  st.eventChance = Math.min(P.luk.eventCap, st.eventChance + P.luk.eventPer * b.luk)
   st.maxHp = Math.round(st.maxHp)
   // Q: crit from talents/items/cards/tree also counts for magic (spellCrit); LUK crit above stays physical only
   const add = (mod: Partial<Stats>) => { for (const k of Object.keys(mod) as (keyof Stats)[]) { st[k] += mod[k]!; if (k === 'crit') st.spellCrit += mod[k]! } }
@@ -371,10 +383,10 @@ export function heroStats(s: StatsInput): Stats {
   st.luckyDodge = Math.min(0.25, st.luckyDodge)
   st.counter = Math.min(COMBO.rateCap, st.counter) // counter rework: may pass 100% vs Ignore Counter (was 60%)
   st.combo = Math.min(COMBO.rateCap, st.combo)
-  { const K = COMBO.defK, f = (x: number) => (x > 0 ? x / (x + K) : 0) // hero combo / counter / crit defence (Q 2026-11-04)
-    st.ignoreCombo = Math.min(COMBO.defCap, st.ignoreCombo + f(d('agi'))); st.ignoreCounter = Math.min(COMBO.defCap, st.ignoreCounter + f(d('dex')))
-    st.comboDR = Math.min(COMBO.defCap, st.comboDR + f(d('vit'))); st.counterDR = Math.min(COMBO.defCap, st.counterDR + f(d('vit')))
-    st.critDR = Math.min(COMBO.critDRCap, st.critDR + f(d('luk'))) }
+  { const f = baseDefence(b) // hero combo / counter / crit defence (Q 2026-11-04)
+    st.ignoreCombo = Math.min(COMBO.defCap, st.ignoreCombo + f.ignoreCombo); st.ignoreCounter = Math.min(COMBO.defCap, st.ignoreCounter + f.ignoreCounter)
+    st.comboDR = Math.min(COMBO.defCap, st.comboDR + f.comboDR); st.counterDR = Math.min(COMBO.defCap, st.counterDR + f.counterDR)
+    st.critDR = Math.min(COMBO.critDRCap, st.critDR + f.critDR) }
   st.lifesteal = Math.min(0.4, st.lifesteal)
   st.spellVamp = Math.min(0.4, st.spellVamp)
   st.skillDmgCut = Math.min(0.9, st.skillDmgCut)

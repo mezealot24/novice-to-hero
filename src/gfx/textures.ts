@@ -444,6 +444,94 @@ export function makeTextures(scene: Phaser.Scene) {
     g.fillStyle(0xe8e4d4).fillCircle(90, 64, 4).fillCircle(96, 50, 3) // floating skulls
   })
 
+  // ----- Dungeon 6: สุสานทรายกษัตริย์ (all face left, toward the hero) -----
+  make(scene, 'mummy', 46, 62, (g) => {
+    g.fillStyle(0x8a7a5a).fillRect(14, 46, 7, 16).fillRect(25, 46, 7, 16) // legs
+    g.fillStyle(0xd8cca8).fillRoundedRect(10, 20, 26, 30, 6) // body wraps
+    g.fillStyle(0xb8a880).fillRect(10, 26, 26, 2).fillRect(10, 34, 26, 2).fillRect(10, 42, 26, 2)
+    g.fillStyle(0xd8cca8).fillRect(0, 24, 12, 6) // arm reaching out
+    g.fillStyle(0xe4d8b4).fillCircle(23, 13, 10); g.fillStyle(0xb8a880).fillRect(13, 10, 20, 2).fillRect(13, 16, 20, 2)
+    eyes(g, 19, 27, 13, 0x6aff9a, 2)
+    g.fillStyle(0xd8cca8).fillRect(30, 50, 10, 3) // loose wrap
+  })
+  make(scene, 'jackal', 50, 38, (g) => {
+    g.fillStyle(0xb07a3a).fillEllipse(28, 22, 34, 16) // body
+    g.fillStyle(0x8a5a2a).fillRect(16, 26, 4, 12).fillRect(36, 26, 4, 12).fillRect(24, 28, 4, 10)
+    g.fillStyle(0xc08a4a).fillCircle(12, 15, 8).fillTriangle(0, 18, 8, 12, 8, 22) // head + snout
+    g.fillStyle(0x6a4a2a).fillTriangle(10, 8, 12, -2, 16, 8).fillTriangle(15, 8, 19, 0, 20, 10) // ears
+    eyes(g, 9, 14, 13, 0xffd84a, 1.6)
+    g.fillStyle(0x8a5a2a).fillTriangle(44, 18, 50, 8, 48, 22) // tail
+  })
+  make(scene, 'sandscorp', 56, 40, (g) => {
+    g.fillStyle(0xc0502a).fillEllipse(28, 28, 30, 14) // body
+    g.fillStyle(0x8a3a1a).fillRect(14, 32, 3, 8).fillRect(22, 33, 3, 7).fillRect(32, 33, 3, 7).fillRect(40, 32, 3, 8)
+    g.fillStyle(0xd8603a).fillCircle(44, 20, 5).fillCircle(48, 12, 4).fillCircle(46, 5, 4) // tail curl
+    g.fillStyle(0xffd84a).fillTriangle(40, 2, 44, 6, 36, 8) // stinger
+    g.fillStyle(0xc0502a).fillCircle(8, 24, 6).fillCircle(8, 34, 5) // pincers
+    g.fillStyle(0x14172b).fillTriangle(0, 22, 6, 24, 0, 27).fillTriangle(0, 32, 6, 34, 0, 37)
+    eyes(g, 16, 20, 24, 0xfff0b8, 1.6)
+  })
+  make(scene, 'dunewraith', 46, 56, (g) => {
+    g.fillStyle(0xe8c878, 0.35).fillCircle(23, 26, 22)
+    g.fillStyle(0xd8b060, 0.85).fillTriangle(6, 56, 40, 56, 23, 16) // swirling sand body
+    g.fillStyle(0xc09040).fillTriangle(10, 48, 30, 40, 20, 56).fillTriangle(28, 50, 40, 36, 36, 56)
+    g.fillStyle(0x6a4a2a).fillCircle(23, 16, 10) // hood
+    eyes(g, 19, 26, 16, 0xfff07a, 2.2)
+    g.fillStyle(0xfff0b8, 0.8).fillCircle(4, 20, 2).fillCircle(40, 10, 2).fillCircle(8, 6, 1.5) // grains
+  })
+  make(scene, 'scarab', 56, 44, (g) => {
+    g.fillStyle(0x5a3a1a).fillRect(10, 32, 4, 10).fillRect(24, 34, 4, 10).fillRect(38, 32, 4, 10)
+    g.fillStyle(0x3a7a6a).fillEllipse(30, 24, 42, 30) // shell
+    g.fillStyle(0xd88a3a).fillEllipse(30, 22, 38, 24); g.fillStyle(0x3a7a6a).fillRect(29, 10, 2, 24) // copper shell + seam
+    g.fillStyle(0xffd84a, 0.7).fillCircle(22, 16, 3).fillCircle(38, 16, 3)
+    g.fillStyle(0x5a3a1a).fillCircle(8, 24, 8) // head
+    g.fillStyle(0x3a2a1a).fillTriangle(0, 14, 6, 20, 4, 12).fillTriangle(0, 34, 6, 28, 4, 36) // mandibles
+    eyes(g, 6, 9, 22, 0x9ff0d8, 1.6)
+  })
+  make(scene, 'sunpriest', 46, 62, (g) => {
+    g.fillStyle(0xf2b84b, 0.3).fillCircle(23, 14, 16) // dim sun halo
+    g.fillStyle(0x6a3a5a).fillTriangle(8, 62, 38, 62, 23, 22) // robe
+    g.fillStyle(0xf2b84b).fillRect(16, 34, 14, 3)
+    g.fillStyle(0xb08a6a).fillCircle(23, 18, 8); eyes(g, 20, 26, 18, 0x14172b, 1.6)
+    g.fillStyle(0xf2b84b).fillTriangle(15, 12, 23, 0, 31, 12) // headdress
+    g.fillStyle(0x8a6a3a).fillRect(4, 14, 3, 46); g.fillStyle(0xffe08a).fillCircle(5.5, 12, 5) // sun staff
+  })
+  make(scene, 'sphinx', 96, 84, (g) => {
+    g.fillStyle(0xf2d27a, 0.25).fillCircle(48, 42, 42)
+    g.fillStyle(0xc89a4a).fillRoundedRect(30, 40, 60, 30, 12) // lion body (lying)
+    g.fillStyle(0xa87a3a).fillRect(20, 62, 22, 8).fillRect(70, 62, 18, 8) // paws
+    g.fillStyle(0x6a4ad0).fillTriangle(50, 40, 92, 20, 84, 46) // wing
+    g.fillStyle(0xd8aa5a).fillCircle(28, 30, 15) // head
+    g.fillStyle(0x3a5ab0).fillTriangle(12, 30, 28, 12, 44, 30).fillRect(14, 30, 6, 20).fillRect(36, 30, 6, 20) // nemes headcloth
+    g.fillStyle(0xf2d27a).fillRect(14, 34, 6, 2).fillRect(36, 34, 6, 2)
+    eyes(g, 23, 32, 29, 0x5affe0, 2.6)
+    g.fillStyle(0xf2d27a).fillTriangle(24, 12, 28, 2, 32, 12) // uraeus
+  })
+  make(scene, 'jackallord', 72, 86, (g) => {
+    g.fillStyle(0x2b2238).fillRoundedRect(26, 66, 9, 20, 2).fillRoundedRect(40, 66, 9, 20, 2)
+    g.fillStyle(0x3a2a1a).fillRoundedRect(20, 32, 34, 38, 8) // dark body
+    g.fillStyle(0xf2b84b).fillRect(20, 44, 34, 4) // gold belt
+    g.fillStyle(0x1a1410).fillCircle(37, 22, 11).fillTriangle(22, 26, 30, 18, 30, 28) // jackal head + snout
+    g.fillStyle(0x1a1410).fillTriangle(32, 14, 34, -2, 40, 12).fillTriangle(40, 12, 46, 0, 46, 16) // tall ears
+    g.fillStyle(0xf2b84b).fillRect(30, 28, 14, 3) // collar
+    eyes(g, 32, 38, 20, 0xffb35a, 2)
+    g.fillStyle(0xe8e4d4).fillRect(2, 30, 22, 3).fillRect(54, 40, 18, 3) // two blades
+    g.fillStyle(0xf2b84b).fillRect(22, 28, 3, 8).fillRect(52, 38, 3, 8)
+  })
+  make(scene, 'pharaoh', 104, 110, (g) => {
+    g.fillStyle(0xf2b84b, 0.25).fillCircle(52, 54, 52)
+    g.fillStyle(0xe8d9b0).fillTriangle(18, 110, 86, 110, 52, 36) // wrapped robe
+    g.fillStyle(0xf2b84b).fillRect(30, 70, 44, 6).fillRect(36, 86, 32, 5) // gold bands
+    g.fillStyle(0x3a5ab0).fillTriangle(30, 44, 52, 14, 74, 44).fillRect(32, 42, 10, 26).fillRect(62, 42, 10, 26) // nemes
+    g.fillStyle(0xf2b84b).fillRect(32, 48, 10, 3).fillRect(62, 48, 10, 3).fillRect(32, 56, 10, 3).fillRect(62, 56, 10, 3)
+    g.fillStyle(0xc8a878).fillCircle(52, 40, 13) // face
+    eyes(g, 47, 57, 39, 0xff6a2a, 3)
+    g.fillStyle(0x3a2a1a).fillRect(49, 50, 6, 10) // beard
+    g.fillStyle(0xf2b84b).fillTriangle(48, 18, 52, 4, 56, 18) // uraeus crown
+    g.fillStyle(0x8a6a3a).fillRect(8, 24, 5, 84); g.fillStyle(0xf2b84b).fillCircle(10.5, 20, 9); g.fillStyle(0xffffff, 0.7).fillCircle(8, 17, 3) // sun staff
+    g.fillStyle(0xf2b84b).fillTriangle(86, 60, 100, 50, 96, 70) // crook
+  })
+
   // --- particles / pickups
   make(scene, 'dot', 8, 8, (g) => { g.fillStyle(0xffffff).fillCircle(4, 4, 4) })
   make(scene, 'coin', 14, 14, (g) => {

@@ -7,6 +7,7 @@ import { foldMutators, rng, rollMutators, type FoldedMutators, type MutatorDef }
 import type { SaveData } from '../save'
 import { heroParts, matchScale, TOWER_POWER, towerDamp, type PowerParts } from './power'
 import { affixesAt, rollAffixes, type AffixId } from './affixes'
+import { foldCorruptions, rollCorruptions, type FoldedCorruption } from './corruptions'
 
 export type ModeId = 'dungeon' | 'hard' | 'tower' | 'daily'
 export interface ModeRecord { bestFloor?: number; clears: number; lastSeed?: number }
@@ -50,6 +51,8 @@ export interface RunConfig {
   pp: PowerParts
   /** Tower: affixes live in this room (data/affixes.ts). */
   affixesAt?(room: RunRoom): AffixId[]
+  /** 🔥 hard D6+: the run's PoE-style corruption (data/corruptions.ts). */
+  corrupt?: FoldedCorruption
   /** Tower: monsters enrage after this many hero turns in one fight (0 = never). */
   enrageAfter?(room: RunRoom): number
 }
@@ -82,17 +85,21 @@ export function levelScale(src: string, baseLv: number): MonScale {
   return { hp: k.hp / HARD.hp, atk: k.atk / HARD.atk, hit: HARD.hitPerLv * Math.min(25, Math.max(0, gap)), speed: 1 }
 }
 
-/** Old dungeon runs: the dungeon's own rooms, untouched. */
-function dungeonRun(modeId: ModeId, dg: DungeonDef, hard: boolean, pp: PowerParts): RunConfig {
+/** Dungeon runs: the dungeon's own rooms, untouched. 🔥 hard on a level dungeon (D6+) also rolls its corruption from `seed`. */
+function dungeonRun(modeId: ModeId, dg: DungeonDef, hard: boolean, pp: PowerParts, seed = 0): RunConfig {
+  const corrupt = hard && dg.level ? foldCorruptions(rollCorruptions(seed)) : undefined
+  const mutators = corrupt?.mutators ?? [], mut = corrupt ? foldMutators(mutators) : NO_MUT
+  const mi = dg.rooms.findIndex((r) => r.mini)
+  const rooms = corrupt?.twinDuel && mi >= 0 ? [...dg.rooms.slice(0, mi + 1), { ...dg.rooms[mi], title: `${dg.rooms[mi].title} (รอบ 2)` }, ...dg.rooms.slice(mi + 1)] : dg.rooms
   return {
-    modeId, seed: 0, power: pp.power, pp, endless: false, affix: false, mutators: [], mut: NO_MUT, tag: hard ? 'hard' : '',
-    roomAt: (i) => dg.rooms[i] ?? null,
+    modeId, seed, power: pp.power, pp, endless: false, affix: false, mutators, mut, tag: hard ? 'hard' : '', corrupt,
+    roomAt: (i) => rooms[i] ?? null,
     themeAt: () => dg,
     scale: () => null,
-    turnMul: () => 1,
-    eventsAfter: (i, r) => (r.boss || i >= dg.rooms.length - 1 ? 0 : 1),
+    turnMul: () => mut.turnMul,
+    eventsAfter: (i, r) => (r.boss || i >= rooms.length - 1 ? 0 : 1),
     relicAfter: () => true,
-    where: (i) => `${dg.name} · ด่าน ${i + 1}/${dg.rooms.length}`,
+    where: (i) => `${dg.name} · ด่าน ${i + 1}/${rooms.length}`,
   }
 }
 
@@ -249,7 +256,7 @@ export const MODES: Record<ModeId, GameMode> = {
   hard: {
     id: 'hard', name: 'โหมดยาก', icon: '🔥', desc: 'ดันที่เคลียร์แล้ว มอนแกร่งตาม Hero Power',
     unlock: () => ({ ok: true, why: '' }), record: (s) => `เคลียร์ ${Object.values(s.hardClearsBy ?? {}).reduce((a, n) => a + n, 0)} ครั้ง`,
-    buildRun: (s, a) => dungeonRun('hard', DUNGEONS[a.d ?? 0] ?? DUNGEONS[0], true, heroParts(s)),
+    buildRun: (s, a) => dungeonRun('hard', DUNGEONS[a.d ?? 0] ?? DUNGEONS[0], true, heroParts(s), a.seed ?? Math.floor(Math.random() * 1e9)),
     reward: () => null,
   },
   tower: {

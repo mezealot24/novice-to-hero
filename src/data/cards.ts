@@ -69,6 +69,16 @@ export const EQUIP_CARDS: EquipCard[] = [
   c('card_mirage', 'mirage', 'acc', 'mini', 'd5', { luckyDodge: 0.04 }, { luk: 3 }),
   c('card_warlord', 'warlord', 'weapon', 'mini', 'd5', { crit: 0.05, def: -6 }, { str: 4 }),
   c('card_lich', 'lich', 'acc', 'boss', 'd5', { revive: 1 }, undefined, { maxHp: -0.1 }),
+  // ----- d6 สุสานทรายกษัตริย์ (Lv 40-50 stat monsters) -----
+  c('card_mummy', 'mummy', 'armor', 'normal', 'd6', { maxHp: 120, ignoreCombo: 0.04 }, { vit: 2 }),
+  c('card_jackal', 'jackal', 'weapon', 'normal', 'd6', { comboDmg: 0.1 }, { agi: 2 }),
+  c('card_sandscorp', 'sandscorp', 'weapon', 'normal', 'd6', { critMul: 0.1, poison: 1 }),
+  c('card_dunewraith', 'dunewraith', 'acc', 'normal', 'd6', { matk: 14, debuffRes: 0.05 }),
+  c('card_scarab', 'scarab', 'armor', 'normal', 'd6', { def: 10, counterDR: 0.05 }),
+  c('card_sunpriest', 'sunpriest', 'acc', 'normal', 'd6', { healAmp: 0.08, mdef: 0.04 }, { wis: 2 }),
+  c('card_sphinx', 'sphinx', 'acc', 'mini', 'd6', { spellCrit: 0.05, mdef: 0.06 }, { int: 4 }),
+  c('card_jackallord', 'jackallord', 'weapon', 'mini', 'd6', { combo: 0.08, counter: 0.06 }, { agi: 3 }),
+  c('card_pharaoh', 'pharaoh', 'armor', 'boss', 'd6', { lifesteal: 0.04, critDR: 0.1 }, undefined, { maxHp: 0.1 }),
 
   // ===== second cards: one per monster, aimed at a class (design/equipment-cards.md §10) =====
   // ----- d1 -----

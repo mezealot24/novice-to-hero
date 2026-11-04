@@ -1,5 +1,7 @@
 import Phaser from 'phaser'
 import { COLORS, DUNGEONS, H, HARD, W } from '../data/game-data'
+import { levelDropMul } from '../data/mon-stats'
+import { foldCorruptions, rollCorruptions } from '../data/corruptions'
 import { HARD_POWER, heroParts, heroPower, matchScale, overpowerMul, powerHint, recPower, TOWER_POWER } from '../data/power'
 import { COSTUMES, FREE_GEMS, isBroken, itemById, JOB_RULES, RACES, STAT_RULES } from '../data/meta'
 import { canChangeJob, persist, save, today, ultMode, wipe } from '../save'
@@ -58,7 +60,7 @@ export class HubScene extends Phaser.Scene {
     const by = s.clearsBy ?? { d1: s.clears }
     const isLocked = (d: (typeof DUNGEONS)[number]) => (d.unlock === 'job' && s.job === 'novice') || (d.unlock.startsWith('d') && !(by[d.unlock] > 0))
     const prevName = (u: string) => DUNGEONS.find((x) => x.id === u)?.name ?? u
-    const rowH = Math.min(66, Math.floor(200 / DUNGEONS.length)) // 5 dungeons: compact rows
+    const rowH = Math.min(66, Math.floor(200 / DUNGEONS.length)) // 5+ dungeons: compact rows (6 = 33px)
     const compact = rowH < 60
     DUNGEONS.forEach((d, i) => {
       const y = 112 + i * rowH
@@ -69,8 +71,13 @@ export class HubScene extends Phaser.Scene {
       const lockMsg = d.unlock === 'job' ? '🔒 ปลดล็อกหลังเปลี่ยนอาชีพ' : `🔒 ปลดล็อกหลังเคลียร์${prevName(d.unlock)}`
       const status = locked ? (compact ? '🔒 ล็อก' : lockMsg) : n ? `เคลียร์แล้ว ${n} ครั้ง` : compact ? `ครั้งแรก 💎${FREE_GEMS.firstClear}` : `เคลียร์ครั้งแรกได้เพชร ${FREE_GEMS.firstClear}`
       const nameT = txt(this, 452, y, `${i + 1}. ${d.name}${d.tier >= 4 ? ' 💀' : ''}`, compact ? 15 : 17, locked ? UI.sub : UI.text, true)
-      const ph = powerHint(power, d.id), dm = overpowerMul(power, d.id)
-      txt(this, nameT.x + nameT.width + 8, y + 2, `แนะนำ ⚡${ph.rec}${dm < 1 ? ` · ดรอป x${dm.toFixed(2)}` : ''}`, 12, ph.color, true)
+      if (d.level) { // D6+: fixed monster level instead of Hero Power (data/mon-stats.ts)
+        const dm = levelDropMul(s.baseLevel, d.level), low = s.baseLevel < d.level[0]
+        txt(this, nameT.x + nameT.width + 8, y + 2, `มอน Lv${d.level[0]}-${d.level[1]}${dm < 1 ? ` · ดรอป x${dm.toFixed(2)}` : ''}`, 12, low ? '#ff7a7a' : dm < 1 ? '#9fd0ff' : '#9fe3a0', true)
+      } else {
+        const ph = powerHint(power, d.id), dm = overpowerMul(power, d.id)
+        txt(this, nameT.x + nameT.width + 8, y + 2, `แนะนำ ⚡${ph.rec}${dm < 1 ? ` · ดรอป x${dm.toFixed(2)}` : ''}`, 12, ph.color, true)
+      }
       const hb = (s.hardClearsBy ?? {})[d.id] ?? 0
       if (compact) txt(this, 452, y + 19, `${info} · ${status}${hb ? ` · 🔥${hb}` : ''}`, 11, locked ? '#ff9a9a' : n ? UI.sub : UI.gem).setWordWrapWidth(n ? 270 : 320)
       else {
@@ -91,7 +98,12 @@ export class HubScene extends Phaser.Scene {
         if (locked) { confirm(this, `${d.name} ยังล็อกอยู่`, `${why} (โหมดทดสอบ: ลองได้)`, 'ลองเลย', start); return }
         start()
       }, { size: compact ? 17 : 20, fill: locked ? 0x4a4e6e : undefined, color: locked ? UI.sub : undefined })
-      if (n > 0) { // hard mode (v47): cleared dungeons only, monsters scale with Base Lv
+      if (n > 0 && d.level) { // D6+ hard: +50% monster stat points + a PoE-style corruption roll shown before the run
+        const seed = Math.floor(Math.random() * 1e9), cr = foldCorruptions(rollCorruptions(seed))
+        button(this, 756, y + (compact ? 18 : 26), 62, compact ? 34 : 50, '🔥ยาก', () => confirm(this, `🔥 โหมดยาก · ${d.name}`,
+          `มอน Lv${d.level![0]}-${d.level![1]} เท่าเดิม แต่แต้มสถานะ +50% (ธรรมดา 100% · มินิ 150% · บอส 200%)\nบอส/มินิบอสสุ่มสกิล + passive\n☠️ Corruption: ${cr.list.map((c) => `${c.icon} ${c.name} (${c.desc})`).join('\n')}\nรางวัล zeny/EXP x${(HARD.reward * cr.reward).toFixed(2)} · วัตถุดิบ x${(HARD.mats * cr.reward).toFixed(2)}`,
+          'ลุยเลย', () => go(this, 'battle', { d: i, hard: true, seed }), 'ยังก่อน'), { size: 14, fill: 0x5a1a4a, color: UI.text })
+      } else if (n > 0) { // hard mode (v47): cleared dungeons only, monsters scale with Base Lv
         const m = matchScale(heroParts(s), d.id), kh = m.hp * HARD_POWER.target, ka = m.atk * HARD_POWER.target, rw = HARD.reward * m.hp ** HARD.rewardPow
         button(this, 756, y + (compact ? 18 : 26), 62, compact ? 34 : 50, '🔥ยาก', () => confirm(this, `🔥 โหมดยาก · ${d.name}`,
           `มอนแกร่งตาม Hero Power ของเรา (⚡${power} · ดันนี้แนะนำ ⚡${recPower(d.id)})\nมอนประมาณ ${Math.round(HARD_POWER.target * 100)}% ของเรา: HP x${kh.toFixed(2)} (ตามดาเมจเรา) · ATK x${ka.toFixed(2)} (ตามความถึก)\nบอส/มินิบอสสุ่มสกิล + passive · 🎯 หลบได้ครั้งเดียวแล้วตีโดนแน่ 3 เทิร์น\nรางวัล zeny/EXP x${rw.toFixed(2)} · วัตถุดิบ x${HARD.mats}`,
