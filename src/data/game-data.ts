@@ -113,7 +113,8 @@ export interface Stats {
   cleaveAdd: number // + share of the basic swing's 2nd-monster cleave
   startRage: number // Rage at every wave start (Swordsman on Mana: Mana refilled at wave start)
   rageOnHurtAdd: number // + Rage when hit (Mana job: flat Mana when hit)
-  autoLifesteal: number // + lifesteal on the auto skill only
+  spellVamp: number // Q 2026-11-04: heals this share of SKILL damage (Skill 1, Skill 2, ult); hits on several monsters heal 1/3. Cap 40%
+  skillDmgCut: number // drawback paired with big spellVamp sources: skill/ult damage -x (0..0.9)
   ultMulAdd: number // + ult damage multiplier (can be negative)
   ultAmp: number // run pick บดกระดูก: job ult damage x(1 + ultAmp) (Novice uses smashMul instead)
   ultShieldAdd: number // + ult shield share of max HP (can be negative)
@@ -169,7 +170,7 @@ export const PLAYER: Stats = {
   aspd: 1.6, range: 110, crit: 0, critMul: 1.4, /* Q: crit only from items, skill tree, talents (+ in-run cards) */ speed: 190,
   guard: 0, lifesteal: 0, regen: 0, fireEvery: 0, boltMul: 2, burnDps: 0, poison: 0, poisonDmg: 2,
   smashMul: 3, smashCd: 6000, smashCost: 0, revive: 0, counter: 0, combo: 0, dodgeHeal: 0, waveShield: 0,
-  thorns: 0, rageGain: 0, autoCostCut: 0, ctrAoe: 0, berserk: 0, pierce: 0, lockOn: 0, dodgeStrike: 0, doubleAtk: 0, thExecute: 0, poisonLeech: 0, killHeal: 0, bloodKing: 0, thUltAgi: 0, lightMax: 0, overload: 0, lightLuck: 0, burnCap: 0, autoBurn: 0, fireSpread: 0, chillPlus: 0, brittle: 0, shatter: 0, reviveHp: 0, smiteTargets: 0, holyCounter: 0, overhealShield: 0, poisonCap: 0, poisonSpread: 0, fleeFloor: 0, waveDodge: 0, dodgeEnergy: 0, ultDodge: 0, ultHits: 0, ultPoison: 0, poisonAmp: 0, lightHits: 0, lightChain: 0, burnTick: 0, chillSlow: 0, iceBarrier: 0, boltHits: 0, boltCharge: 0, stormSet: 0, mgLightAmp: 0, mgFireAmp: 0, mgIceAmp: 0, mgFirstCard: 0, mgFireStack: 0, mgWaveBarrier: 0, resRegenCut: 0, mgUltAmp: 0, elemWheel: 0, mgBarrierCut: 0, barrierBoom: 0, mgEmergency: 0, mgDoubleCast: 0, mgUltCd: 0, mgUltMana: 0, mgOverflow: 0, cleaveAdd: 0, startRage: 0, rageOnHurtAdd: 0, autoLifesteal: 0, ultMulAdd: 0, ultAmp: 0, ultShieldAdd: 0, ultVsCharge: 0, ultCounters: 0, counterRage: 0, counterShield: 0, arDodgeShield: 0, arUltBreak: 0, arWaveDodge: 0, arSnipeLow: 0, arLowHpBonus: 0, arVolley: 0, arAim: 0, arAimCrit: 0, arUltSplash: 0, arUltDodge: 0, arUltMulCut: 0, arHawk: 0, arStartFull: 0, arTurnRes: 0, arCritRes: 0, arDodgeRes: 0, debuffRes: 0, healAt: 0, atone: 0, judge: 0, smiteMul: 0, smiteVamp: 0, healShield: 0, spearStart: 0, spearRate: 0, spearMul: 0, spearHeal: 0, ultRegen: 0, ultHoly: 0, ultChargeShield: 0, bossShield: 0, lateDmg: 0, spellCrit: 0, spearLuck: 0, strToInt: 0, s1Pow: 0, ultPow: 0, s2Lv: 0, s2Star: 0, // Novice: cooldown only (resources come with job change)
+  thorns: 0, rageGain: 0, autoCostCut: 0, ctrAoe: 0, berserk: 0, pierce: 0, lockOn: 0, dodgeStrike: 0, doubleAtk: 0, thExecute: 0, poisonLeech: 0, killHeal: 0, bloodKing: 0, thUltAgi: 0, lightMax: 0, overload: 0, lightLuck: 0, burnCap: 0, autoBurn: 0, fireSpread: 0, chillPlus: 0, brittle: 0, shatter: 0, reviveHp: 0, smiteTargets: 0, holyCounter: 0, overhealShield: 0, poisonCap: 0, poisonSpread: 0, fleeFloor: 0, waveDodge: 0, dodgeEnergy: 0, ultDodge: 0, ultHits: 0, ultPoison: 0, poisonAmp: 0, lightHits: 0, lightChain: 0, burnTick: 0, chillSlow: 0, iceBarrier: 0, boltHits: 0, boltCharge: 0, stormSet: 0, mgLightAmp: 0, mgFireAmp: 0, mgIceAmp: 0, mgFirstCard: 0, mgFireStack: 0, mgWaveBarrier: 0, resRegenCut: 0, mgUltAmp: 0, elemWheel: 0, mgBarrierCut: 0, barrierBoom: 0, mgEmergency: 0, mgDoubleCast: 0, mgUltCd: 0, mgUltMana: 0, mgOverflow: 0, cleaveAdd: 0, startRage: 0, rageOnHurtAdd: 0, spellVamp: 0, skillDmgCut: 0, ultMulAdd: 0, ultAmp: 0, ultShieldAdd: 0, ultVsCharge: 0, ultCounters: 0, counterRage: 0, counterShield: 0, arDodgeShield: 0, arUltBreak: 0, arWaveDodge: 0, arSnipeLow: 0, arLowHpBonus: 0, arVolley: 0, arAim: 0, arAimCrit: 0, arUltSplash: 0, arUltDodge: 0, arUltMulCut: 0, arHawk: 0, arStartFull: 0, arTurnRes: 0, arCritRes: 0, arDodgeRes: 0, debuffRes: 0, healAt: 0, atone: 0, judge: 0, smiteMul: 0, smiteVamp: 0, healShield: 0, spearStart: 0, spearRate: 0, spearMul: 0, spearHeal: 0, ultRegen: 0, ultHoly: 0, ultChargeShield: 0, bossShield: 0, lateDmg: 0, spellCrit: 0, spearLuck: 0, strToInt: 0, s1Pow: 0, ultPow: 0, s2Lv: 0, s2Star: 0, // Novice: cooldown only (resources come with job change)
 }
 
 export const RULES = {
@@ -212,7 +213,7 @@ export const PERKS: Perk[] = [
   { id: 'grd2', tag: 'guard', name: 'โล่ไม้', desc: 'รับดาเมจน้อยลง 15%', mod: { guard: 0.15 } },
   { id: 'grd3', tag: 'guard', name: 'ลมหายใจ', desc: 'ฟื้น HP 1.5% ทุกเทิร์น', mod: { regen: 1 } },
   { id: 'grd4', tag: 'guard', name: 'ท่าสวน', desc: 'โอกาสสวนกลับ +15% เมื่อโดนตี', mod: { counter: 0.15 } },
-  { id: 'bld1', tag: 'blood', name: 'ดูดเลือด', desc: 'ฟื้น HP 12% ของดาเมจที่ทำได้', mod: { lifesteal: 0.12 } },
+  { id: 'bld1', tag: 'blood', name: 'ดูดเลือด', desc: 'ตีธรรมดาฟื้น HP 6% ของดาเมจ', mod: { lifesteal: 0.06 } },
   { id: 'bld2', tag: 'blood', name: 'คลั่งเลือด', desc: 'ATK +6', mod: { atk: 6 } },
   { id: 'bld3', tag: 'blood', name: 'บดกระดูก', desc: 'ดาเมจ{ult} x2', mod: { smashMul: 3, ultAmp: 1 } },
   { id: 'fir1', tag: 'fire', name: 'ลูกไฟ', desc: 'ทุกการตีครั้งที่ 3 ยิงลูกไฟใส่ศัตรูที่ไกลที่สุด (x2 M.ATK)', mod: { fireEvery: 3 } },
@@ -247,7 +248,7 @@ export const SET_BONUS: Partial<Record<Tag, { desc: string; mod: Partial<Stats> 
   crit: { desc: 'เซ็ตคริ: โอกาสคริ +20%', mod: { crit: 0.2 } },
   speed: { desc: 'เซ็ตเร็ว: ตีเร็ว +30%', mod: { aspd: 0.5 } },
   guard: { desc: 'เซ็ตอึด: รับดาเมจน้อยลงอีก 20%', mod: { guard: 0.2 } },
-  blood: { desc: 'เซ็ตเลือด: ดูดเลือด +10% และ ATK +5', mod: { lifesteal: 0.1, atk: 5 } },
+  blood: { desc: 'เซ็ตเลือด: ดูดเลือด +5% และ ATK +5', mod: { lifesteal: 0.05, atk: 5 } },
   storm: { desc: 'เซ็ตพายุ: สายฟ้าลงเป้าเดิมซ้ำในเทิร์นเดียว แรงขึ้น +10% ต่อครั้ง', mod: { stormSet: 1 } },
   fire: { desc: 'เซ็ตไฟ: ลูกไฟทุกการตีครั้งที่ 2', mod: { fireEvery: -1 } },
   venom: { desc: 'เซ็ตพิษ: พิษ +2 stack ต่อ hit', mod: { poison: 2 } },
