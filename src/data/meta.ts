@@ -25,7 +25,7 @@ export const BASE_STATS: { id: BaseStat; name: string; role: string; desc: strin
   { id: 'vit', name: 'VIT', role: 'ความอึด', desc: 'HP +10 และ +0.5% · P.DEF +0.5 · ฟื้น HP เล็กน้อย · สวนกลับนิดหน่อย' },
   { id: 'wis', name: 'WIS', role: 'ใจแข็ง', desc: 'ฮีล/โล่แรง +1% · M.DEF% · ต้านทาน (tenacity) · ฟื้นมานา' },
   { id: 'dex', name: 'DEX', role: 'ความแม่น', desc: 'Hit +1 · P.ATK ขั้นต่ำ +0.5% (ดาเมจนิ่งขึ้น) · นักดาบ: สวนกลับ +0.2% · นักบวช: หอกแสงแรง +1%' },
-  { id: 'int', name: 'INT', role: 'เวทมนตร์', desc: 'M.ATK +2 · Max Mana +3 · โจร: ดาเมจพิษ +0.1/stack' },
+  { id: 'int', name: 'INT', role: 'เวทมนตร์', desc: 'M.ATK +2 · Max Mana +3 · โจร: ดาเมจพิษ +0.1/stack (และ M.ATK ทุก 1 = +0.05)' },
   { id: 'luk', name: 'LUK', role: 'ดวง', desc: 'คริ +1% ต่อ 3 LUK · นักบวช: โอกาสเรียกหอกแสง · จอมเวท: คริเวท +1% ต่อ 6 LUK · หลบโชคดี · พรตำนาน · อีเวนต์หายาก · ดรอปหายาก' },
   { id: 'agi', name: 'AGI', role: 'ความเร็ว', desc: 'ความเร็วเทิร์น +1.5% (ได้ตีบ่อยขึ้น) · Flee +1 · คอมโบ (ตีซ้ำ) · โจร: เงาพริ้วแรง +2%' },
 ]
@@ -215,7 +215,7 @@ const STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => string]>> 
   hit: ['Hit', (n) => `${n}`], flee: ['Flee', (n) => `${n}`], luckyDodge: ['หลบโชคดี', pc], dropChance: ['ดรอปหายาก', pc],
   maxRes: ['Max Mana', (n) => `${n}`], resRegen: ['ฟื้น Mana', (n) => `${Math.round(n * 3 * 10) / 10}/เทิร์น`], aspd: ['เร็ว', (n) => pc(n / PLAYER.aspd)],
   crit: ['คริ', pc], spellCrit: ['เวทคริ', pc], critMul: ['ดาเมจคริ', pc], guard: ['ลดดาเมจ', pc], lifesteal: ['ดูดเลือด', pc], regen: ['ฟื้น HP/เทิร์น', (n) => pc(n * 1.5 / 100)],
-  poison: ['พิษ stack/hit', (n) => `${n}`], poisonDmg: ['พิษแรง', (n) => `${n}`], smashMul: ['ทุบ(โนวิส)', (n) => `${n}x`],
+  poison: ['พิษ stack/hit', (n) => `${n}`], poisonDmg: ['พิษแรง', (n) => `${+n.toFixed(1)}`], smashMul: ['ทุบ(โนวิส)', (n) => `${n}x`],
   counter: ['สวนกลับ', pc], combo: ['คอมโบ', pc],
   dodgeHeal: ['หลบ→ฟื้น HP', pc], revive: ['ลุกใหม่', (n) => `${n} ครั้ง/รอบ`],
   burnDps: ['ติดไฟ', (n) => `${n}/เทิร์น`], healShield: ['ฮีลแล้วได้โล่', pc], dodgeEnergy: ['หลบ→Energy', (n) => `${n}`], counterRage: ['สวนกลับ→Rage', (n) => `${n}`],
@@ -359,6 +359,7 @@ export function heroStats(s: StatsInput): Stats {
   const pct = { maxHp: 0, atk: 0, matk: 0 }
   for (const x of [...cards, ...worn]) for (const k of Object.keys(x.pct ?? {}) as (keyof typeof pct)[]) pct[k] += x.pct![k]! // refine lines: HP / ATK / M.ATK %
   st.maxHp = Math.max(1, Math.round(st.maxHp * (1 + pct.maxHp))); st.atk *= 1 + pct.atk; st.matk *= 1 + pct.matk
+  if (job.id === 'thief') st.poisonDmg += 0.05 * Math.max(0, st.matk - PLAYER.matk) // Q 2026-11-04: poison also scales with M.ATK (gear/cards/INT), on top of +0.1 per INT
   for (const sk of SKILLS) if (s.skills[sk.id] > 0 && (sk.id !== 'smash' || job.id === 'novice')) add(sk.mod(s.skills[sk.id]))
   st.smashCd = Math.max(2500, st.smashCd)
   st.aspd = Math.max(0.6, st.aspd)
