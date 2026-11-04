@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
-import { COLORS, DUNGEONS, H, HARD, hardGap, hardMul, W } from '../data/game-data'
+import { COLORS, DUNGEONS, H, HARD, W } from '../data/game-data'
+import { HARD_POWER, heroParts, heroPower, matchScale, overpowerMul, powerHint, recPower, TOWER_POWER } from '../data/power'
 import { COSTUMES, FREE_GEMS, isBroken, itemById, JOB_RULES, RACES, STAT_RULES } from '../data/meta'
 import { canChangeJob, persist, save, today, ultMode, wipe } from '../save'
 import { JOB_CHANGE, JOBS } from '../data/jobs'
@@ -52,6 +53,8 @@ export class HubScene extends Phaser.Scene {
     // ---- adventure (right top): one row per dungeon ----
     panel(this, 428, 76, 508, 240, 0x2a3358)
     txt(this, 452, 84, '⚔️ ผจญภัย', 20, UI.gold, true)
+    const power = heroPower(s) // v59: one number monsters scale to (data/power.ts)
+    txt(this, 916, 88, `⚡ Hero Power ${power}`, 15, UI.gold, true).setOrigin(1, 0)
     const by = s.clearsBy ?? { d1: s.clears }
     const isLocked = (d: (typeof DUNGEONS)[number]) => (d.unlock === 'job' && s.job === 'novice') || (d.unlock.startsWith('d') && !(by[d.unlock] > 0))
     const prevName = (u: string) => DUNGEONS.find((x) => x.id === u)?.name ?? u
@@ -65,7 +68,9 @@ export class HubScene extends Phaser.Scene {
       const info = `${d.rooms.length - 1 - (mini ? 1 : 0)} เวฟ${mini ? ' + ดวล 1-1' : ''} + บอส${d.boss}`
       const lockMsg = d.unlock === 'job' ? '🔒 ปลดล็อกหลังเปลี่ยนอาชีพ' : `🔒 ปลดล็อกหลังเคลียร์${prevName(d.unlock)}`
       const status = locked ? (compact ? '🔒 ล็อก' : lockMsg) : n ? `เคลียร์แล้ว ${n} ครั้ง` : compact ? `ครั้งแรก 💎${FREE_GEMS.firstClear}` : `เคลียร์ครั้งแรกได้เพชร ${FREE_GEMS.firstClear}`
-      txt(this, 452, y, `${i + 1}. ${d.name}${d.tier >= 4 ? ' 💀' : ''}`, compact ? 15 : 17, locked ? UI.sub : UI.text, true)
+      const nameT = txt(this, 452, y, `${i + 1}. ${d.name}${d.tier >= 4 ? ' 💀' : ''}`, compact ? 15 : 17, locked ? UI.sub : UI.text, true)
+      const ph = powerHint(power, d.id), dm = overpowerMul(power, d.id)
+      txt(this, nameT.x + nameT.width + 8, y + 2, `แนะนำ ⚡${ph.rec}${dm < 1 ? ` · ดรอป x${dm.toFixed(2)}` : ''}`, 12, ph.color, true)
       const hb = (s.hardClearsBy ?? {})[d.id] ?? 0
       if (compact) txt(this, 452, y + 19, `${info} · ${status}${hb ? ` · 🔥${hb}` : ''}`, 11, locked ? '#ff9a9a' : n ? UI.sub : UI.gem).setWordWrapWidth(n ? 270 : 320)
       else {
@@ -87,9 +92,9 @@ export class HubScene extends Phaser.Scene {
         start()
       }, { size: compact ? 17 : 20, fill: locked ? 0x4a4e6e : undefined, color: locked ? UI.sub : undefined })
       if (n > 0) { // hard mode (v47): cleared dungeons only, monsters scale with Base Lv
-        const gap = hardGap(d.id, s.baseLevel), k = hardMul(d.id, gap)
+        const m = matchScale(heroParts(s), d.id), kh = m.hp * HARD_POWER.target, ka = m.atk * HARD_POWER.target, rw = HARD.reward * m.hp ** HARD.rewardPow
         button(this, 756, y + (compact ? 18 : 26), 62, compact ? 34 : 50, '🔥ยาก', () => confirm(this, `🔥 โหมดยาก · ${d.name}`,
-          `มอนแกร่งตามเลเวลเรา (Lv ${s.baseLevel} · แนะนำ Lv ${HARD.recLv[d.id]})\nHP x${k.hp.toFixed(2)} · ATK x${k.atk.toFixed(2)} · บอสสุ่มสกิล + passive เพิ่ม\nรางวัล zeny/EXP x${k.reward.toFixed(2)} · วัตถุดิบ x${HARD.mats}`,
+          `มอนแกร่งตาม Hero Power ของเรา (⚡${power} · ดันนี้แนะนำ ⚡${recPower(d.id)})\nมอนประมาณ ${Math.round(HARD_POWER.target * 100)}% ของเรา: HP x${kh.toFixed(2)} (ตามดาเมจเรา) · ATK x${ka.toFixed(2)} (ตามความถึก)\nบอส/มินิบอสสุ่มสกิล + passive · 🎯 หลบได้ครั้งเดียวแล้วตีโดนแน่ 3 เทิร์น\nรางวัล zeny/EXP x${rw.toFixed(2)} · วัตถุดิบ x${HARD.mats}`,
           'ลุยเลย', () => go(this, 'battle', { d: i, hard: true }), 'ยังก่อน'), { size: 14, fill: 0x8a3a2a, color: UI.text })
       }
       const nextLocked = i === DUNGEONS.length - 1 || isLocked(DUNGEONS[i + 1])
@@ -136,6 +141,7 @@ export class HubScene extends Phaser.Scene {
       c.add(txt(this, W / 2 - 360, y + 12, `${m.icon} ${m.name}`, 22, u.ok ? UI.text : UI.sub, true))
       c.add(txt(this, W / 2 + 200, y + 18, u.ok ? m.record(s) : `🔒 ${u.why}`, 14, u.ok ? UI.gold : '#ff9a9a').setOrigin(1, 0))
       let body = m.desc
+      if (id === 'tower') body = `${m.desc}\n⚡ พลังเรา ${heroPower(s)} · ชั้น 1 มอนราว ${Math.round(TOWER_POWER.start * 100)}% แล้วโตทบต้นทุกชั้น · สู้นานเกิน ${TOWER_POWER.enrageWave} เทิร์น (บอส ${TOWER_POWER.enrageBoss}) มอนคลั่ง`
       if (id === 'daily') {
         const seed = dailySeed(), d = dailyOf(seed)
         body = `วันนี้: ${d.dg.name} · ${d.mutators.map((x) => `${x.icon} ${x.name} (${x.desc})`).join(' · ')}\n${m.desc}`
