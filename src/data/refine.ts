@@ -69,7 +69,7 @@ export function spend(s: Wallet, c: ForgeCost): Item | null | false {
 type Kind = 'atk' | 'def' | 'any'
 interface LineDef { stat: string; vals: [number, number, number]; kind: Kind; w: number; off?: JobId[] }
 // Who gets nothing from a stat (checked against BattleScene / heroStats, 2026-11-03):
-const NO_MANA: JobId[] = ['archer', 'thief', 'novice'] // Energy jobs + Novice (Swordsman runs on Mana since v28)
+const NO_MANA: JobId[] = ['archer', 'novice'] // Energy job + Novice (Swordsman on Mana since v28, Thief since 2026-11-04)
 const NO_MAGIC: JobId[] = ['swordsman', 'archer', 'thief', 'novice'] // M.ATK / spell crit
 const NO_PSKILL: JobId[] = ['mage', 'cleric', 'archer', 'thief'] // pskill is read by Swordsman skills + Novice Smash only
 /** The pool. `w` splits shared table rows ("M.DEF / ต้านทาน" = 0.5 each); `off` = jobs that get no use (weight x0.25). */

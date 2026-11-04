@@ -52,12 +52,12 @@ export const SKILL2: Skill2Def[] = [
     { icon: '🔰', name: 'โล่หนา', desc: (lv) => `โล่ ${20 + lv * 4}% HP` }, { icon: '⏱️', name: 'พรไว', desc: 'คูลดาวน์ โล่แสง −1 เทิร์น' }),
   s('cl_spear', 'cleric', '🔱', 'หอกแสง', 20, 3, 'เรียกหอกแสง 2 เล่ม (ยิงทุกตัวตอนจบเทิร์น)',
     { icon: '⚜️', name: 'หอกคม', desc: (lv) => `หอกแรง +${lv * 10}%` }, { icon: '🌟', name: 'หอกสวรรค์', desc: 'เรียกหอก 4 เล่ม' }),
-  // 🗡️ Thief (Energy)
-  s('th_smoke', 'thief', '💨', 'ม่านควัน', 40, 4, 'หลบการโจมตีถัดไปแน่นอน 1 ครั้ง',
+  // 🗡️ Thief (Mana since 2026-11-04: pool 60, costs ~0.6x the Energy-era 40/30/35)
+  s('th_smoke', 'thief', '💨', 'ม่านควัน', 24, 4, 'หลบการโจมตีถัดไปแน่นอน 1 ครั้ง',
     { icon: '🌫️', name: 'ควันหอม', desc: (lv) => `ร่ายแล้วฟื้น ${lv * 3}% HP` }, { icon: '👥', name: 'ควันหนา', desc: 'หลบแน่นอน 2 ครั้ง' }),
-  s('th_pick', 'thief', '💰', 'ล้วงกระเป๋า', 30, 3, 'แทงตัวหน้า 1x + คืน Energy 15',
-    { icon: '🪙', name: 'มือไว', desc: (lv) => `คืน Energy ${15 + lv * 5}` }, { icon: '🎭', name: 'จอมโจร', desc: 'แทงแรง 1.6x + ติดพิษ 3 stack' }),
-  s('th_wound', 'thief', '🩸', 'แผลลึก', 35, 3, 'แทงตัวหน้า 1.2x ทะลุ DEF + พิษ 4 stack',
+  s('th_pick', 'thief', '💰', 'ล้วงกระเป๋า', 18, 3, 'แทงตัวหน้า 1x + คืน Mana 9',
+    { icon: '🪙', name: 'มือไว', desc: (lv) => `คืน Mana ${9 + lv * 3}` }, { icon: '🎭', name: 'จอมโจร', desc: 'แทงแรง 1.6x + ติดพิษ 3 stack' }),
+  s('th_wound', 'thief', '🩸', 'แผลลึก', 21, 3, 'แทงตัวหน้า 1.2x ทะลุ DEF + พิษ 4 stack',
     { icon: '🔪', name: 'แผลฉีก', desc: (lv) => `พิษ ${4 + lv} stack` }, { icon: '⚰️', name: 'แผลมรณะ', desc: 'แทงแรง 2x ทะลุ DEF' }),
 ]
 export const skill2ById = (id: string) => SKILL2.find((x) => x.id === id)

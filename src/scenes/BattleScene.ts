@@ -610,7 +610,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.ultFiring && m.charging && this.st.arUltBreak > 0) mul *= 1 + this.st.arUltBreak // archer tree/talent: ult vs a charging boss
     if (this.st.arLowHpBonus > 0 && m.hp < m.def.hp * 0.5) mul *= 1 + this.st.arLowHpBonus // archer talent เก็บตัวเปราะ r2
     if (crit && this.st.thExecute > 0 && m.hp < m.def.hp * 0.3) mul *= 1.5 // Thief ★ เพชฌฆาต
-    if (crit && this.st.arCritRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arCritRes) // archer talent ลมหายใจนักล่า
+    if (crit && this.st.arCritRes > 0) this.gainRes(this.st.arCritRes) // archer talent ลมหายใจนักล่า
     const r = this.roll(mul, magic, crit)
     if (!magic && !crit) r.dmg = m.def.def ? Math.max(1, Math.round(afterDef(r.dmg, m.def.def * (1 - Math.min(1, pierce))))) : r.dmg
     this.damageMon(m, r.dmg, r.crit, color)
@@ -810,7 +810,7 @@ export class BattleScene extends Phaser.Scene {
           this.strike(m, star ? 1.6 : 1)
           if (star && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + 3); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) }
         })
-        this.res = Math.min(this.resMax(), this.res + 15 + 5 * lv)
+        this.res = Math.min(this.resMax(), this.res + 9 + 3 * lv) // Mana since 2026-11-04 (Energy 15 + 5/lv)
         break
       }
       case 'th_wound': {
@@ -1433,7 +1433,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.st.dodgeHeal > 0) this.heal(this.st.maxHp * this.st.dodgeHeal) // gear: dodging heals a little (Thief)
       if (this.st.arDodgeShield > 0 && this.shield < this.st.maxHp * this.st.arDodgeShield * 3) this.addShield(Math.min(this.st.maxHp * this.st.arDodgeShield, this.st.maxHp * this.st.arDodgeShield * 3 - this.shield)) // archer tree โล่ลม
       if (this.st.arDodgeRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arDodgeRes) // archer ★ ยิงถอย
-      if (this.st.dodgeEnergy > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.dodgeEnergy) // Thief talent: ขโมยจังหวะ
+      if (this.st.dodgeEnergy > 0) this.gainRes(this.st.dodgeEnergy) // Thief talent: ขโมยจังหวะ (Mana since 2026-11-04)
       return false
     }
     if (this.dodgeCharges > 0) { this.dodgeCharges--; return dodged('เงาพริ้ว!', '#c9c9d6') }

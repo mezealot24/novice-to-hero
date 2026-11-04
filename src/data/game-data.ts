@@ -80,7 +80,7 @@ export interface Stats {
   poisonSpread: number // flag: a dying monster's poison jumps to the others
   fleeFloor: number // Thief: lowers the 80% minimum hit chance monsters have against the hero (cap 0.2)
   waveDodge: number // Thief talent: sure dodges at every wave start
-  dodgeEnergy: number // Thief talent: Energy gained per dodge
+  dodgeEnergy: number // Thief talent / bat card: Energy (Archer) or Mana (Thief) gained per dodge
   ultDodge: number // Thief talent: + sure dodges from the ult
   ultHits: number // Thief talent: + stabs in the ult
   ultPoison: number // Thief talent: poison stacks per ult stab

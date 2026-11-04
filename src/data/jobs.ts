@@ -10,7 +10,7 @@ export interface JobSkill { name: string; icon: string; desc: string }
 export interface JobDef {
   id: JobId; name: string; icon: string; tex: string; blurb: string; focus: string
   resource: Resource | null; attack: AttackStyle; tags: Tag[]; mod: Partial<Stats>
-  auto: JobSkill & { cost: number }; ult: JobSkill & { cd: number; cost?: number } // ult cost: Mana (Mage, Swordsman)
+  auto: JobSkill & { cost: number }; ult: JobSkill & { cd: number; cost?: number } // ult cost: Mana (Mage, Swordsman, Thief)
 }
 
 export const JOB_CHANGE = { needClears: 1, classMaxJobLevel: 40 }
@@ -36,6 +36,13 @@ export const SWORD_MANA = {
   autoMul: 1.25, // ฟันพายุ x P.ATK (1.3 before the class rebalance 2026-11-03, 1.15 in v40, 1.25 after the lifesteal cut 2026-11-04)
   ultMul: 1.2, // ดาบพิทักษ์ x P.ATK (1.4 until the class rebalance)
   ultShield: 0.15, // ดาบพิทักษ์ (0.1 in v40-v43, back to 0.15 after the lifesteal cut 2026-11-04) shield, share of max HP (0.25 in the Rage era; Q chose the armour trim 2026-11-03)
+}
+
+/** Thief (Q 2026-11-04): Energy -> Mana like RO. The basic stab (2 hits + D.Strike + combo) already carries the damage,
+ *  so skills and the ult are rationed; INT (pool, also poison) / WIS (regen) or Mana gear let a build cast more. */
+export const THIEF_MANA = {
+  auto: 20, // แทงพิษ (Energy 40 before)
+  ult: 30, // เงาพริ้ว (plus its 4-turn cooldown; a booked ult waits for Mana)
 }
 
 /** Cleric kit numbers (class rebalance 2026-11-03: was heal 22%, ult shield 35% + heal 15%; gear/cards should make up the gap). */
@@ -75,10 +82,10 @@ export const JOBS: Record<JobId, JobDef> = {
     ult: { name: 'พรคุ้มครอง', icon: '🙏', cd: 4, desc: `โล่ ${Math.round(CLERIC_KIT.ultShield * 100)}% ของ HP สูงสุด + ฮีล ${Math.round(CLERIC_KIT.ultHeal * 100)}%` },
   },
   thief: {
-    id: 'thief', name: 'โจร', icon: '🗡️', tex: 'hero_thief', blurb: 'เร็ว หลบเก่ง แทงสองที ติดพิษ · Double Strike: มีโอกาสตีเพิ่ม 1 ที · เงาบาง: มอนตีโดนอย่างน้อย 70% (อาชีพอื่น 80%)', focus: 'AGI · LUK',
-    resource: 'energy', attack: 'melee', tags: ['venom', 'speed'], mod: { flee: 10, aspd: 0.24, poison: 1, fleeFloor: 0.1 },
-    auto: { name: 'แทงพิษ', icon: '🧪', cost: 40, desc: 'Energy 40: แทง 1.6x + พิษ 3 stack (ติด Double Strike ได้)' },
-    ult: { name: 'เงาพริ้ว', icon: '👤', cd: 4, desc: 'หลบ 2 ครั้งถัดไปแน่นอน + แทงสุ่ม 4 ที ทีละ 0.7x (+2% ต่อ AGI 1 แต้ม)' },
+    id: 'thief', name: 'โจร', icon: '🗡️', tex: 'hero_thief', blurb: 'เร็ว หลบเก่ง แทงสองที ติดพิษ · ใช้ Mana: สกิลกับ Ult ออกได้จำกัด ตีธรรมดาคือดาเมจหลัก · Double Strike: มีโอกาสตีเพิ่ม 1 ที · เงาบาง: มอนตีโดนอย่างน้อย 70% (อาชีพอื่น 80%)', focus: 'AGI · LUK',
+    resource: 'mana', attack: 'melee', tags: ['venom', 'speed'], mod: { flee: 10, aspd: 0.24, poison: 1, fleeFloor: 0.1 },
+    auto: { name: 'แทงพิษ', icon: '🧪', cost: THIEF_MANA.auto, desc: `Mana ${THIEF_MANA.auto}: แทง 1.6x + พิษ 3 stack (ติด Double Strike ได้)` },
+    ult: { name: 'เงาพริ้ว', icon: '👤', cd: 4, cost: THIEF_MANA.ult, desc: `Mana ${THIEF_MANA.ult}: หลบ 2 ครั้งถัดไปแน่นอน + แทงสุ่ม 4 ที ทีละ 0.7x (+2% ต่อ AGI 1 แต้ม)` },
   },
 }
 export const BASE_JOBS: JobId[] = ['swordsman', 'archer', 'mage', 'cleric', 'thief']
