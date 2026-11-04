@@ -84,7 +84,7 @@ if (process.env.BROKEN) save.broken = Object.values(save.equipped)
       const t0 = Date.now()
       while (!B.over && Date.now() - t0 < 120000) {
         B.time.timeScale = 15; B.tweens.timeScale = 15
-        if (B.pendingPick) B.pendingPick(B.miniWon && !B.relic && RELIC ? 0 : Math.floor(Math.random() * 3))
+        if (B.pendingPick) B.pendingPick(B.miniWon && !B.relic && RELIC ? 0 : Math.floor(Math.random() * 4)) // v48: 4 picks (old builds clamp)
         const boss = B.alive().find((m) => m.def.ai === 'boss')
         // duelist never charges: ult when she is not in parry stance
         const want = !boss || boss.charging || (boss.def.mini === 'duelist' && !boss.parry) || (boss.def.mini && !(boss.def.charge || boss.def.breakPct))
