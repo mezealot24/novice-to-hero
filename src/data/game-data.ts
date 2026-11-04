@@ -572,6 +572,7 @@ export const BATTLE = {
   burnPct: 0.03, burnHealCut: 0.4,
   weakenMul: 0.75, armorBreakMul: 0.5,
   monCritMul: 1.6, monComboMul: 0.7, monCounterMul: 0.8, // v49 monster crit / combo / counter
+  reflectCap: 0.04, // reflect / thorns: one reflected hit deals at most this share of hero max HP, and can't knock the hero out
   soulBolts: 5, soulCap: 0.4, // Mirage Soul Strike: stored damage fires as N magic bolts, total capped at this share of hero max HP
 }
 
