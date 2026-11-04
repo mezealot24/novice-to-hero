@@ -271,6 +271,11 @@ export const GEM_PACKS = [
   { id: 'p2', gems: 300, bonus: 30, price: '฿169' },
   { id: 'p3', gems: 980, bonus: 150, price: '฿529' },
 ]
+// 🧪 TEST ONLY: gems -> zeny for the playtest period. Breaks the "gems never buy power" rule on purpose;
+// flip GEM_TO_ZENY_TEST to false (or delete this block) before a real release.
+export const GEM_TO_ZENY_TEST = true
+export const ZENY_PER_GEM = 50
+export const ZENY_PACKS = [10, 60, 300] // gems spent per pack
 export const SUPPORTER_PRICE = 300 // gems: badge + gold name, no stats
 // free gem sources, so nothing in the gem shop is locked behind money
 export const FREE_GEMS = { firstClear: 50, clear: 5, levelUp: 10, daily: 20 }

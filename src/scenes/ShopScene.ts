@@ -65,7 +65,7 @@ export class ShopScene extends Phaser.Scene {
       } else {
         // basic shop items: one more as forge fodder (design 3.7), same price
         const fw = isFodder(it) ? 74 : 0, mid = x + cw / 2 - fw / 2
-        if (fw) b.add(button(this, x + cw - 16 - 30, by, 60, 36, '+🔩', () => this.buyFodder(it), { size: 15, fill: 0x8a6fd1, color: UI.text }).setEnabled(s.zeny >= it.price))
+        if (fw) b.add(button(this, x + cw - 16 - 30, by, 64, 36, '🔩เชื้อ', () => this.buyFodder(it), { size: 14, fill: 0x8a6fd1, color: UI.text }).setEnabled(s.zeny >= it.price))
         if (!owned) {
           b.add(button(this, mid, by, cw - 32 - fw, 38, `ซื้อ ${it.price} zeny`, () => this.buy(it), { size: 16 }).setEnabled(s.zeny >= it.price))
         } else if (worn) {
@@ -97,6 +97,12 @@ export class ShopScene extends Phaser.Scene {
   private buyFodder(it: Item) {
     const s = save()
     if (s.zeny < it.price) { toast(this, 'zeny ไม่พอค่ะ ไปลุยดันก่อนนะ', UI.red); return }
+    confirm(this, `ซื้อ 🔩 เชื้อหลอม?`, `${it.icon} ${it.name} 1 ชิ้น เป็นเชื้อหลอม ${it.price} zeny\n(ไม่ได้ของมาใส่ ใช้ตีบวก/ซ่อมที่โรงตีเหล็กเท่านั้น)\nเหลือ ${s.zeny - it.price} zeny`, `ซื้อเชื้อ ${it.price}z`, () => this.doBuyFodder(it))
+  }
+
+  private doBuyFodder(it: Item) {
+    const s = save()
+    if (s.zeny < it.price) return
     s.zeny -= it.price
     addFodder(s, it.id)
     persist(); sfx.coin(); this.refreshWallet()
@@ -107,6 +113,12 @@ export class ShopScene extends Phaser.Scene {
   private buy(it: Item) {
     const s = save()
     if (s.zeny < it.price) { toast(this, 'zeny ไม่พอค่ะ ไปลุยดันก่อนนะ', UI.red); return }
+    confirm(this, `ซื้อ ${it.icon} ${it.name}?`, `${it.price} zeny · เหลือ ${s.zeny - it.price} zeny\n${itemStatLine(it)}`, `ซื้อ ${it.price}z`, () => this.doBuy(it))
+  }
+
+  private doBuy(it: Item) {
+    const s = save()
+    if (s.zeny < it.price || s.owned.includes(it.id)) return
     s.zeny -= it.price
     s.owned.push(it.id)
     persist(); sfx.coin(); this.refreshWallet()
