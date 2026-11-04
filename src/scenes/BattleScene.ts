@@ -7,7 +7,7 @@ import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster, EQUIP_CARDS 
 import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, type JobDef } from '../data/jobs'
 import { skill2Picked } from '../data/tree'
 import type { Skill2Def } from '../data/skill2'
-import { addCard, addMat, addXp, persist, save } from '../save'
+import { addCard, addMat, addXp, persist, save, ultMode } from '../save'
 import { MAT_RULES, matName, matOf } from '../data/materials'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
@@ -98,6 +98,7 @@ export class BattleScene extends Phaser.Scene {
   private hudTxt!: Record<'hp' | 'res' | 'lv' | 'zeny' | 'room' | 'build', Phaser.GameObjects.Text>
   private queueIcons: Phaser.GameObjects.Image[] = []
   private smashBtn!: Btn
+  private autoBtn?: Btn
   private speedBtn!: Btn
   private overlay?: Phaser.GameObjects.Container
   private fast = false
@@ -249,7 +250,7 @@ export class BattleScene extends Phaser.Scene {
     this.cardLuck = 1 + Math.min(PER_POINT.luk.dropCap, PER_POINT.luk.dropPct * totalBase(s).luk)
     this.settled = false; this.over = false; this.smashQueued = false
     this.startedAt = this.time.now
-    this.eventLog = []; this.lockTarget = undefined; this.lockStacks = 0; this.hawkTurn = 0; this.revivedCount = 0; this.spears = 0; this.spearAcc = 0; this.ultRegenTurns = 0; this.smiteCount = 0; this.counterCount = 0; this.comboCount = 0; this.comboLevel = 0; this.lowShake = !!save().lowShake; this.peakTurns = 0; this.turnsLog = []
+    this.eventLog = []; this.lockTarget = undefined; this.lockStacks = 0; this.hawkTurn = 0; this.revivedCount = 0; this.spears = 0; this.spearAcc = 0; this.ultRegenTurns = 0; this.smiteCount = 0; this.counterCount = 0; this.comboCount = 0; this.comboLevel = 0; this.lowShake = !!save().lowShake; this.autoUlt = ultMode() === 'auto'; this.autoSkip = false; this.ultHeld = 0; this.peakTurns = 0; this.turnsLog = []
     this.minHpPct = 1; this.relic = null; this.miniKind = null; this.miniWon = false; this.parryCount = 0; this.freezeCount = 0; this.harvest = 0; this.enemyAttacks = 0
     this.hx = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0 }; this.debuffCount = 0; this.resistCount = 0
     this.flags = newFlags(); this.hpFloor = 0; this.starsOn = false
@@ -322,7 +323,7 @@ export class BattleScene extends Phaser.Scene {
       this.banner(`⚔️ ดวล 1-1 · ${d.name} ${d.title ?? ''}`, MINI_HINT[d.mini!])
       kinds.push(this.miniKind)
     } else {
-      this.banner(room.title, room.boss ? 'บอสชาร์จพลัง = ตาเรา! เตรียมกันด้วยท่าไม้ตาย หรือรีบตีให้จบ' : 'ผลัดกันตีตามความเร็ว (AGI) · แตะปุ่มทุบเมื่อพร้อม')
+      this.banner(room.title, room.boss ? 'บอสชาร์จพลัง = ตาเรา! เตรียมกันด้วยท่าไม้ตาย หรือรีบตีให้จบ' : 'ผลัดกันตีตามความเร็ว (AGI) · ' + (this.autoUlt ? 'ท่าไม้ตายออกเองอัตโนมัติ' : 'แตะปุ่มทุบเมื่อพร้อม'))
       for (const [k, n] of room.spawn) for (let j = 0; j < n; j++) kinds.push(k)
     }
     kinds.slice(0, SLOT_X.length).forEach((k, j) => this.addMon(k, j))
@@ -543,6 +544,7 @@ export class BattleScene extends Phaser.Scene {
     await this.skill2Turn()
     if (!this.alive().length || this.hp <= 0) return
     if (this.st.arHawk > 0 && ++this.hawkTurn % 3 === 0) { const t = this.alive(); if (t.length) { const m = t[Phaser.Math.Between(0, t.length - 1)]; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, '🦅', '#f2d24b'); this.strike(m, this.st.arHawk, true, '#f2d24b') } } // archer talent เหยี่ยวคู่ใจ
+    this.autoUltTurn()
     if (this.smashQueued && this.smashCdLeft <= 0 && this.hx.silence > 0) this.floatText(HERO_X, GROUND - 140, `🤐 ใบ้! อีก ${this.hx.silence} เทิร์น`, '#c9a8ff')
     const ultCost = this.ultCost()
     const ultWaiting = this.smashQueued && this.smashCdLeft <= 0 && this.hx.silence <= 0 // ult ready and booked
@@ -2133,6 +2135,41 @@ export class BattleScene extends Phaser.Scene {
     if (this.over || this.paused) return
     this.smashQueued = !this.smashQueued
     if (this.smashQueued) sfx.pop()
+    else if (this.autoUlt) this.autoSkip = true // auto mode: a cancel holds the ult for this turn
+  }
+
+  // ---------- v55 auto ult ----------
+  /** save.autoUlt: 'auto' (default) books the ult by itself, 'manual' waits for the button. */
+  private autoUlt = true
+  private autoSkip = false // player cancelled a booked ult in auto mode: skip one auto decision
+  private ultHeld = 0 // hero turns the ready ult has been held for timing
+  /** Same timing rule the bot (tools/bot.cjs) uses, plus a hold cap so a ready ult is never sat on for long:
+   *  boss with a charged attack -> wait for the charge (max 3 turns); duelist -> not into her parry;
+   *  trash almost dead -> hold 1 turn so the ult is not wasted; everything else -> cast now. */
+  autoUltWant(): boolean {
+    const live = this.alive()
+    if (!live.length) return false
+    const boss = live.find((m) => m.def.ai === 'boss')
+    if (boss) {
+      if (boss.charging) return true
+      if (boss.def.mini === 'duelist') return !boss.parry || this.ultHeld >= 2
+      if (boss.def.mini && !boss.def.charge) return true
+      return this.ultHeld >= 3
+    }
+    if (live.every((m) => m.hp <= m.def.hp * 0.2)) return this.ultHeld >= 1
+    return true
+  }
+
+  private autoUltTurn() {
+    if (!this.autoUlt || this.smashQueued || this.smashCdLeft > 0) { if (this.smashCdLeft > 0) this.ultHeld = 0; return }
+    if (this.autoSkip) { this.autoSkip = false; return }
+    if (this.autoUltWant()) { this.smashQueued = true; this.ultHeld = 0 } else this.ultHeld++
+  }
+
+  private setAutoUlt(on: boolean) {
+    this.autoUlt = on
+    const s = save(); s.autoUlt = on ? 'auto' : 'manual'; persist()
+    this.autoBtn?.setLabel(on ? '⚡ อัตโนมัติ' : '🖐️ กดเอง')
   }
 
   private setFast(on: boolean) {
@@ -2153,6 +2190,9 @@ export class BattleScene extends Phaser.Scene {
       { text: `${this.run.where(this.room)} · เก็บได้ ${this.zeny} zeny · ${this.kills} ตัว`, size: 19 },
       { text: 'กลับเมืองตอนนี้ได้ zeny กับ EXP ที่เก็บมาแล้วครบ ไม่หายค่ะ', size: 16, color: '#a9a6c7' },
     ], 'ลุยต่อ', () => { this.unpause() }, { label: 'กลับเมือง', onGo: () => { this.unpause(); this.runId++; this.settle(false); go(this, 'hub') } })
+    const lab = () => (this.autoUlt ? '⚡ อัลติ: อัตโนมัติ' : '🖐️ อัลติ: กดเอง')
+    const tg = button(this, 0, -170, 300, 48, lab(), () => { this.setAutoUlt(!this.autoUlt); tg.setLabel(lab()) }, { size: 18, fill: 0x5a5f8a, color: '#f6eedc' })
+    ;(this.overlay as Phaser.GameObjects.Container | undefined)?.add(tg)
   }
 
   private unpause() {
@@ -2297,6 +2337,8 @@ export class BattleScene extends Phaser.Scene {
     button(this, W - 30, 110, 38, 38, 'II', () => this.showPause(), { size: 16, fill: 0x2a2e50, color: '#f6eedc' }).setDepth(15003)
     this.speedBtn = button(this, W - 90, 110, 70, 38, '▶ x1', () => this.setFast(!this.fast), { size: 15, fill: 0x2a2e50, color: '#f6eedc' }).setDepth(15003) as Btn
     this.smashBtn = button(this, W - 100, H - 70, 160, 84, 'ทุบ!', () => this.queueSmash(), { size: 22 }).setDepth(15003) as Btn
+    this.autoBtn = button(this, W - 250, H - 50, 124, 44, '', () => this.setAutoUlt(!this.autoUlt), { size: 15, fill: 0x2a2e50, color: '#f6eedc' }).setDepth(15003) as Btn
+    this.autoBtn.setLabel(this.autoUlt ? '⚡ อัตโนมัติ' : '🖐️ กดเอง')
     this.s2Txt = this.add.text(W - 100, H - 124, '', { fontSize: '13px', color: '#7fd7ff', fontStyle: 'bold', stroke: '#14172b', strokeThickness: 3 }).setOrigin(0.5).setDepth(15003)
     this.fortuneTxt = this.add.text(W - 250, 34, '', { fontFamily: FONT_UI, fontSize: '14px', color: '#8fe08a', stroke: '#14172b', strokeThickness: 4 }).setDepth(15001)
     this.debuffTxt = this.add.text(22, 98, '', { fontFamily: FONT_UI, fontSize: '15px', color: '#ffb0e0', stroke: '#14172b', strokeThickness: 4 }).setDepth(15001)
@@ -2369,7 +2411,7 @@ export class BattleScene extends Phaser.Scene {
     const u = this.job.ult
     const cost = this.ultCost(), short = cost > 0 && this.res < cost
     const tag = cost > 0 ? ` · 🔷${cost}` : ''
-    this.smashBtn.setLabel(this.smashQueued ? (ready ? (short ? `รอ Mana\n${Math.floor(this.res)}/${cost}` : `${u.icon} ตาหน้า!\n(แตะยกเลิก)`) : `จองไว้แล้ว\nอีก ${this.smashCdLeft} เทิร์น`) : ready ? `${u.icon} ${u.name}\n${short ? `Mana ไม่พอ${tag}` : `พร้อม${tag}`}` : `${u.name}\nอีก ${this.smashCdLeft} เทิร์น`)
+    this.smashBtn.setLabel(this.autoUlt && ready && !this.smashQueued && !short ? `${u.icon} ${u.name}\n${this.autoSkip ? 'ข้ามรอบนี้' : `⚡ ออโต้${tag}`}` : this.smashQueued ? (ready ? (short ? `รอ Mana\n${Math.floor(this.res)}/${cost}` : `${u.icon} ตาหน้า!\n(แตะยกเลิก)`) : `จองไว้แล้ว\nอีก ${this.smashCdLeft} เทิร์น`) : ready ? `${u.icon} ${u.name}\n${short ? `Mana ไม่พอ${tag}` : `พร้อม${tag}`}` : `${u.name}\nอีก ${this.smashCdLeft} เทิร์น`)
     this.smashBtn.setAlpha(ready || this.smashQueued ? 1 : 0.6)
   }
 

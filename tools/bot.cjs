@@ -91,7 +91,7 @@ if (process.env.BROKEN) save.broken = Object.values(save.equipped)
         const boss = B.alive().find((m) => m.def.ai === 'boss')
         // duelist never charges: ult when she is not in parry stance
         const want = !boss || boss.charging || (boss.def.mini === 'duelist' && !boss.parry) || (boss.def.mini && !(boss.def.charge || boss.def.breakPct))
-        if (B.smashCdLeft <= 0 && !B.smashQueued && want) B.queueSmash()
+        if (!B.autoUltWant && B.smashCdLeft <= 0 && !B.smashQueued && want) B.queueSmash() // v55+: the game's auto ult (same rule) books it
         await new Promise((r) => setTimeout(r, 15))
       }
       const bm = B.mons.find((m) => m.def.ai === 'boss')

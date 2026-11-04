@@ -52,7 +52,11 @@ export interface SaveData {
   lastDaily: string // yyyy-mm-dd of last free daily gems
   muted: boolean
   lowShake?: boolean // settings: ลดจอสั่น (camera shake x1/3)
+  autoUlt?: 'auto' | 'manual' // v55 settings: ult casts itself (default) or waits for the ult button
 }
+
+/** v55: ult mode, default auto (Q found the manual ult button confusing). */
+export function ultMode(s: SaveData = save()): 'auto' | 'manual' { return s.autoUlt ?? 'auto' }
 
 const KEY = 'novice-to-hero.save.v1'
 let cache: SaveData | null = null
