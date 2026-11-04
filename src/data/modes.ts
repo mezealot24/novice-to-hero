@@ -92,7 +92,7 @@ export const TOWER = {
   unlock: 'd3',
   themeEvery: 10, themes: ['d2', 'd3', 'd4', 'd5'], // floors 1-10 d2, 11-20 d3, 21-30 d4, 31+ d5
   bossEvery: 5, gauntletEvery: 10,
-  hp0: 0.8, hpPerFloor: 0.06, atk0: 0.85, atkPerFloor: 0.03, hitEvery: 5,
+  hp0: 0.8, hpPerFloor: 0.08, atk0: 0.85, atkPerFloor: 0.06, hitEvery: 5, // v56: steeper (Q Lv25 Thief reached F67 at full HP on 0.06 / 0.03)
   turnPerFloor: 0.015, turnMax: 1.6,
   extraMonFrom: 15,
   // Q 2026-11-04: from floor 20 a floor can mix monsters, bosses and mini bosses in one fight
