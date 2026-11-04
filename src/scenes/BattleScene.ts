@@ -7,7 +7,7 @@ import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster, EQUIP_CARDS 
 import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, type JobDef } from '../data/jobs'
 import { skill2Picked } from '../data/tree'
 import type { Skill2Def } from '../data/skill2'
-import { autoCost, hitBase, KIT, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
+import { autoCost, clericBasic, clericUltLights, clericUltSmash, hitBase, KIT, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, ultMode } from '../save'
 import { MAT_RULES, matName, matOf } from '../data/materials'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
@@ -252,7 +252,7 @@ export class BattleScene extends Phaser.Scene {
     this.cardLuck = 1 + Math.min(PER_POINT.luk.dropCap, PER_POINT.luk.dropPct * totalBase(s).luk)
     this.settled = false; this.over = false; this.smashQueued = false
     this.startedAt = this.time.now
-    this.eventLog = []; this.lockTarget = undefined; this.lockStacks = 0; this.hawkTurn = 0; this.revivedCount = 0; this.spears = 0; this.spearAcc = 0; this.ultRegenTurns = 0; this.smiteCount = 0; this.counterCount = 0; this.comboCount = 0; this.comboLevel = 0; this.lowShake = !!save().lowShake; this.autoUlt = ultMode() === 'auto'; this.autoSkip = false; this.ultHeld = 0; this.peakTurns = 0; this.turnsLog = []
+    this.eventLog = []; this.lockTarget = undefined; this.lockStacks = 0; this.hawkTurn = 0; this.revivedCount = 0; this.spears = 0; this.spearAcc = 0; this.ultRegenTurns = 0; this.shieldLayers = []; this.smiteCount = 0; this.counterCount = 0; this.comboCount = 0; this.comboLevel = 0; this.lowShake = !!save().lowShake; this.autoUlt = ultMode() === 'auto'; this.autoSkip = false; this.ultHeld = 0; this.peakTurns = 0; this.turnsLog = []
     this.minHpPct = 1; this.relic = null; this.miniKind = null; this.miniWon = false; this.parryCount = 0; this.freezeCount = 0; this.harvest = 0; this.enemyAttacks = 0
     this.hx = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0 }; this.debuffCount = 0; this.resistCount = 0
     this.flags = newFlags(); this.hpFloor = 0; this.starsOn = false
@@ -503,7 +503,9 @@ export class BattleScene extends Phaser.Scene {
     if (X.poison > 0) { this.dotHurt(this.st.maxHp * BATTLE.poisonPct * X.poison, '☠️', '#b48aff'); X.poison-- }
     if (X.burn > 0 && this.hp > 0) this.dotHurt(this.st.maxHp * BATTLE.burnPct, '🔥', '#ff8c42')
     if (this.hp <= 0) return
+    if (this.job.id === 'cleric') this.tickShieldLayers()
     await this.heroAct()
+    if (this.job.id === 'cleric') this.syncShieldLayers()
     if (X.burn > 0) X.burn--
     if (X.weaken > 0) X.weaken--
     if (X.armorBreak > 0) X.armorBreak--
@@ -520,6 +522,26 @@ export class BattleScene extends Phaser.Scene {
   private spears = 0
   private spearAcc = 0
   private ultRegenTurns = 0
+  /** v58 Q: Priest shields last CLERIC_KIT.shieldTurns hero turns and the total never goes past shieldCap of max HP.
+   *  Layers are bookkeeping only: this.shield stays the one number every hit path reads; hits eat the oldest layer first. */
+  private shieldLayers: { amt: number; turns: number }[] = []
+  private syncShieldLayers() {
+    const cap = Math.round(this.st.maxHp * CLERIC_KIT.shieldCap)
+    if (this.shield > cap) this.shield = cap
+    let sum = this.shieldLayers.reduce((a, l) => a + l.amt, 0)
+    if (this.shield > sum) { this.shieldLayers.push({ amt: this.shield - sum, turns: CLERIC_KIT.shieldTurns }); sum = this.shield } // shield from any other path (gear, overheal...)
+    let eaten = sum - this.shield
+    for (const l of this.shieldLayers) { const a = Math.min(l.amt, eaten); l.amt -= a; eaten -= a }
+    this.shieldLayers = this.shieldLayers.filter((l) => l.amt > 0)
+  }
+  /** Start of each Priest turn: layers age; a layer that hits 0 turns fades. */
+  private tickShieldLayers() {
+    this.syncShieldLayers()
+    let gone = 0
+    for (const l of this.shieldLayers) if (--l.turns <= 0) gone += l.amt
+    this.shieldLayers = this.shieldLayers.filter((l) => l.turns > 0)
+    if (gone > 0) { this.shield = Math.max(0, this.shield - gone); this.floatText(HERO_X, GROUND - 100, `🛡️ โล่หมดเวลา −${Math.round(gone)}`, '#9fe3ff') }
+  }
   private smiteCount = 0
   private async fireSpears() {
     const n = Math.min(KIT.spearMax, this.spears); this.spears = 0
@@ -530,6 +552,7 @@ export class BattleScene extends Phaser.Scene {
       for (const m of this.alive()) this.strike(m, KIT.spearBase + this.st.spearMul, true, '#f6e27a')
       if (this.st.spearHeal > 0) this.heal(this.st.maxHp * this.st.spearHeal, true)
     }
+    if (this.st.clSpearShield > 0) this.addShield(this.st.maxHp * this.st.clSpearShield) // v58 Ult web: เกราะแสง
     await this.wait(BATTLE.stepMs * 0.3)
   }
   /** Skill heal (auto / ult): talents/tree turn it into shield and damage too. */
@@ -678,6 +701,31 @@ export class BattleScene extends Phaser.Scene {
     if (!this.stayIn) await this.goHome()
   }
 
+  /** v58 Priest: dash in, hop, slam the mace/book down (gold ring). */
+  private async maceSmash(m: Mon, fn: () => void) {
+    const step = BATTLE.stepMs, tx = m.spr.x - 70, y0 = this.heroSpr.y
+    if (Math.abs(this.heroSpr.x - tx) >= 6) await this.tween({ targets: this.heroSpr, x: tx, duration: step * 0.3, ease: 'Quad.easeIn' })
+    await this.tween({ targets: this.heroSpr, y: y0 - 22, angle: -12, duration: step * 0.1, ease: 'Quad.easeOut' })
+    await this.tween({ targets: this.heroSpr, y: y0, angle: 8, duration: step * 0.08, ease: 'Quad.easeIn' })
+    this.heroSpr.setAngle(0)
+    const ring = this.add.circle(m.spr.x - 10, GROUND - 6, 10, 0xf6e27a, 0).setStrokeStyle(3, 0xf6e27a).setDepth(9000)
+    this.tweens.add({ targets: ring, scale: 3.2, alpha: 0, duration: 260, onComplete: () => ring.destroy() })
+    this.slashFx(m.spr.x - 20, GROUND - 30)
+    sfx.swing()
+    fn()
+    this.shake(80, 0.006)
+    if (!this.stayIn) await this.goHome()
+  }
+
+  /** v58 Priest ult: a beam of Holy Light falls on one monster (magic, M.ATK). */
+  private async holyLight(m: Mon, mul: number) {
+    const beam = this.add.rectangle(m.spr.x, GROUND - 160, 26, 320, 0xfff3a0, 0.85).setDepth(9000)
+    this.tweens.add({ targets: beam, scaleX: 0.2, alpha: 0, duration: 260, onComplete: () => beam.destroy() })
+    this.strike(m, mul, true, '#fff3a0')
+    this.burst(m.spr.x, m.spr.y - 20, 0xfff3a0, 8, 160)
+    await this.wait(BATTLE.stepMs * 0.12)
+  }
+
   private async goHome() {
     if (Math.abs(this.heroSpr.x - HERO_X) > 1) await this.tween({ targets: this.heroSpr, x: HERO_X, duration: BATTLE.stepMs * 0.35, ease: 'Quad.easeOut' })
   }
@@ -734,7 +782,7 @@ export class BattleScene extends Phaser.Scene {
     }
     else if (kind === 'mage') await this.shoot(f, 0x9f7bff, () => this.strike(f, MAGE_SPELL.basicMul, true, '#c9a8ff')) // weak free magic bolt; real damage = Mana spells
     else if (kind === 'thief') await this.lunge(f, () => { this.strike(f, 0.6); this.strike(f, 0.6); this.doubleAttack(f, 0.6) })
-    else if (kind === 'cleric') await this.lunge(f, () => { this.strike(f, 1); this.strike(f, 0.9, true, '#f6e27a') }) // mace + holy spark (M.ATK); 0.6 -> 0.9 so Cleric beats the boss turn limit
+    else if (kind === 'cleric') await this.maceSmash(f, () => { this.strike(f, clericBasic()) }) // v58 Q: melee mace/book smash, P.ATK (STR) only; spells carry M.ATK
     else await this.lunge(f, () => { const cl = BATTLE.cleave + this.st.cleaveAdd; if (live[1]) { this.strike(f, 1); this.strike(live[1], cl) } else this.strike(f, 1 + (kind === 'swordsman' ? cl : 0)) }) // novice, swordsman: cleave (+talent ฟันกวาด) · swordsman alone vs 1 monster: the cleave lands on it too
     this.lsMul = 0
     this.hits++
@@ -747,7 +795,7 @@ export class BattleScene extends Phaser.Scene {
   /** Skill 2: buffs tick down, then it casts by itself (free extra action) when ready, paid for and useful. */
   private async skill2Turn() {
     const B = this.buf
-    if (B.renew > 0) { B.renew--; this.heal(this.st.maxHp * S2N.renewHeal(this.st.s2Lv)) }
+    if (B.renew > 0) { B.renew--; this.heal(this.st.matk * S2N.renewHeal(this.st.s2Lv)) } // Priest heals = x M.ATK
     for (const k of ['guard', 'blood', 'hawk', 'mshield'] as const) if (B[k] > 0) B[k]--
     const k = this.s2
     if (!k || this.hx.silence > 0 || !this.alive().length) return
@@ -869,7 +917,7 @@ export class BattleScene extends Phaser.Scene {
         await this.wait(BATTLE.stepMs * 0.6)
         break
       case 'cleric':
-        if (this.hp < this.st.maxHp * (KIT.clericHealBelow - this.st.healAt)) { this.skillHeal(this.st.maxHp * CLERIC_KIT.heal * pow); this.burst(HERO_X, GROUND - 40, 0x6fd08c, 18, 160) }
+        if (this.hp < this.st.maxHp * (KIT.clericHealBelow - this.st.healAt)) { this.skillHeal(this.st.matk * CLERIC_KIT.heal * pow); this.burst(HERO_X, GROUND - 40, 0x6fd08c, 18, 160) }
         else if (this.st.judge > 0 && ++this.smiteCount % KIT.clericJudgeEvery === 0) { // tree ★B: วันพิพากษา
           this.callout('⚖️ พิพากษา!', W / 2, 170); this.burst(700, GROUND - 30, 0xf6e27a, 30, 320)
           for (const m of live) { const d = this.strike(m, KIT.clericJudge * pow * (1 + this.st.smiteMul), true, '#f6e27a'); if (!m.dead) m.marked = 2; if (this.st.smiteVamp > 0) this.heal(d * this.st.smiteVamp, true) }
@@ -921,15 +969,23 @@ export class BattleScene extends Phaser.Scene {
         if (this.st.elemWheel > 0) { const els = Object.keys(ELEMENTS) as Element[]; this.element = els[(els.indexOf(el) + 1) % els.length]; this.floatText(HERO_X, GROUND - 180, `🔄 ถัดไป ${ELEMENTS[this.element].icon}`, '#c9a8ff') } // talent วงล้อธาตุ
         break
       }
-      case 'cleric':
-        this.addShield(this.st.maxHp * CLERIC_KIT.ultShield * pow * (this.alive().some((m) => m.charging) ? 1 + this.st.ultChargeShield : 1)) // talent: ใต้ปีกเทพ
-        this.skillHeal(this.st.maxHp * CLERIC_KIT.ultHeal * pow)
+      case 'cleric': { // v58 melee hybrid (Q 2026-11-04): smash all (P.ATK) + Holy Light on random monsters (M.ATK) + timed shield
+        const charging = this.alive().some((m) => m.charging)
+        if (live[0]) await this.maceSmash(live[0], () => { live.forEach((m) => this.strike(m, clericUltSmash(this.st) * hitPow * (1 + this.st.pskill))); this.cameras.main.flash(120, 255, 240, 170) })
+        for (let i = 0; i < clericUltLights(this.st); i++) { const t = this.alive(); if (!t.length) break; await this.holyLight(t[Phaser.Math.Between(0, t.length - 1)], CLERIC_KIT.ultLight * hitPow) }
+        this.addShield(this.st.maxHp * CLERIC_KIT.ultShield * pow * (charging ? 1 + this.st.ultChargeShield : 1)) // talent: ใต้ปีกเทพ · lasts shieldTurns, capped
+        if (this.st.clPurify > 0) { // Ult web ★: ไฟชำระ
+          const X = this.hx, n = X.poison + X.burn + X.weaken + X.armorBreak + X.silence
+          this.hx = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0 }
+          this.skillHeal(this.st.matk * CLERIC_KIT.purifyHeal)
+          this.floatText(HERO_X, GROUND - 160, n > 0 ? '🔆 ไฟชำระ: ล้างดีบัฟ!' : '🔆 ไฟชำระ', '#ffe08a')
+        }
         this.burst(HERO_X, GROUND - 50, 0xf6e27a, 24, 200)
         if (this.st.ultHoly > 0) for (const m of this.alive()) this.strike(m, this.st.ultHoly, true, '#f6e27a') // talent: แสงลงทัณฑ์
         if (this.st.ultRegen > 0) this.ultRegenTurns = 3 // talent: พรยืนยาว
-        this.spears += KIT.clericUltSpears // every cleric: the ult calls 2 light spears
-        await this.wait(BATTLE.stepMs)
+        await this.wait(BATTLE.stepMs * 0.5)
         break
+      }
       case 'thief':
         this.dodgeCharges = KIT.thiefUltDodge + this.st.ultDodge // talent: เงาซ้อน
         this.stayIn = true // dart from monster to monster, walk home once at the end
@@ -1032,7 +1088,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private addShield(n: number, quiet = false) {
+    if (this.job.id === 'cleric') this.syncShieldLayers() // book older shield before the new layer
     this.shield += Math.round(n * (1 + this.st.shieldAmp))
+    if (this.job.id === 'cleric') this.syncShieldLayers() // new layer (shieldTurns) + 50% max HP cap
     if (!quiet) this.floatText(HERO_X, GROUND - 100, `🛡️ โล่ ${Math.round(this.shield)}`, '#9fe3ff')
   }
 

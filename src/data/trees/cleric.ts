@@ -2,6 +2,8 @@
 // Owned by the cleric design thread; edit freely, only this file. Ids are save data: the free reset refunds
 // ids that are gone, so v1 ids that changed meaning got new ids instead of being reused.
 import { node as n, talent as t, type ClassTree } from '../tree-types'
+import { KIT } from '../skill-math'
+import { CLERIC_KIT } from '../jobs'
 
 
 export const tree: ClassTree = {
@@ -11,10 +13,11 @@ export const tree: ClassTree = {
   ],
   nodes: [
     // A: Sanctuary
-    n('cleric_a1', 'cleric_a', 1, '💗', 'พรอุ่นไอ', 3, (lv) => `ฮีลแรง +${lv * 8}%`, (lv) => ({ healAmp: 0.08 * lv })),
-    n('cleric_a2', 'cleric_a', 2, '🔰', 'เกราะแสง', 3, (lv) => `โล่แรง +${lv * 8}% · โล่ต้นเวฟ ${lv * 3}% HP`, (lv) => ({ shieldAmp: 0.08 * lv, waveShield: 0.03 * lv })),
+    // v58 melee hybrid (Q 2026-11-04): the Ult column. Old ids kept so saved points stay; meanings changed.
+    n('cleric_a1', 'cleric_a', 1, '💗', 'พรอุ่นไอ', 5, (lv) => `สวนกลับ +${+(lv * KIT.clericWarmCounterLv * 100).toFixed(1)}% · Ult Holy Light ${CLERIC_KIT.ultLights + lv * KIT.clericWarmLightLv} ลูก`, (lv) => ({ counter: KIT.clericWarmCounterLv * lv, clUltLights: KIT.clericWarmLightLv * lv })),
+    n('cleric_a2', 'cleric_a', 2, '🔰', 'เกราะแสง', 3, (lv) => `หอกแสงยิงแล้วได้โล่ ${Math.round(lv * KIT.clericSpearShieldLv * 100)}% HP (ต่อชุดหอก)`, (lv) => ({ clSpearShield: KIT.clericSpearShieldLv * lv })),
     n('cleric_a3t', 'cleric_a', 3, '✴️', 'หนามแสง', 3, (lv) => `โล่รับดาเมจแล้วสะท้อน ${lv * 25}% ใส่ตัวที่ตี`, (lv) => ({ thorns: 0.25 * lv })),
-    n('cleric_a4x', 'cleric_a', 4, '🔆', 'ไฟชำระ', 1, () => 'ฮีลเกิน HP เต็มกลายเป็นโล่ · ฮีลจากสกิลยิงดาเมจ 60% ของยอดฮีลใส่ตัวหน้า', () => ({ overhealShield: 1, atone: 0.6 })),
+    n('cleric_a4x', 'cleric_a', 4, '🔆', 'ไฟชำระ', 1, () => `Ult ล้างดีบัฟบนตัวทั้งหมด + ฮีล ${Math.round(CLERIC_KIT.purifyHeal * 100)}% M.ATK`, () => ({ clPurify: 1 })),
     // B: Judgement
     n('cleric_b1', 'cleric_b', 1, '🌟', 'แสงคม', 3, (lv) => `M.ATK +${lv * 5}`, (lv) => ({ matk: 5 * lv })),
     n('cleric_b2', 'cleric_b', 2, '⚖️', 'ตัดสินหมู่', 3, (lv) => `แสงยิง ${2 + Math.min(lv, 2)} ตัว${lv >= 3 ? ' · ดาเมจแสง +15%' : ''}`, (lv) => ({ smiteTargets: Math.min(lv, 2), smiteMul: lv >= 3 ? 0.15 : 0 })),

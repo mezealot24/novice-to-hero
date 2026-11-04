@@ -18,18 +18,18 @@ export const STAT_INFO: Record<BaseStat, StatInfo> = {
   str: {
     generic: [(b) => `ดาเมจสกิลกายภาพ +${f1(P.str.pskill * 100)}%/แต้ม (ตอนนี้ +${f1(P.str.pskill * 100 * b)}%)`],
     byClass: {
-      novice: [meleeAtk], swordsman: [meleeAtk], cleric: [meleeAtk], thief: [meleeAtk],
+      novice: [meleeAtk], swordsman: [meleeAtk], cleric: [meleeAtk, 'ตีปกติ (ทุบประชิด) + Ult ทุบทุกตัว ใช้ P.ATK'], thief: [meleeAtk],
       archer: ['ไม่เพิ่ม P.ATK (นักธนูใช้ DEX)', (_b, d) => `ศรทะลวงแรง +${f1(P.off.archerStrUlt * 100)}%/แต้ม (ตอนนี้ +${f1(P.off.archerStrUlt * 100 * d)}%)`],
       mage: [meleeAtk, 'โหนด "กายสู่เวท": STR นับเป็น INT ด้วย'],
     },
   },
   vit: {
     generic: [`HP +${P.vit.maxHp} และ +${f1(P.vit.maxHpPct * 100)}%/แต้ม`, `P.DEF +${P.vit.def}/แต้ม`, `ฟื้น HP เล็กน้อย`, (_b, d) => `สวนกลับ ${pctK(d, P.vit.counterK)}`],
-    byClass: {},
+    byClass: { cleric: ['โล่นักบวชคิดจาก Max HP (อยู่ 3 เทิร์น รวมไม่เกิน 50% HP)'] },
   },
   wis: {
     generic: [(b) => `ฮีล/โล่แรง +${f1(P.wis.healAmp * 100)}%/แต้ม (ตอนนี้ +${Math.round(P.wis.healAmp * 100 * b)}%)`, (b) => `M.DEF ${pctK(b, P.wis.mdefK)} · ต้านทาน ${pctK(b, P.wis.tenacityK)}`],
-    byClass: { swordsman: [manaRegen], mage: [manaRegen], cleric: [manaRegen] },
+    byClass: { swordsman: [manaRegen], mage: [manaRegen], cleric: [manaRegen, 'ฮีลทุกท่าคิดจาก M.ATK แล้วคูณฮีลแรงนี้'] },
   },
   dex: {
     generic: [`Hit +${P.dex.hit}/แต้ม`, `P.ATK ขั้นต่ำ +${f1(P.dex.minPct * 100)}%/แต้ม (ดาเมจนิ่งขึ้น)`],
@@ -42,7 +42,7 @@ export const STAT_INFO: Record<BaseStat, StatInfo> = {
   int: {
     generic: [(_b, d) => `M.ATK +${P.int.matk}/แต้ม (ตอนนี้ +${P.int.matk * d})`],
     byClass: {
-      swordsman: [maxMana], mage: [maxMana, 'ดาเมจเวททุกท่ามาจาก M.ATK'], cleric: [maxMana, 'แสงศักดิ์สิทธิ์ + หอกแสง ใช้ M.ATK'],
+      swordsman: [maxMana], mage: [maxMana, 'ดาเมจเวททุกท่ามาจาก M.ATK'], cleric: [maxMana, 'เวท + ฮีลทั้งหมดใช้ M.ATK: แสงศักดิ์สิทธิ์ · หอกแสง · Holy Light · ฮีล · ฟื้นฟู · ไฟชำระ'],
       thief: [(_b, d) => `ดาเมจพิษ +0.1/stack/แต้ม (ตอนนี้ +${f1(0.1 * d)})`],
     },
   },
