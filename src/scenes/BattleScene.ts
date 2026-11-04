@@ -2411,7 +2411,7 @@ export class BattleScene extends Phaser.Scene {
     const u = this.job.ult
     const cost = this.ultCost(), short = cost > 0 && this.res < cost
     const tag = cost > 0 ? ` · 🔷${cost}` : ''
-    this.smashBtn.setLabel(this.autoUlt && ready && !this.smashQueued && !short ? `${u.icon} ${u.name}\n${this.autoSkip ? 'ข้ามรอบนี้' : `⚡ ออโต้${tag}`}` : this.smashQueued ? (ready ? (short ? `รอ Mana\n${Math.floor(this.res)}/${cost}` : `${u.icon} ตาหน้า!\n(แตะยกเลิก)`) : `จองไว้แล้ว\nอีก ${this.smashCdLeft} เทิร์น`) : ready ? `${u.icon} ${u.name}\n${short ? `Mana ไม่พอ${tag}` : `พร้อม${tag}`}` : `${u.name}\nอีก ${this.smashCdLeft} เทิร์น`)
+    this.smashBtn.setLabel(this.autoUlt && ready && !this.smashQueued && !short ? `${u.icon} ${u.name}\n${this.autoSkip ? 'ข้ามรอบนี้' : `ออโต้${tag}`}` : this.smashQueued ? (ready ? (short ? `รอ Mana\n${Math.floor(this.res)}/${cost}` : `${u.icon} ตาหน้า!\n(แตะยกเลิก)`) : `จองไว้แล้ว\nอีก ${this.smashCdLeft} เทิร์น`) : ready ? `${u.icon} ${u.name}\n${short ? `Mana ไม่พอ${tag}` : `พร้อม${tag}`}` : `${u.name}\nอีก ${this.smashCdLeft} เทิร์น`)
     this.smashBtn.setAlpha(ready || this.smashQueued ? 1 : 0.6)
   }
 
