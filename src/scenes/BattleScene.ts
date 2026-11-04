@@ -643,7 +643,7 @@ export class BattleScene extends Phaser.Scene {
     let best: { dmg: number, x: number, y: number } | undefined // total for the monster that took the most (cleave splash shows only its own numbers)
     for (const v of this.comboSum.per.values()) if (!best || v.dmg > best.dmg) best = v
     if (hits >= 2 && best) this.comboTotal(best.x, best.y, best.dmg, hits)
-    await this.monCounter(target) // v48: the target may strike back
+    await this.monCounter(target) // v49: the target may strike back
     this.stayIn = false
     await this.goHome()
   }
@@ -1180,7 +1180,7 @@ export class BattleScene extends Phaser.Scene {
       const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m)
       if (landed) { this.monLeech(m); if (m.onHit) this.applyFx(m.onHit, m); await this.tryCounter(m) }
     }
-    if (m.def.combo) { // v48 monster combo: chain extra hits like the hero (same cap)
+    if (m.def.combo) { // v49 monster combo: chain extra hits like the hero (same cap)
       let extra = 0
       while (extra < BATTLE.comboMax && Math.random() < m.def.combo) extra++
       for (let i = 0; i < extra && this.hp > 0 && !m.dead; i++) {
@@ -1743,7 +1743,7 @@ export class BattleScene extends Phaser.Scene {
   private monMatk(m: Mon) { return m.def.matk ?? m.def.dmg }
 
   /** Monster spell (MonSkill 'bolt'): a magic projectile = M.ATK x pow. Can't be fled; lucky dodge, shields and M.DEF work. */
-  /** v48: a monster hit crits (def.crit): returns the damage multiplier and shows CRITICAL. */
+  /** v49: a monster hit crits (def.crit): returns the damage multiplier and shows CRITICAL. */
   private monCrit(m: Mon) {
     if (!m.def.crit || Math.random() >= m.def.crit) return 1
     this.floatText(HERO_X + 30, GROUND - 150, '💥 CRITICAL!', '#ff5a4e')
@@ -1766,7 +1766,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  /** v48 physical skill: dash in and hit `hits` times at pow x ATK (each hit rolls Flee unless it crits). */
+  /** v49 physical skill: dash in and hit `hits` times at pow x ATK (each hit rolls Flee unless it crits). */
   private async monStrike(m: Mon, sk: MonSkill) {
     const home = m.spr.x
     await this.tween({ targets: [m.spr, m.shadow], x: HERO_X + 70, duration: BATTLE.stepMs * 0.3, ease: 'Quad.easeIn' })
@@ -1780,7 +1780,7 @@ export class BattleScene extends Phaser.Scene {
     await this.tween({ targets: [m.spr, m.shadow], x: home, duration: BATTLE.stepMs * 0.3, ease: 'Quad.easeOut' })
   }
 
-  /** v48 monster counter: right after the hero's basic attack, the target may strike back (def.counter). */
+  /** v49 monster counter: right after the hero's basic attack, the target may strike back (def.counter). */
   private async monCounter(m: Mon | undefined) {
     if (!m || m.dead || m.frozen || m.charging || !m.def.counter || this.hp <= 0 || Math.random() >= m.def.counter) return
     this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '↩️ สวนกลับ!', '#ff9a6a')
