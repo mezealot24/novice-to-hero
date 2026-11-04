@@ -1114,7 +1114,7 @@ export class BattleScene extends Phaser.Scene {
     const shots = m.def.shots ?? 1
     for (let i = 0; i < shots && this.hp > 0 && !m.dead; i++) {
       if (this.riposte(m)) continue
-      const landed = this.hurtHero(m.def.dmg * BATTLE.monDmgMul * this.monMul(m), !!m.def.magic, m.def.hit ?? 15, m)
+      const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m), !!m.def.magic, m.def.hit ?? 15, m)
       if (landed) { this.monLeech(m); if (m.onHit) this.applyFx(m.onHit, m); await this.tryCounter(m) }
     }
     await this.tween({ targets: [m.spr, m.shadow], x: home, duration: BATTLE.stepMs * 0.35, ease: 'Quad.easeOut' })
@@ -1185,7 +1185,7 @@ export class BattleScene extends Phaser.Scene {
     const home = m.spr.x
     await this.slamMotion(m)
     if (this.riposte(m)) { await this.wait(300); if (!m.dead) await this.tween({ targets: [m.spr, m.shadow], x: home, duration: 260 }); m.spr.setAngle(0); return }
-    const hit = this.hurtHero((m.def.dmg + 8) * BATTLE.monDmgMul * (m.def.slamMul ?? 1.6) * this.monMul(m), !!m.def.slamMagic, 999, m) // slam can't be fled, only lucky-dodged / shielded
+    const hit = this.hurtHero(((m.def.slamMagic ? this.monMatk(m) : m.def.dmg) + 8) * BATTLE.monDmgMul * (m.def.slamMul ?? 1.6) * this.monMul(m), !!m.def.slamMagic, 999, m) // slam can't be fled, only lucky-dodged / shielded
     if (m.stored > 0) await this.soulStrike(m)
     if (hit) {
       this.monLeech(m, m.def.mini === 'hunter' || m.def.mini === 'drainer' ? 1 : undefined) // the big drain heals all of it
@@ -1654,6 +1654,20 @@ export class BattleScene extends Phaser.Scene {
       * (this.hx.weaken > 0 ? BATTLE.weakenMul : 1) * (this.relic === 'aegis' && this.shield > 0 ? 1 + RELIC_RULES.aegis.dmg : 1)
   }
 
+  /** Monster M.ATK (Q 2026-11-04): magic attacks use matk when the monster has one. */
+  private monMatk(m: Mon) { return m.def.matk ?? m.def.dmg }
+
+  /** Monster spell (MonSkill 'bolt'): a magic projectile = M.ATK x pow. Can't be fled; lucky dodge, shields and M.DEF work. */
+  private async monBolt(m: Mon, sk: MonSkill) {
+    const c = m.def.slamColor ?? 0xb48aff
+    const b = this.add.image(m.spr.x - 20, m.spr.y - m.spr.displayHeight * 0.6, 'dot').setTint(c).setScale(2.6).setDepth(9000)
+    await this.tween({ targets: b, x: HERO_X + 10, y: GROUND - 50, duration: 220, ease: 'Quad.easeIn' })
+    b.destroy()
+    this.burst(HERO_X, GROUND - 50, c, 12, 180, true)
+    const landed = this.hurtHero(this.monMatk(m) * BATTLE.monDmgMul * (sk.pow ?? 1.3) * this.monMul(m), true, 999, m)
+    if (landed && sk.fx) this.applyFx(sk.fx, m)
+  }
+
   /** Monster hit multiplier: Ice Age weakens it, the hunter smells blood when the hero is low. */
   private monMul(m: Mon) {
     let k = m.iced ? 1 - RELIC_RULES.iceage.atkDown : 1
@@ -1825,6 +1839,7 @@ export class BattleScene extends Phaser.Scene {
         this.dotIcon(m); done = true
       } else if (sk.kind === 'haste') { for (const t of allies) if (t !== m) t.gauge += sk.pow ?? 30; done = true }
       else if (sk.kind === 'curse' && sk.fx) { this.applyFx(sk.fx, m); done = true }
+      else if (sk.kind === 'bolt') { await this.monBolt(m, sk); done = true }
       else if (sk.kind === 'summon' && sk.summon) done = this.summonAdds(sk.summon[0], sk.summon[1]) > 0
       else if (sk.kind === 'revive') {
         const corpse = this.mons.slice(this.roomStart).find((x) => x.dead && !x.revived && x.def.ai !== 'boss' && x !== m)
@@ -1837,9 +1852,9 @@ export class BattleScene extends Phaser.Scene {
         }
       }
       if (!done) continue
-      this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10, `✦ ${sk.name}`, sk.kind === 'curse' ? '#ffb0e0' : '#b0ffc8')
+      this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10, `✦ ${sk.name}`, sk.kind === 'curse' || sk.kind === 'bolt' ? '#ffb0e0' : '#b0ffc8')
       this.tweens.add({ targets: m.spr, scaleY: m.spr.scaleY * 1.12, duration: 140, yoyo: true })
-      this.burst(m.spr.x, m.spr.y - 40, sk.kind === 'curse' ? 0xc03070 : 0x6fd08c, 12, 140)
+      this.burst(m.spr.x, m.spr.y - 40, sk.kind === 'curse' || sk.kind === 'bolt' ? 0xc03070 : 0x6fd08c, 12, 140)
       await this.wait(BATTLE.stepMs)
       return true
     }

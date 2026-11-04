@@ -305,6 +305,23 @@ export function makeTextures(scene: Phaser.Scene) {
     g.fillStyle(0xe8e4d4).fillTriangle(16, 2, 22, 8, 26, 0) // bone headdress
     g.fillStyle(0x8a6a3a).fillRect(4, 10, 3, 42); g.fillStyle(0x6fd08c).fillCircle(5.5, 9, 5) // staff + glowing orb
   })
+  // support monsters (Q 2026-11-04)
+  make(scene, 'dewsprite', 36, 42, (g) => {
+    g.fillStyle(0x9fe3ff, 0.45).fillEllipse(8, 16, 14, 22).fillEllipse(28, 16, 14, 22) // wings
+    g.fillStyle(0x6fd08c).fillTriangle(10, 40, 18, 18, 26, 40) // leaf dress
+    g.fillStyle(0xf6eedc).fillCircle(18, 14, 8)
+    g.fillStyle(0x6fd08c).fillEllipse(18, 7, 18, 7) // leaf hat
+    eyes(g, 15, 21, 14, 0x14172b, 1.6)
+    g.fillStyle(0x9fe3ff).fillCircle(31, 30, 3.5); g.fillStyle(0xeaf6ff).fillCircle(30, 29, 1.2) // dew drop
+  })
+  make(scene, 'bonepriest', 44, 56, (g) => {
+    g.fillStyle(0x3a2a4a).fillTriangle(10, 54, 22, 18, 34, 54) // robe
+    g.fillStyle(0xd8c070).fillRect(20, 26, 4, 22).fillRect(15, 32, 14, 3) // holy sign
+    g.fillStyle(0xf2efe4).fillCircle(22, 14, 9)
+    g.fillStyle(0x3a2a4a).fillTriangle(10, 14, 22, 0, 34, 14) // hood
+    eyes(g, 18, 26, 15, 0x9fe3ff, 2.2)
+    g.fillStyle(0xe8e4d4).fillRect(38, 8, 3, 46); g.fillStyle(0x9fe3ff).fillCircle(39.5, 7, 4.5) // bone staff
+  })
   make(scene, 'hornet', 46, 36, (g) => {
     g.fillStyle(0xdfe6f2, 0.7).fillEllipse(26, 8, 18, 12).fillEllipse(34, 10, 14, 10) // wings
     g.fillStyle(0xf2b84b).fillEllipse(30, 22, 22, 14)
