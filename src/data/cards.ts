@@ -34,7 +34,7 @@ export const EQUIP_CARDS: EquipCard[] = [
   c('card_wolf', 'wolf', 'weapon', 'normal', 'd1', { atk: 4, hit: 3 }),
   c('card_king', 'king', 'armor', 'boss', 'd1', { regen: 0.67, flee: -5 }, undefined, { maxHp: 0.12 }),
   // ----- d2 ป่าหมาป่าเงา -----
-  c('card_bat', 'bat', 'weapon', 'normal', 'd2', { lifesteal: 0.04 }),
+  c('card_bat', 'bat', 'weapon', 'normal', 'd2', { lifesteal: 0.02 }),
   c('card_shroom', 'shroom', 'armor', 'normal', 'd2', { mdef: 0.05, regen: 0.33 }),
   c('card_boar', 'boar', 'armor', 'normal', 'd2', { def: 6 }, { vit: 1 }),
   c('card_shadowwolf', 'shadowwolf', 'acc', 'normal', 'd2', { flee: 4 }, { agi: 2 }),
@@ -97,7 +97,7 @@ export const EQUIP_CARDS: EquipCard[] = [
   c2('frostgiant', 'armor', 'mini', 'd4', 'ค้อนธารน้ำแข็ง', '⚔️นักดาบ', { ultMulAdd: 0.4, ultVsCharge: 0.25, aspd: -0.12 }),
   c2('hydra', 'armor', 'boss', 'd4', 'หัวงอกใหม่', '✨นักบวช', { ultRegen: 0.02, healAmp: 0.06, shieldAmp: -0.1 }),
   // ----- d5 -----
-  c2('hellknight', 'armor', 'normal', 'd5', 'เกราะไฟนรก', '⚔️นักดาบ (ลดราคาออโต้ทุกคลาส)', { autoCostCut: 4, autoLifesteal: 0.05 }),
+  c2('hellknight', 'armor', 'normal', 'd5', 'เกราะไฟนรก', '⚔️นักดาบ (ลดราคาออโต้ทุกคลาส)', { autoCostCut: 4, spellVamp: 0.05 }),
   c2('imp', 'acc', 'normal', 'd5', 'ประกายอิมพ์', 'ทุกคลาส', { aspd: 0.12 }),
   c2('hexwitch', 'acc', 'normal', 'd5', 'ตาคำสาป', '🔮จอมเวท ✨นักบวช', { spellCrit: 0.05, critMul: 0.1 }),
   c2('necropriest', 'armor', 'normal', 'd5', 'หอกวิญญาณ', '✨นักบวช', { spearRate: 0.34, spearMul: 0.1 }),

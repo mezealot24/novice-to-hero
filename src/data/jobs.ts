@@ -33,13 +33,16 @@ export const MAGE_SPELL = {
 export const SWORD_MANA = {
   auto: 20, // ฟันพายุ
   ult: 25, // ดาบพิทักษ์ (plus its turn cooldown; booked ult waits for Mana like the Mage's)
-  autoMul: 1.15, // ฟันพายุ x P.ATK (1.3 until the class rebalance 2026-11-03)
+  autoMul: 1.25, // ฟันพายุ x P.ATK (1.3 before the class rebalance 2026-11-03, 1.15 in v40, 1.25 after the lifesteal cut 2026-11-04)
   ultMul: 1.2, // ดาบพิทักษ์ x P.ATK (1.4 until the class rebalance)
-  ultShield: 0.1, // ดาบพิทักษ์ (0.15 until the class rebalance 2026-11-03) shield, share of max HP (0.25 in the Rage era; Q chose the armour trim 2026-11-03)
+  ultShield: 0.15, // ดาบพิทักษ์ (0.1 in v40-v43, back to 0.15 after the lifesteal cut 2026-11-04) shield, share of max HP (0.25 in the Rage era; Q chose the armour trim 2026-11-03)
 }
 
 /** Cleric kit numbers (class rebalance 2026-11-03: was heal 22%, ult shield 35% + heal 15%; gear/cards should make up the gap). */
 export const CLERIC_KIT = { heal: 0.12, ultShield: 0.15, ultHeal: 0.08, smite: 1.4 }
+
+/** Spell vamp (Q 2026-11-04): skill lifesteal, its own stat. AoE skills heal 1/3; Skill 2 เลือดเดือด trades skill damage for it. */
+export const SPELL_VAMP = { aoe: 1 / 3, bloodCut: 0.3 }
 
 export const JOBS: Record<JobId, JobDef> = {
   novice: {
@@ -49,7 +52,7 @@ export const JOBS: Record<JobId, JobDef> = {
   },
   swordsman: {
     id: 'swordsman', name: 'นักดาบ', icon: '⚔️', tex: 'hero_swordsman', blurb: 'ยืนหน้า ถึก ฟันโดนหลายตัว · Mana น้อย: สกิลออกได้จำกัด ดาเมจหลักมาจากฟันธรรมดา + สวนกลับ', focus: 'STR · VIT',
-    resource: 'mana', attack: 'melee', tags: ['guard', 'blood'], mod: { counter: 0.02 },
+    resource: 'mana', attack: 'melee', tags: ['guard', 'blood'], mod: { maxHp: 25, def: 3, counter: 0.02 }, // HP/DEF partly back 2026-11-04 after the lifesteal cut
     auto: { name: 'ฟันพายุ', icon: '🌪️', cost: SWORD_MANA.auto, desc: `Mana ${SWORD_MANA.auto}: ฟันมอนทุกตัว ${SWORD_MANA.autoMul}x P.ATK` },
     ult: { name: 'ดาบพิทักษ์', icon: '🛡️', cd: 4, cost: SWORD_MANA.ult, desc: `Mana ${SWORD_MANA.ult}: ฟันมอนทุกตัว ${SWORD_MANA.ultMul}x + โล่ ${SWORD_MANA.ultShield * 100}% ของ HP สูงสุด` },
   },

@@ -104,9 +104,9 @@ export const ITEMS: Item[] = [
   { id: 'longsword', slot: 'weapon', name: 'ดาบยาว', icon: '🗡️', price: 420, desc: 'หนัก ตีแรงแต่ช้าลงนิด', base: { str: 2 }, mod: { atk: 10, pskill: 0.05, aspd: -0.15 } },
   { id: 'staff', slot: 'weapon', name: 'คทาฝึกหัด', icon: '🪄', price: 380, desc: 'คทาแรกของสายเวท', base: { int: 2 }, mod: { matk: 8, smashMul: 1 } },
   // ----- weapons: Swordsman (lifesteal / counter) -----
-  { id: 'w_bloodblade', slot: 'weapon', name: 'ดาบกระหายเลือด', icon: '🩸', price: 520, desc: 'สายดูดเลือด ตียิ่งเยอะยิ่งอึด', base: { str: 3 }, mod: { atk: 8, lifesteal: 0.06 }, jobs: SW, req: 'job' },
+  { id: 'w_bloodblade', slot: 'weapon', name: 'ดาบกระหายเลือด', icon: '🩸', price: 520, desc: 'สายดูดเลือด ตียิ่งเยอะยิ่งอึด', base: { str: 3 }, mod: { atk: 8, lifesteal: 0.03 }, jobs: SW, req: 'job' },
   { id: 'w_guardblade', slot: 'weapon', name: 'ดาบผู้พิทักษ์', icon: '🛡️', price: 560, desc: 'สายแทงก์ โดนตีแล้วสวนกลับ', base: { vit: 3 }, mod: { atk: 5, def: 4, counter: 0.12 }, jobs: SW, req: 'job' },
-  { id: 'w_berserkaxe', slot: 'weapon', name: 'ขวานคลั่งศึก', icon: '🪓', price: 1100, twoHand: true, desc: 'ของดัน 2 · อาวุธ 2 มือ (ใส่มือรองไม่ได้): ฟันพายุแรงขึ้น + ดูดเลือด', base: { str: 5 }, mod: { atk: 17, pskill: 0.15, lifesteal: 0.04 }, jobs: SW, req: 'd2' },
+  { id: 'w_berserkaxe', slot: 'weapon', name: 'ขวานคลั่งศึก', icon: '🪓', price: 1100, twoHand: true, desc: 'ของดัน 2 · อาวุธ 2 มือ (ใส่มือรองไม่ได้): ฟันพายุแรงขึ้น + ดูดเลือด', base: { str: 5 }, mod: { atk: 17, pskill: 0.15, lifesteal: 0.02 }, jobs: SW, req: 'd2' },
   // ----- weapons: Archer (crit -> shield / combo) -----
   { id: 'w_huntbow', slot: 'weapon', name: 'ธนูพราน', icon: '🏹', price: 520, desc: 'แม่นและคริบ่อย (คริ = ทะลุเกราะ โดนแน่)', base: { dex: 3 }, mod: { atk: 6, hit: 8, crit: 0.05 }, jobs: AR, req: 'job' },
   { id: 'w_hawkbow', slot: 'weapon', name: 'ธนูเหยี่ยวลม', icon: '🪶', price: 560, desc: 'ยิงรัว คริบ่อยขึ้น', base: { agi: 3 }, mod: { atk: 4, combo: 0.08, crit: 0.04 }, jobs: AR, req: 'job' },
@@ -129,7 +129,7 @@ export const ITEMS: Item[] = [
   { id: 'robe', slot: 'armor', name: 'เสื้อคลุมนักเวท', icon: '🧥', price: 240, desc: 'กันเวท ฟื้น Mana', base: { wis: 1 }, mod: { maxHp: 15, mdef: 0.1, resRegen: 1 } },
   { id: 'chain', slot: 'armor', name: 'เกราะโซ่', icon: '⛓️', price: 450, desc: 'หนา ทนตีกายภาพ', base: { vit: 2 }, mod: { maxHp: 60, def: 15 } },
   { id: 'a_plate', slot: 'armor', name: 'เกราะเหล็กหนัก', icon: '🛡️', price: 700, desc: 'ถึกสุด แต่ช้าลงนิด', base: { vit: 4 }, mod: { maxHp: 80, def: 20, counter: 0.06, aspd: -0.08 }, jobs: ['swordsman', 'cleric'], req: 'job' },
-  { id: 'a_thornmail', slot: 'armor', name: 'เกราะหนามเลือด', icon: '🌹', price: 750, desc: 'ดูดเลือด + สวนกลับ', base: { str: 2 }, mod: { maxHp: 50, def: 10, lifesteal: 0.04, counter: 0.05 }, jobs: SW, req: 'job' },
+  { id: 'a_thornmail', slot: 'armor', name: 'เกราะหนามเลือด', icon: '🌹', price: 750, desc: 'ดูดเลือด + สวนกลับ', base: { str: 2 }, mod: { maxHp: 50, def: 10, lifesteal: 0.02, counter: 0.05 }, jobs: SW, req: 'job' },
   { id: 'a_huntvest', slot: 'armor', name: 'เสื้อนักล่า', icon: '🥾', price: 650, desc: 'เบา หลบง่าย ตีซ้ำได้', base: { agi: 3 }, mod: { maxHp: 30, flee: 6, combo: 0.05 }, jobs: ['archer', 'thief'], req: 'job' },
   { id: 'a_eaglecloak', slot: 'armor', name: 'ผ้าคลุมตาเหยี่ยว', icon: '🦅', price: 700, desc: 'แม่นขึ้น หลบเก่งขึ้น', base: { dex: 3 }, mod: { maxHp: 35, hit: 6, flee: 5 }, jobs: AR, req: 'job' },
   { id: 'a_sagerobe', slot: 'armor', name: 'เสื้อคลุมปราชญ์', icon: '🧙', price: 650, desc: 'กันเวท Mana เยอะ', base: { wis: 3 }, mod: { maxHp: 30, mdef: 0.08, maxRes: 20, resRegen: 1 }, jobs: ['mage', 'cleric'], req: 'job' },
@@ -147,7 +147,7 @@ export const ITEMS: Item[] = [
   { id: 'r_beads', slot: 'acc', name: 'ลูกประคำ', icon: '📿', price: 380, desc: 'ฮีลและโล่แรงขึ้น', base: { wis: 1 }, mod: { healAmp: 0.1, shieldAmp: 0.1 } },
   { id: 'r_wind', slot: 'acc', name: 'กำไลลมกรด', icon: '🌪️', price: 400, desc: 'คอมโบ ตีซ้ำบ่อยขึ้น', base: { agi: 2 }, mod: { combo: 0.08 } },
   { id: 'r_mana', slot: 'acc', name: 'จี้มานา', icon: '🔷', price: 420, desc: 'Mana เยอะ ฟื้นไว (อาชีพที่ใช้ Mana)', base: { int: 2 }, mod: { maxRes: 20, resRegen: 1 }, req: 'job' },
-  { id: 'fang', slot: 'acc', name: 'สร้อยเขี้ยวหมาป่า', icon: '🦷', price: 480, desc: 'ดูดเลือด', mod: { lifesteal: 0.05, atk: 3 } },
+  { id: 'fang', slot: 'acc', name: 'สร้อยเขี้ยวหมาป่า', icon: '🦷', price: 480, desc: 'ดูดเลือด', mod: { lifesteal: 0.02, atk: 3 } },
   { id: 'r_alphafang', slot: 'acc', name: 'เขี้ยวจ่าฝูงเงา', icon: '🐺', price: 1200, desc: 'ของดัน 2: ทุกค่าสถานะ +2', base: { str: 2, vit: 2, wis: 2, dex: 2, int: 2, luk: 2, agi: 2 }, mod: { crit: 0.03 }, req: 'd2' },
   // ----- Dungeon 4-5 prep: resist the new debuffs (design/dungeon-4-5-brutal.md) -----
   { id: 'r_amulet', slot: 'acc', name: 'เครื่องรางล้างพิษ', icon: '🧿', price: 1600, desc: 'ของดัน 3: กันสถานะผิดปกติ (เตรียมลุยบึงพิษ)', base: { vit: 2, wis: 2 }, mod: { debuffRes: 0.35, maxHp: 40, mdef: 0.04 }, req: 'd3' },
@@ -223,7 +223,7 @@ const STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => string]>> 
   pierce: ['ult ทะลวงเกราะ', pc], arUltBreak: ['ult ใส่บอสที่ชาร์จ', pc], mgUltMana: ['ร่าย ult คืน Mana', (n) => `${n}`], ultAmp: ['ult แรง', pc], ultShieldAdd: ['โล่จาก ult', (n) => `${pc(n)} HP`],
   ultPoison: ['ult ติดพิษ', (n) => `${n} stack`], arDodgeShield: ['หลบ→โล่', (n) => `${pc(n)} HP`], arCritRes: ['คริ→Energy', (n) => `${n}`], counterShield: ['สวนกลับ→โล่', (n) => `${pc(n)} HP`],
   poisonAmp: ['ดาเมจใส่มอนพิษ 10+ stack', pc], ultMulAdd: ['ult ตัวคูณ', (n) => `${n}x`], ultVsCharge: ['ult ใส่บอสที่กำลังชาร์จ', pc], ultRegen: ['หลัง ult ฟื้น HP/เทิร์น (3 เทิร์น)', pc],
-  autoCostCut: ['สกิลออโต้ใช้ resource ลดลง', (n) => `${n}`], autoLifesteal: ['สกิลออโต้ดูดเลือด', pc], spearRate: ['ได้หอกแสงต่อเทิร์น', pc], spearMul: ['หอกแสงแรง', (n) => `${n}x M.ATK`],
+  autoCostCut: ['สกิลออโต้ใช้ resource ลดลง', (n) => `${n}`], spellVamp: ['ดูดเลือดสกิล', pc], skillDmgCut: ['ดาเมจสกิลลดลง', pc], spearRate: ['ได้หอกแสงต่อเทิร์น', pc], spearMul: ['หอกแสงแรง', (n) => `${n}x M.ATK`],
   arLowHpBonus: ['ดาเมจใส่มอน HP<50%', pc], ultDodge: ['ult หลบแน่นอน', (n) => `${n} ครั้ง`], ultHits: ['ult แทง', (n) => `${n} ที`], mgUltCd: ['คูลดาวน์ ult', (n) => `${n} เทิร์น`],
   resRegenCut: ['ฟื้น Mana ลดลง', pc], mgWaveBarrier: ['ต้นเวฟได้บาเรีย', (n) => `${n}x M.ATK`], debuffRes: ['กันสถานะผิดปกติ', pc], waveShield: ['โล่ต้นเวฟ', (n) => `${pc(n)} HP`],
   smashCd: ['คูลดาวน์ท่าไม้ตาย', (n) => `${Math.round(n / 1500)} เทิร์น`], berserk: ['HP<30%: ATK +40% ดูดเลือด x2', () => ''], overhealShield: ['ฮีลเกินเต็มกลายเป็นโล่', () => ''], ctrAoe: ['สวนกลับโดนมอนทุกตัว 0.5x', () => ''],
@@ -364,6 +364,8 @@ export function heroStats(s: StatsInput): Stats {
   st.counter = Math.min(0.6, st.counter)
   st.combo = Math.min(0.5, st.combo)
   st.lifesteal = Math.min(0.4, st.lifesteal)
+  st.spellVamp = Math.min(0.4, st.spellVamp)
+  st.skillDmgCut = Math.min(0.9, st.skillDmgCut)
   st.dodgeHeal = Math.min(0.1, st.dodgeHeal)
   st.fleeFloor = Math.min(0.2, st.fleeFloor) // Thief: monsters still hit at least 60%
   st.waveShield = Math.min(0.2, st.waveShield)
