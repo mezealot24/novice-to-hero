@@ -81,7 +81,7 @@ export const JOB_LINES: Record<JobId, Line[]> = {
   swordsman: ['guard', 'life', 'weapon', 'focus'],
   archer: ['weapon', 'focus', 'guard'], // พร v2 tuning: ⚡ is magic (70/30), so it is no longer an Archer line
   mage: ['fire', 'storm', 'ice', 'focus'],
-  cleric: ['holy', 'guard', 'life'],
+  cleric: ['holy', 'guard', 'focus', 'weapon'], // v62: Priest is a melee hybrid (v58) and already heals; holy/guard/life alone timed out on D4-5 bosses
   thief: ['venom', 'weapon', 'life'],
 }
 /** Mage's basic attack is magic: on-hit poison and lifesteal cards never work for it. */
