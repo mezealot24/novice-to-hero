@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { COLORS, DUNGEONS, H, W } from '../data/game-data'
+import { COLORS, DUNGEONS, H, HARD, hardGap, hardMul, W } from '../data/game-data'
 import { COSTUMES, FREE_GEMS, isBroken, itemById, JOB_RULES, RACES, STAT_RULES } from '../data/meta'
 import { canChangeJob, persist, save, today, wipe } from '../save'
 import { JOB_CHANGE, JOBS } from '../data/jobs'
@@ -61,7 +61,8 @@ export class HubScene extends Phaser.Scene {
       const lockMsg = d.unlock === 'job' ? '🔒 ปลดล็อกหลังเปลี่ยนอาชีพ' : `🔒 ปลดล็อกหลังเคลียร์${prevName(d.unlock)}`
       const status = locked ? (compact ? '🔒 ล็อก' : lockMsg) : n ? `เคลียร์แล้ว ${n} ครั้ง` : compact ? `ครั้งแรก 💎${FREE_GEMS.firstClear}` : `เคลียร์ครั้งแรกได้เพชร ${FREE_GEMS.firstClear}`
       txt(this, 452, y, `${i + 1}. ${d.name}${d.tier >= 4 ? ' 💀' : ''}`, compact ? 15 : 17, locked ? UI.sub : UI.text, true)
-      if (compact) txt(this, 452, y + 19, `${info} · ${status}`, 11, locked ? '#ff9a9a' : n ? UI.sub : UI.gem).setWordWrapWidth(320)
+      const hb = (s.hardClearsBy ?? {})[d.id] ?? 0
+      if (compact) txt(this, 452, y + 19, `${info} · ${status}${hb ? ` · 🔥${hb}` : ''}`, 11, locked ? '#ff9a9a' : n ? UI.sub : UI.gem).setWordWrapWidth(n ? 270 : 320)
       else {
         txt(this, 452, y + 22, info, 13, UI.sub)
         txt(this, 452, y + 40, status, 13, locked ? '#ff9a9a' : n ? UI.sub : UI.gem)
@@ -80,6 +81,12 @@ export class HubScene extends Phaser.Scene {
         if (locked) { confirm(this, `${d.name} ยังล็อกอยู่`, `${why} (โหมดทดสอบ: ลองได้)`, 'ลองเลย', start); return }
         start()
       }, { size: compact ? 17 : 20, fill: locked ? 0x4a4e6e : undefined, color: locked ? UI.sub : undefined })
+      if (n > 0) { // hard mode (v47): cleared dungeons only, monsters scale with Base Lv
+        const gap = hardGap(d.id, s.baseLevel), k = hardMul(d.id, gap)
+        button(this, 756, y + (compact ? 18 : 26), 62, compact ? 34 : 50, '🔥ยาก', () => confirm(this, `🔥 โหมดยาก · ${d.name}`,
+          `มอนแกร่งตามเลเวลเรา (Lv ${s.baseLevel} · แนะนำ Lv ${HARD.recLv[d.id]})\nHP x${k.hp.toFixed(2)} · ATK x${k.atk.toFixed(2)} · บอสสุ่มสกิล + passive เพิ่ม\nรางวัล zeny/EXP x${k.reward.toFixed(2)} · วัตถุดิบ x${HARD.mats}`,
+          'ลุยเลย', () => go(this, 'battle', { d: i, hard: true }), 'ยังก่อน'), { size: 14, fill: 0x8a3a2a, color: UI.text })
+      }
       const nextLocked = i === DUNGEONS.length - 1 || isLocked(DUNGEONS[i + 1])
       if (!locked && nextLocked) this.tweens.add({ targets: b, scale: 1.05, duration: 700, yoyo: true, repeat: -1 })
     })

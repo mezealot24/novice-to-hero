@@ -56,6 +56,8 @@ for (const [env, slot] of [['WEAPON', 'weapon'], ['ARMOR', 'armor'], ['ACC', 'ac
 if (process.env.GRADE) save.grade = Object.fromEntries(Object.values(save.equipped).map((id) => [id, +process.env.GRADE]))
 // refine (phase 2): REFINE=n puts every worn item at +n (no bonus lines), BROKEN=1 marks them all broken
 // SOCK='{"<item id>":["card id",...]}' slots cards (bag gets them too) · TAL='{"1":{"id":"th_t1c","rank":2}}' sets talents
+if (process.env.BL) save.baseLevel = +process.env.BL // HARD=1 tests: scaling reads Base Lv
+if (process.env.HARD) save.hardClearsBy = {}
 if (process.env.SOCK) { save.sockets = JSON.parse(process.env.SOCK); save.cards = {}; for (const ids of Object.values(save.sockets)) for (const id of ids) save.cards[id] = (save.cards[id] ?? 0) + 1 }
 if (process.env.TAL) save.jobTalents = JSON.parse(process.env.TAL)
 if (process.env.REFINE) save.refine = Object.fromEntries(Object.values(save.equipped).map((id) => [id, +process.env.REFINE]))
@@ -70,10 +72,10 @@ if (process.env.BROKEN) save.broken = Object.values(save.equipped)
   await p.waitForFunction(() => window.__nth && window.__nth.scene.isActive('title'), null, { timeout: 30000 })
   const res = []
   for (let r = 0; r < RUNS; r++) {
-    res.push(await p.evaluate(async ([first, RELIC, D, DUN]) => {
+    res.push(await p.evaluate(async ([first, RELIC, D, DUN, HARD]) => {
       const g = window.__nth, R = g.renderer
       R.preRender = () => {}; R.render = () => {}; R.postRender = () => {} // test only: skip drawing
-      if (first) { g.scene.getScenes(true).forEach((s) => s.scene.stop()); g.scene.start('battle', { d: DUN }) }
+      if (first) { g.scene.getScenes(true).forEach((s) => s.scene.stop()); g.scene.start('battle', { d: DUN, hard: !!HARD }) }
       while (!window.__battle || !window.__battle.st) await new Promise((r) => setTimeout(r, 30))
       const B = window.__battle
       if (RELIC) B.testRelic = RELIC
@@ -91,12 +93,12 @@ if (process.env.BROKEN) save.broken = Object.values(save.equipped)
       }
       const bm = B.mons.find((m) => m.def.ai === 'boss')
       return { mats: Object.values(B.runMats || {}).reduce((a, n) => a + n, 0), maxHp: Math.round(B.st.maxHp), minHp: B.minHpPct, mini: B.miniKind, miniWon: B.miniWon, relic: B.relic, parry: B.parryCount, frz: B.freezeCount, tl: (B.turnsLog || []).join('/'), win: B.over && B.hp > 0 && !B.timedOut, room: B.room, hp: Math.round(B.hp), bossHp: bm ? Math.max(0, Math.round(bm.hp)) : null, breaks: B.breakCount ?? 0, revived: B.revivedCount ?? 0, ctr: B.counterCount ?? 0, combo: B.comboCount ?? 0, el: B.job.id === 'mage' ? B.element : '', s2: B.s2Count ?? 0, to: !!B.timedOut, dbf: B.debuffCount ?? 0, peak: B.peakTurns ?? 0, ms: Date.now() - t0 }
-    }, [r === 0, process.env.RELIC || '', D, process.env.DUN ? +process.env.DUN : D >= 4 ? D - 1 : D]))
+    }, [r === 0, process.env.RELIC || '', D,  process.env.DUN ? +process.env.DUN : D >= 4 ? D - 1 : D, !!process.env.HARD]))
   }
   if (process.env.DEBUG) console.log(JSON.stringify(res))
   const wins = res.filter((x) => x.win).length
   const minis = {}; for (const x of res) if (x.mini) { const k = x.mini; minis[k] = minis[k] || [0, 0, 0]; minis[k][0]++; if (x.miniWon) minis[k][1]++; if (x.win) minis[k][2]++ }
   const relics = {}; for (const x of res) if (x.relic) { relics[x.relic] = relics[x.relic] || [0, 0]; relics[x.relic][0]++; if (x.win) relics[x.relic][1]++ }
-  console.log(JSON.stringify({ job, wins, runs: RUNS, mats: res.map((x) => x.mats).join(','), ...(D >= 2 ? { minis, relics } : {}), deaths: res.filter((x) => !x.win).map((x) => `r${x.room + 1}[${x.maxHp}]` + (x.bossHp != null ? `(boss ${x.bossHp})` : '')), breaks: res.reduce((a, x) => a + x.breaks, 0), revives: res.reduce((a, x) => a + x.revived, 0), ctr: res.reduce((a, x) => a + (x.ctr || 0), 0), combo: res.reduce((a, x) => a + (x.combo || 0), 0), timeouts: res.filter((x) => x.to).length, debuffs: res.reduce((a, x) => a + (x.dbf || 0), 0), peakTurns: res.map((x) => x.peak).join(','), s2casts: res.reduce((a, x) => a + (x.s2 || 0), 0), els: res.map((x) => (x.el ? x.el[0] : '') + (x.win ? 'W' : 'L')).join(' ') }))
+  console.log(JSON.stringify({ job, wins, runs: RUNS, minHp: Math.round(100 * res.reduce((a, x) => a + x.minHp, 0) / res.length), mats: res.map((x) => x.mats).join(','), ...(D >= 2 ? { minis, relics } : {}), deaths: res.filter((x) => !x.win).map((x) => `r${x.room + 1}[${x.maxHp}]` + (x.bossHp != null ? `(boss ${x.bossHp})` : '')), breaks: res.reduce((a, x) => a + x.breaks, 0), revives: res.reduce((a, x) => a + x.revived, 0), ctr: res.reduce((a, x) => a + (x.ctr || 0), 0), combo: res.reduce((a, x) => a + (x.combo || 0), 0), timeouts: res.filter((x) => x.to).length, debuffs: res.reduce((a, x) => a + (x.dbf || 0), 0), peakTurns: res.map((x) => x.peak).join(','), s2casts: res.reduce((a, x) => a + (x.s2 || 0), 0), els: res.map((x) => (x.el ? x.el[0] : '') + (x.win ? 'W' : 'L')).join(' ') }))
   await b.close()
 })().catch((e) => { console.error(job, e.message); process.exit(1) })
