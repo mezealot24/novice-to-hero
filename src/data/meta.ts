@@ -217,7 +217,7 @@ const STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => string]>> 
   maxRes: ['Max Mana', (n) => `${n}`], resRegen: ['ฟื้น Mana', (n) => `${Math.round(n * 3 * 10) / 10}/เทิร์น`], aspd: ['เร็ว', (n) => pc(n / PLAYER.aspd)],
   crit: ['คริ', pc], spellCrit: ['เวทคริ', pc], critMul: ['ดาเมจคริ', pc], guard: ['ลดดาเมจ', pc], lifesteal: ['ดูดเลือด', pc], regen: ['ฟื้น HP/เทิร์น', (n) => pc(n * 1.5 / 100)],
   poison: ['พิษ stack/hit', (n) => `${n}`], poisonDmg: ['พิษแรง', (n) => `${n}`], smashMul: ['ทุบ(โนวิส)', (n) => `${n}x`],
-  counter: ['สวนกลับ', pc], combo: ['คอมโบ', pc], comboCount: ['คอมโบต่อได้', (n) => `${n} ฮิต`], comboDmg: ['ดาเมจคอมโบ', pc],
+  counter: ['สวนกลับ', pc], combo: ['คอมโบ', pc], comboCount: ['คอมโบต่อได้', (n) => `${n} ฮิต`], comboDmg: ['ดาเมจคอมโบ', pc], ignoreCombo: ['กันมอนคอมโบ', pc], ignoreCounter: ['กันมอนสวน', pc], comboDR: ['ลดดาเมจคอมโบมอน', pc], counterDR: ['ลดดาเมจสวนมอน', pc], critDR: ['ลดดาเมจคริมอน', pc],
   dodgeHeal: ['หลบ→ฟื้น HP', pc], revive: ['ลุกใหม่', (n) => `${n} ครั้ง/รอบ`],
   burnDps: ['ติดไฟ', (n) => `${n}/เทิร์น`], healShield: ['ฮีลแล้วได้โล่', pc], dodgeEnergy: ['หลบ→Energy', (n) => `${n}`], counterRage: ['สวนกลับ→Rage', (n) => `${n}`],
   mgUltAmp: ['ult ธาตุแรง', pc], thorns: ['โล่สะท้อนดาเมจ', pc], holyCounter: ['สวนกลับเป็นเวท (ใช้ M.ATK)', () => ''], rageGain: ['ได้ Rage', pc], startRage: ['เริ่มเวฟมี Rage', (n) => `${n}`],
@@ -371,6 +371,10 @@ export function heroStats(s: StatsInput): Stats {
   st.luckyDodge = Math.min(0.25, st.luckyDodge)
   st.counter = Math.min(COMBO.rateCap, st.counter) // counter rework: may pass 100% vs Ignore Counter (was 60%)
   st.combo = Math.min(COMBO.rateCap, st.combo)
+  { const K = COMBO.defK, f = (x: number) => (x > 0 ? x / (x + K) : 0) // hero combo / counter / crit defence (Q 2026-11-04)
+    st.ignoreCombo = Math.min(COMBO.defCap, st.ignoreCombo + f(d('agi'))); st.ignoreCounter = Math.min(COMBO.defCap, st.ignoreCounter + f(d('dex')))
+    st.comboDR = Math.min(COMBO.defCap, st.comboDR + f(d('vit'))); st.counterDR = Math.min(COMBO.defCap, st.counterDR + f(d('vit')))
+    st.critDR = Math.min(COMBO.critDRCap, st.critDR + f(d('luk'))) }
   st.lifesteal = Math.min(0.4, st.lifesteal)
   st.spellVamp = Math.min(0.4, st.spellVamp)
   st.skillDmgCut = Math.min(0.9, st.skillDmgCut)

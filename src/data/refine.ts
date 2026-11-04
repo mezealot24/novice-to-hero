@@ -117,6 +117,12 @@ export const LINE_POOL: LineDef[] = [
   { stat: 'counter', vals: [0.02, 0.03, 0.05], kind: 'def', w: 0.5 },
   { stat: 'combo', vals: [0.02, 0.03, 0.05], kind: 'atk', w: 0.5 },
   { stat: 'comboDmg', vals: [0.04, 0.06, 0.1], kind: 'atk', w: 0.3, slots: ['weapon', 'acc'] }, // combo rework: Combo DMG%
+  // hero defence vs monster combo / counter / crit (Q 2026-11-04): the main source, stats only add a little
+  { stat: 'ignoreCombo', vals: [0.02, 0.04, 0.06], kind: 'def', w: 0.25, slots: ['acc', 'head'] },
+  { stat: 'ignoreCounter', vals: [0.02, 0.04, 0.06], kind: 'atk', w: 0.25, slots: ['weapon', 'acc'] },
+  { stat: 'comboDR', vals: [0.03, 0.05, 0.08], kind: 'def', w: 0.25, slots: ['armor', 'offhand'] },
+  { stat: 'counterDR', vals: [0.03, 0.05, 0.08], kind: 'def', w: 0.25, slots: ['armor', 'offhand'] },
+  { stat: 'critDR', vals: [0.04, 0.07, 0.1], kind: 'def', w: 0.3, slots: ['armor', 'head'] },
   { stat: 'regen', vals: [0.133, 0.2, 0.333], kind: 'def', w: 1 }, // 1 regen = 1.5% HP/turn: shows +0.2% / +0.3% / +0.5%
   { stat: 'healAmp', vals: [0.02, 0.04, 0.06], kind: 'def', w: 1, off: ['swordsman', 'archer', 'mage', 'thief'] },
   { stat: 'lifesteal', vals: [0.01, 0.02, 0.03], kind: 'atk', w: 1 },

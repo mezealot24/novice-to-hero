@@ -1361,13 +1361,13 @@ export class BattleScene extends Phaser.Scene {
     }
     if (m.def.combo) { // v49 monster combo: chain extra hits like the hero (same cap)
       let extra = 0
-      while (extra < BATTLE.comboMax && Math.random() < m.def.combo) extra++
+      while (extra < BATTLE.comboMax && Math.random() < m.def.combo - this.st.ignoreCombo) extra++ // hero Ignore Combo (AGI / gear)
       for (let i = 0; i < extra && this.hp > 0 && !m.dead; i++) {
         this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10 - i * 22, `คอมโบ x${i + 2}!`, '#ffb070')
         this.tweens.add({ targets: m.spr, x: m.spr.x - 14, duration: 70, yoyo: true })
         await this.wait(160)
         const cr = this.monCrit(m)
-        const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * BATTLE.monComboMul * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m)
+        const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * BATTLE.monComboMul * (1 - this.st.comboDR) * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m)
         if (landed) this.monLeech(m)
       }
     }
@@ -2131,7 +2131,7 @@ export class BattleScene extends Phaser.Scene {
   private monCrit(m: Mon) {
     if (!m.def.crit || Math.random() >= m.def.crit) return 1
     this.floatText(HERO_X + 30, GROUND - 150, '💥 CRITICAL!', '#ff5a4e')
-    return BATTLE.monCritMul
+    return Math.max(1, BATTLE.monCritMul * (1 - this.st.critDR)) // hero Crit DR (LUK / gear): a crit never hits softer than a normal hit
   }
 
   private async monBolt(m: Mon, sk: MonSkill) {
@@ -2166,12 +2166,12 @@ export class BattleScene extends Phaser.Scene {
 
   /** v49 monster counter: right after the hero's basic attack, the target may strike back (def.counter). */
   private async monCounter(m: Mon | undefined) {
-    if (!m || m.dead || m.frozen || m.charging || !m.def.counter || this.hp <= 0 || Math.random() >= m.def.counter) return
+    if (!m || m.dead || m.frozen || m.charging || !m.def.counter || this.hp <= 0 || Math.random() >= m.def.counter - this.st.ignoreCounter) return // hero Ignore Counter (DEX / gear)
     this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '↩️ สวนกลับ!', '#ff9a6a')
     this.tweens.add({ targets: m.spr, x: m.spr.x - 24, duration: 90, yoyo: true })
     await this.wait(150)
     const cr = this.monCrit(m)
-    const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * BATTLE.monCounterMul * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m)
+    const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * BATTLE.monCounterMul * (1 - this.st.counterDR) * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m)
     if (landed) this.monLeech(m)
   }
 
