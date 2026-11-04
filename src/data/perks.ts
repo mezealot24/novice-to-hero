@@ -168,10 +168,18 @@ export const PERKS_V2: PerkDef[] = [
   L('ven_L2', 'venom', '👑', 'เชี่ยวชาญพิษ', ['พิษ +60% · ดาเมจอื่น −10%', 'พิษ +90% · ดาเมจอื่น −15%'], { mastery: { src: 'poison', amp: [0.6, 0.9], cut: [0.1, 0.15] } }),
   L('grd_L1', 'guard', '🏰', 'ยิ่งรบยิ่งแกร่ง', ['รับดาเมจน้อยลง +2% ทุกเทิร์น สูงสุด 20% ต่อไฟต์', '+3% ทุกเทิร์น สูงสุด 30%'], { pk: [{ harden: 0.02, hardenCap: 0.2 }, { harden: 0.03, hardenCap: 0.3 }] }),
   L('lif_L1', 'life', '💠', 'ฮีลล้นเป็นโล่', ['ฮีลที่เกิน HP เต็ม กลายเป็นโล่ สูงสุด 15% HP', 'สูงสุด 25% HP'], { pk: [{ overheal: 0.15 }, { overheal: 0.25 }] }),
-  L('wpn_L1', 'weapon', '🌪️', 'เชี่ยวชาญคอมโบ', ['คอมโบ +10% · ทุกฮิตคอมโบ ATK +3% จนจบไฟต์ (สูงสุด +30%)', 'ทุกฮิตคอมโบ ATK +4% (สูงสุด +40%)'], { mod: [{ combo: 0.1 }, { combo: 0.1 }], pk: [{ comboAtk: 0.03, comboAtkCap: 0.3 }, { comboAtk: 0.04, comboAtkCap: 0.4 }] }),
+  L('wpn_L1', 'weapon', '🌪️', 'เชี่ยวชาญคอมโบ', ['คอมโบ +10% · คอมโบต่อได้ +1 ฮิต · ทุกฮิตคอมโบ ATK +3% จนจบไฟต์ (สูงสุด +30%)', 'ทุกฮิตคอมโบ ATK +4% (สูงสุด +40%)'], { mod: [{ combo: 0.1, comboCount: 1 }, { combo: 0.1, comboCount: 1 }], pk: [{ comboAtk: 0.03, comboAtkCap: 0.3 }, { comboAtk: 0.04, comboAtkCap: 0.4 }] }),
   L('wpn_L2', 'weapon', '🎖️', 'ทหารผ่านศึก', ['ATK/M.ATK +3% ทุกเทิร์น สูงสุด +30% ต่อไฟต์', '+4% ทุกเทิร์น สูงสุด +40%'], { pk: [{ veteran: 0.03, veteranCap: 0.3 }, { veteran: 0.04, veteranCap: 0.4 }] }),
   L('foc_L1', 'focus', '💢', 'เปิดฉากเต็มแรง', ['{ult}ครั้งแรกในไฟต์ +100% · ครั้งต่อไป −25%', 'ครั้งแรก +150%'], { pk: [{ openUlt: 1 }, { openUlt: 1.5 }] }),
 ]
+
+/** พร v2 numbers that gear refine lines + monster cards also give (Q 2026-11-04 grill: gear ~1/4 of the card, monster card ~1/2).
+ *  In a run the hero uses card + gear/cards, capped at capMul x the card's "+" value, so stacking never runs away. */
+export const OUTSIDE_KEYS = ['vsBurn', 'vsChill', 'vsPoison', 'chillWeak', 'spearShield', 'counterDmg', 'basicDmg', 'resTurn'] as const
+export type OutsideKey = (typeof OUTSIDE_KEYS)[number]
+export const OUTSIDE_RULES = { capMul: 2, uncapped: ['counterDmg'] as string[] } // Q 2026-11-04 17:51: "Counter Dmg ทะลุ Cap ได้"
+export const OUTSIDE_CAP = Object.fromEntries(OUTSIDE_KEYS.map((k) =>
+  [k, OUTSIDE_RULES.uncapped.includes(k) ? Infinity : OUTSIDE_RULES.capMul * Math.max(0, ...PERKS_V2.map((p) => p.pk?.[1]?.[k] ?? 0))])) as Record<OutsideKey, number>
 
 /** ⭐ general cards (always the 4th slot): the v1 common cards, stack forever (ขนนกฟีนิกซ์ once per run). */
 export const GENERAL_PERKS: PerkDef[] = COMMON_PERKS.map((p) => ({

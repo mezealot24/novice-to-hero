@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { COLORS, doubleAtkChance, DUNGEONS, type Stats } from '../data/game-data'
+import { COLORS, COMBO, doubleAtkChance, DUNGEONS, type Stats } from '../data/game-data'
 import { autoInfo, magicPower, skill2Info, ultInfo, type InfoRow } from '../data/skill-math'
 import { skill2ById } from '../data/skill2'
 import { CARD_RULES, cardIcon, cardName, EQUIP_CARDS, TIER_COLOR, type EquipCard } from '../data/cards'
@@ -481,7 +481,7 @@ export function derivedRows(st: Stats): [string, string][] {
     ['P.DEF / M.DEF', `${st.def.toFixed(1)} (-${Math.round(100 - 10000 / (100 + st.def))}%) / ${pct(st.mdef)}`],
     ['Hit / Flee', `${Math.round(st.hit)} / ${Math.round(st.flee)}`],
     ['คริ / ต้านทาน', `${(st.crit * 100).toFixed(1)}% / ${pct(st.tenacity)}`],
-    ['สวนกลับ / คอมโบ', `${pct(st.counter)} / ${pct(st.combo)}`],
+    ['สวนกลับ / คอมโบ', `${pct(st.counter)} / ${pct(st.combo)} ต่อ${COMBO.baseCount + st.comboCount}${st.comboDmg ? ` ดาเมจ+${pct(st.comboDmg)}` : ''}`], // combo rework: chain length + Combo DMG%
     ['ความเร็วเทิร์น', `${(st.aspd / 1.6 * 10).toFixed(1)}`],
     ['ฟื้น HP / ฮีลแรง', `${(st.regen * 1.5).toFixed(2)}%/เทิร์น · +${pct(st.healAmp)}`],
     ['ดูดเลือด / สกิล / หลบฟื้น', `${pct(st.lifesteal)} / ${pct(st.spellVamp)} / ${(st.dodgeHeal * 100).toFixed(1)}%`],

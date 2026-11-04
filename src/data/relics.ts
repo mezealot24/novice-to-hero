@@ -24,7 +24,7 @@ export const RELICS: Record<RelicId, RelicDef> = {
   executioner: { id: 'executioner', name: 'เพชฌฆาต', icon: '🪓', desc: 'ตีศัตรูที่ HP ต่ำกว่า 35% แรงขึ้น 60% · ล้มศัตรูแล้วท่าไม้ตายคูลดาวน์ -1 เทิร์น' },
   aegis: { id: 'aegis', name: 'โล่อมตะ', icon: '🛡️', desc: 'เริ่มทุกการต่อสู้ได้โล่ 35% HP · ตอนมีโล่ ดาเมจเรา +20%' },
   thornaura: { id: 'thornaura', name: 'เกราะหนามอเวจี', icon: '🌵', desc: 'โดนตีแล้วคนตีโดนสะท้อน 50% ของดาเมจ (เวท ไม่พลาด) · ดาเมจสะท้อนของมอนใส่เราลดครึ่ง' },
-  wolf: { id: 'wolf', name: 'ร่างหมาป่า', icon: '🐺', desc: 'ร่างสลับ: ดาเมจคอมโบ + สวนกลับ +60% · คอมโบ +10% · แลกกับ: ดาเมจทักษะ 1/2 + ท่าไม้ตาย −40%' },
+  wolf: { id: 'wolf', name: 'ร่างหมาป่า', icon: '🐺', desc: 'ร่างสลับ: ดาเมจคอมโบ + สวนกลับ +60% · คอมโบ +10% · คอมโบต่อได้ +1 ฮิต · แลกกับ: ดาเมจทักษะ 1/2 + ท่าไม้ตาย −40%' },
   wizard: { id: 'wizard', name: 'จอมขมังเวท', icon: '🧙', desc: 'ร่างสลับ: ดาเมจทักษะ 1/2 + ท่าไม้ตาย +60% · แลกกับ: โอกาสคอมโบ + สวนกลับ เหลือครึ่งเดียว' },
   asura: { id: 'asura', name: 'ร่างอสุรา', icon: '👹', desc: 'ร่างสลับ: คริ +20% · ดาเมจคริ +60% · แลกกับ: ฟื้น Mana/Energy/Rage −50%' },
   queen: { id: 'queen', name: 'ราชินีธาตุ', icon: '😈', desc: 'ร่างสลับ: ดาเมจธาตุ (⚡🔥❄️✨☠️ ทั้งพรและไฟลุก/พิษ) +60% · แลกกับ: ตีปกติ −50%' },
@@ -48,7 +48,7 @@ export const RELIC_RULES = {
   aegis: { shield: 0.35, dmg: 0.2 },
   thornaura: { back: 0.5, reflectCut: 0.5 },
   burnCut: 0.25, // heal cut while a monster burns from normal fire (cards / Mage fire ult)
-  wolf: { comboCounter: 0.6, combo: 0.1, skillCut: 0.4 },
+  wolf: { comboCounter: 0.6, combo: 0.1, comboCount: 1, skillCut: 0.4 }, // comboCount: +1 combo hit (Capybara-style chain)
   wizard: { skill: 0.6, chanceMul: 0.5 },
   asura: { crit: 0.2, critMul: 0.6, regenCut: 0.5 },
   queen: { elem: 0.6, basicCut: 0.5 },
