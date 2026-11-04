@@ -77,7 +77,7 @@ export const JOBS: Record<JobId, JobDef> = {
   cleric: {
     id: 'cleric', name: 'นักบวช', icon: '✨', tex: 'hero_cleric', blurb: 'นักบวชสายบู๊: ทุบด้วยกระบอง/คัมภีร์ (STR) ร่ายแสง (INT) ฮีลตัวเอง มีโล่', focus: 'STR · INT · WIS',
     resource: 'mana', attack: 'melee', tags: ['holy', 'guard'], mod: { maxHp: 10, mdef: 0.05 },
-    auto: { name: 'ฮีล / แสงศักดิ์สิทธิ์', icon: '💖', cost: 25, desc: `Mana 25: HP ต่ำกว่า 75% ฮีล ${CLERIC_KIT.heal}x M.ATK · ไม่งั้นยิงแสงใส่ 2 ตัวหน้า ${CLERIC_KIT.smite}x M.ATK` },
+    auto: { name: 'ฮีล / แสงศักดิ์สิทธิ์', icon: '💖', cost: 25, desc: `Mana 25 (ร่ายเพิ่มจากการทุบทุกเทิร์น): HP ต่ำกว่า 75% ฮีล ${CLERIC_KIT.heal}x M.ATK ก่อนทุบ · ไม่งั้นทุบแล้วแสงตกจากฟ้าใส่ 2 ตัวหน้า ${CLERIC_KIT.smite}x M.ATK` },
     ult: { name: 'พรคุ้มครอง', icon: '🙏', cd: 4, desc: `ทุบใส่ทุกตัว ${Math.round(CLERIC_KIT.ultAtk * 100)}% P.ATK + Holy Light ${CLERIC_KIT.ultLights} ลูกใส่ตัวสุ่ม (${CLERIC_KIT.ultLight}x M.ATK) + โล่ ${Math.round(CLERIC_KIT.ultShield * 100)}% ของ HP สูงสุด ${CLERIC_KIT.ultShieldTurns} เทิร์น (โล่นักบวชรวมไม่เกิน ${Math.round(CLERIC_KIT.shieldCap * 100)}% HP)` },
   },
   thief: {

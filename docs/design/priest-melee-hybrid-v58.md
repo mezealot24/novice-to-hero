@@ -35,3 +35,8 @@ Priest weapons gained P.ATK: กระบองศักดิ์สิทธิ
 | before (WIS/INT) | 6 | 6 | 1 | 0 | 0 | 5 | 4 |
 | after, WIS/INT | 6 | 6 | 4 | 0 | 0 | 5 | 6 |
 | after, STR6/INT5/WIS4 (`ALLOC`) | 6 | 6 | 1 | 0 | 0 | 6 | 6 |
+
+## v64: smash every turn (Q 2026-11-04 18:49)
+Q saw the Priest still "shooting orbs": Skill 1 replaced the basic attack whenever Mana >= 25, so the smash was rarely seen.
+Now the Priest smashes every turn and Skill 1 rides along in the same turn: below the heal threshold it heals BEFORE the smash, otherwise holy light falls from the sky on the 2 front monsters AFTER the smash (no ranged orb). Numbers unchanged (smite 1.4x M.ATK).
+Bot STR6/INT5/WIS4, 6 runs, v63 -> v64: D3 1->1, D4 shop 0->0, D4 crafted 3->6, D5 crafted 6->5.

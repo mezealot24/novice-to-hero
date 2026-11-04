@@ -636,6 +636,14 @@ export class BattleScene extends Phaser.Scene {
     }
     if (ultWaiting) this.floatText(HERO_X, GROUND - 140, `🔷 Mana ไม่พอ ult (${Math.floor(this.res)}/${ultCost})`, '#5aa0ff') // keep it booked, save Mana for it
     const cost = autoCost(this.job, this.st)
+    if (this.job.id === 'cleric') { // v59 Q: the Priest smashes EVERY turn; Skill 1 rides along (heal first when low, holy light after the smash)
+      const castable = () => !ultWaiting && this.res >= cost && this.alive().length > 0 && this.hp > 0
+      const low = this.hp < this.st.maxHp * (KIT.clericHealBelow - this.st.healAt)
+      if (low && castable()) { this.res -= cost; await this.asSkill(() => this.autoSkill(), 'skill') }
+      if (this.alive().length) await this.basicAttack()
+      if (!low && castable()) { this.res -= cost; await this.asSkill(() => this.autoSkill(), 'skill') }
+      return
+    }
     if (this.job.resource && !ultWaiting && this.res >= cost && this.alive().length) {
       this.res -= cost
       await this.asSkill(() => this.autoSkill(), 'skill')
@@ -768,12 +776,13 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** v58 Priest ult: a beam of Holy Light falls on one monster (magic, M.ATK). */
-  private async holyLight(m: Mon, mul: number) {
-    const beam = this.add.rectangle(m.spr.x, GROUND - 160, 26, 320, 0xfff3a0, 0.85).setDepth(9000)
+  private async holyLight(m: Mon, mul: number, color = 0xfff3a0) {
+    const beam = this.add.rectangle(m.spr.x, GROUND - 160, 26, 320, color, 0.85).setDepth(9000)
     this.tweens.add({ targets: beam, scaleX: 0.2, alpha: 0, duration: 260, onComplete: () => beam.destroy() })
-    this.strike(m, mul, true, '#fff3a0')
-    this.burst(m.spr.x, m.spr.y - 20, 0xfff3a0, 8, 160)
+    const d = this.strike(m, mul, true, '#fff3a0')
+    this.burst(m.spr.x, m.spr.y - 20, color, 8, 160)
     await this.wait(BATTLE.stepMs * 0.12)
+    return d
   }
 
   private async goHome() {
@@ -980,7 +989,11 @@ export class BattleScene extends Phaser.Scene {
         else if (this.st.judge > 0 && ++this.smiteCount % KIT.clericJudgeEvery === 0) { // tree ★B: วันพิพากษา
           this.callout('⚖️ พิพากษา!', W / 2, 170); this.burst(700, GROUND - 30, 0xf6e27a, 30, 320)
           for (const m of live) { const d = this.strike(m, KIT.clericJudge * pow * (1 + this.st.smiteMul), true, '#f6e27a'); if (!m.dead) m.marked = 2; if (this.st.smiteVamp > 0) this.heal(d * this.st.smiteVamp, true) }
-        } else for (const m of live.slice(0, KIT.clericSmiteTargets + this.st.smiteTargets)) await this.shoot(m, 0xf6e27a, () => { const d = this.strike(m, CLERIC_KIT.smite * pow * (1 + this.st.smiteMul), true, '#f6e27a'); if (this.st.smiteVamp > 0) this.heal(d * this.st.smiteVamp, true) })
+        } else for (const m of live.slice(0, KIT.clericSmiteTargets + this.st.smiteTargets)) { // v59 Q: light falls from the sky after the smash (no more ranged orb)
+          if (m.dead) continue
+          const d = await this.holyLight(m, CLERIC_KIT.smite * pow * (1 + this.st.smiteMul), 0xf6e27a)
+          if (this.st.smiteVamp > 0) this.heal(d * this.st.smiteVamp, true)
+        }
         await this.wait(BATTLE.stepMs * 0.4)
         break
       case 'thief':
