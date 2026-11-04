@@ -47,7 +47,7 @@ export interface SaveData {
   refineGems?: string[] // "itemId:7" / "itemId:10": free refine gems already paid out (kept after selling)
   reroll?: { item: string; idx: number; line: RefineLine } // a rerolled line waiting for keep-old / take-new
   fodder?: Record<string, number> // basic shop items kept as forge fodder, by item id (counts)
-  modes?: Record<string, ModeRecord> // game modes v50 (data/modes.ts): tower bestFloor / clears, daily lastSeed (YYYYMMDD) / clears
+  modes?: Record<string, ModeRecord> // game modes v51 (data/modes.ts): tower bestFloor / clears, daily lastSeed (YYYYMMDD) / clears
   fortune?: number // Fortune meter 0..100 (data/events.ts FORTUNE), kept across runs: full = the next event is a JACKPOT
   lastDaily: string // yyyy-mm-dd of last free daily gems
   muted: boolean
@@ -87,7 +87,7 @@ export function load(): SaveData | null {
     if (!s.web) migrateToWeb(s)
     migrateThiefWeb(s)
     migrateGear(s)
-    s.modes ??= {} // v50 game modes: additive, old saves start with no records
+    s.modes ??= {} // v51 game modes: additive, old saves start with no records
     cache = s
     return s
   } catch { return null }

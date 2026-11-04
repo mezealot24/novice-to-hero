@@ -1,4 +1,4 @@
-# Game Modes v1 — Endless Tower + Daily Challenge (v50)
+# Game Modes v1 — Endless Tower + Daily Challenge (v51)
 
 Q 2026-11-04: "เพิ่ม content โหมดใหม่ และความท้าทายใหม่ๆ" · architecture by the coordinator, implemented in thread "Add new game modes and challenges".
 
@@ -92,5 +92,5 @@ Migration: `s.modes ??= {}` on load. Additive only, old saves load unchanged.
 ## 6. Test plan
 - `tools/bot.cjs` `MODE=tower TOWER_MAX=15` and `MODE=daily SEED=yyyymmdd`, every class: no page errors, floors reached / wins.
 
-## 7. Later (not in v50)
+## 7. Later (not in v51)
 - Leaderboard for the daily seed, tower season reset, hell-mode mutators stacking (Heat), mutators in the tower every 10 floors.
