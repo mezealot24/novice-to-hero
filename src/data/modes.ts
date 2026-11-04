@@ -5,6 +5,8 @@ import { MINI_POOL } from './relics'
 import { matOf } from './materials'
 import { foldMutators, rng, rollMutators, type FoldedMutators, type MutatorDef } from './mutators'
 import type { SaveData } from '../save'
+import { heroParts, matchScale, TOWER_POWER, towerDamp, type PowerParts } from './power'
+import { affixesAt, rollAffixes, type AffixId } from './affixes'
 
 export type ModeId = 'dungeon' | 'hard' | 'tower' | 'daily'
 export interface ModeRecord { bestFloor?: number; clears: number; lastSeed?: number }
@@ -43,6 +45,13 @@ export interface RunConfig {
   where(i: number): string
   /** Short tag in front of the HUD line. */
   tag: string
+  /** v59 Hero Power, snapshot at run start (in-run picks / relics never change it). */
+  power: number
+  pp: PowerParts
+  /** Tower: affixes live in this room (data/affixes.ts). */
+  affixesAt?(room: RunRoom): AffixId[]
+  /** Tower: monsters enrage after this many hero turns in one fight (0 = never). */
+  enrageAfter?(room: RunRoom): number
 }
 
 export interface RunResult { won: boolean; left: boolean; floor: number; bank: { zeny: number; mats: Record<string, number> } }
@@ -74,9 +83,9 @@ export function levelScale(src: string, baseLv: number): MonScale {
 }
 
 /** Old dungeon runs: the dungeon's own rooms, untouched. */
-function dungeonRun(modeId: ModeId, dg: DungeonDef, hard: boolean): RunConfig {
+function dungeonRun(modeId: ModeId, dg: DungeonDef, hard: boolean, pp: PowerParts): RunConfig {
   return {
-    modeId, seed: 0, endless: false, affix: false, mutators: [], mut: NO_MUT, tag: hard ? 'hard' : '',
+    modeId, seed: 0, power: pp.power, pp, endless: false, affix: false, mutators: [], mut: NO_MUT, tag: hard ? 'hard' : '',
     roomAt: (i) => dg.rooms[i] ?? null,
     themeAt: () => dg,
     scale: () => null,
@@ -92,7 +101,7 @@ export const TOWER = {
   unlock: 'd3',
   themeEvery: 10, themes: ['d2', 'd3', 'd4', 'd5'], // floors 1-10 d2, 11-20 d3, 21-30 d4, 31+ d5
   bossEvery: 5, gauntletEvery: 10,
-  hp0: 0.8, hpPerFloor: 0.08, atk0: 0.85, atkPerFloor: 0.06, hitEvery: 5, // v56: steeper (Q Lv25 Thief reached F67 at full HP on 0.06 / 0.03)
+  hitEvery: 5, // HP / ATK per floor: v59 power scaling (power.ts TOWER_POWER), was linear on Base Lv
   turnPerFloor: 0.015, turnMax: 1.6,
   extraMonFrom: 15,
   // Q 2026-11-04: from floor 20 a floor can mix monsters, bosses and mini bosses in one fight
@@ -166,18 +175,26 @@ function towerFloor(f: number, lv: number): RunRoom[] {
   return [{ title: `🗼 ชั้น ${f} · ${w.title.replace(/^เวฟ \d+ · /, '')}`, spawn, turnLimit: w.turnLimit, floor: f, floorEnd: true, src: th.id }]
 }
 
+/** v59 tower scaling: monsters start at TOWER_POWER.start x the hero (matchScale on the monster's own dungeon) and compound per floor. */
+export function towerScale(pp: PowerParts, src: string, f: number, baseLv: number): MonScale {
+  const P = TOWER_POWER, m = matchScale(pp, src), k = P.start * towerDamp(pp.power)
+  return { hp: k * m.hp * P.hpGrow ** (f - 1), atk: k * m.atk * P.atkGrow ** (f - 1), hit: levelScale(src, baseLv).hit + Math.floor(f / TOWER.hitEvery), speed: 1 }
+}
+
 function towerRun(s: SaveData, start = 1): RunConfig {
-  const rooms: RunRoom[] = [], lv = s.baseLevel
+  const rooms: RunRoom[] = [], lv = s.baseLevel, pp = heroParts(s), power = pp.power, order = rollAffixes()
   let floors = Math.max(0, start - 1)
   const roomAt = (i: number) => { while (rooms.length <= i) rooms.push(...towerFloor(++floors, lv)); return rooms[i] }
   return {
-    modeId: 'tower', seed: 0, endless: true, affix: true, mutators: [], mut: NO_MUT, tag: '🗼',
+    modeId: 'tower', seed: 0, endless: true, affix: true, mutators: [], mut: NO_MUT, tag: '🗼', power, pp,
     roomAt,
     themeAt: (i) => towerTheme(roomAt(i).floor ?? 1),
     scale: (r, kind) => {
-      const f = r.floor ?? 1, k = levelScale((kind && r.srcOf?.[kind]) ?? r.src ?? 'd2', lv), share = (kind && r.hpOf?.[kind]) ?? 1
-      return { hp: share * k.hp * (TOWER.hp0 + TOWER.hpPerFloor * (f - 1)), atk: k.atk * (TOWER.atk0 + TOWER.atkPerFloor * (f - 1)), hit: k.hit + Math.floor(f / TOWER.hitEvery), speed: 1 }
+      const k = towerScale(pp, (kind && r.srcOf?.[kind]) ?? r.src ?? 'd2', r.floor ?? 1, lv), share = (kind && r.hpOf?.[kind]) ?? ((r.boss || r.mini) && !r.mixed ? TOWER_POWER.bossHp : 1) // solo bosses / gauntlet minis: lighter, they were the walls
+      return { ...k, hp: share * k.hp }
     },
+    affixesAt: (r) => affixesAt(order, r.floor ?? 1),
+    enrageAfter: (r) => (r.boss || r.mini ? TOWER_POWER.enrageBoss : TOWER_POWER.enrageWave),
     turnMul: (r) => Math.min(TOWER.turnMax, 1 + TOWER.turnPerFloor * ((r.floor ?? 1) - 1)),
     eventsAfter: (_i, r) => (r.floorEnd && !r.boss && !r.mini && (r.floor ?? 0) % TOWER.eventEvery === 0 ? 1 : 0),
     relicAfter: (r, has) => !!r.floorEnd && !has,
@@ -208,7 +225,7 @@ export function dailyOf(seed: number) {
 function dailyRun(s: SaveData, seed: number): RunConfig {
   const { dg, mutators } = dailyOf(seed), mut = foldMutators(mutators), lv = s.baseLevel
   return {
-    modeId: 'daily', seed, endless: false, affix: false, mutators, mut, tag: '🎲', tint: 0xb0a0ff,
+    modeId: 'daily', seed, endless: false, ...(() => { const pp = heroParts(s); return { pp, power: pp.power } })(), affix: false, mutators, mut, tag: '🎲', tint: 0xb0a0ff,
     roomAt: (i) => (dg.rooms[i] ? { ...dg.rooms[i], src: dg.id } : null),
     themeAt: () => dg,
     scale: (r) => { const k = levelScale(r.src ?? dg.id, lv); return { hp: k.hp * mut.monHp, atk: k.atk * mut.monAtk, hit: k.hit, speed: mut.monSpeed } },
@@ -226,18 +243,18 @@ export const MODES: Record<ModeId, GameMode> = {
   dungeon: {
     id: 'dungeon', name: 'ดันเจี้ยน', icon: '⚔️', desc: 'ดันปกติ',
     unlock: () => ({ ok: true, why: '' }), record: (s) => `เคลียร์ ${s.clears} ครั้ง`,
-    buildRun: (_s, a) => dungeonRun('dungeon', DUNGEONS[a.d ?? 0] ?? DUNGEONS[0], false),
+    buildRun: (s, a) => dungeonRun('dungeon', DUNGEONS[a.d ?? 0] ?? DUNGEONS[0], false, heroParts(s)),
     reward: () => null,
   },
   hard: {
-    id: 'hard', name: 'โหมดยาก', icon: '🔥', desc: 'ดันที่เคลียร์แล้ว มอนแกร่งตามเลเวล',
+    id: 'hard', name: 'โหมดยาก', icon: '🔥', desc: 'ดันที่เคลียร์แล้ว มอนแกร่งตาม Hero Power',
     unlock: () => ({ ok: true, why: '' }), record: (s) => `เคลียร์ ${Object.values(s.hardClearsBy ?? {}).reduce((a, n) => a + n, 0)} ครั้ง`,
-    buildRun: (_s, a) => dungeonRun('hard', DUNGEONS[a.d ?? 0] ?? DUNGEONS[0], true),
+    buildRun: (s, a) => dungeonRun('hard', DUNGEONS[a.d ?? 0] ?? DUNGEONS[0], true, heroParts(s)),
     reward: () => null,
   },
   tower: {
     id: 'tower', name: 'หอคอยไร้สิ้นสุด', icon: '🗼',
-    desc: `ไต่ชั้นไปเรื่อยๆ มอนแกร่งขึ้นทุกชั้น · บอสทุก ${TOWER.bossEvery} ชั้น · ดวลต่อเนื่องทุก ${TOWER.gauntletEvery} ชั้น\nออกระหว่างชั้น = เก็บรางวัลชั้นครบ · ล้ม = ได้ครึ่งเดียว`,
+    desc: `ไต่ชั้นไปเรื่อยๆ มอนเริ่มที่ ~80% Hero Power แล้วแกร่งขึ้นทุกชั้น · กฎพิเศษเพิ่มทุก 10 ชั้น · บอสทุก ${TOWER.bossEvery} ชั้น · ดวลต่อเนื่องทุก ${TOWER.gauntletEvery} ชั้น\nออกระหว่างชั้น = เก็บรางวัลชั้นครบ · ล้ม = ได้ครึ่งเดียว`,
     unlock: (s) => (cleared(s, TOWER.unlock) ? { ok: true, why: '' } : { ok: false, why: `ปลดล็อกหลังเคลียร์${dungeonName(TOWER.unlock)}` }),
     record: (s) => { const r = s.modes?.tower; return r?.bestFloor ? `สูงสุด ชั้น ${r.bestFloor}` : 'ยังไม่เคยไต่' },
     buildRun: (s, a) => towerRun(s, a.startFloor),

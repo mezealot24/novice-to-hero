@@ -371,7 +371,7 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
   wisp: { name: 'ดวงไฟผี', tex: 'wisp', hp: 110, dmg: 34, matk: 38, xp: 6, ai: 'dasher', moveSpeed: 520, radius: 13, zeny: [4, 5], idleMs: [500, 900], magic: true, flee: 30,
     skills: [{ kind: 'bolt', every: 3, pow: 1.4, name: 'ลูกไฟผี', fx: { burn: 1 } }] },
   gargoyle: { name: 'การ์กอยล์หิน', tex: 'gargoyle', hp: 340, dmg: 44, xp: 9, ai: 'hopper', moveSpeed: 180, radius: 18, zeny: [5, 7], idleMs: [900, 1400], def: 90, hit: 30 },
-  duelist: { name: 'เซเลสต์', title: 'นักดาบดวลเงินจันทร์', tex: 'duelist', hp: 1900, dmg: 42, xp: 12, ai: 'boss', mini: 'duelist', moveSpeed: 300, radius: 30, zeny: [30, 40], idleMs: [600, 900], def: 20, flee: 30, hit: 38,
+  duelist: { name: 'เซเลสต์', title: 'นักดาบดวลเงินจันทร์', tex: 'duelist', hp: 1600, dmg: 42, xp: 12, ai: 'boss', mini: 'duelist', moveSpeed: 300, radius: 30, zeny: [30, 40], idleMs: [600, 900], def: 20, flee: 30, hit: 38,
     phases: [{ at: 0.4, name: 'ดาบจันทร์เต็มดวง! เร็วและคมขึ้น', speed: 1.2, dmg: 1.15 }] },
   hunter: { name: 'กริมฟาง', title: 'หมาป่าคลั่งเลือด', tex: 'hunter', hp: 1750, dmg: 44, xp: 12, ai: 'boss', mini: 'hunter', moveSpeed: 300, radius: 34, zeny: [30, 40], idleMs: [600, 900], def: 15, flee: 15, hit: 34, lifesteal: 0.35, chargeEvery: 4, slamName: 'กลิ่นเลือด! กระโจนตะครุบ', slamAnim: 'pounce', slamColor: 0xc03050, charge: true },
   gunner: { name: 'ปิ๊กซี่', title: 'มือปืนพลุบ้าระห่ำ', tex: 'gunner', hp: 1500, dmg: 21, xp: 12, ai: 'boss', mini: 'gunner', moveSpeed: 300, radius: 30, zeny: [30, 40], idleMs: [600, 900], def: 5, flee: 20, hit: 36, shots: 3, slamMul: 3.4, slamName: 'จรวดยักษ์! ล็อกเป้าแล้ว', slamAnim: 'shot', slamColor: 0xff8c42, slamMagic: true, charge: true,
@@ -570,8 +570,15 @@ export const BATTLE = {
   counterMul: 0.8, // a counter hit = basic attack x this
   reviveHp: 0.3, // Phoenix card: share of max HP the hero gets back
   // ----- Dungeon 3 mini bosses -----
-  parryEvery: 3, // duelist: stance every Nth turn; the next hero hit is parried (0 dmg) and riposted
-  parryMul: 1.4, // riposte damage x the duelist's normal hit
+  parryEvery: 5, // duelist Riposte (Q 2026-11-04): stance every Nth turn, immortal until her next turn
+  parryMul: 1.4, // (legacy) riposte damage x the duelist's normal hit
+  // Q 2026-11-04 Celeste kit (Monster DB comment): vital-point passive, Riposte, Grandado Espada
+  duel: {
+    vitalEvery: 3, vitalPct: 0.08, vitalLvMul: 0.03, // every 3rd turn: true dmg = 8% hero max HP + ATK x lv x 0.03 (lv = dungeon recLv)
+    healTurns: 3, // vital / espada damage dealt is healed back over 3 of her turns
+    ripostePct: 0.8, riposteCap: 0.15, // Riposte: each blocked hit answered with 80% of it as true dmg, at most 15% hero max HP per stance in total, never lethal
+    espadaEvery: 10, espadaHits: 4, espadaMin: 0.03, espadaMax: 0.1, // phase 2: mark turn (immortal), then 4 crit thrusts of 3-10% hero max HP (Q asked 4-16%: bot died to it)
+  },
   frenzyAt: 0.5, frenzySpeed: 1.4, frenzyLifesteal: 0.6, // hunter below 50% HP
   demonAt: 0.5, demonRegen: 0.02, // drainer below 50% HP: regen share of max HP per turn
   // ----- Dungeon 4-5: debuffs on the hero (HitFx) -----

@@ -1,0 +1,91 @@
+// ===== Hero Power (v59, Q 2026-11-04): ONE number for how strong the hero is, used to scale monsters. =====
+// Read straight off the derived Stats (meta.ts heroStats = Lv, stat points, gear, refine, cards, talents, skill web),
+// so it never duplicates the stat math. In-run picks and relics are NOT in it: modes snapshot it at run start.
+//
+//   offense  = expected damage per hero-time vs a reference monster (P.ATK or M.ATK by class, crit, combo,
+//              Double Strike, attack speed, hit chance, skill power)
+//   survival = effective HP vs a reference monster (max HP through DEF / M.DEF, flee + lucky dodge, guard,
+//              sustain from lifesteal / spell vamp / regen / heal amp, counters)
+//   power    = K * sqrt(offense * survival)  -> doubles when both sides double, so "monster x(P / P_ref)" on
+//              HP and ATK keeps a fight exactly as hard as it was at P_ref.
+import { afterDef, BATTLE, doubleAtkChance, hitChance, PLAYER, type Stats } from './game-data'
+import type { JobId } from './jobs'
+import { heroStats, type StatsInput } from './meta'
+
+/** The reference monster the score is measured against (a mid-game wave monster). */
+export const POWER_REF = { def: 20, flee: 15, hit: 30, magicShare: 0.3, K: 0.55, fightHits: 15 }
+
+/** Class calibration: what the raw formula misses (Priest heals / shields, Mage AoE + never-miss spells, Thief poison,
+ * Swordsman's big HP pool counted twice by DEF). Set so the same bot build tier scores the same for every class (v59 bot). */
+export const CLASS_K: Partial<Record<JobId, number>> = { swordsman: 0.8, archer: 1, mage: 1.2, cleric: 1.8, thief: 1.15 }
+
+/** Magic share of a class's damage (Priest v58: mace smash + holy light / spears). */
+const MAGIC_SHARE: Partial<Record<JobId, number>> = { mage: 1, cleric: 0.35 }
+
+export interface PowerParts { offense: number; survival: number; power: number }
+
+export function powerParts(st: Stats, job: JobId = 'novice'): PowerParts {
+  const R = POWER_REF, m = MAGIC_SHARE[job] ?? 0
+  // ---- offense ----
+  const phys = afterDef(st.atk * (1 + st.minPct) / 2, R.def) * hitChance(st.hit, R.flee) * (1 + Math.min(1, st.crit) * (st.critMul - 1))
+  const magic = st.matk * (1 + Math.min(1, st.spellCrit) * (st.critMul - 1))
+  const perHit = phys * (1 - m) + magic * m
+  const chain = (1 + st.combo * 1.5) * (1 + doubleAtkChance(st.doubleAtk))
+  const skill = 1 + 0.5 * (st.pskill * (1 - m) + st.s1Pow + st.ultPow + st.ultAmp) - 0.5 * st.skillDmgCut
+  const offense = perHit * chain * (st.aspd / PLAYER.aspd) * Math.max(0.3, skill)
+  // ---- survival ----
+  const physTaken = (100 / (100 + st.def)) * (1 - st.guard)
+  const magicTaken = (1 - st.mdef) * (1 - st.guard)
+  const land = hitChance(R.hit, st.flee, 0.8 - st.fleeFloor) * (1 - st.luckyDodge) // same floor as BattleScene.hurtHero
+  const taken = physTaken * land * (1 - R.magicShare) + magicTaken * R.magicShare
+  // sustain over a ~15-attack fight: lifesteal / vamp, regen (%/turn), dodge heals (Thief gear: every dodge heals)
+  const sustain = 1 + st.lifesteal + 0.5 * st.spellVamp + st.regen * BATTLE.regenPerTurn * 0.15 + 0.5 * st.healAmp + 0.5 * st.counter
+    + st.dodgeHeal * (1 - land) * (1 - R.magicShare) * R.fightHits + (job === 'cleric' ? 0.3 : 0)
+  const c = Math.sqrt(CLASS_K[job] ?? 1)
+  const o = offense * c, sv = (st.maxHp / Math.max(0.05, taken)) * sustain * c
+  return { offense: o, survival: sv, power: Math.round(R.K * Math.sqrt(o * sv)) }
+}
+
+/** The hero's power from a save (or any StatsInput). Pure. */
+export const heroParts = (s: StatsInput): PowerParts => powerParts(heroStats(s), s.job ?? 'novice')
+export const heroPower = (s: StatsInput): number => heroParts(s).power
+
+// ---------- what each dungeon expects ----------
+/** Offense / survival of the bot build each dungeon is balanced for (tools/bot.cjs, measured v59, class average):
+ * d1 Lv5 starter · d3 Lv10 dungeon-2 gear · d4 / d5 = 85% of crafted +5 Lv15 / Lv20 (bots clear ~80%). d2 sits between. */
+export const REC: Record<string, { o: number; s: number }> = {
+  d1: { o: 24, s: 270 }, d2: { o: 45, s: 350 }, d3: { o: 82, s: 470 }, d4: { o: 160, s: 1170 }, d5: { o: 250, s: 1430 },
+}
+const recOf = (id: string) => REC[id] ?? REC.d1
+export const recPower = (dungeonId: string) => { const r = recOf(dungeonId); return Math.round(POWER_REF.K * Math.sqrt(r.o * r.s)) }
+
+/** Monster multipliers that make a dungeon as hard for this hero as it is for its reference build:
+ * HP follows the hero's offense (fights last as long), ATK follows the hero's survival (hits hurt as much).
+ * A hero under the reference (geometric mean < 1) is lifted to 1: scaling never makes a dungeon easier. */
+export function matchScale(pp: PowerParts, dungeonId: string): { hp: number; atk: number } {
+  const r = recOf(dungeonId), a = pp.offense / r.o, b = pp.survival / r.s, g = Math.sqrt(a * b)
+  return g >= 1 ? { hp: a, atk: b } : { hp: a / g, atk: b / g }
+}
+
+/** 🟢 normal: over-geared heroes earn less (no free farming). */
+export const OVERPOWER = { from: 1.5, min: 0.4 }
+/** Drop / zeny share in a normal dungeon at this power (1 = full). */
+export const overpowerMul = (power: number, dungeonId: string) => {
+  const r = power / recPower(dungeonId)
+  return r <= OVERPOWER.from ? 1 : Math.max(OVERPOWER.min, OVERPOWER.from / r)
+}
+
+/** 🔥 hard: monsters at `target` x the hero (matchScale), plus an anti-evasion eye on every boss / mini boss. */
+export const HARD_POWER = { target: 1.1, bossSight: { after: 1, turns: 3 } }
+
+/** 🗼 tower (v59): F1 monsters = start x matchScale, compounding per floor. Above `ref` power the scale is damped
+ * (x (P/ref)^(exp-1)) so more gear still climbs higher. Enrage: after N hero turns in one fight every monster hits
+ * +enragePer harder per hero turn (stacks). Calibration: Q's Thief Lv44 (Flee 159, crit 56%, combo 50%) should stall ~F40-50. */
+export const TOWER_POWER = { start: 0.8, ref: 330, exp: 0.85, hpGrow: 1.04, atkGrow: 1.03, enrageWave: 12, enrageBoss: 20, enragePer: 0.08, bossHp: 0.7 }
+export const towerDamp = (power: number) => (power <= TOWER_POWER.ref ? 1 : (power / TOWER_POWER.ref) ** (TOWER_POWER.exp - 1))
+
+/** Colour + label for "แนะนำ N" lines. */
+export const powerHint = (power: number, dungeonId: string) => {
+  const rec = recPower(dungeonId), r = power / rec
+  return { rec, low: r < 0.85, over: r > OVERPOWER.from, color: r < 0.85 ? '#ff7a7a' : r > OVERPOWER.from ? '#9fd0ff' : '#9fe3a0' }
+}
