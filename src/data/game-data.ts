@@ -272,7 +272,7 @@ export interface HitFx {
   silence?: number // N hero turns: the ultimate / Smash can't be cast (it stays queued)
   freeze?: number // hero turn gauge lost (tenacity reduces it); 100 = skip a whole turn
 }
-export type MonSkillKind = 'heal' | 'shield' | 'warcry' | 'curse' | 'summon' | 'revive' | 'haste' | 'bolt'
+export type MonSkillKind = 'heal' | 'shield' | 'warcry' | 'curse' | 'summon' | 'revive' | 'haste' | 'bolt' | 'strike'
 /** A monster turn spent on a skill instead of an attack: used on every `every`-th turn of that monster when it makes sense. */
 export interface MonSkill {
   kind: MonSkillKind
@@ -283,6 +283,9 @@ export interface MonSkill {
   fx?: HitFx // curse: what lands on the hero (can't miss, debuffRes can resist) · bolt: rides on the spell if it lands
   summon?: [MonsterKind, number] // summon: kind, how many (free slots only)
   self?: boolean // heal / shield: only on itself
+  hits?: number // bolt / strike: this many hits of pow each (each rolls its own crit; strike hits each roll Flee)
+  pick?: MonSkill[] // cast a random one of these instead (spell rotation: Mordecus' elements)
+  big?: boolean // legendary spell: big callout + screen flash
 }
 /** Boss phase: entered once when HP drops under `at` (share of max HP). Effects stack with later phases. */
 export interface BossPhase {
@@ -340,6 +343,10 @@ export interface MonsterDef {
   deathBlast?: number // explodes on death: (dmg) x monDmgMul x this as magic (Flee / lucky dodge / shield all work)
   phases?: BossPhase[]
   passive?: boolean // event monster that never attacks (เจลล็อปทองคำ: it only runs)
+  // ----- v49 combat stats (Q 2026-11-04: monsters get combo / counter / crit like the hero) -----
+  crit?: number // chance a hit / spell crits: x BATTLE.monCritMul and can't be fled (lucky dodge / shield still work)
+  combo?: number // after a normal attack: chance to chain another hit, up to BATTLE.comboMax extra (each x BATTLE.monComboMul)
+  counter?: number // when the hero's basic attack lands on it: chance to strike back right away (normal hit x BATTLE.monCounterMul)
 }
 
 export const MONSTERS: Record<MonsterKind, MonsterDef> = {
@@ -401,7 +408,7 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
   imp: { name: 'ปีศาจระเบิด', tex: 'imp', hp: 200, dmg: 36, xp: 8, ai: 'dasher', moveSpeed: 560, radius: 12, zeny: [5, 7], idleMs: [400, 800], flee: 38, hit: 42, deathBlast: 2 },
   necropriest: { name: 'นักบวชมรณะ', tex: 'necropriest', hp: 380, dmg: 40, matk: 44, xp: 11, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [7, 10], idleMs: [700, 1200], magic: true, hit: 38,
     skills: [{ kind: 'revive', every: 3, pow: 0.5, name: 'ปลุกศพ' }, { kind: 'heal', every: 2, pow: 0.15, name: 'มนต์ดำฟื้นกาย' }] },
-  wraith: { name: 'ภูตกระจก', tex: 'wraith', hp: 300, dmg: 46, matk: 50, xp: 10, ai: 'dasher', moveSpeed: 500, radius: 14, zeny: [6, 9], idleMs: [500, 900], magic: true, flee: 36, hit: 40, reflect: 0.25 },
+  wraith: { name: 'ภูตกระจก', tex: 'wraith', hp: 300, dmg: 46, matk: 50, xp: 10, ai: 'dasher', moveSpeed: 500, radius: 14, zeny: [6, 9], idleMs: [500, 900], magic: true, flee: 36, hit: 40, reflect: 0.1 }, // v49: 0.25 -> 0.1 (Q: reflect shields too annoying)
   shard: { name: 'เศษกระจก', tex: 'shard', hp: 220, dmg: 30, matk: 34, xp: 3, ai: 'dasher', moveSpeed: 500, radius: 11, zeny: [1, 2], idleMs: [400, 800], magic: true, flee: 30, hit: 40, deathBlast: 1.8 },
   mirage: { name: 'มิราจ', title: 'ภูตกระจกพันหน้า', tex: 'mirage', hp: 2600, dmg: 52, matk: 56, xp: 16, ai: 'boss', mini: 'mirage', moveSpeed: 300, radius: 32, zeny: [60, 80], idleMs: [600, 900], magic: true, slamMagic: true, def: 20, flee: 34, hit: 44,
     absorb: 0.3, onHit: { weaken: 2 }, chargeEvery: 4, slamMul: 1.2, slamName: 'โซลสไตรค์กระจก! ยิงดาเมจที่เก็บไว้คืน', slamFx: { weaken: 3, silence: 1 }, slamAnim: 'cast', slamColor: 0xc9a8ff, charge: true,
@@ -412,9 +419,21 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
     phases: [{ at: 0.3, name: 'โกรธจัด! เร็วขึ้นมาก', speed: 1.5, dmg: 1.1 }] },
   lich: { name: 'โมรเดคัส', title: 'จอมลิชนิรันดร์', tex: 'lich', hp: 6000, dmg: 62, matk: 66, xp: 0, ai: 'boss', moveSpeed: 240, radius: 44, zeny: [150, 200], idleMs: [700, 1000], magic: true, slamMagic: true, def: 50, flee: 18, hit: 44,
     onHit: { burn: 2 }, slamName: 'ดวงดาวมรณะ! ทุกอย่างมอดไหม้', slamMul: 1.7, slamFx: { burn: 3, weaken: 2 }, slamAnim: 'cast', slamColor: 0xff5a2a, charge: true,
-    skills: [{ kind: 'bolt', every: 3, pow: 1.2, name: 'ลูกไฟอเวจี', fx: { burn: 1 } }, { kind: 'curse', every: 4, name: 'คำสาปจอมลิช', fx: { weaken: 3, armorBreak: 3 } }],
+    skills: [ // v49: every Mage element + legendary spells (first match wins: legendary every 6, curse every 4, element every 2)
+      { kind: 'bolt', every: 6, name: 'เวทตำนาน', pick: [
+        { kind: 'bolt', every: 1, big: true, hits: 4, pow: 0.55, name: '☄️ อุกกาบาตล้างโลก', fx: { burn: 1 } },
+        { kind: 'bolt', every: 1, big: true, hits: 3, pow: 0.6, name: '🌨️ พายุหิมะนิรันดร์', fx: { freeze: 35 } },
+        { kind: 'bolt', every: 1, big: true, hits: 5, pow: 0.42, name: '🌩️ เพลิงสายฟ้าพิโรธสวรรค์', fx: { silence: 1 } },
+      ] },
+      { kind: 'curse', every: 4, name: 'คำสาปจอมลิช', fx: { weaken: 3, armorBreak: 3 } },
+      { kind: 'bolt', every: 2, name: 'เวทธาตุ', pick: [
+        { kind: 'bolt', every: 1, pow: 1.2, name: '🔥 ลูกไฟอเวจี', fx: { burn: 1 } },
+        { kind: 'bolt', every: 1, pow: 1.1, name: '❄️ หอกน้ำแข็งมรณะ', fx: { freeze: 30 } },
+        { kind: 'bolt', every: 1, hits: 3, pow: 0.42, name: '⚡ สายฟ้าโซ่ตรวน' },
+      ] },
+    ],
     phases: [
-      { at: 0.7, name: 'โล่กระดูก! สะท้อนดาเมจ + ปีศาจระเบิด', shield: 0.12, reflect: 0.2, summon: ['imp', 2] },
+      { at: 0.7, name: 'โล่กระดูก! สะท้อนดาเมจเบาๆ + ปีศาจระเบิด', shield: 0.1, reflect: 0.06, summon: ['imp', 2] }, // v49: reflect 0.2 -> 0.06
       { at: 0.35, name: 'พิธีกรรมสุดท้าย! เร็วขึ้น ชาร์จถี่', heal: 0.08, speed: 1.3, dmg: 1.15, chargeEvery: 2, cleanse: true, slamFx: { burn: 3, weaken: 2, silence: 2 }, summon: ['hellknight', 1] },
     ] },
   // ----- event monsters (data/events.ts eventMon scales hp / dmg / def by dungeon tier) -----
@@ -552,6 +571,7 @@ export const BATTLE = {
   poisonPct: 0.01, poisonCap: 8, // per stack per hero turn, share of max HP (Lv-15 bot: 1.2%/cap 10 killed Thief in wave 1-2)
   burnPct: 0.03, burnHealCut: 0.4,
   weakenMul: 0.75, armorBreakMul: 0.5,
+  monCritMul: 1.6, monComboMul: 0.7, monCounterMul: 0.8, // v49 monster crit / combo / counter
   soulBolts: 5, soulCap: 0.4, // Mirage Soul Strike: stored damage fires as N magic bolts, total capped at this share of hero max HP
 }
 
@@ -604,9 +624,36 @@ export const HARD_SKILLS: MonSkill[] = [
 export interface HardPassive { id: string; name: string; lifesteal?: number; reflect?: number; speed?: number; onHit?: HitFx; enrage?: number; def?: number }
 export const HARD_PASSIVES: HardPassive[] = [
   { id: 'leech', name: '🩸 ดูดเลือด', lifesteal: 0.15 },
-  { id: 'thorns', name: '🌵 หนาม', reflect: 0.1 },
+  { id: 'thorns', name: '🌵 หนาม', reflect: 0.05 },
   { id: 'swift', name: '💨 ว่องไว', speed: 1.2 },
   { id: 'venom', name: '🐍 พิษติดตัว', onHit: { poison: 1 } },
   { id: 'enrage', name: '😡 คลั่ง', enrage: 1.35 }, // below 35% HP: x1.35 damage, x1.15 speed
   { id: 'iron', name: '🪨 ผิวเหล็ก', def: 25 },
 ]
+
+// ===== v49 monster kits (Q 2026-11-04: "ให้แต่ละตัวมี stat combo, counter, cri, สกิลโหดๆ"): merged into MONSTERS below =====
+// skills are appended after the monster's own (own skills keep priority on shared turns).
+const KITS: Partial<Record<MonsterKind, Pick<MonsterDef, 'crit' | 'combo' | 'counter'> & { add?: MonSkill[] }>> = {
+  wolf: { crit: 0.08 }, boar: { crit: 0.1 }, shadowwolf: { combo: 0.2, crit: 0.05 }, bat: { combo: 0.15 },
+  skeleton: { counter: 0.1 }, gargoyle: { counter: 0.15 }, hornet: { combo: 0.3 }, turtleguard: { counter: 0.15 },
+  hellknight: { counter: 0.15, crit: 0.1 }, wraith: { crit: 0.1 }, spiderling: { combo: 0.2 },
+  // bosses / mini bosses: stats + a signature skill
+  king: { crit: 0.06, add: [{ kind: 'strike', every: 5, pow: 1.6, name: '🟢 ทับแบน', fx: { freeze: 30 } }] },
+  alpha: { combo: 0.25, crit: 0.1, add: [{ kind: 'strike', every: 4, hits: 3, pow: 0.6, name: '🐺 กรงเล็บพายุ' }] },
+  duelist: { counter: 0.15, crit: 0.12, add: [{ kind: 'strike', every: 5, hits: 3, pow: 0.55, name: '🤺 แทงสามจังหวะ' }] },
+  hunter: { crit: 0.15, combo: 0.15, add: [{ kind: 'strike', every: 4, pow: 1.5, name: '🩸 ตะปบจุดตาย', fx: { poison: 2 } }] },
+  gunner: { crit: 0.15, add: [{ kind: 'strike', every: 4, hits: 4, pow: 0.4, name: '🔫 ระดมยิง' }] },
+  drainer: { crit: 0.1, add: [{ kind: 'bolt', every: 4, pow: 1.3, name: '🌑 ดูดวิญญาณ', fx: { weaken: 2 } }] },
+  deathknight: { counter: 0.15, crit: 0.1, add: [{ kind: 'strike', every: 5, pow: 1.8, name: '⚔️ ดาบมรณะ', fx: { armorBreak: 2 } }] },
+  venomqueen: { combo: 0.25, crit: 0.08, add: [{ kind: 'strike', every: 4, hits: 2, pow: 0.7, name: '🦂 เหล็กไนคู่', fx: { poison: 2 } }] },
+  frostgiant: { counter: 0.15, add: [{ kind: 'strike', every: 5, pow: 1.6, name: '🧊 ทุบธารน้ำแข็ง', fx: { freeze: 50 } }] },
+  hydra: { combo: 0.3, add: [{ kind: 'bolt', every: 4, hits: 3, pow: 0.5, name: '🐍 พ่นพิษสามหัว', fx: { poison: 1 } }] },
+  mirage: { crit: 0.15, add: [{ kind: 'bolt', every: 5, hits: 2, pow: 0.7, name: '🪞 ภาพลวงสองเงา' }] },
+  warlord: { counter: 0.2, crit: 0.15, combo: 0.15, add: [{ kind: 'strike', every: 5, hits: 2, pow: 0.9, name: '🪓 ขวานคู่ผ่าฟ้า', fx: { armorBreak: 1 } }] },
+  lich: { crit: 0.15 },
+}
+for (const [k, kit] of Object.entries(KITS) as [MonsterKind, NonNullable<(typeof KITS)[MonsterKind]>][]) {
+  const { add, ...stats } = kit
+  Object.assign(MONSTERS[k], stats)
+  if (add) MONSTERS[k].skills = [...(MONSTERS[k].skills ?? []), ...add]
+}
