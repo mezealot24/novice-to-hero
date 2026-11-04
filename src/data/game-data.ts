@@ -1,4 +1,4 @@
-import type { Archetype, StatAlloc } from './mon-stats'
+import type { Archetype, SkillScale, StatAlloc } from './mon-stats'
 import type { BaseStat } from './meta'
 // ===== All tunable numbers live here, so balance changes never touch game logic. =====
 
@@ -305,6 +305,7 @@ export interface MonSkill {
   hits?: number // bolt / strike: this many hits of pow each (each rolls its own crit; strike hits each roll Flee)
   pick?: MonSkill[] // cast a random one of these instead (spell rotation: Mordecus' elements)
   big?: boolean // legendary spell: big callout + screen flash
+  scale?: SkillScale | false // v68: stat it scales with (default by kind, mon-stats SKILL_SCALE); false = flat
 }
 /** Boss phase: entered once when HP drops under `at` (share of max HP). Effects stack with later phases. */
 export interface BossPhase {
@@ -378,6 +379,7 @@ export interface MonsterDef {
   statAlloc?: Archetype | StatAlloc // how its stat points are split (archetype or own weights). Set = def / hit / flee / crit / combo / counter are bonuses on top
   bodyMul?: { hp?: number; dmg?: number; matk?: number } // x on the stat-built HP / ATK / M.ATK (a heavy body, a frail caster ...)
   speedMul?: number // x on the AGI turn speed
+  slamScale?: SkillScale // v68: stat the charged attack scales with (default STR, INT when slamMagic)
   // filled in by statMonster (never written by hand):
   lv?: number
   base?: Record<BaseStat, number>
@@ -408,7 +410,7 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
   duelist: { name: 'เซเลสต์', title: 'นักดาบดวลเงินจันทร์', tex: 'duelist', hp: 1600, dmg: 42, xp: 12, ai: 'boss', mini: 'duelist', moveSpeed: 300, radius: 30, zeny: [30, 40], idleMs: [600, 900], def: 20, flee: 30, hit: 38,
     phases: [{ at: 0.4, name: 'ดาบจันทร์เต็มดวง! เร็วและคมขึ้น', speed: 1.2, dmg: 1.15 }] },
   hunter: { name: 'กริมฟาง', title: 'หมาป่าคลั่งเลือด', tex: 'hunter', hp: 1750, dmg: 44, xp: 12, ai: 'boss', mini: 'hunter', moveSpeed: 300, radius: 34, zeny: [30, 40], idleMs: [600, 900], def: 15, flee: 15, hit: 34, lifesteal: 0.35, chargeEvery: 4, slamName: 'กลิ่นเลือด! กระโจนตะครุบ', slamAnim: 'pounce', slamColor: 0xc03050, charge: true },
-  gunner: { name: 'ปิ๊กซี่', title: 'มือปืนพลุบ้าระห่ำ', tex: 'gunner', hp: 1500, dmg: 21, xp: 12, ai: 'boss', mini: 'gunner', moveSpeed: 300, radius: 30, zeny: [30, 40], idleMs: [600, 900], def: 5, flee: 20, hit: 36, shots: 3, slamMul: 3.4, slamName: 'จรวดยักษ์! ล็อกเป้าแล้ว', slamAnim: 'shot', slamColor: 0xff8c42, slamMagic: true, charge: true,
+  gunner: { name: 'ปิ๊กซี่', title: 'มือปืนพลุบ้าระห่ำ', tex: 'gunner', hp: 1500, dmg: 21, xp: 12, ai: 'boss', mini: 'gunner', moveSpeed: 300, radius: 30, zeny: [30, 40], idleMs: [600, 900], def: 5, flee: 20, hit: 36, shots: 3, slamMul: 3.4, slamScale: { stat: 'dex' }, slamName: 'จรวดยักษ์! ล็อกเป้าแล้ว', slamAnim: 'shot', slamColor: 0xff8c42, slamMagic: true, charge: true,
     phases: [{ at: 0.5, name: 'กระสุนเพลิง! ยิงติดไฟ', onHit: { burn: 1 } }] },
   drainer: { name: 'คาร์วอส', title: 'จอมเวทกาดำ', tex: 'drainer', hp: 1700, dmg: 38, matk: 42, xp: 12, ai: 'boss', mini: 'drainer', moveSpeed: 300, radius: 32, zeny: [30, 40], idleMs: [600, 900], def: 20, hit: 34, magic: true, slamMagic: true, lifesteal: 0.3, slamMul: 1.9, slamName: 'กรงเล็บวิญญาณ! ดูดชีวิต', slamAnim: 'cast', slamColor: 0xc03050, charge: true,
     skills: [{ kind: 'curse', every: 4, name: 'มนต์ปิดปาก', fx: { silence: 1 } }] },
@@ -421,7 +423,7 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
     skills: [{ kind: 'heal', every: 2, pow: 0.18, name: 'น้ำมนต์บึง' }, { kind: 'bolt', every: 3, pow: 1.3, name: 'สายฟ้าบึง' }] },
   hornet: { name: 'ต่อยักษ์', tex: 'hornet', hp: 170, dmg: 20, xp: 8, ai: 'dasher', moveSpeed: 520, radius: 13, zeny: [5, 7], idleMs: [500, 900], flee: 42, hit: 40, shots: 2, onHit: { poison: 1 } },
   turtleguard: { name: 'ทหารเต่าโล่', tex: 'turtleguard', hp: 430, dmg: 38, xp: 10, ai: 'hopper', moveSpeed: 160, radius: 18, zeny: [6, 9], idleMs: [900, 1400], def: 120, hit: 32,
-    skills: [{ kind: 'shield', every: 4, pow: 0.1, name: 'กำแพงกระดอง' }] },
+    skills: [{ kind: 'shield', every: 4, pow: 0.1, name: 'กำแพงกระดอง', scale: { stat: 'vit' } }] },
   bloater: { name: 'คางคกพองลม', tex: 'bloater', hp: 210, dmg: 30, xp: 8, ai: 'hopper', moveSpeed: 180, radius: 17, zeny: [5, 7], idleMs: [800, 1300], hit: 30, deathBlast: 2, onHit: { poison: 1 } },
   spiderling: { name: 'ลูกแมงมุม', tex: 'spiderling', hp: 160, dmg: 26, xp: 3, ai: 'dasher', moveSpeed: 480, radius: 11, zeny: [1, 2], idleMs: [400, 800], flee: 30, hit: 36, onHit: { poison: 1 } },
   venomqueen: { name: 'เวโนมิร่า', title: 'ราชินีใยพิษ', tex: 'venomqueen', hp: 2300, dmg: 44, matk: 48, xp: 14, ai: 'boss', mini: 'venomqueen', moveSpeed: 300, radius: 34, zeny: [45, 60], idleMs: [600, 900], def: 30, flee: 25, hit: 40,
@@ -503,7 +505,7 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
   dunewraith: { name: 'วิญญาณพายุทราย', tex: 'dunewraith', statAlloc: 'caster', hp: 1, dmg: 1, xp: 13, ai: 'dasher', moveSpeed: 500, radius: 14, zeny: [9, 13], idleMs: [500, 900], magic: true,
     flee: 15, skills: [{ kind: 'bolt', every: 3, pow: 1.3, name: 'พายุทรายบาดตา', fx: { silence: 1 } }] },
   scarab: { name: 'ด้วงสคารับทองแดง', tex: 'scarab', statAlloc: 'tank', hp: 1, dmg: 1, xp: 14, ai: 'hopper', moveSpeed: 170, radius: 17, zeny: [10, 14], idleMs: [900, 1400],
-    bodyMul: { dmg: 1.2 }, def: 50, counter: 0.15, skills: [{ kind: 'shield', every: 4, pow: 0.12, name: 'กระดองทองแดง' }] },
+    bodyMul: { dmg: 1.2 }, def: 50, counter: 0.15, skills: [{ kind: 'shield', every: 4, pow: 0.12, name: 'กระดองทองแดง', scale: { stat: 'vit' } }] },
   sunpriest: { name: 'นักบวชสุริยะดับ', tex: 'sunpriest', statAlloc: 'support', hp: 1, dmg: 1, xp: 13, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [9, 13], idleMs: [700, 1200], magic: true,
     skills: [{ kind: 'heal', every: 2, pow: 0.15, name: 'แสงสุริยะดับฟื้นกาย' }, { kind: 'shield', every: 3, pow: 0.1, name: 'ม่านทรายทอง' }] },
   sphinx: { name: 'เนฟธีส', title: 'สฟิงซ์ผู้ถามปริศนา', tex: 'sphinx', statAlloc: { int: 4, wis: 3, vit: 2, dex: 1 }, hp: 1, dmg: 1, xp: 22, ai: 'boss', mini: 'sphinx', moveSpeed: 260, radius: 38, zeny: [90, 120], idleMs: [600, 900],
@@ -767,7 +769,7 @@ const KITS: Partial<Record<MonsterKind, Pick<MonsterDef, 'crit' | 'combo' | 'cou
   alpha: { combo: 0.25, crit: 0.1, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, hits: 3, pow: 0.6, name: '🐺 กรงเล็บพายุ' }] },
   duelist: { counter: 0.15, crit: 0.12, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 5, hits: 3, pow: 0.55, name: '🤺 แทงสามจังหวะ' }] },
   hunter: { crit: 0.15, combo: 0.15, trueSight: { after: 2, turns: 3 }, razor: 0.05, add: [{ kind: 'strike', every: 4, pow: 2.5, drain: 0.1, name: '🩸 ตะปบจุดตาย' }] }, // Q 2026-11-04 Monster DB comment
-  gunner: { crit: 0.15, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, hits: 4, pow: 0.4, name: '🔫 ระดมยิง' }] },
+  gunner: { crit: 0.15, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, hits: 4, pow: 0.4, name: '🔫 ระดมยิง', scale: { stat: 'dex' } }] },
   drainer: { crit: 0.1, add: [{ kind: 'bolt', every: 4, pow: 1.3, name: '🌑 ดูดวิญญาณ', fx: { weaken: 2 } }] },
   deathknight: { counter: 0.15, crit: 0.1, trueSight: { after: 2, turns: 3 }, vengeance: true, add: [{ kind: 'strike', every: 5, pow: 2.8, magic: true, alone: 2, name: '⚔️ ดาบมรณะ' }] }, // Q 2026-11-04: magic, x2 with no undead at its side
   venomqueen: { combo: 0.25, crit: 0.08, add: [{ kind: 'strike', every: 2, hits: 2, pow: 0.7, name: '🦂 เหล็กใน', fx: { poison: 4 } }] }, // Q: no ตาเหยี่ยว (the web does that job)

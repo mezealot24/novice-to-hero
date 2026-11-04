@@ -9,7 +9,7 @@
 //   + Level Base per Lv (what gear gives a hero of that level) · x HP body by tier (fights last as long as D4-5 bosses)
 //
 // Tuning lives in MON_STAT only.
-import { BATTLE, PLAYER, type MonsterDef, type Stats } from './game-data'
+import { BATTLE, DUNGEONS, MONSTERS, PLAYER, type MonSkill, type MonSkillKind, type MonsterDef, type MonsterKind, type Stats } from './game-data'
 import { applyBase, baseDefence, STAT_RULES, type BaseStat } from './meta'
 
 export type Archetype = 'bruiser' | 'skirmisher' | 'assassin' | 'caster' | 'tank' | 'support'
@@ -97,4 +97,105 @@ export const LEVEL_GAP = { free: 10, per: 0.1, min: 0.4 }
 export const levelDropMul = (baseLv: number, level: [number, number]) => {
   const over = baseLv - (level[1] + LEVEL_GAP.free)
   return over <= 0 ? 1 : Math.max(LEVEL_GAP.min, 1 - LEVEL_GAP.per * over)
+}
+
+// ===== v68: 7 stats for EVERY monster + stat-scaled monster skills (Q 2026-11-04 "มอน บอส มินิบอส ที่ยังไม่มี main status มีด้วย แล้วให้สกิลสเกลตาม stat") =====
+// D1-5 / event / support monsters keep their hand-tuned HP / ATK / M.ATK / DEF / Hit / Flee / crit / combo / counter (Hero Power,
+// hard mode, tower and monBuff all scale those), so the migration stays balance-neutral. What they gain from their stats:
+//   WIS -> M.DEF + tenacity · LUK -> lucky dodge + crit DR · AGI / DEX / VIT -> Ignore Combo / Ignore Counter / Combo + Counter DR
+//   and every skill (heal, shield, warcry, haste, revive, bolt, strike, boss charged attack) x skillMul below.
+// Their level comes from their home dungeon (LEGACY.lv: boss at that Lv, mini 1 below, normal 2 below).
+
+/** Stat split of every monster that has no statAlloc of its own (full-stat D6+ monsters keep theirs). */
+export const LEGACY_ALLOC: Partial<Record<MonsterKind, Archetype | StatAlloc>> = {
+  // D1
+  jellop: 'tank', minijellop: 'tank', wolf: 'skirmisher', king: { vit: 4, str: 3, int: 2, wis: 1 },
+  // D2
+  bat: 'skirmisher', shroom: 'caster', boar: 'bruiser', shadowwolf: 'assassin', dewsprite: 'support', alpha: { str: 3, agi: 3, vit: 2, dex: 2 },
+  // D3
+  skeleton: 'bruiser', wisp: 'caster', gargoyle: 'tank', bonepriest: 'support',
+  duelist: { agi: 4, dex: 3, str: 3, luk: 2 }, hunter: { str: 4, agi: 3, vit: 2, luk: 1 }, gunner: { dex: 5, agi: 2, luk: 2, int: 1 },
+  drainer: 'caster', deathknight: { str: 4, vit: 3, int: 2, wis: 1 },
+  // D4
+  toad: 'bruiser', lizardshaman: 'support', hornet: 'skirmisher', turtleguard: 'tank', bloater: 'tank', spiderling: 'assassin',
+  venomqueen: { int: 3, agi: 3, luk: 2, str: 2 }, frostgiant: { vit: 4, str: 3, int: 2, wis: 1 }, hydra: { vit: 4, str: 3, int: 2, wis: 1 },
+  // D5
+  hellknight: 'bruiser', hexwitch: 'caster', imp: 'assassin', necropriest: 'support', wraith: { int: 4, agi: 3, wis: 2, luk: 1 },
+  maiden: 'caster', shard: { int: 3, agi: 3, luk: 2, wis: 2 }, mirage: { int: 4, wis: 3, agi: 2, luk: 1 }, warlord: { str: 5, vit: 3, agi: 1, dex: 1 },
+  lich: { int: 5, wis: 3, vit: 2 },
+  // events
+  mimic: 'bruiser', mimicking: 'bruiser', goldjellop: 'skirmisher',
+}
+
+export const LEGACY = {
+  /** Boss level of each old dungeon (≈ HARD.recLv + 0-1): mini = -1, normal = -2. */
+  lv: { d1: 5, d2: 10, d3: 13, d4: 16, d5: 21 } as Record<string, number>,
+  tierDrop: { normal: 2, mini: 1, boss: 0 } as Record<MonTier, number>,
+}
+
+/** First dungeon a monster shows up in (rooms, duel pools, boss / phase / skill summons). Events fall back to the current dungeon. */
+let HOME: Partial<Record<MonsterKind, string>> | null = null
+export function homeDungeon(kind: MonsterKind): string | undefined {
+  if (!HOME) {
+    HOME = {}
+    const put = (k: MonsterKind | undefined, id: string) => { if (k && !HOME![k]) HOME![k] = id }
+    for (const d of DUNGEONS) for (const r of d.rooms) {
+      for (const k of [...r.spawn.map((s) => s[0]), ...(r.miniPool ?? (r.mini ? MINI_POOL_KINDS : []))]) {
+        put(k, d.id)
+        const m = MONSTERS[k]
+        put(m.summon, d.id)
+        for (const p of m.phases ?? []) put(p.summon?.[0], d.id)
+        for (const s of [...(m.skills ?? []), ...(m.phases ?? []).flatMap((p) => p.skills ?? [])]) put(s.summon?.[0], d.id)
+      }
+    }
+    put('maiden', HOME.drainer ?? 'd3') // คาร์วอส Summon Maiden is called from the duel script
+  }
+  return HOME[kind]
+}
+/** Duel pool of a dungeon without its own miniPool (data/relics.ts MINI_POOL); kept here to avoid an import cycle. */
+const MINI_POOL_KINDS: MonsterKind[] = ['duelist', 'hunter', 'gunner', 'drainer']
+
+/** Level of an old (non-statAlloc) monster: its home dungeon's band, else the dungeon it is fought in. */
+export function legacyLevel(kind: MonsterKind, d: MonsterDef, here: { id: string; level?: [number, number] }): number {
+  const home = homeDungeon(kind), top = (home ? LEGACY.lv[home] : undefined) ?? LEGACY.lv[here.id] ?? here.level?.[0] ?? 5
+  return Math.max(1, top - LEGACY.tierDrop[monTier(d)])
+}
+
+/** v68: 7 stats on an old monster. Numbers it was tuned with stay; the stats add only the stat-only parts (see header). */
+export function withStats(d: MonsterDef, kind: MonsterKind, lv: number, o: StatMonOpts = {}): MonsterDef {
+  const alloc = LEGACY_ALLOC[kind]
+  if (!alloc || d.statAlloc) return d
+  const b = monBase(typeof alloc === 'string' ? ARCHETYPES[alloc] : alloc, monPoints(lv, monTier(d), o.hard), o.statMul)
+  const st: Stats = { ...PLAYER }
+  applyBase(st, b)
+  const f = baseDefence(b), cap = (x: number, c: number) => Math.min(c, x)
+  return {
+    ...d, lv, base: b,
+    mdef: cap(st.mdef + (d.mdef ?? 0), MON_STAT.mdefCap),
+    luckyDodge: cap(st.luckyDodge, MON_STAT.luckyCap),
+    tenacity: cap(st.tenacity, 0.75),
+    statDef: { ignoreCombo: f.ignoreCombo, ignoreCounter: f.ignoreCounter, comboDR: f.comboDR, counterDR: f.counterDR, critDR: f.critDR },
+  }
+}
+
+// ----- stat-scaled monster skills -----
+/** A skill's scaling stat: x (1 + per x (stat - ref)), ref = the stat an even-split NORMAL monster of the same level has.
+ * So a specialist (high INT caster, 150-200% boss budget, hard mode +50%) casts harder, an off-stat caster a bit softer. */
+export interface SkillScale { stat: BaseStat; per?: number }
+export const SKILL_SCALE = {
+  per: 0.003, // +0.3% per point above ref (0.5% cost D5 bot 15/20 -> 10/20 wins at the lich)
+  min: 0.8, max: 1.5,
+  byKind: { bolt: 'int', strike: 'str', heal: 'wis', shield: 'wis', warcry: 'str', haste: 'agi', revive: 'wis' } as Partial<Record<MonSkillKind, BaseStat>>,
+  slam: { phys: 'str', magic: 'int' } as { phys: BaseStat; magic: BaseStat },
+}
+/** Default scale of a skill (its own `scale` wins; false = never scales; curse / summon have none). */
+export const scaleOf = (sk: MonSkill): SkillScale | undefined =>
+  sk.scale === false ? undefined : sk.scale ?? (SKILL_SCALE.byKind[sk.kind] ? { stat: SKILL_SCALE.byKind[sk.kind]! } : undefined)
+export const slamScaleOf = (d: MonsterDef): SkillScale => d.slamScale ?? { stat: d.slamMagic ? SKILL_SCALE.slam.magic : SKILL_SCALE.slam.phys }
+/** Multiplier on a skill's pow (or on the charged attack) from the caster's stats. 1 for a monster without stats. */
+export function skillMul(d: MonsterDef, sc: SkillScale | undefined): number {
+  if (!sc || !d.base || !d.lv) return 1
+  const ref = 1 + monPoints(d.lv, 'normal') / 7
+  const k = 1 + (sc.per ?? SKILL_SCALE.per) * (d.base[sc.stat] - ref)
+  return Math.round(Math.max(SKILL_SCALE.min, Math.min(SKILL_SCALE.max, k)) * 1000) / 1000
 }
