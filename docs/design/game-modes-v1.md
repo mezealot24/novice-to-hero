@@ -60,6 +60,7 @@ Migration: `s.modes ??= {}` on load. Additive only, old saves load unchanged.
   - every **5th** floor = boss: random from the bosses of D1..(theme+1), always with hard-mode affixes.
   - every **10th** floor = mini-boss gauntlet: 2 duels in a row (3 from floor 30), first gauntlet win offers a relic.
   - floor 15+: normal floors get +1 extra monster.
+  - **floor 20+ mixed fights (v54, Q 2026-11-04 "มอน บอส มินิบอส ผสมๆ กัน"):** a wave floor turns mixed at 30% (+2%/floor, max 65%): 👹 boss + 2 adds (boss HP ×0.6), ⚔️ mini + 2 adds (mini HP ×0.75), or from floor 25 ⚔️ two minis + 1 add. Boss floors 20+ have a 50% chance of 1 add (2 from floor 30) with the boss at full HP. Adds stand in front (the hero hits the front first), the big ones behind; each monster level-scales from its own dungeon; bosses / minis keep the hard-mode affixes; turn limit = boss-of-your-level limit +6. Mixed floors pay zeny ×1.3 and +1 boss mat (+2 for two minis).
 - **Scaling:** level scaling = the hard-mode boss curve, both ways: `curve(BaseLv) / curve(recLv of the monster's dungeon)` (no ×1.3 hard base), then per floor HP × (0.8 + 0.06·(f−1)), ATK × (0.85 + 0.03·(f−1)), Hit + floor(f/5). Turn limits × (1 + 0.015·(f−1)), max ×1.6; a boss floor uses the larger of its own limit and the limit of the boss made for the hero's level.
 - **Between floors:** heal as usual, a post-wave event every 3rd normal floor, then a choice: ขึ้นชั้นต่อ / กลับเมือง.
 - **Rewards:** floor bank per floor: zeny (20 + 6f)·(1 + BaseLv/20), 1 common mat of the theme, boss floors +1 boss mat, gauntlet +2 boss mats. Leaving keeps 100% of the bank, falling keeps 50% (push-your-luck). Kill zeny / EXP / cards are kept as in every run.
@@ -91,6 +92,9 @@ Migration: `s.modes ??= {}` on load. Additive only, old saves load unchanged.
 
 ## 6. Test plan
 - `tools/bot.cjs` `MODE=tower TOWER_MAX=15` and `MODE=daily SEED=yyyymmdd`, every class: no page errors, floors reached / wins.
+
+## 6b. Result panel (v54 fix)
+Long results (deep tower runs) wrap and shrink to fit the screen; cards are grouped ("x2") and capped at 6 names, so the buttons stay on screen.
 
 ## 7. Later (not in v51)
 - Leaderboard for the daily seed, tower season reset, hell-mode mutators stacking (Heat), mutators in the tower every 10 floors.

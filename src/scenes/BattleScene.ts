@@ -20,6 +20,7 @@ import { button, fullscreenButton, go, type Btn } from '../ui'
 const GROUND = 430 // feet line
 const HERO_X = 220
 const SLOT_X = [560, 660, 760, 850] // monster formation, front first
+const MIX_X = [530, 615, 730, 865] // tower mixed fight (floor 20+): 2 adds in front, bosses / minis behind
 const FACES_RIGHT: MonsterKind[] = ['wolf', 'shadowwolf', 'boar', 'alpha', 'hunter'] // textures drawn facing right; flip to face the hero
 
 interface Mon {
@@ -347,9 +348,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private addMon(kind: MonsterKind, slot: number, gauge?: number) {
-    const def = this.hardDef(this.modeDef(MONSTERS[kind]))
+    const def = this.hardDef(this.modeDef(MONSTERS[kind], kind))
     const big = def.ai === 'boss'
-    const x = big ? 720 : SLOT_X[slot]
+    const x = this.roomDef(this.room)?.mixed ? MIX_X[slot] ?? SLOT_X[slot] : big ? 720 : SLOT_X[slot] // tower mixed fight: adds in front, big ones behind
     const y = GROUND + (slot % 2 ? 14 : -4)
     const shadow = this.add.image(W + 80, y + 2, 'shadow').setScale((def.radius * 2.4) / 60 * 1.4, 1.2).setDepth(y - 1)
     const spr = this.add.image(W + 80, y, def.tex).setOrigin(0.5, 1).setScale(kind === 'minijellop' ? 1.1 : big ? 1.6 : 1.5).setDepth(y)
@@ -369,8 +370,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Tower / daily (RunConfig.scale): level + floor + mutator multipliers; tower bosses also roll the hard-mode affixes. */
-  private modeDef(def: MonsterDef): MonsterDef {
-    const room = this.roomDef(this.room), k = room ? this.run.scale(room) : null
+  private modeDef(def: MonsterDef, kind?: MonsterKind): MonsterDef {
+    const room = this.roomDef(this.room), k = room ? this.run.scale(room, kind) : null
     this.modeSpeed = k?.speed ?? 1
     if (!k) return def
     const out: MonsterDef = { ...def, hp: Math.round(def.hp * k.hp), dmg: def.dmg * k.atk, ...(def.matk ? { matk: def.matk * k.atk } : {}), hit: (def.hit ?? 15) + k.hit }
@@ -2193,7 +2194,12 @@ export class BattleScene extends Phaser.Scene {
     const lines = [...(mode?.lines ?? []), `+${this.zeny} zeny · +${this.runXp} EXP${s.gems > before ? ` · +${s.gems - before} เพชร` : ''}`]
     if (ups.base) lines.push(`🎉 Base Lv ${s.baseLevel}! ได้แต้มสถานะเพิ่ม`)
     if (ups.job) lines.push(`✨ Job Lv ${s.jobLevel}! ได้แต้มสกิลเพิ่ม`)
-    if (this.runCards.length) lines.push(`🃏 ได้การ์ด: ${this.runCards.map((id) => cardName(cardById(id)!)).join(', ')} (ใส่ได้ที่หน้าตัวละคร)`)
+    if (this.runCards.length) { // grouped + capped: a long tower run can find dozens
+      const n = new Map<string, number>()
+      for (const id of this.runCards) n.set(id, (n.get(id) ?? 0) + 1)
+      const all = [...n].map(([id, k]) => `${cardName(cardById(id)!)}${k > 1 ? ` x${k}` : ''}`), show = all.slice(0, 6)
+      lines.push(`🃏 ได้การ์ด ${this.runCards.length} ใบ: ${show.join(', ')}${all.length > show.length ? ` และอีก ${all.length - show.length} แบบ` : ''} (ใส่ได้ที่หน้าตัวละคร)`)
+    }
     const mats = Object.entries(this.runMats)
     if (mats.length) lines.push(`🔨 วัตถุดิบ: ${mats.map(([id, n]) => `${matName(id)} x${n}`).join(', ')} (ใช้ที่โรงตีเหล็ก)`)
     return lines.join('\n')
@@ -2219,7 +2225,7 @@ export class BattleScene extends Phaser.Scene {
   /** Tower: bank this floor's loot, then climb on (true) or leave (false). */
   private async floorCleared(f: number): Promise<boolean> {
     this.towerFloor = f
-    const loot = towerFloorLoot(f, save().baseLevel)
+    const loot = towerFloorLoot(f, save().baseLevel, this.roomDef(this.room) ?? undefined)
     this.bank.zeny += loot.zeny
     for (const [id, n] of Object.entries(loot.mats)) this.bank.mats[id] = (this.bank.mats[id] ?? 0) + n
     this.callout(`🗼 ผ่านชั้น ${f}! คลังรางวัล +${loot.zeny} zeny`, W / 2, 190)
@@ -2257,14 +2263,23 @@ export class BattleScene extends Phaser.Scene {
     this.overlay?.destroy()
     const c = this.add.container(W / 2, H / 2).setDepth(30000)
     c.add(this.add.rectangle(0, 0, W, H, COLORS.night, 0.82).setInteractive())
-    let y = -((lines.length * 40) / 2) - 30
-    for (const l of lines) {
-      const t = this.add.text(0, y, l.text, { fontFamily: FONT_UI, fontSize: `${l.size}px`, fontStyle: l.bold ? 'bold' : 'normal', color: l.color ?? '#f6eedc', align: 'center', lineSpacing: 6 }).setOrigin(0.5, 0)
-      c.add(t)
-      y += t.height + 12
+    // Long results (a deep tower run: many cards / mats / level-ups) must never push the buttons off screen (Q bug 2026-11-04):
+    // every line wraps, and the whole block shrinks until text + buttons fit.
+    const BTN = 90, room = H - 24
+    let texts: Phaser.GameObjects.Text[] = []
+    for (let k = 1; ; k *= 0.88) {
+      texts.forEach((t) => t.destroy())
+      texts = lines.map((l) => this.add.text(0, 0, l.text, { fontFamily: FONT_UI, fontSize: `${Math.max(11, Math.round(l.size * k))}px`, fontStyle: l.bold ? 'bold' : 'normal', color: l.color ?? '#f6eedc', align: 'center', lineSpacing: Math.round(6 * k), wordWrap: { width: W - 90, useAdvancedWrap: true } }).setOrigin(0.5, 0))
+      const gap = Math.round(12 * k), total = texts.reduce((a, t) => a + t.height + gap, 0) + BTN
+      if (total <= room || k < 0.45) {
+        let y = Math.max(-H / 2 + 12, -total / 2)
+        for (const t of texts) { t.setY(y); c.add(t); y += t.height + gap }
+        y = Math.min(y, H / 2 - BTN) // buttons always on screen
+        c.add(button(this, 140, y + 34, 240, 56, label, () => onGo(), { size: 22 }))
+        c.add(button(this, -140, y + 34, 240, 56, alt.label, () => alt.onGo(), { size: 22, fill: 0x5a5f8a, color: '#f6eedc' }))
+        break
+      }
     }
-    c.add(button(this, 140, y + 34, 240, 56, label, () => onGo(), { size: 22 }))
-    c.add(button(this, -140, y + 34, 240, 56, alt.label, () => alt.onGo(), { size: 22, fill: 0x5a5f8a, color: '#f6eedc' }))
     this.overlay = c
   }
 

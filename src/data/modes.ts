@@ -8,10 +8,16 @@ import type { SaveData } from '../save'
 
 export type ModeId = 'dungeon' | 'hard' | 'tower' | 'daily'
 export interface ModeRecord { bestFloor?: number; clears: number; lastSeed?: number }
-export interface ModeArgs { mode?: ModeId; d?: number; hard?: boolean; seed?: number }
+export interface ModeArgs { mode?: ModeId; d?: number; hard?: boolean; seed?: number; startFloor?: number /* bot / test only: tower starts at this floor */ }
 
 /** A room of a run: a dungeon room + where it sits in the tower + the dungeon its monsters scale from. */
-export interface RunRoom extends RoomDef { floor?: number; floorEnd?: boolean; src?: string }
+export interface RunRoom extends RoomDef {
+  floor?: number; floorEnd?: boolean; src?: string
+  /** Tower floor 20+ mixed fight: bosses / minis together with normal monsters. Each kind scales from its own dungeon (srcOf) and may carry an HP share (hpOf). */
+  mixed?: 'boss' | 'mini' | 'minis' | 'bossAdds'
+  srcOf?: Partial<Record<MonsterKind, string>>
+  hpOf?: Partial<Record<MonsterKind, number>>
+}
 export interface MonScale { hp: number; atk: number; hit: number; speed: number }
 
 export interface RunConfig {
@@ -23,7 +29,7 @@ export interface RunConfig {
   /** The dungeon whose sky, materials and cards room i uses. */
   themeAt(i: number): DungeonDef
   /** Monster multipliers for a room on top of the normal defs (null = untouched; hard mode keeps its own path). */
-  scale(room: RunRoom): MonScale | null
+  scale(room: RunRoom, kind?: MonsterKind): MonScale | null
   /** Bosses and minis roll the hard-mode extra skill + passive. */
   affix: boolean
   tint?: number
@@ -89,6 +95,12 @@ export const TOWER = {
   hp0: 0.8, hpPerFloor: 0.06, atk0: 0.85, atkPerFloor: 0.03, hitEvery: 5,
   turnPerFloor: 0.015, turnMax: 1.6,
   extraMonFrom: 15,
+  // Q 2026-11-04: from floor 20 a floor can mix monsters, bosses and mini bosses in one fight
+  mixFrom: 20, mixChance0: 0.3, mixPerFloor: 0.02, mixMax: 0.65, // wave floors: chance to become a mixed fight
+  mixMinisFrom: 25, // mini + mini (+1 add) from this floor
+  bossAddsChance: 0.5, // boss floors 20+: the boss brings 1-2 adds
+  mixBossHp: 0.6, mixMiniHp: 0.75, // a boss / mini sharing the fight with others has this share of its HP
+  mixTurns: 6, // extra hero turns for a mixed fight
   eventEvery: 3,
   zeny: (f: number, lv: number) => Math.round((20 + 6 * f) * (1 + lv / 20)),
   fallKeep: 0.5, // falling keeps this share of the floor bank; leaving keeps all of it
@@ -123,27 +135,48 @@ function towerFloor(f: number, lv: number): RunRoom[] {
     }
     return out
   }
+  const waves = th.rooms.filter((r) => !r.boss && !r.mini)
+  const adds = (n: number) => { const ks = waves.flatMap((w) => w.spawn.map(([k]) => k)); return Array.from({ length: n }, () => pick(ks)) }
+  const bossPool = BOSSES.slice(0, Math.min(BOSSES.length, DUNGEONS.indexOf(th) + 2))
+  /** One mixed fight: normal monsters stand in front (the hero hits the front first), the big ones behind. */
+  const mixed = (type: NonNullable<RunRoom['mixed']>, big: { kind: MonsterKind; src: string; hp: number }[], front: MonsterKind[], title: string, turns: number): RunRoom => {
+    const spawn: [MonsterKind, number][] = []
+    for (const k of [...front, ...big.map((b) => b.kind)]) { const at = spawn.find((x) => x[0] === k); if (at) at[1]++; else spawn.push([k, 1]) }
+    return { title: `🗼 ชั้น ${f} · ${title}`, spawn: spawn.slice(0, 4), boss: true, mixed: type, turnLimit: turns + TOWER.mixTurns, floor: f, floorEnd: true, src: th.id,
+      srcOf: Object.fromEntries(big.map((b) => [b.kind, b.src])), hpOf: Object.fromEntries(big.map((b) => [b.kind, b.hp])) }
+  }
   if (kind === 'boss') {
-    const ti = DUNGEONS.indexOf(th), b = pick(BOSSES.slice(0, Math.min(BOSSES.length, ti + 2)))
+    const b = pick(bossPool)
+    if (f >= TOWER.mixFrom && Math.random() < TOWER.bossAddsChance)
+      return [mixed('bossAdds', [{ kind: b.kind, src: b.src, hp: 1 }], adds(f >= 30 ? 2 : 1), `${b.title.replace('ห้องบอส · ', 'บอส ')} + ลูกสมุน`, Math.max(b.turnLimit, bossTurns(lv)))]
     return [{ title: `🗼 ชั้น ${f} · ${b.title.replace('ห้องบอส · ', 'บอส ')}`, spawn: [[b.kind, 1]], boss: true, turnLimit: Math.max(b.turnLimit, bossTurns(lv)), floor: f, floorEnd: true, src: b.src }]
   }
-  const waves = th.rooms.filter((r) => !r.boss && !r.mini)
+  if (f >= TOWER.mixFrom && Math.random() < Math.min(TOWER.mixMax, TOWER.mixChance0 + TOWER.mixPerFloor * (f - TOWER.mixFrom))) {
+    const minis = MINIS.filter((m) => f >= m.from), r = Math.random()
+    if (f >= TOWER.mixMinisFrom && r < 0.3) {
+      const a = minis.splice(Math.floor(Math.random() * minis.length), 1)[0], b = pick(minis)
+      return [mixed('minis', [{ kind: a.kind, src: a.src, hp: TOWER.mixMiniHp }, { kind: b.kind, src: b.src, hp: TOWER.mixMiniHp }], adds(1), '⚔️ มินิบอสคู่!', 42)]
+    }
+    if (r < 0.65) { const m = pick(minis); return [mixed('mini', [{ kind: m.kind, src: m.src, hp: TOWER.mixMiniHp }], adds(2), '⚔️ มินิบอสคุมฝูง!', 42)] }
+    const b = pick(bossPool)
+    return [mixed('boss', [{ kind: b.kind, src: b.src, hp: TOWER.mixBossHp }], adds(2), `👹 ${b.title.replace('ห้องบอส · ', '')} บุกกลางฝูง!`, bossTurns(lv))]
+  }
   const w = pick(waves), spawn = w.spawn.map(([k, n]) => [k, n] as [MonsterKind, number])
   if (f >= TOWER.extraMonFrom) { const extra = pick(pick(waves).spawn)[0]; const at = spawn.find((x) => x[0] === extra); if (at) at[1]++; else spawn.push([extra, 1]) }
   return [{ title: `🗼 ชั้น ${f} · ${w.title.replace(/^เวฟ \d+ · /, '')}`, spawn, turnLimit: w.turnLimit, floor: f, floorEnd: true, src: th.id }]
 }
 
-function towerRun(s: SaveData): RunConfig {
+function towerRun(s: SaveData, start = 1): RunConfig {
   const rooms: RunRoom[] = [], lv = s.baseLevel
-  let floors = 0
+  let floors = Math.max(0, start - 1)
   const roomAt = (i: number) => { while (rooms.length <= i) rooms.push(...towerFloor(++floors, lv)); return rooms[i] }
   return {
     modeId: 'tower', seed: 0, endless: true, affix: true, mutators: [], mut: NO_MUT, tag: '🗼',
     roomAt,
     themeAt: (i) => towerTheme(roomAt(i).floor ?? 1),
-    scale: (r) => {
-      const f = r.floor ?? 1, k = levelScale(r.src ?? 'd2', lv)
-      return { hp: k.hp * (TOWER.hp0 + TOWER.hpPerFloor * (f - 1)), atk: k.atk * (TOWER.atk0 + TOWER.atkPerFloor * (f - 1)), hit: k.hit + Math.floor(f / TOWER.hitEvery), speed: 1 }
+    scale: (r, kind) => {
+      const f = r.floor ?? 1, k = levelScale((kind && r.srcOf?.[kind]) ?? r.src ?? 'd2', lv), share = (kind && r.hpOf?.[kind]) ?? 1
+      return { hp: share * k.hp * (TOWER.hp0 + TOWER.hpPerFloor * (f - 1)), atk: k.atk * (TOWER.atk0 + TOWER.atkPerFloor * (f - 1)), hit: k.hit + Math.floor(f / TOWER.hitEvery), speed: 1 }
     },
     turnMul: (r) => Math.min(TOWER.turnMax, 1 + TOWER.turnPerFloor * ((r.floor ?? 1) - 1)),
     eventsAfter: (_i, r) => (r.floorEnd && !r.boss && !r.mini && (r.floor ?? 0) % TOWER.eventEvery === 0 ? 1 : 0),
@@ -153,10 +186,11 @@ function towerRun(s: SaveData): RunConfig {
 }
 
 /** What one cleared floor adds to the tower bank. */
-export function towerFloorLoot(f: number, lv: number): { zeny: number; mats: Record<string, number> } {
+export function towerFloorLoot(f: number, lv: number, room?: RunRoom): { zeny: number; mats: Record<string, number> } {
   const th = towerTheme(f).id, kind = floorKind(f), mats: Record<string, number> = { [matOf(th, false)]: 1 }
-  if (kind !== 'wave') mats[matOf(th, true)] = kind === 'gauntlet' ? 2 : 1
-  return { zeny: TOWER.zeny(f, lv), mats }
+  const big = kind === 'gauntlet' ? 2 : kind === 'boss' ? 1 : 0, mix = room?.mixed ? (room.mixed === 'minis' ? 2 : 1) : 0
+  if (big + (kind === 'wave' ? mix : 0)) mats[matOf(th, true)] = big + (kind === 'wave' ? mix : 0)
+  return { zeny: Math.round(TOWER.zeny(f, lv) * (room?.mixed ? 1.3 : 1)), mats }
 }
 
 // ---------- 🎲 Daily Challenge ----------
@@ -206,7 +240,7 @@ export const MODES: Record<ModeId, GameMode> = {
     desc: `ไต่ชั้นไปเรื่อยๆ มอนแกร่งขึ้นทุกชั้น · บอสทุก ${TOWER.bossEvery} ชั้น · ดวลต่อเนื่องทุก ${TOWER.gauntletEvery} ชั้น\nออกระหว่างชั้น = เก็บรางวัลชั้นครบ · ล้ม = ได้ครึ่งเดียว`,
     unlock: (s) => (cleared(s, TOWER.unlock) ? { ok: true, why: '' } : { ok: false, why: `ปลดล็อกหลังเคลียร์${dungeonName(TOWER.unlock)}` }),
     record: (s) => { const r = s.modes?.tower; return r?.bestFloor ? `สูงสุด ชั้น ${r.bestFloor}` : 'ยังไม่เคยไต่' },
-    buildRun: (s) => towerRun(s),
+    buildRun: (s, a) => towerRun(s, a.startFloor),
     reward: (s, _cfg, r) => {
       const rec = modeRec(s, 'tower'), before = rec.bestFloor ?? 0, cleared = Math.max(0, r.floor)
       const out: ModeReward = { ...none, mats: {}, lines: [] }
