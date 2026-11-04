@@ -261,7 +261,7 @@ export class BattleScene extends Phaser.Scene {
     this.res = this.job.resource === 'rage' ? 0 : this.resMax()
     this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0
     this.heroSpr.setTexture(this.job.tex).setTint((COSTUMES.find((c) => c.id === s.costume) ?? COSTUMES[0]).tint).setAngle(0).setAlpha(1)
-    this.perks = []; this.hits = 0; this.pk = newPerkStats(); this.masteries = []; this.src = 'other'; this.immortal = null; this.eggN = 0; this.eggDef = 0
+    this.perks = []; this.hits = 0; this.procHits = {}; this.pk = newPerkStats(); this.masteries = []; this.src = 'other'; this.immortal = null; this.eggN = 0; this.eggDef = 0
     this.level = 1; this.xp = 0; this.zeny = 0; this.kills = 0; this.runXp = 0; this.runGems = 0; this.runCards = []; this.runMats = {}
     this.cardLuck = 1 + Math.min(PER_POINT.luk.dropCap, PER_POINT.luk.dropPct * totalBase(s).luk)
     this.settled = false; this.over = false; this.smashQueued = false
@@ -1678,7 +1678,8 @@ export class BattleScene extends Phaser.Scene {
       const offers: PerkDef[] = []
       const take = (list: PerkDef[]) => { const left = list.filter((p) => !offers.includes(p)); if (left.length) { offers.push(left[Phaser.Math.Between(0, left.length - 1)]); return true } return false }
       const want = (id: string) => { const p = PERKS_V2.find((x) => x.id === id); if (p && ok(p) && !offers.includes(p) && (p.rarity === 'common' || lines.has(p.line))) offers.push(p) }
-      for (const id of this.testPerk ?? []) if (!offers.length) want(id) // bot hook
+      for (const id of this.testPerk ?? []) if (!offers.length && !lv(id)) want(id) // bot hook: a card not owned yet first, so a list covers every card
+      for (const id of this.testPerk ?? []) if (!offers.length) want(id) // ... then "+" levels
       if (this.firstOffer && this.st.mgFirstCard > 0) want(this.st.mgFirstCard === 1 ? 'stm_roar' : 'fir_ball') // mage talent row 1
       this.firstOffer = false
       const own = JOB_LINES[this.job.id] ?? []
@@ -1768,6 +1769,8 @@ export class BattleScene extends Phaser.Scene {
   private procDepth = 0
   /** Bot hook (PERK=id,id): the first of these cards still open goes into slot 1 of every level-up offer. */
   testPerk?: string[]
+  /** Bot / debug: how many times each card's trigger fired this run. */
+  procHits: Record<string, number> = {}
   /** Bot / debug: card ids with level, e.g. "stm_roar+ grd_open". */
   perkList() { return this.perks.map((o) => `${o.def.id}${o.lv >= 2 && o.def.max === 2 ? '+' : o.lv > 1 ? `x${o.lv}` : ''}`).join(' ') }
 
@@ -1823,7 +1826,7 @@ export class BattleScene extends Phaser.Scene {
         if (on === 'every2' && this.fightTurns % 2) continue
         if (on === 'hits' && (!p.every || this.hits % p.every[i] !== 0)) continue
         if (p.chance && Math.random() >= p.chance[i]) continue
-        if (this.runFx(o.def, p, i, target)) fired++
+        if (this.runFx(o.def, p, i, target)) { fired++; this.procHits[o.def.id] = (this.procHits[o.def.id] ?? 0) + 1 }
       }
     } finally { this.procDepth-- }
     return fired
