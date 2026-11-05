@@ -8,11 +8,13 @@ import { BASE_STATS, canWear, forged, forgeTag, gradeOf, isBroken, refineOf, car
 import { canChangeJob, equip, persist, resetTree, resetTree2, save, socketCard, unsocketCard } from '../save'
 import { branches2Of, tree2Spent, BRANCHES, branchesOf, lockReason, skill2Picked, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
 import { JOB_CHANGE, JOBS, type JobId } from '../data/jobs'
-import { JOB2, JOB2_RULES } from '../data/jobs2'
+import { JOB2, JOB2_RULES, PETS, type PetId } from '../data/jobs2'
 import { statLines } from '../data/statInfo'
 import { powerParts } from '../data/power'
 import { askRepick } from './JobScene'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
+
+const BRANCH_PET: Record<string, PetId> = { bm_h: 'hawk', bm_b: 'boar', bm_w: 'wolf' } // Beastmaster ใยชั้น 2 branch -> its pet
 
 // Character sheet: preview on the left, three tabs on the right (equipment, status, skills).
 export class CharacterScene extends Phaser.Scene {
@@ -429,6 +431,14 @@ export class CharacterScene extends Phaser.Scene {
       b.add(panel(this, x - 3, 150, cw + 6, 344, 0x1d2140, UI.line, 8))
       b.add(txt(this, x + 4, 155, `${br.icon} ${br.name}`, 11, UI.gold, true).setWordWrapWidth(cw))
       c.forEach((n) => pos.set(n.id, { x, y: top + (n.kind ? 0 : n.tier - 1) * rh })) // roots and tier 1 share the top row
+      const pet = j2.id === 'beastmaster' ? BRANCH_PET[br.id] : undefined // 🐺 Beastmaster: pick the companion under its branch (free)
+      if (pet) {
+        const cur = (s.pet ?? 'hawk') === pet, evo = (t[`${br.id}4`] ?? 0) > 0
+        b.add(button(this, x + cw / 2, 472, cw - 12, 30, cur ? `✅ คู่หู: ${PETS[pet].icon} ${evo ? PETS[pet].evo : PETS[pet].name}` : `🐾 เลือก ${PETS[pet].icon} ${PETS[pet].name}`, () => {
+          if (cur) return
+          s.pet = pet; persist(); toast(this, `คู่หู: ${PETS[pet].icon} ${PETS[pet].name} · ${PETS[pet].desc}`); this.render()
+        }, { size: 12, fill: cur ? COLORS.gold : 0x4a5a8a, color: cur ? UI.ink : UI.text }))
+      }
     })
     for (const [id, p] of pos) { const n = nodeById(id)!, pp = n.parent ? pos.get(n.parent) : undefined; if (pp) g.lineStyle(3, (t[id] ?? 0) > 0 ? COLORS.gold : UI.line, 1).lineBetween(pp.x + cw / 2, pp.y + nh, p.x + cw / 2, p.y) }
     for (const [id, p] of pos) {
