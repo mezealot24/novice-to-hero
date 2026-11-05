@@ -4,8 +4,9 @@ import { Pool } from '@neondatabase/serverless'
 import { createAuth, origins, type Env } from './auth'
 import { checkSave, type BlobLike } from './sanity'
 import { SKU_PRICE } from './skus'
+import { configRoutes } from './config'
 
-type App = { Bindings: Env; Variables: { userId: string; pool: Pool } }
+export type App = { Bindings: Env; Variables: { userId: string; pool: Pool; admin: string } }
 const app = new Hono<App>()
 const MAX_BLOB = 256 * 1024
 
@@ -29,6 +30,8 @@ async function requireUser(c: Context<App>, next: Next) {
   c.set('userId', session.user.id)
   await next()
 }
+configRoutes(app) // GET /config/live (public) + /admin/* (ADMIN_EMAILS)
+
 app.use('/save', requireUser)
 app.use('/wallet', requireUser)
 app.use('/wallet/*', requireUser)
