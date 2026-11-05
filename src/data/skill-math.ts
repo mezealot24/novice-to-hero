@@ -44,6 +44,18 @@ export const KIT2 = {
     boomerang: 0.8, chargeFirst: 3, guardShieldless: 0.5, // Spear Boomerang mul · ★ ทะยาน · Auto Guard without an off-hand
     mastery: { atkPct: 0.05, hit: 10 }, // spear
   },
+  rogue: {
+    knifeMul: 0.4, knifePerCombo: 1, dualKnife: 1, // 🔪 มีดบิน: each extra combo hit throws knives at random monsters (+1 with a dagger off-hand) · no lifesteal
+    stabCost: 30, stabCd: 3, stabMul: 2.2, // 🗡️ Back Stab: sure crit on the highest-HP monster
+    ultKnives: 8, ultKnifeMul: 0.5, // 🌪️ พายุมีด: shadow dance + knives spread over every monster
+    mastery: { atkPct: 0.05, crit: 0.03 }, // dagger
+  },
+  mobster: {
+    execBase: 0.08, execPer: 0.03, bossExecMul: 2, // 📒 สมุดหนี้: Execute under (base + per x debt) HP · boss / mini take x this instead (doc 3x)
+    cutCost: 30, cutCd: 3, cutTurns: 3, cutMul: 1, armorBrk: 0.25, // ⛓️ ตัดเส้นเอ็น: hit + DEF -25% + chill
+    ultSlash: 0.6, burstTurns: 3, burstMul: 1.5, ultCdRefund: 1, // 💀 ทวงหนี้: slash all 0.6x, then poison left (stacks x dmg x turns x mul) bursts at once · a kill refunds ult cooldown
+    mastery: { atkPct: 0.05, poisonDmg: 1 }, // dagger
+  },
 }
 
 /** Skill 2 numbers by "+" level (Stats.s2Lv) and ★ (Stats.s2Star). data/skill2.ts texts and BattleScene.castSkill2 read these. */

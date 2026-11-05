@@ -50,6 +50,7 @@ interface Mon {
   revived: boolean // came back once (necro): can't be raised again
   clone?: boolean; evaded?: number; trueTurns?: number // v56 trueSight: hero evades counted, then 🎯 its physical hits always land
   weakTurns: number; weakPct: number // hero Skill 2 ท้าทาย: hits weaker for its next N turns
+  armorBrk: number // Mobster ตัดเส้นเอ็น: turns of DEF -KIT2.mobster.armorBrk
 }
 type Element = 'lightning' | 'fire' | 'ice'
 const ELEMENTS: Record<Element, { icon: string; name: string; sub: string }> = {
@@ -263,7 +264,7 @@ export class BattleScene extends Phaser.Scene {
     this.job = JOBS[s.job ?? 'novice']
     this.j2 = s.job2 && JOB2[s.job2]?.parent === this.job.id ? JOB2[s.job2] : undefined // 2nd job (design/second-jobs-v1.md)
     if (this.j2) this.job = { ...this.job, resource: this.j2.resource ?? this.job.resource, auto: { ...this.job.auto, cost: this.j2.autoCost ?? this.job.auto.cost }, ult: { ...this.job.ult, ...this.j2.ult } } // Berserker: Rage · Ult วิวัฒน์
-    { const wpn = itemById(s.equipped.weapon ?? ''); this.j2Weapon = !!this.j2?.mastery.ok(wpn); this.hasShield = !wpn.twoHand && !!s.equipped.offhand && s.equipped.offhand !== 'none_off' }
+    { const wpn = itemById(s.equipped.weapon ?? ''); this.j2Weapon = !!this.j2?.mastery.ok(wpn); this.hasShield = !wpn.twoHand && !!s.equipped.offhand && s.equipped.offhand !== 'none_off'; this.dualKnife = this.hasShield && itemById(s.equipped.offhand ?? '').wtype === 'dagger' }
     this.frenzy = 0; this.frenzyAt = 0; this.s3Cd = 0; this.rampage = 0
     this.s2 = this.job.id === 'novice' ? undefined : skill2Picked(s.jobTree, this.job.id); this.s2Cd = 0
     this.buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0 }; this.s2Count = 0
@@ -393,7 +394,7 @@ export class BattleScene extends Phaser.Scene {
     else if (this.run.affix && def.ai === 'boss') spr.setTint(HARD.tint)
     const affix = (this.hard || this.run.affix) && def.ai === 'boss' ? this.lastAffix : undefined
     const m: Mon = { kind, def, spr, shadow, hp: def.hp, gauge: gauge ?? Phaser.Math.Between(0, 40), dead: false, slot, turns: 0, charging: false, summoned: false, burnStacks: 0, burnStackTurns: 0, chill: 0, frozen: false, burn: 0, burnTurns: 0, poison: 0, poisonDmg: 0, parry: false, ice: 0, iceChance: 0, iced: false, hell: 0, harvestMark: 0,
-      shield: 0, atkUp: 0, atkUpTurns: 0, phase: 0, speedMul: 1, dmgMul: 1, reflect: def.reflect ?? 0, absorb: def.absorb ?? 0, stored: 0, chargeEvery: def.chargeEvery ?? BATTLE.slamEvery, skills: def.skills ?? [], onHit: def.onHit, slamFx: def.slamFx, revived: false, weakTurns: 0, weakPct: 0, affix }
+      shield: 0, atkUp: 0, atkUpTurns: 0, phase: 0, speedMul: 1, dmgMul: 1, reflect: def.reflect ?? 0, absorb: def.absorb ?? 0, stored: 0, chargeEvery: def.chargeEvery ?? BATTLE.slamEvery, skills: def.skills ?? [], onHit: def.onHit, slamFx: def.slamFx, revived: false, weakTurns: 0, weakPct: 0, armorBrk: 0, affix }
     if (affix) m.speedMul = this.lastSpeed
     m.speedMul *= this.modeSpeed
     if (affix) this.time.delayedCall(700, () => this.callout(`🔥 ${def.name}: ${affix}`, W / 2, 205))
@@ -657,6 +658,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private async heroAct() {
+    this.execTurnUsed = false
     if (this.st.regen > 0) this.heal(this.st.maxHp * this.st.regen * BATTLE.regenPerTurn / 100, true)
     if (this.lowRegen.turns > 0) { this.lowRegen.turns--; this.heal(this.st.maxHp * this.lowRegen.amt) } // ฟื้นยามคับขัน
     const rt = this.px('resTurn'); if (rt > 0) { this.gainRage(rt); this.gainRes(rt) } // ภาวนา
@@ -755,7 +757,7 @@ export class BattleScene extends Phaser.Scene {
     if (crit && this.st.thExecute > 0 && m.hp < m.def.hp * 0.3) mul *= 1.5 // Thief ★ เพชฌฆาต
     if (crit && this.st.arCritRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arCritRes) // archer talent ลมหายใจนักล่า
     const r = this.roll(mul, magic, crit)
-    if (!magic && !crit) r.dmg = m.def.def ? Math.max(1, Math.round(afterDef(r.dmg, m.def.def * (1 - Math.min(1, pierce))))) : r.dmg
+    if (!magic && !crit) r.dmg = m.def.def ? Math.max(1, Math.round(afterDef(r.dmg, m.def.def * (1 - Math.min(1, pierce)) * (m.armorBrk > 0 ? 1 - KIT2.mobster.armorBrk : 1)))) : r.dmg // Mobster เกราะแตก
     if (magic && m.def.mdef) r.dmg = Math.max(1, Math.round(r.dmg * (1 - m.def.mdef))) // D6+ stat monsters: WIS M.DEF
     if (r.crit && m.def.statDef?.critDR) r.dmg = Math.max(1, Math.round(r.dmg * Math.max(1 / (this.st.critMul || 1), 1 - m.def.statDef.critDR))) // LUK crit DR, never below a normal hit
     if (m.def.toxicSkin) { // venomqueen Toxic Skin: crit bonus halved, -5% damage
@@ -778,6 +780,8 @@ export class BattleScene extends Phaser.Scene {
       this.frenzyAt = this.fightTurns
       if (this.frenzy < max) { this.frenzy++; this.floatText(HERO_X, GROUND - 165, `🔥 Frenzy ${this.frenzy}`, '#ff8c42') }
     }
+    if (r.crit && !magic && this.st.j2KnifeCrit > 0 && this.j2?.id === 'rogue' && (this.src === 'basic' || this.src === 'combo')) this.critKnives++ // Rogue ★ คริเป็นมีด
+    if (this.j2?.id === 'mobster') this.mobExec(m)
     return r.dmg
   }
 
@@ -793,6 +797,45 @@ export class BattleScene extends Phaser.Scene {
   private firstSwing = false // Knight Charge Attack: first basic swing of the wave
   private forceCrit = false
   private critAdd = 0 // temporary crit chance (คลื่นดาบ)
+  private dualKnife = false // Rogue: a dagger in the off-hand (+KIT2.rogue.dualKnife flying knives)
+  private critKnives = 0 // Rogue ★: knives owed by basic / combo crits, thrown after the swing
+  private execTurnUsed = false // Mobster ★ งานต่อไป: one extra turn per hero turn
+  /** Rogue มีดบิน: n knives at random monsters (one left = same one). Thrown outside basicOnce, so lsMul is 0: no lifesteal (Q). */
+  private throwKnives(n: number, mul = KIT2.rogue.knifeMul + this.st.j2KnifeMul) {
+    for (let i = 0; i < n; i++) {
+      const t = this.alive(); if (!t.length) return
+      const m = t[Phaser.Math.Between(0, t.length - 1)]
+      this.floatText(m.spr.x - 20, m.spr.y - m.spr.displayHeight - 34, '🔪', '#e0e0f0')
+      this.withSrc('other', () => this.strike(m, mul, false, '#e0e0f0'))
+    }
+  }
+  /** Rogue: knives per combo hit (+ crit knives owed). */
+  private comboKnives(comboHit: boolean) {
+    if (this.j2?.id !== 'rogue') return
+    const R = KIT2.rogue
+    const n = (comboHit ? R.knifePerCombo + (this.dualKnife ? R.dualKnife : 0) + this.st.j2KnifeAdd : 0) + this.critKnives
+    this.critKnives = 0
+    if (n > 0) this.throwKnives(n)
+  }
+  /** Mobster สมุดหนี้: debuff kinds on a monster (★ ดอกเบี้ยทบต้น x2). */
+  private debt(m: Mon) {
+    const n = (m.poison > 0 ? 1 : 0) + (m.burnTurns > 0 || m.burnStacks > 0 || m.hell > 0 ? 1 : 0) + (m.chill > 0 ? 1 : 0) + (m.weakTurns > 0 ? 1 : 0) + ((m.marked ?? 0) > 0 ? 1 : 0) + (m.armorBrk > 0 ? 1 : 0)
+    return n * (this.st.j2DebtX2 > 0 ? 2 : 1)
+  }
+  private execLine(m: Mon) { const M = KIT2.mobster; return M.execBase + M.execPer * this.debt(m) + this.st.j2ExecAdd }
+  /** Mobster Execute: a normal monster under the debt line dies at once (bosses / minis take x bossExecMul in j2Mul instead). */
+  private mobExec(m: Mon) {
+    if (m.dead || m.def.ai === 'boss' || this.hp <= 0 || m.hp >= m.def.hp * this.execLine(m)) return false
+    this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '⚰️ เก็บงาน!', '#c9a8ff')
+    this.damageMon(m, m.hp + m.shield, false, '#c9a8ff')
+    if (!m.dead) return false
+    if (this.st.j2ExecTurn > 0 && !this.execTurnUsed && this.alive().length) { // ★ งานต่อไป
+      this.execTurnUsed = true
+      this.heroGauge = Math.max(this.heroGauge, 100)
+      this.floatText(HERO_X, GROUND - 160, '🕴️ งานต่อไป!', '#c9a8ff')
+    }
+    return true
+  }
   /** 2nd-job damage multiplier on every hero hit. */
   private j2Mul(m: Mon, crit: boolean, magic: boolean) {
     let k = 1
@@ -802,6 +845,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.j2Duel > 0 && (this.alive().length === 1 || m.def.ai === 'boss')) k *= 1 + this.st.j2Duel // ดวล
     if (this.st.j2DuelExec > 0 && big && m.hp < m.def.hp * 0.3) k *= 1 + this.st.j2DuelExec // ★ ดวลตาย
     if (this.st.j2LowHp > 0) k *= 1 + this.st.j2LowHp * Math.max(0, 1 - this.hp / this.st.maxHp) // คลั่ง
+    if (big && this.j2?.id === 'mobster' && m.hp < m.def.hp * this.execLine(m)) k *= KIT2.mobster.bossExecMul // สมุดหนี้ vs boss / mini
     return k
   }
   /** Knight ถึกเป็นแรง: spear skills add a share of max HP, as a P.ATK multiplier. */
@@ -834,7 +878,19 @@ export class BattleScene extends Phaser.Scene {
     await this.asSkill(async () => {
       await this.skillName(j2.skill3)
       const live = this.front()
-      if (j2.id === 'berserker') {
+      if (j2.id === 'rogue') { // 🗡️ Back Stab: sure crit on the highest-HP monster
+        const t = this.alive().sort((a, b) => b.hp - a.hp)[0]
+        if (t) { this.forceCrit = true; await this.lunge(t, () => this.strike(t, KIT2.rogue.stabMul * pow * (1 + this.st.pskill), false, '#ffd36b')); this.forceCrit = false }
+      } else if (j2.id === 'mobster') { // ⛓️ ตัดเส้นเอ็น: boss first, DEF break + chill
+        const M = KIT2.mobster, t = this.alive().find((m) => m.def.ai === 'boss') ?? live[0], turns = M.cutTurns + this.st.j2DebuffTurns
+        if (t) await this.lunge(t, () => {
+          this.strike(t, M.cutMul * pow * (1 + this.st.pskill), false, '#c9a8ff')
+          if (t.dead) return
+          t.armorBrk = Math.max(t.armorBrk, turns); t.chill = Math.max(t.chill, turns); this.dotIcon(t)
+          this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 30, '⛓️ เกราะแตก + ช้า', '#c9a8ff')
+          this.mobExec(t)
+        })
+      } else if (j2.id === 'berserker') {
         const B = KIT2.berserker, w = this.j2Weapon ? 1 : B.waveOffWeapon
         this.critAdd = B.waveCrit
         this.cameras.main.flash(80, 160, 210, 255)
@@ -854,6 +910,32 @@ export class BattleScene extends Phaser.Scene {
       this.rampage = B.ultTurns + 1 // ticks down after this turn
       this.callout(`👹 บ้าระห่ำ ${B.ultTurns} เทิร์น!`, W / 2, 170)
       this.cameras.main.flash(140, 255, 90, 78)
+      return
+    }
+    if (this.j2!.id === 'rogue') { // 🌪️ พายุมีด: shadow dance + a knife storm
+      await this.shadowDance(h2)
+      const R = KIT2.rogue
+      this.throwKnives(R.ultKnives + this.st.j2KnifeAdd, R.ultKnifeMul * h2)
+      this.cameras.main.flash(100, 220, 220, 240)
+      await this.wait(BATTLE.stepMs * 0.3)
+      return
+    }
+    if (this.j2!.id === 'mobster') { // 💀 ทวงหนี้: slash all, burst every poison stack, then collect
+      const M = KIT2.mobster
+      if (live[0]) await this.lunge(live[0], () => live.forEach((m) => this.strike(m, M.ultSlash * h2 * (1 + this.st.pskill), false, '#c9a8ff')))
+      let kills = 0
+      for (const m of live) {
+        if (!m.dead && m.poison > 0) {
+          const dmg = Math.max(1, Math.round(m.poison * m.poisonDmg * M.burstTurns * M.burstMul * h2 * this.dotMul()))
+          this.burst(m.spr.x, m.spr.y - 30, 0xa77be0, 14, 200)
+          this.withSrc('poison', () => this.damageMon(m, dmg, false, '#a77be0', true))
+          m.poison = 0; this.dotIcon(m)
+        }
+        if (m.dead || this.mobExec(m)) kills++
+      }
+      if (kills > 0) { this.smashCdLeft = Math.max(0, this.smashCdLeft - M.ultCdRefund); this.floatText(HERO_X, GROUND - 170, `💀 ทวงครบ! ult -${M.ultCdRefund}`, '#c9a8ff') }
+      this.cameras.main.flash(120, 167, 123, 224)
+      await this.wait(BATTLE.stepMs * 0.4)
       return
     }
     const K = KIT2.knight
@@ -966,6 +1048,7 @@ export class BattleScene extends Phaser.Scene {
     while (extra < count && Math.random() < rate) extra++ // Capybara-style: each extra hit rolls (rate - Ignore Combo), stop on a miss
     this.stayIn = extra > 0 || this.rampage > 0
     await this.basicOnce()
+    this.comboKnives(false) // Rogue ★: crit knives from the first swing
     if (this.rampage > 0 && this.alive().length) { this.floatText(HERO_X, GROUND - 150, '👹', '#ff5a4e'); await this.basicOnce() } // Berserker บ้าระห่ำ: every swing hits twice
     if (this.alive().length && this.procs('basic') > 0) await this.wait(120) // พร v2: on-basic-attack cards
     if (this.immortal === 'angel' && this.fightTurns <= IMMORTAL_RULES.angelTurns && this.hp > 0) { // 🌈 พรนางฟ้า
@@ -980,6 +1063,7 @@ export class BattleScene extends Phaser.Scene {
       this.comboLevel = n + 2
       sfx.combo(n + 2)
       await this.basicOnce()
+      this.comboKnives(true) // Rogue มีดบิน
       hits++
     }
     this.comboLevel = 0
@@ -1219,22 +1303,27 @@ export class BattleScene extends Phaser.Scene {
         break
       }
       case 'thief':
-        this.dodgeCharges = KIT.thiefUltDodge + this.st.ultDodge // talent: เงาซ้อน
-        this.stayIn = true // dart from monster to monster, walk home once at the end
-        for (let i = 0; i < KIT.thiefUltHits + this.st.ultHits; i++) { // talent: พายุมีด
-          const t = this.alive(); if (!t.length) break
-          const m = t[Phaser.Math.Between(0, t.length - 1)]
-          this.heroSpr.setAlpha(0.4)
-          await this.lunge(m, () => {
-            this.strike(m, KIT.thiefUlt * hitPow * (1 + this.st.thUltAgi)) // Q: scales with AGI
-            if (this.st.ultPoison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.ultPoison); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) } // talent: มีดอาบพิษ
-          })
-        }
-        this.stayIn = false
-        this.heroSpr.setAlpha(1)
-        await this.goHome()
+        await this.shadowDance(hitPow)
         break
     }
+  }
+
+  /** Thief ult เงาพริ้ว (Rogue พายุมีด reuses it). */
+  private async shadowDance(hitPow: number) {
+    this.dodgeCharges = KIT.thiefUltDodge + this.st.ultDodge // talent: เงาซ้อน
+    this.stayIn = true // dart from monster to monster, walk home once at the end
+    for (let i = 0; i < KIT.thiefUltHits + this.st.ultHits; i++) { // talent: พายุมีด
+      const t = this.alive(); if (!t.length) break
+      const m = t[Phaser.Math.Between(0, t.length - 1)]
+      this.heroSpr.setAlpha(0.4)
+      await this.lunge(m, () => {
+        this.strike(m, KIT.thiefUlt * hitPow * (1 + this.st.thUltAgi)) // Q: scales with AGI
+        if (this.st.ultPoison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.ultPoison); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) } // talent: มีดอาบพิษ
+      })
+    }
+    this.stayIn = false
+    this.heroSpr.setAlpha(1)
+    await this.goHome()
   }
 
   private async mageUlt(el: Element, pow: number, noBarrier = false) {
@@ -1471,9 +1560,10 @@ export class BattleScene extends Phaser.Scene {
     if (m.weakTurns > 0 && --m.weakTurns === 0) this.dotIcon(m)
     if ((m.trueTurns ?? 0) > 0 && --m.trueTurns! === 0) this.dotIcon(m)
     if ((m.marked ?? 0) > 0) m.marked!--
+    if (m.armorBrk > 0 && --m.armorBrk === 0) this.dotIcon(m)
     if (m.def.toxicSkin) { // Toxic Skin tenacity: debuffs on it wear off twice as fast
       if (m.chill > 0) m.chill--; if (m.burnTurns > 0) m.burnTurns--; if (m.burnStackTurns > 0) m.burnStackTurns--; if (m.poison > 0) m.poison--
-      if (m.weakTurns > 0 && --m.weakTurns === 0) this.dotIcon(m); if ((m.marked ?? 0) > 0) m.marked!--
+      if (m.weakTurns > 0 && --m.weakTurns === 0) this.dotIcon(m); if ((m.marked ?? 0) > 0) m.marked!--; if (m.armorBrk > 0 && --m.armorBrk === 0) this.dotIcon(m)
     }
     if (m.drainStats && !m.dead && this.hp > 0) this.deathRealm(m, m.drainStats)
     if (m.vengCd) m.vengCd--
@@ -1829,7 +1919,7 @@ export class BattleScene extends Phaser.Scene {
   private dotIcon(m: Mon) {
     if (m.dead || !m.spr.active) return // a DoT tick or card can land after the kill: its icon text is already gone (page error 'drawImage' of null)
     if (!m.dotTxt) m.dotTxt = this.add.text(0, 0, '', { fontSize: '14px' }).setOrigin(0.5).setDepth(9500)
-    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.reflect > 0 ? '🪞' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
+    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${m.armorBrk > 0 ? '🦴' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.reflect > 0 ? '🪞' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
   }
 
   // ---------- xp / perks ----------

@@ -286,3 +286,11 @@ interface AllyDef {
 - `power.ts JOB2_K` (berserker 1.15, knight 1.1) · `tools/bot.cjs` `JOB2=` `J2LV=` `J2T=` `J2W=`
 
 **เลื่อนไป phase ถัดไป:** ทาเลนต์แถว 5 · สไปรต์แยกสาย (ตอนนี้ใช้ร่างนักดาบเดิม) · ป้ายรายละเอียด 📋 ของโหนดชั้น 2
+
+## 9. Phase 2 ที่ทำแล้ว (🗡️ Rogue / Mobster)
+
+- `jobs2.ts` + `KIT2.rogue / mobster` · ใยชั้น 2 `trees2/rogue.ts`, `trees2/mobster.ts` (id เป็น save data ห้าม rename)
+- 🔪 Rogue: มีดบินทุกฮิตคอมโบ (มือรองเป็นมีด +1 เล่ม, ไม่ดูดเลือด) · Back Stab คริแน่ใส่ตัว HP มากสุด · พายุมีด = เงาพริ้ว + มีด 8 เล่ม
+- 🕴️ Mobster: สมุดหนี้ (ดีบัฟ = หนี้ → Execute, บอส/มินิ x2 แทน) · ตัดเส้นเอ็น (เกราะแตก 🦴 DEF −25% + ช้า) · ทวงหนี้ (ระเบิดพิษ + เช็ก Execute, เก็บได้ ult cd −1)
+- อาวุธ: `wtype: 'dagger'` ให้มีดเดิมทุกชิ้น + ใหม่ `w_assassin`, `o_rogueknife`, `o_mobknife` (req `job2`)
+- `power.ts JOB2_K` rogue/mobster 1.1 = **ค่าเดา ยังไม่ได้รัน bot** (Q 2026-11-06: ขึ้น prod เลย จูนทีหลัง) · bot `JOB2=rogue|mobster`, `J2O=`

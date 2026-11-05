@@ -55,14 +55,14 @@ export const CRAFT_ITEMS: Item[] = [
     craft: { dg: 'd3', common: 12, boss: 3, zeny: 900, bonus: [{ spellCrit: 0.05 }, { mgUltAmp: 0.15 }] } },
   { id: 'c_dawnmace', slot: 'weapon', name: 'คทาแสงอรุณ', icon: '🌅', price: 0, slots: 2, desc: 'ทุบแรง ฮีลแรง โล่หนา', base: { str: 3, wis: 3 }, mod: { atk: 16, matk: 12, healAmp: 0.18 }, jobs: CL,
     craft: { dg: 'd3', common: 12, boss: 3, zeny: 900, bonus: [{ shieldAmp: 0.1 }, { overhealShield: 1 }] } },
-  { id: 'c_rustfang', slot: 'weapon', name: 'มีดสนิมเงา', icon: '🗡️', price: 0, slots: 2, desc: 'แทงรัว พิษติด', base: { agi: 6 }, mod: { atk: 11, combo: 0.08, poison: 1 }, jobs: TH,
+  { id: 'c_rustfang', wtype: 'dagger', slot: 'weapon', name: 'มีดสนิมเงา', icon: '🗡️', price: 0, slots: 2, desc: 'แทงรัว พิษติด', base: { agi: 6 }, mod: { atk: 11, combo: 0.08, poison: 1 }, jobs: TH,
     craft: { dg: 'd3', common: 12, boss: 3, zeny: 900, bonus: [{ dodgeHeal: 0.02 }, { poisonAmp: 0.15 }] } },
   { id: 'c_sealorb', slot: 'offhand', name: 'ลูกแก้วตราผนึก', icon: '💠', price: 0, slots: 1, desc: 'ลูกแก้วผนึกวิญญาณ เวทแรง', base: { int: 3 }, mod: { matk: 8, maxRes: 10 }, jobs: MG,
     craft: { dg: 'd3', common: 12, boss: 3, zeny: 900, bonus: [{ resRegen: 1 }, { spellCrit: 0.05 }] } },
   // ----- d4 บึงพิษมรกต -----
   { id: 'c_emeraldmail', slot: 'armor', name: 'เสื้อเกล็ดมรกต', icon: '🐊', price: 0, slots: 1, desc: 'ถึก กันพิษ', base: { vit: 4 }, mod: { maxHp: 140, def: 10, debuffRes: 0.15 },
     craft: { dg: 'd4', common: 14, boss: 3, zeny: 1500, bonus: [{ regen: 0.5 }, { debuffRes: 0.15, waveShield: 0.05 }] } },
-  { id: 'c_venomgauche', slot: 'offhand', name: 'มีดปัดเกล็ดหนอง', icon: '🪡', price: 0, slots: 1, desc: 'ปัดป้องแล้วแทงพิษ', base: { agi: 2 }, mod: { flee: 8 }, jobs: TH,
+  { id: 'c_venomgauche', wtype: 'dagger', slot: 'offhand', name: 'มีดปัดเกล็ดหนอง', icon: '🪡', price: 0, slots: 1, desc: 'ปัดป้องแล้วแทงพิษ', base: { agi: 2 }, mod: { flee: 8 }, jobs: TH,
     craft: { dg: 'd4', common: 14, boss: 3, zeny: 1500, bonus: [{ poison: 1 }, { dodgeHeal: 0.03 }] } },
   // ----- d5 บัลลังก์อเวจี -----
   { id: 'c_lichring', slot: 'acc', name: 'แหวนผลึกลิช', icon: '💀', price: 0, slots: 1, desc: 'ทุกค่าสถานะ +3 ท่าไม้ตายแรงขึ้น', base: ALL7(3), mod: { maxHp: 30 },

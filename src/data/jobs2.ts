@@ -7,7 +7,7 @@ import type { Resource, Stats } from './game-data'
 import type { JobId, JobSkill } from './jobs'
 import { KIT2 } from './skill-math'
 
-export type Job2Id = 'berserker' | 'knight' // Phase 1 (Swordsman). Next: rogue/mobster, crusader/monk, beastmaster/innovator, wizard/sage
+export type Job2Id = 'berserker' | 'knight' | 'rogue' | 'mobster' // Phase 1 Swordsman · Phase 2 Thief. Next: crusader/monk, beastmaster/innovator, wizard/sage
 export type WeaponType = 'sword' | 'twohand' | 'spear' | 'dagger' | 'bow' | 'staff' | 'mace' | 'fist' | 'book'
 
 export interface Job2Def {
@@ -24,7 +24,7 @@ export interface Job2Def {
 
 export const JOB2_RULES = { unlockJobLv: 40, unlockClear: 'd5', maxJobLevel: 50, repickGems: 30 }
 
-const B = KIT2.berserker, K = KIT2.knight
+const B = KIT2.berserker, K = KIT2.knight, R = KIT2.rogue, M = KIT2.mobster
 const pc = (n: number) => `${Math.round(n * 100)}%`
 
 export const JOB2: Record<Job2Id, Job2Def> = {
@@ -45,6 +45,24 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     signature: { name: 'ขี่เปโก', icon: '🐦', desc: `HP สูงสุด +${pc(K.hpPct)} · ความเร็ว +${pc(K.aspdPct)} · ถึกเป็นแรง: ฟันพายุ / Brandish / Pierce บวกดาเมจ ${pc(K.hpDmg)} ของ HP สูงสุด` },
     skill3: { name: 'Brandish Spear', icon: '🌀', cost: K.brandCost, cd: K.brandCd, desc: `Mana ${K.brandCost} · คูลดาวน์ ${K.brandCd}: กวาดหอก ${K.brandTargets} ตัวหน้า ${K.brandMul}x P.ATK + ${pc(K.hpDmg)} HP สูงสุด · ผลักตัวหน้าถอย` },
     ult: { name: 'Pierce + Bowling Bash', icon: '🎯', cd: 4, cost: 25, desc: `Mana 25: แทงเป้าเดียว ${K.pierceHits} ฮิต (บอส/มินิ ${K.pierceBigHits}) ฮิตละ ${K.pierceMul}x + HP สูงสุด แล้วกระแทกตัวถัดไป ${K.bashMul}x · โล่แบบดาบพิทักษ์` },
+  },
+  rogue: {
+    id: 'rogue', parent: 'thief', name: 'โร้ก', icon: '🔪', focus: 'AGI · STR · LUK',
+    blurb: 'สายมีด + คอมโบ + คริ · ทุกฮิตคอมโบปามีดบินใส่มอนสุ่ม · ถือมีดมือรอง = มีดบินเพิ่ม',
+    mod: { combo: 0.03 },
+    mastery: { weapon: 'มีด', ok: (it) => it.wtype === 'dagger', mod: { crit: R.mastery.crit }, pct: { atk: R.mastery.atkPct } },
+    signature: { name: 'มีดบิน', icon: '🔪', desc: `ทุกฮิตคอมโบ ปามีด ${R.knifePerCombo} เล่มใส่มอนสุ่ม ${R.knifeMul}x P.ATK (คริได้ ไม่ดูดเลือด) · มือรองเป็นมีด +${R.dualKnife} เล่ม` },
+    skill3: { name: 'Back Stab', icon: '🗡️', cost: R.stabCost, cd: R.stabCd, desc: `Energy ${R.stabCost} · คูลดาวน์ ${R.stabCd}: แทงหลังตัวที่ HP มากสุด ${R.stabMul}x P.ATK คริแน่นอน` },
+    ult: { name: 'พายุมีด', icon: '🌪️', cd: 4, desc: `เงาพริ้วเดิม แล้วโปรยมีดบิน ${R.ultKnives} เล่มใส่มอนสุ่ม เล่มละ ${R.ultKnifeMul}x` },
+  },
+  mobster: {
+    id: 'mobster', parent: 'thief', name: 'มาเฟีย', icon: '🕴️', focus: 'AGI · STR · INT',
+    blurb: 'สายพิษ / ดีบัฟ / เก็บงาน · ดีบัฟบนมอน = หนี้ · HP ต่ำพอ = ตายทันที (บอสโดนหนักแทน)',
+    mod: { poison: 1 },
+    mastery: { weapon: 'มีด', ok: (it) => it.wtype === 'dagger', mod: { poisonDmg: M.mastery.poisonDmg }, pct: { atk: M.mastery.atkPct } },
+    signature: { name: 'สมุดหนี้', icon: '📒', desc: `ดีบัฟ 1 ชนิดบนมอน (พิษ ไฟ ช้า อ่อนแรง ตราบาป เกราะแตก) = หนี้ 1 · HP ต่ำกว่า ${pc(M.execBase)} + ${pc(M.execPer)}/หนี้ = ⚰️ ตายทันที · บอส/มินิ: ดาเมจ x${M.bossExecMul} แทน` },
+    skill3: { name: 'ตัดเส้นเอ็น', icon: '⛓️', cost: M.cutCost, cd: M.cutCd, desc: `Energy ${M.cutCost} · คูลดาวน์ ${M.cutCd}: ฟันตัวหน้า (บอสก่อน) ${M.cutMul}x · เกราะแตก DEF -${pc(M.armorBrk)} + ช้า ${M.cutTurns} เทิร์น` },
+    ult: { name: 'ทวงหนี้', icon: '💀', cd: 4, desc: `ฟันทุกตัว ${M.ultSlash}x แล้วจุดระเบิดพิษ (ดาเมจพิษ ${M.burstTurns} เทิร์น x${M.burstMul} ออกทันที แล้วล้างพิษ) → เช็ก Execute · เก็บได้ = ult คูลดาวน์ -${M.ultCdRefund}` },
   },
 }
 export const JOB2_LIST = Object.values(JOB2)

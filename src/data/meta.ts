@@ -101,9 +101,9 @@ export interface Item { id: string; slot: Slot; name: string; icon: string; pric
 const SW: JobId[] = ['swordsman'], AR: JobId[] = ['archer'], MG: JobId[] = ['mage'], CL: JobId[] = ['cleric'], TH: JobId[] = ['thief']
 export const ITEMS: Item[] = [
   // ----- weapons: everyone -----
-  { id: 'knife', slot: 'weapon', name: 'มีดโนวิส', icon: '🔪', price: 0, desc: 'ของติดตัวตอนเริ่ม', mod: {} },
+  { id: 'knife', wtype: 'dagger', slot: 'weapon', name: 'มีดโนวิส', icon: '🔪', price: 0, desc: 'ของติดตัวตอนเริ่ม', mod: {} },
   { id: 'shortsword', slot: 'weapon', name: 'ดาบสั้น', icon: '🗡️', price: 80, desc: 'อาวุธพื้นฐาน ใช้ได้ทุกอาชีพ', mod: { atk: 5 } },
-  { id: 'twinknife', slot: 'weapon', name: 'มีดคู่', icon: '⚔️', price: 220, desc: 'เบา ตีไว', base: { agi: 2 }, mod: { atk: 3, aspd: 0.32 } },
+  { id: 'twinknife', wtype: 'dagger', slot: 'weapon', name: 'มีดคู่', icon: '⚔️', price: 220, desc: 'เบา ตีไว', base: { agi: 2 }, mod: { atk: 3, aspd: 0.32 } },
   { id: 'hammer', slot: 'weapon', name: 'ค้อนไม้โอ๊ก', icon: '🔨', price: 260, desc: 'ของโนวิส ทุบแรงขึ้น', base: { str: 1 }, mod: { atk: 6, smashMul: 1 } },
   { id: 'longsword', slot: 'weapon', name: 'ดาบยาว', icon: '🗡️', price: 420, desc: 'หนัก ตีแรงแต่ช้าลงนิด', base: { str: 2 }, mod: { atk: 10, pskill: 0.05, aspd: -0.15 } },
   { id: 'staff', slot: 'weapon', name: 'คทาฝึกหัด', icon: '🪄', price: 380, desc: 'คทาแรกของสายเวท', base: { int: 2 }, mod: { matk: 8, smashMul: 1 } },
@@ -128,9 +128,10 @@ export const ITEMS: Item[] = [
   { id: 'w_lightbook', slot: 'weapon', name: 'คัมภีร์แสง', icon: '📖', price: 560, desc: 'โล่หนา ฟื้น HP ทุกเทิร์น', base: { int: 2, wis: 1 }, mod: { atk: 5, matk: 6, shieldAmp: 0.15, regen: 0.5 }, jobs: CL, req: 'job' },
   { id: 'w_sunmace', slot: 'weapon', name: 'ค้อนตะวัน', icon: '☀️', price: 1100, desc: 'ของดัน 2: ทุบแรง ได้โล่ทุกเวฟ', base: { str: 2, wis: 3 }, mod: { atk: 14, matk: 10, healAmp: 0.15, waveShield: 0.06 }, jobs: CL, req: 'd2' },
   // ----- weapons: Thief (poison / dodge) -----
-  { id: 'w_venomdagger', slot: 'weapon', name: 'กริชพิษ', icon: '🧪', price: 520, desc: 'พิษติดเยอะขึ้น', base: { agi: 2 }, mod: { atk: 6, poison: 1, poisonDmg: 1 }, jobs: TH, req: 'job' },
-  { id: 'w_shadowdagger', slot: 'weapon', name: 'มีดเงา', icon: '🌑', price: 560, desc: 'หลบแล้วได้ฟื้น HP', base: { luk: 3 }, mod: { atk: 5, flee: 6, dodgeHeal: 0.03 }, jobs: TH, req: 'job' },
-  { id: 'w_twinfang', slot: 'weapon', name: 'เขี้ยวงูคู่', icon: '🐍', price: 1100, desc: 'ของดัน 2: แทงรัว คริบ่อย', base: { agi: 5 }, mod: { atk: 9, combo: 0.1, crit: 0.05 }, jobs: TH, req: 'd2' },
+  { id: 'w_venomdagger', wtype: 'dagger', slot: 'weapon', name: 'กริชพิษ', icon: '🧪', price: 520, desc: 'พิษติดเยอะขึ้น', base: { agi: 2 }, mod: { atk: 6, poison: 1, poisonDmg: 1 }, jobs: TH, req: 'job' },
+  { id: 'w_shadowdagger', wtype: 'dagger', slot: 'weapon', name: 'มีดเงา', icon: '🌑', price: 560, desc: 'หลบแล้วได้ฟื้น HP', base: { luk: 3 }, mod: { atk: 5, flee: 6, dodgeHeal: 0.03 }, jobs: TH, req: 'job' },
+  { id: 'w_twinfang', wtype: 'dagger', slot: 'weapon', name: 'เขี้ยวงูคู่', icon: '🐍', price: 1100, desc: 'ของดัน 2: แทงรัว คริบ่อย', base: { agi: 5 }, mod: { atk: 9, combo: 0.1, crit: 0.05 }, jobs: TH, req: 'd2' },
+  { id: 'w_assassin', wtype: 'dagger', slot: 'weapon', name: 'กริชมือสังหาร', icon: '🗡️', price: 1600, desc: 'อาชีพขั้น 2 · มีด: แทงรัว คริบ่อย พิษติด', base: { agi: 5, str: 2 }, mod: { atk: 14, combo: 0.06, crit: 0.04, poison: 1 }, jobs: TH, req: 'job2' },
   // ----- armor -----
   { id: 'cloth', slot: 'armor', name: 'เสื้อผ้าฝ้าย', icon: '👕', price: 0, desc: 'ของติดตัวตอนเริ่ม', mod: {} },
   { id: 'leather', slot: 'armor', name: 'เสื้อหนัง', icon: '🦺', price: 90, desc: 'เกราะพื้นฐาน ใช้ได้ทุกอาชีพ', mod: { maxHp: 30, def: 5 } },
@@ -181,8 +182,10 @@ export const ITEMS: Item[] = [
   { id: 'o_windquiver', slot: 'offhand', name: 'กระบอกธนูลมกรด', icon: '🌬️', price: 1100, desc: 'ของดัน 2: ยิงรัว คริแรง', base: { agi: 2 }, mod: { combo: 0.05, crit: 0.03, critMul: 0.1 }, jobs: AR, req: 'd2' },
   { id: 'o_orb', slot: 'offhand', name: 'ลูกแก้วเวท', icon: '🫧', price: 480, desc: 'เวทแรงขึ้น Mana เยอะขึ้น', base: { int: 2 }, mod: { matk: 4, maxRes: 15 }, jobs: MG, req: 'job' },
   { id: 'o_starorb', slot: 'offhand', name: 'ลูกแก้วดวงดาว', icon: '🌟', price: 1100, desc: 'ของดัน 2: เวทแรง เวทคริ Mana ฟื้นไว', base: { int: 3 }, mod: { matk: 8, spellCrit: 0.03, resRegen: 1 }, jobs: MG, req: 'd2' },
-  { id: 'o_maingauche', slot: 'offhand', name: 'มีดปัด', icon: '🔪', price: 480, desc: 'ปัดป้อง แทงซ้ำ', base: { agi: 1 }, mod: { flee: 4, combo: 0.04 }, jobs: TH, req: 'job' },
-  { id: 'o_scorpion', slot: 'offhand', name: 'เหล็กในแมงป่อง', icon: '🦂', price: 1100, desc: 'ของดัน 2: พิษแรง แทงรัว', base: { luk: 2 }, mod: { poisonDmg: 1, combo: 0.05, dodgeHeal: 0.01 }, jobs: TH, req: 'd2' },
+  { id: 'o_maingauche', wtype: 'dagger', slot: 'offhand', name: 'มีดปัด', icon: '🔪', price: 480, desc: 'ปัดป้อง แทงซ้ำ', base: { agi: 1 }, mod: { flee: 4, combo: 0.04 }, jobs: TH, req: 'job' },
+  { id: 'o_scorpion', wtype: 'dagger', slot: 'offhand', name: 'เหล็กในแมงป่อง', icon: '🦂', price: 1100, desc: 'ของดัน 2: พิษแรง แทงรัว', base: { luk: 2 }, mod: { poisonDmg: 1, combo: 0.05, dodgeHeal: 0.01 }, jobs: TH, req: 'd2' },
+  { id: 'o_rogueknife', wtype: 'dagger', slot: 'offhand', name: 'มีดบินคู่ใจ', icon: '🔪', price: 1300, desc: 'อาชีพขั้น 2 · มีดมือรอง: คอมโบ + คริ (โร้ก: มีดบิน +1)', base: { agi: 3 }, mod: { atk: 6, combo: 0.06, crit: 0.03 }, jobs: TH, req: 'job2' },
+  { id: 'o_mobknife', wtype: 'dagger', slot: 'offhand', name: 'มีดทวงหนี้', icon: '🩸', price: 1300, desc: 'อาชีพขั้น 2 · มีดมือรอง: พิษแรง stack สูง', base: { luk: 2, agi: 1 }, mod: { atk: 5, poisonDmg: 2, poisonCap: 3 }, jobs: TH, req: 'job2' },
   // ----- forge only (data/craft.ts) -----
   ...CRAFT_ITEMS,
 ]
