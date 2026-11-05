@@ -4,8 +4,9 @@ import { levelDropMul } from '../data/mon-stats'
 import { foldCorruptions, rollCorruptions } from '../data/corruptions'
 import { HARD_POWER, heroParts, heroPower, matchScale, overpowerMul, powerHint, recPower, TOWER_POWER } from '../data/power'
 import { COSTUMES, FREE_GEMS, isBroken, itemById, JOB_RULES, RACES, STAT_RULES } from '../data/meta'
-import { canChangeJob, persist, save, today, ultMode, wipe } from '../save'
+import { canChangeJob, canChangeJob2, persist, save, today, ultMode, wipe } from '../save'
 import { JOB_CHANGE, JOBS } from '../data/jobs'
+import { JOB2, JOB2_RULES, job2Of } from '../data/jobs2'
 import { dailyOf, dailySeed, MODES, PANEL_MODES } from '../data/modes'
 import { setMuted } from '../sfx'
 import { askRepick } from './JobScene'
@@ -29,7 +30,7 @@ export class HubScene extends Phaser.Scene {
     this.tweens.add({ targets: hero, y: 200, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
     const nameColor = s.supporter ? UI.gold : UI.text
     txt(this, 214, 312, `${s.supporter ? '🌟 ' : ''}${s.name}`, 26, nameColor, true).setOrigin(0.5)
-    txt(this, 214, 346, `${RACES[s.race].icon} ${RACES[s.race].name} · ${JOBS[s.job].icon} ${JOBS[s.job].name}`, 17, UI.sub).setOrigin(0.5)
+    txt(this, 214, 346, `${RACES[s.race].icon} ${RACES[s.race].name} · ${s.job2 ? `${JOB2[s.job2].icon} ${JOB2[s.job2].name}` : `${JOBS[s.job].icon} ${JOBS[s.job].name}`}`, 17, UI.sub).setOrigin(0.5)
     const bar = (y: number, label: string, cur: number, need: number, color: number, max: boolean) => {
       txt(this, 52, y, label, 15, UI.text, true)
       const g = this.add.graphics()
@@ -39,12 +40,17 @@ export class HubScene extends Phaser.Scene {
     }
     bar(378, `Base Lv ${s.baseLevel}`, s.baseXp, STAT_RULES.baseXpNeed(s.baseLevel), 0x7fd7ff, false)
     const jobMax = s.jobLevel >= (s.job === 'novice' ? JOB_RULES.maxJobLevel : JOB_CHANGE.classMaxJobLevel)
-    bar(406, `Job Lv ${s.jobLevel}`, s.jobXp, JOB_RULES.jobXpNeed(s.jobLevel), 0x6fd08c, jobMax)
+    if (s.job2) { const l2 = s.job2Level ?? 1; bar(406, `Job2 Lv ${l2}`, s.job2Xp ?? 0, JOB_RULES.jobXpNeed(l2), 0xf2b84b, l2 >= JOB2_RULES.maxJobLevel) }
+    else bar(406, `Job Lv ${s.jobLevel}`, s.jobXp, JOB_RULES.jobXpNeed(s.jobLevel), 0x6fd08c, jobMax)
     const notes: string[] = []
     if (s.statPoints > 0) notes.push(`มีแต้มสถานะ ${s.statPoints}`)
     if (s.skillPoints > 0) notes.push(`มีแต้มสกิล ${s.skillPoints}`)
+    if ((s.job2Points ?? 0) > 0) notes.push(`มีแต้มใยชั้น 2 ${s.job2Points}`)
     if (canChangeJob(s)) {
       const jb = button(this, 214, 448, 300, 44, '🎓 เปลี่ยนอาชีพได้แล้ว!', () => go(this, 'job'), { size: 18 })
+      this.tweens.add({ targets: jb, scale: 1.05, duration: 600, yoyo: true, repeat: -1 })
+    } else if (canChangeJob2(s) && job2Of(s.job).length) { // 2nd job: Job Lv 40 + ดัน 5 (design/second-jobs-v1.md)
+      const jb = button(this, 214, 448, 300, 44, '⭐ อาชีพขั้น 2 ได้แล้ว!', () => go(this, 'job', { job2: true }), { size: 18 })
       this.tweens.add({ targets: jb, scale: 1.05, duration: 600, yoyo: true, repeat: -1 })
     } else if (s.job !== 'novice') { // v52: re-pick another class for gems
       if (notes.length) txt(this, 214, 432, `✨ ${notes.join(' · ')}`, 13, UI.gold).setOrigin(0.5)

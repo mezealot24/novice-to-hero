@@ -1,7 +1,8 @@
 // ===== Out-of-run (meta) game data: races, base stats, equipment, costumes, top-up packs. =====
 // Everything a run starts from is computed by heroStats(save). Balance knobs live here.
 import { COMBO, PLAYER, type Stats } from './game-data'
-import { talentMods, treeMods, type TalentSave, type TreeSave } from './tree'
+import { talentMods, tree2Mods, treeMods, type TalentSave, type TreeSave } from './tree'
+import { JOB2, type Job2Id, type WeaponType } from './jobs2'
 import { JOBS, type JobId } from './jobs'
 import { cardById, type EquipCard } from './cards'
 import { CRAFT_ITEMS, forgeItem, GRADE, type CraftInfo, type RefineLine } from './craft'
@@ -93,8 +94,8 @@ export const slotKind = (sl: EquipSlot): Slot => (sl === 'acc2' ? 'acc' : sl)
 // stats (Hit, Flee, Counter, Combo, lifesteal, shields...). One item per slot, so nothing stacks.
 // jobs = who can wear it (none = everyone). req = when the shop sells it: 'job' after the first job change,
 // 'd2' after beating ป่าหมาป่าเงา. Item ids are save data: never rename or remove one.
-export type ItemReq = 'job' | 'd2' | 'd3' | 'd4'
-export interface Item { id: string; slot: Slot; name: string; icon: string; price: number; desc: string; base?: Partial<Record<BaseStat, number>>; mod: Partial<Stats>; jobs?: JobId[]; req?: ItemReq; slots?: number; twoHand?: boolean; craft?: CraftInfo; pct?: { maxHp?: number; atk?: number; matk?: number } }
+export type ItemReq = 'job' | 'd2' | 'd3' | 'd4' | 'job2'
+export interface Item { id: string; slot: Slot; name: string; icon: string; price: number; desc: string; base?: Partial<Record<BaseStat, number>>; mod: Partial<Stats>; jobs?: JobId[]; req?: ItemReq; slots?: number; twoHand?: boolean; wtype?: WeaponType; craft?: CraftInfo; pct?: { maxHp?: number; atk?: number; matk?: number } }
 const SW: JobId[] = ['swordsman'], AR: JobId[] = ['archer'], MG: JobId[] = ['mage'], CL: JobId[] = ['cleric'], TH: JobId[] = ['thief']
 export const ITEMS: Item[] = [
   // ----- weapons: everyone -----
@@ -107,7 +108,11 @@ export const ITEMS: Item[] = [
   // ----- weapons: Swordsman (lifesteal / counter) -----
   { id: 'w_bloodblade', slot: 'weapon', name: 'ดาบกระหายเลือด', icon: '🩸', price: 520, desc: 'สายดูดเลือด ตียิ่งเยอะยิ่งอึด', base: { str: 3 }, mod: { atk: 8, lifesteal: 0.03 }, jobs: SW, req: 'job' },
   { id: 'w_guardblade', slot: 'weapon', name: 'ดาบผู้พิทักษ์', icon: '🛡️', price: 560, desc: 'สายแทงก์ โดนตีแล้วสวนกลับ', base: { vit: 3 }, mod: { atk: 5, def: 4, counter: 0.12 }, jobs: SW, req: 'job' },
-  { id: 'w_berserkaxe', slot: 'weapon', name: 'ขวานคลั่งศึก', icon: '🪓', price: 1100, twoHand: true, desc: 'ของดัน 2 · อาวุธ 2 มือ (ใส่มือรองไม่ได้): ฟันพายุแรงขึ้น + ดูดเลือด', base: { str: 5 }, mod: { atk: 17, pskill: 0.15, lifesteal: 0.02 }, jobs: SW, req: 'd2' },
+  { id: 'w_berserkaxe', slot: 'weapon', name: 'ขวานคลั่งศึก', icon: '🪓', price: 1100, twoHand: true, desc: 'ของดัน 2 · อาวุธ 2 มือ (ใส่มือรองไม่ได้): ฟันพายุแรงขึ้น + ดูดเลือด', base: { str: 5 }, mod: { atk: 17, pskill: 0.15, lifesteal: 0.02 }, jobs: SW, req: 'd2', wtype: 'twohand' },
+  // ----- weapons: Swordsman 2nd jobs (design/second-jobs-v1.md): Berserker 2-hand, Knight spears -----
+  { id: 'w_greatsword', slot: 'weapon', name: 'ดาบใหญ่บ้าคลั่ง', icon: '⚔️', price: 1600, twoHand: true, wtype: 'twohand', desc: 'อาชีพขั้น 2 · อาวุธ 2 มือ: สับแรง คริบ่อย แต่ช้าลงนิด', base: { str: 6 }, mod: { atk: 22, crit: 0.05, aspd: -0.1 }, jobs: SW, req: 'job2' },
+  { id: 'w_spear', slot: 'weapon', name: 'หอกอัศวิน', icon: '🔱', price: 1200, wtype: 'spear', desc: 'อาชีพขั้น 2 · หอก 1 มือ: ใส่โล่ได้ ถึกและแม่น', base: { str: 2, vit: 3 }, mod: { atk: 14, hit: 6, maxHp: 30 }, jobs: SW, req: 'job2' },
+  { id: 'w_lance', slot: 'weapon', name: 'หอกยาวเปโก', icon: '🗡️', price: 1700, twoHand: true, wtype: 'spear', desc: 'อาชีพขั้น 2 · หอก 2 มือ: แรงกว่าหอก 1 มือ แต่ใส่โล่ไม่ได้', base: { str: 5, vit: 3 }, mod: { atk: 24, maxHp: 40 }, jobs: SW, req: 'job2' },
   // ----- weapons: Archer (crit -> shield / combo) -----
   { id: 'w_huntbow', slot: 'weapon', name: 'ธนูพราน', icon: '🏹', price: 520, desc: 'แม่นและคริบ่อย (คริ = ทะลุเกราะ โดนแน่)', base: { dex: 3 }, mod: { atk: 6, hit: 8, crit: 0.05 }, jobs: AR, req: 'job' },
   { id: 'w_hawkbow', slot: 'weapon', name: 'ธนูเหยี่ยวลม', icon: '🪶', price: 560, desc: 'ยิงรัว คริบ่อยขึ้น', base: { agi: 3 }, mod: { atk: 4, combo: 0.08, crit: 0.04 }, jobs: AR, req: 'job' },
@@ -199,14 +204,15 @@ export const forged = (s: ForgeState, it: Item) => forgeItem(it, gradeOf(s, it.i
 export const forgeTag = (s: ForgeState, id: string) => `${gradeOf(s, id) > 1 ? ` ★${gradeOf(s, id)}` : ''}${refineOf(s, id) ? ` +${refineOf(s, id)}` : ''}${isBroken(s, id) ? ' 💔' : ''}`
 export const canWear = (it: Item, job: JobId) => !it.jobs || it.jobs.includes(job)
 /** Is it on sale yet? */
-export function itemUnlocked(it: Item, s: { job: JobId; clearsBy?: Record<string, number> }) {
+export function itemUnlocked(it: Item, s: { job: JobId; job2?: Job2Id; clearsBy?: Record<string, number> }) {
+  if (it.req === 'job2') return !!s.job2
   if (it.req === 'job') return s.job !== 'novice'
   if (it.req === 'd2') return (s.clearsBy?.d2 ?? 0) > 0
   if (it.req === 'd3') return (s.clearsBy?.d3 ?? 0) > 0
   if (it.req === 'd4') return (s.clearsBy?.d4 ?? 0) > 0
   return true
 }
-export const REQ_TEXT: Record<ItemReq, string> = { job: 'ขายหลังเปลี่ยนอาชีพ', d2: 'ขายหลังล้มบอสป่าหมาป่าเงา', d3: 'ขายหลังล้มอัศวินมรณะ', d4: 'ขายหลังล้มไฮดรามรกต' }
+export const REQ_TEXT: Record<ItemReq, string> = { job: 'ขายหลังเปลี่ยนอาชีพ', d2: 'ขายหลังล้มบอสป่าหมาป่าเงา', d3: 'ขายหลังล้มอัศวินมรณะ', d4: 'ขายหลังล้มไฮดรามรกต', job2: 'ขายหลังเป็นอาชีพขั้น 2' }
 
 // Labels for the auto-built stat line on every item card (so desc and numbers can never disagree).
 const pc = (n: number) => `${Math.round(n * 1000) / 10}%`
@@ -284,7 +290,7 @@ export const SUPPORTER_PRICE = 300 // gems: badge + gold name, no stats
 export const FREE_GEMS = { firstClear: 50, clear: 5, levelUp: 10, daily: 20 }
 
 // ---------- combine everything into the hero's starting stats ----------
-export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; sockets?: Record<string, string[]>; grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]> }
+export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; job2?: Job2Id; job2Tree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; sockets?: Record<string, string[]>; grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]> }
 
 /** Items the hero actually gets stats from (gear for another job, or broken by a failed refine, stays on but does nothing). */
 export function wornItems(s: StatsInput): Item[] {
@@ -367,13 +373,24 @@ export function heroStats(s: StatsInput): Stats {
   add(job.mod)
   for (const m of treeMods(s.jobTree, job.id)) add(m)
   for (const m of talentMods(s.jobTalents, job.id, s.jobLevel ?? 1)) add(m)
+  const j2 = s.job2 && JOB2[s.job2]?.parent === job.id ? JOB2[s.job2] : undefined // 2nd job (design/second-jobs-v1.md)
+  const j2pct = { maxHp: 0, aspd: 0, atk: 0 }
+  if (j2) {
+    add(j2.mod)
+    for (const m of tree2Mods(s.job2Tree, j2.id)) add(m)
+    const wpn = itemById(s.equipped.weapon ?? '')
+    if (j2.mastery.ok(wpn)) { add(j2.mastery.mod); j2pct.atk += j2.mastery.pct?.atk ?? 0 } // weapon mastery
+    j2pct.maxHp += (j2.pct?.maxHp ?? 0) + st.j2HpPct; j2pct.aspd += j2.pct?.aspd ?? 0
+  }
   const worn = wornItems(s)
   for (const it of worn) add(it.mod)
   const cards = wornCards(s)
   for (const cd of cards) add(cd.mod)
   const pct = { maxHp: 0, atk: 0, matk: 0 }
   for (const x of [...cards, ...worn]) for (const k of Object.keys(x.pct ?? {}) as (keyof typeof pct)[]) pct[k] += x.pct![k]! // refine lines: HP / ATK / M.ATK %
-  st.maxHp = Math.max(1, Math.round(st.maxHp * (1 + pct.maxHp))); st.atk *= 1 + pct.atk; st.matk *= 1 + pct.matk
+  st.maxHp = Math.max(1, Math.round(st.maxHp * (1 + pct.maxHp + j2pct.maxHp))); st.atk *= 1 + pct.atk + j2pct.atk; st.matk *= 1 + pct.matk
+  if (j2pct.aspd) st.aspd *= 1 + j2pct.aspd
+  if (st.j2DefAtk > 0) st.atk += st.def * st.j2DefAtk // Knight เกราะเป็นแรง
   for (const sk of SKILLS) if (s.skills[sk.id] > 0 && (sk.id !== 'smash' || job.id === 'novice')) add(sk.mod(s.skills[sk.id]))
   st.smashCd = Math.max(2500, st.smashCd)
   st.aspd = Math.max(0.6, st.aspd)

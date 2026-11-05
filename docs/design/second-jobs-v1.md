@@ -269,3 +269,20 @@ interface AllyDef {
 5. 👊 Monk ตัดฮีลไปเลย (เน้นคอมโบ + Energy Shield) หรือคงฮีลบางส่วน
 6. 🐺 Beastmaster: ใช้สัตว์ทีละตัว (★ ปลด 2 ตัว) หรือ 3 ตัวพร้อมกันแต่อ่อนลง
 7. 🎨 สไปรต์: ใช้ hero tex เดิมเปลี่ยนสี + ไอคอนอาวุธ (MVP) หรือวาดใหม่ทุกสาย
+
+---
+
+## 8. Phase 1 ที่ทำแล้ว (⚔️ Berserker / Knight)
+
+**โค้ด**
+- `src/data/jobs2.ts` — `JOB2`, `JOB2_RULES` (unlock Job Lv 40 + `d5`, Job2 Lv max 50, เปลี่ยนสาย 💎30), mastery อาวุธ
+- `src/data/skill-math.ts` `KIT2` — ตัวเลขทุกตัวของ signature / ทักษะ 3 / Ult วิวัฒน์
+- `src/data/trees2/berserker.ts`, `knight.ts` — ใยชั้น 2 (id เป็น save data ห้าม rename) · `tree.ts` สร้าง root `<job2>_s3p` / `<job2>_u2p` + `TREE2`, `tree2Mods`, `lockReason(..., j2)`
+- `meta.ts heroStats` — mod ของสาย + ใยชั้น 2 + mastery (เมื่อถืออาวุธถูกประเภท) + % HP/ความเร็ว + Knight DEF→ATK · `Item.wtype` · req `job2`
+- อาวุธใหม่ (ขายหลังเป็นอาชีพขั้น 2): `w_greatsword` ดาบใหญ่บ้าคลั่ง (2H), `w_spear` หอกอัศวิน (1H ใส่โล่ได้), `w_lance` หอกยาวเปโก (2H)
+- `save.ts` — `job2 / job2Level / job2Xp / job2Points / job2Tree` (save เก่า = undefined ไม่ต้อง migrate) · `job2Ready`, `changeJob2`, `resetTree2` · เปลี่ยนอาชีพแรก = ขั้น 2 ว่าง เลือกใหม่ฟรี (Job2 Lv เก็บไว้)
+- `JobScene` โหมด `{ job2: true }` · Hub ปุ่ม "⭐ อาชีพขั้น 2 ได้แล้ว!" + แถบ Job2 Lv · CharacterScene ปุ่ม "ใยชั้น 2" ในแท็บสกิล
+- `BattleScene` — `j2Mul()` (Frenzy, หน้าแหก, ดวล, คลั่ง), `skill3Turn()`, `ult2()`, Auto Guard ใน `hurtHero`, Counter Attack คริแน่, Charge Attack, Spear Boomerang ขัดชาร์จ
+- `power.ts JOB2_K` (berserker 1.15, knight 1.1) · `tools/bot.cjs` `JOB2=` `J2LV=` `J2T=` `J2W=`
+
+**เลื่อนไป phase ถัดไป:** ทาเลนต์แถว 5 · สไปรต์แยกสาย (ตอนนี้ใช้ร่างนักดาบเดิม) · ป้ายรายละเอียด 📋 ของโหนดชั้น 2
