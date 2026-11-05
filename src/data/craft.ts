@@ -51,7 +51,7 @@ export const CRAFT_ITEMS: Item[] = [
     craft: { dg: 'd3', common: 12, boss: 3, zeny: 900, bonus: [{ lifesteal: 0.04 }, { berserk: 1 }] } },
   { id: 'c_sealbow', slot: 'weapon', name: 'ธนูตราผนึก', icon: '🏹', price: 0, slots: 2, desc: 'แม่น คริแรง', base: { dex: 6 }, mod: { atk: 13, hit: 6, crit: 0.04 }, jobs: AR,
     craft: { dg: 'd3', common: 12, boss: 3, zeny: 900, bonus: [{ critMul: 0.15 }, { pierce: 0.25 }] } },
-  { id: 'c_sealstaff', slot: 'weapon', name: 'คทาผนึกวิญญาณ', icon: '🔮', price: 0, slots: 2, desc: 'เวทแรง Mana ฟื้นไว', base: { int: 6 }, mod: { matk: 20, resRegen: 1 }, jobs: MG,
+  { id: 'c_sealstaff', wtype: 'staff', slot: 'weapon', name: 'คทาผนึกวิญญาณ', icon: '🔮', price: 0, slots: 2, desc: 'เวทแรง Mana ฟื้นไว', base: { int: 6 }, mod: { matk: 20, resRegen: 1 }, jobs: MG,
     craft: { dg: 'd3', common: 12, boss: 3, zeny: 900, bonus: [{ spellCrit: 0.05 }, { mgUltAmp: 0.15 }] } },
   { id: 'c_dawnmace', slot: 'weapon', name: 'คทาแสงอรุณ', icon: '🌅', price: 0, slots: 2, desc: 'ทุบแรง ฮีลแรง โล่หนา', base: { str: 3, wis: 3 }, mod: { atk: 16, matk: 12, healAmp: 0.18 }, jobs: CL,
     craft: { dg: 'd3', common: 12, boss: 3, zeny: 900, bonus: [{ shieldAmp: 0.1 }, { overhealShield: 1 }] } },

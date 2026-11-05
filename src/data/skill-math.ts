@@ -56,6 +56,23 @@ export const KIT2 = {
     ultSlash: 0.6, burstTurns: 3, burstMul: 1.5, ultCdRefund: 1, // 💀 ทวงหนี้: slash all 0.6x, then poison left (stacks x dmg x turns x mul) bursts at once · a kill refunds ult cooldown
     mastery: { atkPct: 0.05, poisonDmg: 1 }, // dagger
   },
+  // ----- Phase 5 Mage: Wizard / Sage -----
+  wizard: {
+    castTaken: 0.15, quickMana: 0.8, // 🔮 ร่ายใหญ่: damage taken while a big spell charges · ★ Quagmire: no charge at Mana >= this share
+    gustCost: 40, gustCd: 4, gustHits: 3, gustMul: 0.6, gustChill: 2, gustPush: 15, // ❄️ Storm Gust: every monster, 3 hits x Pm, the 3rd freezes (boss: chill + gauge push)
+    meteors: 5, meteorMul: 1.2, meteorBurn: 2, // ☄️ Meteor Storm (fire): random meteors + burn stacks
+    lovHits: 4, lovMul: 0.5, lovStun: 0.1, lovPush: 20, // ⚡ Lord of Vermilion (lightning): every monster, stun chance per hit (boss: gauge push)
+    iceBarrier: 1.5, // ❄️ ult: a free Storm Gust + barrier x this
+    mastery: { matk: 10, spellCrit: 0.03 }, // staff
+  },
+  sage: {
+    basicMul: 1, // 📖 melee basic x P.ATK (base Mage: 0.6x magic bolt)
+    autoChance: 0.25, autoInt: 0.002, autoCap: 0.6, autoMul: 0.7, // Auto Spell per basic: chance + per INT (capped), a run-element bolt x Pm
+    endowCost: 25, endowCd: 5, endowTurns: 3, endowAmp: 0.25, // 🗡️ Endow: basic + Auto Spell +25%
+    ultCost: 25, ultAtk: 2, ultPm: 1, ultMana: 20, // 🚫 Dispell + Spell Breaker: strip buffs, steal Mana, hit 2x P.ATK + 1x Pm
+    rodBlockMana: 15, // 🛡️ ★ Magic Rod: Mana from the absorbed spell
+    mastery: { atkPct: 0.05, matk: 6 }, // book / staff
+  },
 }
 
 /** Skill 2 numbers by "+" level (Stats.s2Lv) and ★ (Stats.s2Star). data/skill2.ts texts and BattleScene.castSkill2 read these. */

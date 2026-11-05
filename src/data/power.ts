@@ -26,11 +26,14 @@ const MAGIC_SHARE: Partial<Record<JobId, number>> = { mage: 1, cleric: 0.35 }
 /** 2nd jobs (design/second-jobs-v1.md): what the derived Stats miss — Berserker Frenzy / บ้าระห่ำ double swings,
  *  Knight ถึกเป็นแรง (HP share in skills) + Auto Guard + Pierce. Multiplies the class K. First guess, recheck with the bot (JOB2=). */
 export const JOB2_K: Partial<Record<Job2Id, number>> = { berserker: 1.15, knight: 1, rogue: 1.1, mobster: 1.1 } // rogue / mobster: first guess, no bot run yet · bot D6 shop gear: fresh Knight counts +25% power but wins like the base class (HP is overcounted)
+Object.assign(JOB2_K, { wizard: 1.1, sage: 1 }) // Phase 5 Mage: first guess, no bot run yet (Wizard: big AoE blasts · Sage: Auto Spell on top of melee)
+/** 2nd jobs that change the class magic share: Sage hits in melee (P.ATK) + Auto Spell / Endow (Pm 70/30), about half magic. */
+const MAGIC_SHARE2: Partial<Record<Job2Id, number>> = { sage: 0.5 }
 
 export interface PowerParts { offense: number; survival: number; power: number }
 
 export function powerParts(st: Stats, job: JobId = 'novice', job2?: Job2Id): PowerParts {
-  const R = POWER_REF, m = MAGIC_SHARE[job] ?? 0
+  const R = POWER_REF, m = (job2 ? MAGIC_SHARE2[job2] : undefined) ?? MAGIC_SHARE[job] ?? 0
   // ---- offense ----
   const phys = afterDef(st.atk * (1 + st.minPct) / 2, R.def) * hitChance(st.hit, R.flee) * (1 + Math.min(1, st.crit) * (st.critMul - 1))
   const magic = st.matk * (1 + Math.min(1, st.spellCrit) * (st.critMul - 1))
