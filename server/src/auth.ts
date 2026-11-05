@@ -8,6 +8,7 @@ export interface Env {
   APPLE_CLIENT_ID?: string; APPLE_CLIENT_SECRET?: string
   FACEBOOK_CLIENT_ID?: string; FACEBOOK_CLIENT_SECRET?: string
   LINE_CLIENT_ID?: string; LINE_CLIENT_SECRET?: string
+  ADMIN_EMAILS?: string // comma list: who may edit the live balance config (admin.html). Google sign-in only.
 }
 
 export const origins = (env: Env) => env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)

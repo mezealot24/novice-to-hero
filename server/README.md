@@ -20,6 +20,7 @@ The game stays on GitHub Pages and talks to this API only when built with `VITE_
 | `GET /save` · `PUT /save {data, rev}` | cloud save, optimistic `rev` (409 = conflict) |
 | `GET /wallet` · `POST /wallet/spend {sku, opId}` | paid gems (server-priced, idempotent) |
 | `POST /webhook/store` | 501 until a Store receipt verifier exists |
+| `GET /config/live` | live balance config (public, ETag); `/admin/*` = balance editor API for `ADMIN_EMAILS` (see `docs/design/live-tuning.md`) |
 
 ## Anti-cheat
 - Level 1 (`src/sanity.ts`): **log-only** → rows in `cheat_flag`; tune `CAPS` from real data, then start rejecting.

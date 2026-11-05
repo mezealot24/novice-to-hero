@@ -70,7 +70,7 @@ if (process.env.BL) save.baseLevel = +process.env.BL // HARD=1 tests: scaling re
 if (process.env.HARD) save.hardClearsBy = {}
 if (process.env.SOCK) { save.sockets = JSON.parse(process.env.SOCK); save.cards = {}; for (const ids of Object.values(save.sockets)) for (const id of ids) save.cards[id] = (save.cards[id] ?? 0) + 1 }
 if (process.env.TAL) save.jobTalents = JSON.parse(process.env.TAL)
-// 2nd job (design/second-jobs-v1.md): JOB2=berserker|knight|rogue|mobster · J2LV=n (default 30) · J2T='{"node":lv}' replaces the preset web, J2T=0 empty · J2W=<weapon id> (default the mastery weapon, J2W=0 keeps gear)
+// 2nd job (design/second-jobs-v1.md): JOB2=berserker|knight|rogue|mobster|crusader|monk|wizard|sage · J2LV=n (default 30) · J2T='{"node":lv}' replaces the preset web, J2T=0 empty · J2W=<weapon id> (default the mastery weapon, J2W=0 keeps gear)
 if (process.env.JOB2) {
   const j2 = process.env.JOB2
   const preset = {
@@ -78,13 +78,17 @@ if (process.env.JOB2) {
     knight: { knight_s3p: 5, knight_u2p: 5, kn_p1: 3, kn_p2: 1, kn_g1: 3, kn_g2: 3, kn_g3: 3, kn_g4: 1 },
     rogue: { rogue_s3p: 5, rogue_u2p: 5, rg_c1: 3, rg_c2: 3, rg_c3: 3, rg_c4: 1, rg_k1: 3, rg_k2: 3, rg_k3: 3 },
     mobster: { mobster_s3p: 5, mobster_u2p: 5, mb_e1: 3, mb_e2: 3, mb_e3: 3, mb_e4: 1, mb_p1: 3, mb_p2: 3, mb_p3: 3 },
+    crusader: { crusader_s3p: 5, crusader_u2p: 5, cr_s1: 3, cr_s2: 3, cr_s3: 3, cr_s4: 1, cr_d1: 3, cr_d2: 3, cr_d3: 3 },
+    monk: { monk_s3p: 5, monk_u2p: 5, mk_c1: 3, mk_c2: 3, mk_c3: 2, mk_c4: 1, mk_i1: 3, mk_i2: 3, mk_i3: 3 },
+    wizard: { wizard_s3p: 5, wizard_u2p: 5, wz_i1: 3, wz_i2: 3, wz_i3: 3, wz_i4: 1, wz_m1: 3, wz_m2: 3, wz_m3: 3 }, // Phase 5 Mage
+    sage: { sage_s3p: 5, sage_u2p: 5, sg_a1: 3, sg_a2: 3, sg_a3: 1, sg_a4: 1, sg_e1: 3, sg_e2: 3, sg_e3: 2, sg_r1: 3 },
   }[j2] || {}
   const t = process.env.J2T === '0' ? {} : process.env.J2T ? JSON.parse(process.env.J2T) : preset
   Object.assign(save, { job2: j2, job2Level: +(process.env.J2LV || 30), job2Xp: 0, job2Points: 0, job2Tree: t, jobLevel: 40 })
   save.clearsBy = { ...save.clearsBy, d5: Math.max(1, save.clearsBy.d5 || 0) }
-  const w = process.env.J2W ?? { berserker: 'w_greatsword', knight: 'w_spear', rogue: 'w_assassin', mobster: 'w_assassin' }[j2]
+  const w = process.env.J2W ?? { berserker: 'w_greatsword', knight: 'w_spear', rogue: 'w_assassin', mobster: 'w_assassin', crusader: 'w_crusmace', monk: 'w_knuckle', wizard: 'w_wizstaff', sage: 'w_sagebook' }[j2]
   if (w && w !== '0') { save.owned.push(w); save.equipped.weapon = w }
-  const o = process.env.J2O ?? { rogue: 'o_rogueknife', mobster: 'o_mobknife' }[j2] // J2O=<off-hand id> (default the class dagger), J2O=0 keeps gear
+  const o = process.env.J2O ?? { rogue: 'o_rogueknife', mobster: 'o_mobknife', crusader: 'o_crusshield' }[j2] // J2O=<off-hand id> (default the class off-hand), J2O=0 keeps gear
   if (o && o !== '0') { save.owned.push(o); save.equipped.offhand = o }
 }
 if (process.env.REFINE) save.refine = Object.fromEntries(Object.values(save.equipped).map((id) => [id, +process.env.REFINE]))

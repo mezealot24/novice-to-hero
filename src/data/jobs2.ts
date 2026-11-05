@@ -7,7 +7,7 @@ import type { Resource, Stats } from './game-data'
 import type { JobId, JobSkill } from './jobs'
 import { KIT2 } from './skill-math'
 
-export type Job2Id = 'berserker' | 'knight' | 'rogue' | 'mobster' // Phase 1 Swordsman · Phase 2 Thief. Next: crusader/monk, beastmaster/innovator, wizard/sage
+export type Job2Id = 'berserker' | 'knight' | 'rogue' | 'mobster' | 'crusader' | 'monk' | 'wizard' | 'sage' // Phase 1 Swordsman · 2 Thief · 3 Priest · 5 Mage. Next: beastmaster/innovator
 export type WeaponType = 'sword' | 'twohand' | 'spear' | 'dagger' | 'bow' | 'staff' | 'mace' | 'fist' | 'book'
 
 export interface Job2Def {
@@ -24,7 +24,8 @@ export interface Job2Def {
 
 export const JOB2_RULES = { unlockJobLv: 40, unlockClear: 'd5', maxJobLevel: 50, repickGems: 30 }
 
-const B = KIT2.berserker, K = KIT2.knight, R = KIT2.rogue, M = KIT2.mobster
+const B = KIT2.berserker, K = KIT2.knight, R = KIT2.rogue, M = KIT2.mobster, C = KIT2.crusader, O = KIT2.monk
+const WZ = KIT2.wizard, SG = KIT2.sage
 const pc = (n: number) => `${Math.round(n * 100)}%`
 
 export const JOB2: Record<Job2Id, Job2Def> = {
@@ -63,6 +64,43 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     signature: { name: 'สมุดหนี้', icon: '📒', desc: `ดีบัฟ 1 ชนิดบนมอน (พิษ ไฟ ช้า อ่อนแรง ตราบาป เกราะแตก) = หนี้ 1 · HP ต่ำกว่า ${pc(M.execBase)} + ${pc(M.execPer)}/หนี้ = ⚰️ ตายทันที · บอส/มินิ: ดาเมจ x${M.bossExecMul} แทน` },
     skill3: { name: 'ตัดเส้นเอ็น', icon: '⛓️', cost: M.cutCost, cd: M.cutCd, desc: `Energy ${M.cutCost} · คูลดาวน์ ${M.cutCd}: ฟันตัวหน้า (บอสก่อน) ${M.cutMul}x · เกราะแตก DEF -${pc(M.armorBrk)} + ช้า ${M.cutTurns} เทิร์น` },
     ult: { name: 'ทวงหนี้', icon: '💀', cd: 4, desc: `ฟันทุกตัว ${M.ultSlash}x แล้วจุดระเบิดพิษ (ดาเมจพิษ ${M.burstTurns} เทิร์น x${M.burstMul} ออกทันที แล้วล้างพิษ) → เช็ก Execute · เก็บได้ = ult คูลดาวน์ -${M.ultCdRefund}` },
+  },
+  crusader: {
+    id: 'crusader', parent: 'cleric', name: 'ครูเซเดอร์', icon: '✝️', focus: 'STR · VIT · INT',
+    blurb: 'อัศวินศักดิ์สิทธิ์แบบ RO · กระบอง/ดาบ + โล่ บล็อกเก่ง · แรงใส่อันเดด/ปีศาจ · Grand Cross จ่าย HP แลกแสงกางเขนทุกตัว',
+    mod: { j2Guard: C.guard },
+    mastery: { weapon: 'กระบอง / ดาบ', ok: (it) => it.wtype === 'mace' || it.wtype === 'sword', mod: { def: C.mastery.def }, pct: { atk: C.mastery.atkPct } },
+    signature: { name: 'Auto Guard + ศรัทธา', icon: '🛡️', desc: `บล็อกการโจมตีกายภาพ ${pc(C.guard)} (+${pc(C.guardVit)}/VIT สูงสุด ${pc(C.guardCap)} · ไม่มีโล่ = ครึ่งเดียว) · ดาเมจ +${pc(C.holyVs)} ใส่อันเดด/ปีศาจ` },
+    skill3: { name: 'Holy Cross', icon: '✝️', cost: C.crossCost, cd: C.crossCd, desc: `Mana ${C.crossCost} · คูลดาวน์ ${C.crossCd}: ฟันกางเขนตัวหน้า ${C.crossHits} ฮิต ฮิตละ ${C.crossMul}x P.ATK + ${C.crossMul}x Pm · 🙈 ตาบอด Hit -${pc(C.blindHit)} ${C.blindTurns} เทิร์น` },
+    ult: { name: 'Grand Cross', icon: '✨', cd: 4, desc: `จ่าย ${pc(C.gcPay)} HP ปัจจุบัน → แสงกางเขนทุกตัว ${C.gcPm}x Pm + ${C.gcAtk}x P.ATK · โดน ${C.gcRefundAt} ตัวขึ้นไป ได้ HP คืน ${pc(C.gcRefund)} ของที่จ่าย · โล่แบบพรคุ้มครอง` },
+  },
+  monk: {
+    id: 'monk', parent: 'cleric', name: 'มังค์', icon: '👊', focus: 'STR · AGI · WIS',
+    blurb: 'สายหมัดแบบ PoE2 · ตี/คอมโบสะสม 🔵 ลูกพลัง แล้วปล่อย Falling Thunder · Tempest Bell ดึงมอนตี · ฮีลเท่าที่ใยชั้น 1 มี',
+    mod: { combo: O.combo },
+    mastery: { weapon: 'สนับมือ / ไม้พลอง', ok: (it) => it.wtype === 'fist' || it.wtype === 'staff', mod: { combo: O.mastery.combo }, pct: { atk: O.mastery.atkPct } },
+    signature: { name: 'หมัดกระแส', icon: '👊', desc: `ตีธรรมดา +${O.chargePerSwing} และทุกฮิตคอมโบ +${O.chargePerCombo} 🔵 ลูกพลัง (สูงสุด ${O.chargeMax}) · คอมโบ +${pc(O.combo)}` },
+    skill3: { name: 'Falling Thunder', icon: '⚡', cost: O.thunderCost, cd: O.thunderCd, desc: `คูลดาวน์ ${O.thunderCd} · ต้องมีลูกพลัง ≥ ${O.thunderMin}: ใช้หมด → สายฟ้าทุกตัว ${O.thunderPm}x Pm +${pc(O.thunderPer)} ต่อลูก` },
+    ult: { name: 'Tempest Bell', icon: '🔔', cd: 4, desc: `วางระฆัง ${O.bellTurns} เทิร์น (HP ${pc(O.bellHp)} ของฮีโร่ ดึงมอนตี ${pc(O.bellTaunt)}) · ฮีโร่ตีธรรมดา/คอมโบ = ระฆังสั่น ${O.bellRing}x Pm ทุกตัว · ระฆังแตก = ระเบิด ${O.bellBoom}x Pm` },
+  },
+  // ----- Phase 5 Mage -----
+  wizard: {
+    id: 'wizard', parent: 'mage', name: 'วิซาร์ด', icon: '🌩️', focus: 'INT · WIS · DEX',
+    blurb: 'เวทพื้นที่ใหญ่แบบ RO · ร่ายนาน 1 เทิร์น (วงเวทแบบบอสชาร์จ) แล้วระเบิดใหญ่ · Ult ตามธาตุที่เลือก: Meteor Storm / Lord of Vermilion / Storm Gust',
+    mod: { maxRes: 10 },
+    mastery: { weapon: 'ไม้เท้า', ok: (it) => it.wtype === 'staff', mod: { matk: WZ.mastery.matk, spellCrit: WZ.mastery.spellCrit } },
+    signature: { name: 'ร่ายใหญ่', icon: '🔮', desc: `Storm Gust กับ Ult ใช้ 1 เทิร์นชาร์จ (วงเวทใต้เท้า) แล้วระเบิดต้นเทิร์นถัดไป · โดนตีระหว่างชาร์จไม่หลุด แต่ดาเมจเข้า +${pc(WZ.castTaken)}` },
+    skill3: { name: 'Storm Gust', icon: '❄️', cost: WZ.gustCost, cd: WZ.gustCd, desc: `Mana ${WZ.gustCost} · คูลดาวน์ ${WZ.gustCd}: ชาร์จ 1 เทิร์น → พายุน้ำแข็งทุกตัว ${WZ.gustHits} ฮิต ฮิตละ ${WZ.gustMul}x Pm · ฮิตสุดท้ายแช่แข็ง (บอส/มินิ: ช้า + ดันเกจ)` },
+    ult: { name: 'มหาเวทธาตุ', icon: '☄️', cd: 5, desc: `Mana 30 · ชาร์จ 1 เทิร์น ตามธาตุที่เลือก: 🔥 Meteor Storm อุกกาบาต ${WZ.meteors} ลูกสุ่ม ลูกละ ${WZ.meteorMul}x + เผา ${WZ.meteorBurn} · ⚡ Lord of Vermilion ทุกตัว ${WZ.lovHits} ฮิต ฮิตละ ${WZ.lovMul}x มึน ${pc(WZ.lovStun)}/ฮิต · ❄️ Storm Gust ฟรี + บาเรีย x${WZ.iceBarrier} · ทุกธาตุได้บาเรียแบบจอมเวท` },
+  },
+  sage: {
+    id: 'sage', parent: 'mage', name: 'เซจ', icon: '📖', focus: 'INT · STR · DEX',
+    blurb: 'battle mage แบบ RO · ตีใกล้ด้วย P.ATK แล้ว Auto Spell ร่ายเวทเอง · Endow ติดธาตุอาวุธ · Dispell ลบบัฟ/โล่ ขัดบอสชาร์จ · STR ช่วยจริง (70/30)',
+    mod: { maxHp: 30, def: 4 },
+    mastery: { weapon: 'หนังสือ / ไม้เท้า', ok: (it) => it.wtype === 'book' || it.wtype === 'staff', mod: { matk: SG.mastery.matk }, pct: { atk: SG.mastery.atkPct } },
+    signature: { name: 'Auto Spell', icon: '📖', desc: `ตีธรรมดาเป็นตีใกล้ ${SG.basicMul}x P.ATK · ทุกครั้งที่ตีธรรมดา มีโอกาส ${pc(SG.autoChance)} (+${SG.autoInt * 100}%/INT สูงสุด ${pc(SG.autoCap)}) ร่าย Bolt ธาตุของรอบฟรี ${SG.autoMul}x Pm` },
+    skill3: { name: 'Endow', icon: '🗡️', cost: SG.endowCost, cd: SG.endowCd, desc: `Mana ${SG.endowCost} · คูลดาวน์ ${SG.endowCd}: ติดธาตุอาวุธ ${SG.endowTurns} เทิร์น · ตีธรรมดา / คอมโบ / Auto Spell แรง +${pc(SG.endowAmp)}` },
+    ult: { name: 'Dispell + Spell Breaker', icon: '🚫', cd: 4, cost: SG.ultCost, desc: `Mana ${SG.ultCost}: ลบบัฟ/โล่/โล่สะท้อนของมอนทุกตัว + ขัดบอสที่กำลังชาร์จ · ขโมย Mana ${SG.ultMana} · ฟาดตัวที่ชาร์จ (ไม่งั้นตัวหน้า) ${SG.ultAtk}x P.ATK + ${SG.ultPm}x Pm` },
   },
 }
 export const JOB2_LIST = Object.values(JOB2)
