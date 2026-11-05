@@ -1,6 +1,7 @@
 // Live balance config: fetch the published patch (server/ GET /config/live) and apply it to src/data BEFORE Phaser starts.
 // Never blocks boot past timeoutMs and never patches after the game has started (a late answer is only cached).
 import { applyPatch, checkPatch, parseRelease, schemaSupported, type Skip } from './data/patch'
+import { LOCAL_KEY } from './live-keys'
 import { PREVIEW } from './preview-kit'
 import type { Release } from './data/tunables'
 
@@ -10,8 +11,7 @@ export const liveInfo: LiveInfo = { source: 'defaults', releaseId: null, applied
 
 const API = import.meta.env.VITE_API_URL?.replace(/\/$/, '')
 const CACHE_KEY = 'novice-to-hero.cfg.v1'
-/** ?cfg=local reads {patch, guards} from here (DEV / PREVIEW builds only): tools/bot.cjs and playtests. */
-export const LOCAL_KEY = 'novice-to-hero.cfg.local'
+export { LOCAL_KEY }
 const HARD_TIMEOUT_MS = 15_000
 
 const store = {

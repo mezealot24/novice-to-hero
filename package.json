@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && node tools/wrap-artifact.mjs",
+    "build": "tsc --noEmit && vite build && vite build --mode admin && node tools/wrap-artifact.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node tools/test.mjs"
   },

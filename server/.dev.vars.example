@@ -11,3 +11,5 @@ FACEBOOK_CLIENT_ID=
 FACEBOOK_CLIENT_SECRET=
 LINE_CLIENT_ID=
 LINE_CLIENT_SECRET=
+# live balance editor (admin.html): Google emails allowed to publish, comma separated
+ADMIN_EMAILS=wiriya.on@gmail.com

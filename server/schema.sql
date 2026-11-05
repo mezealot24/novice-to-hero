@@ -32,3 +32,24 @@ create table if not exists cheat_flag (
   created_at timestamptz not null default now()
 );
 create index if not exists cheat_flag_user on cheat_flag (user_id, created_at desc);
+-- Live balance config (src/data/tunables.ts + patch.ts). Only the Worker writes it, only for ADMIN_EMAILS.
+-- One row per release: 'draft' (being edited, at most one) -> 'live' (at most one, served by GET /config/live) -> 'archived'.
+-- A rollback inserts a NEW live row copying an old patch, so ids / hashes only move forward (game caches by hash).
+create table if not exists config_release (
+  id bigserial primary key,
+  schema_ver int not null,
+  patch jsonb not null,
+  guards jsonb not null default '{}'::jsonb,
+  hash text not null,
+  note text not null default '',
+  status text not null check (status in ('draft','live','archived')),
+  created_by text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  published_by text,
+  published_at timestamptz,
+  rollback_of bigint
+);
+create unique index if not exists config_release_one_live on config_release ((status)) where status = 'live';
+create unique index if not exists config_release_one_draft on config_release ((status)) where status = 'draft';
+create index if not exists config_release_recent on config_release (id desc);

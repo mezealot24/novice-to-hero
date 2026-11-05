@@ -5,6 +5,7 @@
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"]
   // Secrets (never commit): wrangler secret put DATABASE_URL BETTER_AUTH_SECRET GOOGLE_CLIENT_SECRET
-  //   APPLE_CLIENT_SECRET FACEBOOK_CLIENT_SECRET LINE_CLIENT_SECRET
+  //   APPLE_CLIENT_SECRET FACEBOOK_CLIENT_SECRET LINE_CLIENT_SECRET ADMIN_EMAILS
+  //   (ADMIN_EMAILS = comma list of Google emails allowed to edit live balance config, e.g. wiriya.on@gmail.com)
   // Vars: see .dev.vars.example
 }
