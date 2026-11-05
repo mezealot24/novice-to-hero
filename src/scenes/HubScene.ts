@@ -7,6 +7,7 @@ import { COSTUMES, FREE_GEMS, isBroken, itemById, JOB_RULES, RACES, STAT_RULES }
 import { canChangeJob, persist, save, today, ultMode, wipe } from '../save'
 import { JOB_CHANGE, JOBS } from '../data/jobs'
 import { dailyOf, dailySeed, MODES, PANEL_MODES } from '../data/modes'
+import { cloudEnabled } from '../cloud'
 import { setMuted } from '../sfx'
 import { askRepick } from './JobScene'
 import { backdrop, button, confirm, fullscreenButton, go, panel, toast, topBar, txt, UI } from '../ui'
@@ -193,6 +194,9 @@ export class HubScene extends Phaser.Scene {
     c.add(button(this, W / 2, H / 2 + 116, 320, 52, '🗑️ ลบเซฟ เริ่มใหม่', () =>
       confirm(this, 'ลบเซฟจริงไหม?', 'ตัวละคร ของ และเพชรทั้งหมดจะหายถาวร', 'ลบเลย', () => { wipe(); go(this, 'title') }),
     { fill: 0x8a3a4a, color: UI.text, size: 19 }))
-    c.add(button(this, W / 2, H / 2 + 186, 200, 48, 'ปิด', () => { c.destroy(); this.scene.restart() }, { size: 19 }))
+    if (cloudEnabled) {
+      c.add(button(this, W / 2 - 100, H / 2 + 186, 190, 48, '☁️ บัญชี', () => go(this, 'cloud', { from: 'hub' }), { size: 18, fill: 0x2f6a8a, color: UI.text }))
+      c.add(button(this, W / 2 + 100, H / 2 + 186, 190, 48, 'ปิด', () => { c.destroy(); this.scene.restart() }, { size: 19 }))
+    } else c.add(button(this, W / 2, H / 2 + 186, 200, 48, 'ปิด', () => { c.destroy(); this.scene.restart() }, { size: 19 }))
   }
 }

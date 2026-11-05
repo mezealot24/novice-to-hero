@@ -40,13 +40,14 @@ export const STAT_RULES = {
   start: 1, // every stat starts here (before race bonus)
   max: 99,
   pointsPerLevel: 3,
-  baseXpNeed: (lv: number) => 25 + 15 * (lv - 1), // account EXP to go from lv to lv+1
+  xpBase: 25, xpStep: 15, // live-tunable (data/tunables.ts progression)
+  baseXpNeed: (lv: number): number => STAT_RULES.xpBase + STAT_RULES.xpStep * (lv - 1), // account EXP to go from lv to lv+1
   maxBaseLevel: 99,
 }
 
 // ---------- job + skills (Novice only for now; job change = M3) ----------
 // Base Lv and Job Lv are separate (RO / Eden Eternal): Base Lv gives stat points, Job Lv gives skill points.
-export const JOB_RULES = { maxJobLevel: 10, jobXpNeed: (lv: number) => 20 + 10 * (lv - 1), changeAt: 10 }
+export const JOB_RULES = { maxJobLevel: 10, xpBase: 20, xpStep: 10, jobXpNeed: (lv: number): number => JOB_RULES.xpBase + JOB_RULES.xpStep * (lv - 1), changeAt: 10 }
 export type SkillId = 'smash' | 'firstaid' | 'tough'
 export interface SkillDef { id: SkillId; name: string; icon: string; kind: 'active' | 'passive'; max: number; desc: (lv: number) => string; mod: (lv: number) => Partial<Stats> }
 export const SKILLS: SkillDef[] = [

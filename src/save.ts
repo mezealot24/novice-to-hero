@@ -140,6 +140,19 @@ export function setSave(s: SaveData) { cache = s; persist() }
 export function persist() {
   if (!cache) return
   try { localStorage.setItem(KEY, JSON.stringify(cache)) } catch { /* storage blocked: keep playing in memory */ }
+  hooks.persist?.()
+}
+
+/** Cloud sync (cloud.ts) listens here so save.ts never imports the network layer. localStorage stays the cache + offline fallback. */
+const hooks: { persist?: () => void; wipe?: () => void } = {}
+export function setSaveHooks(h: typeof hooks) { Object.assign(hooks, h) }
+/** The raw JSON of this device's save (what would be uploaded), or null. */
+export function localJson(): string | null { try { return localStorage.getItem(KEY) } catch { return null } }
+/** Replace this device's save with a cloud copy: write it, then load() it again so the migrations run. */
+export function adopt(data: unknown): boolean {
+  try { localStorage.setItem(KEY, JSON.stringify(data)) } catch { return false }
+  cache = null
+  return load() !== null
 }
 
 /** v42 Thief rework (Q 2026-11-03): D.Strike max 10 -> 5 and gates ทักษะ 2. Refund the extra D.Strike points, and the ทักษะ 2 points of a save that took one before D.Strike was full. */
@@ -164,6 +177,7 @@ function migrateToWeb(s: SaveData) {
 export function wipe() {
   cache = null
   try { localStorage.removeItem(KEY) } catch { /* ignore */ }
+  hooks.wipe?.()
 }
 
 /** Adds Base + Job EXP; returns how many Base / Job levels were gained. */

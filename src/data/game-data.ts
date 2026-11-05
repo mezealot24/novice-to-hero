@@ -193,7 +193,8 @@ export const RULES = {
   healOnLevel: 0.2,
   xpOnClear: 6,
   smashRadius: 140,
-  xpNeed: (level: number) => 4 + 3 * level, // xp to go from `level` to `level + 1`
+  runXpBase: 4, runXpStep: 3, // live-tunable (data/tunables.ts progression)
+  xpNeed: (level: number): number => RULES.runXpBase + RULES.runXpStep * level, // xp to go from `level` to `level + 1`
 }
 
 export type Tag = 'crit' | 'speed' | 'guard' | 'blood' | 'fire' | 'venom' | 'holy' | 'storm' | 'common'
