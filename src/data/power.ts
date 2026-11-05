@@ -25,7 +25,7 @@ const MAGIC_SHARE: Partial<Record<JobId, number>> = { mage: 1, cleric: 0.35 }
 
 /** 2nd jobs (design/second-jobs-v1.md): what the derived Stats miss — Berserker Frenzy / บ้าระห่ำ double swings,
  *  Knight ถึกเป็นแรง (HP share in skills) + Auto Guard + Pierce. Multiplies the class K. First guess, recheck with the bot (JOB2=). */
-export const JOB2_K: Partial<Record<Job2Id, number>> = { berserker: 1.15, knight: 1, rogue: 1.1, mobster: 1.1 } // rogue / mobster: first guess, no bot run yet · bot D6 shop gear: fresh Knight counts +25% power but wins like the base class (HP is overcounted)
+export const JOB2_K: Partial<Record<Job2Id, number>> = { berserker: 1.15, knight: 1, rogue: 1.1, mobster: 1.1, crusader: 1.05, monk: 1.1 } // rogue / mobster / crusader / monk: first guess, no bot run yet · bot D6 shop gear: fresh Knight counts +25% power but wins like the base class (HP is overcounted)
 
 export interface PowerParts { offense: number; survival: number; power: number }
 

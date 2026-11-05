@@ -1,7 +1,7 @@
 // ===== Out-of-run (meta) game data: races, base stats, equipment, costumes, top-up packs. =====
 // Everything a run starts from is computed by heroStats(save). Balance knobs live here.
 import { COMBO, PLAYER, type Stats } from './game-data'
-import { S2N } from './skill-math'
+import { KIT2, S2N } from './skill-math'
 import { talentMods, tree2Mods, treeMods, type TalentSave, type TreeSave } from './tree'
 import { JOB2, type Job2Id, type WeaponType } from './jobs2'
 import { JOBS, type JobId } from './jobs'
@@ -102,10 +102,10 @@ const SW: JobId[] = ['swordsman'], AR: JobId[] = ['archer'], MG: JobId[] = ['mag
 export const ITEMS: Item[] = [
   // ----- weapons: everyone -----
   { id: 'knife', wtype: 'dagger', slot: 'weapon', name: 'มีดโนวิส', icon: '🔪', price: 0, desc: 'ของติดตัวตอนเริ่ม', mod: {} },
-  { id: 'shortsword', slot: 'weapon', name: 'ดาบสั้น', icon: '🗡️', price: 80, desc: 'อาวุธพื้นฐาน ใช้ได้ทุกอาชีพ', mod: { atk: 5 } },
+  { id: 'shortsword', wtype: 'sword', slot: 'weapon', name: 'ดาบสั้น', icon: '🗡️', price: 80, desc: 'อาวุธพื้นฐาน ใช้ได้ทุกอาชีพ', mod: { atk: 5 } },
   { id: 'twinknife', wtype: 'dagger', slot: 'weapon', name: 'มีดคู่', icon: '⚔️', price: 220, desc: 'เบา ตีไว', base: { agi: 2 }, mod: { atk: 3, aspd: 0.32 } },
   { id: 'hammer', slot: 'weapon', name: 'ค้อนไม้โอ๊ก', icon: '🔨', price: 260, desc: 'ของโนวิส ทุบแรงขึ้น', base: { str: 1 }, mod: { atk: 6, smashMul: 1 } },
-  { id: 'longsword', slot: 'weapon', name: 'ดาบยาว', icon: '🗡️', price: 420, desc: 'หนัก ตีแรงแต่ช้าลงนิด', base: { str: 2 }, mod: { atk: 10, pskill: 0.05, aspd: -0.15 } },
+  { id: 'longsword', wtype: 'sword', slot: 'weapon', name: 'ดาบยาว', icon: '🗡️', price: 420, desc: 'หนัก ตีแรงแต่ช้าลงนิด', base: { str: 2 }, mod: { atk: 10, pskill: 0.05, aspd: -0.15 } },
   { id: 'staff', slot: 'weapon', name: 'คทาฝึกหัด', icon: '🪄', price: 380, desc: 'คทาแรกของสายเวท', base: { int: 2 }, mod: { matk: 8, smashMul: 1 } },
   // ----- weapons: Swordsman (lifesteal / counter) -----
   { id: 'w_bloodblade', slot: 'weapon', name: 'ดาบกระหายเลือด', icon: '🩸', price: 520, desc: 'สายดูดเลือด ตียิ่งเยอะยิ่งอึด', base: { str: 3 }, mod: { atk: 8, lifesteal: 0.03 }, jobs: SW, req: 'job' },
@@ -124,9 +124,13 @@ export const ITEMS: Item[] = [
   { id: 'w_wardstaff', slot: 'weapon', name: 'คทาวงเวทป้องกัน', icon: '🔮', price: 560, desc: 'สาย Mana ยาว: Mana เยอะ ฟื้นไว ร่ายสกิลได้บ่อย', base: { wis: 3 }, mod: { matk: 5, maxRes: 30, resRegen: 1 }, jobs: MG, req: 'job' },
   { id: 'w_archstaff', slot: 'weapon', name: 'คทาจอมปราชญ์', icon: '🪄', price: 1100, desc: 'ของดัน 2: เวทแรง Mana ฟื้นไว', base: { int: 5 }, mod: { matk: 16, resRegen: 1 }, jobs: MG, req: 'd2' },
   // ----- weapons: Cleric (heal / shield) -----
-  { id: 'w_holymace', slot: 'weapon', name: 'กระบองศักดิ์สิทธิ์', icon: '🔱', price: 520, desc: 'ทุบแรง ฮีลแรงขึ้น', base: { str: 1, wis: 2 }, mod: { atk: 8, matk: 6, healAmp: 0.15 }, jobs: CL, req: 'job' },
-  { id: 'w_lightbook', slot: 'weapon', name: 'คัมภีร์แสง', icon: '📖', price: 560, desc: 'โล่หนา ฟื้น HP ทุกเทิร์น', base: { int: 2, wis: 1 }, mod: { atk: 5, matk: 6, shieldAmp: 0.15, regen: 0.5 }, jobs: CL, req: 'job' },
-  { id: 'w_sunmace', slot: 'weapon', name: 'ค้อนตะวัน', icon: '☀️', price: 1100, desc: 'ของดัน 2: ทุบแรง ได้โล่ทุกเวฟ', base: { str: 2, wis: 3 }, mod: { atk: 14, matk: 10, healAmp: 0.15, waveShield: 0.06 }, jobs: CL, req: 'd2' },
+  { id: 'w_holymace', wtype: 'mace', slot: 'weapon', name: 'กระบองศักดิ์สิทธิ์', icon: '🔱', price: 520, desc: 'ทุบแรง ฮีลแรงขึ้น', base: { str: 1, wis: 2 }, mod: { atk: 8, matk: 6, healAmp: 0.15 }, jobs: CL, req: 'job' },
+  { id: 'w_lightbook', wtype: 'book', slot: 'weapon', name: 'คัมภีร์แสง', icon: '📖', price: 560, desc: 'โล่หนา ฟื้น HP ทุกเทิร์น', base: { int: 2, wis: 1 }, mod: { atk: 5, matk: 6, shieldAmp: 0.15, regen: 0.5 }, jobs: CL, req: 'job' },
+  { id: 'w_sunmace', wtype: 'mace', slot: 'weapon', name: 'ค้อนตะวัน', icon: '☀️', price: 1100, desc: 'ของดัน 2: ทุบแรง ได้โล่ทุกเวฟ', base: { str: 2, wis: 3 }, mod: { atk: 14, matk: 10, healAmp: 0.15, waveShield: 0.06 }, jobs: CL, req: 'd2' },
+  // ----- weapons: Priest 2nd jobs: Crusader mace (+ shield), Monk knuckles / quarterstaff -----
+  { id: 'w_crusmace', wtype: 'mace', slot: 'weapon', name: 'กระบองครูเสด', icon: '✝️', price: 1600, desc: 'อาชีพขั้น 2 · กระบอง 1 มือ: ทุบแรง ถึก ใส่โล่ได้', base: { str: 4, vit: 3 }, mod: { atk: 18, matk: 8, def: 6 }, jobs: CL, req: 'job2' },
+  { id: 'w_knuckle', wtype: 'fist', slot: 'weapon', name: 'สนับมือสายฟ้า', icon: '🥊', price: 1500, desc: 'อาชีพขั้น 2 · สนับมือ: ต่อยไว คอมโบติดง่าย', base: { agi: 4, str: 2 }, mod: { atk: 15, aspd: 0.15, combo: 0.06 }, jobs: CL, req: 'job2' },
+  { id: 'w_monkstaff', wtype: 'staff', slot: 'weapon', name: 'ไม้พลองระฆัง', icon: '🦯', price: 1700, twoHand: true, desc: 'อาชีพขั้น 2 · ไม้พลอง 2 มือ: แรงกว่าสนับมือ ใส่มือรองไม่ได้', base: { str: 4, wis: 3 }, mod: { atk: 22, matk: 10, combo: 0.04 }, jobs: CL, req: 'job2' },
   // ----- weapons: Thief (poison / dodge) -----
   { id: 'w_venomdagger', wtype: 'dagger', slot: 'weapon', name: 'กริชพิษ', icon: '🧪', price: 520, desc: 'พิษติดเยอะขึ้น', base: { agi: 2 }, mod: { atk: 6, poison: 1, poisonDmg: 1 }, jobs: TH, req: 'job' },
   { id: 'w_shadowdagger', wtype: 'dagger', slot: 'weapon', name: 'มีดเงา', icon: '🌑', price: 560, desc: 'หลบแล้วได้ฟื้น HP', base: { luk: 3 }, mod: { atk: 5, flee: 6, dodgeHeal: 0.03 }, jobs: TH, req: 'job' },
@@ -177,6 +181,7 @@ export const ITEMS: Item[] = [
   { id: 'o_buckler', slot: 'offhand', name: 'บัคเลอร์ไม้', icon: '🪵', price: 180, desc: 'โล่เบา ใช้ได้ทุกอาชีพ', mod: { maxHp: 15, def: 4 } },
   { id: 'o_ironshield', slot: 'offhand', name: 'โล่เหล็ก', icon: '🛡️', price: 420, desc: 'โล่หนัก ทนแต่ช้าลงนิด', base: { vit: 2 }, mod: { maxHp: 30, def: 8, counter: 0.04, aspd: -0.05 }, jobs: ['novice', 'swordsman', 'cleric'] },
   { id: 'o_holyshield', slot: 'offhand', name: 'โล่ศักดิ์สิทธิ์', icon: '✨', price: 560, desc: 'โล่แรงขึ้น กันเวท', base: { wis: 2 }, mod: { def: 5, shieldAmp: 0.1, mdef: 0.04 }, jobs: CL, req: 'job' },
+  { id: 'o_crusshield', slot: 'offhand', name: 'โล่ครูเสด', icon: '🛡️', price: 1300, desc: 'อาชีพขั้น 2 · โล่: บล็อกบ่อย DEF หนา (ครูเซเดอร์: Auto Guard เต็มแรง)', base: { vit: 3 }, mod: { def: 12, maxHp: 40, mdef: 0.04, j2Guard: 0.03 }, jobs: CL, req: 'job2' },
   { id: 'o_tower', slot: 'offhand', name: 'โล่ปราการ', icon: '🏰', price: 1100, desc: 'ของดัน 2: กำแพงเหล็ก สวนกลับบ่อย', base: { vit: 3 }, mod: { maxHp: 50, def: 12, counter: 0.06, tenacity: 0.1 }, jobs: SW, req: 'd2' },
   { id: 'o_quiver', slot: 'offhand', name: 'กระบอกธนูหนัง', icon: '🎯', price: 480, desc: 'ลูกธนูคม ยิงแม่น', base: { dex: 2 }, mod: { hit: 5, crit: 0.02 }, jobs: AR, req: 'job' },
   { id: 'o_windquiver', slot: 'offhand', name: 'กระบอกธนูลมกรด', icon: '🌬️', price: 1100, desc: 'ของดัน 2: ยิงรัว คริแรง', base: { agi: 2 }, mod: { combo: 0.05, crit: 0.03, critMul: 0.1 }, jobs: AR, req: 'd2' },
@@ -402,6 +407,7 @@ export function heroStats(s: StatsInput): Stats {
   st.maxHp = Math.max(1, Math.round(st.maxHp * (1 + pct.maxHp + j2pct.maxHp))); st.atk *= 1 + pct.atk + j2pct.atk; st.matk *= 1 + pct.matk
   if (j2pct.aspd) st.aspd *= 1 + j2pct.aspd
   if (st.j2DefAtk > 0) st.atk += st.def * st.j2DefAtk // Knight เกราะเป็นแรง
+  if (j2?.id === 'crusader') st.j2Guard = Math.min(KIT2.crusader.guardCap, st.j2Guard + KIT2.crusader.guardVit * Math.max(0, d('vit'))) // Crusader Auto Guard: + per VIT point
   for (const sk of SKILLS) if (s.skills[sk.id] > 0 && (sk.id !== 'smash' || job.id === 'novice')) add(sk.mod(s.skills[sk.id]))
   st.smashCd = Math.max(2500, st.smashCd)
   st.aspd = Math.max(0.6, st.aspd)

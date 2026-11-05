@@ -3,7 +3,7 @@
 // numbers shown in the skill detail panel are "before monster DEF, without run picks".
 // พร v2 (Q 2026-11-04, design/skills-v2.md): every hero magic HIT uses magic power Pm = 70% M.ATK + 30% P.ATK
 // (LoL feel: physical builds still get something from magic procs). Heals and shields stay on M.ATK.
-import { BATTLE, PLAYER, type Stats } from './game-data'
+import { BATTLE, PLAYER, type MonsterKind, type Stats } from './game-data'
 import { CLERIC_KIT, JOBS, MAGE_SPELL, SPELL_VAMP, SWORD_MANA, type JobDef, type JobId } from './jobs'
 import type { Skill2Def } from './skill2'
 
@@ -55,6 +55,21 @@ export const KIT2 = {
     cutCost: 30, cutCd: 3, cutTurns: 3, cutMul: 1, armorBrk: 0.25, // ⛓️ ตัดเส้นเอ็น: hit + DEF -25% + chill
     ultSlash: 0.6, burstTurns: 3, burstMul: 1.5, ultCdRefund: 1, // 💀 ทวงหนี้: slash all 0.6x, then poison left (stacks x dmg x turns x mul) bursts at once · a kill refunds ult cooldown
     mastery: { atkPct: 0.05, poisonDmg: 1 }, // dagger
+  },
+  crusader: {
+    guard: 0.1, guardVit: 0.002, guardCap: 0.4, // 🛡️ Auto Guard: block chance + per VIT point over the start (no off-hand = KIT2.knight.guardShieldless)
+    holyVs: 0.25, holyFoes: ['skeleton', 'wisp', 'deathknight', 'hellknight', 'imp', 'necropriest', 'wraith', 'maiden', 'lich', 'bonepriest', 'mummy', 'dunewraith', 'pharaoh', 'gargoyle'] as MonsterKind[], // ศรัทธา: undead / demons take +25%
+    crossCost: 22, crossCd: 2, crossHits: 2, crossMul: 1, blindTurns: 2, blindHit: 0.2, // ✝️ Holy Cross: per hit P.ATK + Pm on the front monster · blind = its Hit -20%
+    gcPay: 0.2, gcPm: 2.5, gcAtk: 1, gcRefund: 0.5, gcRefundAt: 3, // ✨ Grand Cross: pay 20% current HP · all monsters · 3+ hit = half the HP back
+    martyrShield: 0.2, // ★ ผู้พลีชีพ: shield share of max HP (Reflect Shield is capped by BATTLE.reflectCap)
+    mastery: { atkPct: 0.05, def: 6 }, // mace / sword
+  },
+  monk: {
+    combo: 0.1, chargeMax: 5, chargePerSwing: 1, chargePerCombo: 1, // 👊 หมัดกระแส: power charges from every swing + every combo hit (doc: combo hits only; Priest combo rate is low)
+    thunderCost: 0, thunderCd: 2, thunderMin: 2, thunderPm: 0.8, thunderPer: 0.4, // ⚡ Falling Thunder: all charges, all monsters 0.8x Pm x (1 + 40% per charge)
+    bellHp: 0.15, bellTaunt: 0.5, bellTurns: 3, bellRing: 0.5, bellBoom: 2, // 🔔 Tempest Bell (Ally 'object'): hero swing rings AoE 0.5x Pm · broken = 2x Pm burst
+    instillMul: 0.5, chillTurns: 2, noLightMul: 1.5, darkCap: 0.5, // ★ Instill bolt · ฝ่ามือธาตุ chill · ★ ไร้แสง overheal -> Darkness shield (cap of max HP)
+    mastery: { atkPct: 0.05, combo: 0.03 }, // fist / staff
   },
 }
 

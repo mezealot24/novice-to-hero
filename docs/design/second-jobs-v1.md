@@ -294,3 +294,17 @@ interface AllyDef {
 - 🕴️ Mobster: สมุดหนี้ (ดีบัฟ = หนี้ → Execute, บอส/มินิ x2 แทน) · ตัดเส้นเอ็น (เกราะแตก 🦴 DEF −25% + ช้า) · ทวงหนี้ (ระเบิดพิษ + เช็ก Execute, เก็บได้ ult cd −1)
 - อาวุธ: `wtype: 'dagger'` ให้มีดเดิมทุกชิ้น + ใหม่ `w_assassin`, `o_rogueknife`, `o_mobknife` (req `job2`)
 - `power.ts JOB2_K` rogue/mobster 1.1 = **ค่าเดา ยังไม่ได้รัน bot** (Q 2026-11-06: ขึ้น prod เลย จูนทีหลัง) · bot `JOB2=rogue|mobster`, `J2O=`
+
+## 10. Phase 3 ที่ทำแล้ว (✨ Crusader / Monk)
+
+- `jobs2.ts` + `KIT2.crusader / monk` · ใยชั้น 2 `trees2/crusader.ts` (`cr_*`), `trees2/monk.ts` (`mk_*`) (id เป็น save data ห้าม rename)
+- ✝️ Crusader: Auto Guard 10% +0.2%/VIT (สูงสุด 40%, ไม่มีโล่ = ครึ่ง) + ดาเมจ +25% ใส่อันเดด/ปีศาจ (`KIT2.crusader.holyFoes`) · Holy Cross 2 ฮิต (P.ATK + Pm) + 🙈 ตาบอด Hit −20% · Grand Cross จ่าย 20% HP ใส่ทุกตัว (≥ 3 ตัว คืน 50%) + โล่ ult นักบวช
+- ใย Crusader: กางเขน (แรง / จ่าย HP น้อย / ตาบอดนาน / ★ ยิง 2 ครั้ง) · โล่ (บล็อก / Shield Boomerang ตาม P.DEF / Reflect ติดเพดาน `BATTLE.reflectCap` / ★ บล็อกได้โล่) · อุทิศ (HP / บล็อกฮีล / DEF / ★ ผู้พลีชีพ)
+- 👊 Monk: 🔵 ลูกพลัง (นับแยก max 5 แสดงบนหัว) · Falling Thunder (≥ 2 ลูก ใช้หมด สายฟ้าทุกตัว) · Tempest Bell = Ally `object` · **ไม่เพิ่มฮีล** (Q ข้อ 5: ฮีลเหลือแค่ใยชั้น 1)
+- ใย Monk: คอมโบ (★ Combo Count +1) · Invoker (Energy Shield เทิร์นที่ไม่โดนตี / ติดช้า / ★ Instill) · Chayula (Darkness = โล่ทุกเทิร์น / ฆ่าแล้วฮีล / ★ ไร้แสง ฮีลเกินเป็นโล่ 150%)
+- ⭐ ระบบใหม่ `src/battle/allies.ts` (MVP ของ §2.8): `AllyDef` (kind / hp / taunt / turns / trigger / act / onBreak) + `makeAlly`, `tauntTarget`, `hurtAlly`, `tickAllies`
+  - BattleScene: มอนตี → ally ที่ taunt รับแทน (ดาเมจดิบ ไม่หัก DEF) · ally ตีผ่าน `strike` แบบ 'other' (ไม่ดูดเลือด ไม่ติดคอมโบ) · ล้างทุกเวฟ
+  - phase 4 ต่อ: trigger `ownTurn` / `monsterAct`, agi, สไปรต์
+- ค่าที่เดาเอง: ลูกพลัง +1 ต่อการตีธรรมดาด้วย (doc ให้แค่ฮิตคอมโบ แต่คอมโบนักบวชติดน้อย Falling Thunder แทบไม่ออก) · Falling Thunder ไม่ใช้ Mana · holy +25% นับทุกฮิตของ Crusader
+- อาวุธ (req `job2`): `w_crusmace` (mace), `o_crusshield` (โล่ +Auto Guard 3%), `w_knuckle` (fist), `w_monkstaff` (staff 2 มือ) · เติม wtype ของเดิม: กระบอง `mace`, ดาบสั้น/ยาว `sword`, คัมภีร์ `book`
+- `power.ts JOB2_K` crusader 1.05 / monk 1.1 = **ค่าเดา ยังไม่ได้รัน bot** · bot `JOB2=crusader|monk` (Crusader ใส่ `o_crusshield` ให้เอง)

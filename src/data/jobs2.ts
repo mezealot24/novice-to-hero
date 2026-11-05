@@ -7,7 +7,7 @@ import type { Resource, Stats } from './game-data'
 import type { JobId, JobSkill } from './jobs'
 import { KIT2 } from './skill-math'
 
-export type Job2Id = 'berserker' | 'knight' | 'rogue' | 'mobster' // Phase 1 Swordsman · Phase 2 Thief. Next: crusader/monk, beastmaster/innovator, wizard/sage
+export type Job2Id = 'berserker' | 'knight' | 'rogue' | 'mobster' | 'crusader' | 'monk' // Phase 1 Swordsman · 2 Thief · 3 Priest. Next: beastmaster/innovator, wizard/sage
 export type WeaponType = 'sword' | 'twohand' | 'spear' | 'dagger' | 'bow' | 'staff' | 'mace' | 'fist' | 'book'
 
 export interface Job2Def {
@@ -24,7 +24,7 @@ export interface Job2Def {
 
 export const JOB2_RULES = { unlockJobLv: 40, unlockClear: 'd5', maxJobLevel: 50, repickGems: 30 }
 
-const B = KIT2.berserker, K = KIT2.knight, R = KIT2.rogue, M = KIT2.mobster
+const B = KIT2.berserker, K = KIT2.knight, R = KIT2.rogue, M = KIT2.mobster, C = KIT2.crusader, O = KIT2.monk
 const pc = (n: number) => `${Math.round(n * 100)}%`
 
 export const JOB2: Record<Job2Id, Job2Def> = {
@@ -63,6 +63,24 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     signature: { name: 'สมุดหนี้', icon: '📒', desc: `ดีบัฟ 1 ชนิดบนมอน (พิษ ไฟ ช้า อ่อนแรง ตราบาป เกราะแตก) = หนี้ 1 · HP ต่ำกว่า ${pc(M.execBase)} + ${pc(M.execPer)}/หนี้ = ⚰️ ตายทันที · บอส/มินิ: ดาเมจ x${M.bossExecMul} แทน` },
     skill3: { name: 'ตัดเส้นเอ็น', icon: '⛓️', cost: M.cutCost, cd: M.cutCd, desc: `Energy ${M.cutCost} · คูลดาวน์ ${M.cutCd}: ฟันตัวหน้า (บอสก่อน) ${M.cutMul}x · เกราะแตก DEF -${pc(M.armorBrk)} + ช้า ${M.cutTurns} เทิร์น` },
     ult: { name: 'ทวงหนี้', icon: '💀', cd: 4, desc: `ฟันทุกตัว ${M.ultSlash}x แล้วจุดระเบิดพิษ (ดาเมจพิษ ${M.burstTurns} เทิร์น x${M.burstMul} ออกทันที แล้วล้างพิษ) → เช็ก Execute · เก็บได้ = ult คูลดาวน์ -${M.ultCdRefund}` },
+  },
+  crusader: {
+    id: 'crusader', parent: 'cleric', name: 'ครูเซเดอร์', icon: '✝️', focus: 'STR · VIT · INT',
+    blurb: 'อัศวินศักดิ์สิทธิ์แบบ RO · กระบอง/ดาบ + โล่ บล็อกเก่ง · แรงใส่อันเดด/ปีศาจ · Grand Cross จ่าย HP แลกแสงกางเขนทุกตัว',
+    mod: { j2Guard: C.guard },
+    mastery: { weapon: 'กระบอง / ดาบ', ok: (it) => it.wtype === 'mace' || it.wtype === 'sword', mod: { def: C.mastery.def }, pct: { atk: C.mastery.atkPct } },
+    signature: { name: 'Auto Guard + ศรัทธา', icon: '🛡️', desc: `บล็อกการโจมตีกายภาพ ${pc(C.guard)} (+${pc(C.guardVit)}/VIT สูงสุด ${pc(C.guardCap)} · ไม่มีโล่ = ครึ่งเดียว) · ดาเมจ +${pc(C.holyVs)} ใส่อันเดด/ปีศาจ` },
+    skill3: { name: 'Holy Cross', icon: '✝️', cost: C.crossCost, cd: C.crossCd, desc: `Mana ${C.crossCost} · คูลดาวน์ ${C.crossCd}: ฟันกางเขนตัวหน้า ${C.crossHits} ฮิต ฮิตละ ${C.crossMul}x P.ATK + ${C.crossMul}x Pm · 🙈 ตาบอด Hit -${pc(C.blindHit)} ${C.blindTurns} เทิร์น` },
+    ult: { name: 'Grand Cross', icon: '✨', cd: 4, desc: `จ่าย ${pc(C.gcPay)} HP ปัจจุบัน → แสงกางเขนทุกตัว ${C.gcPm}x Pm + ${C.gcAtk}x P.ATK · โดน ${C.gcRefundAt} ตัวขึ้นไป ได้ HP คืน ${pc(C.gcRefund)} ของที่จ่าย · โล่แบบพรคุ้มครอง` },
+  },
+  monk: {
+    id: 'monk', parent: 'cleric', name: 'มังค์', icon: '👊', focus: 'STR · AGI · WIS',
+    blurb: 'สายหมัดแบบ PoE2 · ตี/คอมโบสะสม 🔵 ลูกพลัง แล้วปล่อย Falling Thunder · Tempest Bell ดึงมอนตี · ฮีลเท่าที่ใยชั้น 1 มี',
+    mod: { combo: O.combo },
+    mastery: { weapon: 'สนับมือ / ไม้พลอง', ok: (it) => it.wtype === 'fist' || it.wtype === 'staff', mod: { combo: O.mastery.combo }, pct: { atk: O.mastery.atkPct } },
+    signature: { name: 'หมัดกระแส', icon: '👊', desc: `ตีธรรมดา +${O.chargePerSwing} และทุกฮิตคอมโบ +${O.chargePerCombo} 🔵 ลูกพลัง (สูงสุด ${O.chargeMax}) · คอมโบ +${pc(O.combo)}` },
+    skill3: { name: 'Falling Thunder', icon: '⚡', cost: O.thunderCost, cd: O.thunderCd, desc: `คูลดาวน์ ${O.thunderCd} · ต้องมีลูกพลัง ≥ ${O.thunderMin}: ใช้หมด → สายฟ้าทุกตัว ${O.thunderPm}x Pm +${pc(O.thunderPer)} ต่อลูก` },
+    ult: { name: 'Tempest Bell', icon: '🔔', cd: 4, desc: `วางระฆัง ${O.bellTurns} เทิร์น (HP ${pc(O.bellHp)} ของฮีโร่ ดึงมอนตี ${pc(O.bellTaunt)}) · ฮีโร่ตีธรรมดา/คอมโบ = ระฆังสั่น ${O.bellRing}x Pm ทุกตัว · ระฆังแตก = ระเบิด ${O.bellBoom}x Pm` },
   },
 }
 export const JOB2_LIST = Object.values(JOB2)
