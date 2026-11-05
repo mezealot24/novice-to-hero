@@ -2,8 +2,23 @@ import Phaser from 'phaser'
 import { COLORS } from '../data/game-data'
 import { COSTUMES, FREE_GEMS, GEM_PACKS, GEM_TO_ZENY_TEST, SUPPORTER_PRICE, ZENY_PACKS, ZENY_PER_GEM } from '../data/meta'
 import { persist, save, today } from '../save'
+import { cloudEnabled, refreshWallet as syncWallet, spendPaid, status } from '../cloud'
 import { sfx } from '../sfx'
 import { button, confirm, gemIcon, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
+
+// Trial top-up (no real payment) only in dev builds or when VITE_TRIAL_TOPUP=1: a production build must not hand out gems.
+const TRIAL_TOPUP = import.meta.env.DEV || import.meta.env.VITE_TRIAL_TOPUP === '1'
+
+/** Pay a price: free gems first (client save), else paid gems through the server (it owns the price). */
+function pay(scene: Phaser.Scene, price: number, sku: string, grant: () => void) {
+  const s = save()
+  if (s.gems >= price) { s.gems -= price; grant(); return }
+  void spendPaid(sku).then((err) => {
+    if (err) { toast(scene, err === 'insufficient' ? 'เพชรไม่พอค่ะ' : 'จ่ายไม่สำเร็จ ลองใหม่นะคะ', UI.red); return }
+    grant()
+  })
+}
+const canAfford = (price: number) => save().gems >= price || (cloudEnabled && status.paidGems >= price)
 
 // Gem shop + top-up. MOCK: no payment is ever taken. Gems buy looks only (costumes, supporter badge),
 // and every gem can also be earned for free by playing, so nothing here gives power.
@@ -17,6 +32,7 @@ export class GemShopScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(UI.night)
     this.cameras.main.fadeIn(160, 20, 23, 43)
     this.refreshWallet = topBar(this, '💎 ร้านเพชร', () => go(this, 'hub'))
+    if (cloudEnabled) void syncWallet().then(() => { if (this.scene.isActive('gemshop')) this.render() })
 
     // the shop's promise, always visible
     panel(this, 16, 70, 262, 490, 0x22324a, 0x3b6a8a)
@@ -61,12 +77,14 @@ export class GemShopScene extends Phaser.Scene {
       for (let k = 0; k <= i; k++) b.add(gemIcon(this, x + w / 2 + (k - i / 2) * 26, y + 70, 14 + i * 2))
       b.add(txt(this, x + w / 2, y + 112, `${p.gems}`, 34, UI.gem, true).setOrigin(0.5, 0))
       b.add(txt(this, x + w / 2, y + 156, p.bonus ? `+ โบนัส ${p.bonus}` : 'เพชร', 16, p.bonus ? UI.green : UI.sub).setOrigin(0.5, 0))
+      if (!TRIAL_TOPUP) { b.add(button(this, x + w / 2, y + h - 38, w - 30, 48, `${p.price} · เร็วๆ นี้`, () => {}, { size: 17 }).setEnabled(false)); return }
       b.add(button(this, x + w / 2, y + h - 38, w - 30, 48, p.price, () =>
         confirm(this, `เติม ${p.gems + p.bonus} เพชร`, `ราคาจริง ${p.price}\n🧪 โหมดทดลอง: ไม่ตัดเงินจริง กดยืนยันแล้วได้เพชรทันที`, 'ยืนยัน (ทดลอง)', () => {
           s.gems += p.gems + p.bonus; persist(); sfx.win(); this.refreshWallet()
           toast(this, `ได้ ${p.gems + p.bonus} เพชร (ทดลอง)`, UI.gem)
         }), { size: 20 }))
     })
+    if (cloudEnabled) b.add(txt(this, 294, 392, `💎 เพชรเติมเงิน (เก็บบน server): ${status.paidGems}`, 14, UI.gem))
     const got = s.lastDaily === today()
     b.add(panel(this, 294, 410, 640, 70, 0x2a2a50, UI.line))
     b.add(txt(this, 314, 430, `🎁 เพชรฟรีรายวัน +${FREE_GEMS.daily}`, 19, UI.text, true))
@@ -88,10 +106,10 @@ export class GemShopScene extends Phaser.Scene {
       const label = worn ? 'ใส่อยู่' : owned ? 'ใส่' : `💎 ${c.price}`
       b.add(button(this, x + w / 2, y + h - 28, w - 30, 40, label, () => {
         if (!owned) {
-          if (s.gems < c.price) { toast(this, 'เพชรไม่พอ รับฟรีรายวันหรือเก็บเลเวลได้นะคะ', UI.red); return }
+          if (!canAfford(c.price)) { toast(this, 'เพชรไม่พอ รับฟรีรายวันหรือเก็บเลเวลได้นะคะ', UI.red); return }
           confirm(this, `ซื้อ ${c.name}?`, `ใช้ ${c.price} เพชร (เหลือ ${s.gems - c.price})\nไม่มีค่าพลัง เป็นของแต่งตัวอย่างเดียว`, 'ซื้อเลย', () => {
-            if (s.gems < c.price || s.costumes.includes(c.id)) return
-            s.gems -= c.price; s.costumes.push(c.id); s.costume = c.id; sfx.win(); persist(); this.refreshWallet(); this.render()
+            if (!canAfford(c.price) || s.costumes.includes(c.id)) return
+            pay(this, c.price, `costume:${c.id}`, () => { s.costumes.push(c.id); s.costume = c.id; sfx.win(); persist(); this.refreshWallet(); this.render() })
           })
           return
         }
@@ -107,9 +125,10 @@ export class GemShopScene extends Phaser.Scene {
     b.add(txt(this, 614, 200, `ชื่อสีทอง + ดาว 🌟 หน้าชื่อ ตลอดไป\nไม่มีค่าพลัง ไม่มี EXP บูสต์ ไม่มีของพิเศษที่คนอื่นหาไม่ได้\nเป็นแค่คำขอบคุณที่ช่วยสนับสนุนเกมค่ะ`, 17, UI.text).setOrigin(0.5, 0).setAlign('center'))
     b.add(txt(this, 614, 300, `ตัวอย่าง:  🌟 ${s.name}`, 24, UI.gold, true).setOrigin(0.5, 0))
     b.add(button(this, 614, 384, 280, 52, s.supporter ? 'เป็นผู้สนับสนุนแล้ว ขอบคุณค่ะ!' : `💎 ${SUPPORTER_PRICE}`, () => {
-      if (s.gems < SUPPORTER_PRICE) { toast(this, 'เพชรไม่พอค่ะ', UI.red); return }
+      if (!canAfford(SUPPORTER_PRICE)) { toast(this, 'เพชรไม่พอค่ะ', UI.red); return }
       confirm(this, 'เป็นผู้สนับสนุน?', `ใช้ ${SUPPORTER_PRICE} เพชร ได้ชื่อสีทอง (ไม่มีค่าพลัง)`, 'ยืนยัน', () => {
-        s.gems -= SUPPORTER_PRICE; s.supporter = true; persist(); sfx.win(); this.refreshWallet(); this.render()
+        if (!canAfford(SUPPORTER_PRICE)) return
+        pay(this, SUPPORTER_PRICE, 'supporter', () => { s.supporter = true; persist(); sfx.win(); this.refreshWallet(); this.render() })
       })
     }, { size: 18 }).setEnabled(!s.supporter))
   }

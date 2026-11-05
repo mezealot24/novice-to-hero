@@ -1,0 +1,10 @@
+{
+  "name": "novice-to-hero-api",
+  "account_id": "91d203bbdb2e33086d4c32605356d7ce",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"]
+  // Secrets (never commit): wrangler secret put DATABASE_URL BETTER_AUTH_SECRET GOOGLE_CLIENT_SECRET
+  //   APPLE_CLIENT_SECRET FACEBOOK_CLIENT_SECRET LINE_CLIENT_SECRET
+  // Vars: see .dev.vars.example
+}

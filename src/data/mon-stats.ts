@@ -26,7 +26,8 @@ export const ARCHETYPES: Record<Archetype, StatAlloc> = {
 }
 
 export const MON_STAT = {
-  pointsPerLv: STAT_RULES.pointsPerLevel,
+  /** Always the hero's points per level (a getter, so a live-config patch of STAT_RULES.pointsPerLevel follows). */
+  get pointsPerLv(): number { return STAT_RULES.pointsPerLevel },
   tierPct: { normal: 0.5, mini: 1, boss: 1.5 } as Record<MonTier, number>,
   hardAdd: 0.5, // 🔥 hard: +50 percentage points on every tier
   /** Per monster level, on top of the stat-derived numbers: the share a hero of that level gets from gear. */
