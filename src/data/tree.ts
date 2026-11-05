@@ -13,6 +13,9 @@ import { tree as archer } from './trees/archer'
 import { tree as mage } from './trees/mage'
 import { tree as cleric } from './trees/cleric'
 import { tree as thief } from './trees/thief'
+import { JOB2, type Job2Id } from './jobs2'
+import { tree2 as berserker } from './trees2/berserker'
+import { tree2 as knight } from './trees2/knight'
 
 export const TREE_RULES = { perTier: 2, capstoneNeed: 6, capstones: 2, powMax: 5, powPer: 0.12, s2PlusMax: 3 }
 // rowsAt: Job Lv that opens talent row 1..4. Talent Points: 1 per `pointEveryJobLv` Job Lv (8 at Job Lv 40), separate from skill points.
@@ -64,21 +67,52 @@ for (const c of CLASS_TREES) {
 }
 export const BRANCHES: TreeBranch[] = webBranches
 export const TREE: TreeNode[] = webNodes
+
+// ===== ใยชั้น 2 (design/second-jobs-v1.md): one per 2nd job, its own points (save.job2Points) =====
+// Two "+power" roots (ทักษะ 3, Ult วิวัฒน์) + 3 branches x 4 nodes (tier 1..3 + ★). Same unlock rules as the base web.
+const JOB2_TREES: Record<Job2Id, ClassTree> = { berserker, knight }
+const web2Branches: TreeBranch[] = [], web2Nodes: TreeNode[] = []
+for (const id of Object.keys(JOB2_TREES) as Job2Id[]) {
+  const c = JOB2_TREES[id], J = JOB2[id]
+  for (const [line, sk, key] of [['s3', J.skill3, 's3Pow'], ['u2', J.ult, 'ult2Pow']] as const) {
+    const label = line === 's3' ? 'ทักษะ 3' : 'Ult วิวัฒน์'
+    web2Branches.push({ id: `${id}_${line}`, job: J.parent, job2: id, name: label, icon: sk.icon, blurb: sk.name, line: 'job2' })
+    web2Nodes.push({ id: `${id}_${line}p`, branch: `${id}_${line}`, tier: 0, icon: sk.icon, name: sk.name, max: TREE_RULES.powMax, kind: 'pow2',
+      desc: (lv: number) => `${label} แรง +${Math.round(lv * TREE_RULES.powPer * 100)}%`, mod: (lv: number) => ({ [key]: TREE_RULES.powPer * lv }) })
+  }
+  for (const b of c.branches) {
+    web2Branches.push({ ...b, line: 'job2' })
+    let prev: string | undefined
+    for (const x of c.nodes.filter((q) => q.branch === b.id).sort((p, q) => p.tier - q.tier)) { web2Nodes.push({ ...x, parent: prev }); prev = x.id }
+  }
+}
+export const BRANCHES2: TreeBranch[] = web2Branches
+export const TREE2: TreeNode[] = web2Nodes
+const ALL_NODES = [...webNodes, ...web2Nodes]
+export const branches2Of = (j2: Job2Id) => BRANCHES2.filter((b) => b.job2 === j2)
+export const tree2Spent = (t: TreeSave, j2: Job2Id) => branches2Of(j2).reduce((a, b) => a + branchSpent(t, b.id), 0)
+/** Sum of every learned ใยชั้น 2 node's stats. */
+export function tree2Mods(t: TreeSave | undefined, j2: Job2Id | undefined): Partial<Stats>[] {
+  if (!t || !j2) return []
+  const out: Partial<Stats>[] = []
+  for (const b of branches2Of(j2)) for (const x of nodesOf(b.id)) if ((t[x.id] ?? 0) > 0) out.push(x.mod(Math.min(t[x.id], x.max)))
+  return out
+}
 export const TALENTS: TalentDef[] = CLASS_TREES.flatMap((c) => c.talents)
 
 export const branchesOf = (job: JobId) => BRANCHES.filter((b) => b.job === job)
-export const nodesOf = (branch: string) => TREE.filter((x) => x.branch === branch).sort((a, b) => a.tier - b.tier)
-export const nodeById = (id: string) => TREE.find((x) => x.id === id)
+export const nodesOf = (branch: string) => ALL_NODES.filter((x) => x.branch === branch).sort((a, b) => a.tier - b.tier)
+export const nodeById = (id: string) => ALL_NODES.find((x) => x.id === id)
 
 export type TreeSave = Record<string, number>
 export const branchSpent = (t: TreeSave, branch: string) => nodesOf(branch).reduce((a, x) => a + (t[x.id] ?? 0), 0)
 export const treeSpent = (t: TreeSave, job: JobId) => branchesOf(job).reduce((a, b) => a + branchSpent(t, b.id), 0)
-const capstonesTaken = (t: TreeSave, job: JobId) => TREE.filter((x) => x.tier === 4 && (t[x.id] ?? 0) > 0 && branchesOf(job).some((b) => b.id === x.branch))
+const capstonesTaken = (t: TreeSave, scope: TreeBranch[]) => ALL_NODES.filter((x) => x.tier === 4 && (t[x.id] ?? 0) > 0 && scope.some((b) => b.id === x.branch))
 /** The Skill 2 this job has learned (its root node has a point), if any. */
 export const skill2Picked = (t: TreeSave | undefined, job: JobId) => t ? skill2Of(job).find((k) => (t[k.id] ?? 0) > 0) : undefined
 
 /** Why a node can't take another point right now ('' = it can). */
-export function lockReason(t: TreeSave, job: JobId, node: TreeNode): string {
+export function lockReason(t: TreeSave, job: JobId, node: TreeNode, j2?: Job2Id): string {
   const lv = t[node.id] ?? 0
   if (lv >= node.max) return 'เต็มแล้ว'
   if (node.parent && !(t[node.parent] ?? 0)) return `ลง "${nodeById(node.parent)?.name ?? ''}" ก่อน`
@@ -93,7 +127,7 @@ export function lockReason(t: TreeSave, job: JobId, node: TreeNode): string {
   const need = node.tier === 4 ? TREE_RULES.capstoneNeed : Math.max(0, node.tier - 1) * TREE_RULES.perTier
   const spent = branchSpent(t, node.branch) - lv
   if (spent < need) return `ลงสายนี้อีก ${need - spent} แต้ม`
-  const caps = node.tier === 4 ? capstonesTaken(t, job).filter((x) => x.id !== node.id) : []
+  const caps = node.tier === 4 ? capstonesTaken(t, j2 ? branches2Of(j2) : branchesOf(job)).filter((x) => x.id !== node.id) : []
   if (caps.length >= TREE_RULES.capstones) return `★ ได้ ${TREE_RULES.capstones} ดวง (${caps.map((x) => x.name).join(', ')})`
   return ''
 }

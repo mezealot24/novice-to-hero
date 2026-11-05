@@ -10,6 +10,7 @@
 //              HP and ATK keeps a fight exactly as hard as it was at P_ref.
 import { afterDef, BATTLE, COMBO, comboExtra, doubleAtkChance, hitChance, PLAYER, type Stats } from './game-data'
 import type { JobId } from './jobs'
+import type { Job2Id } from './jobs2'
 import { heroStats, type StatsInput } from './meta'
 
 /** The reference monster the score is measured against (a mid-game wave monster). */
@@ -22,9 +23,13 @@ export const CLASS_K: Partial<Record<JobId, number>> = { swordsman: 0.8, archer:
 /** Magic share of a class's damage (Priest v58: mace smash + holy light / spears). */
 const MAGIC_SHARE: Partial<Record<JobId, number>> = { mage: 1, cleric: 0.35 }
 
+/** 2nd jobs (design/second-jobs-v1.md): what the derived Stats miss — Berserker Frenzy / บ้าระห่ำ double swings,
+ *  Knight ถึกเป็นแรง (HP share in skills) + Auto Guard + Pierce. Multiplies the class K. First guess, recheck with the bot (JOB2=). */
+export const JOB2_K: Partial<Record<Job2Id, number>> = { berserker: 1.15, knight: 1 } // bot v70 D6 shop gear: fresh Knight counts +25% power but wins like the base class (HP is overcounted)
+
 export interface PowerParts { offense: number; survival: number; power: number }
 
-export function powerParts(st: Stats, job: JobId = 'novice'): PowerParts {
+export function powerParts(st: Stats, job: JobId = 'novice', job2?: Job2Id): PowerParts {
   const R = POWER_REF, m = MAGIC_SHARE[job] ?? 0
   // ---- offense ----
   const phys = afterDef(st.atk * (1 + st.minPct) / 2, R.def) * hitChance(st.hit, R.flee) * (1 + Math.min(1, st.crit) * (st.critMul - 1))
@@ -41,13 +46,13 @@ export function powerParts(st: Stats, job: JobId = 'novice'): PowerParts {
   // sustain over a ~15-attack fight: lifesteal / vamp, regen (%/turn), dodge heals (Thief gear: every dodge heals)
   const sustain = 1 + st.lifesteal + 0.5 * st.spellVamp + st.regen * BATTLE.regenPerTurn * 0.15 + 0.5 * st.healAmp + 0.5 * st.counter
     + st.dodgeHeal * (1 - land) * (1 - R.magicShare) * R.fightHits + (job === 'cleric' ? 0.3 : 0)
-  const c = Math.sqrt(CLASS_K[job] ?? 1)
+  const c = Math.sqrt((CLASS_K[job] ?? 1) * (job2 ? JOB2_K[job2] ?? 1 : 1))
   const o = offense * c, sv = (st.maxHp / Math.max(0.05, taken)) * sustain * c
   return { offense: o, survival: sv, power: Math.round(R.K * Math.sqrt(o * sv)) }
 }
 
 /** The hero's power from a save (or any StatsInput). Pure. */
-export const heroParts = (s: StatsInput): PowerParts => powerParts(heroStats(s), s.job ?? 'novice')
+export const heroParts = (s: StatsInput): PowerParts => powerParts(heroStats(s), s.job ?? 'novice', s.job2)
 export const heroPower = (s: StatsInput): number => heroParts(s).power
 
 // ---------- what each dungeon expects ----------

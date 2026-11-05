@@ -1,6 +1,7 @@
 // One save slot in localStorage. Every read/write is guarded: private windows and sandboxed hosts
 // may throw or start empty, and the game must still run (it just won't remember).
 import { JOB_CHANGE, type JobId } from './data/jobs'
+import { JOB2, JOB2_RULES, type Job2Id } from './data/jobs2'
 import type { RefineLine } from './data/craft'
 import type { ModeRecord } from './data/modes'
 import { FREE_GEMS, JOB_RULES, RACES, STAT_RULES, type BaseStat, type RaceId, type SkillId, EMPTY_ITEM, type EquipSlot, itemById, slotKind } from './data/meta'
@@ -19,6 +20,11 @@ export interface SaveData {
   job: JobId
   jobSkills: { auto: number; ult: number } // retired in skill web v1 (always 1/1): power now comes from the web's +power nodes
   jobTree?: Record<string, number> // skill web node -> level (data/tree.ts, design/skill-web-v1.md), current job only
+  job2?: Job2Id // 2nd job on top of `job` (design/second-jobs-v1.md); undefined = not yet
+  job2Level?: number // Job2 Lv 1..JOB2_RULES.maxJobLevel (kept on a re-pick)
+  job2Xp?: number
+  job2Points?: number // free ใยชั้น 2 points (1 per Job2 Lv)
+  job2Tree?: Record<string, number> // ใยชั้น 2 node -> level (data/tree.ts TREE2)
   web?: 1 // save migrated to the skill web (v27)
   webRefund?: number // skill points refunded by that migration, shown once in town
   jobTalents?: Record<string, { id: string; rank: number }> // talent row "1".."4" -> pick + rank; Talent Points are derived from Job Lv (data/tree.ts)
@@ -187,8 +193,19 @@ export function addXp(n: number): { base: number; job: number } {
   const maxJob = s.job === 'novice' ? JOB_RULES.maxJobLevel : JOB_CHANGE.classMaxJobLevel
   n = Math.round(n * RACES[s.race].expMul)
   s.baseXp += n
-  if (s.jobLevel < maxJob) s.jobXp += n
-  while (s.jobLevel < maxJob && s.jobXp >= JOB_RULES.jobXpNeed(s.jobLevel)) {
+  if (s.job2) { // 2nd job: Job EXP goes to Job2 Lv (the base class is maxed)
+    const lv = s.job2Level ?? 1
+    if (lv < JOB2_RULES.maxJobLevel) s.job2Xp = (s.job2Xp ?? 0) + n
+    while ((s.job2Level ?? 1) < JOB2_RULES.maxJobLevel && (s.job2Xp ?? 0) >= JOB_RULES.jobXpNeed(s.job2Level ?? 1)) {
+      s.job2Xp! -= JOB_RULES.jobXpNeed(s.job2Level ?? 1)
+      s.job2Level = (s.job2Level ?? 1) + 1
+      s.job2Points = (s.job2Points ?? 0) + 1
+      jobUps++
+    }
+    if ((s.job2Level ?? 1) >= JOB2_RULES.maxJobLevel) s.job2Xp = 0
+  }
+  if (!s.job2 && s.jobLevel < maxJob) s.jobXp += n
+  while (!s.job2 && s.jobLevel < maxJob && s.jobXp >= JOB_RULES.jobXpNeed(s.jobLevel)) {
     s.jobXp -= JOB_RULES.jobXpNeed(s.jobLevel)
     s.jobLevel++
     s.skillPoints++
@@ -222,6 +239,35 @@ export function changeJob(job: JobId) {
 
 export const canRepickJob = (s: SaveData) => s.job !== 'novice'
 
+// ---------- 2nd jobs (design/second-jobs-v1.md, Q 2026-11-05: Job Lv 40 + ดัน 5 cleared) ----------
+export const job2Ready = (s: SaveData) => s.job !== 'novice' && s.jobLevel >= JOB2_RULES.unlockJobLv && (s.clearsBy?.[JOB2_RULES.unlockClear] ?? 0) > 0
+export const canChangeJob2 = (s: SaveData) => job2Ready(s) && !s.job2
+/** Why the 2nd job is still locked ('' = open). */
+export function job2Lock(s: SaveData): string {
+  if (s.job === 'novice') return 'เปลี่ยนอาชีพแรกก่อน'
+  const need: string[] = []
+  if (s.jobLevel < JOB2_RULES.unlockJobLv) need.push(`Job Lv ${s.jobLevel}/${JOB2_RULES.unlockJobLv}`)
+  if (!((s.clearsBy?.[JOB2_RULES.unlockClear] ?? 0) > 0)) need.push('เคลียร์ดัน 5')
+  return need.join(' · ')
+}
+/** Pick a 2nd job. First time: Job2 Lv 1, no points. A re-pick (gems, or free after a base re-pick) keeps Job2 Lv: web points come back. */
+export function changeJob2(id: Job2Id, gems = 0): boolean {
+  const s = save()
+  if (!job2Ready(s) || JOB2[id].parent !== s.job || id === s.job2 || s.gems < gems) return false
+  s.gems -= gems
+  s.job2Points = (s.job2Points ?? 0) + resetTree2(s)
+  s.job2 = id
+  s.job2Level ??= 1; s.job2Xp ??= 0
+  persist()
+  return true
+}
+/** Free ใยชั้น 2 reset: clears it and returns the points it held (not yet added back). */
+export function resetTree2(s: SaveData): number {
+  const n = Object.values(s.job2Tree ?? {}).reduce((a, v) => a + v, 0)
+  s.job2Tree = {}
+  return n
+}
+
 /** Class -> another base class for JOB_CHANGE.repickGems (Q 2026-11-04). Unlike changeJob, Job Lv + EXP stay:
  *  skill points are earned per Job Lv, so restarting Job Lv while keeping the points would let every re-pick farm
  *  them again. Web points come back as skill points, talents clear (derived from Job Lv, re-place free).
@@ -232,6 +278,7 @@ export function repickJob(job: JobId): boolean {
   s.gems -= JOB_CHANGE.repickGems
   s.skillPoints += resetTree(s)
   s.jobTalents = {}
+  if (s.job2) { s.job2Points = (s.job2Points ?? 0) + resetTree2(s); s.job2 = undefined } // the new class picks its own 2nd job free (Job2 Lv kept)
   s.job = job
   s.jobSkills = { auto: 1, ult: 1 }
   persist()
