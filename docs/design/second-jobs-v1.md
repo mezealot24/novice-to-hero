@@ -308,3 +308,16 @@ interface AllyDef {
 - ค่าที่เดาเอง: ลูกพลัง +1 ต่อการตีธรรมดาด้วย (doc ให้แค่ฮิตคอมโบ แต่คอมโบนักบวชติดน้อย Falling Thunder แทบไม่ออก) · Falling Thunder ไม่ใช้ Mana · holy +25% นับทุกฮิตของ Crusader
 - อาวุธ (req `job2`): `w_crusmace` (mace), `o_crusshield` (โล่ +Auto Guard 3%), `w_knuckle` (fist), `w_monkstaff` (staff 2 มือ) · เติม wtype ของเดิม: กระบอง `mace`, ดาบสั้น/ยาว `sword`, คัมภีร์ `book`
 - `power.ts JOB2_K` crusader 1.05 / monk 1.1 = **ค่าเดา ยังไม่ได้รัน bot** · bot `JOB2=crusader|monk` (Crusader ใส่ `o_crusshield` ให้เอง)
+## 11. Phase 5 ที่ทำแล้ว (🔮 Wizard / Sage)
+
+- `jobs2.ts` + `KIT2.wizard / sage` · ใยชั้น 2 `trees2/wizard.ts`, `trees2/sage.ts` (id เป็น save data ห้าม rename)
+- 🌩️ Wizard: **ร่ายใหญ่** — Storm Gust / Ult ชาร์จ 1 เทิร์น (วงเวทม่วงใต้เท้า) แล้วระเบิดต้นเทิร์นถัดไป · ระหว่างชาร์จดาเมจเข้า +15% · ทักษะ 3 ชาร์จเป็น action ฟรี, Ult ชาร์จกินเทิร์น
+- ❄️ Storm Gust: ทุกตัว 3 ฮิต 0.6x Pm · ฮิตสุดท้ายแช่แข็ง (บอส/มินิ: ช้า + ดันเกจ)
+- ☄️ Ult ตามธาตุของรอบ: 🔥 Meteor Storm 5 ลูกสุ่ม 1.2x + เผา · ⚡ Lord of Vermilion ทุกตัว 4 ฮิต 0.5x มึน 10% (บอส: ดันเกจ) · ❄️ Storm Gust ฟรี + บาเรีย x1.5 · ยังใช้ amp ธาตุ / ร่ายคู่ / วงล้อธาตุ ของใยจอมเวทเดิม
+- ใย Wizard: 🔥 อุกกาบาต (★ ฝนดาวตก +3 ลูก) · ⚡ สายฟ้าเทพ (★ LoV +2 ฮิต) · ❄️ พายุหิมะ (★ **Quagmire**: Mana ≥ 80% = ไม่ต้องชาร์จ)
+- 📖 Sage: ตีธรรมดาเป็นตีใกล้ 1.0x P.ATK (ตีสวนก็เป็นกายภาพ) · **Auto Spell** 25% + 0.2%/INT (เพดาน 60%) ยิง Bolt ธาตุของรอบ 0.7x Pm ฟรี (ไม่ดูดเลือด)
+- 🗡️ Endow: 3 เทิร์น ตีธรรมดา/คอมโบ/Auto Spell +25% · 🚫 Dispell + Spell Breaker: ลบโล่ / warcry / สะท้อน+ดูดซับ / โล่แค้น ทุกตัว + ขัดบอสชาร์จ · Mana +20 · ฟาดตัวที่ชาร์จ (ไม่งั้นตัวหน้า) 2x P.ATK + 1x Pm
+- ใย Sage: 📖 ร่ายอัตโนมัติ (★ **Hindsight** คอมโบ + สวนกลับ) · 🗡️ ธาตุอาวุธ (★ Endow ทั้งเวฟ) · 🛡️ ต้านเวท Magic Rod (โดนเวทได้ Mana, ★ ดูดเวทลูกแรกของเวฟ)
+- อาวุธ: `wtype: 'staff'` ให้คทาจอมเวทเดิม (ไม่แตะ `staff` ของโนวิส) + ใหม่ `w_wizstaff` (ไม้เท้า), `w_sagebook` (หนังสือ) req `job2`
+- `power.ts JOB2_K` wizard 1.1 / sage 1.0 + `MAGIC_SHARE2.sage = 0.5` (70/30 + ตีใกล้) = **ค่าเดา ยังไม่ได้รัน bot** · bot `JOB2=wizard|sage`
+- ตัดให้ง่าย (MVP): Endow ยังไม่ดู "ธาตุที่มอนแพ้" (มอนยังไม่มีธาตุ) → เป็น +25% ตรงๆ · Bolt ของ Sage ใช้ธาตุที่เลือกต้นรอบ (อาวุธยังไม่มีธาตุ)

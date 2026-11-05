@@ -120,9 +120,12 @@ export const ITEMS: Item[] = [
   { id: 'w_hawkbow', slot: 'weapon', name: 'ธนูเหยี่ยวลม', icon: '🪶', price: 560, desc: 'ยิงรัว คริบ่อยขึ้น', base: { agi: 3 }, mod: { atk: 4, combo: 0.08, crit: 0.04 }, jobs: AR, req: 'job' },
   { id: 'w_starbow', slot: 'weapon', name: 'ธนูดาวตก', icon: '🌠', price: 1100, desc: 'ของดัน 2: คริแรงมาก', base: { dex: 5 }, mod: { atk: 10, critMul: 0.35, crit: 0.03 }, jobs: AR, req: 'd2' },
   // ----- weapons: Mage (M.ATK / Mana Shield) -----
-  { id: 'w_gemstaff', slot: 'weapon', name: 'คทาอัญมณี', icon: '💎', price: 520, desc: 'สายตีแรง', base: { int: 3 }, mod: { matk: 10 }, jobs: MG, req: 'job' },
-  { id: 'w_wardstaff', slot: 'weapon', name: 'คทาวงเวทป้องกัน', icon: '🔮', price: 560, desc: 'สาย Mana ยาว: Mana เยอะ ฟื้นไว ร่ายสกิลได้บ่อย', base: { wis: 3 }, mod: { matk: 5, maxRes: 30, resRegen: 1 }, jobs: MG, req: 'job' },
-  { id: 'w_archstaff', slot: 'weapon', name: 'คทาจอมปราชญ์', icon: '🪄', price: 1100, desc: 'ของดัน 2: เวทแรง Mana ฟื้นไว', base: { int: 5 }, mod: { matk: 16, resRegen: 1 }, jobs: MG, req: 'd2' },
+  { id: 'w_gemstaff', wtype: 'staff', slot: 'weapon', name: 'คทาอัญมณี', icon: '💎', price: 520, desc: 'สายตีแรง', base: { int: 3 }, mod: { matk: 10 }, jobs: MG, req: 'job' },
+  { id: 'w_wardstaff', wtype: 'staff', slot: 'weapon', name: 'คทาวงเวทป้องกัน', icon: '🔮', price: 560, desc: 'สาย Mana ยาว: Mana เยอะ ฟื้นไว ร่ายสกิลได้บ่อย', base: { wis: 3 }, mod: { matk: 5, maxRes: 30, resRegen: 1 }, jobs: MG, req: 'job' },
+  { id: 'w_archstaff', wtype: 'staff', slot: 'weapon', name: 'คทาจอมปราชญ์', icon: '🪄', price: 1100, desc: 'ของดัน 2: เวทแรง Mana ฟื้นไว', base: { int: 5 }, mod: { matk: 16, resRegen: 1 }, jobs: MG, req: 'd2' },
+  // ----- weapons: Mage 2nd jobs (Phase 5): Wizard staff, Sage book -----
+  { id: 'w_wizstaff', wtype: 'staff', slot: 'weapon', name: 'ไม้เท้าพายุเวท', icon: '🌩️', price: 1600, desc: 'อาชีพขั้น 2 · ไม้เท้า: เวทแรง Mana เยอะ ร่ายใหญ่บ่อย', base: { int: 6, wis: 2 }, mod: { matk: 26, maxRes: 20, resRegen: 1 }, jobs: MG, req: 'job2' },
+  { id: 'w_sagebook', wtype: 'book', slot: 'weapon', name: 'คัมภีร์ปราชญ์', icon: '📖', price: 1600, desc: 'อาชีพขั้น 2 · หนังสือ: ตีใกล้แรง เวทแรง (เซจ)', base: { int: 3, str: 3 }, mod: { atk: 16, matk: 16, maxRes: 10 }, jobs: MG, req: 'job2' },
   // ----- weapons: Cleric (heal / shield) -----
   { id: 'w_holymace', wtype: 'mace', slot: 'weapon', name: 'กระบองศักดิ์สิทธิ์', icon: '🔱', price: 520, desc: 'ทุบแรง ฮีลแรงขึ้น', base: { str: 1, wis: 2 }, mod: { atk: 8, matk: 6, healAmp: 0.15 }, jobs: CL, req: 'job' },
   { id: 'w_lightbook', wtype: 'book', slot: 'weapon', name: 'คัมภีร์แสง', icon: '📖', price: 560, desc: 'โล่หนา ฟื้น HP ทุกเทิร์น', base: { int: 2, wis: 1 }, mod: { atk: 5, matk: 6, shieldAmp: 0.15, regen: 0.5 }, jobs: CL, req: 'job' },
