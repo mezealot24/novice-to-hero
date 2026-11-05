@@ -97,6 +97,7 @@ export function load(): SaveData | null {
     if (!s.job) { s.job = 'novice'; s.jobSkills = { auto: 1, ult: 1 } }
     if (!s.web) migrateToWeb(s)
     migrateThiefWeb(s)
+    migratePriestBless(s)
     migrateGear(s)
     s.modes ??= {} // v51 game modes: additive, old saves start with no records
     cache = s
@@ -170,6 +171,12 @@ function migrateThiefWeb(s: SaveData) {
   if ((t.thief_core1 ?? 0) > 5) { back += t.thief_core1 - 5; t.thief_core1 = 5 }
   if ((t.thief_core1 ?? 0) < 5) for (const id of Object.keys(t)) if (/^th_(smoke|pick|wound)/.test(id) && t[id] > 0) { back += t[id]; delete t[id] }
   s.skillPoints += back
+}
+/** v77 Priest พรแสง back to an active Skill 2 (root max 5 -> 1): refund the root points above 1. Ids unchanged. */
+function migratePriestBless(s: SaveData) {
+  const t = s.jobTree
+  if (s.job !== 'cleric' || !t || (t.cl_bless ?? 0) <= 1) return
+  s.skillPoints += t.cl_bless - 1; t.cl_bless = 1
 }
 /** v27 skill web: class skill levels and the old tree become web nodes with new rules, so refund every point once. */
 function migrateToWeb(s: SaveData) {

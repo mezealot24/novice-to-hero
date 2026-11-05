@@ -3,7 +3,7 @@ import { afterDef, BATTLE, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, 
 import { ELEM_SRC, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, PERKS_V2, OFFER_RULES, OUTSIDE_CAP, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type OutsideKey, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
 import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
-import { COSTUMES, FREE_GEMS, heroStats, itemById, PER_POINT, RESOURCES, totalBase, type BaseStat } from '../data/meta'
+import { blessBase, COSTUMES, FREE_GEMS, heroStats, itemById, PER_POINT, RESOURCES, totalBase, type BaseStat } from '../data/meta'
 import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster, EQUIP_CARDS } from '../data/cards'
 import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, type JobDef } from '../data/jobs'
 import { JOB2, PET_IDS, type Job2Def, type PetId } from '../data/jobs2'
@@ -164,6 +164,7 @@ export class BattleScene extends Phaser.Scene {
   resistCount = 0
   private roomStart = 0
   private debuffTxt?: Phaser.GameObjects.Text
+  private buffTxt?: Phaser.GameObjects.Text // hero Skill 2 buffs (v77), right of the debuff line
   /** Event v2 (scenes/battle-events.ts): per-run flags, the HP an event fight can't push the hero below, 777 crit wave */
   flags: RunFlags = newFlags()
   private hpFloor = 0
@@ -273,7 +274,8 @@ export class BattleScene extends Phaser.Scene {
     { const wpn = itemById(s.equipped.weapon ?? ''); this.j2Weapon = !!this.j2?.mastery.ok(wpn); this.hasShield = !wpn.twoHand && !!s.equipped.offhand && s.equipped.offhand !== 'none_off'; this.dualKnife = this.hasShield && itemById(s.equipped.offhand ?? '').wtype === 'dagger' }
     this.frenzy = 0; this.frenzyAt = 0; this.s3Cd = 0; this.rampage = 0; this.charges = 0; this.allies = []; this.allyTxt.clear(); this.chargeTxt = undefined
     this.s2 = this.job.id === 'novice' ? undefined : skill2Picked(s.jobTree, this.job.id); this.s2Cd = 0
-    this.buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0 }; this.s2Count = 0
+    this.buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, bless: 0 }; this.s2Count = 0
+    this.blessOn = false; this.blessDelta = undefined; this.kyrie = { hp: 0, hits: 0 } // v77 พรแสง
     if (this.s2?.id === 'cl_spear') this.st.spearMul += S2N.spearPlus(this.st.s2Lv) // หอกคม: +10%/lv of the 0.3x base
     this.res = this.job.resource === 'rage' ? 0 : this.resMax()
     this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0
@@ -728,7 +730,8 @@ export class BattleScene extends Phaser.Scene {
   // ----- skill web v1: Skill 2 (data/skill2.ts, design/skill-web-v1.md) -----
   private s2?: Skill2Def
   private s2Cd = 0 // hero turns until Skill 2 can cast again
-  private buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0 } // hero turns left on Skill 2 buffs
+  private buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, bless: 0 } // hero turns left on Skill 2 buffs
+  private kyrie = { hp: 0, hits: 0 } // v77 พรแสง "+" Kyrie Eleison: barrier HP + hits left (gone with the blessing)
   private s2Count = 0 // casts this run (bot/debug)
   private s2Txt?: Phaser.GameObjects.Text // HUD line above the ult button
   private res = 0
@@ -1525,14 +1528,16 @@ export class BattleScene extends Phaser.Scene {
     const B = this.buf
     if (B.renew > 0) { B.renew--; this.heal(this.st.matk * S2N.renewHeal(this.st.s2Lv)) } // Priest heals = x M.ATK
     for (const k of ['guard', 'blood', 'hawk', 'mshield'] as const) if (B[k] > 0) B[k]--
+    if (B.bless > 0 && --B.bless === 0) this.syncBless()
     const k = this.s2
-    if (!k || k.passive || this.hx.silence > 0 || !this.alive().length) return
+    if (!k || this.hx.silence > 0 || !this.alive().length) return
     if (this.s2Cd > 0) { this.s2Cd--; return }
     if (this.res < k.cost) return
     if (this.smashQueued && this.smashCdLeft <= 0 && this.res - k.cost < this.ultCost()) return // keep Mana for the booked ult
     if (k.id === 'mg_mshield' && B.mshield > 0) return
     if (k.id === 'cl_renew' && (B.renew > 0 || this.hp >= this.st.maxHp)) return
     if (k.id === 'sw_guard' && B.guard > 0) return
+    if (k.id === 'cl_bless' && B.bless > 0) return
     this.res -= k.cost
     this.s2Cd = s2Cooldown(k, this.st)
     this.s2Count++
@@ -1584,6 +1589,17 @@ export class BattleScene extends Phaser.Scene {
         break
       }
       case 'cl_renew': B.renew = S2N.renewTurns(star); this.burst(HERO_X, GROUND - 40, 0x6fd08c, 14, 160); break
+      case 'cl_bless': { // v77 Q 2026-11-06: active Blessing (+ Kyrie Eleison barrier, ★ Gloria LUK)
+        B.bless = S2N.blessTurns; this.syncBless()
+        for (let i = 0; i < S2N.blessCleanse; i++) this.cleanseOne()
+        if (lv > 0) {
+          this.kyrie = { hp: Math.round(this.st.maxHp * S2N.kyrieHp(lv) * (1 + this.st.shieldAmp)), hits: S2N.kyrieHits }
+          this.floatText(HERO_X, GROUND - 100, `🛡️ Kyrie Eleison ${this.kyrie.hp}`, '#9fe3ff')
+        }
+        if (star) this.floatText(HERO_X, GROUND - 130, `✨ Gloria LUK +${S2N.gloriaLuk}`, '#ffe08a')
+        this.burst(HERO_X, GROUND - 40, 0xffe08a, 16, 180)
+        break
+      }
       case 'cl_spear': this.spears += S2N.spearCount(star); break // "+" node: spearMul set at run start
       case 'th_smoke':
         this.dodgeCharges = Math.max(this.dodgeCharges, S2N.smokeDodges(star))
@@ -2299,6 +2315,13 @@ export class BattleScene extends Phaser.Scene {
     if (this.relic === 'thornaura' && src && !src.dead) { this.damageMon(src, Math.max(1, Math.round(n * RELIC_RULES.thornaura.back)), false, '#7fd08c', true); this.floatText(src.spr.x, src.spr.y - src.spr.displayHeight - 30, '🌵 หนาม!', '#7fd08c') }
     this.gainRage(RES_RULES.rageOnHurt + this.st.rageOnHurtAdd) // talent: แค้นฝังใจ
     if (this.st.rageOnHurtAdd > 0) this.gainRes(this.st.rageOnHurtAdd) // same talent on a Mana job: Mana when hit
+    if (this.kyrie.hits > 0 && this.kyrie.hp > 0) { // v77 Kyrie Eleison: breaks on its HP or after N hits, whichever first
+      const absorbed = Math.min(this.kyrie.hp, n)
+      this.kyrie.hp -= absorbed; this.kyrie.hits--; n -= absorbed
+      this.floatText(HERO_X, GROUND - 110, `🛡️ -${absorbed}`, '#9fe3ff')
+      if (this.kyrie.hp <= 0 || this.kyrie.hits <= 0) { this.kyrie = { hp: 0, hits: 0 }; this.floatText(HERO_X, GROUND - 140, '🛡️ Kyrie แตก', '#c9c9d6') }
+      if (n <= 0) return true
+    }
     if (this.shield > 0) {
       const absorbed = Math.min(Math.ceil(this.shield), n)
       this.shield = Math.max(0, this.shield - absorbed); n -= absorbed
@@ -3031,6 +3054,39 @@ export class BattleScene extends Phaser.Scene {
     this.hp = Math.max(1, Math.min(this.hp, this.st.maxHp))
     this.webOn = on
   }
+  /** v77 พรแสง: while blessed the hero's base stats get blessBase(); derived stats move by exactly what heroStats() gives (like syncWeb). */
+  private blessOn = false
+  private blessDelta?: Partial<Record<keyof Stats, number>>
+  private syncBless() {
+    const on = this.buf.bless > 0
+    if (on === this.blessOn) return
+    if (!this.blessDelta) {
+      const s = save(), add = blessBase(s) ?? {}
+      const a = heroStats(s) as unknown as Record<string, number>
+      const b = heroStats({ ...s, tempBase: add }) as unknown as Record<string, number>
+      this.blessDelta = Object.fromEntries(Object.keys(a).filter((k) => typeof a[k] === 'number' && a[k] !== b[k]).map((k) => [k, b[k] - a[k]])) as Partial<Record<keyof Stats, number>>
+    }
+    const st = this.st as unknown as Record<string, number>
+    for (const [k, d] of Object.entries(this.blessDelta)) st[k] += (d as number) * (on ? 1 : -1)
+    this.hp = Math.max(1, Math.min(this.hp, this.st.maxHp))
+    this.blessOn = on
+    if (!on) { this.kyrie = { hp: 0, hits: 0 }; this.floatText(HERO_X, GROUND - 150, '🔆 พรแสงหมด', '#c9c9d6') }
+  }
+  /** Remove the worst hero debuff (v77 พรแสง cleanse). */
+  private cleanseOne() {
+    const X = this.hx
+    if (X.venomTurns > 0) { X.venomTurns = 0; X.venom = 0 }
+    else if (X.poison > 0) X.poison = 0
+    else if (X.burn > 0) X.burn = 0
+    else if (X.silence > 0) X.silence = 0
+    else if (X.web > 0) { X.web = 0; this.syncWeb() }
+    else if (X.armorBreak > 0) X.armorBreak = 0
+    else if (X.weaken > 0) X.weaken = 0
+    else if (X.slow > 0) X.slow = 0
+    else if (X.thorn > 0) X.thorn = 0
+    else return
+    this.floatText(HERO_X, GROUND - 175, '🔆 ล้างดีบัฟ!', '#ffe08a')
+  }
   private undrain() {
     if (!this.drained) return
     this.shiftStats(-this.drained)
@@ -3578,6 +3634,7 @@ export class BattleScene extends Phaser.Scene {
     this.s2Txt = this.add.text(W - 100, H - 124, '', { fontSize: '13px', color: '#7fd7ff', fontStyle: 'bold', stroke: '#14172b', strokeThickness: 3 }).setOrigin(0.5).setDepth(15003)
     this.fortuneTxt = this.add.text(W - 250, 34, '', { fontFamily: FONT_UI, fontSize: '14px', color: '#8fe08a', stroke: '#14172b', strokeThickness: 4 }).setDepth(15001)
     this.debuffTxt = this.add.text(22, 98, '', { fontFamily: FONT_UI, fontSize: '15px', color: '#ffb0e0', stroke: '#14172b', strokeThickness: 4 }).setDepth(15001)
+    this.buffTxt = this.add.text(22, 98, '', { fontFamily: FONT_UI, fontSize: '15px', color: '#ffe08a', stroke: '#14172b', strokeThickness: 4 }).setDepth(15001)
     this.setFast(false)
   }
 
@@ -3592,7 +3649,7 @@ export class BattleScene extends Phaser.Scene {
     g.fillStyle(COLORS.night, 0.8).fillRoundedRect(12, 38, hpW + 8, 10, 3)
     g.fillStyle(0x7fd7ff).fillRect(16, 41, hpW * Math.min(1, this.xp / RULES.xpNeed(this.level)), 4)
     // shield over the HP bar
-    if (this.shield > 0) g.fillStyle(0x9fe3ff, 0.75).fillRoundedRect(16, 14, Math.min(hpW, hpW * this.shield / this.st.maxHp), 6, 2)
+    if (this.shield + this.kyrie.hp > 0) g.fillStyle(0x9fe3ff, 0.75).fillRoundedRect(16, 14, Math.min(hpW, hpW * (this.shield + this.kyrie.hp) / this.st.maxHp), 6, 2) // + v77 Kyrie barrier
     // job resource
     if (this.job.resource) {
       const r = RESOURCES[this.job.resource], max = this.resMax()
@@ -3615,6 +3672,10 @@ export class BattleScene extends Phaser.Scene {
     this.hudTxt.build.setText(this.buildText()).setY(14)
     const X = this.hx
     this.debuffTxt?.setText([X.poison > 0 ? `☠️${X.poison}` : '', X.burn > 0 ? `🔥${X.burn}` : '', X.weaken > 0 ? `💔${X.weaken}` : '', X.armorBreak > 0 ? `🛡️💥${X.armorBreak}` : '', X.silence > 0 ? `🤐${X.silence}` : '', X.web > 0 ? `🕸️${X.web}` : '', X.slow > 0 ? `💙${X.slow}` : '', X.thorn > 0 ? `❄️${X.thorn}` : '', X.venomTurns > 0 ? `🕷️${X.venomTurns}` : ''].filter(Boolean).join(' ')).setY(this.job.resource ? 92 : 78)
+    { const B = this.buf, d = this.debuffTxt, k2i = this.s2?.icon ?? '' // v77: hero buffs (the picked Skill 2's icon + turns left; พรแสง adds Kyrie hits / Gloria)
+      this.buffTxt?.setText([B.bless > 0 ? `${k2i}${B.bless}` : '', this.kyrie.hits > 0 ? `🛡️${this.kyrie.hits}` : '', B.bless > 0 && this.st.s2Star > 0 && this.s2?.id === 'cl_bless' ? '✨' : '',
+        ...(['guard', 'blood', 'hawk', 'mshield', 'renew'] as const).map((k) => (B[k] > 0 ? `${k2i}${B[k]}` : ''))].filter(Boolean).join(' '))
+        .setPosition(22 + (d && d.text ? d.width + 10 : 0), this.job.resource ? 92 : 78) }
 
     // monster HP bars + boss charge
     for (const m of this.mons) {
@@ -3642,7 +3703,7 @@ export class BattleScene extends Phaser.Scene {
 
     // smash button state
     const k2 = this.s2
-    this.s2Txt?.setText(k2 ? `${k2.icon} ${k2.name} ${k2.passive ? 'ติดตัว' : this.s2Cd > 0 ? `อีก ${this.s2Cd}` : this.res < k2.cost ? `รอ ${k2.cost}` : 'พร้อม'}` : '')
+    this.s2Txt?.setText(k2 ? `${k2.icon} ${k2.name} ${this.s2Cd > 0 ? `อีก ${this.s2Cd}` : this.res < k2.cost ? `รอ ${k2.cost}` : 'พร้อม'}` : '')
     const ready = this.smashCdLeft <= 0
     const u = this.job.ult
     const cost = this.ultCost(), short = cost > 0 && this.res < cost

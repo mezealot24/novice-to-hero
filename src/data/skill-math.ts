@@ -122,8 +122,9 @@ export const S2N = {
   novaMul: (lv: number) => 0.8 + 0.15 * lv, novaChill: (star: boolean) => 2 + (star ? 1 : 0), novaPush: 15,
   arcaneMul: (lv: number) => 0.6 + 0.1 * lv, arcaneHits: (star: boolean) => 3 + (star ? 2 : 0),
   renewHeal: (lv: number) => 0.3 + 0.05 * lv, renewTurns: (star: boolean) => (star ? 6 : 4), // heal x M.ATK per turn (Q 2026-11-04: Priest heals scale with M.ATK; was 6% +1%/lv max HP)
-  // v69 Q: Priest ทักษะ 2 พรแสง = passive Blessing. root Lv5 = STR/DEX/INT/WIS +10 (2/lv) · "+" Lv3 = VIT +20 · ★ = M.ATK +30%
-  blessStat: (lv: number) => 2 * lv, blessVit: (lv: number) => Math.round((20 * lv) / 3), blessMatk: 0.3,
+  // v77 Q 2026-11-06: Priest ทักษะ 2 พรแสง = active Blessing (Mana 30 · cd 4 in skill2.ts). 3 hero turns: STR/DEX/INT/WIS +15 + cleanse 1 debuff on cast
+  // · "+" 🛡️ Kyrie Eleison: barrier 5%/lv max HP (Lv3 = 15%), breaks after 3 hits · ★ ✨ Gloria: LUK +30 while blessed
+  blessTurns: 3, blessStat: 15, blessCleanse: 1, kyrieHp: (lv: number) => 0.05 * lv, kyrieHits: 3, gloriaLuk: 30,
   spearPlus: (lv: number) => 0.03 * lv, spearCount: (star: boolean) => (star ? 4 : 2), // หอกคม: +10%/lv of the 0.3x base
   smokeHeal: (lv: number) => 0.03 * lv, smokeDodges: (star: boolean) => (star ? 2 : 1),
   pickMul: (star: boolean) => (star ? 1.6 : 1), pickRes: (lv: number) => 15 + 5 * lv, pickPoison: 3,
@@ -246,7 +247,11 @@ export function skill2Info(k: Skill2Def, st: Stats): InfoRow[] {
     case 'mg_nova': add('ดาเมจ/ตัว (ทุกตัว)', hitText(st, S2N.novaMul(lv), true)); add('ช้า', `${S2N.novaChill(star)} เทิร์น${star ? ` · ผลักเทิร์น ${S2N.novaPush}` : ''}`); break
     case 'mg_arcane': add(`${S2N.arcaneHits(star)} ฮิต ดาเมจ/ฮิต`, hitText(st, S2N.arcaneMul(lv), true)); break
     case 'cl_renew': { const turns = S2N.renewTurns(star), h = heal(st, st.matk * S2N.renewHeal(lv)); add('ฮีล/เทิร์น', `${h} HP × ${turns} เทิร์น = ${h * turns} HP`); break }
-    case 'cl_bless': add('พรแสง (ติดตัวตลอดไฟต์)', 'ถาวร · ไม่ใช้ Mana'); add('STR/DEX/INT/WIS', `+${S2N.blessStat(st.blessLv)} (ราก Lv${st.blessLv}/5)`); add('VIT', `+${S2N.blessVit(lv)}`); if (star) add('M.ATK', `+${pct(S2N.blessMatk)}`); break
+    case 'cl_bless':
+      add('STR/DEX/INT/WIS', `+${S2N.blessStat} · ${S2N.blessTurns} เทิร์น`); add('ล้างดีบัฟ', `${S2N.blessCleanse} อย่าง ตอนร่าย`)
+      if (lv) add('🛡️ Kyrie Eleison', `${shield(st, st.maxHp * S2N.kyrieHp(lv))} · แตกเมื่อโดน ${S2N.kyrieHits} ฮิต`)
+      if (star) add('✨ Gloria', `LUK +${S2N.gloriaLuk}`)
+      break
     case 'cl_spear': add(`หอกแสง ${S2N.spearCount(star)} เล่ม ดาเมจ/ตัว`, hitText(st, spearMul(st, k), true)); break
     case 'th_smoke': add('หลบแน่นอน', `${S2N.smokeDodges(star)} ครั้ง`); if (lv) add('ฟื้น HP', `${heal(st, st.maxHp * S2N.smokeHeal(lv))}`); break
     case 'th_pick': add('แทงตัวหน้า', hitText(st, S2N.pickMul(star), false)); add('คืน Energy', `${S2N.pickRes(lv)}`); if (star) add('พิษ', `+${S2N.pickPoison} stack`); break

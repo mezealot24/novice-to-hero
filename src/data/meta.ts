@@ -306,7 +306,7 @@ export const SUPPORTER_PRICE = 300 // gems: badge + gold name, no stats
 export const FREE_GEMS = { firstClear: 50, clear: 5, levelUp: 10, daily: 20 }
 
 // ---------- combine everything into the hero's starting stats ----------
-export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; job2?: Job2Id; job2Tree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; sockets?: Record<string, string[]>; grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]> }
+export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; job2?: Job2Id; job2Tree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; sockets?: Record<string, string[]>; grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]>; tempBase?: Partial<Record<BaseStat, number>> }
 
 /** Items the hero actually gets stats from (gear for another job, or broken by a failed refine, stays on but does nothing). */
 export function wornItems(s: StatsInput): Item[] {
@@ -362,18 +362,20 @@ export function baseDefence(b: Record<BaseStat, number>) {
   return { ignoreCombo: f(d('agi')), ignoreCounter: f(d('dex')), comboDR: f(d('vit')), counterDR: f(d('vit')), critDR: f(d('luk')) }
 }
 
+/** v77 Priest พรแสง (ทักษะ 2, active): the base stats the Blessing adds while it is up (+ ★ Gloria LUK), or undefined if not learned. */
+export function blessBase(s: StatsInput): Partial<Record<BaseStat, number>> | undefined {
+  if (s.job !== 'cleric' || !(s.jobTree?.cl_bless ?? 0)) return undefined
+  const n = S2N.blessStat
+  return { str: n, dex: n, int: n, wis: n, luk: (s.jobTree?.cl_bless_x ?? 0) > 0 ? S2N.gloriaLuk : 0 }
+}
+
 export function heroStats(s: StatsInput): Stats {
   const st: Stats = { ...PLAYER }
   const b = totalBase(s)
-  const blessLv = s.job === 'cleric' ? (s.jobTree?.cl_bless ?? 0) : 0 // v69 Priest พรแสง (ทักษะ 2): passive base-stat blessing
-  if (blessLv > 0) {
-    const bs = S2N.blessStat(blessLv); for (const k of ['str', 'dex', 'int', 'wis'] as const) b[k] += bs
-    b.vit += S2N.blessVit(s.jobTree?.cl_bless_p ?? 0)
-  }
+  for (const k of Object.keys(s.tempBase ?? {}) as BaseStat[]) b[k] += s.tempBase?.[k] ?? 0 // in-fight base-stat buffs (v77 พรแสง), see BattleScene.syncBless
   const d = (k: BaseStat) => b[k] - STAT_RULES.start
   const P = PER_POINT
   const job = JOBS[s.job ?? 'novice']
-  st.blessLv = blessLv
   applyBase(st, b, job.attack === 'ranged' ? 'dex' : 'str') // ranged jobs draw P.ATK from DEX instead of STR (stat spec v1)
   if (job.id === 'thief') st.poisonDmg += 0.1 * d('int') // Q 2026-11-03: off-stat use, Thief poison +0.1 per INT point per stack
   if (job.id === 'thief') st.thUltAgi = 0.02 * d('agi') // Q 2026-11-03: เงาพริ้ว +2% per AGI point
@@ -408,7 +410,7 @@ export function heroStats(s: StatsInput): Stats {
   for (const it of worn) add(it.mod)
   const cards = wornCards(s)
   for (const cd of cards) add(cd.mod)
-  const pct = { maxHp: 0, atk: 0, matk: blessLv > 0 && (s.jobTree?.cl_bless_x ?? 0) > 0 ? S2N.blessMatk : 0 }
+  const pct = { maxHp: 0, atk: 0, matk: 0 }
   for (const x of [...cards, ...worn]) for (const k of Object.keys(x.pct ?? {}) as (keyof typeof pct)[]) pct[k] += x.pct![k]! // refine lines: HP / ATK / M.ATK %
   st.maxHp = Math.max(1, Math.round(st.maxHp * (1 + pct.maxHp + j2pct.maxHp))); st.atk *= 1 + pct.atk + j2pct.atk; st.matk *= 1 + pct.matk
   if (j2pct.aspd) st.aspd *= 1 + j2pct.aspd
