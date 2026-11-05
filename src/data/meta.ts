@@ -2,7 +2,8 @@
 // Everything a run starts from is computed by heroStats(save). Balance knobs live here.
 import { COMBO, PLAYER, type Stats } from './game-data'
 import { S2N } from './skill-math'
-import { talentMods, treeMods, type TalentSave, type TreeSave } from './tree'
+import { talentMods, tree2Mods, treeMods, type TalentSave, type TreeSave } from './tree'
+import { JOB2, type Job2Id, type WeaponType } from './jobs2'
 import { JOBS, type JobId } from './jobs'
 import { cardById, type EquipCard } from './cards'
 import { CRAFT_ITEMS, forgeItem, GRADE, type CraftInfo, type RefineLine } from './craft'
@@ -95,21 +96,25 @@ export const slotKind = (sl: EquipSlot): Slot => (sl === 'acc2' ? 'acc' : sl)
 // stats (Hit, Flee, Counter, Combo, lifesteal, shields...). One item per slot, so nothing stacks.
 // jobs = who can wear it (none = everyone). req = when the shop sells it: 'job' after the first job change,
 // 'd2' after beating ป่าหมาป่าเงา. Item ids are save data: never rename or remove one.
-export type ItemReq = 'job' | 'd2' | 'd3' | 'd4'
-export interface Item { id: string; slot: Slot; name: string; icon: string; price: number; desc: string; base?: Partial<Record<BaseStat, number>>; mod: Partial<Stats>; jobs?: JobId[]; req?: ItemReq; slots?: number; twoHand?: boolean; craft?: CraftInfo; pct?: { maxHp?: number; atk?: number; matk?: number } }
+export type ItemReq = 'job' | 'd2' | 'd3' | 'd4' | 'job2'
+export interface Item { id: string; slot: Slot; name: string; icon: string; price: number; desc: string; base?: Partial<Record<BaseStat, number>>; mod: Partial<Stats>; jobs?: JobId[]; req?: ItemReq; slots?: number; twoHand?: boolean; wtype?: WeaponType; craft?: CraftInfo; pct?: { maxHp?: number; atk?: number; matk?: number } }
 const SW: JobId[] = ['swordsman'], AR: JobId[] = ['archer'], MG: JobId[] = ['mage'], CL: JobId[] = ['cleric'], TH: JobId[] = ['thief']
 export const ITEMS: Item[] = [
   // ----- weapons: everyone -----
-  { id: 'knife', slot: 'weapon', name: 'มีดโนวิส', icon: '🔪', price: 0, desc: 'ของติดตัวตอนเริ่ม', mod: {} },
+  { id: 'knife', wtype: 'dagger', slot: 'weapon', name: 'มีดโนวิส', icon: '🔪', price: 0, desc: 'ของติดตัวตอนเริ่ม', mod: {} },
   { id: 'shortsword', slot: 'weapon', name: 'ดาบสั้น', icon: '🗡️', price: 80, desc: 'อาวุธพื้นฐาน ใช้ได้ทุกอาชีพ', mod: { atk: 5 } },
-  { id: 'twinknife', slot: 'weapon', name: 'มีดคู่', icon: '⚔️', price: 220, desc: 'เบา ตีไว', base: { agi: 2 }, mod: { atk: 3, aspd: 0.32 } },
+  { id: 'twinknife', wtype: 'dagger', slot: 'weapon', name: 'มีดคู่', icon: '⚔️', price: 220, desc: 'เบา ตีไว', base: { agi: 2 }, mod: { atk: 3, aspd: 0.32 } },
   { id: 'hammer', slot: 'weapon', name: 'ค้อนไม้โอ๊ก', icon: '🔨', price: 260, desc: 'ของโนวิส ทุบแรงขึ้น', base: { str: 1 }, mod: { atk: 6, smashMul: 1 } },
   { id: 'longsword', slot: 'weapon', name: 'ดาบยาว', icon: '🗡️', price: 420, desc: 'หนัก ตีแรงแต่ช้าลงนิด', base: { str: 2 }, mod: { atk: 10, pskill: 0.05, aspd: -0.15 } },
   { id: 'staff', slot: 'weapon', name: 'คทาฝึกหัด', icon: '🪄', price: 380, desc: 'คทาแรกของสายเวท', base: { int: 2 }, mod: { matk: 8, smashMul: 1 } },
   // ----- weapons: Swordsman (lifesteal / counter) -----
   { id: 'w_bloodblade', slot: 'weapon', name: 'ดาบกระหายเลือด', icon: '🩸', price: 520, desc: 'สายดูดเลือด ตียิ่งเยอะยิ่งอึด', base: { str: 3 }, mod: { atk: 8, lifesteal: 0.03 }, jobs: SW, req: 'job' },
   { id: 'w_guardblade', slot: 'weapon', name: 'ดาบผู้พิทักษ์', icon: '🛡️', price: 560, desc: 'สายแทงก์ โดนตีแล้วสวนกลับ', base: { vit: 3 }, mod: { atk: 5, def: 4, counter: 0.12 }, jobs: SW, req: 'job' },
-  { id: 'w_berserkaxe', slot: 'weapon', name: 'ขวานคลั่งศึก', icon: '🪓', price: 1100, twoHand: true, desc: 'ของดัน 2 · อาวุธ 2 มือ (ใส่มือรองไม่ได้): ฟันพายุแรงขึ้น + ดูดเลือด', base: { str: 5 }, mod: { atk: 17, pskill: 0.15, lifesteal: 0.02 }, jobs: SW, req: 'd2' },
+  { id: 'w_berserkaxe', slot: 'weapon', name: 'ขวานคลั่งศึก', icon: '🪓', price: 1100, twoHand: true, desc: 'ของดัน 2 · อาวุธ 2 มือ (ใส่มือรองไม่ได้): ฟันพายุแรงขึ้น + ดูดเลือด', base: { str: 5 }, mod: { atk: 17, pskill: 0.15, lifesteal: 0.02 }, jobs: SW, req: 'd2', wtype: 'twohand' },
+  // ----- weapons: Swordsman 2nd jobs (design/second-jobs-v1.md): Berserker 2-hand, Knight spears -----
+  { id: 'w_greatsword', slot: 'weapon', name: 'ดาบใหญ่บ้าคลั่ง', icon: '⚔️', price: 1600, twoHand: true, wtype: 'twohand', desc: 'อาชีพขั้น 2 · อาวุธ 2 มือ: สับแรง คริบ่อย แต่ช้าลงนิด', base: { str: 6 }, mod: { atk: 22, crit: 0.05, aspd: -0.1 }, jobs: SW, req: 'job2' },
+  { id: 'w_spear', slot: 'weapon', name: 'หอกอัศวิน', icon: '🔱', price: 1200, wtype: 'spear', desc: 'อาชีพขั้น 2 · หอก 1 มือ: ใส่โล่ได้ ถึกและแม่น', base: { str: 2, vit: 3 }, mod: { atk: 14, hit: 6, maxHp: 30 }, jobs: SW, req: 'job2' },
+  { id: 'w_lance', slot: 'weapon', name: 'หอกยาวเปโก', icon: '🗡️', price: 1700, twoHand: true, wtype: 'spear', desc: 'อาชีพขั้น 2 · หอก 2 มือ: แรงกว่าหอก 1 มือ แต่ใส่โล่ไม่ได้', base: { str: 5, vit: 3 }, mod: { atk: 24, maxHp: 40 }, jobs: SW, req: 'job2' },
   // ----- weapons: Archer (crit -> shield / combo) -----
   { id: 'w_huntbow', slot: 'weapon', name: 'ธนูพราน', icon: '🏹', price: 520, desc: 'แม่นและคริบ่อย (คริ = ทะลุเกราะ โดนแน่)', base: { dex: 3 }, mod: { atk: 6, hit: 8, crit: 0.05 }, jobs: AR, req: 'job' },
   { id: 'w_hawkbow', slot: 'weapon', name: 'ธนูเหยี่ยวลม', icon: '🪶', price: 560, desc: 'ยิงรัว คริบ่อยขึ้น', base: { agi: 3 }, mod: { atk: 4, combo: 0.08, crit: 0.04 }, jobs: AR, req: 'job' },
@@ -123,9 +128,10 @@ export const ITEMS: Item[] = [
   { id: 'w_lightbook', slot: 'weapon', name: 'คัมภีร์แสง', icon: '📖', price: 560, desc: 'โล่หนา ฟื้น HP ทุกเทิร์น', base: { int: 2, wis: 1 }, mod: { atk: 5, matk: 6, shieldAmp: 0.15, regen: 0.5 }, jobs: CL, req: 'job' },
   { id: 'w_sunmace', slot: 'weapon', name: 'ค้อนตะวัน', icon: '☀️', price: 1100, desc: 'ของดัน 2: ทุบแรง ได้โล่ทุกเวฟ', base: { str: 2, wis: 3 }, mod: { atk: 14, matk: 10, healAmp: 0.15, waveShield: 0.06 }, jobs: CL, req: 'd2' },
   // ----- weapons: Thief (poison / dodge) -----
-  { id: 'w_venomdagger', slot: 'weapon', name: 'กริชพิษ', icon: '🧪', price: 520, desc: 'พิษติดเยอะขึ้น', base: { agi: 2 }, mod: { atk: 6, poison: 1, poisonDmg: 1 }, jobs: TH, req: 'job' },
-  { id: 'w_shadowdagger', slot: 'weapon', name: 'มีดเงา', icon: '🌑', price: 560, desc: 'หลบแล้วได้ฟื้น HP', base: { luk: 3 }, mod: { atk: 5, flee: 6, dodgeHeal: 0.03 }, jobs: TH, req: 'job' },
-  { id: 'w_twinfang', slot: 'weapon', name: 'เขี้ยวงูคู่', icon: '🐍', price: 1100, desc: 'ของดัน 2: แทงรัว คริบ่อย', base: { agi: 5 }, mod: { atk: 9, combo: 0.1, crit: 0.05 }, jobs: TH, req: 'd2' },
+  { id: 'w_venomdagger', wtype: 'dagger', slot: 'weapon', name: 'กริชพิษ', icon: '🧪', price: 520, desc: 'พิษติดเยอะขึ้น', base: { agi: 2 }, mod: { atk: 6, poison: 1, poisonDmg: 1 }, jobs: TH, req: 'job' },
+  { id: 'w_shadowdagger', wtype: 'dagger', slot: 'weapon', name: 'มีดเงา', icon: '🌑', price: 560, desc: 'หลบแล้วได้ฟื้น HP', base: { luk: 3 }, mod: { atk: 5, flee: 6, dodgeHeal: 0.03 }, jobs: TH, req: 'job' },
+  { id: 'w_twinfang', wtype: 'dagger', slot: 'weapon', name: 'เขี้ยวงูคู่', icon: '🐍', price: 1100, desc: 'ของดัน 2: แทงรัว คริบ่อย', base: { agi: 5 }, mod: { atk: 9, combo: 0.1, crit: 0.05 }, jobs: TH, req: 'd2' },
+  { id: 'w_assassin', wtype: 'dagger', slot: 'weapon', name: 'กริชมือสังหาร', icon: '🗡️', price: 1600, desc: 'อาชีพขั้น 2 · มีด: แทงรัว คริบ่อย พิษติด', base: { agi: 5, str: 2 }, mod: { atk: 14, combo: 0.06, crit: 0.04, poison: 1 }, jobs: TH, req: 'job2' },
   // ----- armor -----
   { id: 'cloth', slot: 'armor', name: 'เสื้อผ้าฝ้าย', icon: '👕', price: 0, desc: 'ของติดตัวตอนเริ่ม', mod: {} },
   { id: 'leather', slot: 'armor', name: 'เสื้อหนัง', icon: '🦺', price: 90, desc: 'เกราะพื้นฐาน ใช้ได้ทุกอาชีพ', mod: { maxHp: 30, def: 5 } },
@@ -176,8 +182,10 @@ export const ITEMS: Item[] = [
   { id: 'o_windquiver', slot: 'offhand', name: 'กระบอกธนูลมกรด', icon: '🌬️', price: 1100, desc: 'ของดัน 2: ยิงรัว คริแรง', base: { agi: 2 }, mod: { combo: 0.05, crit: 0.03, critMul: 0.1 }, jobs: AR, req: 'd2' },
   { id: 'o_orb', slot: 'offhand', name: 'ลูกแก้วเวท', icon: '🫧', price: 480, desc: 'เวทแรงขึ้น Mana เยอะขึ้น', base: { int: 2 }, mod: { matk: 4, maxRes: 15 }, jobs: MG, req: 'job' },
   { id: 'o_starorb', slot: 'offhand', name: 'ลูกแก้วดวงดาว', icon: '🌟', price: 1100, desc: 'ของดัน 2: เวทแรง เวทคริ Mana ฟื้นไว', base: { int: 3 }, mod: { matk: 8, spellCrit: 0.03, resRegen: 1 }, jobs: MG, req: 'd2' },
-  { id: 'o_maingauche', slot: 'offhand', name: 'มีดปัด', icon: '🔪', price: 480, desc: 'ปัดป้อง แทงซ้ำ', base: { agi: 1 }, mod: { flee: 4, combo: 0.04 }, jobs: TH, req: 'job' },
-  { id: 'o_scorpion', slot: 'offhand', name: 'เหล็กในแมงป่อง', icon: '🦂', price: 1100, desc: 'ของดัน 2: พิษแรง แทงรัว', base: { luk: 2 }, mod: { poisonDmg: 1, combo: 0.05, dodgeHeal: 0.01 }, jobs: TH, req: 'd2' },
+  { id: 'o_maingauche', wtype: 'dagger', slot: 'offhand', name: 'มีดปัด', icon: '🔪', price: 480, desc: 'ปัดป้อง แทงซ้ำ', base: { agi: 1 }, mod: { flee: 4, combo: 0.04 }, jobs: TH, req: 'job' },
+  { id: 'o_scorpion', wtype: 'dagger', slot: 'offhand', name: 'เหล็กในแมงป่อง', icon: '🦂', price: 1100, desc: 'ของดัน 2: พิษแรง แทงรัว', base: { luk: 2 }, mod: { poisonDmg: 1, combo: 0.05, dodgeHeal: 0.01 }, jobs: TH, req: 'd2' },
+  { id: 'o_rogueknife', wtype: 'dagger', slot: 'offhand', name: 'มีดบินคู่ใจ', icon: '🔪', price: 1300, desc: 'อาชีพขั้น 2 · มีดมือรอง: คอมโบ + คริ (โร้ก: มีดบิน +1)', base: { agi: 3 }, mod: { atk: 6, combo: 0.06, crit: 0.03 }, jobs: TH, req: 'job2' },
+  { id: 'o_mobknife', wtype: 'dagger', slot: 'offhand', name: 'มีดทวงหนี้', icon: '🩸', price: 1300, desc: 'อาชีพขั้น 2 · มีดมือรอง: พิษแรง stack สูง', base: { luk: 2, agi: 1 }, mod: { atk: 5, poisonDmg: 2, poisonCap: 3 }, jobs: TH, req: 'job2' },
   // ----- forge only (data/craft.ts) -----
   ...CRAFT_ITEMS,
 ]
@@ -201,14 +209,15 @@ export const forged = (s: ForgeState, it: Item) => forgeItem(it, gradeOf(s, it.i
 export const forgeTag = (s: ForgeState, id: string) => `${gradeOf(s, id) > 1 ? ` ★${gradeOf(s, id)}` : ''}${refineOf(s, id) ? ` +${refineOf(s, id)}` : ''}${isBroken(s, id) ? ' 💔' : ''}`
 export const canWear = (it: Item, job: JobId) => !it.jobs || it.jobs.includes(job)
 /** Is it on sale yet? */
-export function itemUnlocked(it: Item, s: { job: JobId; clearsBy?: Record<string, number> }) {
+export function itemUnlocked(it: Item, s: { job: JobId; job2?: Job2Id; clearsBy?: Record<string, number> }) {
+  if (it.req === 'job2') return !!s.job2
   if (it.req === 'job') return s.job !== 'novice'
   if (it.req === 'd2') return (s.clearsBy?.d2 ?? 0) > 0
   if (it.req === 'd3') return (s.clearsBy?.d3 ?? 0) > 0
   if (it.req === 'd4') return (s.clearsBy?.d4 ?? 0) > 0
   return true
 }
-export const REQ_TEXT: Record<ItemReq, string> = { job: 'ขายหลังเปลี่ยนอาชีพ', d2: 'ขายหลังล้มบอสป่าหมาป่าเงา', d3: 'ขายหลังล้มอัศวินมรณะ', d4: 'ขายหลังล้มไฮดรามรกต' }
+export const REQ_TEXT: Record<ItemReq, string> = { job: 'ขายหลังเปลี่ยนอาชีพ', d2: 'ขายหลังล้มบอสป่าหมาป่าเงา', d3: 'ขายหลังล้มอัศวินมรณะ', d4: 'ขายหลังล้มไฮดรามรกต', job2: 'ขายหลังเป็นอาชีพขั้น 2' }
 
 // Labels for the auto-built stat line on every item card (so desc and numbers can never disagree).
 const pc = (n: number) => `${Math.round(n * 1000) / 10}%`
@@ -286,7 +295,7 @@ export const SUPPORTER_PRICE = 300 // gems: badge + gold name, no stats
 export const FREE_GEMS = { firstClear: 50, clear: 5, levelUp: 10, daily: 20 }
 
 // ---------- combine everything into the hero's starting stats ----------
-export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; sockets?: Record<string, string[]>; grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]> }
+export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; job2?: Job2Id; job2Tree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; sockets?: Record<string, string[]>; grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]> }
 
 /** Items the hero actually gets stats from (gear for another job, or broken by a failed refine, stays on but does nothing). */
 export function wornItems(s: StatsInput): Item[] {
@@ -375,13 +384,24 @@ export function heroStats(s: StatsInput): Stats {
   add(job.mod)
   for (const m of treeMods(s.jobTree, job.id)) add(m)
   for (const m of talentMods(s.jobTalents, job.id, s.jobLevel ?? 1)) add(m)
+  const j2 = s.job2 && JOB2[s.job2]?.parent === job.id ? JOB2[s.job2] : undefined // 2nd job (design/second-jobs-v1.md)
+  const j2pct = { maxHp: 0, aspd: 0, atk: 0 }
+  if (j2) {
+    add(j2.mod)
+    for (const m of tree2Mods(s.job2Tree, j2.id)) add(m)
+    const wpn = itemById(s.equipped.weapon ?? '')
+    if (j2.mastery.ok(wpn)) { add(j2.mastery.mod); j2pct.atk += j2.mastery.pct?.atk ?? 0 } // weapon mastery
+    j2pct.maxHp += (j2.pct?.maxHp ?? 0) + st.j2HpPct; j2pct.aspd += j2.pct?.aspd ?? 0
+  }
   const worn = wornItems(s)
   for (const it of worn) add(it.mod)
   const cards = wornCards(s)
   for (const cd of cards) add(cd.mod)
   const pct = { maxHp: 0, atk: 0, matk: blessLv > 0 && (s.jobTree?.cl_bless_x ?? 0) > 0 ? S2N.blessMatk : 0 }
   for (const x of [...cards, ...worn]) for (const k of Object.keys(x.pct ?? {}) as (keyof typeof pct)[]) pct[k] += x.pct![k]! // refine lines: HP / ATK / M.ATK %
-  st.maxHp = Math.max(1, Math.round(st.maxHp * (1 + pct.maxHp))); st.atk *= 1 + pct.atk; st.matk *= 1 + pct.matk
+  st.maxHp = Math.max(1, Math.round(st.maxHp * (1 + pct.maxHp + j2pct.maxHp))); st.atk *= 1 + pct.atk + j2pct.atk; st.matk *= 1 + pct.matk
+  if (j2pct.aspd) st.aspd *= 1 + j2pct.aspd
+  if (st.j2DefAtk > 0) st.atk += st.def * st.j2DefAtk // Knight เกราะเป็นแรง
   for (const sk of SKILLS) if (s.skills[sk.id] > 0 && (sk.id !== 'smash' || job.id === 'novice')) add(sk.mod(s.skills[sk.id]))
   st.smashCd = Math.max(2500, st.smashCd)
   st.aspd = Math.max(0.6, st.aspd)

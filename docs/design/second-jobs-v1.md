@@ -1,0 +1,296 @@
+# อาชีพขั้น 2 (2nd Jobs) v1 — design draft
+
+> Q ขอ 2026-11-04 19:01: "สร้าง Class 2 ให้กับทุก Class" · เธรด "Design 2nd jobs for every class"
+> สถานะ: **draft รอ Q ตอบคำถาม (grill-me)** · ตัวเลขทุกตัวในเอกสารนี้เป็นค่าเริ่มสำหรับจูนด้วย bot ค่ะ
+
+## 0. สรุปสั้น (so what)
+
+- 5 อาชีพ × 2 สาย = **10 อาชีพขั้น 2** (Mage = Wizard / Sage ตามที่ Q เลือก §5)
+- ขั้น 2 **ไม่ลบของเดิม**: ใยสกิลของอาชีพแรกยังอยู่ครบ แล้วเพิ่ม "ใยชั้น 2" ซ้อนขึ้นไป (แบบ RO ที่ Knight ยังใช้ Bash ได้)
+- ทุกอาชีพขั้น 2 ได้ 4 อย่างเหมือนกัน: **Signature passive** · **ทักษะ 3** (ร่ายเองอัตโนมัติแบบทักษะ 2) · **Ult วิวัฒน์** (Ult เดิมอัปเกรด ไม่ใช่ปุ่มใหม่) · **ใยชั้น 2 สามสาย**
+- ระบบใหม่ที่ต้องสร้างครั้งเดียวแล้วใช้ซ้ำ: **Ally entity** (สัตว์เลี้ยง / ป้อมปืน / กับดัก / ระฆัง / ซัมมอน) และ **ประเภทอาวุธ** (2H, หอก, มีดคู่, หมัด ฯลฯ)
+- ปลดล็อก (ข้อเสนอ): **Job Lv 40 เต็ม + เคลียร์บอสดัน 5** → เลือกขั้น 2 · Job Lv ขั้น 2 เริ่ม 1 ใหม่ (max 50) มีแต้มใยของตัวเอง
+- ลำดับทำ: Phase 0 framework + ⚔️ นักดาบ → 🗡️ โจร → ✨ นักบวช → 🏹 นักธนู (ต้องใช้ Ally) → 🔮 จอมเวท · **1 class = 1 PR**
+
+---
+
+## 1. กฎปลดล็อกและเลเวล
+
+| เรื่อง | ข้อเสนอ | เหตุผล |
+|---|---|---|
+| เงื่อนไข | Job Lv 40 (เต็มแล้ว `JOB_CHANGE.classMaxJobLevel`) **และ** `clearsBy.d5 >= 1` | ดัน 5 คือ "brutal" ก่อนเข้า D6-10 (Lv40+) พอดี — ขั้น 2 คือกุญแจเข้าครึ่งหลังของเกม |
+| Job Lv ขั้น 2 | เริ่ม 1 ใหม่ max **50** (`JOB2_RULES.maxJobLevel`) | ให้ความรู้สึก RO "เปลี่ยนอาชีพแล้วกลับมาเก็บเลเวลใหม่" |
+| แต้มใยชั้น 2 | 1 แต้มต่อ Job2 Lv (รวม 49) **แยกกองจากแต้มใยอาชีพแรก** | ใยเดิมที่ลงไว้ 39 แต้มไม่หาย ไม่ต้องรีเซ็ต |
+| EXP | หลังเปลี่ยน Job EXP ไหลเข้า Job2 Lv แทน | อาชีพแรกเต็มอยู่แล้ว |
+| ทาเลนต์ | ของเดิม 4 แถวคงไว้ · เพิ่ม **แถว 5 (Job2 Lv 30) = keystone ของสายขั้น 2** 3 ตัวเลือก | 1 แถวพอ ไม่ overengineer |
+| เปลี่ยนสายขั้น 2 (เช่น Berserker → Knight) | 💎30 เหมือน v52: Job2 Lv เก็บไว้ คืนแต้มใยชั้น 2 ทั้งหมด | ใช้ flow `repickJob` เดิม |
+| เปลี่ยนอาชีพแรก (💎30) ตอนมีขั้น 2 แล้ว | ขั้น 2 ว่าง → เลือกสายขั้น 2 ของอาชีพใหม่ได้ฟรีทันที (Job2 Lv เก็บไว้) | ไม่ลงโทษคนลองอาชีพ |
+
+ทางเลือกอื่นที่ตัดทิ้ง (ใส่ไว้ใน grill): ใช้ Base Lv 40 แทนดัน 5 · ต้องชนะ "บอสทดสอบอาชีพ" เฉพาะสาย (สนุกแต่งานเยอะ — เก็บไว้ทำทีหลังเป็น polish ได้)
+
+---
+
+## 2. Architecture (โค้ด)
+
+### 2.1 Data — `src/data/jobs2.ts` (ไฟล์ใหม่)
+
+```ts
+export type Job2Id = 'berserker' | 'knight' | 'crusader' | 'monk' | 'beastmaster' | 'innovator' | 'rogue' | 'mobster' | 'mage2a' | 'mage2b'
+export type WeaponType = 'sword' | 'twohand' | 'spear' | 'dagger' | 'bow' | 'staff' | 'mace' | 'fist' | 'book'
+
+export interface Job2Def {
+  id: Job2Id; parent: JobId; tier: 2
+  name: string; icon: string; tex: string; blurb: string; focus: string
+  unlock: { jobLv: number; clear: string }        // { jobLv: 40, clear: 'd5' }
+  resource?: Resource                              // override (Berserker -> 'rage'); undefined = ของอาชีพแรก
+  res?: Partial<typeof RES_RULES>                  // override ค่ากฎ resource เฉพาะสาย
+  weapons?: WeaponType[]                           // ประเภทอาวุธที่ได้ mastery bonus
+  mod: Partial<Stats>                              // stat ติดตัวของสาย
+  signature: JobSkill                              // passive (อ่านจาก Stats flag)
+  skill3: JobSkill & { cost: number; cd: number }  // ร่ายเองอัตโนมัติ แบบ Skill 2
+  ult: JobSkill & { cd?: number; cost?: number }   // Ult วิวัฒน์ (ทับ text/เอฟเฟกต์ของ ult เดิม)
+}
+export const JOB2: Record<Job2Id, Job2Def>
+export const JOB2_RULES = { unlockJobLv: 40, unlockClear: 'd5', maxJobLevel: 50, pointPerLv: 1, talentRow5At: 30, repickGems: 30 }
+export const job2Of = (job: JobId) => Object.values(JOB2).filter((j) => j.parent === job)
+```
+
+**ทำไมไม่ขยาย `JobId` เดิม:** BattleScene มี `job === 'swordsman'` ~50 จุด, CharacterScene ~33 จุด — ถ้า Knight เป็น JobId ใหม่ ทุกจุดพังหมด
+→ เก็บ `save.job` = อาชีพแรกเสมอ (ทุก check เดิมยังถูก) แล้วเพิ่ม `save.job2` ซ้อน · โค้ดขั้น 2 อ่านผ่าน **Stats flag + hook** เท่านั้น
+
+### 2.2 ตัวเลข — `src/data/skill-math.ts`
+
+เพิ่ม `KIT2` (ตัวคูณ signature / ทักษะ 3 / ult วิวัฒน์ ต่อสาย) และ `S3N` (ตัวเลขตามเลเวลโหนด) — กฎ v57 เดิม: **ตัวเลขทุกตัวอยู่ที่นี่ BattleScene กับ UI อ่านที่เดียว**
+
+### 2.3 ใยชั้น 2 — `src/data/trees2/<job2>.ts` + `tree.ts`
+
+- ใช้ `ClassTree` / `node()` / `talent()` เดิม · branch มี `line: 'job2'` (เพิ่มใน `WebLine`)
+- โครงต่อสาย: **รากทักษะ 3** (+power max 5) · **รากUlt วิวัฒน์** (+power max 5) · **3 สาย × 4 โหนด** (tier 1-3 + ★ capstone, ★ ได้ 2 ดวง) — กฎ `lockReason` เดิมใช้ได้เลย
+- `treeMods()` รวม `jobTree` (ชั้น 1) + `job2Tree` (ชั้น 2) · id โหนดเป็น save data ห้าม rename
+- CharacterScene web tab: แท็บย่อย "ชั้น 1 / ชั้น 2"
+
+### 2.4 Save — `src/save.ts`
+
+```ts
+job2?: Job2Id; job2Level?: number; job2Xp?: number; job2Tree?: Record<string, number>; job2Points?: number
+```
+- **Migration:** save เก่าไม่มีฟิลด์ → `undefined` = ยังไม่เปลี่ยน ไม่ต้องแปลงอะไร (ทำ `migrateJob2()` แค่ใส่ default 0)
+- `canChangeJob2(s)`, `changeJob2(id)`, `repickJob2(id)` · `addXp()` แตกไปเข้า job2 เมื่อมี job2
+- `repickJob` (อาชีพแรก) → ล้าง `job2` + `job2Tree` คืนแต้ม เก็บ `job2Level`
+
+### 2.5 Stats — `meta.ts heroStats()`
+
+`heroStats` บวก `JOB2[job2].mod` + weapon mastery (ถ้า `item.wtype ∈ job2.weapons`) + `treeMods(job2Tree)` + แถวทาเลนต์ 5
+
+### 2.6 ประเภทอาวุธ — `meta.ts Item.wtype`
+
+- เพิ่ม `wtype?: WeaponType` ใน `Item` (มี `twoHand` อยู่แล้ว ใช้คู่กัน) · ของเก่าเติม wtype ให้ครบ
+- ของใหม่ขั้นต่ำ: หอก 3 ชิ้น, ดาบ/ขวาน 2 มือ +2, มีดมือรอง 2, สนับมือ/ไม้พลอง 3, ชิ้นละ shop 1 + craft 1-2 (ทำใน PR ของ class นั้น)
+- Mastery = โบนัส ไม่ใช่ข้อบังคับ (ยกเว้นสกิลที่ระบุ เช่น คลื่นดาบต้อง 2H — ใส่อาวุธผิดสกิลยังออกแต่ 70%)
+
+### 2.7 Battle hooks — `BattleScene.ts`
+
+เพิ่ม hook กลางให้ขั้น 2 เสียบ ไม่ต้องกระจาย if ทั่วไฟล์:
+`onTurnStart` · `onBasicHit(target, crit)` · `onComboHit` · `onCrit` · `onKill` · `onHurt` · `onMonsterAct(mon)` · `castSkill3()` · ult วิวัฒน์ = แตก `castUlt()` ด้วย `job2`
+
+### 2.8 ระบบใหม่: Ally entity — `src/battle/allies.ts` (สร้างครั้งเดียว ใช้ 5+ สาย)
+
+```ts
+interface AllyDef {
+  id: string; name: string; icon: string; tex: string
+  kind: 'pet' | 'turret' | 'trap' | 'object' | 'summon'
+  hp?: (st: Stats) => number          // ไม่มี = โดนตีไม่ได้ (trap)
+  agi?: (st: Stats) => number         // มี = ได้ turn ของตัวเองในคิว gauge เดียวกับฮีโร่/มอน
+  atk: (st: Stats) => number; magic?: boolean
+  turns?: number                      // หมดอายุ (turret 3 เทิร์น); ไม่มี = อยู่ทั้งเวฟ
+  taunt?: number                      // น้ำหนักโดนมอนเลือกตี (หมูป่า 0.6)
+  trigger?: 'ownTurn' | 'heroBasic' | 'monsterAct'   // trap = monsterAct
+  act: (ctx: AllyCtx) => void         // ตี / บัฟ / ดีบัฟ
+}
+```
+- ใช้กับ: Beastmaster (นก/หมูป่า/หมาป่า), Innovator (กับดัก/ป้อมปืน/ของสุ่ม), Monk (ระฆัง Tempest Bell), Mage ทางเลือก C (ซัมมอน)
+- ค่าพลังอิงสเตตัสฮีโร่ (ไม่ต้องมีเลเวลสัตว์แยก — MVP) · ตายแล้วกลับมาเวฟถัดไป
+- มอนเลือกเป้า: ฮีโร่ หรือ ally ที่มี hp ตาม `taunt` · ally ไม่ดูดเลือด/ไม่ติดคอมโบของฮีโร่ (กฎ lifesteal ของ Q)
+
+### 2.9 Hero Power — `power.ts`
+
+- `CLASS_K` / `MAGIC_SHARE` ต้องรู้จักขั้น 2 (ส่ง `job2` เข้า `powerParts`) · ally damage นับเข้า offense, หมูป่า/โล่นับเข้า survival
+- ไม่ทำ = hard mode / tower สเกลมอนผิด (เหมือนปัญหา Mage overcount ตอนนี้)
+
+### 2.10 Bot — `tools/bot.cjs`
+
+`JOB2=<id>` + `J2PTS=n` (ลงแต้มใยชั้น 2 อัตโนมัติ) · วัดที่ D5 / tower / D6 เมื่อมี
+
+---
+
+## 3. งบพลัง (power budget) — ต้องคุยกับเธรด D6-10
+
+- ขั้น 2 Lv 1 ≈ **+10%** Hero Power (signature + ult วิวัฒน์), Job2 Lv 50 ใยเต็ม ≈ **+40-50%** เทียบอาชีพแรกเต็มเกียร์เดียวกัน
+- D6-10 (Lv40-90) ควรจูนโดย**สมมติว่ามีขั้น 2 แล้ว** · ดัน 1-5 ปกติไม่สเกล (ขั้น 2 กลับไปดันเก่า = ฟาร์มสบาย ตั้งใจ)
+- hard / tower ใช้ matchScale อยู่แล้ว → ถ้า power.ts นับขั้น 2 ถูก ก็สมดุลเอง
+
+---
+
+## 4. รายละเอียด 8 อาชีพที่ Q ตั้งชื่อแล้ว
+
+รูปแบบ: อาวุธ · resource · Signature · ทักษะ 3 · Ult วิวัฒน์ · 3 สายในใยชั้น 2 (★ = capstone)
+
+### ⚔️ นักดาบ
+
+#### 🪓 Berserker — "Auto / Duelist / สับคริหน้าแหก"
+- **อาวุธ:** 2 มือ (ดาบใหญ่/ขวาน) · **Resource:** ✅ **Rage** (Q 2026-11-05: ตีได้ +12 / โดน +8; นักดาบขั้น 1 ยังเป็น Mana)
+- **Signature 🔥 คลั่งเลือด (Frenzy):** คริ 1 ครั้ง = +1 stack (max 5): ความเร็วโจมตี +6% · ดาเมจคริ +8% ต่อ stack · ไม่คริ 2 เทิร์นติด stack หาย → ยิ่งตียิ่งเร็ว ("Auto")
+- **ทักษะ 3 🌊 คลื่นดาบ (สงวนไว้ตาม memory):** Rage 30 / cd 3 · คลื่นพุ่งทะลุแถว ตัวหน้า 1.8x ตัวหลัง 1.2x P.ATK · โอกาสคริ +20%
+- **Ult วิวัฒน์ 👹 บ้าระห่ำ:** 3 เทิร์น: ตีธรรมดาทุกครั้งเป็น 2 ฮิต · คริ +30% · ดาเมจเข้า +20% (ใช้ ultPow เดิม)
+- **ใยชั้น 2:**
+  - 💥 **สับ** — คริ%, ดาเมจคริ, เจาะ DEF ตอนคริ · ★ **หน้าแหก**: คริ x2.0 → x2.5 และคริใส่บอสข้าม DEF ทั้งหมด
+  - ⚔️ **ดวล (Duelist)** — เหลือมอนตัวเดียว/บอส ดาเมจ +%, ข้าม Combo DR ของบอส · ★ **ดวลตาย**: บอส HP < 30% ดาเมจ +50%
+  - 🩸 **คลั่ง** — HP ยิ่งน้อยยิ่งแรง (สเกลต่อจาก โหนด "คลั่ง" เดิม), Rage ไหลเร็วขึ้น · ★ **ไม่รู้สึกเจ็บ**: Rage 100 = ได้เทิร์นพิเศษทันที 1 ครั้ง (แล้ว Rage เหลือ 0)
+- **ทาเลนต์แถว 5 ตัวอย่าง:** คริไม่หาย stack (Frenzy ไม่ลด) แลก DEF −30% / ทุกคริฮีล 2% HP / Frenzy max 8
+
+#### 🐴 Knight — "สายหอก ถึกๆ แรงๆ แบบ RO"
+- **อาวุธ:** หอก (✅ Q 2026-11-05: หอก 1 มือ + โล่ได้ · หอก 2 มือแรงกว่าแต่ไม่มีโล่) · **Resource:** Mana (เดิม)
+- **Signature 🐦 ขี่เปโก (Peco Peco Ride):** HP สูงสุด +15% · ความเร็ว +10% · **ถึกเป็นแรง**: สกิลหอกทุกตัวบวกดาเมจ +3% ของ HP สูงสุด (VIT → ดาเมจ แบบ "ถึกๆ แรงๆ")
+- **ทักษะ 3 🌀 Brandish Spear (กวาดหอก):** Mana 20 / cd 3 · ตี 3 ตัวหน้า 1.5x P.ATK + 3% HP สูงสุด · ตัวหน้าโดนผลักถอย (gauge −15)
+- **Ult วิวัฒน์ 🎯 Pierce + Bowling Bash:** แทงเป้าเดียว 3 ฮิต (บอส/มินิได้ 4 ฮิต แบบ RO ที่ Pierce ตีตามขนาด) 1.2x/ฮิต แล้วกระแทกกระเด็นชนตัวหลัง · ได้โล่ 15% เดิม
+- **ใยชั้น 2:**
+  - 🗡️ **หอกทะลวง** — Pierce ฮิตเพิ่ม, Spear Boomerang (ปาหอกใส่ตัวที่กำลังชาร์จ ขัดได้ 1 ครั้ง/เวฟ) · ★ **Spiral Pierce**: Ult ข้าม DEF 50%
+  - 🛡️ **ป้อม** — Auto Guard (โอกาสบล็อกทั้งฮิต), DEF → ATK บางส่วน · ★ **Counter Attack (RO)**: สวนกลับคริแน่นอน
+  - 🐦 **เปโก** — ความเร็ว, Charge Attack (ฮิตแรกของทุกเวฟแรงขึ้น) · ★ **ทะยาน**: ตีแรกของเวฟ x3 และได้เทิร์นก่อนเสมอ
+
+### ✨ นักบวช
+
+#### ✝️ Crusader — "Ref RO เลย"
+- **อาวุธ:** กระบอง/ดาบ + โล่ · **Resource:** Mana + จ่าย HP บางสกิล (แบบ RO Grand Cross)
+- **Signature 🛡️ Auto Guard + ศรัทธา:** โอกาสบล็อก 10% (+ต่อ VIT) · ดาเมจ holy +25% ใส่ undead/ปีศาจ (ดัน 3 Lich ฯลฯ)
+- **ทักษะ 3 ✝️ Holy Cross:** Mana 22 / cd 2 · ฟันกางเขน 2 ฮิต ฮิตละ 1.0x (P.ATK + Pm) · ติด "ตาบอด" มอน Hit −20% 2 เทิร์น
+- **Ult วิวัฒน์ ✨ Grand Cross:** จ่าย 20% HP ปัจจุบัน → แสงกางเขนใส่ทุกตัว 2.5x Pm + 1.0x P.ATK · ได้ HP คืน 50% ของที่จ่ายเมื่อโดน ≥ 3 ตัว · ยังคงโล่ของ ult นักบวช
+- **ใยชั้น 2:**
+  - ✝️ **กางเขน** — Holy Cross/Grand Cross แรงขึ้น, จ่าย HP น้อยลง · ★ **Grand Cross ซ้อน**: ได้ยิง 2 ครั้ง (ครั้งที่ 2 ฟรี HP)
+  - 🛡️ **โล่ศักดิ์สิทธิ์** — Shield Charge / Shield Boomerang (ดาเมจตาม DEF โล่), Reflect Shield (ติดเพดาน `BATTLE.reflectCap` ของ v50) · ★ **ป้อมศรัทธา**: บล็อกแล้วได้โล่ 5% HP
+  - 🙏 **อุทิศ (Devotion)** — HP สูงสุด, ฮีลจากการบล็อก · ★ **ผู้พลีชีพ**: ครั้งแรกต่อเวฟที่โดนตีจนตาย เหลือ 1 HP + โล่ 20%
+
+#### 👊 Monk — "Ref POE2"
+- PoE2 Monk: ไม้พลอง, คอมโบหมัด, **Power Charges** จาก combo, ปล่อยด้วย Falling Thunder, **Tempest Bell**, Ascendancy **Invoker** (Meditate → Energy Shield, Instill ธาตุ) / **Acolyte of Chayula** (Darkness)
+- **อาวุธ:** ไม้พลอง / สนับมือ · **Resource:** Mana + 🔵 **ลูกพลัง** (charge นับแยก max 5, แสดงบนหัว)
+- **Signature 👊 หมัดกระแส:** ทุกฮิตคอมโบได้ลูกพลัง +1 · คอมโบ +10% · เข้ากับระบบ combo แบบ Capybara v63 ตรงๆ
+- **ทักษะ 3 ⚡ Falling Thunder:** cd 2, ใช้ลูกพลังทั้งหมด (ต้อง ≥ 2) · สายฟ้าใส่ทุกตัว 0.8x Pm + 40% ต่อลูก
+- **Ult วิวัฒน์ 🔔 Tempest Bell:** วางระฆัง (Ally `object`, hp 15% ของฮีโร่, ดึงการโจมตี) 3 เทิร์น · ทุกฮิตของฮีโร่ทำให้ระฆังสั่น AoE 0.5x · ระฆังแตก = ระเบิด 2x
+- **ใยชั้น 2:**
+  - 👊 **คอมโบ** — combo rate, Combo DMG · ★ **พายุหมัด**: Combo Count +1 (แหล่งหายากตามกฎ v63)
+  - 💠 **Invoker** — WIS → Energy Shield (บาเรียฟื้นทุกเทิร์นที่ไม่โดนตี แบบ PoE2 Meditate), ฮิตติดธาตุน้ำแข็ง/สายฟ้า · ★ **Instill**: ลูกพลังเต็ม 5 = ตีธรรมดาทุกครั้งยิงสายฟ้าเพิ่ม
+  - 🌑 **Chayula** — Darkness (บัฟเฟอร์ HP สีม่วงที่ฟื้นเร็ว แทนฮีล), ดูดชีพแบบ "กลืนเงา" จาก kill · ★ **ไร้แสง**: ฮีลถูกแปลงเป็น Darkness 150%
+- ⚠ Monk = นักบวชที่**แทบไม่ฮีล** (ฮีลนักบวชเดิมยังอยู่จากใยชั้น 1 แต่ไม่ได้เพิ่ม) — ถ้า Q อยากให้คงฮีลบอกได้ค่ะ
+
+### 🏹 นักธนู
+
+#### 🐺 Beastmaster — "นก / หมูป่า / หมาป่า"
+- **Resource:** Energy (เดิม) · ใช้ระบบ **Ally**
+- **Signature 🐾 คู่หู:** เลือกสัตว์ 1 ตัวในเมือง (เปลี่ยนฟรี) — ★ capstone เปิดตัวที่ 2:
+  - 🦅 **เหยี่ยว** (RO Blitz Beat): ไม่มี HP ไม่โดนตี · ตอนฮีโร่ตีธรรมดามีโอกาส (LUK) ฟาด 1-3 ตัว ไม่สน Flee
+  - 🐗 **หมูป่า** (แทงค์): HP ตาม VIT ฮีโร่ · ดึงมอนตี (taunt 0.6) · ทุก 3 เทิร์นพุ่งชน มอนเสียเทิร์น
+  - 🐺 **หมาป่า** (DPS): มีเทิร์นตาม AGI · กัดติดเลือดไหล · คอมโบตามฮีโร่ (ตีตามเมื่อฮีโร่คอมโบ)
+- **ทักษะ 3 📯 สั่งลุย:** Energy 30 / cd 3 · สัตว์ใช้ท่าพิเศษ (เหยี่ยว: ฟาด 3 ครั้ง · หมูป่า: โล่ให้ฮีโร่ 15% · หมาป่า: หอนเรียกฝูง 2 ตัว 2 เทิร์น)
+- **Ult วิวัฒน์ 🐾 ฝูงสัตว์ป่า (Stampede):** สัตว์ทั้ง 3 ตัวโผล่ออกมาตี 1 รอบ + ยิงศรทะลวงเดิม
+- **ใยชั้น 2:** 🦅 ฟ้า (เหยี่ยว) · 🐗 ป่า (หมูป่า) · 🐺 เขี้ยว (หมาป่า) — ★ แต่ละสาย = ร่างวิวัฒน์ของสัตว์ (เหยี่ยวทอง / หมูป่าเกราะ / ราชาหมาป่า) · ★ ได้ 2 ดวง = เลี้ยง 2 ตัวพร้อมกัน (ตัวที่ 2 พลัง 50%)
+
+#### 🔧 Innovator — "สายกับดัก / สุ่มของประหลาดๆ แปลกๆ"
+- **Resource:** Energy + ใช้ระบบ **Ally** (`trap`, `turret`)
+- **Signature 🧰 กล่องเครื่องมือ:** ต้นเวฟวางกับดัก 1 อัน (สุ่มจาก 3) — RO Hunter traps: 💣 Land Mine (ระเบิดตอนมอนลงมือ 1.5x) · 🪤 Ankle Snare (มอนเสียเทิร์น 1 ครั้ง, บอสแค่ gauge −30) · ❄️ Freezing Trap (แช่แข็ง)
+- **ทักษะ 3 🎲 กล่องสุ่มประหลาด:** Energy 35 / cd 3 · สุ่ม 1 จาก 10 (LUK ดันโอกาสของหายาก): 🐔 ไก่ยาง (ดึงมอนตี 2 ครั้ง) · 🍌 เปลือกกล้วย (มอนลื่นเสียเทิร์น) · 🚀 จรวดขวด (3x เป้าสุ่ม) · 🤖 หุ่นจิ๋ว (ป้อมปืน 3 เทิร์น) · 🧲 แม่เหล็ก (zeny ดรอป +30% เวฟนี้) · 🪞 กระจก (สะท้อนฮิตถัดไป ติดเพดาน reflect) · 🥤 โคล่าระเบิด (AoE + ช้า) · 🎈 ลูกโป่ง (หลบ 1 ครั้ง) · ☁️ เมฆฝน (มอนติดเปียก รับสายฟ้า x1.5) · 💥 **แจ็คพอต** (หายาก: ทุกอย่างข้างบนพร้อมกัน)
+- **Ult วิวัฒน์ 🛠️ สิ่งประดิษฐ์สุดเพี้ยน:** สุ่มกล่อง 3 ครั้ง + วางกับดักทุกแบบ + ยิงศรทะลวงเดิม
+- **ใยชั้น 2:** 💣 กับดัก (จำนวน/ดาเมจ, ★ Claymore Trap ระเบิดทุกตัว) · 🎲 ประดิษฐ์ (คุณภาพการสุ่ม, ★ ทอยใหม่ได้ 1 ครั้ง) · 🤖 ป้อมปืน (★ หุ่นจิ๋วอยู่ถาวรทั้งเวฟ)
+
+### 🗡️ โจร
+
+#### 🔪 Rogue — "สายมีด + combo + Cri"
+- **อาวุธ:** มีด (มือรองใส่มีดได้ = ถือคู่) · **Resource:** Energy (เดิม — ถ้าการทดลอง Thief Mana ผ่าน จะตามอาชีพแรก)
+- **Signature 🔪 มีดบิน (สงวนไว้ตาม memory):** ทุกฮิตคอมโบ ปามีด 1 เล่มใส่มอนสุ่มอีกตัว 0.4x (คริได้, ไม่ดูดเลือดตามกฎ Q)
+- **ทักษะ 3 🗡️ Back Stab:** Energy 30 / cd 3 · คริแน่นอน 2.2x ใส่ตัวที่ HP มากสุด
+- **Ult วิวัฒน์ 🌪️ พายุมีด:** เงาพริ้วเดิม + มีดบิน 8 เล่มกระจายทุกตัว
+- **ใยชั้น 2:** 🔪 มีด (จำนวน/ดาเมจมีดบิน) · 🔁 คอมโบ (rate, ★ Combo Count +1) · 💥 คริ (★ ทุกคริ = มีดบินเพิ่ม 1) · ทาเลนต์ ★ ตัวเลือกสนุก: **Plagiarism (RO)** ลอกสกิลมอนตัวล่าสุดที่ตีเรามาใช้ 1 ครั้ง/เวฟ
+
+#### 🕴️ Mobster — "สายพิษ / Executor / Debuff"
+- **Resource:** Energy (เดิม)
+- **Signature 📒 สมุดหนี้:** ทุกดีบัฟบนมอน (พิษ, ช้า, ลด ATK, เกราะแตก, ตาบอด) = หนี้ 1 ขั้น · **Execute**: มอนที่ HP < (8% + 3% × หนี้) ตายทันที · บอส/มินิ: ไม่ตายทันทีแต่โดน 3x แทน
+- **ทักษะ 3 ⛓️ ตัดเส้นเอ็น:** Energy 30 / cd 3 · ใส่ดีบัฟ 2 อย่าง (เกราะแตก DEF −25% + ช้า) 3 เทิร์น
+- **Ult วิวัฒน์ 💀 ทวงหนี้:** จุดระเบิดพิษทุก stack (ดาเมจพิษที่เหลือทั้งหมดออกทันที x1.5) แล้วเช็ก Execute ทุกตัว · เก็บได้ → ult cd −1
+- **ใยชั้น 2:** 🧪 พิษ (Enchant Deadly Poison: stack cap, INT/M.ATK สเกลตาม v42) · ⛓️ ดีบัฟ (เพิ่มชนิด/ระยะ, ★ ดีบัฟทุกตัวนับหนี้ 2) · ⚰️ เก็บงาน (เกณฑ์ Execute, ★ Execute แล้วได้เทิร์นพิเศษ)
+
+---
+
+## 5. 🔮 จอมเวท — 3 คู่ให้ Q เลือก
+
+| | คู่ A — RO คลาสสิก | คู่ B — PoE2 Sorceress | คู่ C — PoE2 Witch |
+|---|---|---|---|
+| สาย 1 | 🌩️ **Wizard** (RO): เวทพื้นที่ใหญ่ Storm Gust / Meteor Storm / Lord of Vermilion — ร่ายนาน 1 เทิร์น (ชาร์จแบบบอส) แล้วระเบิดใหญ่ | ⏳ **Chronomancer**: เวทเวลา — ได้เทิร์นเพิ่ม, ย้อน HP กลับไป 2 เทิร์นก่อน, ทำมอนช้า/หยุดเวลา | 🩸 **Blood Mage**: ร่ายด้วย HP แทน Mana, spell vamp, ยิ่งเลือดน้อยยิ่งแรง |
+| สาย 2 | 📖 **Sage** (RO): Auto Spell (ตีธรรมดาแล้วร่ายเวทเอง), Endow ธาตุใส่อาวุธ, Dispel บัฟมอน — battle mage ใช้กฎ 70/30 | ⚡ **Stormweaver**: พายุธาตุที่ค้างในสนามและซ้อนกัน, ใส่ธาตุลงทุกเวท (Shock/Chill/Ignite) | 💀 **Necromancer / Infernalist**: เรียกโครงกระดูก / หมานรก (ใช้ระบบ Ally) |
+| จุดเด่น | คุ้นแบบ RO, contrast ชัด (ระเบิดใหญ่ vs บู๊ใกล้) | **Chronomancer ใช้ระบบ turn order AGI ได้เต็มที่ — ไม่ซ้ำเกมไหน** | เปลี่ยนวิธีเล่นจอมเวทมากสุด |
+| ความเสี่ยง | Wizard ซ้อนกับ ult ธาตุเดิมนิดหน่อย | Stormweaver ใกล้ Wizard | Necro ซ้ำกับ Beastmaster, Blood Mage ชนกฎ spellvamp ต้องมี tradeoff |
+
+**✅ Q เลือกคู่ A (2026-11-05): Wizard / Sage**
+
+#### 🌩️ Wizard — RO เวทพื้นที่ใหญ่
+- **อาวุธ:** ไม้เท้า · **Resource:** Mana (เดิม)
+- **Signature 🔮 ร่ายใหญ่ (Cast Time):** เวทใหญ่ใช้ 1 เทิร์นชาร์จ (แสดงวงเวทเหมือนบอสชาร์จ) แล้วระเบิดแรง · โดนตีระหว่างชาร์จไม่หลุด แต่ดาเมจเข้า +15%
+- **ทักษะ 3 ❄️ Storm Gust:** Mana 40 / cd 4 · ชาร์จ 1 เทิร์น → พายุน้ำแข็งทุกตัว 3 ฮิต ฮิตละ 0.6x Pm · ฮิตที่ 3 แช่แข็ง (บอส: ช้า)
+- **Ult วิวัฒน์ ☄️ Meteor Storm / Lord of Vermilion:** ใช้ธาตุที่เลือกตอนเริ่มรอบเดิม · 🔥 Meteor: อุกกาบาต 5 ลูกสุ่ม 1.2x + เผา · ⚡ LoV: สายฟ้าทุกตัว 4 ฮิต 0.5x + มึน 10% · ❄️ Storm Gust ฟรี + บาเรีย x1.5
+- **ใยชั้น 2:** 🔥 อุกกาบาต · ⚡ สายฟ้าเทพ · ❄️ พายุหิมะ · ★ **Quagmire/Magic Crasher** ตัวเลือก: ชาร์จเร็วขึ้น (ไม่ต้องชาร์จเมื่อ Mana > 80%)
+
+#### 📖 Sage — RO battle mage
+- **อาวุธ:** หนังสือ / ไม้เท้า · **Resource:** Mana · ใช้กฎ 70% M.ATK + 30% P.ATK เต็มที่ (STR ช่วยจริง)
+- **Signature 📖 Auto Spell:** ตีธรรมดามีโอกาส 25% (+INT) ร่าย Bolt ธาตุตามอาวุธฟรี 0.7x Pm · ตีธรรมดาของ Sage เป็นตีใกล้ 1.0x P.ATK (แทนลูกเวท 0.6x)
+- **ทักษะ 3 🗡️ Endow (ติดธาตุอาวุธ):** Mana 25 / cd 5 · 3 เทิร์น ตีธรรมดา + Auto Spell เป็นธาตุที่มอนแพ้ (+25%)
+- **Ult วิวัฒน์ 🚫 Dispell + Spell Breaker:** ลบบัฟ/โล่ของมอนทุกตัว (รวมโล่สะท้อน) + ขโมย Mana คืน 20 + ฟาด 2.0x P.ATK + 1.0x Pm ใส่ตัวหน้า · บอสที่กำลังชาร์จ: ขัดได้
+- **ใยชั้น 2:** 📖 ร่ายอัตโนมัติ (โอกาส/จำนวน bolt) · 🗡️ ธาตุอาวุธ (Endow นานขึ้น/แรงขึ้น) · 🛡️ ต้านเวท (Magic Rod: ดูดเวทมอน → Mana, M.DEF) · ★ **Hindsight**: Auto Spell ติดได้ทั้งตอนคอมโบและสวนกลับ
+
+---
+
+## 6. Phasing (1 class = 1 PR)
+
+| Phase | PR | เนื้อหา | ขึ้นกับ |
+|---|---|---|---|
+| 0+1 | v65-ish | **Framework** (jobs2.ts, save + migrate, unlock, JobScene ขั้น 2, ใยชั้น 2 UI, wtype, power.ts, bot) **+ ⚔️ Berserker / Knight** + อาวุธ 2H/หอก | — |
+| 2 | ถัดไป | 🗡️ Rogue / Mobster + มีดมือรอง (ไม่ต้องใช้ Ally) | 0 |
+| 3 | ถัดไป | ✨ Crusader / Monk + Ally `object` แบบง่าย (ระฆัง) | 0 |
+| 4 | ถัดไป | **Ally system เต็ม** + 🏹 Beastmaster / Innovator | 0, 3 |
+| 5 | ถัดไป | 🔮 Wizard / Sage | 0 |
+
+ทุก PR: bot ก่อน/หลัง (D5, tower, ใช้ `JOB2=`), อัปเดต power.ts CLASS_K ของสายนั้น, เลขเวอร์ชันถัดไปที่ว่างตอน publish
+
+---
+
+## 7. คำถาม grill-me (ถามทีละข้อ)
+
+1. ~~🔮 จอมเวทเอาคู่ไหน~~ → ✅ A: Wizard / Sage
+2. ~~🔓 ปลดล็อก~~ → ✅ Job Lv 40 + เคลียร์ดัน 5 (Q 2026-11-05)
+3. ~~🪓 Berserker resource~~ → ✅ Rage (Q 2026-11-05)
+4. ~~🐴 Knight weapon~~ → ✅ หอก 1 มือ + โล่ได้, หอก 2 มือตีแรงกว่า (Q 2026-11-05)
+5. 👊 Monk ตัดฮีลไปเลย (เน้นคอมโบ + Energy Shield) หรือคงฮีลบางส่วน
+6. 🐺 Beastmaster: ใช้สัตว์ทีละตัว (★ ปลด 2 ตัว) หรือ 3 ตัวพร้อมกันแต่อ่อนลง
+7. 🎨 สไปรต์: ใช้ hero tex เดิมเปลี่ยนสี + ไอคอนอาวุธ (MVP) หรือวาดใหม่ทุกสาย
+
+---
+
+## 8. Phase 1 ที่ทำแล้ว (⚔️ Berserker / Knight)
+
+**โค้ด**
+- `src/data/jobs2.ts` — `JOB2`, `JOB2_RULES` (unlock Job Lv 40 + `d5`, Job2 Lv max 50, เปลี่ยนสาย 💎30), mastery อาวุธ
+- `src/data/skill-math.ts` `KIT2` — ตัวเลขทุกตัวของ signature / ทักษะ 3 / Ult วิวัฒน์
+- `src/data/trees2/berserker.ts`, `knight.ts` — ใยชั้น 2 (id เป็น save data ห้าม rename) · `tree.ts` สร้าง root `<job2>_s3p` / `<job2>_u2p` + `TREE2`, `tree2Mods`, `lockReason(..., j2)`
+- `meta.ts heroStats` — mod ของสาย + ใยชั้น 2 + mastery (เมื่อถืออาวุธถูกประเภท) + % HP/ความเร็ว + Knight DEF→ATK · `Item.wtype` · req `job2`
+- อาวุธใหม่ (ขายหลังเป็นอาชีพขั้น 2): `w_greatsword` ดาบใหญ่บ้าคลั่ง (2H), `w_spear` หอกอัศวิน (1H ใส่โล่ได้), `w_lance` หอกยาวเปโก (2H)
+- `save.ts` — `job2 / job2Level / job2Xp / job2Points / job2Tree` (save เก่า = undefined ไม่ต้อง migrate) · `job2Ready`, `changeJob2`, `resetTree2` · เปลี่ยนอาชีพแรก = ขั้น 2 ว่าง เลือกใหม่ฟรี (Job2 Lv เก็บไว้)
+- `JobScene` โหมด `{ job2: true }` · Hub ปุ่ม "⭐ อาชีพขั้น 2 ได้แล้ว!" + แถบ Job2 Lv · CharacterScene ปุ่ม "ใยชั้น 2" ในแท็บสกิล
+- `BattleScene` — `j2Mul()` (Frenzy, หน้าแหก, ดวล, คลั่ง), `skill3Turn()`, `ult2()`, Auto Guard ใน `hurtHero`, Counter Attack คริแน่, Charge Attack, Spear Boomerang ขัดชาร์จ
+- `power.ts JOB2_K` (berserker 1.15, knight 1.1) · `tools/bot.cjs` `JOB2=` `J2LV=` `J2T=` `J2W=`
+
+**เลื่อนไป phase ถัดไป:** ทาเลนต์แถว 5 · สไปรต์แยกสาย (ตอนนี้ใช้ร่างนักดาบเดิม) · ป้ายรายละเอียด 📋 ของโหนดชั้น 2
+
+## 9. Phase 2 ที่ทำแล้ว (🗡️ Rogue / Mobster)
+
+- `jobs2.ts` + `KIT2.rogue / mobster` · ใยชั้น 2 `trees2/rogue.ts`, `trees2/mobster.ts` (id เป็น save data ห้าม rename)
+- 🔪 Rogue: มีดบินทุกฮิตคอมโบ (มือรองเป็นมีด +1 เล่ม, ไม่ดูดเลือด) · Back Stab คริแน่ใส่ตัว HP มากสุด · พายุมีด = เงาพริ้ว + มีด 8 เล่ม
+- 🕴️ Mobster: สมุดหนี้ (ดีบัฟ = หนี้ → Execute, บอส/มินิ x2 แทน) · ตัดเส้นเอ็น (เกราะแตก 🦴 DEF −25% + ช้า) · ทวงหนี้ (ระเบิดพิษ + เช็ก Execute, เก็บได้ ult cd −1)
+- อาวุธ: `wtype: 'dagger'` ให้มีดเดิมทุกชิ้น + ใหม่ `w_assassin`, `o_rogueknife`, `o_mobknife` (req `job2`)
+- `power.ts JOB2_K` rogue/mobster 1.1 = **ค่าเดา ยังไม่ได้รัน bot** (Q 2026-11-06: ขึ้น prod เลย จูนทีหลัง) · bot `JOB2=rogue|mobster`, `J2O=`
