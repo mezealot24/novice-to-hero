@@ -19,6 +19,7 @@ export interface Skill2Def {
   desc: string
   plus: { icon: string; name: string; desc: (lv: number) => string } // max 3, Stats.s2Lv
   star: { icon: string; name: string; desc: string } // max 1, Stats.s2Star
+  passive?: boolean; rootMax?: number // v69: passive = never cast (stats applied in heroStats); rootMax = levels of the root node
 }
 
 const s = (id: Skill2Id, job: JobId, icon: string, name: string, cost: number, cd: number, desc: string, plus: Skill2Def['plus'], star: Skill2Def['star']): Skill2Def =>
@@ -49,8 +50,8 @@ export const SKILL2: Skill2Def[] = [
   // ✨ Cleric (Mana)
   s('cl_renew', 'cleric', '🌿', 'ฟื้นฟู', 40, 5, `ฮีล ${S2N.renewHeal(0).toFixed(2)}x M.ATK ทุกเทิร์น 4 เทิร์น (ร่ายเมื่อ HP ไม่เต็ม)`, // v37 Q: easier to cast, costs more
     { icon: '🍃', name: 'ฟื้นฟูลึก', desc: (lv) => `ฮีล ${S2N.renewHeal(lv).toFixed(2)}x M.ATK/เทิร์น` }, { icon: '🌳', name: 'ต้นไม้ชีวิต', desc: 'ฟื้นฟูนาน 6 เทิร์น' }),
-  s('cl_bless', 'cleric', '🔆', 'โล่แสง', 30, 4, 'โล่ 20% HP สูงสุด (อยู่ 3 เทิร์น)',
-    { icon: '🔰', name: 'โล่หนา', desc: (lv) => `โล่ ${20 + lv * 4}% HP` }, { icon: '⏱️', name: 'พรไว', desc: 'คูลดาวน์ โล่แสง −1 เทิร์น' }),
+  { ...s('cl_bless', 'cleric', '🔆', 'พรแสง', 0, 1, 'พรติดตัวตลอดไฟต์ (ไม่ใช้ Mana): Lv5 = STR/DEX/INT/WIS +10',
+    { icon: '💪', name: 'พรร่างกาย', desc: (lv) => `VIT +${S2N.blessVit(lv)} (เพิ่มจากพรแสง)` }, { icon: '🌟', name: 'พรปัญญา', desc: `M.ATK +${Math.round(S2N.blessMatk * 100)}%` }), passive: true, rootMax: 5 },
   s('cl_spear', 'cleric', '🔱', 'หอกแสง', 20, 3, 'เรียกหอกแสง 2 เล่ม (ยิงทุกตัวตอนจบเทิร์น)',
     { icon: '⚜️', name: 'หอกคม', desc: (lv) => `หอกแรง +${lv * 10}%` }, { icon: '🌟', name: 'หอกสวรรค์', desc: 'เรียกหอก 4 เล่ม' }),
   // 🗡️ Thief (Energy)

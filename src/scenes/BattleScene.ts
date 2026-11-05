@@ -915,7 +915,7 @@ export class BattleScene extends Phaser.Scene {
     if (B.renew > 0) { B.renew--; this.heal(this.st.matk * S2N.renewHeal(this.st.s2Lv)) } // Priest heals = x M.ATK
     for (const k of ['guard', 'blood', 'hawk', 'mshield'] as const) if (B[k] > 0) B[k]--
     const k = this.s2
-    if (!k || this.hx.silence > 0 || !this.alive().length) return
+    if (!k || k.passive || this.hx.silence > 0 || !this.alive().length) return
     if (this.s2Cd > 0) { this.s2Cd--; return }
     if (this.res < k.cost) return
     if (this.smashQueued && this.smashCdLeft <= 0 && this.res - k.cost < this.ultCost()) return // keep Mana for the booked ult
@@ -973,7 +973,6 @@ export class BattleScene extends Phaser.Scene {
         break
       }
       case 'cl_renew': B.renew = S2N.renewTurns(star); this.burst(HERO_X, GROUND - 40, 0x6fd08c, 14, 160); break
-      case 'cl_bless': this.addShield(this.st.maxHp * S2N.blessShield(lv)); break
       case 'cl_spear': this.spears += S2N.spearCount(star); break // "+" node: spearMul set at run start
       case 'th_smoke':
         this.dodgeCharges = Math.max(this.dodgeCharges, S2N.smokeDodges(star))
@@ -2991,7 +2990,7 @@ export class BattleScene extends Phaser.Scene {
 
     // smash button state
     const k2 = this.s2
-    this.s2Txt?.setText(k2 ? `${k2.icon} ${k2.name} ${this.s2Cd > 0 ? `อีก ${this.s2Cd}` : this.res < k2.cost ? `รอ ${k2.cost}` : 'พร้อม'}` : '')
+    this.s2Txt?.setText(k2 ? `${k2.icon} ${k2.name} ${k2.passive ? 'ติดตัว' : this.s2Cd > 0 ? `อีก ${this.s2Cd}` : this.res < k2.cost ? `รอ ${k2.cost}` : 'พร้อม'}` : '')
     const ready = this.smashCdLeft <= 0
     const u = this.job.ult
     const cost = this.ultCost(), short = cost > 0 && this.res < cost

@@ -2,7 +2,7 @@
 // + 1 shared node). Points = the same skill points as the class skills. Node N of a branch opens after
 // (N-1)*2 points in that branch and its parent node; a capstone (tier 4) needs 6, max 2 capstones per class.
 // Nodes only add stats; BattleScene reads the stats (thorns, lockOn, fireSpread...). Ids are save data: never rename.
-import { KIT } from './skill-math'
+import { KIT, S2N } from './skill-math'
 import type { Stats } from './game-data'
 import type { ClassTree, TalentDef, TreeBranch, TreeNode } from './tree-types'
 export * from './tree-types'
@@ -45,8 +45,8 @@ for (const c of CLASS_TREES) {
   const gate = c.s2Gate
   if (gate) webNodes.push({ ...gate, branch: `${job}_s2` })
   for (const k of skill2Of(job)) {
-    webNodes.push({ id: `${k.id}`, branch: `${job}_s2`, tier: 0, icon: k.icon, name: k.name, max: 1, kind: 's2root', s2: k.id, ...(gate ? { parent: gate.id, parentLv: gate.max } : {}),
-      desc: () => `${k.desc} · ${RESOURCE_NAME[J.resource ?? 'mana']} ${k.cost} · คูลดาวน์ ${k.cd} เทิร์น · ร่ายเองอัตโนมัติ`, mod: () => ({}) })
+    webNodes.push({ id: `${k.id}`, branch: `${job}_s2`, tier: 0, icon: k.icon, name: k.name, max: k.rootMax ?? 1, kind: 's2root', s2: k.id, ...(gate ? { parent: gate.id, parentLv: gate.max } : {}),
+      desc: k.passive ? (lv) => `พรติดตัวตลอดไฟต์ (ไม่ใช้ Mana) · STR/DEX/INT/WIS +${S2N.blessStat(Math.max(1, lv))} (Lv5 = +10)` : () => `${k.desc} · ${RESOURCE_NAME[J.resource ?? 'mana']} ${k.cost} · คูลดาวน์ ${k.cd} เทิร์น · ร่ายเองอัตโนมัติ`, mod: () => ({}) })
     webNodes.push({ id: `${k.id}_p`, branch: `${job}_s2`, tier: 1, icon: k.plus.icon, name: k.plus.name, max: TREE_RULES.s2PlusMax, kind: 's2plus', s2: k.id, parent: k.id,
       desc: k.plus.desc, mod: (lv) => ({ s2Lv: lv }) })
     webNodes.push({ id: `${k.id}_x`, branch: `${job}_s2`, tier: 2, icon: k.star.icon, name: k.star.name, max: 1, kind: 's2star', s2: k.id, parent: `${k.id}_p`,
