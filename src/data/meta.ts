@@ -116,9 +116,11 @@ export const ITEMS: Item[] = [
   { id: 'w_spear', slot: 'weapon', name: 'หอกอัศวิน', icon: '🔱', price: 1200, wtype: 'spear', desc: 'อาชีพขั้น 2 · หอก 1 มือ: ใส่โล่ได้ ถึกและแม่น', base: { str: 2, vit: 3 }, mod: { atk: 14, hit: 6, maxHp: 30 }, jobs: SW, req: 'job2' },
   { id: 'w_lance', slot: 'weapon', name: 'หอกยาวเปโก', icon: '🗡️', price: 1700, twoHand: true, wtype: 'spear', desc: 'อาชีพขั้น 2 · หอก 2 มือ: แรงกว่าหอก 1 มือ แต่ใส่โล่ไม่ได้', base: { str: 5, vit: 3 }, mod: { atk: 24, maxHp: 40 }, jobs: SW, req: 'job2' },
   // ----- weapons: Archer (crit -> shield / combo) -----
-  { id: 'w_huntbow', slot: 'weapon', name: 'ธนูพราน', icon: '🏹', price: 520, desc: 'แม่นและคริบ่อย (คริ = ทะลุเกราะ โดนแน่)', base: { dex: 3 }, mod: { atk: 6, hit: 8, crit: 0.05 }, jobs: AR, req: 'job' },
-  { id: 'w_hawkbow', slot: 'weapon', name: 'ธนูเหยี่ยวลม', icon: '🪶', price: 560, desc: 'ยิงรัว คริบ่อยขึ้น', base: { agi: 3 }, mod: { atk: 4, combo: 0.08, crit: 0.04 }, jobs: AR, req: 'job' },
-  { id: 'w_starbow', slot: 'weapon', name: 'ธนูดาวตก', icon: '🌠', price: 1100, desc: 'ของดัน 2: คริแรงมาก', base: { dex: 5 }, mod: { atk: 10, critMul: 0.35, crit: 0.03 }, jobs: AR, req: 'd2' },
+  { id: 'w_huntbow', wtype: 'bow', slot: 'weapon', name: 'ธนูพราน', icon: '🏹', price: 520, desc: 'แม่นและคริบ่อย (คริ = ทะลุเกราะ โดนแน่)', base: { dex: 3 }, mod: { atk: 6, hit: 8, crit: 0.05 }, jobs: AR, req: 'job' },
+  { id: 'w_hawkbow', wtype: 'bow', slot: 'weapon', name: 'ธนูเหยี่ยวลม', icon: '🪶', price: 560, desc: 'ยิงรัว คริบ่อยขึ้น', base: { agi: 3 }, mod: { atk: 4, combo: 0.08, crit: 0.04 }, jobs: AR, req: 'job' },
+  { id: 'w_starbow', wtype: 'bow', slot: 'weapon', name: 'ธนูดาวตก', icon: '🌠', price: 1100, desc: 'ของดัน 2: คริแรงมาก', base: { dex: 5 }, mod: { atk: 10, critMul: 0.35, crit: 0.03 }, jobs: AR, req: 'd2' },
+  { id: 'w_beastbow', wtype: 'bow', slot: 'weapon', name: 'ธนูจ่าฝูง', icon: '🐾', price: 1600, desc: 'อาชีพขั้น 2 · ธนู: แม่น ยิงไว (บีสต์มาสเตอร์: คู่หูฟาดบ่อย)', base: { dex: 4, luk: 3 }, mod: { atk: 18, hit: 8, aspd: 0.1 }, jobs: AR, req: 'job2' },
+  { id: 'w_gadgetbow', wtype: 'bow', slot: 'weapon', name: 'หน้าไม้กลไก', icon: '🔧', price: 1600, desc: 'อาชีพขั้น 2 · ธนู: คริแรง โชคดี (อินโนเวเตอร์: ของหายากในกล่อง)', base: { dex: 4, luk: 4 }, mod: { atk: 20, crit: 0.04, critMul: 0.1 }, jobs: AR, req: 'job2' },
   // ----- weapons: Mage (M.ATK / Mana Shield) -----
   { id: 'w_gemstaff', wtype: 'staff', slot: 'weapon', name: 'คทาอัญมณี', icon: '💎', price: 520, desc: 'สายตีแรง', base: { int: 3 }, mod: { matk: 10 }, jobs: MG, req: 'job' },
   { id: 'w_wardstaff', wtype: 'staff', slot: 'weapon', name: 'คทาวงเวทป้องกัน', icon: '🔮', price: 560, desc: 'สาย Mana ยาว: Mana เยอะ ฟื้นไว ร่ายสกิลได้บ่อย', base: { wis: 3 }, mod: { matk: 5, maxRes: 30, resRegen: 1 }, jobs: MG, req: 'job' },
@@ -188,6 +190,7 @@ export const ITEMS: Item[] = [
   { id: 'o_tower', slot: 'offhand', name: 'โล่ปราการ', icon: '🏰', price: 1100, desc: 'ของดัน 2: กำแพงเหล็ก สวนกลับบ่อย', base: { vit: 3 }, mod: { maxHp: 50, def: 12, counter: 0.06, tenacity: 0.1 }, jobs: SW, req: 'd2' },
   { id: 'o_quiver', slot: 'offhand', name: 'กระบอกธนูหนัง', icon: '🎯', price: 480, desc: 'ลูกธนูคม ยิงแม่น', base: { dex: 2 }, mod: { hit: 5, crit: 0.02 }, jobs: AR, req: 'job' },
   { id: 'o_windquiver', slot: 'offhand', name: 'กระบอกธนูลมกรด', icon: '🌬️', price: 1100, desc: 'ของดัน 2: ยิงรัว คริแรง', base: { agi: 2 }, mod: { combo: 0.05, crit: 0.03, critMul: 0.1 }, jobs: AR, req: 'd2' },
+  { id: 'o_trapkit', slot: 'offhand', name: 'กระเป๋ากับดัก', icon: '🧰', price: 1300, desc: 'อาชีพขั้น 2 · มือรอง: แม่น โชคดี (นักธนู)', base: { luk: 3, dex: 1 }, mod: { hit: 6, crit: 0.03, flee: 4 }, jobs: AR, req: 'job2' },
   { id: 'o_orb', slot: 'offhand', name: 'ลูกแก้วเวท', icon: '🫧', price: 480, desc: 'เวทแรงขึ้น Mana เยอะขึ้น', base: { int: 2 }, mod: { matk: 4, maxRes: 15 }, jobs: MG, req: 'job' },
   { id: 'o_starorb', slot: 'offhand', name: 'ลูกแก้วดวงดาว', icon: '🌟', price: 1100, desc: 'ของดัน 2: เวทแรง เวทคริ Mana ฟื้นไว', base: { int: 3 }, mod: { matk: 8, spellCrit: 0.03, resRegen: 1 }, jobs: MG, req: 'd2' },
   { id: 'o_maingauche', wtype: 'dagger', slot: 'offhand', name: 'มีดปัด', icon: '🔪', price: 480, desc: 'ปัดป้อง แทงซ้ำ', base: { agi: 1 }, mod: { flee: 4, combo: 0.04 }, jobs: TH, req: 'job' },

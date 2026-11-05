@@ -88,6 +88,26 @@ export const KIT2 = {
     rodBlockMana: 15, // 🛡️ ★ Magic Rod: Mana from the absorbed spell
     mastery: { atkPct: 0.05, matk: 6 }, // book / staff
   },
+  // ----- Phase 4 Archer: Beastmaster / Innovator (Ally pets / traps / turrets: battle/allies.ts) -----
+  beastmaster: {
+    secondPow: 0.5, // 2 ★ owned = a second pet at this power
+    hawkChance: 0.15, hawkLuk: 0.004, hawkCap: 0.6, hawkMul: 0.6, hawkHits: 1, hawkHitsMax: 3, // 🦅 Blitz Beat per hero swing: chance + per LUK (capped), 1..N random targets, never misses
+    hawkEvoMul: 0.5, hawkEvoHits: 1, // ★ เหยี่ยวทอง
+    boarHp: 0.4, boarTaunt: 0.6, boarEvery: 3, boarMul: 0.8, boarPush: 30, // 🐗 HP = share of hero max HP (VIT) · pulls hits · every N hero turns charges the front (loses its turn; boss: gauge push)
+    boarEvoHp: 0.5, boarEvoEvery: 2, // ★ หมูป่าเกราะ: + HP share, charges more often
+    wolfSpeed: 0.8, wolfMul: 0.7, wolfBleed: 2, // 🐺 own turn at this share of hero speed (AGI) · bite + bleed (poison stacks) · follows hero combo hits
+    wolfEvoMul: 0.5, wolfEvoSpeed: 0.3, // ★ ราชาหมาป่า
+    cmdCost: 30, cmdCd: 3, cmdHawkHits: 3, cmdBoarShield: 0.15, cmdPack: 2, cmdPackTurns: 2, cmdPackPow: 0.6, // 📯 สั่งลุย per pet
+    ultHawk: 1.2, ultBoar: 1, ultWolf: 1.5, // 🐾 Stampede: all 3 pets hit once (then the base archer pierce shot)
+    mastery: { atkPct: 0.05, hit: 8 }, // bow
+  },
+  innovator: {
+    traps: 1, mineMul: 1.5, snarePush: 30, freezeMul: 0.6, freezeChill: 2, // 🧰 wave-start trap (random of 3) fires when a monster acts: 💣 Land Mine · 🪤 Ankle Snare (boss: gauge -30) · ❄️ Freezing Trap
+    boxCost: 35, boxCd: 3, rareLuk: 0.01, rareLukCap: 1.5, // 🎲 กล่องสุ่ม: rare gadget weight x (1 + LUK x this, capped)
+    chickenSoaks: 2, rocketMul: 3, turretMul: 0.6, turretTurns: 3, magnetZeny: 0.3, mirrorCap: 1, colaMul: 1, colaChill: 2, wetTurns: 3, wetAmp: 0.25, // gadgets (☁️ wet: +25% from every hero hit, doc: lightning x1.5 — archers have no lightning)
+    ultBoxes: 3, // 🛠️ สิ่งประดิษฐ์สุดเพี้ยน: 3 boxes + every trap + the base archer pierce shot
+    mastery: { atkPct: 0.05, crit: 0.02 }, // bow
+  },
 }
 
 /** Skill 2 numbers by "+" level (Stats.s2Lv) and ★ (Stats.s2Star). data/skill2.ts texts and BattleScene.castSkill2 read these. */

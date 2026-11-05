@@ -1,7 +1,7 @@
 // One save slot in localStorage. Every read/write is guarded: private windows and sandboxed hosts
 // may throw or start empty, and the game must still run (it just won't remember).
 import { JOB_CHANGE, type JobId } from './data/jobs'
-import { JOB2, JOB2_RULES, type Job2Id } from './data/jobs2'
+import { JOB2, JOB2_RULES, type Job2Id, type PetId } from './data/jobs2'
 import type { RefineLine } from './data/craft'
 import type { ModeRecord } from './data/modes'
 import { FREE_GEMS, JOB_RULES, RACES, STAT_RULES, type BaseStat, type RaceId, type SkillId, EMPTY_ITEM, type EquipSlot, itemById, slotKind } from './data/meta'
@@ -25,6 +25,7 @@ export interface SaveData {
   job2Xp?: number
   job2Points?: number // free ใยชั้น 2 points (1 per Job2 Lv)
   job2Tree?: Record<string, number> // ใยชั้น 2 node -> level (data/tree.ts TREE2)
+  pet?: PetId // 🐺 Beastmaster companion (picked in town, free to change); undefined = hawk
   web?: 1 // save migrated to the skill web (v27)
   webRefund?: number // skill points refunded by that migration, shown once in town
   jobTalents?: Record<string, { id: string; rank: number }> // talent row "1".."4" -> pick + rank; Talent Points are derived from Job Lv (data/tree.ts)

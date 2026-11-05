@@ -22,6 +22,8 @@ import { tree2 as crusader } from './trees2/crusader'
 import { tree2 as monk } from './trees2/monk'
 import { tree2 as wizard } from './trees2/wizard'
 import { tree2 as sage } from './trees2/sage'
+import { tree2 as beastmaster } from './trees2/beastmaster'
+import { tree2 as innovator } from './trees2/innovator'
 
 export const TREE_RULES = { perTier: 2, capstoneNeed: 6, capstones: 2, powMax: 5, powPer: 0.12, s2PlusMax: 3 }
 // rowsAt: Job Lv that opens talent row 1..4. Talent Points: 1 per `pointEveryJobLv` Job Lv (8 at Job Lv 40), separate from skill points.
@@ -76,7 +78,7 @@ export const TREE: TreeNode[] = webNodes
 
 // ===== ใยชั้น 2 (design/second-jobs-v1.md): one per 2nd job, its own points (save.job2Points) =====
 // Two "+power" roots (ทักษะ 3, Ult วิวัฒน์) + 3 branches x 4 nodes (tier 1..3 + ★). Same unlock rules as the base web.
-const JOB2_TREES: Record<Job2Id, ClassTree> = { berserker, knight, rogue, mobster, crusader, monk, wizard, sage }
+const JOB2_TREES: Record<Job2Id, ClassTree> = { berserker, knight, rogue, mobster, crusader, monk, wizard, sage, beastmaster, innovator }
 const web2Branches: TreeBranch[] = [], web2Nodes: TreeNode[] = []
 for (const id of Object.keys(JOB2_TREES) as Job2Id[]) {
   const c = JOB2_TREES[id], J = JOB2[id]
