@@ -170,7 +170,7 @@ export const TABLES: Record<TableId, TableDef> = {
     ],
   },
   archetypes: { id: 'archetypes', label: 'Monster archetypes (stat weights)', target: () => ARCHETYPES, fields: [[`*.${BASE7}`, num(0, 20, true)]] },
-  skillScale: { id: 'skillScale', label: 'Monster skill scaling', target: () => SKILL_SCALE, fields: [['per', num(0, 0.1)], ['min|max', num(0, 10)]] },
+  skillScale: { id: 'skillScale', label: 'Monster skill scaling', target: () => SKILL_SCALE, fields: [['per', num(0, 0.1)], ['min|max', num(0, 10)], ['fx.*.per', num(0, 0.1)]] }, // fx: v76 phase heal / shield, razor
   progression: {
     id: 'progression', label: 'Progression (stat points, EXP curves, run healing)',
     target: () => ({ stat: STAT_RULES, job: JOB_RULES, run: RULES }),

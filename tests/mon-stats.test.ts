@@ -2,20 +2,19 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { DUNGEONS, MONSTERS, type MonsterKind } from '../src/data/game-data'
-import { homeDungeon, LEGACY_ALLOC, legacyLevel, monPoints, scaleOf, skillMul, slamScaleOf, SKILL_SCALE, statMonster, withStats } from '../src/data/mon-stats'
+import { homeDungeon, legacyLevel, monPoints, scaleOf, skillMul, slamScaleOf, SKILL_SCALE, statMonster, statNative, withStats } from '../src/data/mon-stats'
 
 const kinds = Object.keys(MONSTERS) as MonsterKind[]
 const d1 = DUNGEONS[0]
 
-test('every monster has main stats (own statAlloc or LEGACY_ALLOC)', () => {
-  const missing = kinds.filter((k) => !MONSTERS[k].statAlloc && !LEGACY_ALLOC[k])
-  assert.deepEqual(missing, [])
-  const both = kinds.filter((k) => MONSTERS[k].statAlloc && LEGACY_ALLOC[k])
-  assert.deepEqual(both, [], 'a full-stat monster must not also be in LEGACY_ALLOC')
+test('every monster has its own statAlloc object (admin.html can edit it)', () => {
+  const bad = kinds.filter((k) => !MONSTERS[k].statAlloc || typeof MONSTERS[k].statAlloc === 'string')
+  assert.deepEqual(bad, [])
+  assert.deepEqual(kinds.filter(statNative).sort(), ['dunewraith', 'jackal', 'jackallord', 'mummy', 'pharaoh', 'sandscorp', 'scarab', 'sphinx', 'sunpriest'])
 })
 
 test('old monsters: 7 stats added, tuned numbers untouched (balance-neutral)', () => {
-  for (const k of kinds.filter((x) => LEGACY_ALLOC[x])) {
+  for (const k of kinds.filter((x) => !statNative(x))) {
     const d = MONSTERS[k], o = withStats(d, k, legacyLevel(k, d, d1))
     assert.ok(o.base && o.lv, k)
     assert.equal(Object.keys(o.base!).length, 7, k)
