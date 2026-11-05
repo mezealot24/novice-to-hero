@@ -11,7 +11,9 @@
 import { afterDef, BATTLE, COMBO, comboExtra, doubleAtkChance, hitChance, PLAYER, type Stats } from './game-data'
 import type { JobId } from './jobs'
 import type { Job2Id } from './jobs2'
-import { heroStats, type StatsInput } from './meta'
+import { blessBase, heroStats, type StatsInput } from './meta'
+import { S2N } from './skill-math'
+import { skill2ById } from './skill2'
 
 /** The reference monster the score is measured against (a mid-game wave monster). */
 export const POWER_REF = { def: 20, flee: 15, hit: 30, magicShare: 0.3, K: 0.55, fightHits: 15 }
@@ -56,7 +58,15 @@ export function powerParts(st: Stats, job: JobId = 'novice', job2?: Job2Id): Pow
 }
 
 /** The hero's power from a save (or any StatsInput). Pure. */
-export const heroParts = (s: StatsInput): PowerParts => powerParts(heroStats(s), s.job ?? 'novice', s.job2)
+/** v77 Priest พรแสง is an active buff: count it at its uptime (3 turns per 5-turn cycle = 60%). First guess, no bot run yet; Kyrie barrier not counted. */
+export const BLESS_UPTIME = S2N.blessTurns / ((skill2ById('cl_bless')?.cd ?? 4) + 1)
+export const heroParts = (s: StatsInput): PowerParts => {
+  const job = s.job ?? 'novice', p = powerParts(heroStats(s), job, s.job2), add = blessBase(s)
+  if (!add) return p
+  const q = powerParts(heroStats({ ...s, tempBase: add }), job, s.job2), u = BLESS_UPTIME
+  const o = p.offense * (1 - u) + q.offense * u, sv = p.survival * (1 - u) + q.survival * u
+  return { offense: o, survival: sv, power: Math.round(POWER_REF.K * Math.sqrt(o * sv)) }
+}
 export const heroPower = (s: StatsInput): number => heroParts(s).power
 
 // ---------- what each dungeon expects ----------

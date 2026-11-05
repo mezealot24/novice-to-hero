@@ -10,7 +10,7 @@ import { branches2Of, tree2Spent, BRANCHES, branchesOf, lockReason, skill2Picked
 import { JOB_CHANGE, JOBS, type JobId } from '../data/jobs'
 import { JOB2, JOB2_RULES, PETS, type PetId } from '../data/jobs2'
 import { statLines } from '../data/statInfo'
-import { powerParts } from '../data/power'
+import { heroPower } from '../data/power'
 import { askRepick } from './JobScene'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
 
@@ -61,7 +61,7 @@ export class CharacterScene extends Phaser.Scene {
     this.preview = c
     c.add(panel(this, 16, 70, 298, 490))
     const st = heroStats(s)
-    const rows: [string, string][] = [['⚡ Hero Power', `${powerParts(st, s.job, s.job2).power}`], ...derivedRows(st)] // v59: the number monsters scale to
+    const rows: [string, string][] = [['⚡ Hero Power', `${heroPower(s)}`], ...derivedRows(st)] // v59: the number monsters scale to
     if (this.tab === 0) {
       // equipment screen (RO style): hero sits between the gear slots, so this side is a stats panel
       c.add(txt(this, 165, 82, `${s.supporter ? '🌟 ' : ''}${s.name}`, 18, s.supporter ? UI.gold : UI.text, true).setOrigin(0.5, 0))
