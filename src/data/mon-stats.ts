@@ -56,32 +56,55 @@ export function monBase(alloc: StatAlloc, points: number, statMul: StatAlloc = {
 
 export interface StatMonOpts { hard?: boolean; statMul?: StatAlloc }
 
+/** What the 7 stats alone give a monster of this tier at this level (before its own bonuses / bodyMul). */
+interface Derived {
+  b: Record<BaseStat, number>; st: Stats
+  hp: number; dmg: number; matk: number; def: number; hit: number; flee: number; crit: number; combo: number; counter: number; speed: number
+}
+function derive(alloc: StatAlloc, lv: number, tier: MonTier, o: StatMonOpts): Derived {
+  const b = monBase(alloc, monPoints(lv, tier, o.hard), o.statMul)
+  const st: Stats = { ...PLAYER }
+  applyBase(st, b)
+  const L = MON_STAT.levelBase
+  return {
+    b, st,
+    hp: (st.maxHp + L.hp * lv) * MON_STAT.body[tier],
+    dmg: st.atk + L.atk * lv, matk: st.matk + L.matk * lv, def: st.def + L.def * lv, hit: st.hit + L.hit * lv,
+    flee: st.flee, crit: st.crit, combo: st.combo, counter: st.counter,
+    speed: BATTLE.heroSpeed * (Math.max(0.6, st.aspd) / PLAYER.aspd),
+  }
+}
+const cap = (x: number, c: number) => Math.min(c, x)
+/** The parts every monster takes straight from its stats: M.DEF, lucky dodge, tenacity, combo / counter defence. */
+function statOnly(d: MonsterDef, x: Derived): Pick<MonsterDef, 'mdef' | 'luckyDodge' | 'tenacity' | 'statDef'> {
+  const f = baseDefence(x.b)
+  return {
+    mdef: cap(x.st.mdef + (d.mdef ?? 0), MON_STAT.mdefCap),
+    luckyDodge: cap(x.st.luckyDodge, MON_STAT.luckyCap),
+    tenacity: cap(x.st.tenacity, 0.75),
+    statDef: { ignoreCombo: f.ignoreCombo, ignoreCounter: f.ignoreCounter, comboDR: f.comboDR, counterDR: f.counterDR, critDR: f.critDR },
+  }
+}
+
 /** The monster's def at this level, numbers rebuilt from its stats. Keeps every skill / phase / onHit of the base def.
  * Def fields hp / dmg / matk / def / hit / flee / crit / combo / counter become BONUSES on top (hp / dmg / matk x, the rest +). */
 export function statMonster(base: MonsterDef, lv: number, o: StatMonOpts = {}): MonsterDef {
-  const tier = monTier(base), b = monBase(allocOf(base), monPoints(lv, tier, o.hard), o.statMul)
-  const st: Stats = { ...PLAYER }
-  applyBase(st, b)
-  const L = MON_STAT.levelBase, f = baseDefence(b), cap = (x: number, c: number) => Math.min(c, x)
-  const k = base.bodyMul ?? {}
-  return {
+  const x = derive(allocOf(base), lv, monTier(base), o), k = base.bodyMul ?? {}
+  return scaleExtras({
     ...base,
-    lv, base: b,
-    hp: Math.max(1, Math.round((st.maxHp + L.hp * lv) * MON_STAT.body[tier] * (k.hp ?? 1))),
-    dmg: (st.atk + L.atk * lv) * (k.dmg ?? 1),
-    matk: (st.matk + L.matk * lv) * (k.matk ?? 1),
-    def: Math.round(st.def + L.def * lv + (base.def ?? 0)),
-    mdef: cap(st.mdef + (base.mdef ?? 0), MON_STAT.mdefCap),
-    hit: Math.round(st.hit + L.hit * lv + (base.hit ?? 0)),
-    flee: Math.round(st.flee + (base.flee ?? 0)),
-    crit: cap(st.crit + (base.crit ?? 0), 1),
-    combo: cap(st.combo + (base.combo ?? 0), MON_STAT.rateCap),
-    counter: cap(st.counter + (base.counter ?? 0), MON_STAT.rateCap),
-    luckyDodge: cap(st.luckyDodge, MON_STAT.luckyCap),
-    tenacity: cap(st.tenacity, 0.75),
-    speed: BATTLE.heroSpeed * (Math.max(0.6, st.aspd) / PLAYER.aspd) * (base.speedMul ?? 1),
-    statDef: { ignoreCombo: f.ignoreCombo, ignoreCounter: f.ignoreCounter, comboDR: f.comboDR, counterDR: f.counterDR, critDR: f.critDR },
-  }
+    lv, base: x.b,
+    hp: Math.max(1, Math.round(x.hp * (k.hp ?? 1))),
+    dmg: x.dmg * (k.dmg ?? 1),
+    matk: x.matk * (k.matk ?? 1),
+    def: Math.round(x.def + (base.def ?? 0)),
+    hit: Math.round(x.hit + (base.hit ?? 0)),
+    flee: Math.round(x.flee + (base.flee ?? 0)),
+    crit: cap(x.crit + (base.crit ?? 0), 1),
+    combo: cap(x.combo + (base.combo ?? 0), MON_STAT.rateCap),
+    counter: cap(x.counter + (base.counter ?? 0), MON_STAT.rateCap),
+    speed: x.speed * (base.speedMul ?? 1),
+    ...statOnly(base, x),
+  })
 }
 
 /** Level of room i in a level dungeon: the room's own lv, else spread from lo (first wave) to hi (boss). */
@@ -100,33 +123,15 @@ export const levelDropMul = (baseLv: number, level: [number, number]) => {
   return over <= 0 ? 1 : Math.max(LEVEL_GAP.min, 1 - LEVEL_GAP.per * over)
 }
 
-// ===== v68: 7 stats for EVERY monster + stat-scaled monster skills (Q 2026-11-04 "มอน บอส มินิบอส ที่ยังไม่มี main status มีด้วย แล้วให้สกิลสเกลตาม stat") =====
-// D1-5 / event / support monsters keep their hand-tuned HP / ATK / M.ATK / DEF / Hit / Flee / crit / combo / counter (Hero Power,
-// hard mode, tower and monBuff all scale those), so the migration stays balance-neutral. What they gain from their stats:
-//   WIS -> M.DEF + tenacity · LUK -> lucky dodge + crit DR · AGI / DEX / VIT -> Ignore Combo / Ignore Counter / Combo + Counter DR
-//   and every skill (heal, shield, warcry, haste, revive, bolt, strike, boss charged attack) x skillMul below.
+// ===== v68 -> v76: D1-5 / event / support monsters use the D6 stat model, anchored to their tuned numbers =====
+// Q 2026-11-06: "D1-5 use the same 7-stat model as D6, keep today's difficulty, statAlloc editable in admin.html".
+// Every monster now has its own statAlloc object in MONSTERS. A non-level-dungeon monster's hand-tuned hp / dmg / matk / def / hit /
+// flee / crit / combo / counter (and BATTLE.monSpeed) are its values AT ITS HOME LEVEL WITH ITS DEFAULT statAlloc (the build's, frozen
+// at load = REF). At run time the same derive() as D6 runs with the CURRENT statAlloc / LEGACY.lv / MON_STAT:
+//   hp / dmg / matk / speed  x  now / REF          def / hit / flee / crit / combo / counter  +  (now - REF)
+// So with the build defaults nothing moves (balance-neutral, tests/mon-stats-calibration.test.ts), and every stat edit acts like on D6.
+// Hero Power / hard mode / tower / monBuff still scale the result as before (hard mode adds stat points only to the stat-only parts).
 // Their level comes from their home dungeon (LEGACY.lv: boss at that Lv, mini 1 below, normal 2 below).
-
-/** Stat split of every monster that has no statAlloc of its own (full-stat D6+ monsters keep theirs). */
-export const LEGACY_ALLOC: Partial<Record<MonsterKind, Archetype | StatAlloc>> = {
-  // D1
-  jellop: 'tank', minijellop: 'tank', wolf: 'skirmisher', king: { vit: 4, str: 3, int: 2, wis: 1 },
-  // D2
-  bat: 'skirmisher', shroom: 'caster', boar: 'bruiser', shadowwolf: 'assassin', dewsprite: 'support', alpha: { str: 3, agi: 3, vit: 2, dex: 2 },
-  // D3
-  skeleton: 'bruiser', wisp: 'caster', gargoyle: 'tank', bonepriest: 'support',
-  duelist: { agi: 4, dex: 3, str: 3, luk: 2 }, hunter: { str: 4, agi: 3, vit: 2, luk: 1 }, gunner: { dex: 5, agi: 2, luk: 2, int: 1 },
-  drainer: 'caster', deathknight: { str: 4, vit: 3, int: 2, wis: 1 },
-  // D4
-  toad: 'bruiser', lizardshaman: 'support', hornet: 'skirmisher', turtleguard: 'tank', bloater: 'tank', spiderling: 'assassin',
-  venomqueen: { int: 3, agi: 3, luk: 2, str: 2 }, frostgiant: { vit: 4, str: 3, int: 2, wis: 1 }, hydra: { vit: 4, str: 3, int: 2, wis: 1 },
-  // D5
-  hellknight: 'bruiser', hexwitch: 'caster', imp: 'assassin', necropriest: 'support', wraith: { int: 4, agi: 3, wis: 2, luk: 1 },
-  maiden: 'caster', shard: { int: 3, agi: 3, luk: 2, wis: 2 }, mirage: { int: 4, wis: 3, agi: 2, luk: 1 }, warlord: { str: 5, vit: 3, agi: 1, dex: 1 },
-  lich: { int: 5, wis: 3, vit: 2 },
-  // events
-  mimic: 'bruiser', mimicking: 'bruiser', goldjellop: 'skirmisher',
-}
 
 export const LEGACY = {
   /** Boss level of each old dungeon (≈ HARD.recLv + 0-1): mini = -1, normal = -2. */
@@ -162,21 +167,44 @@ export function legacyLevel(kind: MonsterKind, d: MonsterDef, here: { id: string
   return Math.max(1, top - LEGACY.tierDrop[monTier(d)])
 }
 
-/** v68: 7 stats on an old monster. Numbers it was tuned with stay; the stats add only the stat-only parts (see header). */
+/** D6+ monster: lives in a level dungeon, numbers come straight from its stats (statMonster). Everything else is anchored (withStats). */
+export function statNative(kind: MonsterKind): boolean {
+  const home = homeDungeon(kind)
+  return !!home && !!DUNGEONS.find((d) => d.id === home)?.level
+}
+
+/** Build defaults at load (before any live-config patch): the default statAlloc + what it derives at the home level. */
+const DEFAULT_ALLOC: Partial<Record<MonsterKind, StatAlloc>> = {}
+const REF: Partial<Record<MonsterKind, Derived>> = {}
+function refOf(kind: MonsterKind, d: MonsterDef, lv: number): Derived {
+  const r = REF[kind]
+  if (r) return r
+  return derive(DEFAULT_ALLOC[kind] ?? allocOf(d), lv, monTier(d), {}) // homeless (events): same level, so only statAlloc edits move it
+}
+
+/** 7 stats on a D1-5 / event monster at `lv`, numbers anchored to its tuned values (see the header above). */
 export function withStats(d: MonsterDef, kind: MonsterKind, lv: number, o: StatMonOpts = {}): MonsterDef {
-  const alloc = LEGACY_ALLOC[kind]
-  if (!alloc || d.statAlloc) return d
-  const b = monBase(typeof alloc === 'string' ? ARCHETYPES[alloc] : alloc, monPoints(lv, monTier(d), o.hard), o.statMul)
-  const st: Stats = { ...PLAYER }
-  applyBase(st, b)
-  const f = baseDefence(b), cap = (x: number, c: number) => Math.min(c, x)
-  return {
-    ...d, lv, base: b,
-    mdef: cap(st.mdef + (d.mdef ?? 0), MON_STAT.mdefCap),
-    luckyDodge: cap(st.luckyDodge, MON_STAT.luckyCap),
-    tenacity: cap(st.tenacity, 0.75),
-    statDef: { ignoreCombo: f.ignoreCombo, ignoreCounter: f.ignoreCounter, comboDR: f.comboDR, counterDR: f.counterDR, critDR: f.critDR },
-  }
+  if (!d.statAlloc || statNative(kind)) return d
+  const alloc = allocOf(d), tier = monTier(d)
+  const s = derive(alloc, lv, tier, o) // stat-only parts (and skill scaling) see hard-mode points
+  const now = o.hard ? derive(alloc, lv, tier, { statMul: o.statMul }) : s // numbers: hard mode is hardDef's job
+  const ref = refOf(kind, d, lv)
+  const out: MonsterDef = { ...d, lv, base: s.b, ...statOnly(d, s) }
+  const ratio = (a: number, b: number) => (b > 0 ? a / b : 1)
+  const rHp = ratio(now.hp, ref.hp), rDmg = ratio(now.dmg, ref.dmg), rMatk = ratio(now.matk, ref.matk), rSpd = ratio(now.speed, ref.speed)
+  if (rHp !== 1) out.hp = Math.max(1, Math.round(d.hp * rHp))
+  if (rDmg !== 1) out.dmg = d.dmg * rDmg
+  if (rMatk !== 1 && d.matk !== undefined) out.matk = d.matk * rMatk
+  if (rSpd !== 1) out.speed = (d.speed ?? BATTLE.monSpeed[kind] ?? 10) * rSpd
+  const add = (key: 'def' | 'hit' | 'flee', dflt: number, delta: number) => { if (delta !== 0) out[key] = Math.round((d[key] ?? dflt) + delta) }
+  add('def', 0, now.def - ref.def)
+  add('hit', 15, now.hit - ref.hit)
+  add('flee', 5, now.flee - ref.flee)
+  const rate = (key: 'crit' | 'combo' | 'counter', c: number, delta: number) => { if (delta !== 0) out[key] = Math.max(0, cap((d[key] ?? 0) + delta, c)) }
+  rate('crit', 1, now.crit - ref.crit)
+  rate('combo', MON_STAT.rateCap, now.combo - ref.combo)
+  rate('counter', MON_STAT.rateCap, now.counter - ref.counter)
+  return scaleExtras(out)
 }
 
 // ----- stat-scaled monster skills -----
@@ -188,6 +216,12 @@ export const SKILL_SCALE = {
   min: 0.8, max: 1.5,
   byKind: { bolt: 'int', strike: 'str', heal: 'wis', shield: 'wis', warcry: 'str', haste: 'agi', revive: 'wis' } as Partial<Record<MonSkillKind, BaseStat>>,
   slam: { phys: 'str', magic: 'int' } as { phys: BaseStat; magic: BaseStat },
+  /** v76: boss numbers that are not skills, same formula (per tunable in admin.html, 0 = off). docs/design/monster-stat-scaling.md */
+  fx: {
+    phaseHeal: { stat: 'wis', per: 0.003 }, // BossPhase.heal: share of max HP healed on entering a phase
+    phaseShield: { stat: 'wis', per: 0.003 }, // BossPhase.shield
+    razor: { stat: 'int', per: 0.003 }, // hunter Blood Razor: magic damage = this share of the hero's current HP
+  } as Record<'phaseHeal' | 'phaseShield' | 'razor', SkillScale>,
 }
 /** Default scale of a skill (its own `scale` wins; false = never scales; curse / summon have none). */
 export const scaleOf = (sk: MonSkill): SkillScale | undefined =>
@@ -199,4 +233,23 @@ export function skillMul(d: MonsterDef, sc: SkillScale | undefined): number {
   const ref = 1 + monPoints(d.lv, 'normal') / 7
   const k = 1 + (sc.per ?? SKILL_SCALE.per) * (d.base[sc.stat] - ref)
   return Math.round(Math.max(SKILL_SCALE.min, Math.min(SKILL_SCALE.max, k)) * 1000) / 1000
+}
+
+/** v76: phase heal / shield and razor x the monster's stat (SKILL_SCALE.fx). New arrays, the base def is never mutated. */
+function scaleExtras(d: MonsterDef): MonsterDef {
+  const F = SKILL_SCALE.fx
+  if (d.phases?.some((p) => p.heal || p.shield)) {
+    const h = skillMul(d, F.phaseHeal), sh = skillMul(d, F.phaseShield)
+    d.phases = d.phases.map((p) => ({ ...p, ...(p.heal ? { heal: Math.min(1, p.heal * h) } : {}), ...(p.shield ? { shield: Math.min(1, p.shield * sh) } : {}) }))
+  }
+  if (d.razor) d.razor = Math.min(1, d.razor * skillMul(d, F.razor))
+  return d
+}
+
+// Freeze the build defaults now, before live-config can patch statAlloc / LEGACY / MON_STAT.
+for (const kind of Object.keys(MONSTERS) as MonsterKind[]) {
+  const d = MONSTERS[kind]
+  if (!d.statAlloc || statNative(kind)) continue
+  DEFAULT_ALLOC[kind] = { ...allocOf(d) }
+  if (homeDungeon(kind)) REF[kind] = derive(DEFAULT_ALLOC[kind]!, legacyLevel(kind, d, { id: '' }), monTier(d), {})
 }

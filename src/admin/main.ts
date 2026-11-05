@@ -1,6 +1,7 @@
 // admin.html: live-ops balance editor. Edits a Patch (tunables.ts whitelist), saves it as the server draft, publishes it.
 // The server re-validates everything (server/src/config.ts); the checks here are only for fast feedback.
 import { MONSTERS, type MonsterKind } from '../data/game-data'
+import { statNative } from '../data/mon-stats'
 import { canonicalJson, checkPatch, guardsFor, type FieldRow } from '../data/patch'
 import { TABLE_IDS, TABLES, type Patch, type TableId } from '../data/tunables'
 import { LOCAL_KEY } from '../live-keys'
@@ -175,10 +176,12 @@ function monsterCard(k: MonsterKind): HTMLElement {
   setBadge()
   const d = h('details', { class: 'mon' },
     h('summary', {}, h('b', {}, m.name), m.title ? h('span', { class: 'muted' }, ` · ${m.title}`) : null, ' ', h('code', {}, k),
-      h('span', { class: 'muted' }, m.statAlloc ? ' · stat monster' : ` · HP ${fmt(liveOf('monsters', `${k}.hp`))}`), ' ', badge))
+      h('span', { class: 'muted' }, statNative(k) ? ' · stat monster' : ` · HP ${fmt(liveOf('monsters', `${k}.hp`))}`), ' ', badge))
   d.addEventListener('toggle', () => {
     if (!d.open || d.children.length > 1) return
-    if (m.statAlloc) d.append(h('p', { class: 'hint' }, 'Stat monster (D6+): HP / ATK / DEF มาจาก statAlloc × เลเวลห้อง — ปรับ bodyMul / statAlloc ที่นี่ หรือ MON_STAT ในแท็บตารางอื่น (hp/dmg = 1 เป็นค่าวาง)'))
+    d.append(h('p', { class: 'hint' }, statNative(k)
+      ? 'Stat monster (D6+): HP / ATK / DEF มาจาก statAlloc × เลเวลห้อง — ปรับ bodyMul / statAlloc ที่นี่ หรือ MON_STAT ในแท็บตารางอื่น (hp/dmg = 1 เป็นค่าวาง)'
+      : 'D1-5 / อีเวนต์: hp / dmg / def / hit / flee = ค่าที่เลเวลบ้านเกิด · แก้ statAlloc หรือ legacy.lv / MON_STAT แล้วตัวเลขขยับตามสูตรเดียวกับ D6'))
     d.append(fieldGrid('monsters', rowsOfMonster(k), (p) => fieldLabel('monsters', p, true), setBadge))
   })
   return d
