@@ -37,6 +37,10 @@ export const PROC_RULES = {
 /** Level-up offer: each of the 3 line slots comes from the job's own lines (JOB_LINES) this often, else from any line.
  *  พร v2 tuning: magic cards run on 70/30 magic power, so a physical job drew too many weak cards from a fully random pool. */
 export const OFFER_RULES = { ownLine: 0.5, lean: 0.6 }
+/** v78 focus: เปิดฉากเต็มแรง Zen after an ult (no miss + crit damage) */
+export const FOCUS_RULES = { zenTurns: 3, zenCritDmg: 0.3 }
+/** Share (0..1) of a resource gain that didn't fit: `room` = max − current before the gain. No resource (Novice) = all of it. */
+export const overflowShare = (gain: number, room: number, hasRes = true) => (!hasRes ? 1 : gain <= 0 ? 0 : Math.min(1, Math.max(0, gain - Math.max(0, room)) / gain))
 
 /** Run-only numbers the cards add (Stats stays the persistent hero sheet). */
 export interface PerkStats {
@@ -44,12 +48,13 @@ export interface PerkStats {
   basicDmg: number; counterDmg: number; overheal: number; fireStacks: number
   chain: number; zapCharge: number; execute: number; freeze: number; chillExtra: number; spearBurn: number
   harden: number; hardenCap: number; comboAtk: number; comboAtkCap: number; veteran: number; veteranCap: number
-  openUlt: number; resTurn: number
+  ultBoost: number; zen: number; resTurn: number
+  wakeShield: number; prayHeal: number // v78 focus fallbacks: overflow / no resource -> shield share of max HP (ปลุกพลัง) · heal share (ภาวนา)
 }
 export const newPerkStats = (): PerkStats => ({
   vsBurn: 0, vsPoison: 0, vsChill: 0, chillWeak: 0, spearShield: 0, basicDmg: 0, counterDmg: 0, overheal: 0, fireStacks: 0,
   chain: 0, zapCharge: 0, execute: 0, freeze: 0, chillExtra: 0, spearBurn: 0,
-  harden: 0, hardenCap: 0, comboAtk: 0, comboAtkCap: 0, veteran: 0, veteranCap: 0, openUlt: 0, resTurn: 0,
+  harden: 0, hardenCap: 0, comboAtk: 0, comboAtkCap: 0, veteran: 0, veteranCap: 0, ultBoost: 0, zen: 0, resTurn: 0, wakeShield: 0, prayHeal: 0,
 })
 
 export interface PerkDef {
@@ -82,7 +87,7 @@ export const JOB_LINES: Record<JobId, Line[]> = {
   archer: ['weapon', 'focus', 'guard'], // พร v2 tuning: ⚡ is magic (70/30), so it is no longer an Archer line
   mage: ['fire', 'storm', 'ice', 'focus'],
   cleric: ['holy', 'guard', 'focus', 'weapon'], // v62: Priest is a melee hybrid (v58) and already heals; holy/guard/life alone timed out on D4-5 bosses
-  thief: ['venom', 'weapon', 'life'],
+  thief: ['venom', 'weapon', 'life', 'focus'], // v78: focus works for every job now
 }
 /** Mage's basic attack is magic: on-hit poison and lifesteal cards never work for it. */
 export const MAGE_SKIP = new Set(['ven_coat', 'lif_steal'])
@@ -149,10 +154,11 @@ export const PERKS_V2: PerkDef[] = [
   c('wpn_drill', 'weapon', '🗡️', 'ฝึกตี', ['ตีปกติ (และคอมโบ) แรง +20%', 'ตีปกติแรง +35%'], { pk: [{ basicDmg: 0.2 }, { basicDmg: 0.35 }] }),
   c('wpn_quick', 'weapon', '💨', 'มือไว', ['ความเร็วเทิร์น +20%', 'ความเร็วเทิร์น +32%'], { mod: [{ aspd: 0.32 }, { aspd: 0.512 }] }),
   // ---------- 💢 focus ----------
-  c('foc_calm', 'focus', '🧘', 'สมาธินิ่ง', ['{ult} คูลดาวน์ −1 เทิร์น · Flee +8', ''], { max: 1, mod: [{ smashCd: -1500, flee: 8 }, { smashCd: -1500, flee: 8 }] }),
-  c('foc_bone', 'focus', '🦴', 'บดกระดูก', ['ดาเมจ{ult} +60%', 'ดาเมจ{ult} +100%'], { mod: [{ ultAmp: 0.6, smashMul: 1.8 }, { ultAmp: 1, smashMul: 3 }] }),
-  c('foc_wake', 'focus', '🔋', 'ปลุกพลัง', ['เริ่มทุกไฟต์ Mana/Energy/Rage +25', 'เริ่มทุกไฟต์ +45'], { needsRes: true, proc: { on: 'fightStart', fx: 'res', amt: [25, 45] } }),
-  c('foc_pray', 'focus', '🙏', 'ภาวนา', ['ทุกเทิร์น Mana/Energy/Rage +2', 'ทุกเทิร์น +4'], { needsRes: true, pk: [{ resTurn: 2 }, { resTurn: 4 }] }),
+  // v78 universal focus (design/mage-cast-focus-v78.md): every card works for every job (Novice / full bar -> shield / heal)
+  c('foc_calm', 'focus', '🧘', 'สมาธินิ่ง', ['Poise: กันแข็ง / มึนจากท่าชาร์จ / ใบ้ 100% · ร่ายไม่แตก · Flee +12', ''], { max: 1, mod: [{ poise: 1, flee: 12 }, { poise: 1, flee: 12 }] }),
+  c('foc_bone', 'focus', '🦴', 'บดกระดูก', ['ดาเมจ{ult} +75% · เจาะ DEF / M.DEF 30%', 'ดาเมจ{ult} +120% · เจาะ 30%'], { mod: [{ ultAmp: 0.75, smashMul: 2.25, ultPierce: 0.3 }, { ultAmp: 1.2, smashMul: 3.6, ultPierce: 0.3 }] }),
+  c('foc_wake', 'focus', '🔋', 'ปลุกพลัง', ['เริ่มทุกไฟต์ Mana/Energy/Rage +40 · ส่วนที่ล้น / ไม่มี → โล่สูงสุด 20% HP', 'เริ่มทุกไฟต์ +60 · โล่สูงสุด 30% HP'], { proc: { on: 'fightStart', fx: 'res', amt: [40, 60] }, pk: [{ wakeShield: 0.2 }, { wakeShield: 0.3 }] }),
+  c('foc_pray', 'focus', '🙏', 'ภาวนา', ['ทุกเทิร์น Mana/Energy/Rage +6 · ส่วนที่ล้น / ไม่มี → ฮีลสูงสุด 3% HP', 'ทุกเทิร์น +10 · ฮีลสูงสุด 5% HP'], { pk: [{ resTurn: 6, prayHeal: 0.03 }, { resTurn: 10, prayHeal: 0.05 }] }),
 
   // ---------- 🟠 legendary: offered only with a common card of the same line ----------
   L('stm_L1', 'storm', '🌩️', 'ฟ้าแตกแขนง', ['สายฟ้ามีโอกาส 35% ผ่าต่ออีก 1 ครั้ง (ไม่ต่อซ้ำ)', 'โอกาสผ่าต่อ 50%'], { pk: [{ chain: 0.35 }, { chain: 0.5 }] }),
@@ -170,7 +176,7 @@ export const PERKS_V2: PerkDef[] = [
   L('lif_L1', 'life', '💠', 'ฮีลล้นเป็นโล่', ['ฮีลที่เกิน HP เต็ม กลายเป็นโล่ สูงสุด 15% HP', 'สูงสุด 25% HP'], { pk: [{ overheal: 0.15 }, { overheal: 0.25 }] }),
   L('wpn_L1', 'weapon', '🌪️', 'เชี่ยวชาญคอมโบ', ['คอมโบ +10% · คอมโบต่อได้ +1 ฮิต · ทุกฮิตคอมโบ ATK +3% จนจบไฟต์ (สูงสุด +30%)', 'ทุกฮิตคอมโบ ATK +4% (สูงสุด +40%)'], { mod: [{ combo: 0.1, comboCount: 1 }, { combo: 0.1, comboCount: 1 }], pk: [{ comboAtk: 0.03, comboAtkCap: 0.3 }, { comboAtk: 0.04, comboAtkCap: 0.4 }] }),
   L('wpn_L2', 'weapon', '🎖️', 'ทหารผ่านศึก', ['ATK/M.ATK +3% ทุกเทิร์น สูงสุด +30% ต่อไฟต์', '+4% ทุกเทิร์น สูงสุด +40%'], { pk: [{ veteran: 0.03, veteranCap: 0.3 }, { veteran: 0.04, veteranCap: 0.4 }] }),
-  L('foc_L1', 'focus', '💢', 'เปิดฉากเต็มแรง', ['{ult}ครั้งแรกในไฟต์ +100% · ครั้งต่อไป −25%', 'ครั้งแรก +150%'], { pk: [{ openUlt: 1 }, { openUlt: 1.5 }] }),
+  L('foc_L1', 'focus', '💢', 'เปิดฉากเต็มแรง', ['{ult} +100% ทุกครั้ง · ใช้แล้ว Zen 3 เทิร์น: ตีไม่พลาด + ดาเมจคริ +30%', '{ult} +150% ทุกครั้ง'], { pk: [{ ultBoost: 1, zen: 1 }, { ultBoost: 1.5, zen: 1 }] }),
 ]
 
 /** พร v2 numbers that gear refine lines + monster cards also give (Q 2026-11-04 grill: gear ~1/4 of the card, monster card ~1/2).
