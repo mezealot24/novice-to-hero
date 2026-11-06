@@ -3,7 +3,7 @@ import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUN
 import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, PERKS_V2, OFFER_RULES, OUTSIDE_CAP, overflowShare, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type OutsideKey, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
 import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
-import { blessBase, COSTUMES, FREE_GEMS, heroStats, itemById, PER_POINT, RESOURCES, totalBase, type BaseStat } from '../data/meta'
+import { blessBase, COSTUMES, FREE_GEMS, heroStats, itemById, PER_POINT, RESOURCES, splitStatLine, totalBase, type BaseStat } from '../data/meta'
 import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster, EQUIP_CARDS } from '../data/cards'
 import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, type JobDef } from '../data/jobs'
 import { JOB2, PET_IDS, type Job2Def, type PetId } from '../data/jobs2'
@@ -14,6 +14,7 @@ import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepA
 import { autoCost, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, hitBase, KIT, KIT2, MAGE_CAST, magicPower, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, ultMode } from '../save'
 import { MAT_RULES, matName, matOf } from '../data/materials'
+import { rollUniqueDrop, UNIQUE } from '../data/uniques'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
 import { HARD_POWER, matchScale, overpowerMul, TOWER_POWER } from '../data/power'
@@ -110,6 +111,8 @@ export class BattleScene extends Phaser.Scene {
   private runGems = 0
   private runCards: string[] = [] // equipment cards found this run (kept win or lose)
   private runMats: Record<string, number> = {} // forge materials found this run (kept win or lose)
+  private runUniques: string[] = [] // v88 unique items dropped by the final boss this run (added to the bag in settle)
+  private runDupeMats: Record<string, number> = {} // v88 boss mats paid for a duplicate unique (never zeny; added after the hard-mode scaling)
   private cardLuck = 1 // LUK bonus on card drops (same curve as rare drops)
   private settled = false
   private over = false
@@ -306,7 +309,7 @@ export class BattleScene extends Phaser.Scene {
     this.heroSpr.setTexture(this.job.tex).setTint((COSTUMES.find((c) => c.id === s.costume) ?? COSTUMES[0]).tint).setAngle(0).setAlpha(1)
     this.dawnN = 0; this.dawnArmed = false // v86 แสงรุ่งอรุณ: the charge carries across waves, not runs
     this.perks = []; this.hits = 0; this.procHits = {}; this.pk = newPerkStats(); this.masteries = []; this.src = 'other'; this.immortal = null; this.eggN = 0; this.eggDef = 0
-    this.level = 1; this.xp = 0; this.zeny = 0; this.kills = 0; this.runXp = 0; this.runGems = 0; this.runCards = []; this.runMats = {}; this.pendingLevels = 0
+    this.level = 1; this.xp = 0; this.zeny = 0; this.kills = 0; this.runXp = 0; this.runGems = 0; this.runCards = []; this.runMats = {}; this.runUniques = []; this.runDupeMats = {}; this.pendingLevels = 0
     this.cardLuck = 1 + Math.min(PER_POINT.luk.dropCap, PER_POINT.luk.dropPct * totalBase(s).luk)
     this.settled = false; this.over = false; this.smashQueued = false; this.clearBookings()
     this.buildSkillHud() // v86: job / 2nd job / Skill 2 are known now
@@ -892,31 +895,21 @@ export class BattleScene extends Phaser.Scene {
   private boomUsed = false // Knight Spear Boomerang used this wave
   private firstSwing = false // Knight Charge Attack: first basic swing of the wave
   private forceCrit = false
-  // ----- v86 Cleric talent แสงรุ่งอรุณ (KIT.clericTree.dawn): every N basic attacks, the next one is a sure-crit holy smash that heals -----
-  private dawnN = 0 // basic attacks since the last charged smash
-  private dawnArmed = false // the current swing is the charged one
-  private dawnOn() { return this.st.clDawn > 0 && this.job.id === 'cleric' }
-  private dawnCount(fired: boolean) {
-    const D = KIT.clericTree.dawn
-    this.dawnN = fired ? 0 : this.dawnN + 1
-    if (this.dawnN === D.every) this.floatText(HERO_X, GROUND - 170, '🌄 แสงรุ่งอรุณ พร้อม!', '#ffd36e')
-  }
-  /** (STR + WIS + atk x P.ATK + matk x M.ATK) as a sure crit (+clDawnCrit crit dmg), splash to the rest, heal a share of the main hit. */
-  private dawnSmash(f: Mon) {
+  // ----- v87 Cleric web 🌄 แสงรุ่งอรุณ (KIT.clericTree.dawn): the Ult smash adds bonus magic damage (STR + WIS + matk x M.ATK) -----
+  /** Bonus magic hit on every Ult smash target (x hitPow like the rest of the ult); ★ = sure crit + crit dmg; heals a share of the front hit. */
+  private dawnBonus(targets: Mon[], hitPow: number) {
     const D = KIT.clericTree.dawn, st = this.st, s = save()
+    if (st.clDawn <= 0 || this.job.id !== 'cleric' || !targets.length) return
     const b = totalBase(s), bl = this.buf.bless > 0 ? blessBase(s) ?? {} : {} // พรแสง adds STR / WIS while it lasts
-    const flat = b.str + (bl.str ?? 0) + b.wis + (bl.wis ?? 0) + D.atk * st.atk + D.matk * st.matk
-    const mul = flat / Math.max(1, st.atk), add = st.clDawnCrit, wasCrit = this.forceCrit
-    this.forceCrit = true; st.critMul += add
-    let dmg = 0
-    try {
-      dmg = this.strike(f, mul, false, '#ffd36e')
-      if (st.clDawnSplash > 0) for (const m of this.alive()) if (m !== f) this.strike(m, mul * st.clDawnSplash, false, '#ffd36e') // แสงแตก
-    } finally { st.critMul -= add; this.forceCrit = wasCrit }
-    this.burst(f.spr.x, f.spr.y - 30, 0xffd36e, 14, 170)
-    if (dmg <= 0 || this.hp <= 0) return
-    const big = f.def.ai === 'boss' || !!f.def.mini
-    const amt = dmg * (D.heal + st.clDawnHeal) * (big ? 1 : D.weak)
+    const mul = dawnMul(st, b.str + (bl.str ?? 0), b.wis + (bl.wis ?? 0)) * hitPow
+    const sure = st.clDawnUlt > 0, add = sure ? st.clDawnCrit : 0, wasCrit = this.forceCrit
+    this.forceCrit = wasCrit || sure; st.critMul += add
+    let front = 0
+    try { targets.forEach((m, i) => { const d = this.strike(m, mul, true, '#ffd36e'); if (i === 0) front = d }) } finally { st.critMul -= add; this.forceCrit = wasCrit }
+    this.burst(targets[0].spr.x, targets[0].spr.y - 30, 0xffd36e, 14, 170)
+    if (front <= 0 || this.hp <= 0 || st.clDawnHeal <= 0) return
+    const big = targets[0].def.ai === 'boss' || !!targets[0].def.mini
+    const amt = front * st.clDawnHeal * (big ? 1 : D.weak)
     if (amt > 0) { this.heal(amt, true); this.floatText(HERO_X, GROUND - 150, `🌄 +${Math.round(amt * (1 + st.healAmp))}`, '#7fe39a') }
   }
   private critAdd = 0 // temporary crit chance (คลื่นดาบ)
@@ -2260,6 +2253,19 @@ export class BattleScene extends Phaser.Scene {
     })
   }
 
+  /** v88 unique item (design/unique-taint-tower-skip-v1.md §2): only the final boss of a dungeon / hard run can drop one.
+   * A duplicate (already owned, or already dropped this run) pays that dungeon's boss materials instead. Never zeny. */
+  private rollUnique(m: Mon) {
+    if ((this.run.modeId !== 'dungeon' && this.run.modeId !== 'hard') || m.revived || m.def.ai !== 'boss' || m.def.mini || !cardsOfMonster(m.kind).length || !this.roomDef(this.room)?.boss) return
+    const got = rollUniqueDrop(this.dg.id, this.hard, [...save().owned, ...this.runUniques])
+    if (got.kind === 'none') return
+    const it = itemById(got.id)
+    if (got.kind === 'new') this.runUniques.push(got.id)
+    else for (const [id, n] of Object.entries(got.mats)) this.runDupeMats[id] = (this.runDupeMats[id] ?? 0) + n
+    this.callout(got.kind === 'new' ? `💎 ของยูนีค! ${it.icon} ${it.name}` : `💎 ${it.icon} ${it.name} (ซ้ำ → วัตถุดิบ)`, m.spr.x, m.spr.y - 170, '#ffd86b')
+    sfx.win()
+  }
+
   private killMon(m: Mon) {
     m.dead = true
     if (this.st.killHeal > 0 && this.hp > 0) this.heal(this.st.maxHp * this.st.killHeal) // Thief กระหายเลือด
@@ -2300,6 +2306,7 @@ export class BattleScene extends Phaser.Scene {
     this.coinsFly(m.spr.x, m.spr.y - 20, Math.round(Phaser.Math.Between(a, b) * (1 + this.zenyWave))) // Innovator 🧲 แม่เหล็ก
     this.rollCard(m)
     this.rollMat(m)
+    this.rollUnique(m)
     if (Math.random() < this.st.dropChance) { this.runGems++; this.floatText(m.spr.x, m.spr.y - 80, '💎 ของหายาก!', '#7fd7ff'); sfx.coin() }
     sfx.pop()
     m.dotTxt?.destroy(); m.dotTxt = undefined
@@ -3861,8 +3868,14 @@ export class BattleScene extends Phaser.Scene {
     s.gems += gems + this.runGems
     for (const id of this.runCards) addCard(s, id)
     for (const [id, n] of Object.entries(this.runMats)) addMat(s, id, n)
+    for (const id of this.runUniques) if (!s.owned.includes(id)) s.owned.push(id) // v88: one copy per id
+    for (const [id, n] of Object.entries(this.runDupeMats)) addMat(s, id, n)
     persist()
-    const lines = [...(mode?.lines ?? []), `+${this.zeny} zeny · +${this.runXp} EXP${s.gems > before ? ` · +${s.gems - before} เพชร` : ''}`]
+    const uniq = [
+      ...this.runUniques.map((id) => `💎✨ ได้ของยูนีค! ${itemById(id).icon} ${itemById(id).name} (ใส่ได้ที่หน้าตัวละคร · ใส่พร้อมกันได้ ${UNIQUE.maxEquipped} ชิ้น)${splitStatLine(itemById(id)).curse ? `\n💀 คำสาป: ${splitStatLine(itemById(id)).curse}` : ''}`),
+      ...Object.entries(this.runDupeMats).map(([id, n]) => `💎 ของยูนีคซ้ำ → ได้วัตถุดิบแทน ${matName(id)} x${n}`),
+    ]
+    const lines = [...uniq, ...(mode?.lines ?? []), `+${this.zeny} zeny · +${this.runXp} EXP${s.gems > before ? ` · +${s.gems - before} เพชร` : ''}`]
     if (ups.base) lines.push(`🎉 Base Lv ${s.baseLevel}! ได้แต้มสถานะเพิ่ม`)
     if (ups.job) lines.push(`✨ Job Lv ${s.jobLevel}! ได้แต้มสกิลเพิ่ม`)
     if (this.runCards.length) { // grouped + capped: a long tower run can find dozens

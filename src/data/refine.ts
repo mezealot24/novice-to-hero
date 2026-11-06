@@ -12,7 +12,7 @@ import { matDungeon, REFINE, refinable, refineFee, refineRate, type RefineLine }
 import { BASE_NAME, isBroken, itemStatLine, ITEMS, linesOf, refineOf, type BaseStat, type Item, type Slot } from './meta'
 
 // ---------- fodder: basic shop items (no job lock, no unlock, not crafted) ----------
-export const isFodder = (it: Item) => it.price > 0 && !it.jobs && !it.req && !it.craft
+export const isFodder = (it: Item) => it.price > 0 && !it.jobs && !it.req && !it.craft && !it.unique // a unique is never fodder (v88)
 export const FODDER: Item[] = ITEMS.filter(isFodder)
 /** Refine tiers: +1~+4 / +5~+7 / +8~+10. */
 export const refineTier = (n: number) => (n <= 4 ? 0 : n <= 7 ? 1 : 2)

@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { COLORS, DUNGEONS, H, W } from '../data/game-data'
 import { JOBS } from '../data/jobs'
-import { canWear, forged, gradeOf, isBroken, itemStatLine, ITEMS, linesOf, refineOf, slotCount, SLOTS, wearText, type Item } from '../data/meta'
+import { canWear, forged, gradeOf, isBroken, itemStatLine, ITEMS, linesOf, refineOf, slotCount, SLOTS, splitStatLine, wearText, type Item } from '../data/meta'
 import { craftCost, CRAFT_ITEMS, GRADE, gradeCap, gradeCost, gradeItem, gradeStars, REFINE, refinable } from '../data/craft'
 import { canAfford, canAffordAuto, FODDER, fodderFits, fodderMin, fodderToBuy, gemRepairCost, lineText, nextRate, pickFodder, refineCost, lineIdx, maxLocks, nextRerollCost, repair, repairCost, reroll, rerollMul, rollsOf, totalZeny, tryRefine, zenyShort, type ForgeCost } from '../data/refine'
 import { MAT_RULES, MATS, matById } from '../data/materials'
@@ -121,11 +121,13 @@ export class ForgeScene extends Phaser.Scene {
     b.add(txt(this, x + 14, y + 10, it.icon, 30))
     b.add(txt(this, x + 60, y + 8, it.name, 18, GRADE.colors[g], true))
     b.add(txt(this, x + 60, y + 34, `${gradeStars(g, cap)}  ${GRADE.names[g]}${worn ? ' · ใส่อยู่' : ''}`, 13, GRADE.colors[g], true))
-    const line = fit(txt(this, x + 14, y + 56, itemStatLine(gradeItem(it, g)), 13, '#9fe3a8', true).setWordWrapWidth(cw - 28), 52) // grade only: refine/lines show on the ตีบวก tab
+    const gl = splitStatLine(gradeItem(it, g)) // v88: a unique's downside is split off and shown in red
+    const line = fit(txt(this, x + 14, y + 56, gl.good, 13, '#9fe3a8', true).setWordWrapWidth(cw - 28), gl.curse ? 34 : 52) // grade only: refine/lines show on the ตีบวก tab
     b.add(line)
+    if (gl.curse) b.add(fit(txt(this, x + 14, line.y + line.height + 1, `💀 ${gl.curse}`, 12, '#ff7a7a', true).setWordWrapWidth(cw - 28), 30))
     const by = y + ch - 24
     if (g >= cap) {
-      b.add(txt(this, x + 14, line.y + line.height + 4, cap < GRADE.max ? `ของ${it.jobs || it.req ? 'คลาส' : 'ร้าน'}อัปได้ถึง ★${cap} · ของดันกับของตีเองไปได้ถึง ★5` : 'ถึงขั้นตำนานแล้ว ✨', 12, UI.sub).setWordWrapWidth(cw - 28))
+      b.add(txt(this, x + 14, line.y + line.height + (gl.curse ? 34 : 4), cap < GRADE.max ? `ของ${it.jobs || it.req ? 'คลาส' : 'ร้าน'}อัปได้ถึง ★${cap} · ของดันกับของตีเองไปได้ถึง ★5` : 'ถึงขั้นตำนานแล้ว ✨', 12, UI.sub).setWordWrapWidth(cw - 28))
       b.add(txt(this, x + cw / 2, by, '✓ สูงสุดแล้ว', 14, UI.green).setOrigin(0.5))
       return
     }
@@ -133,7 +135,7 @@ export class ForgeScene extends Phaser.Scene {
     if (n === GRADE.slotAt && slotCount(it, n) > slotCount(it, g)) notes.push('+1 ช่องการ์ด')
     const bi = GRADE.bonusAt.indexOf(n)
     if (it.craft && bi >= 0) notes.push(`ปลด: ${bonusLine(it.craft.bonus[bi])}`)
-    b.add(txt(this, x + 14, line.y + line.height + 4, `→ ★${n} ${GRADE.names[n]}: ${notes.join(' · ')}`, 12, GRADE.colors[n]).setWordWrapWidth(cw - 28))
+    b.add(txt(this, x + 14, line.y + line.height + (gl.curse ? 34 : 4), `→ ★${n} ${GRADE.names[n]}: ${notes.join(' · ')}`, 12, GRADE.colors[n]).setWordWrapWidth(cw - 28))
     const cost = gradeCost(it, n)
     b.add(this.costText(x + 14, by - 30, cost, cw - 28))
     b.add(button(this, x + cw / 2, by, cw - 32, 34, `อัปเป็น ★${n}`, () => this.upgrade(it), { size: 16 }).setEnabled(canPay(s, cost)))
@@ -168,8 +170,10 @@ export class ForgeScene extends Phaser.Scene {
     b.add(txt(this, x + 14, y + 10, it.icon, 30).setAlpha(broken ? 0.55 : 1))
     b.add(txt(this, x + 60, y + 8, `${it.name}${r ? ` +${r}` : ''}`, 18, GRADE.colors[g], true))
     b.add(txt(this, x + 60, y + 34, `${gradeStars(g, gradeCap(it))} · ตีบวก +${r}/${REFINE.max}${worn ? ' · ใส่อยู่' : ''}`, 12, UI.sub))
-    const stat = broken ? '💔 แตก: ไม่ได้ค่าพลังและการ์ดจนกว่าจะซ่อม (บวก/ขั้น/การ์ด/ค่าพิเศษ ยังอยู่ครบ)' : itemStatLine(forged(s, it)) || it.desc
-    const line = fit(txt(this, x + 14, y + 54, stat, 12, broken ? '#ffb0b0' : '#9fe3a8', true).setWordWrapWidth(cw - 28), 48) // 3 lines max
+    const sl = splitStatLine(forged(s, it)) // v88: a unique's downside in red under the upside
+    const stat = broken ? '💔 แตก: ไม่ได้ค่าพลังและการ์ดจนกว่าจะซ่อม (บวก/ขั้น/การ์ด/ค่าพิเศษ ยังอยู่ครบ)' : sl.good || it.desc
+    const line = fit(txt(this, x + 14, y + 54, stat, 12, broken ? '#ffb0b0' : '#9fe3a8', true).setWordWrapWidth(cw - 28), sl.curse && !broken ? 34 : 48) // 3 lines max (2 + the red curse line)
+    if (sl.curse && !broken) b.add(fit(txt(this, x + 14, y + 90, `💀 ${sl.curse}`, 11, '#ff7a7a', true).setWordWrapWidth(cw - 28), 16))
     const extra = REFINE.lineAt.map((at, i) => `+${at} ${lines[i] ? lineText(lines[i]) : '—'}`).join(' · ')
     const has = lines.some(Boolean)
     const lt = fit(txt(this, x + 14, y + 106, `🎁 ${extra}`, 11, has ? '#d9c2ff' : UI.sub).setWordWrapWidth(cw - (has ? 100 : 28)), 32) // fixed row, 2 lines max

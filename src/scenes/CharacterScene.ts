@@ -4,12 +4,13 @@ import { autoInfo, magicPower, skill2Info, ultInfo, type InfoRow } from '../data
 import { skill2ById } from '../data/skill2'
 import { CARD_RULES, cardIcon, cardName, EQUIP_CARDS, TIER_COLOR, type EquipCard } from '../data/cards'
 import { gradeStars, gradeCap } from '../data/craft'
-import { BASE_STATS, smashLv, canWear, forged, forgeTag, gradeOf, isBroken, refineOf, cardFits, CERT_SLOTS_AT, EQUIP_SLOTS, offhandLocked, slotKind, type EquipSlot, COSTUMES, gearBase, heroStats, cardStatLine, itemStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, NOVICE_PASSIVES, NOVICE_RULES, noviceLeft, noviceSpent, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText, type BaseStat } from '../data/meta'
+import { BASE_STATS, smashLv, canWear, forged, forgeTag, gradeOf, isBroken, refineOf, cardFits, CERT_SLOTS_AT, EQUIP_SLOTS, offhandLocked, slotKind, type EquipSlot, COSTUMES, gearBase, heroStats, cardStatLine, itemStatLine, splitStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, NOVICE_PASSIVES, NOVICE_RULES, noviceLeft, noviceSpent, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText, type BaseStat } from '../data/meta'
 import { canChangeJob, equip, persist, resetNovice, resetTree, resetTree2, save, socketCard, unsocketCard } from '../save'
 import { branches2Of, tree2Spent, BRANCHES, branchesOf, lockReason, skill2Picked, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
 import { JOB_CHANGE, JOBS, type JobId } from '../data/jobs'
 import { JOB2, JOB2_RULES, PETS, type PetId } from '../data/jobs2'
 import { statLines } from '../data/statInfo'
+import { UNIQUE } from '../data/uniques'
 import { heroPower } from '../data/power'
 import { askRepick } from './JobScene'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
@@ -115,7 +116,8 @@ export class CharacterScene extends Phaser.Scene {
       if (tag) b.add(txt(this, x + (n ? 140 : 182), y + 4, tag, 11, '#ffd36b').setOrigin(1, 0))
       b.add(txt(this, x + 10, y + 19, clip(`${it.icon} ${it.name}`, 15), 15, it.id.startsWith('none') ? UI.sub : UI.text, true))
       const warn = off ? '🔒 ถืออาวุธ 2 มือ (ไม่ได้ค่าพลัง)' : isBroken(s, it.id) ? '💔 แตก ไม่ได้ค่าพลัง (ซ่อมที่โรงตีเหล็ก)' : !canWear(it, s.job) ? `⚠ ${wearText(it)} เท่านั้น` : ''
-      b.add(txt(this, x + 10, y + 41, clip(warn || itemStatLine(forged(s, it)) || it.desc, 30), 10, warn ? UI.red : UI.green))
+      const curse = !warn && !!splitStatLine(forged(s, it), !!it.unique).curse // v88: a cursed unique reads orange with a skull
+      b.add(txt(this, x + 10, y + 41, clip(warn || `${curse ? '💀' : ''}${itemStatLine(forged(s, it))}` || it.desc, 30), 10, warn ? UI.red : curse ? '#ffa06b' : UI.green))
       const z = this.add.zone(x + 95, y + 30, 190, 60).setInteractive({ useHandCursor: true })
       z.on('pointerup', () => { this.slot = sl.id; this.bagPage = 0; this.render() })
       b.add(z)
@@ -131,7 +133,7 @@ export class CharacterScene extends Phaser.Scene {
         .map((it) => {
           // accessories: show when the item is already on the other side (wearing it here moves it over)
           const other = slot === 'acc' || slot === 'acc2' ? (s.equipped[slot === 'acc' ? 'acc2' : 'acc'] === it.id && it.id !== 'none' ? 'ใส่อีกข้าง' : '') : ''
-          return { id: it.id, label: `${it.icon} ${it.name}${forgeTag(s, it.id)}`, desc: !canWear(it, s.job) ? `⚠ ${wearText(it)} เท่านั้น` : isBroken(s, it.id) ? '💔 แตก: ไม่ได้ค่าพลังจนกว่าจะซ่อม' : itemStatLine(forged(s, it)) || it.desc, worn: s.equipped[slot] === it.id, tint: 0, off: !canWear(it, s.job), other }
+          return { id: it.id, label: `${it.icon} ${it.name}${forgeTag(s, it.id)}`, desc: !canWear(it, s.job) ? `⚠ ${wearText(it)} เท่านั้น` : isBroken(s, it.id) ? '💔 แตก: ไม่ได้ค่าพลังจนกว่าจะซ่อม' : `${splitStatLine(forged(s, it), !!it.unique).curse ? '💀' : ''}${itemStatLine(forged(s, it))}` || it.desc, worn: s.equipped[slot] === it.id, tint: 0, off: !canWear(it, s.job), other, curse: !!it.unique && !!splitStatLine(forged(s, it)).curse }
         })
     const per = 6, pages = Math.max(1, Math.ceil(list.length / per))
     this.bagPage = Math.min(this.bagPage, pages - 1)
@@ -145,10 +147,10 @@ export class CharacterScene extends Phaser.Scene {
       b.add(panel(this, x, y, 300, 52, UI.panel, it.worn ? COLORS.gold : UI.line, 10))
       if (it.tint) b.add(this.add.image(x + 24, y + 26, 'novice').setScale(0.85).setTint(it.tint))
       b.add(txt(this, x + (it.tint ? 48 : 12), y + 5, clip(it.label, 17), 15, UI.text, true))
-      b.add(txt(this, x + (it.tint ? 48 : 12), y + 28, clip(it.desc, 30), 11, 'off' in it && it.off ? UI.red : UI.green).setWordWrapWidth(196).setLineSpacing(0))
+      b.add(txt(this, x + (it.tint ? 48 : 12), y + 28, clip(it.desc, 30), 11, 'off' in it && it.off ? UI.red : 'curse' in it && it.curse ? '#ffa06b' : UI.green).setWordWrapWidth(196).setLineSpacing(0))
       b.add(button(this, x + 258, y + 26, 72, 36, it.worn ? 'ใส่อยู่' : it.other ? 'ย้ายมา' : 'ใส่', () => {
         if (slot === 'costume') s.costume = it.id
-        else equip(s, it.id, slot)
+        else if (!equip(s, it.id, slot)) { toast(this, `ใส่ของยูนีคได้พร้อมกันสูงสุด ${UNIQUE.maxEquipped} ชิ้นค่ะ ถอดชิ้นอื่นก่อนนะคะ`, UI.red); return }
         persist(); this.redraw()
       }, { size: 14 }).setEnabled(!it.worn && !('off' in it && it.off)))
     })

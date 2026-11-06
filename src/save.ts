@@ -1,6 +1,7 @@
 // One save slot in localStorage. Every read/write is guarded: private windows and sandboxed hosts
 // may throw or start empty, and the game must still run (it just won't remember).
 import { JOB_CHANGE, type JobId } from './data/jobs'
+import { UNIQUE } from './data/uniques'
 import { JOB2, JOB2_RULES, type Job2Id, type PetId } from './data/jobs2'
 import type { RefineLine } from './data/craft'
 import type { ModeRecord } from './data/modes'
@@ -127,16 +128,25 @@ function migrateGear(s: SaveData) {
 
 /** Wear an item. Accessories: `slot` picks the side; with no side it fills an empty side first. The same
  * accessory can't be on both sides (one copy per id), so it moves over instead. */
-export function equip(s: SaveData, itemId: string, slot?: EquipSlot) {
+export function equip(s: SaveData, itemId: string, slot?: EquipSlot): boolean {
   const kind = itemById(itemId).slot
   let at: EquipSlot = slot ?? kind
   if (kind === 'acc' && !slot) at = s.equipped.acc === 'none' || s.equipped.acc2 !== 'none' ? 'acc' : 'acc2'
-  if (slotKind(at) !== kind) return
+  if (slotKind(at) !== kind) return false
+  if (uniqueEquipBlocked(s, itemId, at)) return false // v88: at most UNIQUE.maxEquipped uniques at once
   if (kind === 'acc' && itemId !== 'none') {
     const other: EquipSlot = at === 'acc' ? 'acc2' : 'acc'
     if (s.equipped[other] === itemId) s.equipped[other] = 'none'
   }
   s.equipped[at] = itemId
+  return true
+}
+/** v88: would wearing `itemId` at `at` put more than UNIQUE.maxEquipped uniques on? Counts the other slots only (the one being
+ * replaced leaves, and the same accessory moving from the other side is not counted twice). */
+export function uniqueEquipBlocked(s: SaveData, itemId: string, at: EquipSlot): boolean {
+  if (!itemById(itemId).unique) return false
+  const others = (Object.keys(s.equipped) as EquipSlot[]).filter((sl) => sl !== at && s.equipped[sl] !== itemId)
+  return others.filter((sl) => itemById(s.equipped[sl]).unique).length >= UNIQUE.maxEquipped
 }
 /** Is this item worn in any slot? */
 export const isWorn = (s: SaveData, itemId: string) => Object.values(s.equipped).includes(itemId)

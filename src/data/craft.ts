@@ -71,13 +71,13 @@ export const CRAFT_ITEMS: Item[] = [
 
 /** Highest grade an item can reach: starters 1, plain shop gear 3, class shop gear 4, dungeon + crafted gear 5. */
 export function gradeCap(it: Item): number {
-  if (it.craft || (it.req && it.req !== 'job')) return 5
+  if (it.craft || it.unique || (it.req && it.req !== 'job')) return 5
   if (it.price === 0) return 1
   if (it.jobs || it.req === 'job') return 4
   return 3
 }
 /** Which dungeon's materials an item uses for grade-ups. */
-export const matDungeon = (it: Item) => it.craft?.dg ?? (it.req && it.req !== 'job' ? it.req : 'd1')
+export const matDungeon = (it: Item) => it.craft?.dg ?? it.unique?.dg ?? (it.req && it.req !== 'job' ? it.req : 'd1')
 /** Materials + zeny to raise `it` from grade g-1 to g. */
 export function gradeCost(it: Item, g: number) {
   const c = GRADE.cost[g], dg = matDungeon(it)
@@ -120,7 +120,7 @@ export const REFINE = {
 /** Zeny fee for one try at +n. */
 export const refineFee = (n: number) => (n <= 0 ? 0 : Math.round((REFINE.feeBase * REFINE.feeGrowth ** (n - 1)) / 5) * 5)
 /** Starter gear and the empty slots can't be refined; crafted gear (price 0) can. */
-export const refinable = (it: Item) => it.price > 0 || !!it.craft
+export const refinable = (it: Item) => it.price > 0 || !!it.craft || !!it.unique
 /** Chance to reach +n after `pity` fails in a row. */
 export const refineRate = (n: number, pity = 0) => Math.min(1, (REFINE.rate[n] ?? 0) + pity * REFINE.pity)
 
