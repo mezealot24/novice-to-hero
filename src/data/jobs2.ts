@@ -106,7 +106,7 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     blurb: 'battle mage แบบ RO · ตีใกล้ด้วย P.ATK แล้ว Auto Spell ร่ายเวทเอง · Endow ติดธาตุอาวุธ · Dispell ลบบัฟ/โล่ ขัดบอสชาร์จ · STR ช่วยจริง (70/30)',
     mod: { maxHp: 30, def: 4 },
     mastery: { weapon: 'หนังสือ / ไม้เท้า', ok: (it) => it.wtype === 'book' || it.wtype === 'staff', mod: { matk: SG.mastery.matk }, pct: { atk: SG.mastery.atkPct } },
-    signature: { name: 'Auto Spell', icon: '📖', desc: `ตีธรรมดาเป็นตีใกล้ ${SG.basicMul}x P.ATK · ทุกครั้งที่ตีธรรมดา มีโอกาส ${pc(SG.autoChance)} (+${SG.autoInt * 100}%/INT สูงสุด ${pc(SG.autoCap)}) ร่าย Bolt ธาตุของรอบฟรี ${SG.autoMul}x Pm` },
+    signature: { name: 'Auto Spell', icon: '📖', desc: `ลูกไฟระเบิดต้องร่าย 1 เทิร์น (อาจแตก) · Dispell ร่ายทันที · ตีธรรมดาเป็นตีใกล้ ${SG.basicMul}x P.ATK · ทุกครั้งที่ตีธรรมดา มีโอกาส ${pc(SG.autoChance)} (+${SG.autoInt * 100}%/INT สูงสุด ${pc(SG.autoCap)}) ร่าย Bolt ธาตุของรอบฟรี ${SG.autoMul}x Pm` },
     skill3: { name: 'Endow', icon: '🗡️', cost: SG.endowCost, cd: SG.endowCd, desc: `Mana ${SG.endowCost} · คูลดาวน์ ${SG.endowCd}: ติดธาตุอาวุธ ${SG.endowTurns} เทิร์น · ตีธรรมดา / คอมโบ / Auto Spell แรง +${pc(SG.endowAmp)}` },
     ult: { name: 'Dispell + Spell Breaker', icon: '🚫', cd: 4, cost: SG.ultCost, desc: `Mana ${SG.ultCost}: ลบบัฟ/โล่/โล่สะท้อนของมอนทุกตัว + ขัดบอสที่กำลังชาร์จ · ขโมย Mana ${SG.ultMana} · ฟาดตัวที่ชาร์จ (ไม่งั้นตัวหน้า) ${SG.ultAtk}x P.ATK + ${SG.ultPm}x Pm` },
   },

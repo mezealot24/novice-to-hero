@@ -183,6 +183,9 @@ export const TABLES: Record<TableId, TableDef> = {
       ['run.healOnClear|healOnLevel', num(0, 1)],
     ],
   },
-  kit: { id: 'kit', label: 'Class KIT numbers', target: () => KIT, fields: [[KIT_INTS, int(0, 50)], [KIT_NUMS, num(0, 20)]] },
+  kit: {
+    id: 'kit', label: 'Class KIT numbers', target: () => KIT,
+    fields: [[KIT_INTS, int(0, 50)], [KIT_NUMS, num(0, 20)], ['cast.breakBase|breakDex', num(0, 1)], ['cast.fireMul|ultMul', num(0, 20)], ['cast.brokenUltCd|boltMana', int(0, 50)]], // v78 MAGE_CAST
+  },
 }
 export const TABLE_IDS = Object.keys(TABLES) as TableId[]

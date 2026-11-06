@@ -69,10 +69,10 @@ export const JOBS: Record<JobId, JobDef> = {
     ult: { name: 'ศรทะลวง', icon: '🎯', cd: 4, desc: 'กระโดดถอย หลบการโจมตีถัดไปแน่นอน + ยิงเป้าเดียว (บอส/ตัวที่ HP เยอะสุด) 5x' },
   },
   mage: {
-    id: 'mage', name: 'จอมเวท', icon: '🔮', tex: 'hero_mage', blurb: 'เวทแรง ตีทั้งกลุ่ม ไม่มีวันพลาด แต่ตัวบาง · ตีปกติเป็นลูกเวทเบาๆ ดาเมจจริงมาจากสกิลที่ต้องใช้ Mana', focus: 'INT · WIS',
+    id: 'mage', name: 'จอมเวท', icon: '🔮', tex: 'hero_mage', blurb: 'เวทแรง ตีทั้งกลุ่ม ไม่มีวันพลาด แต่ตัวบาง · ตีปกติเป็นลูกเวทเบาๆ ดูด Mana · ลูกไฟ/ult ต้องร่าย 1 เทิร์น โดนตีอาจร่ายแตก (DEX ช่วย)', focus: 'INT · WIS',
     resource: 'mana', attack: 'magic', tags: ['fire', 'storm', 'crit'], mod: { maxRes: 20, maxHp: 10 },
-    auto: { name: 'ลูกไฟระเบิด', icon: '🔥', cost: 36, desc: `Mana 36: ไฟใส่ทุกตัว ${MAGE_SPELL.autoMul}x M.ATK (ติดไฟถ้ามีพรเผาไหม้)` },
-    ult: { name: 'เวทธาตุ', icon: '☄️', cd: 5, cost: 30, desc: `Mana 30: เลือกธาตุตอนเริ่มรอบ · ⚡ สายฟ้า เป้าเดียว 6 ฮิต (0.3–1.2x/ฮิต) · 🔥 ไฟ 2x + เผาซ้อน · ❄️ น้ำแข็ง 1.6x + ช้า/แช่แข็ง · ทุกธาตุได้บาเรีย ${MAGE_SPELL.barrier}x M.ATK` },
+    auto: { name: 'ลูกไฟระเบิด', icon: '🔥', cost: 36, desc: 'Mana 36: ร่าย 1 เทิร์น (โดนตีระหว่างร่ายอาจแตก · DEX ช่วย) แล้วไฟใส่ทุกตัว (ติดไฟถ้ามีพรเผาไหม้) · ตัวเลขดูในหน้าสกิล' }, // v78: numbers in skill-math MAGE_CAST (jobs.ts can't import it)
+    ult: { name: 'เวทธาตุ', icon: '☄️', cd: 5, cost: 30, desc: `Mana 30: ร่าย 1 เทิร์น (แรงขึ้น · ร่ายแตก = คูลดาวน์สั้นลง) · เลือกธาตุตอนเริ่มรอบ · ⚡ สายฟ้า เป้าเดียว 6 ฮิต (0.3–1.2x/ฮิต) · 🔥 ไฟ 2x + เผาซ้อน · ❄️ น้ำแข็ง 1.6x + ช้า/แช่แข็ง · ทุกธาตุได้บาเรีย ${MAGE_SPELL.barrier}x M.ATK` },
   },
   cleric: {
     id: 'cleric', name: 'นักบวช', icon: '✨', tex: 'hero_cleric', blurb: 'นักบวชสายบู๊: ทุบด้วยกระบอง/คัมภีร์ (STR) ร่ายแสง (INT) ฮีลตัวเอง มีโล่', focus: 'STR · INT · WIS',

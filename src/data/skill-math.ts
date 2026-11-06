@@ -17,8 +17,17 @@ export const magicBase = (st: Stats) => { const pm = magicPower(st); return { lo
 export const physBase = (st: Stats) => ({ lo: st.atk * st.minPct, hi: st.atk })
 export const hitBase = (st: Stats, magic: boolean) => (magic ? magicBase(st) : physBase(st))
 
+/** v78 Mage cast time (Q 2026-11-06, design/mage-cast-focus-v78.md): base Mage + Sage chant ลูกไฟระเบิด (and the Mage element ult) for 1 turn.
+ *  A hit that reaches HP while chanting can break it (DEX / tenacity lower the odds). Wizard keeps ร่ายใหญ่ (never breaks).
+ *  fireMul replaces MAGE_SPELL.autoMul on a chanted fireball · ultMul x the chanted ult · a broken ult waits brokenUltCd turns (not the full cd). */
+export const MAGE_CAST = { breakBase: 0.45, breakDex: 0.012, fireMul: 1.5, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 }
+/** Chance one hit breaks the chant: 45% − 1.2%/DEX − tenacity, never below 0 (🧘 Poise = 0). */
+export const breakChance = (dex: number, tenacity: number, poise = false) =>
+  poise ? 0 : Math.max(0, MAGE_CAST.breakBase - MAGE_CAST.breakDex * dex - tenacity)
+
 /** Class kit multipliers that used to sit inline in BattleScene (SWORD_MANA / MAGE_SPELL / CLERIC_KIT live in jobs.ts). */
 export const KIT = {
+  cast: MAGE_CAST, // v78: tunable as kit `cast.*`
   archerAuto: 0.9, archerAutoShots: 2, archerVolleyShots: 3, archerUlt: 5,
   mageFire: 2, mageFireStacks: 3, mageIce: 1.6, mageIceChill: 3, mageLightHits: 6, mageLightLo: 0.3, mageLightHi: 1.2,
   clericHealBelow: 0.75, clericSmiteTargets: 2, clericJudge: 2.2, clericJudgeEvery: 3,
@@ -135,7 +144,7 @@ export const S2N = {
 export const autoCost = (job: JobDef, st: Stats) => Math.max(10, job.auto.cost - st.autoCostCut)
 /** Mana the ult costs (Mage, Swordsman); 0 for every other job. */
 export const ultCost = (job: JobDef) => (job.resource === 'mana' ? job.ult.cost ?? 0 : 0)
-/** Ult cooldown in hero turns before relics (run pick สมาธินิ่ง lowers smashCd for every job). */
+/** Ult cooldown in hero turns before relics (gear smashCd lowers it for every job). */
 export const ultCooldown = (job: JobDef, st: Stats) => {
   const cdCut = Math.round((PLAYER.smashCd - st.smashCd) / BATTLE.msPerTurn)
   return Math.max(2, job.ult.cd + st.mgUltCd - cdCut)
@@ -174,8 +183,9 @@ export function autoInfo(jobId: JobId, st: Stats): InfoRow[] {
       else out.push({ label: `${st.arVolley > 0 ? KIT.archerVolleyShots : KIT.archerAutoShots} ดอก ดาเมจ/ดอก`, value: hitText(st, (st.arVolley > 0 ? st.arVolley : KIT.archerAuto) * pow, false) })
       break
     case 'mage':
-      out.push({ label: 'ไฟ/ตัว (ทุกตัว)', value: hitText(st, MAGE_SPELL.autoMul * pow, true) })
-      if (st.mgOverflow > 0) out.push({ label: 'ตอน Mana ≥ 90% (พลังล้น)', value: hitText(st, MAGE_SPELL.autoMul * pow * st.mgOverflow, true) })
+      out.push({ label: 'ร่าย', value: `1 เทิร์น (โดนตีอาจร่ายแตก ${pct(MAGE_CAST.breakBase)} − ${(MAGE_CAST.breakDex * 100).toFixed(1)}%/DEX)` })
+      out.push({ label: 'ไฟ/ตัว (ทุกตัว)', value: hitText(st, MAGE_CAST.fireMul * pow, true) })
+      if (st.mgOverflow > 0) out.push({ label: 'ตอน Mana ≥ 90% (พลังล้น)', value: hitText(st, MAGE_CAST.fireMul * pow * st.mgOverflow, true) })
       break
     case 'cleric':
       out.push({ label: 'ตีปกติ ทุบประชิด (P.ATK)', value: hitText(st, clericBasic(), false) })
@@ -207,12 +217,14 @@ export function ultInfo(jobId: JobId, st: Stats): InfoRow[] {
       out.push({ label: 'หลบแน่นอน', value: `${1 + st.arUltDodge} ครั้ง` })
       break
     case 'mage': {
-      const amp = (x: number) => pow * (1 + st.mgUltAmp + x) * (st.mgDoubleCast > 0 ? st.mgDoubleCast : 1)
+      const amp = (x: number) => pow * MAGE_CAST.ultMul * (1 + st.mgUltAmp + x) * (st.mgDoubleCast > 0 ? st.mgDoubleCast : 1)
       const twice = st.mgDoubleCast > 0 ? ' ×2 รอบ' : ''
+      out.push({ label: 'ร่าย', value: `1 เทิร์น · แรง ×${MAGE_CAST.ultMul} · ร่ายแตก = คูลดาวน์เหลือ ${MAGE_CAST.brokenUltCd} เทิร์น` })
       out.push({ label: `⚡ ${KIT.mageLightHits + st.lightHits} ฮิต ดาเมจ/ฮิต${twice}`, value: (() => { const b = magicBase(st), a = amp(st.mgLightAmp); return range(b.lo * KIT.mageLightLo * a, b.hi * KIT.mageLightHi * a) })() })
       out.push({ label: `🔥 ทุกตัว + เผา ${KIT.mageFireStacks + st.mgFireStack} stack${twice}`, value: hitText(st, KIT.mageFire * amp(st.mgFireAmp), true) })
       out.push({ label: `❄️ ทุกตัว + ช้า ${KIT.mageIceChill + st.chillPlus} เทิร์น${twice}`, value: hitText(st, KIT.mageIce * amp(st.mgIceAmp), true) })
-      out.push({ label: 'บาเรีย (❄️ ได้เพิ่ม)', value: `${shield(st, st.matk * MAGE_SPELL.barrier * pow * (1 - st.mgBarrierCut))}${st.iceBarrier > 0 ? ` / ❄️ ${shield(st, st.matk * (MAGE_SPELL.barrier + st.iceBarrier) * pow * (1 - st.mgBarrierCut))}` : ''}` })
+      const bp = pow * MAGE_CAST.ultMul * (1 - st.mgBarrierCut)
+      out.push({ label: 'บาเรีย (❄️ ได้เพิ่ม)', value: `${shield(st, st.matk * MAGE_SPELL.barrier * bp)}${st.iceBarrier > 0 ? ` / ❄️ ${shield(st, st.matk * (MAGE_SPELL.barrier + st.iceBarrier) * bp)}` : ''}` })
       break
     }
     case 'cleric':
