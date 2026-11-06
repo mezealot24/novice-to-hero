@@ -3,7 +3,11 @@
 // env: ALLOC='{"str":8,"int":7}' overrides the class stat spread · GEAR=1 class gear · D=2 dungeon 3 (Lv 10 hero, dungeon-2 gear) · D=4 Lv 15 hero for dungeon 4 · D=5 Lv 20 + หัวใจไฮดรา for dungeon 5 · DUN=index · RELIC=id force a pick
 const { chromium } = require('playwright')
 const [html, job, runsArg] = process.argv.slice(2)
-const RUNS = +runsArg || 8
+// LITE=1 (v78, weak PC): one low-memory Chromium (no GPU / 1 renderer / 512 MB heap / tiny viewport), 3 runs unless given,
+// 90 s per run, slower polling. Pair with tools/bot-lite.sh (one job at a time, never in parallel).
+const LITE = !!process.env.LITE
+const RUNS = +runsArg || (LITE ? 3 : 8)
+if (LITE) process.env.TMO ||= '90000'
 if (process.env.MYTHIC) process.env.RELIC = process.env.MYTHIC
 const alloc = {
   swordsman: { str: 8, vit: 7 }, archer: { dex: 8, agi: 7 }, mage: { int: 8, wis: 7 },
@@ -100,8 +104,8 @@ if (process.env.JOB2) {
 if (process.env.REFINE) save.refine = Object.fromEntries(Object.values(save.equipped).map((id) => [id, +process.env.REFINE]))
 if (process.env.BROKEN) save.broken = Object.values(save.equipped)
 ;(async () => {
-  const b = await chromium.launch()
-  const p = await b.newPage()
+  const b = await chromium.launch(LITE ? { args: ['--disable-gpu', '--disable-dev-shm-usage', '--disable-extensions', '--mute-audio', '--renderer-process-limit=1', '--js-flags=--max-old-space-size=512'] } : undefined)
+  const p = await b.newPage(LITE ? { viewport: { width: 480, height: 270 } } : undefined)
   let errors = 0
   p.on('pageerror', (e) => { errors++; if (process.env.DEBUG || process.env.MODE) console.error('pageerror', e.message, (e.stack || '').split('\n').slice(1, 4).join(' | ').slice(0, 400)) })
   await p.addInitScript((s) => { localStorage.setItem('novice-to-hero.save.v1', JSON.stringify(s)) }, save)
@@ -110,7 +114,7 @@ if (process.env.BROKEN) save.broken = Object.values(save.equipped)
   await p.waitForFunction(() => window.__nth && window.__nth.scene.isActive('title'), null, { timeout: 30000 })
   const res = []
   for (let r = 0; r < RUNS; r++) {
-    res.push(await p.evaluate(async ([first, RELIC, D, DUN, HARD, MODE, TOWER_MAX, SEED, TMO, START, PERK, EVENT, SMART, LAST]) => {
+    res.push(await p.evaluate(async ([first, RELIC, D, DUN, HARD, MODE, TOWER_MAX, SEED, TMO, START, PERK, EVENT, SMART, LAST, POLL]) => {
       const g = window.__nth, R = g.renderer
       R.preRender = () => {}; R.render = () => {}; R.postRender = () => {} // test only: skip drawing
       if (first) { g.scene.getScenes(true).forEach((s) => s.scene.stop()); g.scene.start('battle', MODE ? { mode: MODE, ...(SEED ? { seed: SEED } : {}), ...(START ? { startFloor: START } : {}) } : { d: DUN, hard: !!HARD }) }
@@ -135,11 +139,11 @@ if (process.env.BROKEN) save.broken = Object.values(save.equipped)
         // duelist never charges: ult when she is not in parry stance
         const want = !boss || boss.charging || (boss.def.mini === 'duelist' && !boss.parry && !boss.espadaArmed) || (boss.def.mini && !(boss.def.charge || boss.def.breakPct))
         if (!B.autoUltWant && B.smashCdLeft <= 0 && !B.smashQueued && want) B.queueSmash() // v55+: the game's auto ult (same rule) books it
-        await new Promise((r) => setTimeout(r, 15))
+        await new Promise((r) => setTimeout(r, POLL))
       }
       const bm = B.mons.find((m) => m.def.ai === 'boss')
       return { power: B.run.power, enrage: B.enrageCount ?? 0, procHits: B.procHits ?? null, perks: B.perkList ? B.perkList() : '', imm: B.immortal ?? null, floor: B.towerFloor, mode: B.run.modeId, where: B.run.where(B.room), muts: B.run.mutators.map((m) => m.id).join('+'), mats: Object.values(B.runMats || {}).reduce((a, n) => a + n, 0), maxHp: Math.round(B.st.maxHp), minHp: B.minHpPct, mini: B.miniKind, miniWon: B.miniWon, relic: B.relic, parry: B.parryCount, frz: B.freezeCount, tl: (B.turnsLog || []).join('/'), win: B.over && B.hp > 0 && !B.timedOut, room: B.room, hp: Math.round(B.hp), bossHp: bm ? Math.max(0, Math.round(bm.hp)) : null, breaks: B.breakCount ?? 0, revived: B.revivedCount ?? 0, ctr: B.counterCount ?? 0, combo: B.comboCount ?? 0, el: B.job.id === 'mage' ? B.element : '', s2: B.s2Count ?? 0, to: !!B.timedOut, dbf: B.debuffCount ?? 0, peak: B.peakTurns ?? 0, ms: Date.now() - t0 }
-    }, [r === 0, process.env.RELIC || '', D,  process.env.DUN ? +process.env.DUN : D >= 4 ? D - 1 : D, !!process.env.HARD, process.env.MODE || '', +(process.env.TOWER_MAX || 15), +(process.env.SEED || 0), +(process.env.POWER ? 1 : process.env.TMO || 120000), +(process.env.START || 0), process.env.PERK || '', process.env.EVENT || '', process.env.PICK === 'smart', process.env.PICK === 'last']))
+    }, [r === 0, process.env.RELIC || '', D,  process.env.DUN ? +process.env.DUN : D >= 4 ? D - 1 : D, !!process.env.HARD, process.env.MODE || '', +(process.env.TOWER_MAX || 15), +(process.env.SEED || 0), +(process.env.POWER ? 1 : process.env.TMO || 120000), +(process.env.START || 0), process.env.PERK || '', process.env.EVENT || '', process.env.PICK === 'smart', process.env.PICK === 'last', LITE ? 40 : 15]))
   }
   if (process.env.POWER) { console.log(JSON.stringify({ job, D, ...res[0] })); await b.close(); return }
   if (process.env.DEBUG) console.log(JSON.stringify(res))
