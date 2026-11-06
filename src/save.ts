@@ -4,7 +4,7 @@ import { JOB_CHANGE, type JobId } from './data/jobs'
 import { JOB2, JOB2_RULES, type Job2Id, type PetId } from './data/jobs2'
 import type { RefineLine } from './data/craft'
 import type { ModeRecord } from './data/modes'
-import { FREE_GEMS, JOB_RULES, RACES, STAT_RULES, type BaseStat, type RaceId, type SkillId, EMPTY_ITEM, type EquipSlot, itemById, slotKind } from './data/meta'
+import { FREE_GEMS, JOB_RULES, NOVICE_PASSIVES, NOVICE_RULES, noviceSpent, RACES, STAT_RULES, type BaseStat, type RaceId, type SkillId, EMPTY_ITEM, type EquipSlot, itemById, slotKind } from './data/meta'
 
 export interface SaveData {
   v: 1
@@ -17,6 +17,7 @@ export interface SaveData {
   jobXp: number
   skillPoints: number
   skills: Record<SkillId, number>
+  nov2?: 1 // v85: novice passives moved to their own 10-point pool (old Job Lv points refunded once)
   job: JobId
   jobSkills: { auto: number; ult: number } // retired in skill web v1 (always 1/1): power now comes from the web's +power nodes
   jobTree?: Record<string, number> // skill web node -> level (data/tree.ts, design/skill-web-v1.md), current job only
@@ -72,7 +73,7 @@ export function newSave(name: string, race: RaceId): SaveData {
   const s = STAT_RULES.start
   return {
     v: 1, web: 1, name, race, baseLevel: 1, baseXp: 0, statPoints: 3,
-    jobLevel: 1, jobXp: 0, skillPoints: 0, skills: { smash: 1, firstaid: 0, tough: 0 }, job: 'novice', jobSkills: { auto: 1, ult: 1 },
+    jobLevel: 1, jobXp: 0, skillPoints: 0, skills: { smash: 1, firstaid: 0, tough: 0, focus: 0, power: 0, iron: 0, swift: 0 }, nov2: 1, job: 'novice', jobSkills: { auto: 1, ult: 1 },
     stats: { str: s, vit: s, wis: s, dex: s, int: s, luk: s, agi: s },
     zeny: 100, gems: 0,
     owned: ['knife', 'cloth', 'none', 'none_head', 'none_off'], equipped: { weapon: 'knife', armor: 'cloth', acc: 'none', head: 'none_head', offhand: 'none_off', acc2: 'none' },
@@ -99,6 +100,7 @@ export function load(): SaveData | null {
     migrateThiefWeb(s)
     migratePriestBless(s)
     migrateGear(s)
+    migrateNovicePool(s)
     s.modes ??= {} // v51 game modes: additive, old saves start with no records
     delete (s as SaveData & { reroll?: unknown }).reroll // v84 option gacha: no more pending keep-old / take-new (the old line stays)
     cache = s
@@ -179,6 +181,24 @@ function migratePriestBless(s: SaveData) {
   if (s.job !== 'cleric' || !t || (t.cl_bless ?? 0) <= 1) return
   s.skillPoints += t.cl_bless - 1; t.cl_bless = 1
 }
+/** v85 novice pool (Q 2026-11-06): ปฐมพยาบาล / ร่างกายแกร่ง used to cost Job Lv skill points. Those points come back
+ *  as skill points; the levels stay and now count against the free 10-point novice pool (max 5+5 = 10, always fits). */
+function migrateNovicePool(s: SaveData) {
+  for (const p of NOVICE_PASSIVES) s.skills[p.id] ??= 0
+  if (s.nov2) return
+  s.skillPoints += (s.skills.firstaid ?? 0) + (s.skills.tough ?? 0)
+  s.nov2 = 1
+}
+
+/** Clear every novice passive for 💎 NOVICE_RULES.resetGems (the pool refills by itself). False when short or nothing to clear. */
+export function resetNovice(s: SaveData = save()): boolean {
+  if (!noviceSpent(s.skills) || s.gems < NOVICE_RULES.resetGems) return false
+  s.gems -= NOVICE_RULES.resetGems
+  for (const p of NOVICE_PASSIVES) s.skills[p.id] = 0
+  persist()
+  return true
+}
+
 /** v27 skill web: class skill levels and the old tree become web nodes with new rules, so refund every point once. */
 function migrateToWeb(s: SaveData) {
   const back = s.job === 'novice' ? 0 : Math.max(0, (s.jobSkills?.auto ?? 1) - 1) + Math.max(0, (s.jobSkills?.ult ?? 1) - 1) + resetTree(s)
