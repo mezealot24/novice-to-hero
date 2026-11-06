@@ -10,7 +10,7 @@ import { JOB2, PET_IDS, type Job2Def, type PetId } from '../data/jobs2'
 import { skill2Picked } from '../data/tree'
 import { ALLIES, fillAllies, gadgetById, hawkMul, hurtAlly, liveAllies, makeAlly, rollGadget, tauntTarget, tickAllies, TRAP_IDS, useAlly, type Ally, type AllyCtx, type GadgetId } from '../battle/allies'
 import type { Skill2Def } from '../data/skill2'
-import { autoCost, breakChance, clericBasic, clericUltLights, clericUltSmash, hitBase, KIT, KIT2, MAGE_CAST, magicPower, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
+import { autoCost, breakChance, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, hitBase, KIT, KIT2, MAGE_CAST, magicPower, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, ultMode } from '../save'
 import { MAT_RULES, matName, matOf } from '../data/materials'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
@@ -691,12 +691,14 @@ export class BattleScene extends Phaser.Scene {
     this.overflow = this.st.mgOverflow > 0 && this.job.resource === 'mana' && this.res >= this.resMax() * 0.9 // mage talent พลังล้น
     if (this.alive().length && this.procs('turn') + this.procs('every2') > 0) { await this.wait(160); if (!this.alive().length) return } // พร v2: every-turn cards
     if (this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + (RES_RULES.energyPerTurn + this.st.arTurnRes) * (1 - this.st.resRegenCut))
+    const chantDone = this.casts.length > 0 && castUsesTurn(this.j2?.id) // v78: a Mage / Sage chant landing IS this turn's action (Wizard: free)
     if (this.casts.length) { await this.releaseCasts(); if (!this.alive().length || this.hp <= 0) return } // 🔮 last turn's chant goes off (before the silence check)
     await this.skill2Turn()
     if (this.j2 && this.alive().length && this.hp > 0) await this.skill3Turn()
     if (!this.alive().length || this.hp <= 0) return
     if (this.st.arHawk > 0 && ++this.hawkTurn % 3 === 0) { const t = this.alive(); if (t.length) { const m = t[Phaser.Math.Between(0, t.length - 1)]; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, '🦅', '#f2d24b'); this.strike(m, this.st.arHawk, true, '#f2d24b') } } // archer talent เหยี่ยวคู่ใจ
     this.autoUltTurn()
+    if (chantDone) return // free actions above still ran; no Skill 1 / ult / basic this turn
     if (this.smashQueued && this.smashCdLeft <= 0 && this.hx.silence > 0) this.floatText(HERO_X, GROUND - 140, `🤐 ใบ้! อีก ${this.hx.silence} เทิร์น`, '#c9a8ff')
     const ultCost = this.ultCost()
     const ultWaiting = this.smashQueued && this.smashCdLeft <= 0 && this.hx.silence <= 0 // ult ready and booked
@@ -1740,8 +1742,9 @@ export class BattleScene extends Phaser.Scene {
       case 'mage': {
         const el = this.element
         const amp = 1 + this.st.mgUltAmp + (el === 'lightning' ? this.st.mgLightAmp : el === 'fire' ? this.st.mgFireAmp : this.st.mgIceAmp)
-        if (this.st.mgDoubleCast > 0) { await this.mageUlt(el, pow * amp * this.st.mgDoubleCast); await this.mageUlt(el, pow * amp * this.st.mgDoubleCast, true) } // talent ร่ายคู่
-        else await this.mageUlt(el, pow * amp)
+        const dc = this.st.mgDoubleCast > 0 ? this.st.mgDoubleCast : 1 // talent ร่ายคู่
+        await this.mageUlt(el, hitPow * amp * dc, pow * amp * dc) // v78 fix: damage on hitPow (ultAmp / บดกระดูก), barrier stays on pow
+        if (this.st.mgDoubleCast > 0) await this.mageUlt(el, hitPow * amp * dc, 0)
         if (this.st.mgUltMana > 0) this.res = Math.min(this.resMax(), this.res + this.st.mgUltMana)
         if (this.st.elemWheel > 0) { const els = Object.keys(ELEMENTS) as Element[]; this.element = els[(els.indexOf(el) + 1) % els.length]; this.floatText(HERO_X, GROUND - 180, `🔄 ถัดไป ${ELEMENTS[this.element].icon}`, '#c9a8ff') } // talent วงล้อธาตุ
         break
@@ -1805,7 +1808,8 @@ export class BattleScene extends Phaser.Scene {
     await this.goHome()
   }
 
-  private async mageUlt(el: Element, pow: number, noBarrier = false) {
+  /** `pow` = damage power (with ultAmp) · `bpow` = barrier power (0 = no barrier). */
+  private async mageUlt(el: Element, pow: number, bpow: number) {
     const live = this.front()
     const col = el === 'lightning' ? 0xbfe6ff : el === 'fire' ? 0xff8c42 : 0x9fe3ff
     const txt = el === 'lightning' ? '#bfe6ff' : el === 'fire' ? '#ff8c42' : '#9fe3ff'
@@ -1836,7 +1840,7 @@ export class BattleScene extends Phaser.Scene {
       this.callout('❄️ ผลึกแตก!', W / 2, 170)
       for (const m of this.alive()) this.strike(m, m.frozen ? 1.5 : 0.75, true, '#9fe3ff')
     }
-    if (!noBarrier) this.addShield(this.st.matk * (MAGE_SPELL.barrier + (el === 'ice' ? this.st.iceBarrier : 0)) * pow * (1 - this.st.mgBarrierCut))
+    if (bpow > 0) this.addShield(this.st.matk * (MAGE_SPELL.barrier + (el === 'ice' ? this.st.iceBarrier : 0)) * bpow * (1 - this.st.mgBarrierCut))
     await this.wait(300)
   }
 

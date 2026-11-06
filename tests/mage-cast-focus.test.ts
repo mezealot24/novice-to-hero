@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FOCUS_RULES, JOB_LINES, OUTSIDE_CAP, overflowShare, perkById } from '../src/data/perks'
-import { breakChance, KIT, MAGE_CAST } from '../src/data/skill-math'
+import { breakChance, castUsesTurn, KIT, MAGE_CAST } from '../src/data/skill-math'
 import { TABLES } from '../src/data/tunables'
 
 const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`)
@@ -17,10 +17,17 @@ test('v78 breakChance: 45% at DEX 0, 9% at DEX 30, tenacity lowers it, never neg
 })
 
 test('v78 MAGE_CAST numbers live in one place and are tunable as kit cast.*', () => {
-  assert.deepEqual(MAGE_CAST, { breakBase: 0.45, breakDex: 0.012, fireMul: 1.5, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 })
+  assert.deepEqual(MAGE_CAST, { breakBase: 0.45, breakDex: 0.012, fireMul: 1.8, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 })
   assert.equal(KIT.cast, MAGE_CAST)
   const pats = TABLES.kit.fields.map(([p]) => p).join(' ')
   for (const k of Object.keys(MAGE_CAST)) assert.ok(pats.includes(k), `kit table misses cast.${k}`)
+})
+
+test('v78 release rule: a Mage / Sage chant uses up the release turn, Wizard releases for free', () => {
+  assert.equal(castUsesTurn(undefined), true) // base Mage
+  assert.equal(castUsesTurn('sage'), true)
+  assert.equal(castUsesTurn('wizard'), false)
+  near(MAGE_CAST.fireMul / 2, 0.9) // fireball every other turn ≈ the old 0.9x every turn
 })
 
 test('v78 focus fallbacks: full bar -> shield / heal, empty bar -> resource, Novice -> all shield / heal', () => {

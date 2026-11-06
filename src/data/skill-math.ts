@@ -19,8 +19,11 @@ export const hitBase = (st: Stats, magic: boolean) => (magic ? magicBase(st) : p
 
 /** v78 Mage cast time (Q 2026-11-06, design/mage-cast-focus-v78.md): base Mage + Sage chant ลูกไฟระเบิด (and the Mage element ult) for 1 turn.
  *  A hit that reaches HP while chanting can break it (DEX / tenacity lower the odds). Wizard keeps ร่ายใหญ่ (never breaks).
+ *  The release IS the next turn's action (fireball every other turn: 1.8x / 2 ≈ the old 0.9x a turn); Wizard's release stays free.
  *  fireMul replaces MAGE_SPELL.autoMul on a chanted fireball · ultMul x the chanted ult · a broken ult waits brokenUltCd turns (not the full cd). */
-export const MAGE_CAST = { breakBase: 0.45, breakDex: 0.012, fireMul: 1.5, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 }
+export const MAGE_CAST = { breakBase: 0.45, breakDex: 0.012, fireMul: 1.8, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 }
+/** v78: does a released chant use up the hero's turn? Base Mage / Sage yes, Wizard no (its edge). */
+export const castUsesTurn = (job2?: string) => job2 !== 'wizard'
 /** Chance one hit breaks the chant: 45% − 1.2%/DEX − tenacity, never below 0 (🧘 Poise = 0). */
 export const breakChance = (dex: number, tenacity: number, poise = false) =>
   poise ? 0 : Math.max(0, MAGE_CAST.breakBase - MAGE_CAST.breakDex * dex - tenacity)
@@ -183,7 +186,7 @@ export function autoInfo(jobId: JobId, st: Stats): InfoRow[] {
       else out.push({ label: `${st.arVolley > 0 ? KIT.archerVolleyShots : KIT.archerAutoShots} ดอก ดาเมจ/ดอก`, value: hitText(st, (st.arVolley > 0 ? st.arVolley : KIT.archerAuto) * pow, false) })
       break
     case 'mage':
-      out.push({ label: 'ร่าย', value: `1 เทิร์น (โดนตีอาจร่ายแตก ${pct(MAGE_CAST.breakBase)} − ${(MAGE_CAST.breakDex * 100).toFixed(1)}%/DEX)` })
+      out.push({ label: 'ร่าย', value: `1 เทิร์น + เทิร์นที่ปล่อย (โดนตีอาจร่ายแตก ${pct(MAGE_CAST.breakBase)} − ${(MAGE_CAST.breakDex * 100).toFixed(1)}%/DEX)` })
       out.push({ label: 'ไฟ/ตัว (ทุกตัว)', value: hitText(st, MAGE_CAST.fireMul * pow, true) })
       if (st.mgOverflow > 0) out.push({ label: 'ตอน Mana ≥ 90% (พลังล้น)', value: hitText(st, MAGE_CAST.fireMul * pow * st.mgOverflow, true) })
       break
@@ -217,9 +220,9 @@ export function ultInfo(jobId: JobId, st: Stats): InfoRow[] {
       out.push({ label: 'หลบแน่นอน', value: `${1 + st.arUltDodge} ครั้ง` })
       break
     case 'mage': {
-      const amp = (x: number) => pow * MAGE_CAST.ultMul * (1 + st.mgUltAmp + x) * (st.mgDoubleCast > 0 ? st.mgDoubleCast : 1)
+      const amp = (x: number) => hitPow * MAGE_CAST.ultMul * (1 + st.mgUltAmp + x) * (st.mgDoubleCast > 0 ? st.mgDoubleCast : 1)
       const twice = st.mgDoubleCast > 0 ? ' ×2 รอบ' : ''
-      out.push({ label: 'ร่าย', value: `1 เทิร์น · แรง ×${MAGE_CAST.ultMul} · ร่ายแตก = คูลดาวน์เหลือ ${MAGE_CAST.brokenUltCd} เทิร์น` })
+      out.push({ label: 'ร่าย', value: `1 เทิร์น + เทิร์นที่ปล่อย · แรง ×${MAGE_CAST.ultMul} · ร่ายแตก = คูลดาวน์เหลือ ${MAGE_CAST.brokenUltCd} เทิร์น` })
       out.push({ label: `⚡ ${KIT.mageLightHits + st.lightHits} ฮิต ดาเมจ/ฮิต${twice}`, value: (() => { const b = magicBase(st), a = amp(st.mgLightAmp); return range(b.lo * KIT.mageLightLo * a, b.hi * KIT.mageLightHi * a) })() })
       out.push({ label: `🔥 ทุกตัว + เผา ${KIT.mageFireStacks + st.mgFireStack} stack${twice}`, value: hitText(st, KIT.mageFire * amp(st.mgFireAmp), true) })
       out.push({ label: `❄️ ทุกตัว + ช้า ${KIT.mageIceChill + st.chillPlus} เทิร์น${twice}`, value: hitText(st, KIT.mageIce * amp(st.mgIceAmp), true) })
