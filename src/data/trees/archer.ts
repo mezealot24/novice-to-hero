@@ -2,16 +2,23 @@
 // Spec: design/skill-tree-archer.md. Node ids are save data: never rename or remove a shipped id.
 // Behaviour flags (ar*, pierce, lockOn, dodgeStrike) live in Stats (game-data.ts) and are read in BattleScene.
 import { node as n, talent as t, type ClassTree } from '../tree-types'
+import { KIT } from '../skill-math'
 
 const r2 = (rank: number, a: number, b: number) => (rank >= 2 ? b : a)
+const A = KIT.archerTree, pc = (x: number) => `${Math.round(x * 100)}%`
+/** Per-level table value (lv 1..n). */
+const at = (a: readonly number[], lv: number) => a[Math.max(1, Math.min(a.length, lv)) - 1] ?? 0
 
 export const tree: ClassTree = {
   branches: [
     { id: 'archer_a', job: 'archer', name: 'ซุ่มยิง', icon: '🎯', blurb: 'ฆ่าบอส · คริแรง · ยิงสวนท่าชาร์จ' },
     { id: 'archer_b', job: 'archer', name: 'พริ้วไหว', icon: '🍃', blurb: 'คอมโบ · หลบแล้วได้โล่ · ยิงสวน' },
+    // v82: ARCHER ATTACH in data/tree.ts: archer_c under ทักษะ 1, archer_d under Ult
+    { id: 'archer_c', job: 'archer', name: 'ศรพิษ', icon: '🧪', blurb: 'ยิงคู่ติดพิษ · ตีตัวติดพิษแรง · ศรเด้ง · ★ พิษลาม' },
+    { id: 'archer_d', job: 'archer', name: 'ล่าหัว', icon: '🏷️', blurb: 'ศรทะลวงหมายหัว · ฆ่าแล้วเร่ง ult · ★ ประหาร' },
   ],
   nodes: [
-    n('archer_a1', 'archer_a', 1, '🦅', 'ตาเหยี่ยว', 3, (lv) => `คริ +${lv * 4}%`, (lv) => ({ crit: 0.04 * lv })),
+    n('archer_a1', 'archer_a', 1, '🦅', 'สายตาพราน', 3, (lv) => `คริ +${lv * 4}%`, (lv) => ({ crit: 0.04 * lv })),
     n('archer_a2', 'archer_a', 2, '💥', 'จุดตาย', 3, (lv) => `ดาเมจคริ +${lv * 20}%`, (lv) => ({ critMul: 0.2 * lv })),
     n('archer_a3', 'archer_a', 3, '🔩', 'ทะลวงเกราะ', 3, (lv) => `ศรทะลวงไม่สน P.DEF ${lv * 25}% · ยิงบอสที่กำลังชาร์จแรงขึ้น +${lv * 15}%`, (lv) => ({ pierce: 0.25 * lv, arUltBreak: 0.15 * lv })),
     n('archer_a4', 'archer_a', 4, '🎯', 'ล็อกเป้า', 1, () => 'ยิงตัวเดิมติดกัน ดาเมจ +8%/ชั้น (สูงสุด 5) · ยิงคู่ยิงตัวที่ล็อก · ฆ่าตัวที่ล็อกได้ = หลบแน่นอน 1 ครั้ง', () => ({ lockOn: 1 })),
@@ -19,6 +26,14 @@ export const tree: ClassTree = {
     n('archer_b2', 'archer_b', 2, '🍃', 'ฝีเท้าลม', 3, (lv) => `Flee +${lv * 4} · หลบโชคดี +${lv * 2}%`, (lv) => ({ flee: 4 * lv, luckyDodge: 0.02 * lv })),
     n('archer_b3', 'archer_b', 3, '🌬️', 'โล่ลม', 3, (lv) => `หลบได้แล้วได้โล่ ${lv * 3}% ของ HP สูงสุด (สะสมได้ 3 เท่า)`, (lv) => ({ arDodgeShield: 0.03 * lv })),
     n('archer_b4', 'archer_b', 4, '↪️', 'ยิงถอย', 1, () => 'หลบได้แล้วยิงสวน 0.8x ทันที + Energy +5', () => ({ dodgeStrike: 1, arDodgeRes: 5 })),
+    n('archer_c1', 'archer_c', 1, '🧪', 'ศรอาบพิษ', 3, (lv) => `ยิงคู่ทุกดอก ${pc(at(A.poisonArrow, lv))} ติดพิษ +${A.poisonArrowStacks} stack`, (lv) => ({ arPoisonArrow: at(A.poisonArrow, lv) })),
+    n('archer_c2', 'archer_c', 2, '🩸', 'ซ้ำแผล', 3, (lv) => `ตีตัวที่ติดพิษ +${pc(A.vsPoison * lv)}`, (lv) => ({ vsPoison: A.vsPoison * lv })),
+    n('archer_c3', 'archer_c', 3, '🪶', 'ศรเด้ง', 3, (lv) => `ยิงคู่ฆ่าได้ → ศรเด้งไปตัวถัดไปฟรี ${at(A.ricochet, lv)}x`, (lv) => ({ arRicochet: at(A.ricochet, lv) })),
+    n('archer_c4', 'archer_c', 4, '🌫️', 'หมอกพิษ', 1, () => 'ตัวติดพิษตาย → พิษครึ่งหนึ่งลามไปตัวอื่น · ฝนธนู / กับดัก ติดพิษ +1 stack', () => ({ poisonSpread: 1, arPoisonS2: 1 })),
+    n('archer_d1', 'archer_d', 1, '🏷️', 'หมายหัว', 3, (lv) => `ศรทะลวงหมายหัวเป้า ${A.markTurns} เทิร์น: โดนทุกฮิตแรงขึ้น +${pc(A.markAmp * lv)}`, (lv) => ({ arMark: A.markAmp * lv })),
+    n('archer_d2', 'archer_d', 2, '⚡', 'ไล่ล่า', 3, (lv) => `ฆ่าตัวที่หมายหัว → Energy +${A.markJumpRes * lv} · หมายหัวกระโดดไปตัวหน้าสุด`, (lv) => ({ arMarkJump: A.markJumpRes * lv })),
+    n('archer_d3', 'archer_d', 3, '⏳', 'ล่าต่อ', 3, (lv) => `ฆ่าได้ ${pc(at(A.killCd, lv))} คูลดาวน์ ult −${A.killCdCut}`, (lv) => ({ arKillCd: at(A.killCd, lv) })),
+    n('archer_d4', 'archer_d', 4, '💀', 'ศรประหาร', 1, () => `ศรทะลวงใส่ตัวที่ HP < ${pc(A.execBelow)}: มอนธรรมดาตายทันที · บอส/มินิ +${pc(A.execBig)}`, () => ({ arExecute: 1 })),
   ],
   talents: [
     // row 1 (Job Lv 5): basic shot

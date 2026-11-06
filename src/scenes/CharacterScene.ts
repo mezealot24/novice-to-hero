@@ -434,8 +434,9 @@ export class CharacterScene extends Phaser.Scene {
       c.forEach((n) => pos.set(n.id, { x, y: top + (n.kind ? 0 : n.tier - 1) * rh })) // roots and tier 1 share the top row
       const pet = j2.id === 'beastmaster' ? BRANCH_PET[br.id] : undefined // 🐺 Beastmaster: pick the companion under its branch (free)
       if (pet) {
-        const cur = (s.pet ?? 'hawk') === pet, evo = (t[`${br.id}4`] ?? 0) > 0
-        b.add(button(this, x + cw / 2, 472, cw - 12, 30, cur ? `✅ คู่หู: ${PETS[pet].icon} ${evo ? PETS[pet].evo : PETS[pet].name}` : `🐾 เลือก ${PETS[pet].icon} ${PETS[pet].name}`, () => {
+        const cur = (s.pet ?? 'hawk') === pet, evo = (t[`${br.id}4`] ?? 0) > 0, narrow = cw < 110 // v82: 7 columns -> icon-only label
+        const label = narrow ? `${cur ? '✅' : '🐾'} ${PETS[pet].icon}` : cur ? `✅ คู่หู: ${PETS[pet].icon} ${evo ? PETS[pet].evo : PETS[pet].name}` : `🐾 เลือก ${PETS[pet].icon} ${PETS[pet].name}`
+        b.add(button(this, x + cw / 2, 472, cw - 12, 30, label, () => {
           if (cur) return
           s.pet = pet; persist(); toast(this, `คู่หู: ${PETS[pet].icon} ${PETS[pet].name} · ${PETS[pet].desc}`); this.render()
         }, { size: 12, fill: cur ? COLORS.gold : 0x4a5a8a, color: cur ? UI.ink : UI.text }))
