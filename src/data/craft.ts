@@ -7,7 +7,13 @@ import type { BaseStat, Item } from './meta'
 import { matOf } from './materials'
 
 /** Recipe + grade bonuses of a crafted item. Recipe unlocks after the first win over `dg`'s boss. */
-export interface CraftInfo { dg: string; common: number; boss: number; zeny: number; bonus: [Partial<Stats>, Partial<Stats>] }
+export interface CraftInfo {
+  dg: string; common: number; boss: number; zeny: number; bonus: [Partial<Stats>, Partial<Stats>]
+  /** Cardforge (v98): bag cards eaten by the recipe, by card id. */
+  cards?: Record<string, number>
+  /** Cardforge signature: added AFTER grade / refine scaling and never scaled itself (so ★5 +10 gives the same sig as ★1). */
+  sig?: Partial<Stats>
+}
 
 export const GRADE = {
   max: 5,
@@ -133,7 +139,7 @@ const BASE_KEYS = new Set(['str', 'vit', 'wis', 'dex', 'int', 'luk', 'agi'])
 export function forgeItem(it: Item, g = 1, r = 0, lines: RefineLine[] = []): Item {
   g = Math.max(1, Math.min(gradeCap(it), g))
   r = refinable(it) ? Math.max(0, Math.min(REFINE.max, r)) : 0
-  if (g <= 1 && r <= 0 && !lines.length) return it
+  if (g <= 1 && r <= 0 && !lines.length && !it.craft?.sig) return it
   const k = (100 + Math.round(GRADE.pct[g] * 100) + Math.round(r * REFINE.pct * 100)) / 100 // whole percents: 1+.15+.15 must be 1.3, not 1.2999…
   const base: Partial<Record<BaseStat, number>> = {}
   for (const [s, v] of Object.entries(it.base ?? {}) as [BaseStat, number][]) base[s] = v > 0 ? Math.round(r3(v * k)) : v
@@ -147,6 +153,7 @@ export function forgeItem(it: Item, g = 1, r = 0, lines: RefineLine[] = []): Ite
     else if (PCT_LINE[l.stat]) pct[PCT_LINE[l.stat]] = r3((pct[PCT_LINE[l.stat]] ?? 0) + l.val)
     else mod[l.stat as keyof Stats] = r3((mod[l.stat as keyof Stats] ?? 0) + l.val)
   }
+  if (it.craft?.sig) for (const [s, v] of Object.entries(it.craft.sig) as [keyof Stats, number][]) mod[s] = r3((mod[s] ?? 0) + v) // v98 Cardforge signature: not scaled
   return { ...it, base, mod, ...(Object.keys(pct).length ? { pct } : {}) }
 }
 /** The item as worn at grade g (no refine). */

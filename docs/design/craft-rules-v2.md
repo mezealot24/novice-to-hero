@@ -60,7 +60,7 @@
 | `poisonSpread` / `fireSpread` | มอนตาย → พิษ/ไฟลามไปตัวอื่น | L2250 / L2249 |
 | `counterShield` | สวนกลับ → ได้โล่ x% HP | L2416 |
 
-- ⚠ ก่อน build: เช็กซ้ำว่า flag เหล่านี้ไม่ถูก `perks.ts OUTSIDE_CAP` หรือ cap อื่นตัดทิ้ง
+- ✅ เช็กแล้วตอน build (v98): `OUTSIDE_CAP` ครอบเฉพาะ `OUTSIDE_KEYS` = vsBurn, vsChill, vsPoison, chillWeak, spearShield, counterDmg, basicDmg, resTurn (cap = 2 × ค่าสูงสุดของการ์ดพร) · flag ของ Cardforge (berserk, ctrAoe, dodgeStrike, overhealShield, thorns, killHeal, poisonSpread, fireSpread, waveShield) **ไม่อยู่ในรายการ ไม่มี cap** · ค่าที่อยู่ในรายการ: `vsBurn` 0.04 (cap 0.5), `vsPoison` 0.04 (cap 0.7), `counterDmg` 0.05 (ทะลุ cap ได้) → ไม่ถูกตัดทิ้ง แค่รวมกับการ์ด/พรแล้วชน cap ตามปกติ · BattleScene อ่าน flag เหล่านี้จาก `this.st.*` ไม่ผูกอาชีพ
 
 ### 2.3 ของ MVP 8 ชิ้น (ชื่อ/ผลของเราเอง · ตัวเลขร่าง)
 

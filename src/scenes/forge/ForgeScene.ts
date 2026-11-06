@@ -4,7 +4,8 @@ import { save } from '../../save'
 import { button, costStrip, fit, go, holdButton, iconTabs, panel, tabs, topBar, txt, UI, type Btn, type CostStrip, type HoldBtn, type IconTabs } from '../../ui'
 import { AnvilStage } from './AnvilStage'
 import { ItemRail, railBackdrop } from './ItemRail'
-import { LegacyForge } from './legacy'
+import { RecipeView } from './RecipeView'
+import { StashView } from './stash'
 import { defaultVerb, slotOf, slotVerb, SLOT_COUNT, smithLine, verbForPick, verbLock, VERB_TAB } from './state'
 import type { ForgeCtx, Mode, Verb, VerbPanel } from './types'
 import { GradePanel } from './verbs/GradePanel'
@@ -27,13 +28,13 @@ export class ForgeScene extends Phaser.Scene {
   private itemId?: string
   private verb: Verb = 'refine'
   private railView = { mineOnly: true, page: 0 }
-  private stashTab: 'fodder' | 'mats' = 'fodder'
   private busyUntil = 0
   private holdSet = new Set<symbol>() // one token per open hold, so a stale release can never unlock a newer hold
   private alive = true // false once SHUTDOWN started: the display list is already gone, so nothing may touch game objects
   private optLocks = new Map<string, number[]>()
   private refreshWallet!: () => void
-  private legacy!: LegacyForge
+  private recipe!: RecipeView
+  private stash!: StashView
   private modeObjs: Phaser.GameObjects.GameObject[] = []
   private bubble!: Phaser.GameObjects.Text
   private rail?: ItemRail
@@ -51,13 +52,15 @@ export class ForgeScene extends Phaser.Scene {
 
   create() {
     // Scene instances are reused by Phaser: reset everything that survives between visits.
-    this.mode = 'anvil'; this.itemId = undefined; this.verb = 'refine'; this.stashTab = 'fodder'; this.railView = { mineOnly: true, page: 0 }
+    this.mode = 'anvil'; this.itemId = undefined; this.verb = 'refine'; this.railView = { mineOnly: true, page: 0 }
     this.busyUntil = 0; this.holdSet = new Set(); this.alive = true; this.optLocks = new Map()
     this.modeObjs = []; this.rail = undefined; this.stage = undefined; this.verbTabs = undefined; this.box = undefined; this.panel = undefined; this.strip = undefined; this.actBtn = undefined; this.holdBtn = undefined; this.holdMs = 0
     this.cameras.main.setBackgroundColor(UI.night)
     this.cameras.main.fadeIn(160, 20, 23, 43)
     this.refreshWallet = topBar(this, '🔨 โรงตีเหล็ก', () => go(this, 'hub'))
-    this.legacy = new LegacyForge(this, { wallet: () => this.refreshWallet(), changed: () => this.changed() })
+    const host = { wallet: () => this.refreshWallet(), say: (t: string) => this.say(t), changed: () => this.changed() }
+    this.recipe = new RecipeView(this, host)
+    this.stash = new StashView(this, host)
     this.bubble = txt(this, 520, 62, '', 13, UI.sub).setWordWrapWidth(424)
     this.ctx = {
       scene: this,
@@ -76,7 +79,7 @@ export class ForgeScene extends Phaser.Scene {
       const p = this.panel
       this.panel = undefined
       p?.destroy()
-      this.legacy.clear()
+      this.recipe.destroy(); this.stash.destroy()
       this.holdSet.clear(); this.busyUntil = 0
     })
   }
@@ -110,7 +113,7 @@ export class ForgeScene extends Phaser.Scene {
     this.panel = undefined // before destroy(): a release() inside it calls syncBottom, which must not see the half-destroyed panel
     old?.destroy()
     this.box?.destroy(); this.box = undefined
-    this.legacy.clear()
+    this.recipe.destroy(); this.stash.destroy()
     for (const o of this.modeObjs) o.destroy()
     this.modeObjs = []
     this.rail = undefined; this.stage = undefined; this.verbTabs = undefined; this.strip = undefined; this.actBtn = undefined; this.holdBtn = undefined; this.holdMs = 0
@@ -122,10 +125,8 @@ export class ForgeScene extends Phaser.Scene {
     this.mode = m
     this.refreshWallet()
     if (m === 'anvil') { this.buildAnvil(); return }
-    if (m === 'recipe') { this.say('สูตรตีของจากวัตถุดิบดัน · ตีเสร็จแล้วอัปขั้น/ตีบวกที่ ⚒️ ทั่ง'); this.legacy.show('craft'); return }
-    this.say('เชื้อหลอมกับวัตถุดิบเก็บไว้ที่นี่ ไม่หายแม้แพ้')
-    const t = tabs(this, 24, 128, ['🔩 เชื้อ', '🧱 วัตถุดิบ'], 116, (i) => { this.stashTab = i === 0 ? 'fodder' : 'mats'; this.legacy.show(this.stashTab) }, this.stashTab === 'fodder' ? 0 : 1)
-    this.modeObjs.push(...t)
+    if (m === 'recipe') { this.say('สูตรตีของจากวัตถุดิบดัน · ตีเสร็จแล้วอัปขั้น/ตีบวกที่ ⚒️ ทั่ง'); this.recipe.show(); return }
+    this.stash.show()
   }
 
   // ---------- anvil ----------
@@ -241,7 +242,8 @@ export class ForgeScene extends Phaser.Scene {
   /** The save changed: refresh everything in place. Rebuilds only when the item has to land on a different verb. */
   private changed() {
     this.refreshWallet()
-    if (this.mode !== 'anvil') { this.legacy.show(this.mode === 'recipe' ? 'craft' : this.stashTab); return }
+    if (this.mode === 'recipe') { this.recipe.show(); return }
+    if (this.mode === 'stash') { this.stash.show(); return }
     const it = this.item(), s = save()
     this.rail?.refresh()
     this.stage?.refresh()
