@@ -1,6 +1,8 @@
 // admin.html: pure helpers (no DOM). Defaults are read from this build's untouched src/data (admin never applies a patch).
-import { DUNGEONS, MONSTERS, type MonSkill, type MonsterKind } from '../data/game-data'
-import { listFields, type FieldRow } from '../data/patch'
+import { BATTLE, DUNGEONS, MONSTERS, type MonSkill, type MonsterKind } from '../data/game-data'
+import type { BaseStat } from '../data/meta'
+import { homeDungeon, legacyLevel, roomLevel, statMonster, statNative, withStats } from '../data/mon-stats'
+import { applyPatch, guardsFor, listFields, type FieldRow } from '../data/patch'
 import { MINI_POOL } from '../data/relics'
 import { TABLES, type FieldDef, type Patch, type TableId } from '../data/tunables'
 
@@ -74,6 +76,107 @@ export function fieldLabel(t: TableId, path: string, dropFirst = false): string 
     node = next
   }
   return out.join('.')
+}
+
+// ---------- monster card: sections + human labels ----------
+const FX: Record<string, string> = { poison: 'พิษ', burn: 'เผา', weaken: 'อ่อนแรง', armorBreak: 'เกราะแตก', silence: 'ใบ้', slow: 'ช้า', web: 'ใยพันตัว', freeze: 'แช่แข็ง' }
+const BODY: Record<string, string> = {
+  hp: 'HP', dmg: 'ATK', matk: 'M.ATK', def: 'DEF', flee: 'Flee', hit: 'Hit', crit: 'โอกาสคริ', combo: 'โอกาสคอมโบ', counter: 'โอกาสสวนกลับ',
+  speedMul: 'ความเร็ว ×', 'bodyMul.hp': 'HP ×', 'bodyMul.dmg': 'ATK ×', 'bodyMul.matk': 'M.ATK ×',
+  xp: 'EXP', 'zeny.0': 'Zeny ต่ำสุด', 'zeny.1': 'Zeny สูงสุด',
+  lifesteal: 'ดูดเลือด', reflect: 'สะท้อนดาเมจ', absorb: 'ดูดซับ → Soul Strike', razor: 'Blood Razor', fixedFlee: 'หลบตายตัว',
+  deathBlast: 'ระเบิดตอนตาย ×', shots: 'จำนวนนัดต่อการตี',
+  'venom.dmg': 'Venom ดาเมจ', 'venom.dex': 'Venom +DEX', 'venom.turns': 'Venom นาน (เทิร์น)',
+  'trueSight.after': 'True Sight หลังโดนหลบ (ครั้ง)', 'trueSight.turns': 'True Sight นาน (เทิร์น)',
+  slamMul: 'แรงท่าชาร์จ ×', chargeEvery: 'ชาร์จทุก N เทิร์น',
+}
+const SKILL_LEAF: Record<string, string> = { every: 'ใช้ทุก N เทิร์น', pow: 'พลัง', turns: 'นาน (เทิร์น)', hits: 'จำนวนฮิต', alone: 'ตัวคูณตอนอยู่ตัวเดียว', drain: 'ดูด HP ฮีโร่' }
+const PHASE_LEAF: Record<string, string> = {
+  at: 'เข้าเฟสเมื่อ HP ≤', speed: 'ความเร็ว ×', dmg: 'ดาเมจ ×', heal: 'ฮีลตอนเข้าเฟส', shield: 'โล่ตอนเข้าเฟส',
+  reflect: 'สะท้อนดาเมจ', absorb: 'ดูดซับ → Soul Strike', chargeEvery: 'ชาร์จทุก N เทิร์น', drainStats: 'ดูด stat', 'summon.1': 'จำนวนซัมมอน',
+}
+const fxLabel = (rest: string[], pre: string): string | undefined => (FX[rest[1]] ? `${pre}${FX[rest[1]]}` : undefined)
+
+export interface MonField { row: FieldRow; label: string }
+export interface MonSection { id: string; title: string; fields: MonField[] }
+const FIXED: [id: string, title: string][] = [
+  ['core', '⚔️ ค่าพลังหลัก'], ['reward', '💰 รางวัล'], ['stat', '📊 แจกสเตตัส (statAlloc)'],
+  ['special', '🧬 ความสามารถพิเศษ'], ['onHit', '🩸 ตีโดนแล้วติดสถานะ'], ['slam', '💥 ท่าชาร์จ'],
+]
+
+/** D6+ stat monsters build hp / dmg / matk from their stats only (statMonster): those leaves are placeholders, never read. */
+const NATIVE_UNUSED = new Set(['hp', 'dmg', 'matk'])
+const NATIVE_BONUS = new Set(['def', 'hit', 'flee', 'crit', 'combo', 'counter'])
+
+/** One monster's fields -> titled sections (core / reward / stat / ... / one per skill / one per phase), each label in Thai. */
+export function monSections(k: MonsterKind, rows: FieldRow[]): MonSection[] {
+  const m = MONSTERS[k], secs = new Map<string, MonSection>(), native = statNative(k)
+  if (native) rows = rows.filter((r) => !NATIVE_UNUSED.has(r.path.slice(k.length + 1)))
+  const put = (id: string, title: string, row: FieldRow, label: string) => {
+    const s = secs.get(id) ?? { id, title, fields: [] }
+    s.fields.push({ row, label }); secs.set(id, s)
+  }
+  const fixed = new Map(FIXED)
+  const putFixed = (id: string, row: FieldRow, label: string) => put(id, fixed.get(id) ?? id, row, label)
+  for (const row of rows) {
+    const rel = row.path.slice(k.length + 1), p = rel.split('.')
+    if (p[0] === 'skills') {
+      const s = m.skills?.[Number(p[1])]
+      let rest = p.slice(2), pre = ''
+      if (rest[0] === 'pick') { pre = `${s?.pick?.[Number(rest[1])]?.name ?? `#${rest[1]}`} · `; rest = rest.slice(2) }
+      const leaf = rest[0] === 'fx' ? fxLabel(rest, 'ติด') : SKILL_LEAF[rest.join('.')]
+      put(`skill${p[1]}`, `✨ สกิล · ${s?.name ?? p[1]}${s ? ` (${s.kind})` : ''}`, row, pre + (leaf ?? rest.join('.')))
+    } else if (p[0] === 'phases') {
+      const ph = m.phases?.[Number(p[1])], rest = p.slice(2)
+      const leaf = rest[0] === 'onHit' ? fxLabel(rest, 'ตีโดนติด ') : rest[0] === 'slamFx' ? fxLabel(rest, 'ท่าชาร์จติด ') : PHASE_LEAF[rest.join('.')]
+      put(`phase${p[1]}`, `🔥 เฟส ${Number(p[1]) + 1} · ${ph?.name ?? ''}`, row, leaf ?? rest.join('.'))
+    } else if (p[0] === 'statAlloc') putFixed('stat', row, p[1].toUpperCase())
+    else if (p[0] === 'onHit') putFixed('onHit', row, FX[p[1]] ?? rel)
+    else if (p[0] === 'slamFx') putFixed('slam', row, fxLabel(p, 'ติด') ?? rel)
+    else if (p[0] === 'slamMul' || p[0] === 'chargeEvery') putFixed('slam', row, BODY[rel])
+    else if (p[0] === 'xp' || p[0] === 'zeny') putFixed('reward', row, BODY[rel] ?? rel)
+    else if (['hp', 'dmg', 'matk', 'def', 'flee', 'hit', 'crit', 'combo', 'counter', 'speedMul', 'bodyMul'].includes(p[0]))
+      putFixed('core', row, native && NATIVE_BONUS.has(rel) ? `${BODY[rel]} (โบนัส +)` : BODY[rel] ?? rel)
+    else putFixed('special', row, BODY[rel] ?? rel)
+  }
+  const head = FIXED.map(([id]) => secs.get(id)).filter((s): s is MonSection => !!s)
+  return [...head, ...[...secs.values()].filter((s) => !fixed.has(s.id))]
+}
+
+// ---------- what the game actually fights ----------
+export interface MonPreview {
+  lv: number; hp: number; dmg: number; matk: number; def: number; mdef: number; hit: number; flee: number
+  crit: number; combo: number; counter: number; speed: number; base: Partial<Record<BaseStat, number>>
+}
+
+/** Levels the monster is fought at: D6+ = the rooms of its home dungeon it spawns in (lowest, highest); D1-5 / events = home level. */
+export function previewLevels(k: MonsterKind): number[] {
+  const d = MONSTERS[k], dg = DUNGEONS.find((x) => x.id === homeDungeon(k))
+  if (!dg?.level || !statNative(k)) return [legacyLevel(k, d, { id: '' })]
+  const lvs = dg.rooms.flatMap((r, i) => (r.spawn.some(([s]) => s === k) || (r.mini && (r.miniPool ?? MINI_POOL).includes(k)) ? [roomLevel(dg.level!, dg.rooms, i)] : []))
+  if (!lvs.length) return [d.ai === 'boss' ? dg.level[1] : dg.level[0]] // only ever summoned
+  const lo = Math.min(...lvs), hi = Math.max(...lvs)
+  return lo === hi ? [lo] : [lo, hi]
+}
+
+/** Run the game's own stat formulas (statMonster / withStats) with `patch` applied, then put the build defaults back. */
+export function previewMon(k: MonsterKind, patch: Patch): MonPreview[] {
+  const r = applyPatch(patch, guardsFor(patch))
+  try {
+    return previewLevels(k).map((lv) => {
+      const m = statNative(k) ? statMonster(MONSTERS[k], lv) : withStats(MONSTERS[k], k, lv)
+      return {
+        lv, hp: m.hp, dmg: m.dmg, matk: m.matk ?? m.dmg, def: m.def ?? 0, mdef: m.mdef ?? 0, hit: m.hit ?? 15, flee: m.flee ?? 5,
+        crit: m.crit ?? 0, combo: m.combo ?? 0, counter: m.counter ?? 0, speed: m.speed ?? BATTLE.monSpeed[k] ?? 10, base: { ...m.base },
+      }
+    })
+  } finally { r.revert() }
+}
+
+/** 0..1-ish shares read better as %: crit 0.06 -> "6%". undefined for everything else. */
+export function pctHint(def: FieldDef, v: number | undefined): string | undefined {
+  if (v === undefined || def.kind !== 'num' || def.min < 0 || def.max > 1.5) return undefined
+  return `${Number((v * 100).toPrecision(4))}%`
 }
 
 /** Input text -> a value inside the FieldDef (int rounded). null = empty / not a number (= remove from the patch). */

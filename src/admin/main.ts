@@ -5,8 +5,9 @@ import { statNative } from '../data/mon-stats'
 import { canonicalJson, checkPatch, guardsFor, type FieldRow } from '../data/patch'
 import { TABLE_IDS, TABLES, type Patch, type TableId } from '../data/tunables'
 import { LOCAL_KEY } from '../live-keys'
+import { borrowPlan, heroClasses, type BorrowLine } from './borrow'
 import { API, authClient, call, errText, parseRow, type SRow } from './api'
-import { clampField, clonePatch, diffPatches, fieldLabel, fieldRow, fields, monsterGroups, patchSize, setIn, TIER_LABEL, valueIn, type Tier } from './model'
+import { clampField, clonePatch, diffPatches, fieldLabel, fieldRow, fields, monSections, monsterGroups, patchSize, pctHint, previewMon, setIn, TIER_LABEL, valueIn, type MonPreview, type Tier } from './model'
 
 declare const __PREVIEW__: boolean
 const LOCAL_OK = import.meta.env.DEV || (typeof __PREVIEW__ !== 'undefined' && __PREVIEW__) // ?cfg=local only works in these game builds
@@ -114,15 +115,20 @@ function renderTab() {
 // ---------- one editable field ----------
 function fieldCell(t: TableId, row: FieldRow, label: string, onChange: () => void): HTMLElement {
   const { path, def } = row
-  const input = h('input', { type: 'number', inputmode: 'decimal', step: def.kind === 'int' ? '1' : 'any', min: String(def.min), max: String(def.max) })
+  const range = `ช่วง ${def.min} – ${def.max}${def.kind === 'int' ? ' (จำนวนเต็ม)' : ''}`
+  const input = h('input', { type: 'number', inputmode: 'decimal', step: def.kind === 'int' ? '1' : 'any', min: String(def.min), max: String(def.max), title: range })
   const meta = h('div', { class: 'meta' })
   const cell = h('div', { class: 'f' })
   const refresh = () => {
-    const d = valueIn(S.draft, t, path), live = liveOf(t, path)
+    const d = valueIn(S.draft, t, path), live = liveOf(t, path), cur = draftOf(t, path)
     input.value = d === undefined ? (row.value === undefined ? '' : String(row.value)) : String(d)
-    input.placeholder = row.value === undefined ? 'ไม่มี' : ''
-    meta.textContent = `def ${fmt(row.value)} · live ${fmt(live)} · [${def.min}, ${def.max}]${def.kind === 'int' ? ' int' : ''}`
-    cell.classList.toggle('chg', draftOf(t, path) !== live)
+    input.placeholder = row.value === undefined ? '—' : ''
+    // only say what matters: the % reading, and where the value came from when it is not the plain default
+    const parts = [pctHint(def, cur), cur !== live ? `live ${fmt(live)}` : '', live !== row.value ? `default ${fmt(row.value)}` : ''].filter(Boolean)
+    meta.textContent = parts.join(' · ')
+    toLive.hidden = cur === live
+    toDef.hidden = d === undefined
+    cell.classList.toggle('chg', cur !== live)
     cell.classList.toggle('pat', d !== undefined)
   }
   const write = (v: number | null) => {
@@ -136,21 +142,42 @@ function fieldCell(t: TableId, row: FieldRow, label: string, onChange: () => voi
   })
   const toLive = h('button', { class: 'icon', title: 'กลับเป็นค่า live', onclick: () => write(valueIn(livePatch(), t, path) ?? null) }, '↺')
   const toDef = h('button', { class: 'icon', title: 'กลับเป็นค่า default', onclick: () => write(null) }, '×')
-  cell.append(h('label', { title: `${t}.${path}` }, label), h('div', { class: 'in' }, input, toLive, toDef), meta)
+  cell.append(h('label', { title: `${t}.${path} · ${range}` }, label), h('div', { class: 'in' }, input, toLive, toDef), meta)
   refresh()
   return cell
 }
 
-/** Fields in a grid; absent optional leaves tucked under "ช่องเสริม" unless the draft / live sets them. */
+/** A <details> whose body is built on first open (monster cards hold hundreds of inputs). */
+function lazyDetails(cls: string, summary: string, build: () => HTMLElement): HTMLDetailsElement {
+  const d = h('details', { class: cls }, h('summary', {}, summary))
+  d.addEventListener('toggle', () => { if (d.open && d.children.length === 1) d.append(build()) })
+  return d
+}
+/** A leaf with a value somewhere (build default, draft or live): shown up front; the rest waits behind "＋". */
+const isUsed = (t: TableId, r: FieldRow) => r.value !== undefined || valueIn(S.draft, t, r.path) !== undefined || valueIn(livePatch(), t, r.path) !== undefined
+const cells = (t: TableId, fs: { row: FieldRow; label: string }[], onChange: () => void) =>
+  h('div', { class: 'grid' }, ...fs.map((f) => fieldCell(t, f.row, f.label, onChange)))
+
+/** Fields in a grid; absent optional leaves tucked under "＋" unless the draft / live sets them. */
 function fieldGrid(t: TableId, rows: FieldRow[], labelOf: (p: string) => string, onChange: () => void): HTMLElement {
-  const used = (r: FieldRow) => r.value !== undefined || valueIn(S.draft, t, r.path) !== undefined || valueIn(livePatch(), t, r.path) !== undefined
-  const main = rows.filter(used), extra = rows.filter((r) => !used(r))
-  const box = h('div', {}, h('div', { class: 'grid' }, ...main.map((r) => fieldCell(t, r, labelOf(r.path), onChange))))
-  if (extra.length) {
-    const d = h('details', { class: 'extra' }, h('summary', {}, `ช่องเสริม (ยังไม่มีค่า) · ${extra.length}`))
-    d.addEventListener('toggle', () => { if (d.open && d.children.length === 1) d.append(h('div', { class: 'grid' }, ...extra.map((r) => fieldCell(t, r, labelOf(r.path), onChange)))) }, { once: false })
-    box.append(d)
+  const fs = rows.map((row) => ({ row, label: labelOf(row.path) }))
+  const main = fs.filter((f) => isUsed(t, f.row)), extra = fs.filter((f) => !isUsed(t, f.row))
+  const box = h('div', {}, cells(t, main, onChange))
+  if (extra.length) box.append(lazyDetails('extra', `＋ ช่องที่ยังไม่ตั้ง · ${extra.length}`, () => cells(t, extra, onChange)))
+  return box
+}
+
+/** Monster card body: one titled block per section; unset sections fold into one "＋" line at the bottom. */
+function monsterBody(k: MonsterKind, onChange: () => void): HTMLElement {
+  const box = h('div', {}), idle: HTMLElement[] = []
+  for (const s of monSections(k, rowsOfMonster(k))) {
+    const used = s.fields.filter((f) => isUsed('monsters', f.row)), rest = s.fields.filter((f) => !isUsed('monsters', f.row))
+    if (!used.length) { idle.push(lazyDetails('extra', `${s.title} · ${rest.length}`, () => cells('monsters', rest, onChange))); continue }
+    const sec = h('section', { class: 'sec' }, h('h4', {}, s.title), cells('monsters', used, onChange))
+    if (rest.length) sec.append(lazyDetails('extra', `＋ ช่องที่ยังไม่ตั้ง · ${rest.length}`, () => cells('monsters', rest, onChange)))
+    box.append(sec)
   }
+  if (idle.length) box.append(h('details', { class: 'extra idle' }, h('summary', {}, `＋ หมวดที่ยังไม่ได้ใช้ · ${idle.length}`), ...idle))
   return box
 }
 
@@ -177,14 +204,93 @@ function monsterCard(k: MonsterKind): HTMLElement {
   const d = h('details', { class: 'mon' },
     h('summary', {}, h('b', {}, m.name), m.title ? h('span', { class: 'muted' }, ` · ${m.title}`) : null, ' ', h('code', {}, k),
       h('span', { class: 'muted' }, statNative(k) ? ' · stat monster' : ` · HP ${fmt(liveOf('monsters', `${k}.hp`))}`), ' ', badge))
-  d.addEventListener('toggle', () => {
-    if (!d.open || d.children.length > 1) return
-    d.append(h('p', { class: 'hint' }, statNative(k)
-      ? 'Stat monster (D6+): HP / ATK / DEF มาจาก statAlloc × เลเวลห้อง — ปรับ bodyMul / statAlloc ที่นี่ หรือ MON_STAT ในแท็บตารางอื่น (hp/dmg = 1 เป็นค่าวาง)'
-      : 'D1-5 / อีเวนต์: hp / dmg / def / hit / flee = ค่าที่เลเวลบ้านเกิด · แก้ statAlloc หรือ legacy.lv / MON_STAT แล้วตัวเลขขยับตามสูตรเดียวกับ D6'))
-    d.append(fieldGrid('monsters', rowsOfMonster(k), (p) => fieldLabel('monsters', p, true), setBadge))
-  })
+  const fill = () => {
+    const prev = h('div', { class: 'preview' })
+    const drawPrev = () => prev.replaceChildren(...previewBox(k))
+    drawPrev()
+    d.append(prev, borrowBox(k, () => { while (d.children.length > 1) d.lastChild?.remove(); fill(); setBadge() }), h('p', { class: 'hint' }, statNative(k)
+      ? 'ℹ️ ไม่ต้องใส่ HP / ATK เอง: แต้มรวม = เลเวลห้อง × tier อัตโนมัติ · statAlloc = สัดส่วนการแจกแต้ม · bodyMul = ตัวคูณ · def / hit / ... = โบนัสบวกเพิ่ม'
+      : 'ℹ️ ค่าพลังด้านล่าง = ค่าที่เลเวลบ้านเกิด · แก้ statAlloc / legacy.lv / MON_STAT แล้วตัวเลขขยับตามสูตรเดียวกับ D6'))
+    d.append(monsterBody(k, () => { setBadge(); drawPrev() }))
+  }
+  d.addEventListener('toggle', () => { if (d.open && d.children.length === 1) fill() })
   return d
+}
+
+/** "📥 ยืมจาก Hero tree": pick class -> node / talent -> Lv, see what it adds, then write it into the draft. */
+function borrowBox(k: MonsterKind, rebuild: () => void): HTMLElement {
+  const classes = heroClasses()
+  const cls = h('select', {}, ...classes.map((c, i) => h('option', { value: String(i) }, `${c.name} · ${c.srcs.length}`)))
+  const src = h('select', {}), lv = h('select', {}), plan = h('div', { class: 'plan' })
+  const go = h('button', { class: 'primary small' }, '📥 ใส่ให้มอน')
+  const pickedSrc = () => classes[Number(cls.value)]?.srcs[Number(src.value)]
+  const fillSrc = () => {
+    const c = classes[Number(cls.value)], groups = new Map<string, HTMLOptGroupElement>()
+    src.replaceChildren()
+    c?.srcs.forEach((s, i) => {
+      const g = groups.get(s.group) ?? h('optgroup', { label: s.group })
+      g.append(h('option', { value: String(i) }, `${s.icon} ${s.name}`)); groups.set(s.group, g)
+    })
+    src.append(...groups.values())
+    fillLv()
+  }
+  const fillLv = () => {
+    const s = pickedSrc()
+    lv.replaceChildren(...Array.from({ length: s?.max ?? 0 }, (_, i) => h('option', { value: String(i + 1) }, `Lv ${i + 1}`)))
+    lv.value = String(s?.max ?? 1)
+    drawPlan()
+  }
+  let lines: BorrowLine[] = []
+  const drawPlan = () => {
+    const s = pickedSrc()
+    if (!s) { plan.replaceChildren(); return }
+    const p = borrowPlan(k, s, Number(lv.value), (path) => draftOf('monsters', path))
+    lines = p.lines
+    const pct = (path: string, v: number) => (pctHint(fieldRow('monsters', path)?.def ?? { kind: 'int', min: 0, max: 0 }, v) ?? fmt(v))
+    plan.replaceChildren(
+      h('div', { class: 'muted small' }, `ฮีโร่: ${s.desc(Number(lv.value))}`),
+      ...lines.map((l) => h('div', {}, `✅ ${l.label}: ${pct(l.path, l.from)} → `, h('b', {}, pct(l.path, l.to)), l.approx ? h('span', { class: 'warn small' }, ` ≈ ${l.approx}`) : '')),
+      p.skipped.length ? h('div', { class: 'muted small', title: p.skipped.join('\n') }, `⏭️ ข้าม ${p.skipped.length} อย่าง (มอนยังไม่มีกลไก): ${p.skipped.join(', ')}`) : '',
+      lines.length ? '' : h('div', { class: 'warn small' }, 'มอนตัวนี้รับอะไรจากช่องนี้ไม่ได้'),
+    )
+    go.toggleAttribute('disabled', !lines.length)
+  }
+  cls.addEventListener('change', fillSrc); src.addEventListener('change', fillLv); lv.addEventListener('change', drawPlan)
+  go.addEventListener('click', () => {
+    const s = pickedSrc()
+    for (const l of lines) setIn(S.draft, 'monsters', l.path, l.to === fieldRow('monsters', l.path)?.value ? null : l.to)
+    updateStatus(); toast(`ยืม ${s?.icon ?? ''} ${s?.name ?? ''} Lv ${lv.value} ให้ ${MONSTERS[k].name} แล้ว (${lines.length} ช่อง · ยังไม่บันทึก)`)
+    rebuild()
+  })
+  const d = h('details', { class: 'borrow' }, h('summary', {}, '📥 ยืมจาก Hero tree'),
+    h('div', { class: 'row' }, cls, src, lv, go), plan,
+    h('p', { class: 'muted small' }, 'บวกเพิ่มจากค่าปัจจุบันของมอน · ยืมซ้ำ = บวกซ้ำ · กด ↺ / × ที่ช่องเพื่อย้อน · ใช้ได้เฉพาะ stat ที่มอนมีกลไกอยู่แล้ว (คริ คอมโบ สวนกลับ ดูดเลือด Flee Hit พิษ สะท้อน)'))
+  d.addEventListener('toggle', () => { if (d.open && !src.children.length) fillSrc() }, { once: true })
+  return d
+}
+
+/** "📈 ค่าจริงในเกม": the game's own formulas on the draft (and on live, to show what an edit moves). */
+function previewBox(k: MonsterKind): Node[] {
+  const draft = previewMon(k, S.draft), live = previewMon(k, livePatch())
+  const n = (v: number) => Math.round(v).toLocaleString('en-US')
+  const pct = (v: number) => `${Math.round(v * 100)}%`
+  const rows: [string, (p: MonPreview) => number, (v: number) => string][] = [
+    ['HP', (p) => p.hp, n], ['ATK', (p) => p.dmg, n], ['M.ATK', (p) => p.matk, n], ['DEF', (p) => p.def, n], ['M.DEF', (p) => p.mdef, pct],
+    ['Hit', (p) => p.hit, n], ['Flee', (p) => p.flee, n], ['คริ', (p) => p.crit, pct], ['คอมโบ', (p) => p.combo, pct], ['สวนกลับ', (p) => p.counter, pct],
+    ['ความเร็ว', (p) => p.speed, (v) => v.toFixed(1)],
+  ]
+  const show = (ps: MonPreview[], get: (p: MonPreview) => number, f: (v: number) => string) => ps.map((p) => f(get(p))).join(' → ')
+  const chips = rows.map(([label, get, f]) => {
+    const now = show(draft, get, f), was = show(live, get, f)
+    return h('span', { class: `chip${now !== was ? ' chg' : ''}`, title: now !== was ? `live: ${was}` : '' }, h('small', {}, label), ` ${now}`)
+  })
+  const lv = draft.map((p) => p.lv).join(' → ')
+  const stats = (['str', 'vit', 'wis', 'dex', 'int', 'luk', 'agi'] as const).map((s) => `${s.toUpperCase()} ${show(draft, (p) => p.base[s] ?? 1, n)}`).join(' · ')
+  return [
+    h('div', { class: 'ptitle' }, h('b', {}, '📈 ค่าจริงในเกม'), h('span', { class: 'muted' }, ` · Lv ${lv}${draft.length > 1 ? ' (ห้องแรก → ห้องสุดท้ายที่เจอ)' : ''} · ส้ม = ต่างจาก live`)),
+    h('div', { class: 'chips' }, ...chips),
+    h('div', { class: 'muted small' }, stats),
+  ]
 }
 
 function renderMonsters(main: HTMLElement) {

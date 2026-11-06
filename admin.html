@@ -37,11 +37,23 @@
   code { color: var(--muted); font-size: 12px }
   .badge { background: var(--chg); color: #1b1b1b; border-radius: 999px; padding: 0 7px; font-size: 11px; font-weight: 700 }
   .hint { color: var(--muted); font-size: 12px; margin: 0 0 8px }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; padding-bottom: 10px }
-  .f { border: 1px solid var(--line); border-radius: 8px; padding: 6px; background: #181b36 }
-  .f label { display: block; font-size: 12px; overflow-wrap: anywhere; margin-bottom: 3px }
-  .f .in { display: flex; gap: 3px } .f .in input { min-width: 0 }
-  .f .meta { font-size: 10.5px; color: var(--muted); margin-top: 3px }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; padding-bottom: 8px }
+  .f { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: #181b36 }
+  .f label { display: block; font-size: 12.5px; font-weight: 600; overflow-wrap: anywhere; margin-bottom: 4px; cursor: help }
+  .f .in { display: flex; gap: 3px } .f .in input { min-width: 0; font-variant-numeric: tabular-nums }
+  .f .meta { font-size: 11px; color: var(--muted); margin-top: 3px } .f .meta:empty { display: none }
+  .preview { background: #0f1124; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px }
+  .preview .chips { margin: 6px 0 } .small { font-size: 11.5px }
+  .chip { border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-variant-numeric: tabular-nums; white-space: nowrap }
+  .chip small { color: var(--muted) } .chip.chg { border-color: var(--chg); color: var(--chg); font-weight: 700 }
+  details.borrow { border: 1px dashed var(--pat); border-radius: 8px; padding: 0 10px; margin-bottom: 8px }
+  details.borrow > summary { color: var(--pat); font-weight: 600 }
+  details.borrow select { background: #0f1124; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 6px; font: inherit; max-width: 100% }
+  .plan { display: grid; gap: 3px; margin: 6px 0 } .warn.small { font-size: 11.5px }
+  .sec { border-top: 1px solid var(--line); padding-top: 4px }
+  .sec h4 { margin: 6px 0; font-size: 13px; color: var(--acc) }
+  details.extra { margin: 2px 0 8px } details.extra > summary { padding: 6px 0 }
+  details.idle { border-top: 1px dashed var(--line) } details.idle details.extra { margin-left: 14px }
   .f.pat { border-color: var(--pat) }
   .f.chg { border-color: var(--chg); background: #3a2a1a } .f.chg label { color: var(--chg); font-weight: 700 }
   .scroll { overflow-x: auto } table { border-collapse: collapse; width: 100%; font-size: 13px }
