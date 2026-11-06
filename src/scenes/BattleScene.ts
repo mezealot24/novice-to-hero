@@ -285,6 +285,7 @@ export class BattleScene extends Phaser.Scene {
     this.res = this.job.resource === 'rage' ? 0 : this.resMax()
     this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0
     this.heroSpr.setTexture(this.job.tex).setTint((COSTUMES.find((c) => c.id === s.costume) ?? COSTUMES[0]).tint).setAngle(0).setAlpha(1)
+    this.dawnN = 0; this.dawnArmed = false // v86 แสงรุ่งอรุณ: the charge carries across waves, not runs
     this.perks = []; this.hits = 0; this.procHits = {}; this.pk = newPerkStats(); this.masteries = []; this.src = 'other'; this.immortal = null; this.eggN = 0; this.eggDef = 0
     this.level = 1; this.xp = 0; this.zeny = 0; this.kills = 0; this.runXp = 0; this.runGems = 0; this.runCards = []; this.runMats = {}
     this.cardLuck = 1 + Math.min(PER_POINT.luk.dropCap, PER_POINT.luk.dropPct * totalBase(s).luk)
@@ -849,6 +850,30 @@ export class BattleScene extends Phaser.Scene {
   private boomUsed = false // Knight Spear Boomerang used this wave
   private firstSwing = false // Knight Charge Attack: first basic swing of the wave
   private forceCrit = false
+  // ----- v86 Cleric talent แสงรุ่งอรุณ (KIT.clericTree.dawn): every N basic attacks, the next one is a sure-crit holy smash that heals -----
+  private dawnN = 0 // basic attacks since the last charged smash
+  private dawnArmed = false // the current swing is the charged one
+  private dawnOn() { return this.st.clDawn > 0 && this.job.id === 'cleric' }
+  private dawnCount(fired: boolean) {
+    const D = KIT.clericTree.dawn
+    this.dawnN = fired ? 0 : this.dawnN + 1
+    if (this.dawnN === D.every) this.floatText(HERO_X, GROUND - 170, '🌄 แสงรุ่งอรุณ พร้อม!', '#ffd36e')
+  }
+  /** (STR + WIS + atk x P.ATK + matk x M.ATK) as a sure crit with +crit dmg by rank, then heal a share of what landed. */
+  private dawnSmash(f: Mon) {
+    const D = KIT.clericTree.dawn, r = Math.max(1, Math.min(D.heal.length, Math.round(this.st.clDawn))), s = save()
+    const b = totalBase(s), bl = this.buf.bless > 0 ? blessBase(s) ?? {} : {} // พรแสง adds STR / WIS while it lasts
+    const flat = b.str + (bl.str ?? 0) + b.wis + (bl.wis ?? 0) + D.atk * this.st.atk + D.matk * this.st.matk
+    const add = D.crit[r - 1] ?? 0, wasCrit = this.forceCrit
+    this.forceCrit = true; this.st.critMul += add
+    let dmg = 0
+    try { dmg = this.strike(f, flat / Math.max(1, this.st.atk), false, '#ffd36e') } finally { this.st.critMul -= add; this.forceCrit = wasCrit }
+    this.burst(f.spr.x, f.spr.y - 30, 0xffd36e, 14, 170)
+    if (dmg <= 0 || this.hp <= 0) return
+    const big = f.def.ai === 'boss' || !!f.def.mini
+    const amt = dmg * (D.heal[r - 1] ?? 0) * (big ? 1 : D.weak)
+    if (amt > 0) { this.heal(amt, true); this.floatText(HERO_X, GROUND - 150, `🌄 +${Math.round(amt * (1 + this.st.healAmp))}`, '#7fe39a') }
+  }
   private critAdd = 0 // temporary crit chance (คลื่นดาบ)
   private dualKnife = false // Rogue: a dagger in the off-hand (+KIT2.rogue.dualKnife flying knives)
   private critKnives = 0 // Rogue ★: knives owed by basic / combo crits, thrown after the swing
@@ -1559,7 +1584,11 @@ export class BattleScene extends Phaser.Scene {
     const rate = this.comboChance() - (target ? this.monCombo(target).ignore : 0), count = COMBO.baseCount + this.st.comboCount + (this.relic === 'wolf' ? RELIC_RULES.wolf.comboCount : 0)
     while (extra < count && Math.random() < rate) extra++ // Capybara-style: each extra hit rolls (rate - Ignore Combo), stop on a miss
     this.stayIn = extra > 0 || this.rampage > 0
+    const dawn = this.dawnOn() && this.dawnN >= KIT.clericTree.dawn.every // v86 แสงรุ่งอรุณ: this swing is the charged one
+    this.dawnArmed = dawn
     await this.basicOnce()
+    this.dawnArmed = false
+    if (this.dawnOn()) this.dawnCount(dawn)
     this.comboKnives(false) // Rogue ★: crit knives from the first swing
     this.sageSpell() // 📖 Sage Auto Spell
     if (this.rampage > 0 && this.alive().length) { this.floatText(HERO_X, GROUND - 150, '👹', '#ff5a4e'); await this.basicOnce() } // Berserker บ้าระห่ำ: every swing hits twice
@@ -1610,7 +1639,7 @@ export class BattleScene extends Phaser.Scene {
     else if (kind === 'mage' && this.j2?.id === 'sage') await this.lunge(f, () => { this.strike(f, KIT2.sage.basicMul) }) // 📖 Sage: melee x P.ATK
     else if (kind === 'mage') await this.shoot(f, 0x9f7bff, () => { if (this.strike(f, MAGE_SPELL.basicMul, true, '#c9a8ff') > 0) this.gainRes(MAGE_CAST.boltMana) }) // weak free magic bolt (v78: + Mana on hit); real damage = Mana spells
     else if (kind === 'thief') await this.lunge(f, () => { this.strike(f, 0.6); this.strike(f, 0.6); this.doubleAttack(f, 0.6) })
-    else if (kind === 'cleric') await this.maceSmash(f, () => { this.strike(f, clericBasic()) }) // v58 Q: melee mace/book smash, P.ATK (STR) only; spells carry M.ATK
+    else if (kind === 'cleric') await this.maceSmash(f, () => { if (this.dawnArmed) this.dawnSmash(f); else this.strike(f, clericBasic()) }) // v58 Q: melee mace/book smash, P.ATK (STR) only; spells carry M.ATK
     else await this.lunge(f, () => { const cl = BATTLE.cleave + this.st.cleaveAdd, fs = this.chargeMul(); if (live[1]) { this.strike(f, fs); this.strike(live[1], cl) } else this.strike(f, fs + (kind === 'swordsman' ? cl : 0)) }) // novice, swordsman: cleave (+talent ฟันกวาด) · swordsman alone vs 1 monster: the cleave lands on it too
     this.lsMul = 0
     if (this.j2?.id === 'monk') this.monkSwing(f)

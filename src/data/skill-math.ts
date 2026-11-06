@@ -63,6 +63,9 @@ export const KIT = {
     faithOver: 0.2, overMin: 0.03, faithHealPer: 0.01, // ล้นศรัทธา: overheal >= 3% max HP: chance/lv of +1 Faith · พรเกื้อ: burst heals max HP share per stack per lv
     overBurst: 1.5, overCap: 0.25, // ★ แสงล้นฟ้า: overheal x this as holy damage to the front monster (overheal counted up to 25% max HP per heal)
     wardTurns: 2, ward: 0.06, emergencyAt: 0.3, emergency: 0.08, mend: 0.1, // ม่านพร: after ult −dmg taken/lv N hero turns · ฉุกเฉิน: under 30% HP heal max HP share/lv (1/wave) · ชุบชีวา: ult heals missing HP share/lv
+    // v86 talent row II แสงรุ่งอรุณ (Q 2026-11-06, rank 1..4): every `every` basic attacks the next one is a sure crit for
+    // (STR + WIS + atk x P.ATK + matk x M.ATK) x (crit dmg + dawnCrit[rank]) and heals dawnHeal[rank] of the damage (normal monsters x dawnWeak).
+    dawn: { every: 3, atk: 0.3, matk: 0.1, crit: [0, 0.25, 0.5, 0.75], heal: [0.2, 0.25, 0.3, 0.35], weak: 0.6 },
     reviveHp: 0.5, reviveShield: 0.2, // ★ คืนชีพ: 1/run lethal hit -> back at 50% HP + 20% shield, debuffs cleared
   },
 }

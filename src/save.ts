@@ -100,6 +100,7 @@ export function load(): SaveData | null {
     if (!s.web) migrateToWeb(s)
     migrateThiefWeb(s)
     migratePriestBless(s)
+    migrateHiddenTalents(s)
     migrateNodeStretch(s)
     migrateGear(s)
     s.modes ??= {} // v51 game modes: additive, old saves start with no records
@@ -181,6 +182,14 @@ function migratePriestBless(s: SaveData) {
   const t = s.jobTree
   if (s.job !== 'cleric' || !t || (t.cl_bless ?? 0) <= 1) return
   s.skillPoints += t.cl_bless - 1; t.cl_bless = 1
+}
+/** v86 Cleric talent row II: พรยืนยาว / แสงลงทัณฑ์ / ใต้ปีกเทพ are hidden (replaced by แสงรุ่งอรุณ). Drop those picks;
+ *  Talent Points are counted from the picks, so dropping one refunds its TP. */
+const HIDDEN_TALENTS = new Set(['cleric_t2_regen', 'cleric_t2_holy', 'cleric_t2_wing'])
+export function migrateHiddenTalents(s: SaveData) {
+  const t = s.jobTalents
+  if (!t) return
+  for (const [row, p] of Object.entries(t)) if (p && HIDDEN_TALENTS.has(p.id)) delete t[row]
 }
 /** v83 (Q 2026-11-06) node levels 1->3 / 2->4 / 3->5 at the same full value: the old levels no longer mean the same, so
  *  refund the whole class web and the whole ใยชั้น 2 web once (free re-spend). Novice skills and talents are untouched. */

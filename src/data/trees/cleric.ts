@@ -6,7 +6,7 @@ import { KIT } from '../skill-math'
 import { CLERIC_KIT } from '../jobs'
 
 // v84 (design/skill-tree-priest.md v84): numbers in KIT.clericTree, written per OLD level (max 3); data/tree.ts stretches them to 5.
-const T = KIT.clericTree, pc = (x: number) => `${+(x * 100).toFixed(1)}%`, x2 = (x: number) => +x.toFixed(2)
+const T = KIT.clericTree, D = T.dawn, pc = (x: number) => `${+(x * 100).toFixed(1)}%`, x2 = (x: number) => +x.toFixed(2)
 
 
 export const tree: ClassTree = {
@@ -45,10 +45,15 @@ export const tree: ClassTree = {
     t('cleric_t1_focus', 1, '💧', 'สมาธิ', 2, (r) => `ฟื้น Mana +${r === 1 ? 6 : 10}/เทิร์น`, (r) => ({ resRegen: r === 1 ? 2 : 3.4 })),
     t('cleric_t1_spear', 1, '🔱', 'หอกเปิดศึก', 2, (r) => `เริ่มทุกไฟต์ด้วยหอกแสง ${r === 1 ? 2 : 3} เล่ม (เล่มละ 30% M.ATK ใส่ทุกตัว)`, (r) => ({ spearStart: r === 1 ? 2 : 3 })),
     t('cleric_t1_ward', 1, '🛡️', 'ร่างพร', 2, (r) => `เริ่มไฟต์บอสด้วยโล่ ${r === 1 ? 12 : 20}% HP`, (r) => ({ bossShield: r === 1 ? 0.12 : 0.2 })),
-    // Row II · Job Lv 10 (ult "พรคุ้มครอง")
-    t('cleric_t2_regen', 2, '🌿', 'พรยืนยาว', 2, (r) => `ult แถมฟื้น ${r === 1 ? 2 : 3}% HP/เทิร์น 3 เทิร์น`, (r) => ({ ultRegen: r === 1 ? 0.02 : 0.03 })),
-    t('cleric_t2_holy', 2, '☀️', 'แสงลงทัณฑ์', 2, (r) => `ult แถมดาเมจ ${r === 1 ? '1.0' : '1.6'}x M.ATK ใส่ทุกตัว`, (r) => ({ ultHoly: r === 1 ? 1 : 1.6 })),
-    t('cleric_t2_wing', 2, '🕊️', 'ใต้ปีกเทพ', 2, (r) => `กด ult ตอนบอสชาร์จ: โล่ x${r === 1 ? '1.5' : '2'}`, (r) => ({ ultChargeShield: r === 1 ? 0.5 : 1 })),
+    // Row II · Job Lv 10 — v86 (Q 2026-11-06): the 3 ult talents are hidden (code paths kept, stats stay 0; old picks are refunded on load,
+    // save.ts) and replaced by one 4-rank talent: แสงรุ่งอรุณ.
+    t('cleric_t2_dawnlight', 2, '🌄', 'แสงรุ่งอรุณ', 4,
+      (r) => `ตีปกติครบ ${D.every} ครั้ง → ครั้งถัดไปทุบแสงคริแน่: (STR + WIS + ${pc(D.atk)} P.ATK + ${pc(D.matk)} M.ATK) ดาเมจคริ${D.crit[r - 1] ? ` +${pc(D.crit[r - 1])}` : ''} · ฮีล ${pc(D.heal[r - 1])} ของดาเมจ (มอนธรรมดา x${D.weak})`,
+      (r) => ({ clDawn: r })),
+    // hidden v86:
+    // t('cleric_t2_regen', 2, '🌿', 'พรยืนยาว', 2, (r) => `ult แถมฟื้น ${r === 1 ? 2 : 3}% HP/เทิร์น 3 เทิร์น`, (r) => ({ ultRegen: r === 1 ? 0.02 : 0.03 })),
+    // t('cleric_t2_holy', 2, '☀️', 'แสงลงทัณฑ์', 2, (r) => `ult แถมดาเมจ ${r === 1 ? '1.0' : '1.6'}x M.ATK ใส่ทุกตัว`, (r) => ({ ultHoly: r === 1 ? 1 : 1.6 })),
+    // t('cleric_t2_wing', 2, '🕊️', 'ใต้ปีกเทพ', 2, (r) => `กด ult ตอนบอสชาร์จ: โล่ x${r === 1 ? '1.5' : '2'}`, (r) => ({ ultChargeShield: r === 1 ? 0.5 : 1 })),
     // Row III · Job Lv 20 (auto skill)
     t('cleric_t3_spear', 3, '🔱', 'หอกรายเทิร์น', 2, (r) => `ได้หอกแสง 1 เล่ม${r === 1 ? 'ทุก 2 เทิร์น' : 'ทุกเทิร์น'}`, (r) => ({ spearRate: r === 1 ? 0.5 : 1 })),
     t('cleric_t3_miracle', 3, '🍀', 'ปาฏิหาริย์', 2, (r) => `แสงและหอกแสงคริได้ ${r === 1 ? 10 : 18}% (ดาเมจคริตามค่าคริของเกม)`, (r) => ({ spellCrit: r === 1 ? 0.1 : 0.18 })),
