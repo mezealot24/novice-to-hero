@@ -12,7 +12,8 @@ import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
 // Forge (design/item-acquisition-v1.md): craft dungeon gear from materials, raise any item's grade.
 // Craft and grade-ups always succeed. Refine (+1..+10) can break an item above +4; gems may ONLY repair it
 // (design 3.6: never rate, break protection, mats, fodder or rerolls), and the material repair is always cheaper.
-// Exception (Q 2026-11-06): gems lock a bonus line in the option gacha; the roll itself is zeny + mats.
+// Two exceptions: (1) Q 2026-11-06, gems lock a bonus line in the option gacha (the roll itself is zeny + mats);
+// (2) Q 2026-11-07, gems skip Endless Tower floors (data/modes.ts), a pure time-saver that pays nothing.
 type Tab = 'craft' | 'grade' | 'refine' | 'fodder' | 'mats'
 const dgName = (id: string) => DUNGEONS.find((d) => d.id === id)?.name ?? id
 const dgBoss = (id: string) => DUNGEONS.find((d) => d.id === id)?.boss ?? ''

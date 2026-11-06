@@ -10,8 +10,10 @@ import { affixesAt, rollAffixes, type AffixId } from './affixes'
 import { foldCorruptions, rollCorruptions, type FoldedCorruption } from './corruptions'
 
 export type ModeId = 'dungeon' | 'hard' | 'tower' | 'daily'
-export interface ModeRecord { bestFloor?: number; clears: number; lastSeed?: number }
-export interface ModeArgs { mode?: ModeId; d?: number; hard?: boolean; seed?: number; startFloor?: number /* bot / test only: tower starts at this floor */ }
+/** v87 tower checkpoint record: the in-run level (and whether a relic was held) the first time a run cleared that floor. */
+export interface TowerCp { lv: number; relic?: boolean }
+export interface ModeRecord { bestFloor?: number; clears: number; lastSeed?: number; cp?: Record<number, TowerCp> /* v87: tower checkpoints, keyed by floor (10, 20, ...) */ }
+export interface ModeArgs { mode?: ModeId; d?: number; hard?: boolean; seed?: number; startFloor?: number /* tower starts at this floor (set by startRun from skipTo; bot / test may pass it directly, no gems) */; skipTo?: number /* v87: tower checkpoint S picked in the hub: pay S gems at run start, first fight is floor S+1 */ }
 
 /** A room of a run: a dungeon room + where it sits in the tower + the dungeon its monsters scale from. */
 export interface RunRoom extends RoomDef {
@@ -57,7 +59,7 @@ export interface RunConfig {
   enrageAfter?(room: RunRoom): number
 }
 
-export interface RunResult { won: boolean; left: boolean; floor: number; bank: { zeny: number; mats: Record<string, number> } }
+export interface RunResult { won: boolean; left: boolean; floor: number; /** v87: floors <= from were skipped (start floor - 1): they never count as cleared */ from?: number; bank: { zeny: number; mats: Record<string, number> } }
 export interface ModeReward { gems: number; fortune: number; zeny: number; mats: Record<string, number>; lines: string[] }
 
 export interface GameMode {
@@ -121,7 +123,46 @@ export const TOWER = {
   zeny: (f: number, lv: number) => Math.round((20 + 6 * f) * (1 + lv / 20)),
   fallKeep: 0.5, // falling keeps this share of the floor bank; leaving keeps all of it
   gems: [[10, 20], [25, 40], [50, 80]] as [number, number][], // first time reaching floor n
+  // v87 floor skip (Q 2026-11-07): a checkpoint every skipEvery floors up to the best floor, paid in gems at run start.
+  // A pure time-saver: skipped floors give no zeny / mats / first-time gems and never raise bestFloor.
+  skipEvery: 10,
+  skipGems: 1, // gems per skipped floor: S x skipGems
+  skipLvPerFloor: 0.5, skipLvMax: 60, // old saves without a recorded checkpoint: in-run level guess = 1 + round(S x this), capped
 }
+
+// ---------- v87 tower floor skip (design/unique-taint-tower-skip-v1.md §1) ----------
+/** Highest checkpoint the best floor allows (best 34 -> 30, best 29 -> 20, best 9 -> 0 = none). */
+export const towerMaxCheckpoint = (best: number) => Math.floor(Math.max(0, best) / TOWER.skipEvery) * TOWER.skipEvery
+/** Every checkpoint that can be picked: 10, 20, ... up to the max. */
+export const towerCheckpoints = (best: number) => Array.from({ length: towerMaxCheckpoint(best) / TOWER.skipEvery }, (_, i) => (i + 1) * TOWER.skipEvery)
+/** Gems for starting after floor S. */
+export const towerSkipGems = (floor: number) => floor * TOWER.skipGems
+/** Is S a checkpoint this save may skip to, and can it pay? */
+export function towerSkipCheck(s: SaveData, floor: number): { ok: true } | { ok: false; why: 'locked' | 'gems' } {
+  if (!towerCheckpoints(s.modes?.tower?.bestFloor ?? 0).includes(floor)) return { ok: false, why: 'locked' }
+  return s.gems >= towerSkipGems(floor) ? { ok: true } : { ok: false, why: 'gems' }
+}
+/** What the hero starts with after a skip to S: the recorded level of that checkpoint, or the old-save guess. */
+export function towerCatchUp(s: SaveData, floor: number): { lv: number; relic: boolean; est: boolean } {
+  const rec = s.modes?.tower?.cp?.[floor]
+  if (rec && rec.lv >= 1) return { lv: Math.floor(rec.lv), relic: !!rec.relic, est: false }
+  return { lv: Math.max(1, Math.min(TOWER.skipLvMax, 1 + Math.round(floor * TOWER.skipLvPerFloor))), relic: true /* floor 10 is always a gauntlet = a relic pick */, est: true }
+}
+/** Spend the gems for a skip to S (call once, when the run starts). Null (nothing spent) when S is not allowed or gems are short. */
+export function payTowerSkip(s: SaveData, floor: number): { lv: number; relic: boolean; est: boolean } | null {
+  if (!towerSkipCheck(s, floor).ok) return null
+  s.gems -= towerSkipGems(floor)
+  return towerCatchUp(s, floor)
+}
+/** First time a run clears a checkpoint floor: remember its level + relic (never overwritten). True when written. */
+export function recordTowerCheckpoint(s: SaveData, floor: number, lv: number, relic: boolean): boolean {
+  if (floor < TOWER.skipEvery || floor % TOWER.skipEvery !== 0) return false
+  const rec = modeRec(s, 'tower'), cp = (rec.cp ??= {})
+  if (cp[floor]) return false
+  cp[floor] = { lv: Math.max(1, Math.floor(lv)), ...(relic ? { relic: true } : {}) }
+  return true
+}
+
 const BOSSES: { kind: MonsterKind; src: string; turnLimit: number; title: string }[] = DUNGEONS.map((d) => {
   const r = d.rooms.find((x) => x.boss)!
   return { kind: r.spawn[0][0], src: d.id, turnLimit: r.turnLimit ?? 30, title: r.title }
@@ -266,7 +307,7 @@ export const MODES: Record<ModeId, GameMode> = {
     record: (s) => { const r = s.modes?.tower; return r?.bestFloor ? `สูงสุด ชั้น ${r.bestFloor}` : 'ยังไม่เคยไต่' },
     buildRun: (s, a) => towerRun(s, a.startFloor),
     reward: (s, _cfg, r) => {
-      const rec = modeRec(s, 'tower'), before = rec.bestFloor ?? 0, cleared = Math.max(0, r.floor)
+      const rec = modeRec(s, 'tower'), before = rec.bestFloor ?? 0, cleared = r.floor > (r.from ?? 0) ? r.floor : 0 // v87: a skipped floor is never a clear
       const out: ModeReward = { ...none, mats: {}, lines: [] }
       const keep = r.left ? 1 : TOWER.fallKeep
       out.zeny = Math.round(r.bank.zeny * keep)

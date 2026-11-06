@@ -92,7 +92,8 @@ const r3 = (n: number) => Math.round(n * 1000) / 1000
 
 // ---------- refine +1..+10 (phase 2, design 3.5 / 3.5.1 / 3.6) ----------
 /** Refine rules. Gems only ever repair (Q 2026-11-03): never rate, break protection, mats, fodder or rerolls.
- * One exception (Q 2026-11-06): gems lock a bonus line during a reroll. The roll itself is always zeny + mats. */
+ * Two exceptions: (1) Q 2026-11-06, gems lock a bonus line during a reroll (the roll itself is always zeny + mats);
+ * (2) Q 2026-11-07, gems skip Endless Tower floors (data/modes.ts TOWER.skipGems), a pure time-saver that pays nothing. */
 export const REFINE = {
   max: 10,
   pct: 0.05, // whole-item stats per +, added to the grade % (grade 5 +10 = x2.1)

@@ -1,8 +1,9 @@
 // Refine +1..+10, repair and random bonus lines (design/item-acquisition-v1.md 3.5 / 3.5.1 / 3.6 / 3.7).
 // Pure rules + save actions, kept out of the UI so the bot and tests can use them.
 // Gem rule (Q 2026-11-03): gems may ONLY repair. Never success rate, break protection, mats, fodder or rerolls,
-// and the material repair is always the cheaper way. Exception (Q 2026-11-06): gems lock a bonus line during a
-// reroll (the roll itself is always zeny + mats).
+// and the material repair is always the cheaper way. Two exceptions: (1) Q 2026-11-06, gems lock a bonus line
+// during a reroll (the roll itself is always zeny + mats); (2) Q 2026-11-07, gems skip Endless Tower floors
+// (data/modes.ts), a pure time-saver that gives no zeny, mats or rank.
 import type { SaveData } from '../save'
 import type { Stats } from './game-data'
 import type { JobId } from './jobs'
