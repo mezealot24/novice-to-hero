@@ -163,3 +163,12 @@ test('pointsMul + allocFor: typed stats -> weights + budget, defaults untouched'
   const kept = allocFor('pharaoh', def.lv, want, 1)
   assert.equal(kept.pointsMul, 1)
 })
+
+test('scripted kits: Celeste shows Into Arena / Riposte / Espada with real battle fields', async () => {
+  const { scriptKits } = await import('../src/admin/kits')
+  const k = scriptKits('duelist')
+  assert.deepEqual(k.map((x) => x.name.split(' ')[1]), ['Into', 'Riposte', 'Grandado'])
+  for (const kit of k) assert.ok(kit.fields.length > 0 && kit.fields.every((q) => fieldRow('battle', q.path)), `${kit.name}: fields exist`)
+  for (const m of ['hunter', 'gunner', 'drainer', 'venomqueen', 'frostgiant'] as const) assert.ok(scriptKits(m).length > 0, `${m} has a kit`)
+  assert.equal(scriptKits('jellop').length, 0)
+})

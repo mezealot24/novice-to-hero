@@ -7,6 +7,7 @@ import { canonicalJson, checkPatch, guardsFor, type FieldRow } from '../data/pat
 import { TABLE_IDS, TABLES, type Patch, type TableId } from '../data/tunables'
 import { LOCAL_KEY } from '../live-keys'
 import { borrowPlan, heroClasses, type BorrowLine } from './borrow'
+import { kitUsers, scriptKits } from './kits'
 import { API, authClient, call, errText, parseRow, type SRow } from './api'
 import { clampField, clonePatch, diffPatches, fieldLabel, fieldRow, fields, monSections, monsterGroups, patchSize, pctHint, previewLevels, previewMon, previewSkills, setIn, TIER_LABEL, valueIn, allocFor, BASE7, type AllocPlan, type MonPreview, type SkillPreview, type Tier } from './model'
 
@@ -171,6 +172,12 @@ function fieldGrid(t: TableId, rows: FieldRow[], labelOf: (p: string) => string,
 /** Monster card body: one titled block per section; unset sections fold into one "＋" line at the bottom. */
 function monsterBody(k: MonsterKind, onChange: () => void): HTMLElement {
   const box = h('div', {}), idle: HTMLElement[] = []
+  for (const kit of scriptKits(k)) { // 🎭 scripted kits: shared BATTLE numbers, edited here
+    const users = kitUsers(kit.name)
+    box.append(h('section', { class: 'sec kit' }, h('h4', {}, `🎭 ${kit.name}`), h('p', { class: 'hint' }, kit.desc),
+      h('div', { class: 'grid' }, ...kit.fields.map((q) => { const row = fieldRow('battle', q.path); return row ? fieldCell('battle', row, q.label, () => { onChange(); updateStatus() }) : '' })),
+      h('p', { class: 'warn small' }, `⚠️ ค่ากลางใน BATTLE${users.length > 1 ? ` · ใช้ร่วมกับ: ${users.join(', ')}` : ''} (แท็บตารางอื่น → battle)`)))
+  }
   for (const s of monSections(k, rowsOfMonster(k))) {
     const shown = (f: { row: FieldRow }) => isUsed('monsters', f.row) || /\.skills\.\d+(\.pick\.\d+)?\.lv$/.test(f.row.path) // skill level: always in sight
     const used = s.fields.filter(shown), rest = s.fields.filter((f) => !shown(f))
