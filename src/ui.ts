@@ -39,12 +39,12 @@ export function panel(scene: Phaser.Scene, x: number, y: number, w: number, h: n
   return g
 }
 
-export interface Btn extends Phaser.GameObjects.Container { setLabel(s: string): Btn; setEnabled(on: boolean): Btn }
+export interface Btn extends Phaser.GameObjects.Container { setLabel(s: string): Btn; setEnabled(on: boolean): Btn; setFill(c: number): Btn }
 
 /** Centered button. Fires on pointerup (so drags off it cancel). */
 export function button(scene: Phaser.Scene, x: number, y: number, w: number, h: number, label: string, onClick: () => void,
   o: { fill?: number; color?: string; size?: number; stroke?: number } = {}): Btn {
-  const fill = o.fill ?? COLORS.gold
+  let fill = o.fill ?? COLORS.gold
   const g = scene.add.graphics()
   const t = scene.add.text(0, 0, label, { fontFamily: FONT_UI, fontSize: `${o.size ?? 20}px`, fontStyle: 'bold', color: o.color ?? UI.ink, align: 'center', lineSpacing: 2 }).setOrigin(0.5)
   const c = scene.add.container(x, y, [g, t]) as Btn
@@ -71,6 +71,7 @@ export function button(scene: Phaser.Scene, x: number, y: number, w: number, h: 
   })
   c.setLabel = (s: string) => { t.setText(s); return c }
   c.setEnabled = (on: boolean) => { enabled = on; draw(); return c }
+  c.setFill = (f: number) => { fill = f; draw(); return c }
   return c
 }
 
@@ -304,7 +305,7 @@ export interface HoldBtn extends Btn { cancel(): void }
  * The hold itself is the confirmation, so no modal on top. The global pointerup listener is removed on scene shutdown / destroy; the tween dies with the scene. */
 export function holdButton(scene: Phaser.Scene, x: number, y: number, w: number, h: number, label: string, ms: number, onDone: () => void,
   o: { fill?: number; color?: string; size?: number } = {}): HoldBtn {
-  const fill = o.fill ?? 0x8a4fd0
+  let fill = o.fill ?? 0x8a4fd0
   const g = scene.add.graphics()
   const t = scene.add.text(0, 0, label, { fontFamily: FONT_UI, fontSize: `${o.size ?? 18}px`, fontStyle: 'bold', color: o.color ?? UI.text, align: 'center', lineSpacing: 2, wordWrap: { width: w - 16 } }).setOrigin(0.5)
   const c = scene.add.container(x, y, [g, t]) as HoldBtn
@@ -339,6 +340,7 @@ export function holdButton(scene: Phaser.Scene, x: number, y: number, w: number,
   c.once(Phaser.GameObjects.Events.DESTROY, () => { off(); scene.events.off(Phaser.Scenes.Events.SHUTDOWN, off); tween?.remove() })
   c.setLabel = (s: string) => { t.setText(s); return c }
   c.setEnabled = (on: boolean) => { enabled = on; if (!on) c.cancel(); draw(); return c }
+  c.setFill = (f: number) => { fill = f; draw(); return c }
   return c
 }
 
