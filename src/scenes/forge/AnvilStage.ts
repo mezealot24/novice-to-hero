@@ -8,7 +8,7 @@ import { isWorn, save } from '../../save'
 import { sfx } from '../../sfx'
 import { itemIcon, panel, UI, type ItemIcon } from '../../ui'
 import { crack, floatNum, hitStop, punch } from '../../ui-fx'
-import { fit } from './legacy'
+import { fit } from '../../ui'
 import { iconState, statSplit } from './state'
 import type { Preview, StageFx } from './types'
 
@@ -86,13 +86,20 @@ export class AnvilStage implements StageFx {
   fail(label: string) {
     sfx.hurt()
     hitStop(this.scene, 70)
-    const p = this.iconPos(), ix = this.icon.x
+    const p = this.iconPos(), ix = 70 // the resting x, not whatever a running shake left it at
     this.scene.tweens.killTweensOf(this.icon) // a running punch must not fight the shake
     this.icon.setScale(1)
     this.scene.tweens.add({ targets: this.icon, x: ix + 7, duration: 45, yoyo: true, repeat: 3, onComplete: () => { if (this.icon.active) this.icon.x = ix }, onStop: () => { if (this.icon.active) this.icon.x = ix } })
     crack(this.scene, p.x, p.y, ICON)
     floatNum(this.scene, p.x, p.y - 56, label, { color: '#ff7a7a', size: 26, ui: true, ms: 1100 })
     this.scene.cameras.main.shake(160, 0.005)
+  }
+
+  shine(label: string) {
+    sfx.coin()
+    const p = this.iconPos()
+    floatNum(this.scene, p.x + 150, p.y - 44, label, { color: '#ffd35a', size: 22, ui: true, ms: 1000 })
+    this.scene.cameras.main.flash(160, 255, 215, 90)
   }
 
   mend() {

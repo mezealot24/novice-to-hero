@@ -1,15 +1,16 @@
-// ⚒️ Refine +1..+10. Rules: tryRefine / nextRate / refineCost / canAffordAuto / fodderToBuy (data/refine.ts).
+// ⚒️ Refine +1..+10. Rules: tryRefine / refineCheck / rateParts / refineCost / canAffordAuto / fodderToBuy (data/refine.ts).
 // Shows the chance as a stacked meter: base + pity + a ghost "+10% if this one fails". A fail shows on the stage, no popup (Q 2026-11-07).
-import Phaser from 'phaser'
-import { REFINE, forgeItem } from '../../../data/craft'
-import { gradeOf, linesOf, refineOf, splitStatLine, type Item } from '../../../data/meta'
-import { canAffordAuto, fodderToBuy, lineText, nextRate, refineCost, totalZeny, tryRefine, zenyShort } from '../../../data/refine'
+import type Phaser from 'phaser'
+import { REFINE } from '../../../data/craft'
+import { linesOf, refineOf, type Item } from '../../../data/meta'
+import { canAffordAuto, fodderToBuy, lineText, nextRate, rateParts, refineCost, totalZeny, tryRefine } from '../../../data/refine'
 import { persist, save } from '../../../save'
-import { confirm, meter, toast, txt, UI, type Meter } from '../../../ui'
-import { fit } from '../legacy'
+import { confirm, fit, meter, toast, txt, UI, type Meter } from '../../../ui'
+import { pressLabel, statSplit } from '../state'
 import type { ForgeCtx, Preview, VerbAction, VerbPanel } from '../types'
+import { PanelBase } from './PanelBase'
 
-export class RefinePanel implements VerbPanel {
+export class RefinePanel extends PanelBase implements VerbPanel {
   private it!: Item
   private head!: Phaser.GameObjects.Text
   private rateT!: Phaser.GameObjects.Text
@@ -17,26 +18,25 @@ export class RefinePanel implements VerbPanel {
   private legend!: Phaser.GameObjects.Text
   private info!: Phaser.GameObjects.Text
   private lines!: Phaser.GameObjects.Text
-  constructor(private ctx: ForgeCtx) {}
+  constructor(private ctx: ForgeCtx) { super() }
 
   mount(box: Phaser.GameObjects.Container, it: Item) {
     this.it = it
     const sc = this.ctx.scene
-    this.head = txt(sc, 16, 10, '', 18, UI.text, true)
-    this.rateT = txt(sc, 640, 10, '', 18, UI.gold, true).setOrigin(1, 0)
-    this.bar = meter(sc, 16, 42, 624, 18)
-    this.legend = txt(sc, 16, 64, '', 12, UI.sub).setWordWrapWidth(624)
-    this.info = txt(sc, 16, 86, '', 12, UI.text).setWordWrapWidth(624)
-    this.lines = txt(sc, 16, 108, '', 12, '#d9c2ff').setWordWrapWidth(624)
-    box.add([this.head, this.rateT, this.bar, this.legend, this.info, this.lines])
+    this.head = txt(sc, 16, 6, '', 18, UI.text, true)
+    this.rateT = txt(sc, 640, 6, '', 18, UI.gold, true).setOrigin(1, 0)
+    this.bar = meter(sc, 16, 34, 624, 16)
+    this.legend = txt(sc, 16, 54, '', 12, UI.sub).setWordWrapWidth(624)
+    this.info = txt(sc, 16, 74, '', 12, UI.text).setWordWrapWidth(624)
+    this.lines = txt(sc, 16, 112, '', 12, '#d9c2ff').setWordWrapWidth(624)
+    this.put(box, this.head, this.rateT, this.bar, this.legend, this.info, this.lines)
     this.refresh()
   }
 
   refresh() {
-    const s = save(), it = this.it, r = refineOf(s, it.id), pity = s.refinePity?.[it.id] ?? 0
-    const lines = linesOf(s, it.id)
+    const s = save(), it = this.it, r = refineOf(s, it.id), lines = linesOf(s, it.id)
     this.lines.setText(`🎁 ${REFINE.lineAt.map((at, i) => `+${at} ${lines[i] ? lineText(lines[i]) : '—'}`).join(' · ')}`)
-    fit(this.lines, 18)
+    fit(this.lines, 17)
     if (r >= REFINE.max) {
       this.head.setText('✓ +10 สูงสุดแล้ว ✨')
       this.rateT.setText('')
@@ -45,15 +45,24 @@ export class RefinePanel implements VerbPanel {
       this.info.setText('ตีบวกถึงสุดแล้ว ไปสุ่มค่าพิเศษหรือใส่คำสาปต่อได้ค่ะ')
       return
     }
-    const n = r + 1, base = REFINE.rate[n] ?? 0, rate = nextRate(s, it)
-    const pityV = Math.min(1 - base, pity * REFINE.pity), ghost = Math.min(1 - base - pityV, REFINE.pity)
+    const p = rateParts(s, it), n = p.n
     this.head.setText(`ตีบวก +${r} → +${n}`)
-    this.rateT.setText(`สำเร็จ ${Math.round(rate * 100)}%`)
-    this.bar.setParts([{ v: base, color: 0xf2b84b }, { v: pityV, color: 0x6fd08c }, ...(rate < 1 ? [{ v: ghost, color: 0xff9f5a, ghost: true }] : [])])
-    this.legend.setText(rate >= 1 ? 'ถึง +4 ตีไม่พลาด' : `พื้นฐาน ${Math.round(base * 100)}%${pityV > 0 ? ` + pity ${Math.round(pityV * 100)}% (พลาดติดกัน ${pity} ครั้ง)` : ''}${ghost > 0 ? ` · ถ้าครั้งนี้พลาด ครั้งหน้า +${Math.round(ghost * 100)}% (จางๆ)` : ''}`)
+    this.rateT.setText(`สำเร็จ ${Math.round(p.rate * 100)}%`)
+    this.bar.setParts([{ v: p.base, color: 0xf2b84b }, { v: p.pity, color: 0x6fd08c }, ...(p.ghost > 0 ? [{ v: p.ghost, color: 0xff9f5a, ghost: true }] : [])])
+    const pct = (v: number) => `${Math.round(v * 100)}%`
+    this.legend.setText(
+      p.base >= 1 ? 'ถึง +4 ตีไม่พลาด'
+        : p.rate >= 1 ? `pity เต็มแล้ว (พลาดติดกัน ${p.fails} ครั้ง): ครั้งนี้ไม่พลาดแน่`
+          : `พื้นฐาน ${pct(p.base)}${p.pity > 0 ? ` + pity ${pct(p.pity)} (พลาดติดกัน ${p.fails} ครั้ง)` : ''}${p.ghost > 0 ? ` · ถ้าครั้งนี้พลาด ครั้งหน้า +${pct(p.ghost)} (แถบจาง)` : ''}`)
+    fit(this.legend, 17)
+    // good news first (a new line / free gems are why you press), then the risk
     const gift = REFINE.lineAt.includes(n) && !lines[REFINE.lineAt.indexOf(n)]
-    this.info.setText(`${rate < 1 ? 'พลาดแล้วของแตก: บวก ขั้น การ์ด ค่าพิเศษ ยังอยู่ครบ แค่ไม่ให้ค่าพลังจนกว่าจะซ่อม (เพชรหรือวัสดุ)' : 'ตีได้เลย ไม่มีพัง'}${gift ? ' · 🎁 ถึง +' + n + ' ครั้งแรกได้ค่าพิเศษ 1 บรรทัด' : ''}${REFINE.gemsAt[n] ? ` · 💎 ฉลอง +${n} ครั้งแรก` : ''}`)
-    fit(this.info, 34)
+    this.info.setText([
+      gift ? `🎁 ถึง +${n} ครั้งแรกได้ค่าพิเศษ 1 บรรทัด` : '',
+      REFINE.gemsAt[n] ? `💎 ฉลอง +${n} ครั้งแรกต่อชิ้น ได้เพชร ${REFINE.gemsAt[n]}` : '',
+      p.base < 1 ? 'พลาดแล้วของแตก: บวก ขั้น การ์ด ค่าพิเศษ ยังอยู่ครบ แค่ไม่ให้ค่าพลังจนกว่าจะซ่อม' : 'ตีได้เลย ไม่มีพัง',
+    ].filter(Boolean).join('\n'))
+    fit(this.info, 36)
   }
 
   private n() { return refineOf(save(), this.it.id) + 1 }
@@ -63,15 +72,17 @@ export class RefinePanel implements VerbPanel {
   action(): VerbAction | null {
     const s = save(), r = refineOf(s, this.it.id)
     if (r >= REFINE.max) return { label: '✓ สูงสุดแล้ว', enabled: false }
-    const n = r + 1, cost = refineCost(this.it, n), rate = nextRate(s, this.it), ok = canAffordAuto(s, cost), short = zenyShort(s, cost)
-    return { label: ok || !short ? `ตี +${n} · ${totalZeny(s, cost)}z · ${Math.round(rate * 100)}%` : `ตี +${n} · ขาด ${short}z`, enabled: ok, fill: rate < 1 ? 0xff9f5a : undefined }
+    const n = r + 1, cost = refineCost(this.it, n), rate = nextRate(s, this.it)
+    return { label: pressLabel(`ตี +${n} (${Math.round(rate * 100)}%)`, s, cost), enabled: canAffordAuto(s, cost), fill: rate < 1 ? 0xff9f5a : undefined }
   }
 
+  /** "+4: before  →  +5: after" so the gain is visible at a glance. */
   preview(): Preview | null {
     const s = save(), it = this.it, r = refineOf(s, it.id)
     if (r >= REFINE.max) return null
-    const sp = splitStatLine(forgeItem(it, gradeOf(s, it.id), r + 1, linesOf(s, it.id)))
-    return { text: `→ +${r + 1}: ${sp.good}${sp.curse ? ` · 💀 ${sp.curse}` : ''}`, color: '#f2d48a' }
+    const before = statSplit(s, it).good || it.desc
+    const sp = statSplit({ ...s, refine: { ...s.refine, [it.id]: r + 1 } }, it)
+    return { text: `+${r}: ${before}  →  +${r + 1}: ${sp.good}${sp.curse ? ` · 💀 ${sp.curse}` : ''}`, color: '#f2d48a' }
   }
 
   /** When the press buys fodder, one confirm lists everything it takes. Never charge silently (kept from the old screen). */
@@ -87,6 +98,7 @@ export class RefinePanel implements VerbPanel {
     const res = tryRefine(s, it, Math.random, autoBuy)
     if (!res.ok) { toast(this.ctx.scene, res.why === 'short' ? 'วัตถุดิบ เชื้อหลอม หรือ zeny ยังไม่พอค่ะ' : 'ตีชิ้นนี้ต่อไม่ได้ค่ะ', UI.red); this.ctx.changed(); return }
     persist()
+    this.ctx.busy(600) // the confirm path calls go() later, outside the shell's act() guard
     if (res.success) {
       const notes = [res.line ? `ค่าพิเศษ ${lineText(res.line)}` : '', res.gems ? `💎+${res.gems}` : ''].filter(Boolean)
       this.ctx.fx.success(`+${res.n}`, notes)
@@ -97,6 +109,4 @@ export class RefinePanel implements VerbPanel {
     }
     this.ctx.changed()
   }
-
-  destroy() { /* no timers of its own: fx live on the stage */ }
 }

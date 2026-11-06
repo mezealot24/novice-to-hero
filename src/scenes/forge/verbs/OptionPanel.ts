@@ -28,6 +28,6 @@ export class OptionPanel implements VerbPanel {
   cost() { return null }
   action(): VerbAction | null { return { label: '🎲 เปิดหน้าสุ่ม', enabled: (linesOf(save(), this.it.id).some(Boolean)) } }
   preview(): Preview | null { return null }
-  act() { this.ctx.legacy.linesView(this.it) }
+  act() { this.ctx.legacyLines(this.it) }
   destroy() { /* popup is owned by LegacyForge */ }
 }

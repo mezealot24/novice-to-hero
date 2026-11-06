@@ -220,7 +220,10 @@ export function chip(scene: Phaser.Scene, x: number, y: number, icon: string, la
     const tone = CHIP_TONE[st]
     let full = `${i} ${l}`.trim()
     t.setText(full).setColor(tone.text)
-    if (maxW > 0) while (full.length > 1 && t.width + 20 > maxW) { full = full.slice(0, -1); t.setText(`${full.trimEnd()}…`) } // Thai text: cut by measuring, not by char count
+    if (maxW > 0) { // cut by measuring, one code point at a time (never inside an emoji or a Thai combining mark pair)
+      const cps = Array.from(full)
+      while (cps.length > 1 && t.width + 20 > maxW) { cps.pop(); t.setText(`${cps.join('').trimEnd()}…`) }
+    }
     c.chipW = Math.ceil(t.width) + 20
     g.clear().fillStyle(tone.fill, 1).fillRoundedRect(0, -h / 2, c.chipW, h, 13).lineStyle(1.5, tone.line, 1).strokeRoundedRect(0, -h / 2, c.chipW, h, 13)
     return c
@@ -379,10 +382,12 @@ export interface IconTabs extends Phaser.GameObjects.Container {
   setTab(i: number): IconTabs
   /** reason = shown as a toast when the tab is tapped; undefined unlocks it. */
   setLocked(i: number, reason?: string): IconTabs
+  /** Swap what a slot shows (e.g. 🔧 replaces ⚒️ while the item is broken). */
+  setSlot(i: number, item: { icon: string; label: string }): IconTabs
 }
 
 /** Verb tabs (icon over a short label). State changes redraw in place. Tapping a locked tab explains why instead of switching. x = left edge, y = centre. */
-export function iconTabs(scene: Phaser.Scene, x: number, y: number, items: IconTabItem[], onPick: (i: number) => void, o: { w?: number; h?: number; start?: number } = {}): IconTabs {
+export function iconTabs(scene: Phaser.Scene, x: number, y: number, items: IconTabItem[], onPick: (i: number) => void, o: { w?: number; h?: number; start?: number; gate?: () => boolean } = {}): IconTabs {
   const w = o.w ?? 84, h = o.h ?? 56, gap = 6
   const locks = items.map((it) => it.locked)
   let active = -1
@@ -393,6 +398,7 @@ export function iconTabs(scene: Phaser.Scene, x: number, y: number, items: IconT
     const lb = scene.add.text(0, 14, it.label, { fontFamily: FONT_UI, fontSize: '12px', fontStyle: 'bold', color: UI.text, align: 'center', wordWrap: { width: w - 8 } }).setOrigin(0.5, 0.5)
     const cell = scene.add.container(i * (w + gap) + w / 2, 0, [g, ic, lb]).setSize(w, h).setInteractive({ useHandCursor: true })
     cell.on('pointerup', () => {
+      if (o.gate && !o.gate()) return // e.g. the forge is busy playing an outcome
       const why = locks[i]
       if (why) { toast(scene, why, UI.red); return }
       unlock(); sfx.pop(); if (i === active) return; c.setTab(i); onPick(i)
@@ -405,10 +411,21 @@ export function iconTabs(scene: Phaser.Scene, x: number, y: number, items: IconT
     cell.g.clear().fillStyle(on ? UI.panelHi : UI.panel, 1).fillRoundedRect(-w / 2, -h / 2, w, h, 10)
     cell.g.lineStyle(on ? 3 : 1.5, on ? COLORS.gold : UI.line, 1).strokeRoundedRect(-w / 2, -h / 2, w, h, 10)
     cell.ic.setText(lock ? '🔒' : items[i].icon).setAlpha(lock ? 0.5 : 1)
+    cell.lb.setText(items[i].label)
     cell.lb.setAlpha(lock ? 0.5 : on ? 1 : 0.75)
   })
   c.setTab = (i) => { if (i === active || locks[i]) return c; active = i; draw(); return c } // a locked tab can't be made active
   c.setLocked = (i, reason) => { locks[i] = reason; draw(); return c }
-  c.setTab(o.start ?? 0)
+  c.setSlot = (i, item) => { items[i] = { ...items[i], ...item }; draw(); return c }
+  active = o.start ?? 0 // -1 = nothing active (no item on the anvil)
+  draw()
   return c
+}
+
+/** Clip a wrapped text to a height budget, ending with "…" (keeps cards from running into the row below). Cuts by code point, so an emoji is never split. */
+export function fit(t: Phaser.GameObjects.Text, maxH: number) {
+  if (t.height <= maxH) return t
+  const cps = Array.from(t.text)
+  while (cps.length > 1 && t.height > maxH) { cps.pop(); t.setText(`${cps.join('').trimEnd()}…`) }
+  return t
 }

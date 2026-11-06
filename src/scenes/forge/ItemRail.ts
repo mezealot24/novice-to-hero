@@ -8,7 +8,7 @@ import { isBroken, isTainted, refineOf, gradeOf, type Item } from '../../data/me
 import { isWorn, save, type SaveData } from '../../save'
 import { sfx } from '../../sfx'
 import { button, itemIcon, panel, txt, UI, type Btn, type ItemIcon } from '../../ui'
-import { fit } from './legacy'
+import { fit } from '../../ui'
 import { iconState, railItems } from './state'
 
 const ROW_H = 52, PER = 7, ROW_GAP = 4
@@ -28,7 +28,8 @@ export class ItemRail {
   private empty?: Phaser.GameObjects.Text
   selected?: string
 
-  constructor(private scene: Phaser.Scene, private x: number, private y: number, private w: number, private onPick: (id: string) => void) {
+  constructor(private scene: Phaser.Scene, private x: number, private y: number, private w: number, private onPick: (id: string) => void, init?: { mineOnly: boolean; page: number }) {
+    if (init) { this.mineOnly = init.mineOnly; this.page = init.page }
     this.root = scene.add.container(0, 0)
     this.head = scene.add.container(0, 0)
     this.root.add(this.head)
@@ -37,6 +38,9 @@ export class ItemRail {
   }
 
   get container() { return this.root }
+
+  /** Filter + page, kept by the shell across mode switches. */
+  get view() { return { mineOnly: this.mineOnly, page: this.page } }
 
   /** Currently visible item ids' source list (all pages). */
   items(): Item[] { return this.list }
@@ -107,7 +111,8 @@ export class ItemRail {
 
   private caption(s: SaveData, it: Item): string {
     const g = gradeOf(s, it.id), r = refineOf(s, it.id)
-    const bits = [gradeStars(g, gradeCap(it)), r ? `+${r}` : '', isWorn(s, it.id) ? 'ใส่อยู่' : '', isBroken(s, it.id) ? '💔 แตก' : '', isTainted(s, it.id) ? '🌑' : '']
+    const fails = s.refinePity?.[it.id] ?? 0 // 🔥N = N misses in a row stored on this item (the next refine is easier)
+    const bits = [gradeStars(g, gradeCap(it)), r ? `+${r}` : '', fails ? `🔥${fails}` : '', isWorn(s, it.id) ? 'ใส่อยู่' : '', isBroken(s, it.id) ? '💔 แตก' : '', isTainted(s, it.id) ? '🌑' : '']
     return bits.filter(Boolean).join(' · ')
   }
 

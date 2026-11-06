@@ -34,7 +34,7 @@ export class LegacyForge {
   /** Draw one of the stash / craft tabs (rebuilds; called on mode change and after an action). */
   show(tab: Tab) {
     this.clear()
-    this.body = this.scene.add.container(0, 0)
+    this.body = this.scene.add.container(0, 10) // below the mode tabs / stash sub-tabs
     const b = this.body, s = save()
     if (tab === 'mats') { this.matsTab(); return }
     const all = tab === 'craft' ? this.craftList() : FODDER
@@ -79,7 +79,7 @@ export class LegacyForge {
     b.add([line, b3, b5])
     const by = y + ch - 24
     if (!open) { b.add(txt(this.scene, x + cw / 2, by, `🔒 ล้ม${dgBoss(c.dg)}ก่อนถึงจะตีได้`, 14, UI.sub).setOrigin(0.5)); return }
-    if (owned) { b.add(txt(this.scene, x + cw / 2, by, `✓ มีแล้ว ${gradeStars(gradeOf(s, it.id), gradeCap(it))} (อัปต่อที่แท็บอัปขั้น)`, 13, UI.green).setOrigin(0.5)); return }
+    if (owned) { b.add(txt(this.scene, x + cw / 2, by, `✓ มีแล้ว ${gradeStars(gradeOf(s, it.id), gradeCap(it))} (อัปต่อที่ ⚒️ ทั่ง)`, 13, UI.green).setOrigin(0.5)); return }
     const cost = craftCost(it)
     b.add(this.costText(x + 14, by - 30, cost, cw - 28))
     b.add(button(this.scene, x + cw / 2, by, cw - 32, 34, 'ตีเลย', () => this.craft(it), { size: 16 }).setEnabled(canPay(s, cost)))
@@ -226,12 +226,4 @@ export class LegacyForge {
     return t
   }
 
-}
-
-/** Clip a wrapped text to a height budget, ending with "…" (keeps cards from running into their cost row). */
-export function fit(t: Phaser.GameObjects.Text, maxH: number) {
-  if (t.height <= maxH) return t
-  let s = t.text
-  while (s.length > 1 && t.height > maxH) { s = s.slice(0, -2); t.setText(s + '…') }
-  return t
 }

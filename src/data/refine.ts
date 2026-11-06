@@ -97,6 +97,13 @@ export function canAffordAuto(s: Wallet, c: ForgeCost) {
   if (!c.fodder || pickFodder(s.fodder, c.fodder)) return canAfford(s, c)
   return !!fodderToBuy(s, c) && canAfford(s, { ...c, fodder: undefined, zeny: totalZeny(s, c) })
 }
+/** Exactly what a press is short of (for the button label): materials by id, zeny (counting fodder bought on the spot), gems, and "no fodder fits at any price". All empty/0 = affordable. */
+export function costGap(s: Wallet, c: ForgeCost) {
+  const mats: Record<string, number> = {}
+  for (const [id, n] of Object.entries(c.mats)) { const d = n - (s.mats?.[id] ?? 0); if (d > 0) mats[id] = d }
+  const noFodder = !!c.fodder && !pickFodder(s.fodder, c.fodder) && !fodderToBuy(s, c)
+  return { mats, zeny: zenyShort(s, c), gems: Math.max(0, (c.gems ?? 0) - s.gems), noFodder }
+}
 /** Buy the missing fodder (all or nothing, only when the whole press is affordable). Returns what was bought. */
 function buyMissing(s: Wallet, c: ForgeCost): Item | null | false {
   if (!canAffordAuto(s, c)) return false
@@ -196,14 +203,26 @@ export type RefineResult =
 /** Chance shown on the button for the next try. */
 export const nextRate = (s: SaveData, it: Item) => refineRate(refineOf(s, it.id) + 1, s.refinePity?.[it.id] ?? 0)
 
+/** Can this item be refined right now? One answer for tryRefine and for the UI lock (same order as the rules). */
+export function refineCheck(s: SaveData, it: Item): 'ok' | 'cant' | 'tainted' | 'broken' | 'max' {
+  if (!refinable(it)) return 'cant'
+  if (isTainted(s, it.id)) return 'tainted' // v89: a tainted item is locked for good
+  if (isBroken(s, it.id)) return 'broken'
+  return refineOf(s, it.id) >= REFINE.max ? 'max' : 'ok'
+}
+/** The parts of the next refine chance, for the meter: base rate, the pity share, and the ghost = what one more miss would add. All 0..1. */
+export function rateParts(s: SaveData, it: Item) {
+  const n = refineOf(s, it.id) + 1, base = Math.min(1, REFINE.rate[n] ?? 0), fails = s.refinePity?.[it.id] ?? 0
+  const pity = Math.min(1 - base, fails * REFINE.pity), ghost = Math.min(1 - base - pity, REFINE.pity)
+  return { n, base, pity, ghost, fails, rate: base + pity }
+}
+
 /** One refine try at +(r+1). Success: +1 (and the bonus line / free gems the first time at +5 / +7 / +10).
  * Fail: the item breaks (keeps its +, grade, cards and lines; gives nothing until repaired), pity +1. */
 export function tryRefine(s: SaveData, it: Item, rnd: () => number = Math.random, autoBuy = false): RefineResult {
-  if (!refinable(it)) return { ok: false, why: 'cant' }
-  if (isTainted(s, it.id)) return { ok: false, why: 'tainted' } // v89: a tainted item is locked for good
-  if (isBroken(s, it.id)) return { ok: false, why: 'broken' }
+  const chk = refineCheck(s, it)
+  if (chk !== 'ok') return { ok: false, why: chk }
   const r = refineOf(s, it.id)
-  if (r >= REFINE.max) return { ok: false, why: 'max' }
   const n = r + 1, rate = nextRate(s, it), cost = refineCost(it, n)
   const bought = autoBuy ? buyMissing(s, cost) : null
   if (bought === false) return { ok: false, why: 'short' }
@@ -261,11 +280,17 @@ export function reroll(s: SaveData, it: Item, locked: number[] = [], rnd: () => 
 
 // ---------- grade-up (v89: moved here from ForgeScene so the taint lock lives in a pure rule) ----------
 export type GradeResult = 'ok' | 'tainted' | 'max' | 'short'
+/** Can this item go up a grade right now? 'cant' = its cap is 1 (starter gear), 'max' = already at its cap. */
+export function gradeCheck(s: SaveData, it: Item): 'ok' | 'cant' | 'tainted' | 'max' {
+  if (isTainted(s, it.id)) return 'tainted'
+  if (gradeCap(it) <= 1) return 'cant'
+  return gradeOf(s, it.id) >= gradeCap(it) ? 'max' : 'ok'
+}
 /** Raise an item one grade (always succeeds when paid). A tainted item can't be graded. Nothing is spent unless 'ok'. */
 export function upgradeGrade(s: SaveData, it: Item): GradeResult {
-  if (isTainted(s, it.id)) return 'tainted'
+  const chk = gradeCheck(s, it)
+  if (chk !== 'ok') return chk === 'tainted' ? 'tainted' : 'max'
   const n = gradeOf(s, it.id) + 1
-  if (n > gradeCap(it)) return 'max'
   if (spend(s, gradeCost(it, n)) === false) return 'short'
   ;(s.grade ??= {})[it.id] = n
   return 'ok'

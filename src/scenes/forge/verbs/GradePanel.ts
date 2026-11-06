@@ -1,23 +1,25 @@
-// ⬆️ Grade-up: always succeeds once paid. Rules: upgradeGrade / gradeCost (data/refine.ts, data/craft.ts).
-import Phaser from 'phaser'
-import { GRADE, gradeCap, gradeCost, gradeItem } from '../../../data/craft'
-import { gradeOf, itemStatLine, slotCount, splitStatLine, type Item } from '../../../data/meta'
-import { canAfford, upgradeGrade } from '../../../data/refine'
+// ⬆️ Grade-up: always succeeds once paid. Rules: upgradeGrade / gradeCheck / gradeCost (data/refine.ts, data/craft.ts).
+import type Phaser from 'phaser'
+import { forgeItem, GRADE, gradeCap, gradeCost } from '../../../data/craft'
+import { gradeOf, itemStatLine, linesOf, refineOf, slotCount, splitStatLine, type Item } from '../../../data/meta'
+import { canAffordAuto, upgradeGrade } from '../../../data/refine'
 import { persist, save } from '../../../save'
 import { toast, txt, UI } from '../../../ui'
+import { pressLabel } from '../state'
 import type { ForgeCtx, Preview, VerbAction, VerbPanel } from '../types'
+import { PanelBase } from './PanelBase'
 
-export class GradePanel implements VerbPanel {
+export class GradePanel extends PanelBase implements VerbPanel {
   private it!: Item
   private head!: Phaser.GameObjects.Text
   private notes!: Phaser.GameObjects.Text
-  constructor(private ctx: ForgeCtx) {}
+  constructor(private ctx: ForgeCtx) { super() }
 
   mount(box: Phaser.GameObjects.Container, it: Item) {
     this.it = it
     this.head = txt(this.ctx.scene, 16, 12, '', 18, UI.text, true).setWordWrapWidth(624)
     this.notes = txt(this.ctx.scene, 16, 48, '', 13, UI.sub).setWordWrapWidth(624)
-    box.add([this.head, this.notes])
+    this.put(box, this.head, this.notes)
     this.refresh()
   }
 
@@ -43,13 +45,16 @@ export class GradePanel implements VerbPanel {
   action(): VerbAction | null {
     const n = this.next()
     if (!n) return { label: '✓ สูงสุดแล้ว', enabled: false }
-    return { label: `อัปเป็น ★${n}`, enabled: canAfford(save(), gradeCost(this.it, n)) }
+    const s = save(), c = gradeCost(this.it, n)
+    return { label: pressLabel(`อัปเป็น ★${n}`, s, c), enabled: canAffordAuto(s, c) }
   }
 
+  /** The next grade as worn: keeps the item's refine and bonus lines, so the numbers match what it will really give. */
   preview(): Preview | null {
     const n = this.next()
     if (!n) return null
-    const sp = splitStatLine(gradeItem(this.it, n))
+    const s = save(), it = this.it
+    const sp = splitStatLine(forgeItem(it, n, refineOf(s, it.id), linesOf(s, it.id)))
     return { text: `→ ★${n}: ${sp.good}${sp.curse ? ` · 💀 ${sp.curse}` : ''}`, color: GRADE.colors[n] }
   }
 
@@ -61,6 +66,4 @@ export class GradePanel implements VerbPanel {
     this.ctx.say(`เป็น ★${n} ${GRADE.names[n]} แล้ว ฝีมือเราไม่เบานะ`)
     this.ctx.changed()
   }
-
-  destroy() { /* nothing outlives the box */ }
 }
