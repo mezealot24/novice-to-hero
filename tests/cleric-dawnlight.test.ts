@@ -40,3 +40,17 @@ test('save: old ฟื้นคืน points and the dropped talent version come
   assert.deepEqual(Object.keys(s.jobTalents), ['1'])
   assert.equal(talentFree(s.jobTalents, 40), 6)
 })
+
+test('v86 Cleric ult พรคุ้มครอง costs Mana (like Mage / Swordsman)', async () => {
+  const { JOBS, CLERIC_KIT } = await import('../src/data/jobs')
+  const { ultCost } = await import('../src/data/skill-math')
+  assert.equal(ultCost(JOBS.cleric), CLERIC_KIT.ultMana)
+  assert.ok(CLERIC_KIT.ultMana > 0)
+  assert.match(JOBS.cleric.ult.desc, /^Mana \d+:/)
+})
+
+test('v86 Crusader / Monk ults stay Mana-free (Grand Cross pays HP, Tempest Bell is free)', async () => {
+  const { JOB2 } = await import('../src/data/jobs2')
+  assert.equal(JOB2.crusader.ult.cost, 0)
+  assert.equal(JOB2.monk.ult.cost, 0)
+})

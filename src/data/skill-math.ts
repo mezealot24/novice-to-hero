@@ -185,7 +185,7 @@ export const S2N = {
 
 // ---------- costs / cooldowns ----------
 export const autoCost = (job: JobDef, st: Stats) => Math.max(10, job.auto.cost - st.autoCostCut)
-/** Mana the ult costs (Mage, Swordsman); 0 for every other job. */
+/** Mana the ult costs (Mage, Swordsman, Cleric since v86); 0 for every other job. */
 export const ultCost = (job: JobDef) => (job.resource === 'mana' ? job.ult.cost ?? 0 : 0)
 /** Ult cooldown in hero turns before relics (gear smashCd lowers it for every job). */
 export const ultCooldown = (job: JobDef, st: Stats) => {
