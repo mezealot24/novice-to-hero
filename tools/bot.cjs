@@ -50,9 +50,9 @@ if (D >= 6) { // D6 profile (Q 2026-11-04 level dungeons): Base Lv 45 (135 point
 {
   const lvTo = (lv) => Math.min(5, Math.round(((lv || 1) - 1) * 10 / 12))
   const t = { [`${job}_s1p`]: lvTo(save.jobSkills.auto), [`${job}_ultp`]: lvTo(save.jobSkills.ult) }
-  if (process.env.S2) { t[process.env.S2] = 1; t[process.env.S2 + '_p'] = +(process.env.PL ?? 0); if (process.env.STAR) { t[process.env.S2 + '_p'] = 3; t[process.env.S2 + '_x'] = 1 } }
+  if (process.env.S2) { t[process.env.S2] = 1; t[process.env.S2 + '_p'] = +(process.env.PL ?? 0); if (process.env.STAR) { t[process.env.S2 + '_p'] = 5; t[process.env.S2 + '_x'] = 1 } } // v83: "+" max 5 (PL = its Lv 0..5)
   if (process.env.TREEX) Object.assign(t, JSON.parse(process.env.TREEX)) // extra web nodes, e.g. {"thief_core1":5}
-  Object.assign(save, { web: 1, jobTree: t, jobSkills: { auto: 1, ult: 1 } })
+  Object.assign(save, { web: 1, stretch: 1, jobTree: t, jobSkills: { auto: 1, ult: 1 } }) // stretch: skip the v83 refund migration
 }
 // EXTRA=1: also wear headgear + off-hand for the class and a second accessory (equipment screen v1)
 if (process.env.EXTRA) {
@@ -80,17 +80,17 @@ if (process.env.TAL) save.jobTalents = JSON.parse(process.env.TAL)
 // 2nd job (design/second-jobs-v1.md): JOB2=berserker|knight|rogue|mobster|crusader|monk|wizard|sage|beastmaster|innovator · PET=hawk|boar|wolf (Beastmaster) · J2LV=n (default 30) · J2T='{"node":lv}' replaces the preset web, J2T=0 empty · J2W=<weapon id> (default the mastery weapon, J2W=0 keeps gear)
 if (process.env.JOB2) {
   const j2 = process.env.JOB2
-  const preset = {
-    berserker: { berserker_s3p: 5, berserker_u2p: 5, bz_c1: 3, bz_c2: 3, bz_c3: 3, bz_c4: 1, bz_d1: 3, bz_d2: 3 },
-    knight: { knight_s3p: 5, knight_u2p: 5, kn_p1: 3, kn_p2: 1, kn_g1: 3, kn_g2: 3, kn_g3: 3, kn_g4: 1 },
-    rogue: { rogue_s3p: 5, rogue_u2p: 5, rg_c1: 3, rg_c2: 3, rg_c3: 3, rg_c4: 1, rg_k1: 3, rg_k2: 3, rg_k3: 3 },
-    mobster: { mobster_s3p: 5, mobster_u2p: 5, mb_e1: 3, mb_e2: 3, mb_e3: 3, mb_e4: 1, mb_p1: 3, mb_p2: 3, mb_p3: 3 },
-    crusader: { crusader_s3p: 5, crusader_u2p: 5, cr_s1: 3, cr_s2: 3, cr_s3: 3, cr_s4: 1, cr_d1: 3, cr_d2: 3, cr_d3: 3 },
-    monk: { monk_s3p: 5, monk_u2p: 5, mk_c1: 3, mk_c2: 3, mk_c3: 2, mk_c4: 1, mk_i1: 3, mk_i2: 3, mk_i3: 3 },
-    wizard: { wizard_s3p: 5, wizard_u2p: 5, wz_i1: 3, wz_i2: 3, wz_i3: 3, wz_i4: 1, wz_m1: 3, wz_m2: 3, wz_m3: 3 }, // Phase 5 Mage
-    sage: { sage_s3p: 5, sage_u2p: 5, sg_a1: 3, sg_a2: 3, sg_a3: 1, sg_a4: 1, sg_e1: 3, sg_e2: 3, sg_e3: 2, sg_r1: 3 },
-    beastmaster: { beastmaster_s3p: 5, beastmaster_u2p: 5, bm_w1: 3, bm_w2: 3, bm_w3: 3, bm_w4: 1, bm_h1: 3, bm_h2: 3, bm_h3: 1, bm_h4: 1 }, // Phase 4 Archer (2 ★ = 2 pets)
-    innovator: { innovator_s3p: 5, innovator_u2p: 5, in_g1: 3, in_g2: 3, in_g3: 2, in_g4: 1, in_r1: 3, in_r2: 2, in_r3: 3, in_r4: 1 },
+  const preset = { // v83 node levels: old full 1/2/3 -> 3/4/5 (★, +power and NO_STRETCH nodes keep theirs)
+    berserker: { berserker_s3p: 5, berserker_u2p: 5, bz_c1: 5, bz_c2: 5, bz_c3: 5, bz_c4: 1, bz_d1: 5, bz_d2: 5 },
+    knight: { knight_s3p: 5, knight_u2p: 5, kn_p1: 5, kn_p2: 1, kn_g1: 5, kn_g2: 5, kn_g3: 5, kn_g4: 1 },
+    rogue: { rogue_s3p: 5, rogue_u2p: 5, rg_c1: 5, rg_c2: 5, rg_c3: 5, rg_c4: 1, rg_k1: 5, rg_k2: 5, rg_k3: 5 },
+    mobster: { mobster_s3p: 5, mobster_u2p: 5, mb_e1: 5, mb_e2: 5, mb_e3: 5, mb_e4: 1, mb_p1: 5, mb_p2: 5, mb_p3: 5 },
+    crusader: { crusader_s3p: 5, crusader_u2p: 5, cr_s1: 5, cr_s2: 5, cr_s3: 5, cr_s4: 1, cr_d1: 5, cr_d2: 5, cr_d3: 5 },
+    monk: { monk_s3p: 5, monk_u2p: 5, mk_c1: 5, mk_c2: 5, mk_c3: 4, mk_c4: 1, mk_i1: 5, mk_i2: 5, mk_i3: 5 },
+    wizard: { wizard_s3p: 5, wizard_u2p: 5, wz_i1: 5, wz_i2: 5, wz_i3: 5, wz_i4: 1, wz_m1: 5, wz_m2: 5, wz_m3: 5 }, // Phase 5 Mage
+    sage: { sage_s3p: 5, sage_u2p: 5, sg_a1: 5, sg_a2: 5, sg_a3: 1, sg_a4: 1, sg_e1: 5, sg_e2: 5, sg_e3: 4, sg_r1: 5 },
+    beastmaster: { beastmaster_s3p: 5, beastmaster_u2p: 5, bm_w1: 5, bm_w2: 5, bm_w3: 5, bm_w4: 1, bm_h1: 5, bm_h2: 5, bm_h3: 1, bm_h4: 1 }, // Phase 4 Archer (2 ★ = 2 pets)
+    innovator: { innovator_s3p: 5, innovator_u2p: 5, in_g1: 5, in_g2: 5, in_g3: 4, in_g4: 1, in_r1: 5, in_r2: 4, in_r3: 5, in_r4: 1 },
   }[j2] || {}
   const t = process.env.J2T === '0' ? {} : process.env.J2T ? JSON.parse(process.env.J2T) : preset
   Object.assign(save, { job2: j2, job2Level: +(process.env.J2LV || 30), job2Xp: 0, job2Points: 0, job2Tree: t, jobLevel: 40 })

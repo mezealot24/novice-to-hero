@@ -1,13 +1,13 @@
 // 🏹 Archer skill tree + talents. Owned by the archer design thread; edit freely, only this file.
 // Spec: design/skill-tree-archer.md. Node ids are save data: never rename or remove a shipped id.
 // Behaviour flags (ar*, pierce, lockOn, dodgeStrike) live in Stats (game-data.ts) and are read in BattleScene.
-import { node as n, talent as t, type ClassTree } from '../tree-types'
+import { lvAt, node as n, talent as t, type ClassTree } from '../tree-types'
 import { KIT } from '../skill-math'
 
 const r2 = (rank: number, a: number, b: number) => (rank >= 2 ? b : a)
 const A = KIT.archerTree, pc = (x: number) => `${Math.round(x * 100)}%`
-/** Per-level table value (lv 1..n). */
-const at = (a: readonly number[], lv: number) => a[Math.max(1, Math.min(a.length, lv)) - 1] ?? 0
+/** Per-level table value (lv 1..n; v83: straight line between levels for stretched nodes). */
+const at = lvAt
 
 export const tree: ClassTree = {
   branches: [

@@ -157,6 +157,11 @@ export class HubScene extends Phaser.Scene {
       const n = s.webRefund
       delete s.webRefund; persist()
       this.time.delayedCall(300, () => confirm(this, '✨ ระบบสกิลใหม่!', `สกิลกับต้นสกิลรวมเป็นหน้าเดียวแล้ว + มีทักษะ 2 ให้เลือก\nคืนแต้มสกิลให้ ${n} แต้ม ไปลงใหม่ได้ฟรีค่ะ`, 'ไปหน้าสกิล', () => go(this, 'character', { tab: 3 })))
+    } else if (s.stretchRefund) { // v83 node-level stretch notice (once)
+      const { skill, job2 } = s.stretchRefund
+      delete s.stretchRefund; persist()
+      const back = [skill > 0 ? `แต้มสกิล ${skill}` : '', job2 > 0 ? `แต้มใยชั้น 2 ${job2}` : ''].filter(Boolean).join(' + ')
+      this.time.delayedCall(300, () => confirm(this, '✨ โหนดสกิลมีเลเวลมากขึ้น!', `โหนด 1→3 · 2→4 · 3→5 เลเวล (เต็มแล้วแรงเท่าเดิม)\nคืน ${back} ไปลงใหม่ได้ฟรีค่ะ`, 'ไปหน้าสกิล', () => go(this, 'character', { tab: 3 })))
     }
   }
 

@@ -28,6 +28,8 @@ export interface SaveData {
   pet?: PetId // 🐺 Beastmaster companion (picked in town, free to change); undefined = hawk
   web?: 1 // save migrated to the skill web (v27)
   webRefund?: number // skill points refunded by that migration, shown once in town
+  stretch?: 1 // v83: webs refunded once for the node-level stretch (data/tree.ts TREE_RULES.stretch)
+  stretchRefund?: { skill: number; job2: number } // points that migration gave back, shown once in town
   jobTalents?: Record<string, { id: string; rank: number }> // talent row "1".."4" -> pick + rank; Talent Points are derived from Job Lv (data/tree.ts)
   stats: Record<BaseStat, number>
   zeny: number
@@ -71,7 +73,7 @@ let cache: SaveData | null = null
 export function newSave(name: string, race: RaceId): SaveData {
   const s = STAT_RULES.start
   return {
-    v: 1, web: 1, name, race, baseLevel: 1, baseXp: 0, statPoints: 3,
+    v: 1, web: 1, stretch: 1, name, race, baseLevel: 1, baseXp: 0, statPoints: 3,
     jobLevel: 1, jobXp: 0, skillPoints: 0, skills: { smash: 1, firstaid: 0, tough: 0 }, job: 'novice', jobSkills: { auto: 1, ult: 1 },
     stats: { str: s, vit: s, wis: s, dex: s, int: s, luk: s, agi: s },
     zeny: 100, gems: 0,
@@ -98,6 +100,7 @@ export function load(): SaveData | null {
     if (!s.web) migrateToWeb(s)
     migrateThiefWeb(s)
     migratePriestBless(s)
+    migrateNodeStretch(s)
     migrateGear(s)
     s.modes ??= {} // v51 game modes: additive, old saves start with no records
     delete (s as SaveData & { reroll?: unknown }).reroll // v84 option gacha: no more pending keep-old / take-new (the old line stays)
@@ -178,6 +181,16 @@ function migratePriestBless(s: SaveData) {
   const t = s.jobTree
   if (s.job !== 'cleric' || !t || (t.cl_bless ?? 0) <= 1) return
   s.skillPoints += t.cl_bless - 1; t.cl_bless = 1
+}
+/** v83 (Q 2026-11-06) node levels 1->3 / 2->4 / 3->5 at the same full value: the old levels no longer mean the same, so
+ *  refund the whole class web and the whole ใยชั้น 2 web once (free re-spend). Novice skills and talents are untouched. */
+export function migrateNodeStretch(s: SaveData) {
+  if (s.stretch) return
+  const skill = resetTree(s), job2 = s.job2Tree ? resetTree2(s) : 0
+  s.skillPoints += skill
+  if (job2 > 0) s.job2Points = (s.job2Points ?? 0) + job2
+  if (skill + job2 > 0) s.stretchRefund = { skill, job2 }
+  s.stretch = 1
 }
 /** v27 skill web: class skill levels and the old tree become web nodes with new rules, so refund every point once. */
 function migrateToWeb(s: SaveData) {

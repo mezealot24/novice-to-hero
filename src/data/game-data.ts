@@ -269,7 +269,7 @@ export interface Stats {
   spearLuck: number // Cleric: chance per hero turn to call 1 light spear (from LUK, v37)
   s1Pow: number // skill web: ทักษะ 1 (auto) power share (replaces class skill levels)
   ultPow: number // skill web: Ult power share
-  s2Lv: number // skill web: level of the picked Skill 2's "+" node (0..3)
+  s2Lv: number // skill web: picked Skill 2's "+" node, 0..3 (v83: node Lv 1..5 x 3/5, so it can be fractional; Lv 5 = 3)
   s2Star: number // skill web: 1 = the picked Skill 2's ★ node
   spellCrit: number // 0..1 crit chance for magic hits (Q 2026-11-03: magic crits only via talent/item/card), uses critMul
 }
