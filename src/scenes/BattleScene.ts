@@ -895,7 +895,7 @@ export class BattleScene extends Phaser.Scene {
   private boomUsed = false // Knight Spear Boomerang used this wave
   private firstSwing = false // Knight Charge Attack: first basic swing of the wave
   private forceCrit = false
-  // ----- v87 Cleric web 🌄 แสงรุ่งอรุณ (KIT.clericTree.dawn): the Ult smash adds bonus magic damage (STR + WIS + matk x M.ATK) -----
+  // ----- v92 Cleric web 🌄 แสงรุ่งอรุณ (KIT.clericTree.dawn): the Ult smash adds bonus magic damage (STR + WIS + matk x M.ATK) -----
   /** Bonus magic hit on every Ult smash target (x hitPow like the rest of the ult); ★ = sure crit + crit dmg; heals a share of the front hit. */
   private dawnBonus(targets: Mon[], hitPow: number) {
     const D = KIT.clericTree.dawn, st = this.st, s = save()
@@ -1908,7 +1908,7 @@ export class BattleScene extends Phaser.Scene {
       case 'cleric': { // v58 melee hybrid (Q 2026-11-04): smash all (P.ATK) + Holy Light on random monsters (M.ATK) + timed shield
         const charging = this.alive().some((m) => m.charging)
         if (live[0]) await this.maceSmash(live[0], () => { live.forEach((m) => this.strike(m, clericUltSmash(this.st) * hitPow * (1 + this.st.pskill))); this.cameras.main.flash(120, 255, 240, 170) })
-        this.dawnBonus(live.filter((m) => !m.dead), hitPow) // v87 🌄 แสงรุ่งอรุณ: bonus magic hit on every smash target still standing
+        this.dawnBonus(live.filter((m) => !m.dead), hitPow) // v92 🌄 แสงรุ่งอรุณ: bonus magic hit on every smash target still standing
         for (let i = 0; i < clericUltLights(this.st); i++) { const t = this.alive(); if (!t.length) break; await this.holyLight(t[Phaser.Math.Between(0, t.length - 1)], CLERIC_KIT.ultLight * hitPow) }
         this.addShield(this.st.maxHp * CLERIC_KIT.ultShield * pow * (charging ? 1 + this.st.ultChargeShield : 1)) // talent: ใต้ปีกเทพ · lasts shieldTurns, capped
         if (this.st.clPurify > 0) { // Ult web ★: ไฟชำระ

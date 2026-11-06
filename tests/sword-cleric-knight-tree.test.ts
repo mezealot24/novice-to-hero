@@ -92,7 +92,7 @@ test('each new node sets its field (default 0, grows with level, readable text)'
     swordsman_c1: ['swFlow'], swordsman_c2: ['swFlowMana'], swordsman_c3: ['swFlowCrit'], swordsman_c4: ['swFlowStar'],
     swordsman_d1: ['swBreak'], swordsman_d2: ['swBreakLeech'], swordsman_d3: ['swBreakSpread'], swordsman_d4: ['swShatter'],
     cleric_c1: ['clFaith'], cleric_c2: ['clFaithOver'], cleric_c3: ['clFaithHeal'], cleric_c4: ['clOverBurst'],
-    cleric_dn1: ['clDawnCrit'], cleric_dn2: ['clDawnHeal'], cleric_dn3: ['clDawnSplash'], cleric_dn4: ['clDawnUlt'], // v86 🌄 รุ่งอรุณ
+    cleric_dn1: ['clDawn'], cleric_dn2: ['clDawnHeal'], cleric_dn3: ['clDawnAmp'], cleric_dn4: ['clDawnUlt', 'clDawnCrit'], // v92 🌄 รุ่งอรุณ
     kn_o1: ['j2Banner'], kn_o2: ['j2Provoke'], kn_o3: ['j2BannerKill'], kn_o4: ['j2BannerAura', 'j2Guard'],
     kn_r1: ['j2Sweep'], kn_r2: ['j2SweepPush'], kn_r3: ['j2SweepGauge'], kn_r4: ['j2SweepStar'],
   }

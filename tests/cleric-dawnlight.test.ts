@@ -2,7 +2,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { heroStats } from '../src/data/meta'
-import { KIT } from '../src/data/skill-math'
+import { clericUltSmash, dawnBonus } from '../src/data/skill-math'
 import { branchesOf, nodesOf, talentFree, talentsOf } from '../src/data/tree'
 import { migrateClericDawn, newSave } from '../src/save'
 
@@ -16,17 +16,25 @@ test('the Ult branch cleric_d is now รุ่งอรุณ with 4 nodes (5 / 
   assert.deepEqual(talentsOf('cleric', 2).map((x) => x.id), ['cleric_t2_regen', 'cleric_t2_holy', 'cleric_t2_wing'])
 })
 
-test('full branch numbers: crit +75%, heal 35%, splash 60%, ★ ult charge', () => {
-  const D = KIT.clericTree.dawn
-  assert.equal(D.every, 3)
+test('v92 full branch numbers: bonus share 100%, heal 30%, +60% dmg, ★ sure crit +50% crit dmg', () => {
   const st = heroStats(tree({ cleric_ultp: 1, cleric_dn1: 5, cleric_dn2: 5, cleric_dn3: 5, cleric_dn4: 1 }))
-  assert.equal(st.clDawn, 1)
-  assert.ok(Math.abs(st.clDawnCrit - 0.75) < 1e-9)
-  assert.ok(Math.abs(D.heal + st.clDawnHeal - 0.35) < 1e-9)
-  assert.ok(Math.abs(st.clDawnSplash - 0.6) < 1e-9)
+  assert.ok(Math.abs(st.clDawn - 1) < 1e-9)
+  assert.ok(Math.abs(st.clDawnHeal - 0.3) < 1e-9)
+  assert.ok(Math.abs(st.clDawnAmp - 0.6) < 1e-9)
   assert.equal(st.clDawnUlt, 1)
+  assert.ok(Math.abs(st.clDawnCrit - 0.5) < 1e-9)
   const lv1 = heroStats(tree({ cleric_ultp: 1, cleric_dn1: 1 }))
-  assert.ok(Math.abs(lv1.clDawnCrit - 0.15) < 1e-9) // Lv 1 of 5 = old 0.6
+  assert.ok(Math.abs(lv1.clDawn - 0.2) < 1e-9) // Lv 1 of 5 = old 0.6 x 1/3
+})
+
+test('v92 Ult smash = 150% + 50%/Lv P.ATK; dawn bonus = (STR + WIS + 10% M.ATK) x share x (1 + amp)', () => {
+  const lv = (n: number) => clericUltSmash(heroStats(tree({ cleric_ultp: n })))
+  assert.ok(Math.abs(lv(1) - 2) < 1e-9)
+  assert.ok(Math.abs(lv(5) - 4) < 1e-9)
+  const st = { ...heroStats(tree({ cleric_ultp: 1 })), matk: 100, clDawn: 1, clDawnAmp: 0 }
+  assert.equal(dawnBonus(st, 50, 50), 110) // Q's example
+  assert.equal(dawnBonus({ ...st, clDawnAmp: 0.6 }, 50, 50), 176)
+  assert.equal(dawnBonus({ ...st, clDawn: 0 }, 50, 50), 0)
 })
 
 test('save: old ฟื้นคืน points and the dropped talent version come back', () => {

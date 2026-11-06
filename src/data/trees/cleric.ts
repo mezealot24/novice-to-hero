@@ -18,7 +18,7 @@ export const tree: ClassTree = {
     // v86 (Q 2026-11-06): ⛪ ฟื้นคืน replaced by 🌄 รุ่งอรุณ (same branch id, new node ids; old points refunded in save.ts)
     // v86 (Q 2026-11-06): free core column (not in ATTACH, like Mage แก่นเวท) for the Priest's Mana
     { id: 'cleric_core', job: 'cleric', name: 'แก่นศรัทธา', icon: '💠', blurb: 'Mana: ฟื้นตาม STR/WIS · INT เป็น STR · โดนตีได้ Mana' },
-    { id: 'cleric_d', job: 'cleric', name: 'รุ่งอรุณ', icon: '🌄', blurb: 'ตีปกติครบ 3 = ทุบแสงคริแน่ + ฮีล · แสงแตกใส่ทุกตัว · ★ Ult ชาร์จทันที' },
+    { id: 'cleric_d', job: 'cleric', name: 'รุ่งอรุณ', icon: '🌄', blurb: 'Ult ทุบแถมดาเมจเวท STR + WIS + M.ATK · ฮีลจากแสง · ★ คริแน่' },
   ],
   nodes: [
     // A: Sanctuary
@@ -44,13 +44,13 @@ export const tree: ClassTree = {
       (lv) => ({ clIntToStr: K.intPer[Math.max(0, Math.min(2, Math.round(lv) - 1))] })),
     n('cleric_core3', 'cleric_core', 0, '💠', 'มานาพิทักษ์', 3, (lv) => `โดนตี (รวมที่โล่รับ) ได้ Mana ${pc(K.guard * lv)} ของดาเมจ (WIS ขยาย) · ใช้ Mana คืน HP ${pc(K.heal)} ของที่ใช้ · ต้นเวฟได้โล่ ${pc(K.shield * lv)} ของ Max Mana`,
       (lv) => ({ clManaGuard: K.guard * lv, clManaHeal: K.heal, clManaShield: K.shield * lv })),
-    // D: 🌄 รุ่งอรุณ (v86, Q 2026-11-06): every D.every basic attacks the next swing = sure-crit holy smash
-    // (STR + WIS + D.atk x P.ATK + D.matk x M.ATK) that heals a share of its damage. Numbers per OLD level (max 3), stretched to 5.
-    n('cleric_dn1', 'cleric_d', 1, '🌄', 'แสงรุ่งอรุณ', 3, (lv) => `ตีปกติครบ ${D.every} ครั้ง → ครั้งถัดไปทุบแสงคริแน่ (STR+WIS+${pc(D.atk)} P.ATK+${pc(D.matk)} M.ATK) ดาเมจคริ +${pc(D.crit * lv)} · ฮีล ${pc(D.heal)} ของดาเมจ (มอนธรรมดา x${D.weak})`,
-      (lv) => ({ clDawn: 1, clDawnCrit: D.crit * lv })),
-    n('cleric_dn2', 'cleric_d', 2, '💛', 'อรุณสมานแผล', 3, (lv) => `แสงรุ่งอรุณฮีลเพิ่ม +${pc(D.healLv * lv)} ของดาเมจ (รวม ${pc(D.heal + D.healLv * lv)})`, (lv) => ({ clDawnHeal: D.healLv * lv })),
-    n('cleric_dn3', 'cleric_d', 3, '☀️', 'แสงแตก', 3, (lv) => `แสงรุ่งอรุณแตกใส่มอนตัวอื่นทุกตัว ${pc(D.splash * lv)} ของดาเมจ (คริด้วย)`, (lv) => ({ clDawnSplash: D.splash * lv })),
-    n('cleric_dn4', 'cleric_d', 4, '🌅', 'อรุณพิทักษ์', 1, () => 'กด Ult = ชาร์จแสงรุ่งอรุณทันที (ตีปกติครั้งถัดไปทุบแสงคริแน่)', () => ({ clDawnUlt: 1 })),
+    // D: 🌄 รุ่งอรุณ (v92, Q 2026-11-07): Ult smash + bonus MAGIC damage (STR + WIS + D.matk x M.ATK) on every monster it hits.
+    // Same node ids as v86 (shipped a day earlier, same theme). Numbers per OLD level (max 3), stretched to 5.
+    n('cleric_dn1', 'cleric_d', 1, '🌄', 'แสงรุ่งอรุณ', 3, (lv) => `Ult ทุบแถมดาเมจเวท ${pc(D.share * lv)} ของ (STR + WIS + ${pc(D.matk)} M.ATK) ใส่ทุกตัวที่โดนทุบ`,
+      (lv) => ({ clDawn: D.share * lv })),
+    n('cleric_dn2', 'cleric_d', 2, '💛', 'อรุณสมานแผล', 3, (lv) => `ฮีล ${pc(D.heal * lv)} ของดาเมจแสงรุ่งอรุณที่ตัวหน้า (มอนธรรมดา x${D.weak})`, (lv) => ({ clDawnHeal: D.heal * lv })),
+    n('cleric_dn3', 'cleric_d', 3, '☀️', 'แสงแตก', 3, (lv) => `ดาเมจแสงรุ่งอรุณ +${pc(D.amp * lv)}`, (lv) => ({ clDawnAmp: D.amp * lv })),
+    n('cleric_dn4', 'cleric_d', 4, '🌅', 'อรุณพิทักษ์', 1, () => `แสงรุ่งอรุณคริแน่ · ดาเมจคริ +${pc(D.crit)}`, () => ({ clDawnUlt: 1, clDawnCrit: D.crit })),
   ],
   talents: [
     // Row I · Job Lv 5
