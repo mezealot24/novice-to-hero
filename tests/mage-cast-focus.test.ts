@@ -1,0 +1,60 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { FOCUS_RULES, JOB_LINES, OUTSIDE_CAP, overflowShare, perkById } from '../src/data/perks'
+import { breakChance, castUsesTurn, KIT, MAGE_CAST } from '../src/data/skill-math'
+import { TABLES } from '../src/data/tunables'
+
+const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`)
+
+test('v78 breakChance: 45% at DEX 0, 9% at DEX 30, tenacity lowers it, never negative, Poise = 0', () => {
+  near(breakChance(0, 0), 0.45)
+  near(breakChance(30, 0), 0.09)
+  near(breakChance(30, 0.05), 0.04)
+  assert.ok(breakChance(10, 0.2) < breakChance(10, 0))
+  assert.equal(breakChance(99, 0), 0)
+  assert.equal(breakChance(0, 1), 0)
+  assert.equal(breakChance(0, 0, true), 0)
+})
+
+test('v78 MAGE_CAST numbers live in one place and are tunable as kit cast.*', () => {
+  assert.deepEqual(MAGE_CAST, { breakBase: 0.45, breakDex: 0.012, fireMul: 1.8, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 })
+  assert.equal(KIT.cast, MAGE_CAST)
+  const pats = TABLES.kit.fields.map(([p]) => p).join(' ')
+  for (const k of Object.keys(MAGE_CAST)) assert.ok(pats.includes(k), `kit table misses cast.${k}`)
+})
+
+test('v78 release rule: a Mage / Sage chant uses up the release turn, Wizard releases for free', () => {
+  assert.equal(castUsesTurn(undefined), true) // base Mage
+  assert.equal(castUsesTurn('sage'), true)
+  assert.equal(castUsesTurn('wizard'), false)
+  near(MAGE_CAST.fireMul / 2, 0.9) // fireball every other turn ≈ the old 0.9x every turn
+})
+
+test('v78 focus fallbacks: full bar -> shield / heal, empty bar -> resource, Novice -> all shield / heal', () => {
+  assert.equal(overflowShare(40, 0), 1) // full bar
+  assert.equal(overflowShare(40, 100), 0) // empty bar: all of it fits
+  near(overflowShare(40, 30), 0.25) // 10 of 40 spills
+  assert.equal(overflowShare(40, -5), 1) // over the cap already
+  assert.equal(overflowShare(6, 0, false), 1) // Novice: no resource
+  assert.equal(overflowShare(0, 10), 0)
+  // what the cards give at a full bar / for a Novice
+  const wake = perkById('foc_wake')!, pray = perkById('foc_pray')!
+  near(160 * (wake.pk![0].wakeShield ?? 0) * overflowShare(40, 0), 32) // 20% of 160 max HP
+  near(200 * (pray.pk![1].prayHeal ?? 0) * overflowShare(10, 0, false), 10) // "+": 5% of 200 max HP
+})
+
+test('v78 focus cards match the table', () => {
+  const calm = perkById('foc_calm')!, bone = perkById('foc_bone')!, wake = perkById('foc_wake')!, pray = perkById('foc_pray')!, l1 = perkById('foc_L1')!
+  assert.equal(calm.max, 1)
+  assert.deepEqual(calm.mod![0], { poise: 1, flee: 12 })
+  assert.equal(calm.mod![0].smashCd, undefined)
+  assert.deepEqual(bone.mod, [{ ultAmp: 0.75, smashMul: 2.25, ultPierce: 0.3 }, { ultAmp: 1.2, smashMul: 3.6, ultPierce: 0.3 }])
+  assert.deepEqual(wake.proc!.amt, [40, 60])
+  assert.deepEqual(wake.pk, [{ wakeShield: 0.2 }, { wakeShield: 0.3 }])
+  assert.deepEqual(pray.pk, [{ resTurn: 6, prayHeal: 0.03 }, { resTurn: 10, prayHeal: 0.05 }])
+  assert.ok(!wake.needsRes && !pray.needsRes)
+  assert.deepEqual(l1.pk, [{ ultBoost: 1, zen: 1 }, { ultBoost: 1.5, zen: 1 }])
+  assert.deepEqual(FOCUS_RULES, { zenTurns: 3, zenCritDmg: 0.3 })
+  assert.equal(OUTSIDE_CAP.resTurn, 20) // follows the new "+" value (2 x 10)
+  assert.ok(JOB_LINES.thief.includes('focus'))
+})

@@ -3,6 +3,7 @@
 // A line gets the stat's total (b) and points above the start (d) so it can show what the hero gets right now.
 import { PER_POINT, type BaseStat } from './meta'
 import type { JobId } from './jobs'
+import { breakChance, MAGE_CAST } from './skill-math'
 
 type Line = string | ((b: number, d: number) => string)
 export interface StatInfo { generic: Line[]; byClass: Partial<Record<JobId, Line[]>> }
@@ -37,6 +38,7 @@ export const STAT_INFO: Record<BaseStat, StatInfo> = {
       archer: [(_b, d) => `P.ATK +${P.str.atk}/แต้ม (ตอนนี้ +${P.str.atk * d})`],
       swordsman: [(_b, d) => `สวนกลับ +${f1(P.off.swordDexCounter * 100)}%/แต้ม (ตอนนี้ +${f1(P.off.swordDexCounter * 100 * d)}%)`],
       cleric: [(_b, d) => `หอกแสง +${P.off.clericDexSpear}x M.ATK/แต้ม (ตอนนี้ +${(P.off.clericDexSpear * d).toFixed(2)}x)`],
+      mage: [(b) => `ลดโอกาสร่ายแตก ${f1(MAGE_CAST.breakDex * 100)}%/แต้ม (ตอนนี้แตก ${f1(breakChance(b, 0) * 100)}% ต่อครั้งที่โดนตี ก่อนต้านทาน)`],
     },
   },
   int: {

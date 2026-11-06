@@ -19,8 +19,9 @@ import { skill2ById } from './skill2'
 export const POWER_REF = { def: 20, flee: 15, hit: 30, magicShare: 0.3, K: 0.55, fightHits: 15 }
 
 /** Class calibration: what the raw formula misses (Priest heals / shields, Mage AoE + never-miss spells, Thief poison,
- * Swordsman's big HP pool counted twice by DEF). Set so the same bot build tier scores the same for every class (v59 bot). */
-export const CLASS_K: Partial<Record<JobId, number>> = { swordsman: 0.8, archer: 1, mage: 1.2, cleric: 1.8, thief: 1.15 }
+ * Swordsman's big HP pool counted twice by DEF). Set so the same bot build tier scores the same for every class (v59 bot).
+ * v78 mage 1.2 -> 1.1: a guess (fireball / ult now chant a turn and can break), not bot-measured yet. */
+export const CLASS_K: Partial<Record<JobId, number>> = { swordsman: 0.8, archer: 1, mage: 1.1, cleric: 1.8, thief: 1.15 }
 
 /** Magic share of a class's damage (Priest v58: mace smash + holy light / spears). */
 const MAGIC_SHARE: Partial<Record<JobId, number>> = { mage: 1, cleric: 0.35 }

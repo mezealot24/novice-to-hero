@@ -175,7 +175,7 @@ export function go(scene: Phaser.Scene, key: string, data?: object) {
   scene.input.enabled = false
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { scene.input.enabled = true })
   scene.cameras.main.fadeOut(160, 20, 23, 43)
-  scene.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => scene.scene.start(key, data))
+  scene.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => scene.scene.start(key, data ?? {})) // Phaser keeps the last start() data when none is passed: 🔄 เปลี่ยนอาชีพใหม่ opened the 2nd-job picker
 }
 
 /** Soft backdrop: night sky, a few stars, hills. */
