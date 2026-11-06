@@ -4,6 +4,7 @@ import { JOB_CHANGE, type JobId } from './data/jobs'
 import { UNIQUE } from './data/uniques'
 import { JOB2, JOB2_RULES, type Job2Id, type PetId } from './data/jobs2'
 import type { RefineLine } from './data/craft'
+import type { TaintRec } from './data/taint'
 import type { ModeRecord } from './data/modes'
 import { FREE_GEMS, JOB_RULES, NOVICE_PASSIVES, NOVICE_RULES, noviceSpent, RACES, STAT_RULES, type BaseStat, type RaceId, type SkillId, EMPTY_ITEM, type EquipSlot, itemById, slotKind } from './data/meta'
 
@@ -56,6 +57,7 @@ export interface SaveData {
   broken?: string[] // item ids broken by a failed refine: no stats / cards until repaired
   refinePity?: Record<string, number> // item id -> failed refines in a row
   refineLines?: Record<string, RefineLine[]> // item id -> bonus lines from +5 / +7 / +10 (index 0 / 1 / 2)
+  taint?: Record<string, TaintRec> // v89: item id -> taint result (a record = tainted = locked; data/taint.ts)
   refineGems?: string[] // "itemId:7" / "itemId:10": free refine gems already paid out (kept after selling)
   rerollCount?: Record<string, number> // item id -> option-gacha rolls made (price +10% each, data/refine.ts rerollMul)
   fodder?: Record<string, number> // basic shop items kept as forge fodder, by item id (counts)
@@ -421,4 +423,5 @@ export function forgetForge(s: SaveData, id: string) {
   if (s.refineLines) delete s.refineLines[id]
   if (s.broken) s.broken = s.broken.filter((x) => x !== id)
   if (s.rerollCount) delete s.rerollCount[id]
+  if (s.taint) delete s.taint[id] // v89: a tainted item that leaves the bag is gone with its curse
 }

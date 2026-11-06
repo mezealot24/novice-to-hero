@@ -11,9 +11,10 @@ import { skill2Picked } from '../data/tree'
 import { ALLIES, fillAllies, gadgetById, hawkMul, hurtAlly, liveAllies, makeAlly, rollGadget, tauntTarget, tickAllies, TRAP_IDS, useAlly, wolfMul, type Ally, type AllyCtx, type GadgetId } from '../battle/allies'
 import type { Skill2Def } from '../data/skill2'
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
-import { autoCost, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, hitBase, KIT, KIT2, MAGE_CAST, magicPower, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
+import { autoCost, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnMul, hitBase, KIT, KIT2, MAGE_CAST, magicPower, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, ultMode } from '../save'
-import { MAT_RULES, matName, matOf } from '../data/materials'
+import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
+import { TAINT_MAT } from '../data/taint'
 import { rollUniqueDrop, UNIQUE } from '../data/uniques'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
@@ -307,7 +308,6 @@ export class BattleScene extends Phaser.Scene {
     this.res = this.job.resource === 'rage' ? 0 : this.resMax()
     this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0
     this.heroSpr.setTexture(this.job.tex).setTint((COSTUMES.find((c) => c.id === s.costume) ?? COSTUMES[0]).tint).setAngle(0).setAlpha(1)
-    this.dawnN = 0; this.dawnArmed = false // v86 แสงรุ่งอรุณ: the charge carries across waves, not runs
     this.perks = []; this.hits = 0; this.procHits = {}; this.pk = newPerkStats(); this.masteries = []; this.src = 'other'; this.immortal = null; this.eggN = 0; this.eggDef = 0
     this.level = 1; this.xp = 0; this.zeny = 0; this.kills = 0; this.runXp = 0; this.runGems = 0; this.runCards = []; this.runMats = {}; this.runUniques = []; this.runDupeMats = {}; this.pendingLevels = 0
     this.cardLuck = 1 + Math.min(PER_POINT.luk.dropCap, PER_POINT.luk.dropPct * totalBase(s).luk)
@@ -1625,11 +1625,7 @@ export class BattleScene extends Phaser.Scene {
     const rate = this.comboChance() - (target ? this.monCombo(target).ignore : 0), count = COMBO.baseCount + this.st.comboCount + (this.relic === 'wolf' ? RELIC_RULES.wolf.comboCount : 0)
     while (extra < count && Math.random() < rate) extra++ // Capybara-style: each extra hit rolls (rate - Ignore Combo), stop on a miss
     this.stayIn = extra > 0 || this.rampage > 0
-    const dawn = this.dawnOn() && this.dawnN >= KIT.clericTree.dawn.every // v86 แสงรุ่งอรุณ: this swing is the charged one
-    this.dawnArmed = dawn
     await this.basicOnce()
-    this.dawnArmed = false
-    if (this.dawnOn()) this.dawnCount(dawn)
     this.comboKnives(false) // Rogue ★: crit knives from the first swing
     this.sageSpell() // 📖 Sage Auto Spell
     if (this.rampage > 0 && this.alive().length) { this.floatText(HERO_X, GROUND - 150, '👹', '#ff5a4e'); await this.basicOnce() } // Berserker บ้าระห่ำ: every swing hits twice
@@ -1680,7 +1676,7 @@ export class BattleScene extends Phaser.Scene {
     else if (kind === 'mage' && this.j2?.id === 'sage') await this.lunge(f, () => { this.strike(f, KIT2.sage.basicMul) }) // 📖 Sage: melee x P.ATK
     else if (kind === 'mage') await this.shoot(f, 0x9f7bff, () => { if (this.strike(f, MAGE_SPELL.basicMul, true, '#c9a8ff') > 0) this.gainRes(MAGE_CAST.boltMana) }) // weak free magic bolt (v78: + Mana on hit); real damage = Mana spells
     else if (kind === 'thief') await this.lunge(f, () => { this.strike(f, 0.6); this.strike(f, 0.6); this.doubleAttack(f, 0.6) })
-    else if (kind === 'cleric') await this.maceSmash(f, () => { if (this.dawnArmed) this.dawnSmash(f); else this.strike(f, clericBasic()) }) // v58 Q: melee mace/book smash, P.ATK (STR) only; spells carry M.ATK
+    else if (kind === 'cleric') await this.maceSmash(f, () => this.strike(f, clericBasic())) // v58 Q: melee mace/book smash, P.ATK (STR) only; spells carry M.ATK
     else await this.lunge(f, () => { const cl = BATTLE.cleave + this.st.cleaveAdd, fs = this.chargeMul(); if (live[1]) { this.strike(f, fs); this.strike(live[1], cl) } else this.strike(f, fs + (kind === 'swordsman' ? cl : 0)) }) // novice, swordsman: cleave (+talent ฟันกวาด) · swordsman alone vs 1 monster: the cleave lands on it too
     this.lsMul = 0
     if (this.j2?.id === 'monk') this.monkSwing(f)
@@ -1912,7 +1908,7 @@ export class BattleScene extends Phaser.Scene {
       case 'cleric': { // v58 melee hybrid (Q 2026-11-04): smash all (P.ATK) + Holy Light on random monsters (M.ATK) + timed shield
         const charging = this.alive().some((m) => m.charging)
         if (live[0]) await this.maceSmash(live[0], () => { live.forEach((m) => this.strike(m, clericUltSmash(this.st) * hitPow * (1 + this.st.pskill))); this.cameras.main.flash(120, 255, 240, 170) })
-        if (this.st.clDawnUlt > 0 && this.dawnOn()) { const f = this.alive()[0]; if (f) { this.floatText(HERO_X, GROUND - 190, '🌅 อรุณพิทักษ์!', '#ffd36e'); this.dawnSmash(f) } } // v87 Q 2026-11-07 web ★: the dawn smash lands with the ult (was: charge the next basic); basic count untouched
+        this.dawnBonus(live.filter((m) => !m.dead), hitPow) // v87 🌄 แสงรุ่งอรุณ: bonus magic hit on every smash target still standing
         for (let i = 0; i < clericUltLights(this.st); i++) { const t = this.alive(); if (!t.length) break; await this.holyLight(t[Phaser.Math.Between(0, t.length - 1)], CLERIC_KIT.ultLight * hitPow) }
         this.addShield(this.st.maxHp * CLERIC_KIT.ultShield * pow * (charging ? 1 + this.st.ultChargeShield : 1)) // talent: ใต้ปีกเทพ · lasts shieldTurns, capped
         if (this.st.clPurify > 0) { // Ult web ★: ไฟชำระ
@@ -2244,7 +2240,10 @@ export class BattleScene extends Phaser.Scene {
   private rollMat(m: Mon) {
     if (m.revived || !cardsOfMonster(m.kind).length) return
     const dg = this.dg.id, got: [string, number][] = []
-    if (m.def.ai === 'boss' && !m.def.mini) got.push([matOf(dg, true), MAT_RULES.boss.boss], [matOf(dg, false), MAT_RULES.boss.common])
+    if (m.def.ai === 'boss' && !m.def.mini) {
+      got.push([matOf(dg, true), MAT_RULES.boss.boss], [matOf(dg, false), MAT_RULES.boss.common])
+      if ((this.run.modeId === 'dungeon' || this.run.modeId === 'hard') && this.roomDef(this.room)?.boss && taintDrop(dg)) got.push([TAINT_MAT, taintDrop(dg)]) // v89 ผลึกโลกันตร์: D6+ final boss only
+    }
     else if (m.def.ai === 'boss') got.push([matOf(dg, true), MAT_RULES.mini.boss])
     else if (Math.random() < MAT_RULES.normalRate * this.dropMul) got.push([matOf(dg, false), 1])
     got.forEach(([id, n], i) => {
