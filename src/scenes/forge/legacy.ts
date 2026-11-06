@@ -1,9 +1,9 @@
 import Phaser from 'phaser'
-import { COLORS, DUNGEONS, H, W } from '../../data/game-data'
+import { COLORS, DUNGEONS } from '../../data/game-data'
 import { JOBS } from '../../data/jobs'
-import { canWear, gradeOf, isBroken, isTainted, itemStatLine, linesOf, refineOf, slotCount, SLOTS, wearText, type Item } from '../../data/meta'
-import { craftCost, CRAFT_ITEMS, GRADE, gradeCap, gradeStars, REFINE } from '../../data/craft'
-import { canAfford, canAffordAuto, FODDER, fodderFits, fodderMin, lineText, pickFodder, lineIdx, maxLocks, nextRerollCost, reroll, rerollMul, rollsOf, taintCheck, taintCost, totalZeny, tryTaint, type ForgeCost } from '../../data/refine'
+import { canWear, gradeOf, isBroken, itemStatLine, refineOf, slotCount, SLOTS, wearText, type Item } from '../../data/meta'
+import { craftCost, CRAFT_ITEMS, GRADE, gradeCap, gradeStars } from '../../data/craft'
+import { canAfford, canAffordAuto, FODDER, fodderFits, fodderMin, lineText, pickFodder, taintCheck, taintCost, totalZeny, tryTaint, type ForgeCost } from '../../data/refine'
 import { curseById, TAINT } from '../../data/taint'
 import { MAT_RULES, MATS, matById } from '../../data/materials'
 import { TAINT_MAT as TAINT_MAT_ID } from '../../data/taint'
@@ -20,6 +20,8 @@ const dgName = (id: string) => DUNGEONS.find((d) => d.id === id)?.name ?? id
 const dgBoss = (id: string) => DUNGEONS.find((d) => d.id === id)?.boss ?? ''
 const bonusLine = (m: object) => itemStatLine({ mod: m })
 
+/** Pre-anvil screens P5 will replace (craft / fodder / materials) plus the taint confirm P4 will replace.
+ * The option-gacha popup is gone (P3). */
 export interface LegacyHost { wallet(): void; changed(): void }
 type Tab = 'craft' | 'fodder' | 'mats'
 
@@ -94,39 +96,6 @@ export class LegacyForge {
     if (wear) confirm(this.scene, `ตีสำเร็จ! ${it.icon} ${it.name}`, 'ใส่เลยไหมคะ?', 'ใส่เลย', () => { equip(s, it.id); persist(); this.host.changed() }, 'ไว้ก่อน')
     else toast(this.scene, `ได้ ${it.name} แล้ว (ใส่ได้เมื่อเป็น ${wearText(it)})`)
     this.host.changed()
-  }
-
-  /** Option gacha (Q 2026-11-06): one roll rerolls every unlocked line at once (zeny + mats). Gems only lock a line.
-   * `locked` survives re-opening after a roll, so the player can keep rolling with the same locks. */
-  linesView(it: Item, locked: number[] = []) {
-    const s = save(), c = this.scene.add.container(0, 0).setDepth(30000)
-    const close = () => { c.destroy(); this.host.changed() }
-    const again = (lk: number[]) => { c.destroy(); this.linesView(it, lk) }
-    c.add(this.scene.add.rectangle(W / 2, H / 2, W, H, UI.night, 0.8).setInteractive())
-    const pw = 700, ph = 420, px = W / 2 - pw / 2, py = H / 2 - ph / 2
-    c.add(panel(this.scene, px, py, pw, ph, UI.panelHi, COLORS.gold))
-    c.add(txt(this.scene, W / 2, py + 18, `🎁 ค่าพิเศษ ${it.icon} ${it.name} +${refineOf(s, it.id)}`, 22, UI.gold, true).setOrigin(0.5, 0))
-    const lines = linesOf(s, it.id), have = lineIdx(s, it.id), maxLk = maxLocks(have.length)
-    const rolls = rollsOf(s, it.id), tainted = isTainted(s, it.id)
-    c.add(txt(this.scene, W / 2, py + 52, `🎲 สุ่มทีเดียวเปลี่ยนทุกบรรทัดที่ไม่ล็อก (ค่าเก่าหายทันที) · สุ่มไปแล้ว ${rolls} ครั้ง ราคา x${rerollMul(rolls).toFixed(1)}\n${maxLk ? `🔒 ล็อกได้ ${maxLk} บรรทัด จ่ายเพชรทุกครั้งที่สุ่ม (${REFINE.lockGems.slice(0, maxLk).map((g, i) => `ล็อกที่ ${i + 1}: 💎${g}`).join(' · ')})` : `🔒 ตีถึง +${REFINE.lineAt[1]} ให้มี 2 บรรทัดก่อน ถึงจะล็อกได้`}`, 12, UI.sub).setOrigin(0.5, 0).setAlign('center').setWordWrapWidth(pw - 40))
-    REFINE.lineAt.forEach((at, i) => {
-      const y = py + 94 + i * 88, l = lines[i], on = locked.includes(i)
-      c.add(panel(this.scene, px + 20, y, pw - 40, 78, UI.panel, on ? COLORS.gold : UI.line, 10))
-      c.add(txt(this.scene, px + 36, y + 10, `+${at} (${['เล็ก', 'กลาง', 'ใหญ่'][i]})`, 15, UI.sub, true))
-      if (!l) { c.add(txt(this.scene, px + 36, y + 40, `ยังไม่ได้ · ตีถึง +${at} ครั้งแรกจะได้ค่าสุ่ม 1 บรรทัด`, 14, UI.sub)); return }
-      c.add(txt(this.scene, px + 36, y + 38, lineText(l), 18, l.gold ? UI.gold : UI.text, true))
-      const canLock = on || locked.length < maxLk
-      c.add(button(this.scene, px + pw - 100, y + 39, 140, 34, on ? '🔒 ล็อกอยู่' : '🔓 ล็อก', () => again(on ? locked.filter((x) => x !== i) : [...locked, i]),
-        { size: 14, fill: on ? 0xb8860b : 0x5a5f8a, color: UI.text }).setEnabled(canLock && !tainted))
-    })
-    const cost = nextRerollCost(s, it, locked)
-    c.add(this.costText(px + 36, py + ph - 70, cost, pw - 72, locked.length ? '🔒 ' : ''))
-    c.add(button(this.scene, W / 2 - 100, py + ph - 26, 180, 36, `🎲 สุ่ม ${have.length - locked.length} บรรทัด`, () => {
-      if (!reroll(s, it, locked)) { toast(this.scene, 'วัตถุดิบ zeny หรือเพชรยังไม่พอค่ะ', UI.red); return }
-      persist(); sfx.pop(); this.host.wallet(); again(locked)
-    }, { size: 15 }).setEnabled(canAfford(s, cost) && !tainted))
-    if (tainted) c.add(txt(this.scene, W / 2 - 100, py + ph - 56, '🌑 ติดคำสาปแล้ว: สุ่มบรรทัดไม่ได้อีก', 13, '#c9a8ff', true).setOrigin(0.5))
-    c.add(button(this.scene, W / 2 + 100, py + ph - 26, 160, 36, 'ปิด', close, { size: 16, fill: 0x5a5f8a, color: UI.text }))
   }
 
   // ---------- taint (v89, design/unique-taint-tower-skip-v1.md §3) ----------

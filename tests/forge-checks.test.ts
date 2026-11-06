@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { REFINE } from '../src/data/craft'
 import { ITEMS } from '../src/data/meta'
-import { costGap, gradeCheck, rateParts, refineCheck, tryRefine, upgradeGrade } from '../src/data/refine'
+import { costGap, gradeCheck, lineIdx, maxLocks, nextRerollCost, rateParts, refineCheck, tryRefine, upgradeGrade } from '../src/data/refine'
 
 const sword = ITEMS.find((x) => x.id === 'longsword')!
 const starter = ITEMS.find((x) => x.price === 0 && !x.craft && !x.unique)!
@@ -48,4 +48,13 @@ test('forge checks: costGap names exactly what is missing', () => {
   assert.equal(g.gems, 0)
   assert.equal(g.noFodder, false)
   assert.deepEqual(costGap({ zeny: 999, gems: 5, mats: { m_a: 5, m_b: 2 }, fodder: {} }, { ...cost, gems: 10 }), { mats: {}, zeny: 0, gems: 5, noFodder: false })
+})
+
+test('inline option gacha: the strip price comes from nextRerollCost (gems only when something is locked)', () => {
+  const s = mk({ refineLines: { [sword.id]: [{ stat: 'atk', val: 1 }, { stat: 'crit', val: 0.01 }, { stat: 'maxHp', val: 10 }] } })
+  assert.deepEqual(lineIdx(s, sword.id), [0, 1, 2])
+  assert.equal(nextRerollCost(s, sword, []).gems, undefined)
+  assert.equal(nextRerollCost(s, sword, [0]).gems, REFINE.lockGems[0])
+  assert.equal(nextRerollCost(s, sword, [0, 1]).gems, REFINE.lockGems[0] + REFINE.lockGems[1])
+  assert.equal(maxLocks(3), 2) // the panel disables the 3rd toggle: the last line can never be locked
 })

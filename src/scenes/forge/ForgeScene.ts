@@ -62,7 +62,6 @@ export class ForgeScene extends Phaser.Scene {
       scene: this,
       fx: { success: (l, n) => this.stage?.success(l, n), fail: (l) => this.stage?.fail(l), mend: () => this.stage?.mend(), shine: (l) => this.stage?.shine(l) },
       taintUi: { ask: (it) => this.legacy.askTaint(it), note: (it) => this.legacy.taintNote(it) },
-      legacyLines: (it) => this.legacy.linesView(it),
       changed: () => this.changed(),
       say: (t) => this.say(t),
       busy: (ms) => this.lockFor(ms),

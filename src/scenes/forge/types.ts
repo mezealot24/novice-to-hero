@@ -25,8 +25,6 @@ export interface ForgeCtx {
   scene: Phaser.Scene
   fx: StageFx
   taintUi: TaintUi
-  /** P2 stopgap: the old option-gacha popup. Removed in P3 (OptionPanel is inline). */
-  legacyLines(it: Item): void
   /** Something changed in the save: refresh wallet, rail, stage, panel and cost strip in place. */
   changed(): void
   /** Smith speech bubble. */
