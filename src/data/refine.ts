@@ -67,7 +67,7 @@ export function rerollCost(it: Item, lineCount: number, rolls = 0, locks = 0): F
   }
 }
 
-type Wallet = Pick<SaveData, 'zeny' | 'gems' | 'mats' | 'fodder'>
+export type Wallet = Pick<SaveData, 'zeny' | 'gems' | 'mats' | 'fodder'>
 export function canAfford(s: Wallet, c: ForgeCost) {
   return s.zeny >= c.zeny && s.gems >= (c.gems ?? 0) && Object.entries(c.mats).every(([id, n]) => (s.mats?.[id] ?? 0) >= n) && (!c.fodder || !!pickFodder(s.fodder, c.fodder))
 }
