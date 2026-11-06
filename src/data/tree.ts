@@ -84,6 +84,7 @@ export const TALENT_RULES = { rowsAt: [5, 10, 20, 30] as const, pointEveryJobLv:
 // each with a "+" node and a ★. Old tier-0 nodes (Mage แก่นเวท) form a free "core" column.
 const ATTACH: Record<string, 's1' | 'ult'> = {
   swordsman_a: 'ult', swordsman_b: 's1', archer_a: 'ult', archer_b: 's1', archer_c: 's1', archer_d: 'ult', cleric_a: 'ult', cleric_b: 's1',
+  swordsman_c: 's1', swordsman_d: 'ult', cleric_c: 's1', cleric_d: 'ult', // v84
   thief_a: 's1', thief_b: 'ult', mage_l: 'ult', mage_f: 'ult', mage_i: 'ult',
 }
 const CLASS_TREES: ClassTree[] = [swordsman, archer, mage, cleric, thief]

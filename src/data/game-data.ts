@@ -133,6 +133,15 @@ export interface Stats {
   ultCounters: number // after the ult, this many landed hits are counters for sure
   counterRage: number // Rage (or Mana) per counter
   counterShield: number // shield (share of max HP) per counter
+  // ----- v84 Swordsman web: ⚔️ จังหวะดาบ / 🔨 ทลายเกราะ (data/trees/swordsman.ts, numbers KIT.swordTree) -----
+  swFlow: number // ไหลลื่น: ฟันพายุ casts in a row stack momentum (max KIT.swordTree.flowMax), + ฟันพายุ damage per stack (0 = off)
+  swFlowMana: number // ลมหายใจ: Mana back per momentum stack on each ฟันพายุ
+  swFlowCrit: number // เฉือนคม: + crit chance per momentum stack during ฟันพายุ
+  swFlowStar: number // ★ พันดาบ flag: at max stacks ฟันพายุ swings KIT.swordTree.stormHits times, sure crit, then stacks reset
+  swBreak: number // ทุบเกราะ: the ult breaks armor on every monster (Mon.armorBrk) + damage taken from hero hits on broken monsters (0 = off)
+  swBreakLeech: number // ซ้ำรอย: hero hits on a broken monster heal this share of the damage
+  swBreakSpread: number // ร้าวลาม: a broken monster dies -> the break spreads to the others + this much Mana
+  swShatter: number // ★ หักท่า flag: the ult interrupts every charging monster (charge lost + gauge push)
   arDodgeShield: number // Archer tree โล่ลม: shield (share of max HP) per dodge, capped at 3x
   arUltBreak: number // Archer: ult deals this much extra damage to a charging boss (was BREAK share)
   arWaveDodge: number // Archer talent ก้าวถอย: sure dodges at every wave start
@@ -161,6 +170,15 @@ export interface Stats {
   clUltAtk: number // v58 Ult web node พรคุ้มครอง: + share of the ult's P.ATK smash
   clUltLights: number // v58 พรอุ่นไอ: extra Holy Light on the ult
   clSpearShield: number // v58 เกราะแสง: shield (share of max HP) after each light spear volley
+  // ----- v84 Priest web: 🙏 ศรัทธา / ⛪ ฟื้นคืน (data/trees/cleric.ts, numbers KIT.clericTree) -----
+  clFaith: number // สวดภาวนา: Skill 1 / skill heals build Faith; full Faith = holy burst on every monster at this x Pm (0 = off)
+  clFaithOver: number // ล้นศรัทธา: chance an overheal (>= KIT.clericTree.overMin max HP) gives +1 Faith
+  clFaithHeal: number // พรเกื้อ: a Faith burst heals this share of max HP per stack spent
+  clOverBurst: number // ★ แสงล้นฟ้า flag: overheal hits the front monster for x KIT.clericTree.overBurst
+  clUltWard: number // ม่านพร: after the ult, damage taken −this for KIT.clericTree.wardTurns hero turns
+  clEmergency: number // ฉุกเฉิน: first drop under 30% HP each wave heals this share of max HP
+  clUltMend: number // ชุบชีวา: the ult heals this share of missing HP (skill heal)
+  clRevive: number // ★ คืนชีพ flag: once per run a lethal hit leaves the Priest at KIT.clericTree.reviveHp + shield, debuffs cleared
   // ----- 2nd jobs (design/second-jobs-v1.md, data/jobs2.ts): ใยชั้น 2 nodes -----
   s3Pow: number // ทักษะ 3 +power node
   ult2Pow: number // Ult วิวัฒน์ +power node
@@ -180,6 +198,14 @@ export interface Stats {
   j2CounterCrit: number // Knight ★ Counter Attack flag: counters always crit
   j2Charge: number // Knight Charge Attack: first swing of each wave +this
   j2ChargeFirst: number // Knight ★ ทะยาน flag: first swing x3 + the hero acts first
+  j2Banner: number // v84 Knight ปักธง: wave-start shield (share of max HP, tops up, never stacks)
+  j2Provoke: number // v84 Knight ข่มขวัญ: hits from a monster under KIT2.knight.tree.provokeAt HP deal −this
+  j2BannerKill: number // v84 Knight ธงชัย: a kill gives this share of max HP as shield
+  j2BannerAura: number // v84 Knight ★ ธงอมตะ flag: every Auto Guard block heals + Mana / Rage
+  j2Sweep: number // v84 Knight ทวนวน: every KIT2.knight.tree.sweepEvery hero turns a free spear sweep on all at this x P.ATK (+ max HP share) (0 = off)
+  j2SweepPush: number // v84 Knight เหวี่ยง: the sweep pushes every monster's gauge back this much
+  j2SweepGauge: number // v84 Knight ทวนเร็ว: hero gauge + this per monster the sweep kills (capped at one turn)
+  j2SweepStar: number // v84 Knight ★ พายุทวน flag: the sweep breaks armor + stun chance
   j2KnifeAdd: number // Rogue: extra flying knives per throw
   j2KnifeMul: number // Rogue: + flying knife damage (added to KIT2.rogue.knifeMul)
   j2KnifeCrit: number // Rogue ★ flag: every basic / combo crit throws one more knife
@@ -283,6 +309,9 @@ export const PLAYER: Stats = {
   thorns: 0, rageGain: 0, autoCostCut: 0, ctrAoe: 0, berserk: 0, pierce: 0, lockOn: 0, dodgeStrike: 0, doubleAtk: 0, thExecute: 0, poisonLeech: 0, killHeal: 0, bloodKing: 0, thUltAgi: 0, lightMax: 0, overload: 0, lightLuck: 0, burnCap: 0, autoBurn: 0, fireSpread: 0, chillPlus: 0, brittle: 0, comboCount: 0, comboDmg: 0, ignoreCombo: 0, ignoreCounter: 0, comboDR: 0, counterDR: 0, critDR: 0, vsBurn: 0, vsChill: 0, vsPoison: 0, chillWeak: 0, spearShield: 0, counterDmg: 0, basicDmg: 0, resTurn: 0, shatter: 0, reviveHp: 0, smiteTargets: 0, holyCounter: 0, overhealShield: 0, poisonCap: 0, poisonSpread: 0, fleeFloor: 0, waveDodge: 0, dodgeEnergy: 0, ultDodge: 0, ultHits: 0, ultPoison: 0, poisonAmp: 0, lightHits: 0, lightChain: 0, burnTick: 0, chillSlow: 0, iceBarrier: 0, boltHits: 0, boltCharge: 0, stormSet: 0, mgLightAmp: 0, mgFireAmp: 0, mgIceAmp: 0, mgFirstCard: 0, mgFireStack: 0, mgWaveBarrier: 0, resRegenCut: 0, mgUltAmp: 0, elemWheel: 0, mgBarrierCut: 0, barrierBoom: 0, mgEmergency: 0, mgDoubleCast: 0, mgUltCd: 0, mgUltMana: 0, mgOverflow: 0, cleaveAdd: 0, startRage: 0, rageOnHurtAdd: 0, spellVamp: 0, skillDmgCut: 0, ultMulAdd: 0, ultAmp: 0, ultPierce: 0, poise: 0, ultShieldAdd: 0, ultVsCharge: 0, ultCounters: 0, counterRage: 0, counterShield: 0, arDodgeShield: 0, arUltBreak: 0, arWaveDodge: 0, arSnipeLow: 0, arLowHpBonus: 0, arVolley: 0, arAim: 0, arAimCrit: 0, arUltSplash: 0, arUltDodge: 0, arUltMulCut: 0, arHawk: 0, arStartFull: 0, arTurnRes: 0, arCritRes: 0, arDodgeRes: 0, arPoisonArrow: 0, arRicochet: 0, arPoisonS2: 0, arMark: 0, arMarkJump: 0, arKillCd: 0, arExecute: 0, debuffRes: 0, healAt: 0, atone: 0, judge: 0, smiteMul: 0, smiteVamp: 0, healShield: 0, spearStart: 0, spearRate: 0, spearMul: 0, spearHeal: 0, ultRegen: 0, ultHoly: 0, ultChargeShield: 0, bossShield: 0, lateDmg: 0, spellCrit: 0, spearLuck: 0, strToInt: 0, s1Pow: 0, ultPow: 0, s2Lv: 0, s2Star: 0, clUltAtk: 0, clUltLights: 0, clSpearShield: 0, clPurify: 0, s3Pow: 0, ult2Pow: 0, j2FrenzyMax: 0, j2BossCrit: 0, j2Duel: 0, j2DuelExec: 0, j2LowHp: 0, j2RageTurn: 0, j2HpDmg: 0, j2PierceHits: 0, j2Boomerang: 0, j2Spiral: 0, j2Guard: 0, j2DefAtk: 0, j2HpPct: 0, j2CounterCrit: 0, j2Charge: 0, j2ChargeFirst: 0, j2KnifeAdd: 0, j2KnifeMul: 0, j2KnifeCrit: 0, j2ExecAdd: 0, j2DebtX2: 0, j2ExecTurn: 0, j2DebuffTurns: 0, j2CrossAdd: 0, j2PayCut: 0, j2BlindAdd: 0, j2GcTwice: 0, j2ShieldBoom: 0, j2Reflect: 0, j2BlockShield: 0, j2BlockHeal: 0, j2Martyr: 0, j2ChargeMax: 0, j2ThunderPer: 0, j2Es: 0, j2Chill: 0, j2Instill: 0, j2Dark: 0, j2NoLight: 0, // Novice: cooldown only (resources come with job change)
   j2MeteorMul: 0, j2Meteors: 0, j2LovMul: 0, j2LovStun: 0, j2LovHits: 0, j2GustMul: 0, j2QuickCast: 0, j2AutoChance: 0, j2AutoBolts: 0, j2Hindsight: 0, j2EndowTurns: 0, j2EndowAmp: 0, j2EndowWave: 0, j2MagicRod: 0, j2RodBlock: 0, // Phase 5 Wizard / Sage
   j2HawkChance: 0, j2HawkMul: 0, j2HawkHits: 0, j2HawkEvo: 0, j2BoarHp: 0, j2BoarMul: 0, j2BoarShield: 0, j2BoarEvo: 0, j2WolfMul: 0, j2WolfBleed: 0, j2WolfSpeed: 0, j2WolfEvo: 0, j2PetPow: 0, j2PetRes: 0, j2CmdCut: 0, j2Pack3: 0, j2PackLead: 0, j2PetHeal: 0, j2Roar: 0, j2CritPet: 0, j2Traps: 0, j2TrapMul: 0, j2Claymore: 0, j2BoxLuck: 0, j2BoxMul: 0, j2Reroll: 0, j2TurretMul: 0, j2TurretTurns: 0, j2TurretWave: 0, // Phase 4 Beastmaster / Innovator
+  swFlow: 0, swFlowMana: 0, swFlowCrit: 0, swFlowStar: 0, swBreak: 0, swBreakLeech: 0, swBreakSpread: 0, swShatter: 0, // v84 Swordsman web
+  clFaith: 0, clFaithOver: 0, clFaithHeal: 0, clOverBurst: 0, clUltWard: 0, clEmergency: 0, clUltMend: 0, clRevive: 0, // v84 Priest web
+  j2Banner: 0, j2Provoke: 0, j2BannerKill: 0, j2BannerAura: 0, j2Sweep: 0, j2SweepPush: 0, j2SweepGauge: 0, j2SweepStar: 0, // v84 Knight ใยชั้น 2
 }
 
 export const RULES = {
