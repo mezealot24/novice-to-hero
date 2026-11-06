@@ -39,6 +39,12 @@ export const KIT = {
   clericUltAtkLv: 0.1, clericWarmCounterLv: 0.025, clericWarmLightLv: 1, clericSpearShieldLv: 0.02,
   spearBase: 0.3, spearMax: 8,
   thiefAuto: 1.6, thiefAutoPoison: 3, thiefUlt: 0.7, thiefUltHits: 4, thiefUltDodge: 2,
+  // v82 Archer web: 🧪 ศรพิษ (under ทักษะ 1) + 🏷️ ล่าหัว (under Ult), first guesses (design/skill-tree-archer.md v82)
+  archerTree: {
+    poisonArrow: [0.2, 0.35, 0.5], poisonArrowStacks: 1, vsPoison: 0.06, ricochet: [0.5, 0.7, 0.9], // ศรอาบพิษ chance per arrow · ซ้ำแผล per lv · ศรเด้ง shot mul
+    markTurns: 3, markAmp: 0.05, markJumpRes: 8, killCd: [0.15, 0.25, 0.35], killCdCut: 1, // หมายหัว per lv · ไล่ล่า Energy per lv · ล่าต่อ chance
+    execBelow: 0.25, execBig: 0.6, // ★ ศรประหาร: normal monster under 25% HP dies · boss / mini +60%
+  },
 }
 
 /** 2nd jobs (design/second-jobs-v1.md, data/jobs2.ts): signature / ทักษะ 3 / Ult วิวัฒน์ numbers. BattleScene + jobs2 texts read these. */
@@ -113,6 +119,8 @@ export const KIT2 = {
     cmdCost: 30, cmdCd: 3, cmdHawkHits: 3, cmdBoarShield: 0.15, cmdPack: 2, cmdPackTurns: 2, cmdPackPow: 0.6, // 📯 สั่งลุย per pet
     ultHawk: 1.2, ultBoar: 1, ultWolf: 1.5, // 🐾 Stampede: all 3 pets hit once (then the base archer pierce shot)
     mastery: { atkPct: 0.05, hit: 8 }, // bow
+    // v82 ใยชั้น 2: 🤝 ผูกพัน + 🌿 สัญชาตญาณ, first guesses (design/second-jobs-v1.md §4 v82)
+    tree: { petPow: 0.08, petRes: 1, cmdCut: 5, pack3Pow: 0.35, packLead: 0.04, petHeal: 0.005, roar: 10 },
   },
   innovator: {
     traps: 1, mineMul: 1.5, snarePush: 30, freezeMul: 0.6, freezeChill: 2, // 🧰 wave-start trap (random of 3) fires when a monster acts: 💣 Land Mine · 🪤 Ankle Snare (boss: gauge -30) · ❄️ Freezing Trap

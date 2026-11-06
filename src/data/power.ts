@@ -31,6 +31,7 @@ const MAGIC_SHARE: Partial<Record<JobId, number>> = { mage: 1, cleric: 0.35 }
 export const JOB2_K: Partial<Record<Job2Id, number>> = { berserker: 1.15, knight: 1, rogue: 1.1, mobster: 1.1, crusader: 1.05, monk: 1.1 } // rogue / mobster / crusader / monk: first guess, no bot run yet · bot D6 shop gear: fresh Knight counts +25% power but wins like the base class (HP is overcounted)
 Object.assign(JOB2_K, { wizard: 1.1, sage: 1 }) // Phase 5 Mage: first guess, no bot run yet (Wizard: big AoE blasts · Sage: Auto Spell on top of melee)
 Object.assign(JOB2_K, { beastmaster: 1.15, innovator: 1.1 }) // Phase 4 Archer: first guess, no bot run yet (allies the Stats miss: pet hits / boar soaking hits · traps, gadgets, turret)
+// v82: Archer (archer_c/d) and Beastmaster (bm_k/s) webs got more spendable points (53 / 54 vs pool 48 / 49): archer CLASS_K and beastmaster JOB2_K may need lowering after playtest.
 /** 2nd jobs that change the class magic share: Sage hits in melee (P.ATK) + Auto Spell / Endow (Pm 70/30), about half magic. */
 const MAGIC_SHARE2: Partial<Record<Job2Id, number>> = { sage: 0.5 }
 
