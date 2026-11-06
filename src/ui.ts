@@ -5,7 +5,7 @@ import { COLORS, FONT_NUM, FONT_UI, H, W } from './data/game-data'
 import { GRADE } from './data/craft'
 import { matById } from './data/materials'
 import { SLOTS, type Item } from './data/meta'
-import { fodderToBuy, type ForgeCost, type Wallet } from './data/refine'
+import { fodderToBuy, pickFodder, zenyShort, type ForgeCost, type Wallet } from './data/refine'
 import { save } from './save'
 import { sfx, unlock } from './sfx'
 
@@ -210,14 +210,16 @@ const CHIP_TONE: Record<ChipState, { fill: number; line: number; text: string }>
 }
 export interface Chip extends Phaser.GameObjects.Container { chipW: number; set(icon: string, label: string, state?: ChipState): Chip }
 
-/** Small pill: [icon label]. x = left edge, y = vertical centre. set() redraws in place, so a strip can reuse chips instead of rebuilding. */
-export function chip(scene: Phaser.Scene, x: number, y: number, icon: string, label: string, state: ChipState = 'ok'): Chip {
+/** Small pill: [icon label]. x = left edge, y = vertical centre. maxW (optional) truncates with an ellipsis. set() redraws in place, so a strip can reuse chips instead of rebuilding. */
+export function chip(scene: Phaser.Scene, x: number, y: number, icon: string, label: string, state: ChipState = 'ok', maxW = 0): Chip {
   const h = 26, g = scene.add.graphics()
   const t = scene.add.text(10, 0, '', { fontFamily: FONT_UI, fontSize: '14px', fontStyle: 'bold', color: UI.text }).setOrigin(0, 0.5)
   const c = scene.add.container(x, y, [g, t]) as Chip
   c.set = (i, l, st = 'ok') => {
     const tone = CHIP_TONE[st]
-    t.setText(`${i} ${l}`.trim()).setColor(tone.text)
+    let full = `${i} ${l}`.trim()
+    t.setText(full).setColor(tone.text)
+    if (maxW > 0) while (full.length > 1 && t.width + 20 > maxW) { full = full.slice(0, -1); t.setText(`${full.trimEnd()}…`) } // Thai text: cut by measuring, not by char count
     c.chipW = Math.ceil(t.width) + 20
     g.clear().fillStyle(tone.fill, 1).fillRoundedRect(0, -h / 2, c.chipW, h, 13).lineStyle(1.5, tone.line, 1).strokeRoundedRect(0, -h / 2, c.chipW, h, 13)
     return c
@@ -241,11 +243,14 @@ export function costStrip(scene: Phaser.Scene, x: number, y: number, w: number):
         const m = matById(id), have = wallet.mats?.[id] ?? 0
         need.push({ icon: m?.icon ?? '📦', label: `${m?.name ?? id} ${Math.min(have, n)}/${n}`, st: have >= n ? 'ok' : 'short' })
       }
+      const zShort = zenyShort(wallet, cost) > 0 // counts fodder bought on the spot (a 265z fee + 420z fodder vs 500z is short)
       if (cost.fodder) {
-        const sl = SLOTS.find((q) => q.id === cost.fodder!.slot), buy = fodderToBuy(wallet, cost) // undefined = the stash already has one that fits
-        need.push({ icon: sl?.icon ?? '📦', label: buy ? `ซื้อ ${buy.name} ${buy.price}z` : `ของ${sl?.name ?? ''} 1`, st: buy ? 'buy' : 'ok' })
+        const sl = SLOTS.find((q) => q.id === cost.fodder!.slot), have = !!pickFodder(wallet.fodder, cost.fodder), buy = fodderToBuy(wallet, cost)
+        if (have) need.push({ icon: sl?.icon ?? '📦', label: `ของ${sl?.name ?? ''} 1`, st: 'ok' })
+        else if (buy) need.push({ icon: sl?.icon ?? '📦', label: `ซื้อ ${buy.name} ${buy.price}z`, st: zShort ? 'short' : 'buy' })
+        else need.push({ icon: sl?.icon ?? '📦', label: `ขาดของ${sl?.name ?? ''}`, st: 'short' })
       }
-      if (cost.zeny > 0) need.push({ icon: '🪙', label: `${cost.zeny}`, st: wallet.zeny >= cost.zeny ? 'ok' : 'short' })
+      if (cost.zeny > 0 || zShort) need.push({ icon: '🪙', label: `${cost.zeny}`, st: zShort ? 'short' : 'ok' })
       if (cost.gems) need.push({ icon: '💎', label: `${cost.gems}`, st: wallet.gems >= cost.gems ? 'ok' : 'short' })
     }
     while (pool.length < need.length) { const ch = chip(scene, 0, 0, '', ''); pool.push(ch); c.add(ch) }
@@ -273,14 +278,19 @@ export function meter(scene: Phaser.Scene, x: number, y: number, w: number, h: n
   const c = scene.add.container(x, y, [g]) as Meter
   c.setParts = (ps) => {
     g.clear().fillStyle(0x14172b, 1).fillRoundedRect(0, 0, w, h, h / 2)
-    let left = 1, cx = 0
+    // cumulative ends, drawn back-to-front from x=0 so the segments layer into one pill
+    const segs: { end: number; p: MeterPart }[] = []
+    let acc = 0
     for (const p of ps) {
-      const share = Math.max(0, Math.min(left, p.v))
-      if (share <= 0) continue
-      left -= share
-      const pw = Math.min(w - cx, Math.max(share * w, h)) // a tiny share stays visible
-      g.fillStyle(p.color, p.ghost ? 0.4 : 1).fillRoundedRect(cx, 0, pw, h, h / 2)
-      cx += share * w
+      const v = Number.isFinite(p.v) ? Math.max(0, p.v) : 0
+      if (v <= 0) continue
+      acc = Math.min(1, acc + v)
+      segs.push({ end: acc, p })
+    }
+    for (let i = segs.length - 1; i >= 0; i--) {
+      const { end, p } = segs[i]
+      const pw = Math.max(end * w, Math.min(h, w)) // a tiny share stays visible
+      g.fillStyle(p.color, p.ghost ? 0.4 : 1).fillRoundedRect(0, 0, Math.min(pw, w), h, Math.min(h / 2, pw / 2))
     }
     g.lineStyle(1.5, UI.line, 1).strokeRoundedRect(0, 0, w, h, h / 2)
     return c
@@ -296,10 +306,10 @@ export function holdButton(scene: Phaser.Scene, x: number, y: number, w: number,
   o: { fill?: number; color?: string; size?: number } = {}): HoldBtn {
   const fill = o.fill ?? 0x8a4fd0
   const g = scene.add.graphics()
-  const t = scene.add.text(0, 0, label, { fontFamily: FONT_UI, fontSize: `${o.size ?? 18}px`, fontStyle: 'bold', color: o.color ?? UI.text, align: 'center', lineSpacing: 2 }).setOrigin(0.5)
+  const t = scene.add.text(0, 0, label, { fontFamily: FONT_UI, fontSize: `${o.size ?? 18}px`, fontStyle: 'bold', color: o.color ?? UI.text, align: 'center', lineSpacing: 2, wordWrap: { width: w - 16 } }).setOrigin(0.5)
   const c = scene.add.container(x, y, [g, t]) as HoldBtn
   const prog = { v: 0 }
-  let enabled = true, holding = false, tween: Phaser.Tweens.Tween | undefined
+  let enabled = true, holding = false, holdId = -1, tween: Phaser.Tweens.Tween | undefined
   const draw = () => {
     if (!g.active) return
     g.clear()
@@ -313,16 +323,16 @@ export function holdButton(scene: Phaser.Scene, x: number, y: number, w: number,
   c.cancel = () => { if (!holding) return; holding = false; reset() }
   draw()
   c.setSize(w, h).setInteractive({ useHandCursor: true })
-  c.on('pointerdown', () => {
+  c.on('pointerdown', (p: Phaser.Input.Pointer) => {
     if (!enabled || holding) return
-    unlock(); holding = true
+    unlock(); holding = true; holdId = p.id
     tween = scene.tweens.add({
       targets: prog, v: 1, duration: ms, ease: 'Linear', onUpdate: draw,
       onComplete: () => { holding = false; sfx.pop(); onDone(); reset() },
     })
   })
-  c.on('pointerout', c.cancel)
-  const onUp = () => c.cancel()
+  c.on('pointerout', (p: Phaser.Input.Pointer) => { if (p.id === holdId) c.cancel() })
+  const onUp = (p: Phaser.Input.Pointer) => { if (p.id === holdId) c.cancel() } // another finger lifting must not cancel this hold
   scene.input.on('pointerup', onUp) // a release OUTSIDE the button must cancel too
   const off = () => scene.input.off('pointerup', onUp)
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, off)
@@ -346,7 +356,7 @@ export function itemIcon(scene: Phaser.Scene, x: number, y: number, size: number
   const crown = scene.add.text(-half + 3, -half + 2, '', { fontFamily: FONT_UI, fontSize: `${small + 2}px` })
   const c = scene.add.container(x, y, [g, ico, star, plus, tag, crown]) as ItemIcon
   c.setItem = (item, s) => {
-    const gc = GRADE.colors[Math.max(1, Math.min(GRADE.max, s.grade))]
+    const gc = GRADE.colors[Math.max(1, Math.min(GRADE.max, s.grade || 1))]
     const frame = s.tainted ? 0xc08cff : s.unique ? 0xff6b4a : hex(gc)
     g.clear()
     g.fillStyle(0x14172b, 1).fillRoundedRect(-half, -half, size, size, 10)
@@ -378,12 +388,12 @@ export function iconTabs(scene: Phaser.Scene, x: number, y: number, items: IconT
   const cells = items.map((it, i) => {
     const g = scene.add.graphics()
     const ic = scene.add.text(0, -8, it.icon, { fontFamily: FONT_UI, fontSize: '22px' }).setOrigin(0.5)
-    const lb = scene.add.text(0, 14, it.label, { fontFamily: FONT_UI, fontSize: '12px', fontStyle: 'bold', color: UI.text }).setOrigin(0.5)
+    const lb = scene.add.text(0, 14, it.label, { fontFamily: FONT_UI, fontSize: '12px', fontStyle: 'bold', color: UI.text, align: 'center', wordWrap: { width: w - 8 } }).setOrigin(0.5, 0.5)
     const cell = scene.add.container(i * (w + gap) + w / 2, 0, [g, ic, lb]).setSize(w, h).setInteractive({ useHandCursor: true })
     cell.on('pointerup', () => {
       const why = locks[i]
       if (why) { toast(scene, why, UI.red); return }
-      unlock(); sfx.pop(); c.setTab(i); onPick(i)
+      unlock(); sfx.pop(); if (i === active) return; c.setTab(i); onPick(i)
     })
     c.add(cell)
     return { g, ic, lb }
@@ -395,7 +405,7 @@ export function iconTabs(scene: Phaser.Scene, x: number, y: number, items: IconT
     cell.ic.setText(lock ? '🔒' : items[i].icon).setAlpha(lock ? 0.5 : 1)
     cell.lb.setAlpha(lock ? 0.5 : on ? 1 : 0.75)
   })
-  c.setTab = (i) => { active = i; draw(); return c }
+  c.setTab = (i) => { if (i === active || locks[i]) return c; active = i; draw(); return c } // a locked tab can't be made active
   c.setLocked = (i, reason) => { locks[i] = reason; draw(); return c }
   c.setTab(o.start ?? 0)
   return c

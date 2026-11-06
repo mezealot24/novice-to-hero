@@ -8,17 +8,25 @@ import { FONT_NUM, FONT_UI } from './data/game-data'
 
 type Scaled = Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Transform
 
-/** Squash-and-pop a game object: scale up, then settle back to its resting scale. Safe to spam (the rest scale is remembered). */
+/** Squash-and-pop a game object: scale up, then settle back to its resting scale. Safe to spam: only the previous PUNCH tween is stopped
+ * (other tweens on the target are untouched), and the resting scale is read fresh unless a punch is mid-flight. */
 export function punch(scene: Phaser.Scene, target: Scaled, o: { by?: number; ms?: number } = {}) {
   if (!target.active) return
-  const base: number = target.getData('fx:scale') ?? target.scaleX
-  target.setData('fx:scale', base)
-  scene.tweens.killTweensOf(target)
-  target.setScale(base)
-  scene.tweens.add({
-    targets: target, scaleX: base * (o.by ?? 1.18), scaleY: base * (o.by ?? 1.18), duration: (o.ms ?? 110) / 2, yoyo: true, ease: 'Quad.easeOut',
-    onComplete: () => { if (target.active) target.setScale(base) },
+  const prevTween: unknown = target.getData('fx:punch')
+  const prevBase: unknown = target.getData('fx:base')
+  let base = target.scaleX
+  if (prevTween instanceof Phaser.Tweens.Tween) {
+    if (prevTween.isPlaying() && typeof prevBase === 'number') base = prevBase // mid-punch: the live scale is inflated, use the remembered rest scale
+    prevTween.remove()
+    target.setScale(base)
+  }
+  target.setData('fx:base', base)
+  const k = o.by ?? 1.18
+  const tw = scene.tweens.add({
+    targets: target, scaleX: base * k, scaleY: base * k, duration: (o.ms ?? 110) / 2, yoyo: true, ease: 'Quad.easeOut',
+    onComplete: () => { if (target.active) { target.setScale(base); target.setData('fx:punch', null); target.setData('fx:base', null) } },
   })
+  target.setData('fx:punch', tw)
 }
 
 // ---------- hitStop ----------
@@ -38,9 +46,10 @@ function endHold(scene: Phaser.Scene) {
 export function hitStop(scene: Phaser.Scene, ms = 70) {
   const old = holds.get(scene)
   const prev = old ? old.prev : scene.tweens.timeScale
-  if (old) { old.timer.remove(false); scene.events.off(Phaser.Scenes.Events.SHUTDOWN, old.onShutdown) }
+  let wait = Math.max(1, ms)
+  if (old) { wait = Math.max(wait, old.timer.getRemaining()); old.timer.remove(false); scene.events.off(Phaser.Scenes.Events.SHUTDOWN, old.onShutdown) } // never shorten a running freeze
   const onShutdown = () => endHold(scene)
-  const timer = scene.time.delayedCall(Math.max(1, ms), () => endHold(scene)) // scene.time is not slowed by tweens.timeScale
+  const timer = scene.time.delayedCall(wait, () => endHold(scene)) // scene.time is not slowed by tweens.timeScale
   holds.set(scene, { prev, timer, onShutdown })
   scene.tweens.timeScale = 0
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, onShutdown)
@@ -94,7 +103,8 @@ export function crack(scene: Phaser.Scene, x: number, y: number, size = 90, o: {
 }
 
 /** Slot-machine reveal: `target` flickers through scrambled text, then lands on `finalText`. Digits are re-rolled by default; pass `scramble` for words.
- * Returns skip(): jump straight to the final text (tap-to-skip, fast mode). */
+ * Returns skip(): jump straight to the final text (tap-to-skip, fast mode).
+ * onDone fires exactly once on every path (finish, skip, target destroyed) EXCEPT scene shutdown, which drops the timer silently. */
 export function spinText(scene: Phaser.Scene, target: Phaser.GameObjects.Text, finalText: string, o: { ms?: number; tick?: number; scramble?: () => string; onDone?: () => void } = {}) {
   const tick = o.tick ?? 60, steps = Math.max(1, Math.round((o.ms ?? 500) / tick))
   const scramble = o.scramble ?? (() => finalText.replace(/\d/g, () => `${Phaser.Math.Between(0, 9)}`))
@@ -109,7 +119,7 @@ export function spinText(scene: Phaser.Scene, target: Phaser.GameObjects.Text, f
   const timer = scene.time.addEvent({
     delay: tick, loop: true,
     callback: () => {
-      if (!target.active) { stop(); return }
+      if (!target.active) { land(); return } // target destroyed mid-spin: still finish (onDone fires once)
       if (++n >= steps) land()
       else target.setText(scramble())
     },

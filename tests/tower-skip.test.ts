@@ -57,6 +57,9 @@ test('v87 tower skip: catch-up uses the recorded level, or a guess for old saves
   assert.equal(recordTowerCheckpoint(s, 20, 15, true), true) // same level but a relic this time: relic becomes true
   assert.deepEqual(towerCatchUp(s, 20), { lv: 15, relic: true, est: false })
   assert.equal(recordTowerCheckpoint(s, 20, 15, true), false) // nothing changed
+  recordTowerCheckpoint(s, 40, 22, false)
+  assert.equal(recordTowerCheckpoint(s, 40, 18, true), true) // weaker run WITH a relic: lv stays, relic flips on
+  assert.deepEqual(towerCatchUp(s, 40), { lv: 22, relic: true, est: false })
   assert.equal(recordTowerCheckpoint(s, 25, 9, false), false) // only every 10th floor
   assert.equal(recordTowerCheckpoint(s, 0, 9, false), false)
   assert.equal(towerCatchUp(mk(1000), 1000).lv, TOWER.skipLvMax) // guess is capped

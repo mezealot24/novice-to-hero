@@ -268,7 +268,7 @@ grid ไอคอน 72×72 ตัวเลขมุมขวาล่าง · 
 | helper | signature (ร่าง) | ใช้ทำ |
 |---|---|---|
 | `chip` | `chip(scene, x, y, icon, label, state: 'ok' \| 'short' \| 'buy' \| 'gain')` | ช่องต้นทุน/ของที่ได้ |
-| `costStrip` | `costStrip(scene, x, y, w): { set(cost: ForgeCost \| null, s: Wallet): void }` | แถบต้นทุนล่าง (update ไม่ rebuild) |
+| `costStrip` | `costStrip(scene, x, y, w): Container & { setCost(cost: ForgeCost \| null, s: Wallet): number }` คืนความสูงที่ใช้ · zeny นับค่าซื้อ fodder ด้วย `zenyShort` | แถบต้นทุนล่าง (update ไม่ rebuild) |
 | `meter` | `meter(scene, x, y, w, h, parts: { v: number; color: number; ghost?: boolean }[])` | pity / โอกาส |
 | `holdButton` | `holdButton(scene, x, y, w, h, label, ms, onDone, o?)` | Corrupt / หลอมคืน |
 | `itemIcon` | `itemIcon(scene, x, y, size, it, st: { grade; refine; broken; tainted; unique; cursed })` | ไอคอน+กรอบ+ป้าย (ใช้ทั้ง rail และ stage) |
