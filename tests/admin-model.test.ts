@@ -172,3 +172,12 @@ test('scripted kits: Celeste shows Into Arena / Riposte / Espada with real battl
   for (const m of ['hunter', 'gunner', 'drainer', 'venomqueen', 'frostgiant'] as const) assert.ok(scriptKits(m).length > 0, `${m} has a kit`)
   assert.equal(scriptKits('jellop').length, 0)
 })
+
+test('v82: bodyMul / speedMul now work on D1-5 monsters (they were D6-only)', () => {
+  const [base] = previewMon('duelist', {})
+  const [buff] = previewMon('duelist', { monsters: { 'duelist.bodyMul.hp': 2, 'duelist.bodyMul.dmg': 1.5, 'duelist.speedMul': 2 } })
+  assert.equal(base.hp, MONSTERS.duelist.hp, 'default unchanged')
+  assert.ok(Math.abs(buff.hp - base.hp * 2) <= 1, `HP x2: ${base.hp} -> ${buff.hp}`)
+  assert.ok(Math.abs(buff.dmg - base.dmg * 1.5) < 1e-6, 'ATK x1.5')
+  assert.ok(Math.abs(buff.speed - base.speed * 2) < 1e-6, 'speed x2')
+})

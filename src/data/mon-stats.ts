@@ -195,10 +195,12 @@ export function withStats(d: MonsterDef, kind: MonsterKind, lv: number, o: StatM
   const out: MonsterDef = { ...d, lv, base: s.b, ...statOnly(d, s) }
   const ratio = (a: number, b: number) => (b > 0 ? a / b : 1)
   const rHp = ratio(now.hp, ref.hp), rDmg = ratio(now.dmg, ref.dmg), rMatk = ratio(now.matk, ref.matk), rSpd = ratio(now.speed, ref.speed)
-  if (rHp !== 1) out.hp = Math.max(1, Math.round(d.hp * rHp))
-  if (rDmg !== 1) out.dmg = d.dmg * rDmg
-  if (rMatk !== 1 && d.matk !== undefined) out.matk = d.matk * rMatk
-  if (rSpd !== 1) out.speed = (d.speed ?? BATTLE.monSpeed[kind] ?? 10) * rSpd
+  // v82: bodyMul / speedMul work here too (they were D6-only, so an admin edit on a D1-5 monster did nothing). Default {} / 1 = unchanged.
+  const bm = d.bodyMul ?? {}, mHp = bm.hp ?? 1, mDmg = bm.dmg ?? 1, mMatk = bm.matk ?? 1, mSpd = d.speedMul ?? 1
+  if (rHp !== 1 || mHp !== 1) out.hp = Math.max(1, Math.round(d.hp * rHp * mHp))
+  if (rDmg !== 1 || mDmg !== 1) out.dmg = d.dmg * rDmg * mDmg
+  if ((rMatk !== 1 || mMatk !== 1) && (d.matk !== undefined || mMatk !== 1)) out.matk = (d.matk ?? d.dmg) * rMatk * mMatk // magic falls back to dmg
+  if (rSpd !== 1 || mSpd !== 1) out.speed = (d.speed ?? BATTLE.monSpeed[kind] ?? 10) * rSpd * mSpd
   const add = (key: 'def' | 'hit' | 'flee', dflt: number, delta: number) => { if (delta !== 0) out[key] = Math.round((d[key] ?? dflt) + delta) }
   add('def', 0, now.def - ref.def)
   add('hit', 15, now.hit - ref.hit)

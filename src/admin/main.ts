@@ -2,14 +2,14 @@
 // The server re-validates everything (server/src/config.ts); the checks here are only for fast feedback.
 import { MONSTERS, type MonsterKind } from '../data/game-data'
 import type { BaseStat } from '../data/meta'
-import { statNative } from '../data/mon-stats'
+import { MON_STAT, monPoints, monTier, statNative } from '../data/mon-stats'
 import { canonicalJson, checkPatch, guardsFor, type FieldRow } from '../data/patch'
 import { TABLE_IDS, TABLES, type Patch, type TableId } from '../data/tunables'
 import { LOCAL_KEY } from '../live-keys'
 import { borrowPlan, heroClasses, type BorrowLine } from './borrow'
 import { kitUsers, scriptKits } from './kits'
 import { API, authClient, call, errText, parseRow, type SRow } from './api'
-import { clampField, clonePatch, diffPatches, fieldLabel, fieldRow, fields, monSections, monsterGroups, patchSize, pctHint, previewLevels, previewMon, previewSkills, setIn, TIER_LABEL, valueIn, allocFor, BASE7, type AllocPlan, type MonPreview, type SkillPreview, type Tier } from './model'
+import { clampField, clonePatch, diffPatches, fieldLabel, fieldRow, fields, monSections, monsterGroups, patchSize, pctHint, previewLevels, previewMon, previewSkills, setIn, TIER_LABEL, valueIn, allocFor, BASE7, type MonPreview, type SkillPreview, type Tier } from './model'
 
 declare const __PREVIEW__: boolean
 const LOCAL_OK = import.meta.env.DEV || (typeof __PREVIEW__ !== 'undefined' && __PREVIEW__) // ?cfg=local only works in these game builds
@@ -178,7 +178,7 @@ function monsterBody(k: MonsterKind, onChange: () => void): HTMLElement {
       h('div', { class: 'grid' }, ...kit.fields.map((q) => { const row = fieldRow('battle', q.path); return row ? fieldCell('battle', row, q.label, () => { onChange(); updateStatus() }) : '' })),
       h('p', { class: 'warn small' }, `⚠️ ค่ากลางใน BATTLE${users.length > 1 ? ` · ใช้ร่วมกับ: ${users.join(', ')}` : ''} (แท็บตารางอื่น → battle)`)))
   }
-  for (const s of monSections(k, rowsOfMonster(k))) {
+  for (const s of monSections(k, rowsOfMonster(k).filter((r) => !inBuilder(k, r.path)))) { // stat pipeline lives in 📊
     const shown = (f: { row: FieldRow }) => isUsed('monsters', f.row) || /\.skills\.\d+(\.pick\.\d+)?\.lv$/.test(f.row.path) // skill level: always in sight
     const used = s.fields.filter(shown), rest = s.fields.filter((f) => !shown(f))
     if (!used.length) { idle.push(lazyDetails('extra', `${s.title} · ${rest.length}`, () => cells('monsters', rest, onChange))); continue }
@@ -218,61 +218,103 @@ function monsterCard(k: MonsterKind): HTMLElement {
     const drawPrev = () => prev.replaceChildren(...previewBox(k))
     drawPrev()
     const rebuild = () => { while (d.children.length > 1) d.lastChild?.remove(); fill(); setBadge() }
-    d.append(prev, targetBox(k, rebuild), borrowBox(k, rebuild), h('p', { class: 'hint' }, statNative(k)
-      ? 'ℹ️ ไม่ต้องใส่ HP / ATK เอง: แต้มรวม = เลเวลห้อง × tier อัตโนมัติ · statAlloc = สัดส่วนการแจกแต้ม · bodyMul = ตัวคูณ · def / hit / ... = โบนัสบวกเพิ่ม'
-      : 'ℹ️ ค่าพลังด้านล่าง = ค่าที่เลเวลบ้านเกิด · แก้ statAlloc / legacy.lv / MON_STAT แล้วตัวเลขขยับตามสูตรเดียวกับ D6'))
-    d.append(monsterBody(k, () => { setBadge(); drawPrev() }))
+    const changed = () => { setBadge(); drawPrev() }
+    d.append(prev, statBuilder(k, changed), borrowBox(k, rebuild), monsterBody(k, changed))
   }
   d.addEventListener('toggle', () => { if (d.open && d.children.length === 1) fill() })
   return d
 }
 
-/** "🎯 พิมพ์ stat ที่อยากได้": type the 7 stats for one level, get statAlloc weights + pointsMul (budget), write them to the draft. */
-function targetBox(k: MonsterKind, rebuild: () => void): HTMLElement {
-  const lvs = previewLevels(k)
-  const lvSel = h('select', {}, ...lvs.map((v) => h('option', { value: String(v) }, `ที่ Lv ${v}`)))
-  lvSel.value = String(lvs[lvs.length - 1])
-  const inputs = Object.fromEntries(BASE7.map((s) => [s, h('input', { type: 'number', min: '1', max: '999', step: '1', title: s.toUpperCase() })])) as Record<BaseStat, HTMLInputElement>
-  const fit = h('input', { type: 'checkbox', checked: true })
-  const out = h('div', { class: 'plan' }), go = h('button', { class: 'primary small' }, '🎯 ใช้ค่านี้')
-  let plan: AllocPlan | null = null
-  const prefill = () => {
-    const p = previewMon(k, S.draft).find((x) => x.lv === Number(lvSel.value))
-    for (const s of BASE7) inputs[s].value = String(p?.base[s] ?? 1)
-    draw()
+/** Monster fields the 📊 table owns (kept out of the sections below so nothing shows twice). */
+const BUILDER_REL = /^(statAlloc\.\w+|pointsMul|bodyMul\.\w+|speedMul|def|hit|flee|crit|combo|counter|hp|dmg|matk)$/
+const inBuilder = (k: MonsterKind, path: string) => BUILDER_REL.test(path.slice(k.length + 1))
+
+/** "📊 สร้าง stat": the whole stat pipeline in one table — ① point budget ② split (statAlloc) ③ derived numbers (× body / + bonus). */
+function statBuilder(k: MonsterKind, onChange: () => void): HTMLElement {
+  const native = statNative(k), lvs = previewLevels(k), tier = monTier(MONSTERS[k])
+  const box = h('section', { class: 'sec builder' })
+  let lv = lvs[lvs.length - 1]
+  const P = (rel: string) => `${k}.${rel}`
+  const val = (rel: string) => draftOf('monsters', P(rel))
+  const n0 = (v: number) => Math.round(v).toLocaleString('en-US')
+  const pc = (v: number) => `${Math.round(v * 100)}%`
+  const signed = (v: number, f: (x: number) => string) => (v >= 0 ? `+${f(v)}` : `−${f(-v)}`)
+  const write = (rel: string, v: number | null) => {
+    const row = fieldRow('monsters', P(rel))
+    if (row) setIn(S.draft, 'monsters', P(rel), v === null || v === row.value || (v === 0 && row.value === undefined && rel.startsWith('statAlloc.')) ? null : v)
+  }
+  const done = () => { updateStatus(); onChange(); draw() }
+  /** One editable monster field, committed on change. */
+  const num = (rel: string, hint = '') => {
+    const row = fieldRow('monsters', P(rel))
+    if (!row) return h('span', { class: 'muted' }, '—')
+    const cur = val(rel), live = liveOf('monsters', P(rel))
+    const i = h('input', { type: 'number', inputmode: 'decimal', step: row.def.kind === 'int' ? '1' : 'any', placeholder: hint,
+      title: `${P(rel)} · ช่วง ${row.def.min} – ${row.def.max}${cur !== live ? ` · live ${fmt(live)}` : ''}`, class: cur !== live ? 'chg' : '' })
+    i.value = cur === undefined ? '' : String(cur)
+    i.addEventListener('change', () => { write(rel, clampField(row.def, i.value)); done() })
+    return i
   }
   const draw = () => {
-    const target = Object.fromEntries(BASE7.map((s) => [s, Number(inputs[s].value) || 1])) as Record<BaseStat, number>
-    plan = allocFor(k, Number(lvSel.value), target, fit.checked ? null : draftOf('monsters', `${k}.pointsMul`) ?? 1)
-    const P = plan, budget = Math.round(P.base * P.pointsMul)
-    const off = BASE7.filter((s) => Math.abs(P.result[s] - target[s]) > 1)
-    out.replaceChildren(
-      h('div', {}, `แต้มที่ต้องใช้ ${P.need} · มอนตัวนี้มี ${P.base} (Lv × tier)`, P.pointsMul !== 1 ? h('b', {}, ` → pointsMul ×${P.pointsMul} = ${budget} แต้ม`) : ''),
-      h('div', { class: 'muted small' }, `สัดส่วนที่จะใส่: ${BASE7.filter((s) => P.weights[s]).map((s) => `${s.toUpperCase()} ${P.weights[s]}`).join(' · ') || '—'}`),
-      h('div', { class: off.length ? 'warn small' : 'small' }, `ผลจริงที่ Lv ${P.lv}: ${BASE7.map((s) => `${s.toUpperCase()} ${P.result[s]}`).join(' · ')}`),
-      off.length && !fit.checked ? h('div', { class: 'warn small' }, '⚠️ แต้มรวมไม่พอ / เกิน → ติ๊ก "ปรับแต้มรวม" เพื่อให้ได้ตามที่พิมพ์') : '',
-      P.pointsMul === 10 || P.pointsMul === 0.1 ? h('div', { class: 'bad small' }, `⛔ pointsMul ติดเพดาน ${P.pointsMul} (ช่วง 0.1 – 10)`) : '',
+    const all = previewMon(k, S.draft), p = all.find((x) => x.lv === lv) ?? all[0]
+    const base = monPoints(lv, tier), pm = val('pointsMul') ?? 1
+    const lvSel = h('select', {}, ...lvs.map((v) => h('option', { value: String(v) }, `Lv ${v}`)))
+    lvSel.value = String(lv)
+    lvSel.addEventListener('change', () => { lv = Number(lvSel.value); draw() })
+    // ② the "= stat" row is editable too: typed stats -> statAlloc + pointsMul (allocFor)
+    const want = Object.fromEntries(BASE7.map((s) => {
+      const i = h('input', { type: 'number', min: '1', step: '1', title: `พิมพ์ ${s.toUpperCase()} ที่อยากได้ที่ Lv ${lv} → ระบบคำนวณสัดส่วน + pointsMul ให้` })
+      i.value = String(p.base[s] ?? 1)
+      i.addEventListener('change', () => {
+        const target = Object.fromEntries(BASE7.map((q) => [q, Number(want[q].value) || 1])) as Record<BaseStat, number>
+        const plan = allocFor(k, lv, target, null)
+        for (const q of BASE7) write(`statAlloc.${q}`, plan.weights[q])
+        write('pointsMul', plan.pointsMul === 1 ? null : plan.pointsMul)
+        toast(`${MONSTERS[k].name}: สัดส่วนใหม่ + pointsMul ×${plan.pointsMul} (ยังไม่บันทึก)`)
+        done()
+      })
+      return [s, i]
+    })) as Record<BaseStat, HTMLInputElement>
+    // ③ derived numbers
+    const mult: [string, keyof MonPreview, string, string | null][] = [['HP', 'hp', 'bodyMul.hp', 'hp'], ['ATK', 'dmg', 'bodyMul.dmg', 'dmg'], ['M.ATK', 'matk', 'bodyMul.matk', 'matk'], ['ความเร็ว', 'speed', 'speedMul', null]]
+    const bonus: [string, keyof MonPreview, number, boolean][] = [['DEF', 'def', 0, false], ['Hit', 'hit', 15, false], ['Flee', 'flee', 5, false], ['คริ', 'crit', 0, true], ['คอมโบ', 'combo', 0, true], ['สวนกลับ', 'counter', 0, true]]
+    const live = previewMon(k, livePatch()).find((x) => x.lv === lv)
+    const out = (key: keyof MonPreview, f: (v: number) => string) => {
+      const a = p[key] as number, b = live ? (live[key] as number) : a
+      return h('td', { class: `num out${f(a) !== f(b) ? ' chg' : ''}`, title: f(a) !== f(b) ? `live ${f(b)}` : '' }, f(a))
+    }
+    const rows3 = [
+      ...mult.map(([label, key, mulRel, baseRel]) => {
+        const F = p[key] as number, m = val(mulRel) ?? 1, f = key === 'speed' ? (v: number) => v.toFixed(1) : n0
+        const from = !native && baseRel
+          ? h('td', {}, num(baseRel), h('small', { class: 'muted' }, ` × ${(F / ((val(baseRel) ?? F) * m || 1)).toFixed(2)} จาก stat`))
+          : h('td', { class: 'num' }, f(F / (m || 1)))
+        return h('tr', {}, h('th', {}, label), from, h('td', {}, '×', num(mulRel, '1')), h('td', { class: 'muted' }, '—'), out(key, f))
+      }),
+      ...bonus.map(([label, key, dflt, rate]) => {
+        const F = p[key] as number, b = val(key) ?? (native ? 0 : dflt), f = rate ? pc : n0
+        return h('tr', {}, h('th', {}, label), h('td', { class: 'num' }, native ? f(F - b) : signed(F - b, f)), h('td', { class: 'muted' }, '—'), h('td', {}, '+', num(key, native ? '0' : String(dflt))), out(key, f))
+      }),
+    ]
+    box.replaceChildren(
+      h('h4', {}, '📊 สร้าง stat ', lvSel),
+      h('div', { class: 'step' }, h('b', {}, '① แต้มรวม '), `Lv ${lv} × ${TIER_LABEL[tier]} ${pc(MON_STAT.tierPct[tier])} = ${base} แต้ม  × `, num('pointsMul', '1'), h('b', {}, ` = ${Math.round(base * pm)} แต้ม`)),
+      h('div', { class: 'step' }, h('b', {}, '② แบ่งแต้ม '), h('span', { class: 'muted small' }, 'สัดส่วน = หั่นพิซซ่ากี่ชิ้น (แก้ได้) · แถว "= stat" พิมพ์ค่าที่อยากได้ได้เลย ระบบคิดสัดส่วน + pointsMul ให้')),
+      h('div', { class: 'scroll' }, h('table', { class: 'b7' },
+        h('thead', {}, h('tr', {}, h('th', {}, ''), ...BASE7.map((s) => h('th', {}, s.toUpperCase())))),
+        h('tbody', {},
+          h('tr', {}, h('th', {}, 'สัดส่วน'), ...BASE7.map((s) => h('td', {}, num(`statAlloc.${s}`, '0')))),
+          h('tr', {}, h('th', {}, '= stat'), ...BASE7.map((s) => h('td', {}, want[s])))))),
+      h('div', { class: 'step' }, h('b', {}, '③ ค่าจริง '), h('span', { class: 'muted small' }, native
+        ? 'จาก stat × ตัวคูณ + โบนัส = ในเกม'
+        : 'มอน D1-5: HP / ATK = ค่าตั้ง (ที่ Lv บ้านเกิด) × ผลจาก stat × ตัวคูณ · ช่อง + = ค่าตั้ง (บวกผลต่างจาก stat)')),
+      h('div', { class: 'scroll' }, h('table', { class: 'b3' },
+        h('thead', {}, h('tr', {}, ...['', native ? 'จาก stat' : 'ค่าตั้ง / จาก stat', '× ตัวคูณ', native ? '+ โบนัส' : '+ ค่าตั้ง', '= ในเกม'].map((x) => h('th', {}, x)))),
+        h('tbody', {}, ...rows3))),
     )
   }
-  lvSel.addEventListener('change', prefill); fit.addEventListener('change', draw)
-  for (const s of BASE7) inputs[s].addEventListener('input', draw)
-  go.addEventListener('click', () => {
-    if (!plan) return
-    for (const s of BASE7) {
-      const path = `${k}.statAlloc.${s}`, row = fieldRow('monsters', path), w = plan.weights[s]
-      if (row) setIn(S.draft, 'monsters', path, w === row.value || (!w && row.value === undefined) ? null : w)
-    }
-    if (fit.checked) setIn(S.draft, 'monsters', `${k}.pointsMul`, plan.pointsMul === (fieldRow('monsters', `${k}.pointsMul`)?.value ?? 1) ? null : plan.pointsMul)
-    updateStatus(); toast(`ตั้ง stat ${MONSTERS[k].name} ที่ Lv ${plan.lv} แล้ว (ยังไม่บันทึก)`)
-    rebuild()
-  })
-  const d = h('details', { class: 'borrow target' }, h('summary', {}, '🎯 พิมพ์ stat ที่อยากได้'),
-    h('div', { class: 'row' }, lvSel, h('label', { class: 'small' }, fit, ' ปรับแต้มรวม (pointsMul) ให้พอดี')),
-    h('div', { class: 'grid stat7' }, ...BASE7.map((s) => h('label', { class: 'small' }, s.toUpperCase(), inputs[s]))),
-    out, h('div', { class: 'row' }, go),
-    h('p', { class: 'muted small' }, 'ระบบแปลงเป็นสัดส่วน (statAlloc) + ตัวคูณแต้มรวม → ห้องเลเวลอื่น / 🔥 โหมดยาก ยังโตตามสูตรเหมือนเดิม · ±1 จากการปัดเศษ'))
-  d.addEventListener('toggle', () => { if (d.open && !inputs.str.value) prefill() })
-  return d
+  draw()
+  return box
 }
 
 /** "📥 ยืมจาก Hero tree": pick class -> node / talent -> Lv, see what it adds, then write it into the draft. */
@@ -393,7 +435,7 @@ function renderMonsters(main: HTMLElement) {
 
 // ---------- other tables (generic from TABLES) ----------
 function renderTables(main: HTMLElement) {
-  const ids = TABLE_IDS.filter((t) => t !== 'monsters')
+  const ids = TABLE_IDS.filter((t) => t !== 'monsters' && t !== 'archetypes') // archetypes: no monster uses one since v76 (own statAlloc each)
   const pick = h('div', { class: 'chips' }, ...ids.map((t) => h('button', { class: S.table === t ? 'on' : '', onclick: () => { S.table = t; renderTab() } }, t)))
   const t = S.table
   const rows = fields(t), groups = new Map<string, FieldRow[]>()
