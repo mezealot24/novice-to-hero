@@ -29,7 +29,8 @@ export class ForgeScene extends Phaser.Scene {
   private railView = { mineOnly: true, page: 0 }
   private stashTab: 'fodder' | 'mats' = 'fodder'
   private busyUntil = 0
-  private holds = 0
+  private holdSet = new Set<symbol>() // one token per open hold, so a stale release can never unlock a newer hold
+  private alive = true // false once SHUTDOWN started: the display list is already gone, so nothing may touch game objects
   private optLocks = new Map<string, number[]>()
   private refreshWallet!: () => void
   private legacy!: LegacyForge
@@ -51,7 +52,7 @@ export class ForgeScene extends Phaser.Scene {
   create() {
     // Scene instances are reused by Phaser: reset everything that survives between visits.
     this.mode = 'anvil'; this.itemId = undefined; this.verb = 'refine'; this.stashTab = 'fodder'; this.railView = { mineOnly: true, page: 0 }
-    this.busyUntil = 0; this.holds = 0; this.optLocks = new Map()
+    this.busyUntil = 0; this.holdSet = new Set(); this.alive = true; this.optLocks = new Map()
     this.modeObjs = []; this.rail = undefined; this.stage = undefined; this.verbTabs = undefined; this.box = undefined; this.panel = undefined; this.strip = undefined; this.actBtn = undefined; this.holdBtn = undefined; this.holdMs = 0
     this.cameras.main.setBackgroundColor(UI.night)
     this.cameras.main.fadeIn(160, 20, 23, 43)
@@ -60,8 +61,7 @@ export class ForgeScene extends Phaser.Scene {
     this.bubble = txt(this, 520, 62, '', 13, UI.sub).setWordWrapWidth(424)
     this.ctx = {
       scene: this,
-      fx: { success: (l, n) => this.stage?.success(l, n), fail: (l) => this.stage?.fail(l), mend: () => this.stage?.mend(), shine: (l) => this.stage?.shine(l) },
-      taintUi: { ask: (it) => this.legacy.askTaint(it), note: (it) => this.legacy.taintNote(it) },
+      fx: { success: (l, n) => this.stage?.success(l, n), fail: (l) => this.stage?.fail(l), mend: () => this.stage?.mend(), shine: (l) => this.stage?.shine(l), burst: (k, l) => this.stage?.burst(k, l) },
       changed: () => this.changed(),
       say: (t) => this.say(t),
       busy: (ms) => this.lockFor(ms),
@@ -71,7 +71,14 @@ export class ForgeScene extends Phaser.Scene {
       locks: { get: (id) => this.optLocks.get(id) ?? [], set: (id, idx) => { this.optLocks.set(id, idx) } },
     }
     tabs(this, 24, 80, ['⚒️ ทั่ง', '📜 สูตร', '🎒 คลัง'], 150, (i) => this.setMode((['anvil', 'recipe', 'stash'] as Mode[])[i]), 0)
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.panel?.destroy(); this.panel = undefined; this.legacy.clear(); this.holds = 0; this.busyUntil = 0 })
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.alive = false // first: DisplayList / Clock are already shut down, a late release() -> syncBottom() would touch destroyed Text
+      const p = this.panel
+      this.panel = undefined
+      p?.destroy()
+      this.legacy.clear()
+      this.holdSet.clear(); this.busyUntil = 0
+    })
   }
 
   private say(text: string) {
@@ -80,31 +87,34 @@ export class ForgeScene extends Phaser.Scene {
   }
 
   // ---------- busy lock (anti double-tap, and the option reveal) ----------
-  private isBusy() { return this.holds > 0 || this.time.now < this.busyUntil }
+  private isBusy() { return this.holdSet.size > 0 || this.time.now < this.busyUntil }
 
   private lockFor(ms: number) {
+    if (!this.alive) return
     this.busyUntil = Math.max(this.busyUntil, this.time.now + ms)
     this.syncBottom()
     this.time.delayedCall(ms + 30, () => this.syncBottom()) // re-enable the button once the lock is over
   }
 
   private holdLock() {
-    this.holds++
+    const token = Symbol('hold')
+    this.holdSet.add(token)
     this.syncBottom()
-    let done = false
-    return () => { if (done) return; done = true; this.holds = Math.max(0, this.holds - 1); this.syncBottom() }
+    return () => { if (!this.holdSet.delete(token)) return; this.syncBottom() } // only its own token; a cleared hold is a no-op
   }
 
   // ---------- modes ----------
   private clearMode() {
     if (this.rail) this.railView = this.rail.view // keep the filter and page across modes
-    this.panel?.destroy(); this.panel = undefined
+    const old = this.panel
+    this.panel = undefined // before destroy(): a release() inside it calls syncBottom, which must not see the half-destroyed panel
+    old?.destroy()
     this.box?.destroy(); this.box = undefined
     this.legacy.clear()
     for (const o of this.modeObjs) o.destroy()
     this.modeObjs = []
     this.rail = undefined; this.stage = undefined; this.verbTabs = undefined; this.strip = undefined; this.actBtn = undefined; this.holdBtn = undefined; this.holdMs = 0
-    this.holds = 0
+    this.holdSet.clear()
   }
 
   private setMode(m: Mode) {
@@ -123,7 +133,7 @@ export class ForgeScene extends Phaser.Scene {
     this.modeObjs.push(railBackdrop(this, RAIL_X, RAIL_Y, RAIL_W, RAIL_H))
     this.rail = new ItemRail(this, RAIL_X, RAIL_Y + 6, RAIL_W, (id) => { if (!this.isBusy()) this.pick(id) }, this.railView)
     this.modeObjs.push(this.rail.container)
-    this.stage = new AnvilStage(this, STAGE_X, STAGE_Y, (it) => this.legacy.taintNote(it))
+    this.stage = new AnvilStage(this, STAGE_X, STAGE_Y)
     this.modeObjs.push(this.stage.container)
     const slots = Array.from({ length: SLOT_COUNT }, (_, i) => VERB_TAB[slotVerb(i, false)])
     this.verbTabs = iconTabs(this, STAGE_X, VERB_Y, slots, (i) => { const it = this.item(); if (it) this.setVerb(slotVerb(i, isBroken(save(), it.id))) }, { w: 110, h: 56, start: -1, gate: () => !this.isBusy() })
@@ -143,7 +153,7 @@ export class ForgeScene extends Phaser.Scene {
     if (this.isBusy() || !this.panel) return
     this.lockFor(BUSY_MS)
     const r = this.panel.act()
-    if (r instanceof Promise) { const rel = this.holdLock(); r.then(rel, rel) }
+    if (r instanceof Promise) { const rel = this.holdLock(); r.then(rel, (e: unknown) => { console.error('[forge] act() failed', e); rel() }) }
   }
 
   /** A new item on the anvil. The verb stays the same across items (spec 3.3) unless it is closed for the new one or the new one is broken. */
@@ -155,7 +165,10 @@ export class ForgeScene extends Phaser.Scene {
     this.stage?.setItem(it)
     this.syncTabs()
     if (!it) {
-      this.panel?.destroy(); this.panel = undefined; this.box?.destroy(); this.box = undefined
+      const gone = this.panel
+      this.panel = undefined
+      gone?.destroy()
+      this.box?.destroy(); this.box = undefined
       this.say('ยังไม่มีของให้ตีค่ะ ซื้อของที่ร้านหรือตีของที่แท็บ 📜 สูตรก่อนนะ')
       this.syncBottom()
       return
@@ -182,7 +195,9 @@ export class ForgeScene extends Phaser.Scene {
     this.verb = v
     this.syncTabs()
     this.verbTabs?.setTab(slotOf(v))
-    this.panel?.destroy()
+    const prev = this.panel
+    this.panel = undefined
+    prev?.destroy()
     this.box?.destroy()
     this.box = this.add.container(STAGE_X, BOX_Y, [panel(this, 0, 0, BOX_W, BOX_H)])
     this.panel = this.makePanel(v)
@@ -212,7 +227,9 @@ export class ForgeScene extends Phaser.Scene {
 
   /** Cost strip + primary button + stage preview from the current panel (in place). */
   private syncBottom() {
+    if (!this.alive) return
     const s = save(), p = this.panel, a = p?.action() ?? null, busy = this.isBusy()
+    p?.refresh() // panel-owned buttons follow the busy state
     this.strip?.setCost(p?.cost() ?? null, s)
     this.actBtn?.setVisible(!!a && !a.hold)
     if (a && !a.hold) this.actBtn?.setLabel(a.label).setEnabled(a.enabled && !busy).setFill(a.fill ?? 0xf2b84b)

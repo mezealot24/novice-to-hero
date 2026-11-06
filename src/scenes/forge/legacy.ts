@@ -3,10 +3,8 @@ import { COLORS, DUNGEONS } from '../../data/game-data'
 import { JOBS } from '../../data/jobs'
 import { canWear, gradeOf, isBroken, itemStatLine, refineOf, slotCount, SLOTS, wearText, type Item } from '../../data/meta'
 import { craftCost, CRAFT_ITEMS, GRADE, gradeCap, gradeStars } from '../../data/craft'
-import { canAfford, canAffordAuto, FODDER, fodderFits, fodderMin, lineText, pickFodder, taintCheck, taintCost, totalZeny, tryTaint, type ForgeCost } from '../../data/refine'
-import { curseById, TAINT } from '../../data/taint'
+import { canAfford, canAffordAuto, FODDER, fodderFits, fodderMin, pickFodder, totalZeny, type ForgeCost } from '../../data/refine'
 import { MAT_RULES, MATS, matById } from '../../data/materials'
-import { TAINT_MAT as TAINT_MAT_ID } from '../../data/taint'
 import { addFodder, canPay, equip, forgetForge, isWorn, pay, persist, save } from '../../save'
 import { sfx } from '../../sfx'
 import { button, confirm, panel, toast, txt, UI } from '../../ui'
@@ -95,43 +93,6 @@ export class LegacyForge {
     const wear = canWear(it, s.job)
     if (wear) confirm(this.scene, `ตีสำเร็จ! ${it.icon} ${it.name}`, 'ใส่เลยไหมคะ?', 'ใส่เลย', () => { equip(s, it.id); persist(); this.host.changed() }, 'ไว้ก่อน')
     else toast(this.scene, `ได้ ${it.name} แล้ว (ใส่ได้เมื่อเป็น ${wearText(it)})`)
-    this.host.changed()
-  }
-
-  // ---------- taint (v89, design/unique-taint-tower-skip-v1.md §3) ----------
-  /** One line saying what the taint did (card of a tainted item). */
-  taintNote(it: Item): string {
-    const t = save().taint?.[it.id]
-    if (!t) return ''
-    if (t.kind === 'gold') return '🌑 ติดคำสาป: ✨ ค่าพิเศษทุกบรรทัดเป็นทอง (ล็อกแล้ว)'
-    if (t.kind === 'brick') return '🌑 ติดคำสาป: 💥 พัง เสียของไปหนึ่งอย่าง (ล็อกแล้ว)'
-    if (t.kind === 'curse') { const c = curseById(t.curse); return c ? `🌑 ${c.icon} ${c.name}: ${itemStatLine({ mod: c.mod, pct: c.pct })}` : '🌑 ติดคำสาป (ล็อกแล้ว)' }
-    return '🌑 ติดคำสาป: ไม่เกิดอะไร แต่ล็อกแล้ว'
-  }
-
-  askTaint(it: Item) {
-    const s = save(), cost = taintCost(), have = s.mats?.[TAINT_MAT_ID] ?? 0
-    const why = taintCheck(s, it)
-    if (why === 'broken') { toast(this.scene, '💔 ซ่อมของให้เสร็จก่อนค่อยใส่คำสาปค่ะ', UI.red); return }
-    if (why !== 'ok') return
-    const pc = (k: keyof typeof TAINT.odds) => `${Math.round(TAINT.odds[k] * 100)}%`
-    confirm(this.scene, `🌑 ใส่คำสาป ${it.name}?`,
-      `⚠ ทำได้ครั้งเดียว แล้วของชิ้นนี้ถูกล็อกถาวร\n(ตีบวก · สุ่มค่าพิเศษ · อัปขั้น ไม่ได้อีก · ซ่อมได้)\n😐 ${pc('none')} ไม่เกิดอะไร · ✨ ${pc('gold')} ค่าพิเศษเป็นทอง\n💀 ${pc('curse')} ได้บรรทัดคำสาป (แรง+ข้อเสีย) · 💥 ${pc('brick')} พัง เสียค่าพิเศษ 1 บรรทัด/บวก -1\nราคา ${cost.zeny}z + 🔻x${TAINT.crystals} (มี ${have})`,
-      `🌑 ลุ้น ${cost.zeny}z`, () => this.doTaint(it))
-  }
-
-  private doTaint(it: Item) {
-    const s = save(), res = tryTaint(s, it)
-    if (!res.ok) { toast(this.scene, res.why === 'short' ? `zeny หรือ 🔻ผลึกโลกันตร์ ยังไม่พอค่ะ (ต้อง ${TAINT.zeny}z + ${TAINT.crystals} ชิ้น)` : 'ใส่คำสาปชิ้นนี้ไม่ได้ค่ะ', UI.red); return }
-    persist(); this.host.wallet()
-    const lines: Record<string, string> = {
-      none: '😐 ไม่เกิดอะไรขึ้น...\nแต่ของชิ้นนี้ถูกล็อกแล้วนะคะ',
-      gold: res.fallback ? `✨ ไม่มีค่าพิเศษให้เปลี่ยน เลยได้บรรทัดทองใหม่ 1 บรรทัด!\n${res.gold ? res.gold.map(lineText).join(' · ') : ''}` : `✨ ค่าพิเศษทุกบรรทัดกลายเป็นทอง!\n${(res.ok && res.gold ? res.gold : []).map(lineText).join(' · ')}`,
-      curse: res.curse ? `💀 ได้คำสาป ${res.curse.icon} ${res.curse.name}\n${itemStatLine({ mod: res.curse.mod, pct: res.curse.pct })}` : '',
-      brick: res.lost ? `💥 พัง! เสียค่าพิเศษ ${lineText(res.lost)}` : res.refineDown ? '💥 พัง! ไม่มีค่าพิเศษให้เสีย ตีบวก -1' : '💥 พัง! แต่ไม่มีอะไรให้เสียเลย (ตีบวก +0 ไม่มีค่าพิเศษ)',
-    }
-    if (res.kind === 'curse') { sfx.hurt(); this.scene.cameras.main.shake(180, 0.006) } else if (res.kind === 'gold') { sfx.coin(); this.scene.cameras.main.flash(140, 255, 230, 160) } else sfx.pop()
-    confirm(this.scene, `🌑 ${it.icon} ${it.name}`, lines[res.kind], 'ตกลง', () => this.host.changed(), 'ปิด')
     this.host.changed()
   }
 

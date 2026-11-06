@@ -58,8 +58,7 @@ export class RefinePanel extends PanelBase implements VerbPanel {
     // good news first (a new line / free gems are why you press), then the risk
     const gift = REFINE.lineAt.includes(n) && !lines[REFINE.lineAt.indexOf(n)]
     this.info.setText([
-      gift ? `🎁 ถึง +${n} ครั้งแรกได้ค่าพิเศษ 1 บรรทัด` : '',
-      REFINE.gemsAt[n] ? `💎 ฉลอง +${n} ครั้งแรกต่อชิ้น ได้เพชร ${REFINE.gemsAt[n]}` : '',
+      [gift ? `🎁 ถึง +${n} ครั้งแรกได้ค่าพิเศษ 1 บรรทัด` : '', REFINE.gemsAt[n] ? `💎 ฉลอง +${n} ครั้งแรกต่อชิ้น ได้เพชร ${REFINE.gemsAt[n]}` : ''].filter(Boolean).join(' · '), // one line, so the risk line below is never cut
       p.base < 1 ? 'พลาดแล้วของแตก: บวก ขั้น การ์ด ค่าพิเศษ ยังอยู่ครบ แค่ไม่ให้ค่าพลังจนกว่าจะซ่อม' : 'ตีได้เลย ไม่มีพัง',
     ].filter(Boolean).join('\n'))
     fit(this.info, 36)

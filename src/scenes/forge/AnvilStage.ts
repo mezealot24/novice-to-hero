@@ -9,10 +9,11 @@ import { sfx } from '../../sfx'
 import { itemIcon, panel, UI, type ItemIcon } from '../../ui'
 import { crack, floatNum, hitStop, punch } from '../../ui-fx'
 import { fit } from '../../ui'
-import { iconState, statSplit } from './state'
+import { iconState, statSplit, taintNote } from './state'
 import type { Preview, StageFx } from './types'
 
 export const STAGE_W = 656, STAGE_H = 150
+const ICON_X = 70 // the icon's resting x (a shake moves it and puts it back here)
 const ICON = 96
 
 export class AnvilStage implements StageFx {
@@ -28,10 +29,10 @@ export class AnvilStage implements StageFx {
   private it?: Item
   private preview: Preview | null = null
 
-  constructor(private scene: Phaser.Scene, private x: number, private y: number, private taintNote: (it: Item) => string) {
+  constructor(private scene: Phaser.Scene, private x: number, private y: number) {
     const t = (px: number, py: number, size: number, color: string, bold: boolean, w: number) =>
       scene.add.text(px, py, '', { fontFamily: FONT_UI, fontSize: `${size}px`, fontStyle: bold ? 'bold' : 'normal', color, lineSpacing: 3, wordWrap: { width: w } })
-    this.icon = itemIcon(scene, 70, STAGE_H / 2, ICON, { id: '', slot: 'weapon', name: '', icon: '', price: 0, desc: '', mod: {} }, { grade: 1, refine: 0 })
+    this.icon = itemIcon(scene, ICON_X, STAGE_H / 2, ICON, { id: '', slot: 'weapon', name: '', icon: '', price: 0, desc: '', mod: {} }, { grade: 1, refine: 0 })
     this.nameT = t(128, 10, 20, UI.text, true, 390)
     this.subT = t(128, 38, 13, UI.sub, false, 390)
     this.tagT = t(STAGE_W - 12, 12, 12, '#c9a8ff', true, 120).setOrigin(1, 0).setAlign('right')
@@ -66,13 +67,13 @@ export class AnvilStage implements StageFx {
     fit(this.goodT, 40)
     this.curseT.setText(sp.curse ? `💀 ${sp.curse}` : '')
     fit(this.curseT, 18)
-    const p = this.preview ?? (tainted ? { text: this.taintNote(it), color: '#c9a8ff' } : null)
+    const p = this.preview ?? (tainted ? { text: taintNote(s, it), color: '#c9a8ff' } : null)
     this.prevT.setText(p?.text ?? '').setColor(p?.color ?? UI.gold)
     fit(this.prevT, 24)
   }
 
   // ---------- fx (all tweens/timers belong to the scene and die with it; ui-fx restores timeScale on SHUTDOWN) ----------
-  private iconPos() { return { x: this.x + 70, y: this.y + STAGE_H / 2 } } // the resting position (the icon itself may be mid-shake)
+  private iconPos() { return { x: this.x + ICON_X, y: this.y + STAGE_H / 2 } } // the resting position (the icon itself may be mid-shake)
 
   success(label: string, notes: string[] = []) {
     sfx.coin()
@@ -86,7 +87,7 @@ export class AnvilStage implements StageFx {
   fail(label: string) {
     sfx.hurt()
     hitStop(this.scene, 70)
-    const p = this.iconPos(), ix = 70 // the resting x, not whatever a running shake left it at
+    const p = this.iconPos(), ix = ICON_X // the resting x, not whatever a running shake left it at
     this.scene.tweens.killTweensOf(this.icon) // a running punch must not fight the shake
     this.icon.setScale(1)
     this.scene.tweens.add({ targets: this.icon, x: ix + 7, duration: 45, yoyo: true, repeat: 3, onComplete: () => { if (this.icon.active) this.icon.x = ix }, onStop: () => { if (this.icon.active) this.icon.x = ix } })
@@ -100,6 +101,17 @@ export class AnvilStage implements StageFx {
     const p = this.iconPos()
     floatNum(this.scene, p.x + 150, p.y - 44, label, { color: '#ffd35a', size: 22, ui: true, ms: 1000 })
     this.scene.cameras.main.flash(160, 255, 215, 90)
+  }
+
+  burst(kind: 'none' | 'gold' | 'curse' | 'brick', label: string) {
+    const p = this.iconPos(), sc = this.scene, col = kind === 'gold' ? 0xffd35a : 0xc08cff
+    hitStop(sc, 120)
+    const vig = sc.add.rectangle(this.x + STAGE_W / 2, this.y + STAGE_H / 2, STAGE_W, STAGE_H, 0x1a0630, 0.75).setDepth(44000)
+    sc.tweens.add({ targets: vig, alpha: 0, duration: 900, onComplete: () => vig.destroy() })
+    const ring = sc.add.circle(p.x, p.y, 20).setStrokeStyle(6, col).setDepth(44001)
+    sc.tweens.add({ targets: ring, scale: 6, alpha: 0, duration: 520, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() })
+    if (kind === 'curse' || kind === 'brick') { sfx.hurt(); sc.cameras.main.shake(220, 0.007) } else if (kind === 'gold') { sfx.coin(); sc.cameras.main.flash(180, 255, 215, 90) } else sfx.pop()
+    floatNum(sc, p.x + 220, p.y - 30, label, { color: kind === 'gold' ? '#ffd35a' : '#c9a8ff', size: 20, ui: true, ms: 1800, rise: 30 })
   }
 
   mend() {

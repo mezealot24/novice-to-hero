@@ -220,7 +220,7 @@ export function chip(scene: Phaser.Scene, x: number, y: number, icon: string, la
     const tone = CHIP_TONE[st]
     let full = `${i} ${l}`.trim()
     t.setText(full).setColor(tone.text)
-    if (maxW > 0) { // cut by measuring, one code point at a time (never inside an emoji or a Thai combining mark pair)
+    if (maxW > 0) { // cut by measuring, one code point at a time (never inside a surrogate pair; a Thai vowel mark can still end up last, which only costs a glyph)
       const cps = Array.from(full)
       while (cps.length > 1 && t.width + 20 > maxW) { cps.pop(); t.setText(`${cps.join('').trimEnd()}…`) }
     }
@@ -422,7 +422,7 @@ export function iconTabs(scene: Phaser.Scene, x: number, y: number, items: IconT
   return c
 }
 
-/** Clip a wrapped text to a height budget, ending with "…" (keeps cards from running into the row below). Cuts by code point, so an emoji is never split. */
+/** Clip a wrapped text to a height budget, ending with "…" (keeps cards from running into the row below). Cuts by code point, so a surrogate pair (most emoji) is never split. */
 export function fit(t: Phaser.GameObjects.Text, maxH: number) {
   if (t.height <= maxH) return t
   const cps = Array.from(t.text)

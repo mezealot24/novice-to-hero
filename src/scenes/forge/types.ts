@@ -16,15 +16,13 @@ export interface StageFx {
   mend(): void
   /** A gold roll landed: golden pop + flash. */
   shine(label: string): void
+  /** Corrupt resolved: purple vignette + ring burst + hit-stop (`kind` tunes the colour / shake), then `label` floats up. */
+  burst(kind: 'none' | 'gold' | 'curse' | 'brick', label: string): void
 }
-
-/** The old taint confirm still lives in legacy.ts until P4; panels reach it only through this seam. */
-export interface TaintUi { ask(it: Item): void; note(it: Item): string }
 
 export interface ForgeCtx {
   scene: Phaser.Scene
   fx: StageFx
-  taintUi: TaintUi
   /** Something changed in the save: refresh wallet, rail, stage, panel and cost strip in place. */
   changed(): void
   /** Smith speech bubble. */

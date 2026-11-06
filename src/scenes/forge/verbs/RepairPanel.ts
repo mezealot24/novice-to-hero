@@ -37,8 +37,8 @@ export class RepairPanel extends PanelBase implements VerbPanel {
       : 'ของชิ้นนี้ยังไม่แตก ไม่ต้องซ่อมค่ะ')
     fit(this.info, 56)
     const c = repairCost(it, refineOf(s, it.id))
-    this.matBtn.setLabel(broken ? pressLabel('🔧 ซ่อมด้วยวัสดุ', s, c) : '🔧 ซ่อมด้วยวัสดุ').setEnabled(broken && canAffordAuto(s, c))
-    this.gemBtn.setEnabled(broken && canAfford(s, gemRepairCost))
+    this.matBtn.setLabel(broken ? pressLabel('🔧 ซ่อมด้วยวัสดุ', s, c) : '🔧 ซ่อมด้วยวัสดุ').setEnabled(broken && canAffordAuto(s, c) && !this.ctx.isBusy())
+    this.gemBtn.setEnabled(broken && canAfford(s, gemRepairCost) && !this.ctx.isBusy())
   }
 
   cost() { const s = save(); return isBroken(s, this.it.id) ? repairCost(this.it, refineOf(s, this.it.id)) : null }

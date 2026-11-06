@@ -1,8 +1,9 @@
 // Pure helpers shared by the rail, the stage and the verb panels (no Phaser objects here). Rules live in src/data/*.
 import { gradeCost, REFINE } from '../../data/craft'
 import { matById } from '../../data/materials'
-import { canWear, forged, gradeOf, isBroken, isTainted, ITEMS, linesOf, refineOf, SLOTS, splitStatLine, type Item } from '../../data/meta'
-import { canAffordAuto, costGap, fodderToBuy, gradeCheck, refineCheck, refineCost, taintCheck, totalZeny, type ForgeCost } from '../../data/refine'
+import { canWear, forged, gradeOf, isBroken, isTainted, itemStatLine, ITEMS, linesOf, refineOf, SLOTS, splitStatLine, type Item } from '../../data/meta'
+import { canAffordAuto, costGap, fodderToBuy, gradeCheck, lineText, refineCheck, refineCost, taintCheck, totalZeny, type ForgeCost, type TaintResult } from '../../data/refine'
+import { curseById } from '../../data/taint'
 import { isWorn, type SaveData } from '../../save'
 import type { ItemIconState } from '../../ui'
 import type { Verb } from './types'
@@ -80,7 +81,8 @@ export function pressLabel(prefix: string, s: SaveData, cost: ForgeCost): string
   const gap = costGap(s, cost)
   const parts = [...Object.entries(gap.mats).map(([id, n]) => `${matById(id)?.icon ?? '📦'}${n}`), gap.noFodder ? '🔩' : '', gap.zeny ? `${gap.zeny}z` : '', gap.gems ? `💎${gap.gems}` : ''].filter(Boolean)
   if (parts.length) return `${prefix} · ขาด ${parts.join(' ')}`
-  return fodderToBuy(s, cost) ? `ซื้อ+${prefix} ${totalZeny(s, cost)}z` : cost.zeny ? `${prefix} · ${cost.zeny}z` : prefix
+  const gems = cost.gems ? ` 💎${cost.gems}` : '' // a gem charge must be visible on the button itself
+  return (fodderToBuy(s, cost) ? `ซื้อ+${prefix} ${totalZeny(s, cost)}z` : cost.zeny ? `${prefix} · ${cost.zeny}z` : prefix) + gems
 }
 
 const SMITH: Record<Verb, string> = {
@@ -107,4 +109,25 @@ export function smithLine(s: SaveData, it: Item, v: Verb): string {
   if (v === 'option' && !linesOf(s, it.id).some(Boolean)) return `ตีถึง +${REFINE.lineAt[0]} ก่อน ถึงจะมีค่าพิเศษให้สุ่มนะ`
   if (v === 'taint' && isTainted(s, it.id)) return 'ล็อกไปแล้ว ไม่มีทางกลับนะ'
   return SMITH[v]
+}
+
+/** One line saying what the taint did (shown on the stage and in the Corrupt panel of a tainted item). */
+export function taintNote(s: SaveData, it: Item): string {
+  const t = s.taint?.[it.id]
+  if (!t) return ''
+  if (t.kind === 'gold') return '🌑 ติดคำสาป: ✨ ค่าพิเศษทุกบรรทัดเป็นทอง (ล็อกแล้ว)'
+  if (t.kind === 'brick') return '🌑 ติดคำสาป: 💥 พัง เสียของไปหนึ่งอย่าง (ล็อกแล้ว)'
+  if (t.kind === 'curse') { const c = curseById(t.curse); return c ? `🌑 ${c.icon} ${c.name}: ${itemStatLine({ mod: c.mod, pct: c.pct })}` : '🌑 ติดคำสาป (ล็อกแล้ว)' }
+  return '🌑 ติดคำสาป: ไม่เกิดอะไร แต่ล็อกแล้ว'
+}
+
+/** What to tell the player right after a taint roll. */
+export function taintOutcome(res: Extract<TaintResult, { ok: true }>): string {
+  const gold = (res.gold ?? []).map(lineText).join(' · ')
+  switch (res.kind) {
+    case 'none': return '😐 ไม่เกิดอะไรขึ้น... แต่ของชิ้นนี้ถูกล็อกแล้วนะคะ'
+    case 'gold': return res.fallback ? `✨ ไม่มีค่าพิเศษให้เปลี่ยน เลยได้บรรทัดทองใหม่ 1 บรรทัด! ${gold}` : `✨ ค่าพิเศษทุกบรรทัดกลายเป็นทอง! ${gold}`
+    case 'curse': return res.curse ? `💀 ได้คำสาป ${res.curse.icon} ${res.curse.name}: ${itemStatLine({ mod: res.curse.mod, pct: res.curse.pct })}` : '💀 ได้คำสาป'
+    case 'brick': return res.lost ? `💥 พัง! เสียค่าพิเศษ ${lineText(res.lost)}` : res.refineDown ? '💥 พัง! ไม่มีค่าพิเศษให้เสีย ตีบวก -1' : '💥 พัง! แต่ไม่มีอะไรให้เสียเลย'
+  }
 }
