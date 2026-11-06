@@ -10,7 +10,7 @@ const stats = { str: 1, vit: 1, wis: 1, dex: 1, int: 1, luk: 1, agi: 1 }
 for (const k in alloc) stats[k] += alloc[k]
 const save = {
   v: 1, name: 'Bot', race: 'human', baseLevel: 5, baseXp: 0, statPoints: 0, jobLevel: 1, jobXp: 0, skillPoints: 0,
-  skills: { smash: 1, firstaid: 0, tough: 0 }, job, jobSkills: { auto: 1, ult: 1 }, stats, zeny: 0, gems: 0,
+  skills: { smash: 1, firstaid: 0, tough: 0, focus: 0, power: 0, iron: 0, swift: 0 }, nov2: 1, job, jobSkills: { auto: 1, ult: 1 }, stats, zeny: 0, gems: 0,
   owned: ['knife', 'cloth', 'none', 'shortsword', 'leather'], equipped: { weapon: 'shortsword', armor: 'leather', acc: 'none' },
   ...(process.env.GEAR ? (() => { const [w, a, c] = { swordsman: ['w_bloodblade', 'a_thornmail', 'r_fist'], archer: ['w_hawkbow', 'a_eaglecloak', 'r_wind'], mage: ['w_wardstaff', 'a_runerobe', 'r_mana'], cleric: ['w_holymace', 'a_lightvestment', 'r_beads'], thief: ['w_shadowdagger', 'a_nightsuit', 'r_feather'] }[job]; return { owned: ['knife', 'cloth', 'none', w, a, c], equipped: { weapon: w, armor: a, acc: c } } })() : {}),
   ...(process.env.JL ? { jobLevel: +process.env.JL } : {}), ...(process.env.BL ? { baseLevel: +process.env.BL } : {}), ...(process.env.JS ? { jobSkills: JSON.parse(process.env.JS) } : {}), ...(process.env.TREE ? { jobTree: JSON.parse(process.env.TREE) } : {}), ...(process.env.TAL ? { jobTalents: JSON.parse(process.env.TAL) } : {}), costumes: ['default'], costume: 'default', supporter: false, clears: 1, bestRoom: 0, clearsBy: { d1: 1, d2: 1 }, lastDaily: '2099-01-01', muted: true,

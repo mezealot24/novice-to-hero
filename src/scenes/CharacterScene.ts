@@ -4,8 +4,8 @@ import { autoInfo, magicPower, skill2Info, ultInfo, type InfoRow } from '../data
 import { skill2ById } from '../data/skill2'
 import { CARD_RULES, cardIcon, cardName, EQUIP_CARDS, TIER_COLOR, type EquipCard } from '../data/cards'
 import { gradeStars, gradeCap } from '../data/craft'
-import { BASE_STATS, canWear, forged, forgeTag, gradeOf, isBroken, refineOf, cardFits, CERT_SLOTS_AT, EQUIP_SLOTS, offhandLocked, slotKind, type EquipSlot, COSTUMES, gearBase, heroStats, cardStatLine, itemStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText, type BaseStat } from '../data/meta'
-import { canChangeJob, equip, persist, resetTree, resetTree2, save, socketCard, unsocketCard } from '../save'
+import { BASE_STATS, canWear, forged, forgeTag, gradeOf, isBroken, refineOf, cardFits, CERT_SLOTS_AT, EQUIP_SLOTS, offhandLocked, slotKind, type EquipSlot, COSTUMES, gearBase, heroStats, cardStatLine, itemStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, NOVICE_PASSIVES, NOVICE_RULES, noviceLeft, noviceSpent, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText, type BaseStat } from '../data/meta'
+import { canChangeJob, equip, persist, resetNovice, resetTree, resetTree2, save, socketCard, unsocketCard } from '../save'
 import { branches2Of, tree2Spent, BRANCHES, branchesOf, lockReason, skill2Picked, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
 import { JOB_CHANGE, JOBS, type JobId } from '../data/jobs'
 import { JOB2, JOB2_RULES, PETS, type PetId } from '../data/jobs2'
@@ -287,27 +287,42 @@ export class CharacterScene extends Phaser.Scene {
   // ---------- tab 3: skills, passives, talents ----------
   private skillTab() {
     const s = save(), b = this.body!
-    b.add(txt(this, 330, 116, `แต้มสกิลเหลือ: ${s.skillPoints}`, 20, s.skillPoints ? UI.gold : UI.sub, true))
-    const job = JOBS[s.job]
-    b.add(txt(this, 330, 144, `ได้ 1 แต้มทุก Job Lv · ${s.job === 'novice' ? `${job.icon} ${job.name}` : 'สกิลโนวิสที่ติดตัว (สกิลอาชีพอยู่ในใยสกิล)'}`, 14, UI.sub))
-    const rows: { icon: string; name: string; kind: string; lv: number; max: number; desc: string; up: () => void }[] = []
-    if (s.job !== 'novice') b.add(button(this, 885, 124, 120, 30, '🕸️ ใยสกิล', () => { this.skillBasic = false; this.render() }, { size: 13 }))
-    for (const sk of SKILLS) {
-      if (sk.id === 'smash' && s.job !== 'novice') continue
-      const lv = s.skills[sk.id]
-      rows.push({ icon: sk.icon, name: sk.name, kind: sk.kind === 'active' ? 'Active' : 'Passive', lv, max: sk.max, desc: lv ? sk.desc(lv) : `ยังไม่ได้เรียน · Lv1: ${sk.desc(1)}`, up: () => { s.skills[sk.id]++ } })
+    const novice = s.job === 'novice', left = noviceLeft(s.skills), spent = noviceSpent(s.skills)
+    b.add(txt(this, 330, 116, `แต้มโนวิส: ${left}/${NOVICE_RULES.points}`, 20, left ? UI.gold : UI.sub, true))
+    b.add(txt(this, 330, 144, novice ? `ฟรี ${NOVICE_RULES.points} แต้มตั้งแต่เริ่ม · 💢 ทุบ ใช้แต้มจาก Job Lv` : 'สกิลโนวิสติดตัวไปด้วย · สกิลอาชีพอยู่ใน 🕸️ ใยสกิล', 14, UI.sub))
+    if (!novice) b.add(button(this, 885, 124, 120, 30, '🕸️ ใยสกิล', () => { this.skillBasic = false; this.render() }, { size: 13 }))
+    b.add(button(this, novice ? 870 : 755, 124, 120, 30, `↺ รีเซ็ต 💎${NOVICE_RULES.resetGems}`, () => {
+      if (s.gems < NOVICE_RULES.resetGems) { toast(this, `เพชรไม่พอ ต้องใช้ 💎${NOVICE_RULES.resetGems} (มี ${s.gems})`, UI.sub); return }
+      confirm(this, '↺ รีเซ็ตสกิลโนวิส?', `คืนแต้มโนวิสทั้ง ${spent} แต้ม\nจ่าย 💎${NOVICE_RULES.resetGems}`, 'รีเซ็ต', () => {
+        if (resetNovice(s)) { toast(this, `คืน ${spent} แต้มแล้ว`); this.redraw() }
+      })
+    }, { size: 12, fill: 0x5a5f8a, color: UI.text }).setEnabled(spent > 0))
+
+    // 💢 ทุบ (novice only): Job Lv skill points, one slim row
+    let gy = 168
+    if (novice) {
+      const sm = SKILLS.find((x) => x.id === 'smash')!, lv = s.skills.smash
+      b.add(panel(this, 330, 164, 600, 36, UI.panel, UI.line, 10))
+      b.add(txt(this, 342, 172, `${sm.icon} ${sm.name}  Lv ${lv}/${sm.max}`, 14, UI.text, true))
+      b.add(txt(this, 520, 174, `${sm.desc(lv)} · แต้ม Job: ${s.skillPoints}`, 10, UI.green).setWordWrapWidth(330))
+      b.add(button(this, 898, 182, 50, 28, '+1', () => {
+        if (s.skillPoints <= 0 || s.skills.smash >= sm.max) return
+        s.skills.smash++; s.skillPoints--; persist(); this.redraw()
+      }, { size: 13 }).setEnabled(s.skillPoints > 0 && lv < sm.max))
+      gy = 206
     }
-    rows.forEach((r, i) => {
-      const h = rows.length > 3 ? 46 : 54, y = 168 + i * (h + 6)
-      b.add(panel(this, 330, y, 600, h, UI.panel, UI.line, 10))
-      b.add(txt(this, 346, y + 5, `${r.icon} ${r.name}`, 16, UI.text, true))
-      b.add(txt(this, 346, y + h - 20, r.kind, 11, UI.gold))
-      b.add(txt(this, 540, y + 5, `Lv ${r.lv}/${r.max}`, 14, UI.text, true))
-      b.add(txt(this, 540, y + 24, r.desc, 11, UI.green).setWordWrapWidth(300))
-      b.add(button(this, 890, y + h / 2, 64, 34, r.lv ? '+1' : 'เรียน', () => {
-        if (s.skillPoints <= 0 || r.lv >= r.max) return
-        r.up(); s.skillPoints--; persist(); this.redraw()
-      }, { size: 15 }).setEnabled(s.skillPoints > 0 && r.lv < r.max))
+    // 6 novice passives: 2 columns x 3 rows, paid from the free novice pool
+    NOVICE_PASSIVES.forEach((sk, i) => {
+      const w = 297, h = 44, x = 330 + (i % 2) * (w + 6), y = gy + Math.floor(i / 2) * (h + 5)
+      const lv = s.skills[sk.id] ?? 0
+      b.add(panel(this, x, y, w, h, UI.panel, lv ? COLORS.gold : UI.line, 10))
+      b.add(txt(this, x + 10, y + 4, `${sk.icon} ${sk.name}`, 14, UI.text, true))
+      b.add(txt(this, x + 236, y + 6, `${lv}/${sk.max}`, 12, lv ? UI.gold : UI.sub, true).setOrigin(1, 0))
+      b.add(txt(this, x + 10, y + 25, sk.desc(Math.max(1, lv)), 10, lv ? UI.green : UI.sub).setWordWrapWidth(226))
+      b.add(button(this, x + 268, y + h / 2, 46, 30, lv ? '+1' : 'เรียน', () => {
+        if (noviceLeft(s.skills) <= 0 || (s.skills[sk.id] ?? 0) >= sk.max) return
+        s.skills[sk.id] = (s.skills[sk.id] ?? 0) + 1; persist(); this.redraw()
+      }, { size: 12 }).setEnabled(left > 0 && lv < sk.max))
     })
 
     // certificate slots (passive slots by Base Lv) + talents, locked until job change
