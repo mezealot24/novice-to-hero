@@ -1,7 +1,7 @@
 // admin.html: pure helpers (no DOM). Defaults are read from this build's untouched src/data (admin never applies a patch).
 import { BATTLE, DUNGEONS, MONSTERS, type MonSkill, type MonsterKind } from '../data/game-data'
 import type { BaseStat } from '../data/meta'
-import { homeDungeon, legacyLevel, roomLevel, statMonster, statNative, withStats } from '../data/mon-stats'
+import { homeDungeon, legacyLevel, monBase, monPoints, monTier, roomLevel, skillAtLv, statMonster, statNative, withStats } from '../data/mon-stats'
 import { applyPatch, guardsFor, listFields, type FieldRow } from '../data/patch'
 import { MINI_POOL } from '../data/relics'
 import { TABLES, type FieldDef, type Patch, type TableId } from '../data/tunables'
@@ -90,7 +90,7 @@ const BODY: Record<string, string> = {
   'trueSight.after': 'True Sight หลังโดนหลบ (ครั้ง)', 'trueSight.turns': 'True Sight นาน (เทิร์น)',
   slamMul: 'แรงท่าชาร์จ ×', chargeEvery: 'ชาร์จทุก N เทิร์น',
 }
-const SKILL_LEAF: Record<string, string> = { every: 'ใช้ทุก N เทิร์น', pow: 'พลัง', turns: 'นาน (เทิร์น)', hits: 'จำนวนฮิต', alone: 'ตัวคูณตอนอยู่ตัวเดียว', drain: 'ดูด HP ฮีโร่' }
+const SKILL_LEAF: Record<string, string> = { every: 'ใช้ทุก N เทิร์น', pow: 'พลัง', turns: 'นาน (เทิร์น)', hits: 'จำนวนฮิต', alone: 'ตัวคูณตอนอยู่ตัวเดียว', drain: 'ดูด HP ฮีโร่', lv: '⭐ เลเวลสกิล (ว่าง = 1)' }
 const PHASE_LEAF: Record<string, string> = {
   at: 'เข้าเฟสเมื่อ HP ≤', speed: 'ความเร็ว ×', dmg: 'ดาเมจ ×', heal: 'ฮีลตอนเข้าเฟส', shield: 'โล่ตอนเข้าเฟส',
   reflect: 'สะท้อนดาเมจ', absorb: 'ดูดซับ → Soul Strike', chargeEvery: 'ชาร์จทุก N เทิร์น', drainStats: 'ดูด stat', 'summon.1': 'จำนวนซัมมอน',
@@ -131,6 +131,7 @@ export function monSections(k: MonsterKind, rows: FieldRow[]): MonSection[] {
       const leaf = rest[0] === 'onHit' ? fxLabel(rest, 'ตีโดนติด ') : rest[0] === 'slamFx' ? fxLabel(rest, 'ท่าชาร์จติด ') : PHASE_LEAF[rest.join('.')]
       put(`phase${p[1]}`, `🔥 เฟส ${Number(p[1]) + 1} · ${ph?.name ?? ''}`, row, leaf ?? rest.join('.'))
     } else if (p[0] === 'statAlloc') putFixed('stat', row, p[1].toUpperCase())
+    else if (p[0] === 'pointsMul') putFixed('stat', row, 'แต้มรวม × (pointsMul)')
     else if (p[0] === 'onHit') putFixed('onHit', row, FX[p[1]] ?? rel)
     else if (p[0] === 'slamFx') putFixed('slam', row, fxLabel(p, 'ติด') ?? rel)
     else if (p[0] === 'slamMul' || p[0] === 'chargeEvery') putFixed('slam', row, BODY[rel])
@@ -171,6 +172,39 @@ export function previewMon(k: MonsterKind, patch: Patch): MonPreview[] {
       }
     })
   } finally { r.revert() }
+}
+
+export interface SkillPreview { name: string; kind: string; lv: number; every: number; pow?: number; hits?: number; turns?: number; fx: string }
+const FX_ICON: Record<string, string> = { poison: '☠️', burn: '🔥', weaken: '💢', armorBreak: '🛡️', silence: '🤐', slow: '🐌', web: '🕸️', freeze: '❄️' }
+/** Each skill as the game casts it at its level (skillAtLv), with `patch` applied. Spell rotations list each pick. */
+export function previewSkills(k: MonsterKind, patch: Patch): SkillPreview[] {
+  const r = applyPatch(patch, guardsFor(patch))
+  try {
+    const out: SkillPreview[] = []
+    for (const raw of MONSTERS[k].skills ?? []) for (const p of raw.pick ?? [raw]) {
+      const sk = skillAtLv(p, p.lv ?? raw.lv ?? 1)
+      const fx = Object.entries(sk.fx ?? {}).filter(([, v]) => v).map(([f, v]) => `${FX_ICON[f] ?? f}${v}`).join(' ')
+      out.push({ name: sk.name, kind: sk.kind, lv: sk.lv ?? 1, every: raw.every, pow: sk.pow, hits: sk.hits, turns: sk.turns, fx })
+    }
+    return out
+  } finally { r.revert() }
+}
+
+// ---------- "🎯 พิมพ์ stat ที่อยากได้": target stats -> statAlloc weights + pointsMul ----------
+export const BASE7: BaseStat[] = ['str', 'vit', 'wis', 'dex', 'int', 'luk', 'agi']
+export interface AllocPlan {
+  lv: number; base: number; need: number; pointsMul: number
+  weights: Record<BaseStat, number>; result: Record<BaseStat, number>
+}
+/** Stats typed for level `lv` -> weights (largest = 20, ratios kept) and the pointsMul that makes the budget fit.
+ *  pm = null: fit the budget (pointsMul = needed / base points); a number: keep that pointsMul (stats come out scaled). */
+export function allocFor(k: MonsterKind, lv: number, target: Partial<Record<BaseStat, number>>, pm: number | null): AllocPlan {
+  const base = monPoints(lv, monTier(MONSTERS[k]))
+  const want = BASE7.map((s) => Math.max(0, Math.round(target[s] ?? 1) - 1)) // every stat starts at 1
+  const need = want.reduce((a, n) => a + n, 0), top = Math.max(0, ...want)
+  const pointsMul = pm ?? Math.min(10, Math.max(0.1, base > 0 ? Number((need / base).toFixed(2)) : 1))
+  const weights = Object.fromEntries(BASE7.map((s, i) => [s, top ? Number(((want[i] / top) * 20).toFixed(2)) : 0])) as Record<BaseStat, number>
+  return { lv, base, need, pointsMul, weights, result: monBase(weights, Math.round(base * pointsMul)) }
 }
 
 /** 0..1-ish shares read better as %: crit 0.06 -> "6%". undefined for everything else. */

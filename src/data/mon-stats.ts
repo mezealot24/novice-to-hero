@@ -9,7 +9,7 @@
 //   + Level Base per Lv (what gear gives a hero of that level) · x HP body by tier (fights last as long as D4-5 bosses)
 //
 // Tuning lives in MON_STAT only.
-import { BATTLE, DUNGEONS, MONSTERS, PLAYER, type MonSkill, type MonSkillKind, type MonsterDef, type MonsterKind, type Stats } from './game-data'
+import { BATTLE, DUNGEONS, MONSTERS, PLAYER, type HitFx, type MonSkill, type MonSkillKind, type MonsterDef, type MonsterKind, type Stats } from './game-data'
 import { applyBase, baseDefence, STAT_RULES, type BaseStat } from './meta'
 
 export type Archetype = 'bruiser' | 'skirmisher' | 'assassin' | 'caster' | 'tank' | 'support'
@@ -61,8 +61,9 @@ interface Derived {
   b: Record<BaseStat, number>; st: Stats
   hp: number; dmg: number; matk: number; def: number; hit: number; flee: number; crit: number; combo: number; counter: number; speed: number
 }
-function derive(alloc: StatAlloc, lv: number, tier: MonTier, o: StatMonOpts): Derived {
-  const b = monBase(alloc, monPoints(lv, tier, o.hard), o.statMul)
+/** pm = the monster's own pointsMul (v81): x its stat point budget, on top of the tier share. */
+function derive(alloc: StatAlloc, lv: number, tier: MonTier, o: StatMonOpts, pm = 1): Derived {
+  const b = monBase(alloc, Math.round(monPoints(lv, tier, o.hard) * pm), o.statMul)
   const st: Stats = { ...PLAYER }
   applyBase(st, b)
   const L = MON_STAT.levelBase
@@ -89,7 +90,7 @@ function statOnly(d: MonsterDef, x: Derived): Pick<MonsterDef, 'mdef' | 'luckyDo
 /** The monster's def at this level, numbers rebuilt from its stats. Keeps every skill / phase / onHit of the base def.
  * Def fields hp / dmg / matk / def / hit / flee / crit / combo / counter become BONUSES on top (hp / dmg / matk x, the rest +). */
 export function statMonster(base: MonsterDef, lv: number, o: StatMonOpts = {}): MonsterDef {
-  const x = derive(allocOf(base), lv, monTier(base), o), k = base.bodyMul ?? {}
+  const x = derive(allocOf(base), lv, monTier(base), o, base.pointsMul ?? 1), k = base.bodyMul ?? {}
   return scaleExtras({
     ...base,
     lv, base: x.b,
@@ -175,19 +176,21 @@ export function statNative(kind: MonsterKind): boolean {
 
 /** Build defaults at load (before any live-config patch): the default statAlloc + what it derives at the home level. */
 const DEFAULT_ALLOC: Partial<Record<MonsterKind, StatAlloc>> = {}
+const DEFAULT_PM: Partial<Record<MonsterKind, number>> = {}
 const REF: Partial<Record<MonsterKind, Derived>> = {}
 function refOf(kind: MonsterKind, d: MonsterDef, lv: number): Derived {
   const r = REF[kind]
   if (r) return r
-  return derive(DEFAULT_ALLOC[kind] ?? allocOf(d), lv, monTier(d), {}) // homeless (events): same level, so only statAlloc edits move it
+  return derive(DEFAULT_ALLOC[kind] ?? allocOf(d), lv, monTier(d), {}, DEFAULT_PM[kind] ?? 1) // homeless (events): same level, so only statAlloc edits move it
 }
 
 /** 7 stats on a D1-5 / event monster at `lv`, numbers anchored to its tuned values (see the header above). */
 export function withStats(d: MonsterDef, kind: MonsterKind, lv: number, o: StatMonOpts = {}): MonsterDef {
   if (!d.statAlloc || statNative(kind)) return d
   const alloc = allocOf(d), tier = monTier(d)
-  const s = derive(alloc, lv, tier, o) // stat-only parts (and skill scaling) see hard-mode points
-  const now = o.hard ? derive(alloc, lv, tier, { statMul: o.statMul }) : s // numbers: hard mode is hardDef's job
+  const pm = d.pointsMul ?? 1
+  const s = derive(alloc, lv, tier, o, pm) // stat-only parts (and skill scaling) see hard-mode points
+  const now = o.hard ? derive(alloc, lv, tier, { statMul: o.statMul }, pm) : s // numbers: hard mode is hardDef's job
   const ref = refOf(kind, d, lv)
   const out: MonsterDef = { ...d, lv, base: s.b, ...statOnly(d, s) }
   const ratio = (a: number, b: number) => (b > 0 ? a / b : 1)
@@ -222,6 +225,10 @@ export const SKILL_SCALE = {
     phaseShield: { stat: 'wis', per: 0.003 }, // BossPhase.shield
     razor: { stat: 'int', per: 0.003 }, // hunter Blood Razor: magic damage = this share of the hero's current HP
   } as Record<'phaseHeal' | 'phaseShield' | 'razor', SkillScale>,
+  /** v81 skill level (MonSkill.lv, RO style: may pass the hero's max 10, e.g. Lv 50). Lv 1 = the skill as written.
+   *  pow x (1 + powPer x (Lv - 1)) · +1 hit every hitsEvery Lv (bolt / strike) · +1 stack every fxEvery Lv (not freeze)
+   *  · warcry +1 turn every turnsEvery Lv. 0 = that part off. */
+  lv: { powPer: 0.1, hitsEvery: 10, fxEvery: 5, turnsEvery: 5 },
 }
 /** Default scale of a skill (its own `scale` wins; false = never scales; curse / summon have none). */
 export const scaleOf = (sk: MonSkill): SkillScale | undefined =>
@@ -251,5 +258,29 @@ for (const kind of Object.keys(MONSTERS) as MonsterKind[]) {
   const d = MONSTERS[kind]
   if (!d.statAlloc || statNative(kind)) continue
   DEFAULT_ALLOC[kind] = { ...allocOf(d) }
-  if (homeDungeon(kind)) REF[kind] = derive(DEFAULT_ALLOC[kind]!, legacyLevel(kind, d, { id: '' }), monTier(d), {})
+  DEFAULT_PM[kind] = d.pointsMul ?? 1
+  if (homeDungeon(kind)) REF[kind] = derive(DEFAULT_ALLOC[kind]!, legacyLevel(kind, d, { id: '' }), monTier(d), {}, DEFAULT_PM[kind])
+}
+
+// ----- v81 skill levels (SKILL_SCALE.lv) -----
+/** pow a skill has when it does not set one (BattleScene skPow defaults), so a level can scale it too. */
+const POW_DEFAULT: Partial<Record<MonSkillKind, number>> = { bolt: 1.3, strike: 1.3, heal: 0.15, shield: 0.1, warcry: 0.2, haste: 30, revive: 0.5 }
+/** These pows are shares of max HP: a high level can make them full, never more. */
+const SHARE_KINDS = new Set<MonSkillKind>(['heal', 'shield', 'revive'])
+export const skillLvPow = (lv: number) => 1 + SKILL_SCALE.lv.powPer * (Math.max(1, lv) - 1)
+const lvStep = (lv: number, every: number) => (every > 0 ? Math.floor((Math.max(1, lv) - 1) / every) : 0)
+/** The skill as cast at `lv` (a new object; Lv 1 returns the skill itself). */
+export function skillAtLv(sk: MonSkill, lv = sk.lv ?? 1): MonSkill {
+  if (lv <= 1) return sk
+  const L = SKILL_SCALE.lv, out: MonSkill = { ...sk, lv }
+  const base = sk.pow ?? POW_DEFAULT[sk.kind]
+  if (base !== undefined) out.pow = SHARE_KINDS.has(sk.kind) ? Math.min(1, base * skillLvPow(lv)) : base * skillLvPow(lv)
+  if (sk.kind === 'bolt' || sk.kind === 'strike') out.hits = (sk.hits ?? 1) + lvStep(lv, L.hitsEvery)
+  if (sk.kind === 'warcry') out.turns = (sk.turns ?? 3) + lvStep(lv, L.turnsEvery)
+  if (sk.fx) {
+    const add = lvStep(lv, L.fxEvery), fx: HitFx = {}
+    for (const [k, v] of Object.entries(sk.fx) as [keyof HitFx, number][]) fx[k] = v && k !== 'freeze' ? v + add : v
+    out.fx = fx
+  }
+  return out
 }

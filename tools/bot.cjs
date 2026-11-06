@@ -102,6 +102,7 @@ if (process.env.JOB2) {
   if (process.env.PET) save.pet = process.env.PET
 }
 if (process.env.REFINE) save.refine = Object.fromEntries(Object.values(save.equipped).map((id) => [id, +process.env.REFINE]))
+if (process.env.GRADES) save.grade = JSON.parse(process.env.GRADES) // per-item grade '{"<item id>":5}' (after the 2nd-job weapon swap, so it counts)
 if (process.env.BROKEN) save.broken = Object.values(save.equipped)
 ;(async () => {
   const b = await chromium.launch(LITE ? { args: ['--disable-gpu', '--disable-dev-shm-usage', '--disable-extensions', '--mute-audio', '--renderer-process-limit=1', '--js-flags=--max-old-space-size=512'] } : undefined)

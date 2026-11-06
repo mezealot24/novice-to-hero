@@ -1,7 +1,8 @@
 // Refine +1..+10, repair and random bonus lines (design/item-acquisition-v1.md 3.5 / 3.5.1 / 3.6 / 3.7).
 // Pure rules + save actions, kept out of the UI so the bot and tests can use them.
 // Gem rule (Q 2026-11-03): gems may ONLY repair. Never success rate, break protection, mats, fodder or rerolls,
-// and the material repair is always the cheaper way.
+// and the material repair is always the cheaper way. Exception (Q 2026-11-06): gems lock a bonus line during a
+// reroll (the roll itself is always zeny + mats).
 import type { SaveData } from '../save'
 import type { Stats } from './game-data'
 import type { JobId } from './jobs'
@@ -45,10 +46,23 @@ export function refineCost(it: Item, n: number): ForgeCost {
  * Always cheaper than gems (worst case +9: 185z + cheapest fodder). */
 export const repairCost = (it: Item, r = 0): ForgeCost => ({ mats: { [matOf(matDungeon(it), false)]: 2 }, zeny: Math.round((refineFee(r) * REFINE.repairFee) / 5) * 5, fodder: { slot: it.slot, min: 0 } })
 export const gemRepairCost: ForgeCost = { mats: {}, zeny: 0, gems: REFINE.repairGems }
-/** Reroll one bonus line (idx 0 / 1 / 2 = the +5 / +7 / +10 line). Never gems. */
-export function rerollCost(it: Item, idx: number): ForgeCost {
-  const dg = matDungeon(it), c = [{ common: 4, boss: 0, zeny: 200 }, { common: 6, boss: 1, zeny: 400 }, { common: 8, boss: 2, zeny: 800 }][idx]
-  return { mats: { [matOf(dg, false)]: c.common, ...(c.boss ? { [matOf(dg, true)]: c.boss } : {}) }, zeny: c.zeny }
+/** Zeny multiplier for the next roll on an item that was already rolled `rolls` times (+10% each, capped). */
+export const rerollMul = (rolls: number) => Math.min(REFINE.rerollMaxMul, 1 + REFINE.rerollStep * rolls)
+/** Most lines that can be locked: never all of them (something must roll), never more than lockGems has prices for. */
+export const maxLocks = (lineCount: number) => Math.max(0, Math.min(REFINE.lockGems.length, lineCount - 1))
+/** Gems for `locks` locked lines in one roll (1st 10, 2nd 30 more). */
+export const lockGems = (locks: number) => REFINE.lockGems.slice(0, locks).reduce((a, g) => a + g, 0)
+/** One option-gacha roll: zeny = the per-line prices summed x rerollMul, mats = the item's biggest line,
+ * gems = only for locked lines. */
+export function rerollCost(it: Item, lineCount: number, rolls = 0, locks = 0): ForgeCost {
+  const n = Math.max(1, Math.min(lineCount, REFINE.rerollZeny.length))
+  const [common, boss] = REFINE.rerollMats[n - 1], dg = matDungeon(it)
+  const base = REFINE.rerollZeny.slice(0, n).reduce((a, z) => a + z, 0)
+  return {
+    mats: { [matOf(dg, false)]: common, ...(boss ? { [matOf(dg, true)]: boss } : {}) },
+    zeny: Math.round((base * rerollMul(rolls)) / 5) * 5,
+    ...(locks > 0 ? { gems: lockGems(locks) } : {}),
+  }
 }
 
 type Wallet = Pick<SaveData, 'zeny' | 'gems' | 'mats' | 'fodder'>
@@ -219,18 +233,24 @@ export function repair(s: SaveData, it: Item, withGems = false, autoBuy = false)
   s.broken = s.broken!.filter((x) => x !== it.id)
   return true
 }
-/** Pay and roll a new line; it waits in `s.reroll` until the player keeps the old or the new one. */
-export function reroll(s: SaveData, it: Item, idx: number, rnd: () => number = Math.random): RefineLine | null {
-  if (s.reroll || !linesOf(s, it.id)[idx]) return null
-  if (spend(s, rerollCost(it, idx)) === false) return null
-  const line = rollLine(it, idx, s.job, rnd)
-  s.reroll = { item: it.id, idx, line }
-  return line
-}
-/** Settle a pending reroll: keep the new line, or keep the old one. */
-export function settleReroll(s: SaveData, takeNew: boolean) {
-  const p = s.reroll
-  if (!p) return
-  if (takeNew && s.refineLines?.[p.item]?.[p.idx]) s.refineLines[p.item][p.idx] = p.line
-  delete s.reroll
+/** Indexes of the bonus lines an item has (0 / 1 / 2 = +5 / +7 / +10). */
+export const lineIdx = (s: SaveData, id: string) => linesOf(s, id).flatMap((l, i) => (l ? [i] : []))
+/** Rolls already made on an item (drives rerollMul). */
+export const rollsOf = (s: SaveData, id: string) => s.rerollCount?.[id] ?? 0
+/** The price of the next roll with these lines locked. */
+export const nextRerollCost = (s: SaveData, it: Item, locked: number[] = []) =>
+  rerollCost(it, lineIdx(s, it.id).length, rollsOf(s, it.id), locked.length)
+
+/** Option gacha (Q 2026-11-06): pay, then reroll every line not in `locked`. The new lines replace the old ones
+ * right away (no keep-old: a locked line is the only way to keep one). Null (nothing spent) when short or the
+ * locks are not allowed. */
+export function reroll(s: SaveData, it: Item, locked: number[] = [], rnd: () => number = Math.random): RefineLine[] | null {
+  const have = lineIdx(s, it.id)
+  const lock = [...new Set(locked)]
+  if (!have.length || lock.some((i) => !have.includes(i)) || lock.length > maxLocks(have.length)) return null
+  if (spend(s, nextRerollCost(s, it, lock)) === false) return null
+  const arr = s.refineLines![it.id]
+  for (const i of have) if (!lock.includes(i)) arr[i] = rollLine(it, i, s.job, rnd)
+  ;(s.rerollCount ??= {})[it.id] = rollsOf(s, it.id) + 1
+  return arr.slice()
 }

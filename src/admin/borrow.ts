@@ -21,12 +21,20 @@ export const HERO_TO_MON: Partial<Record<keyof Stats, MapTo>> = {
   j2Reflect: { field: 'reflect', label: 'สะท้อนดาเมจ', approx: 'มอนสะท้อนเป็นดาเมจเวททุก hit ที่โดน (ฮีโร่สะท้อนเฉพาะกายภาพ)' },
 }
 
-export interface HeroSrc { id: string; name: string; icon: string; max: number; group: string; desc: (lv: number) => string; mod: (lv: number) => Partial<Stats> }
+export interface HeroSrc { id: string; name: string; icon: string; max: number; /** highest Lv offered: OVER_MAX when its formula keeps growing past max (RO style over-level), else max */ top: number; group: string; desc: (lv: number) => string; mod: (lv: number) => Partial<Stats> }
 export interface HeroClass { id: string; name: string; srcs: HeroSrc[] }
 
+/** RO style over-level: a node whose numbers keep growing past its max can be borrowed up to this Lv. */
+export const OVER_MAX = 50
+/** Does mod(lv) still change past max? Talents (rank 1 / 2 tables) and on / off nodes do not. */
+const grows = (mod: HeroSrc['mod'], max: number) => {
+  const a = mod(max), b = mod(max + 1)
+  return Object.keys(b).some((k) => k in HERO_TO_MON && b[k as keyof Stats] !== a[k as keyof Stats])
+}
+const top = (mod: HeroSrc['mod'], max: number) => (grows(mod, max) ? Math.max(max, OVER_MAX) : max)
 const mappable = (s: HeroSrc) => Object.keys(s.mod(s.max)).some((k) => k in HERO_TO_MON)
 const fromBranch = (b: TreeBranch): HeroSrc[] =>
-  nodesOf(b.id).map((x) => ({ id: x.id, name: x.name, icon: x.icon, max: x.max, group: `${b.icon} ${b.name}`, desc: x.desc, mod: x.mod }))
+  nodesOf(b.id).map((x) => ({ id: x.id, name: x.name, icon: x.icon, max: x.max, top: top(x.mod, x.max), group: `${b.icon} ${b.name}`, desc: x.desc, mod: x.mod }))
 
 let CLASSES: HeroClass[] | null = null
 /** Every class (5 base + 10 second jobs) with the nodes / talents that have at least one stat a monster can use. */
@@ -36,7 +44,7 @@ export function heroClasses(): HeroClass[] {
   for (const job of BASE_JOBS) {
     const srcs = BRANCHES.filter((b) => b.job === job).flatMap(fromBranch)
     for (const row of [1, 2, 3, 4]) for (const t of talentsOf(job, row))
-      srcs.push({ id: t.id, name: t.name, icon: t.icon, max: t.max, group: `⭐ Talent แถว ${row}`, desc: t.desc, mod: t.mod })
+      srcs.push({ id: t.id, name: t.name, icon: t.icon, max: t.max, top: top(t.mod, t.max), group: `⭐ Talent แถว ${row}`, desc: t.desc, mod: t.mod })
     out.push({ id: job, name: `${JOBS[job].icon} ${JOBS[job].name}`, srcs: srcs.filter(mappable) })
   }
   for (const j2 of Object.keys(JOB2) as Job2Id[])
@@ -45,7 +53,7 @@ export function heroClasses(): HeroClass[] {
   return CLASSES
 }
 
-export interface BorrowLine { path: string; label: string; from: number; to: number; approx?: string }
+export interface BorrowLine { path: string; label: string; from: number; to: number; approx?: string; /** clamped at the field's max */ capped?: boolean }
 export interface BorrowPlan { lines: BorrowLine[]; skipped: string[] }
 
 /** What borrowing `src` at `lv` does to monster `k`. `cur` = the monster's current (draft) value of a monster path. */
@@ -66,7 +74,7 @@ export function borrowPlan(k: MonsterKind, src: HeroSrc, lv: number, cur: (path:
     const row = fieldRow('monsters', path)
     if (!row) continue
     const from = cur(path) ?? 0, to = clampField(row.def, String(from + v)) ?? from
-    lines.push({ path, label: m.label, from, to, approx: m.approx })
+    lines.push({ path, label: m.label, from, to, approx: m.approx, capped: from + v > row.def.max })
   }
   return { lines, skipped }
 }

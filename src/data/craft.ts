@@ -91,7 +91,8 @@ export function craftCost(it: Item) {
 const r3 = (n: number) => Math.round(n * 1000) / 1000
 
 // ---------- refine +1..+10 (phase 2, design 3.5 / 3.5.1 / 3.6) ----------
-/** Refine rules. Gems only ever repair (Q 2026-11-03): never rate, break protection, mats, fodder or rerolls. */
+/** Refine rules. Gems only ever repair (Q 2026-11-03): never rate, break protection, mats, fodder or rerolls.
+ * One exception (Q 2026-11-06): gems lock a bonus line during a reroll. The roll itself is always zeny + mats. */
 export const REFINE = {
   max: 10,
   pct: 0.05, // whole-item stats per +, added to the grade % (grade 5 +10 = x2.1)
@@ -108,6 +109,12 @@ export const REFINE = {
   feeBase: 25,
   feeGrowth: 1.4,
   repairFee: 0.5, // material repair also costs this share of the fee for the item's current +
+  // Option gacha (Q 2026-11-06, zeny sink): one roll rerolls EVERY unlocked line at once and the new lines stay (no keep-old).
+  rerollZeny: [200, 400, 800], // zeny per line the item has (+5 / +7 / +10 line), summed: 200 / 600 / 1400
+  rerollMats: [[4, 0], [6, 1], [8, 2]] as [number, number][], // [common, boss] of the item's biggest line only
+  rerollStep: 0.1, // zeny +10% for every roll already made on this item...
+  rerollMaxMul: 3, // ...up to x3 (kept until the item leaves the bag)
+  lockGems: [10, 30], // gems per roll for the 1st / 2nd locked line; the last line can never be locked
 }
 /** Zeny fee for one try at +n. */
 export const refineFee = (n: number) => (n <= 0 ? 0 : Math.round((REFINE.feeBase * REFINE.feeGrowth ** (n - 1)) / 5) * 5)

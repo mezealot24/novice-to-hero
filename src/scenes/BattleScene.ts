@@ -16,7 +16,7 @@ import { MAT_RULES, matName, matOf } from '../data/materials'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
 import { HARD_POWER, matchScale, overpowerMul, TOWER_POWER } from '../data/power'
-import { legacyLevel, levelDropMul, roomLevel, scaleOf, skillMul, slamScaleOf, statMonster, statNative, withStats } from '../data/mon-stats'
+import { legacyLevel, levelDropMul, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, statNative, withStats } from '../data/mon-stats'
 import { foldAffixes } from '../data/affixes'
 import { PACKS } from '../data/dungeons'
 import { buildRun, MODES, towerFloorLoot, type ModeArgs, type RunConfig, type RunRoom } from '../data/modes'
@@ -3424,7 +3424,8 @@ export class BattleScene extends Phaser.Scene {
   private async useSkill(m: Mon) {
     for (const raw of m.skills) {
       if (m.turns % raw.every) continue
-      const sk = raw.pick ? raw.pick[Phaser.Math.Between(0, raw.pick.length - 1)] : raw // spell rotation
+      const picked = raw.pick ? raw.pick[Phaser.Math.Between(0, raw.pick.length - 1)] : raw // spell rotation
+      const sk = skillAtLv(picked, picked.lv ?? raw.lv ?? 1) // v81 skill level (RO style over-level ok)
       if (sk.big) { this.callout(`${m.def.name}: ${sk.name}!`, W / 2, 190, '#ff7ad0'); this.cameras.main.flash(220, 200, 80, 255); await this.wait(350) }
       const allies = this.alive()
       let done = false
