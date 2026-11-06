@@ -63,6 +63,15 @@ export const KIT = {
     faithOver: 0.2, overMin: 0.03, faithHealPer: 0.01, // ล้นศรัทธา: overheal >= 3% max HP: chance/lv of +1 Faith · พรเกื้อ: burst heals max HP share per stack per lv
     overBurst: 1.5, overCap: 0.25, // ★ แสงล้นฟ้า: overheal x this as holy damage to the front monster (overheal counted up to 25% max HP per heal)
     wardTurns: 2, ward: 0.06, emergencyAt: 0.3, emergency: 0.08, mend: 0.1, // ม่านพร: after ult −dmg taken/lv N hero turns · ฉุกเฉิน: under 30% HP heal max HP share/lv (1/wave) · ชุบชีวา: ult heals missing HP share/lv
+    // v86 web 🌄 รุ่งอรุณ (Q 2026-11-06, replaces ⛪ ฟื้นคืน; its numbers above stay for the old code paths). Per OLD level (max 3):
+    // แสงรุ่งอรุณ: every `every` basic attacks the next is a sure crit for (STR + WIS + atk x P.ATK + matk x M.ATK), crit dmg + crit/lv,
+    // heals `heal` of the damage (+ healLv/lv from อรุณสมานแผล; normal monsters x weak) · แสงแตก: splash/lv of it to every other monster.
+    // v86 core column 💠 แก่นศรัทธา (Q 2026-11-06, Mana for the Priest). Per OLD level (max 3, stretched to 5) unless noted:
+    // จิตสงบ: STR + WIS +base/lv · Mana regen +regen/lv (resRegen units, x3 per turn) per 10 points of the lower of STR / WIS
+    // ศรัทธาสู่กาย (max 3, not stretched): every intPer[lv-1] INT = +1 STR · มานาพิทักษ์: damage taken (shield absorb too)
+    // -> guard/lv of it as Mana (x (1 + WIS x wisAmp)) · Mana spent -> heal of it as HP · wave start shield = shield/lv x Max Mana
+    core: { base: 5, regen: 1 / 6, intPer: [7, 6, 5], guard: 0.05, wisAmp: 0.005, heal: 0.2, shield: 0.25 / 3 },
+    dawn: { every: 3, atk: 0.3, matk: 0.1, crit: 0.25, heal: 0.2, healLv: 0.05, splash: 0.2, weak: 0.6 },
     reviveHp: 0.5, reviveShield: 0.2, // ★ คืนชีพ: 1/run lethal hit -> back at 50% HP + 20% shield, debuffs cleared
   },
 }
@@ -181,7 +190,7 @@ export const S2N = {
 
 // ---------- costs / cooldowns ----------
 export const autoCost = (job: JobDef, st: Stats) => Math.max(10, job.auto.cost - st.autoCostCut)
-/** Mana the ult costs (Mage, Swordsman); 0 for every other job. */
+/** Mana the ult costs (Mage, Swordsman, Cleric since v86); 0 for every other job. */
 export const ultCost = (job: JobDef) => (job.resource === 'mana' ? job.ult.cost ?? 0 : 0)
 /** Ult cooldown in hero turns before relics (gear smashCd lowers it for every job). */
 export const ultCooldown = (job: JobDef, st: Stats) => {

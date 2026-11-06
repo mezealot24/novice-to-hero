@@ -22,7 +22,7 @@ function spendable(nodes: TreeNode[]) {
 
 test('spendable points stay above the pool (forced ★ choice)', () => {
   assert.equal(spendable(swordNodes), 79)
-  assert.equal(spendable(clericNodes), 79)
+  assert.equal(spendable(clericNodes), 92) // v86: + 💠 แก่นศรัทธา core column (5 + 3 + 5)
   assert.equal(spendable(knightNodes), 79)
   assert.ok(spendable(swordNodes) >= SWORD_POOL)
   assert.ok(spendable(clericNodes) >= CLERIC_POOL)
@@ -56,9 +56,9 @@ test('4 ★ per class web (Knight 5 branches = 5 ★), a 3rd ★ is refused', ()
   delete s.swordsman_b4
   assert.equal(lockReason(s, 'swordsman', c4), '')
   // Cleric
-  const c = fill(['cleric_a', 'cleric_b', 'cleric_c', 'cleric_d'], 'cleric_d4')
+  const c = fill(['cleric_a', 'cleric_b', 'cleric_c', 'cleric_d'], 'cleric_dn4')
   delete c.cleric_c4
-  const d4 = clericNodes.find((n) => n.id === 'cleric_d4')!
+  const d4 = clericNodes.find((n) => n.id === 'cleric_dn4')!
   assert.match(lockReason(c, 'cleric', d4), /★/)
   delete c.cleric_a4x
   assert.equal(lockReason(c, 'cleric', d4), '')
@@ -80,7 +80,7 @@ test('new branches hang under the right line', () => {
   assert.equal(swordNodes.find((n) => n.id === 'swordsman_c1')?.parent, 'swordsman_s1p')
   assert.equal(swordNodes.find((n) => n.id === 'swordsman_d1')?.parent, 'swordsman_ultp')
   assert.equal(clericNodes.find((n) => n.id === 'cleric_c1')?.parent, 'cleric_s1p')
-  assert.equal(clericNodes.find((n) => n.id === 'cleric_d1')?.parent, 'cleric_ultp')
+  assert.equal(clericNodes.find((n) => n.id === 'cleric_dn1')?.parent, 'cleric_ultp')
   assert.equal(knightNodes.find((n) => n.id === 'kn_o1')?.parent, undefined)
   assert.equal(knightNodes.find((n) => n.id === 'kn_r2')?.parent, 'kn_r1')
   // shipped nodes keep their ids
@@ -92,7 +92,7 @@ test('each new node sets its field (default 0, grows with level, readable text)'
     swordsman_c1: ['swFlow'], swordsman_c2: ['swFlowMana'], swordsman_c3: ['swFlowCrit'], swordsman_c4: ['swFlowStar'],
     swordsman_d1: ['swBreak'], swordsman_d2: ['swBreakLeech'], swordsman_d3: ['swBreakSpread'], swordsman_d4: ['swShatter'],
     cleric_c1: ['clFaith'], cleric_c2: ['clFaithOver'], cleric_c3: ['clFaithHeal'], cleric_c4: ['clOverBurst'],
-    cleric_d1: ['clUltWard'], cleric_d2: ['clEmergency'], cleric_d3: ['clUltMend'], cleric_d4: ['clRevive'],
+    cleric_dn1: ['clDawnCrit'], cleric_dn2: ['clDawnHeal'], cleric_dn3: ['clDawnSplash'], cleric_dn4: ['clDawnUlt'], // v86 🌄 รุ่งอรุณ
     kn_o1: ['j2Banner'], kn_o2: ['j2Provoke'], kn_o3: ['j2BannerKill'], kn_o4: ['j2BannerAura', 'j2Guard'],
     kn_r1: ['j2Sweep'], kn_r2: ['j2SweepPush'], kn_r3: ['j2SweepGauge'], kn_r4: ['j2SweepStar'],
   }
@@ -111,11 +111,11 @@ test('each new node sets its field (default 0, grows with level, readable text)'
 })
 
 test('stretched levels: 3 -> 5, ★ stays 1', () => {
-  for (const id of ['swordsman_c1', 'swordsman_d3', 'cleric_c2', 'cleric_d3', 'kn_o2', 'kn_r1']) {
+  for (const id of ['swordsman_c1', 'swordsman_d3', 'cleric_c2', 'cleric_dn3', 'kn_o2', 'kn_r1']) {
     const n = [...swordNodes, ...clericNodes, ...knightNodes].find((x) => x.id === id)!
     assert.equal(n.max, 5, id)
   }
-  for (const id of ['swordsman_c4', 'swordsman_d4', 'cleric_c4', 'cleric_d4', 'kn_o4', 'kn_r4']) {
+  for (const id of ['swordsman_c4', 'swordsman_d4', 'cleric_c4', 'cleric_dn4', 'kn_o4', 'kn_r4']) {
     const n = [...swordNodes, ...clericNodes, ...knightNodes].find((x) => x.id === id)!
     assert.equal(n.max, 1, id)
   }

@@ -3,7 +3,7 @@ import { COLORS, DUNGEONS, H, HARD, W } from '../data/game-data'
 import { levelDropMul } from '../data/mon-stats'
 import { foldCorruptions, rollCorruptions } from '../data/corruptions'
 import { HARD_POWER, heroParts, heroPower, matchScale, overpowerMul, powerHint, recPower, TOWER_POWER } from '../data/power'
-import { COSTUMES, FREE_GEMS, isBroken, itemById, JOB_RULES, RACES, STAT_RULES } from '../data/meta'
+import { COSTUMES, FREE_GEMS, isBroken, itemById, JOB_RULES, noviceLeft, RACES, STAT_RULES } from '../data/meta'
 import { canChangeJob, canChangeJob2, persist, save, today, ultMode, wipe } from '../save'
 import { JOB_CHANGE, JOBS } from '../data/jobs'
 import { JOB2, JOB2_RULES, job2Of } from '../data/jobs2'
@@ -48,6 +48,7 @@ export class HubScene extends Phaser.Scene {
     const notes: string[] = []
     if (s.statPoints > 0) notes.push(`มีแต้มสถานะ ${s.statPoints}`)
     if (s.skillPoints > 0) notes.push(`มีแต้มสกิล ${s.skillPoints}`)
+    if (noviceLeft(s.skills) > 0) notes.push(`มีแต้มโนวิส ${noviceLeft(s.skills)}`)
     if ((s.job2Points ?? 0) > 0) notes.push(`มีแต้มใยชั้น 2 ${s.job2Points}`)
     if (canChangeJob(s)) {
       const jb = button(this, 214, 448, 300, 44, '🎓 เปลี่ยนอาชีพได้แล้ว!', () => go(this, 'job'), { size: 18 })

@@ -10,6 +10,7 @@ import { JOB2, PET_IDS, type Job2Def, type PetId } from '../data/jobs2'
 import { skill2Picked } from '../data/tree'
 import { ALLIES, fillAllies, gadgetById, hawkMul, hurtAlly, liveAllies, makeAlly, rollGadget, tauntTarget, tickAllies, TRAP_IDS, useAlly, wolfMul, type Ally, type AllyCtx, type GadgetId } from '../battle/allies'
 import type { Skill2Def } from '../data/skill2'
+import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { autoCost, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, hitBase, KIT, KIT2, MAGE_CAST, magicPower, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, ultMode } from '../save'
 import { MAT_RULES, matName, matOf } from '../data/materials'
@@ -28,6 +29,14 @@ import { button, fullscreenButton, go, type Btn } from '../ui'
 const GROUND = 430 // feet line
 const HERO_X = 220
 const SLOT_X = [560, 660, 760, 850] // monster formation, front first
+/** v86 skill-button view: one circle of the bottom-right cluster (redrawn only when its signature changes). */
+interface SkillBtnView {
+  slot: SkillSlot; r: number; sig: string
+  c: Phaser.GameObjects.Container
+  base: Phaser.GameObjects.Graphics; sweep: Phaser.GameObjects.Graphics; ring: Phaser.GameObjects.Graphics; bookRing: Phaser.GameObjects.Graphics
+  spin?: Phaser.GameObjects.Graphics; flash: Phaser.GameObjects.Graphics
+  icon: Phaser.GameObjects.Text; cd: Phaser.GameObjects.Text; cost: Phaser.GameObjects.Text; tag: Phaser.GameObjects.Text
+}
 const MIX_X = [530, 615, 730, 865] // tower mixed fight (floor 20+): 2 adds in front, bosses / minis behind
 const FACES_RIGHT: MonsterKind[] = ['wolf', 'shadowwolf', 'boar', 'alpha', 'hunter'] // textures drawn facing right; flip to face the hero
 
@@ -203,6 +212,7 @@ export class BattleScene extends Phaser.Scene {
     this.buildHud()
     this.cameras.main.fadeIn(200, 20, 23, 43)
     this.input.keyboard!.on('keydown-SPACE', () => this.queueSmash())
+    this.input.keyboard!.on('keydown', (e: KeyboardEvent) => this.skillHotkey(e)) // v86: 1/2/3 book Skill 1-3, 4 books the ult (manual mode)
     this.input.keyboard!.on('keydown-ESC', () => this.showPause())
     ;(window as unknown as { __battle: BattleScene }).__battle = this
     this.startRun()
@@ -274,7 +284,7 @@ export class BattleScene extends Phaser.Scene {
     this.j2 = s.job2 && JOB2[s.job2]?.parent === this.job.id ? JOB2[s.job2] : undefined // 2nd job (design/second-jobs-v1.md)
     if (this.j2) this.job = { ...this.job, resource: this.j2.resource ?? this.job.resource, auto: { ...this.job.auto, cost: this.j2.autoCost ?? this.job.auto.cost }, ult: { ...this.job.ult, ...this.j2.ult } } // Berserker: Rage · Ult วิวัฒน์
     if (this.j2?.id === 'sage') this.job = { ...this.job, attack: 'melee' } // 📖 Sage: melee basic + counters (P.ATK)
-    this.sageInt = totalBase(s).int; this.heroDex = totalBase(s).dex; this.casts = []; this.steady = false; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
+    this.sageInt = totalBase(s).int; this.heroDex = totalBase(s).dex; this.heroWis = totalBase(s).wis; this.casts = []; this.steady = false; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
     this.heroLuk = totalBase(s).luk; this.pet = s.pet ?? 'hawk' // Phase 4 Archer: hawk / gadget odds read base LUK
     { const wpn = itemById(s.equipped.weapon ?? ''); this.j2Weapon = !!this.j2?.mastery.ok(wpn); this.hasShield = !wpn.twoHand && !!s.equipped.offhand && s.equipped.offhand !== 'none_off'; this.dualKnife = this.hasShield && itemById(s.equipped.offhand ?? '').wtype === 'dagger' }
     this.frenzy = 0; this.frenzyAt = 0; this.s3Cd = 0; this.rampage = 0; this.charges = 0; this.allies = []; this.allyTxt.clear(); this.chargeTxt = undefined
@@ -285,10 +295,12 @@ export class BattleScene extends Phaser.Scene {
     this.res = this.job.resource === 'rage' ? 0 : this.resMax()
     this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0
     this.heroSpr.setTexture(this.job.tex).setTint((COSTUMES.find((c) => c.id === s.costume) ?? COSTUMES[0]).tint).setAngle(0).setAlpha(1)
+    this.dawnN = 0; this.dawnArmed = false // v86 แสงรุ่งอรุณ: the charge carries across waves, not runs
     this.perks = []; this.hits = 0; this.procHits = {}; this.pk = newPerkStats(); this.masteries = []; this.src = 'other'; this.immortal = null; this.eggN = 0; this.eggDef = 0
     this.level = 1; this.xp = 0; this.zeny = 0; this.kills = 0; this.runXp = 0; this.runGems = 0; this.runCards = []; this.runMats = {}
     this.cardLuck = 1 + Math.min(PER_POINT.luk.dropCap, PER_POINT.luk.dropPct * totalBase(s).luk)
-    this.settled = false; this.over = false; this.smashQueued = false
+    this.settled = false; this.over = false; this.smashQueued = false; this.clearBookings()
+    this.buildSkillHud() // v86: job / 2nd job / Skill 2 are known now
     this.startedAt = this.time.now
     this.eventLog = []; this.lockTarget = undefined; this.lockStacks = 0; this.hawkTurn = 0; this.revivedCount = 0; this.spears = 0; this.spearAcc = 0; this.ultRegenTurns = 0; this.shieldLayers = []; this.smiteCount = 0; this.counterCount = 0; this.comboCount = 0; this.comboLevel = 0; this.lowShake = !!save().lowShake; this.autoUlt = ultMode() === 'auto'; this.autoSkip = false; this.ultHeld = 0; this.peakTurns = 0; this.turnsLog = []
     this.flow = 0; this.faith = 0; this.wardTurns = 0; this.holyRevived = false // v84 webs: momentum / Faith / ม่านพร / ★ คืนชีพ (1 per run)
@@ -388,6 +400,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.waveDodge > 0) this.dodgeCharges = Math.max(this.dodgeCharges, this.st.waveDodge) // Thief talent: ม่านควัน
     if (this.st.bossShield > 0 && this.mons.some((m) => !m.dead && m.def.ai === 'boss')) this.addShield(this.st.maxHp * this.st.bossShield) // cleric talent: ร่างพร
     if (this.st.spearStart > 0) this.spears += this.st.spearStart // cleric talent: หอกเปิดศึก
+    if (this.st.clManaShield > 0) this.addShield(this.st.maxRes * this.st.clManaShield, true) // v86 💠 มานาพิทักษ์: wave-start shield from Max Mana
     if (this.st.waveShield > 0) { // gear: tops the shield up (never stacks) at every wave start
       const target = Math.round(this.st.maxHp * this.st.waveShield * (1 + this.st.shieldAmp))
       if (this.shield < target) { this.shield = target; this.floatText(HERO_X, GROUND - 100, `🛡️ โล่ ${target}`, '#9fe3ff') }
@@ -544,6 +557,7 @@ export class BattleScene extends Phaser.Scene {
     this.fightTurns = 0; this.timedOut = false
     this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.rampage = 0
     this.martyrUsed = false; this.j2Hurt = false; this.clearAllies() // Crusader ★ ผู้พลีชีพ once per wave · allies last one wave
+    this.clearBookings() // v86: booked Skill 1-3 do not carry into the next wave (the ult booking does)
     this.zenyWave = 0; this.mirror = false; this.waveAllies() // Phase 4 Archer: pets / traps every wave
     this.casts = []; this.castFx(false); this.zenTurns = 0; this.endow = 0; this.rodUsed = false // Phase 5 Mage: a charge never carries into the next wave
     if (this.st.j2ChargeFirst > 0) this.heroGauge = Math.max(this.heroGauge, 100) // Knight ★ ทะยาน: the hero acts first
@@ -719,9 +733,10 @@ export class BattleScene extends Phaser.Scene {
     if (ultWaiting && this.res >= ultCost) {
       this.smashQueued = false
       this.smashCdLeft = this.ultTurns()
-      this.res -= ultCost
+      this.spendRes(ultCost)
       this.ultOpen = 1 + this.pk.ultBoost // legend เปิดฉากเต็มแรง (v78: every ult)
       this.fightUlts++
+      this.popSkill('ult')
       await this.asSkill(() => (this.job.id === 'novice' ? this.smash() : this.ultimate()), 'ult')
       if (!this.casts.some((c) => c.kind === 'ult')) await this.afterUlt() // a chanted ult runs these when it lands
       await this.faithBurst() // v84 ศรัทธา: an ult heal can fill Faith too
@@ -729,18 +744,19 @@ export class BattleScene extends Phaser.Scene {
     }
     if (ultWaiting) this.floatText(HERO_X, GROUND - 140, `🔷 Mana ไม่พอ ult (${Math.floor(this.res)}/${ultCost})`, '#5aa0ff') // keep it booked, save Mana for it
     const cost = autoCost(this.job, this.st)
+    const s1Ok = mayCast(!this.autoUlt, this.book.s1) // v86: manual mode only casts Skill 1 when it is booked, otherwise a basic attack (saves Mana for the ult)
+    const castS1 = async () => { this.spendRes(cost); this.book.s1 = false; this.popSkill('s1'); await this.asSkill(() => this.autoSkill(), 'skill') }
     if (this.job.id === 'cleric') { // v59 Q: the Priest smashes EVERY turn; Skill 1 rides along (heal first when low, holy light after the smash)
-      const castable = () => !ultWaiting && this.res >= cost && this.alive().length > 0 && this.hp > 0
+      const castable = () => s1Ok && !ultWaiting && this.res >= cost && this.alive().length > 0 && this.hp > 0
       const low = this.hp < this.st.maxHp * (KIT.clericHealBelow - this.st.healAt)
-      if (low && castable()) { this.res -= cost; await this.asSkill(() => this.autoSkill(), 'skill') }
+      if (low && castable()) await castS1()
       if (this.alive().length) await this.basicAttack()
-      if (!low && castable()) { this.res -= cost; await this.asSkill(() => this.autoSkill(), 'skill') }
+      if (!low && castable()) await castS1()
       await this.faithBurst() // v84 ศรัทธา: full Faith bursts after the turn's actions
       return
     }
-    if (this.job.resource && !ultWaiting && this.res >= cost && this.alive().length) {
-      this.res -= cost
-      await this.asSkill(() => this.autoSkill(), 'skill')
+    if (this.job.resource && s1Ok && !ultWaiting && this.res >= cost && this.alive().length) {
+      await castS1()
       return
     }
     await this.basicAttack()
@@ -753,7 +769,9 @@ export class BattleScene extends Phaser.Scene {
   private buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, bless: 0 } // hero turns left on Skill 2 buffs
   private kyrie = { hp: 0, hits: 0 } // v77 พรแสง "+" Kyrie Eleison: barrier HP + hits left (gone with the blessing)
   private s2Count = 0 // casts this run (bot/debug)
-  private s2Txt?: Phaser.GameObjects.Text // HUD line above the ult button
+  private book = { s1: false, s2: false, s3: false } // v86 manual mode: skills the player booked (the ult uses smashQueued)
+  private skillBtns: SkillBtnView[] = [] // v86 MOBA-style cluster (everything but the Novice)
+  private skillTip?: Phaser.GameObjects.Text
   private res = 0
   private shield = 0
   private dodgeCharges = 0
@@ -773,6 +791,12 @@ export class BattleScene extends Phaser.Scene {
   private front() { return this.alive().sort((a, b) => a.slot - b.slot) }
   private gainRage(n: number) { if (this.job.resource === 'rage') this.res = Math.min(RES_RULES.rageMax, this.res + n * (1 + this.st.rageGain)) }
   /** Flat resource gain for Mana/Energy jobs (talents that used to give Rage). */
+  /** Pay Mana / Energy / Rage; v86 💠 มานาพิทักษ์ heals a share of the Mana spent. */
+  private spendRes(n: number) {
+    if (n <= 0) return
+    this.res -= n
+    if (this.st.clManaHeal > 0 && this.job.resource === 'mana' && this.hp > 0) this.heal(n * this.st.clManaHeal, true)
+  }
   private gainRes(n: number) { if (this.job.resource && this.job.resource !== 'rage') this.res = Math.min(this.resMax(), this.res + n) }
   /** v78 focus: resource gain for any job; returns the share (0..1) that didn't fit (no resource = all of it). */
   private resGain(n: number) {
@@ -849,6 +873,33 @@ export class BattleScene extends Phaser.Scene {
   private boomUsed = false // Knight Spear Boomerang used this wave
   private firstSwing = false // Knight Charge Attack: first basic swing of the wave
   private forceCrit = false
+  // ----- v86 Cleric talent แสงรุ่งอรุณ (KIT.clericTree.dawn): every N basic attacks, the next one is a sure-crit holy smash that heals -----
+  private dawnN = 0 // basic attacks since the last charged smash
+  private dawnArmed = false // the current swing is the charged one
+  private dawnOn() { return this.st.clDawn > 0 && this.job.id === 'cleric' }
+  private dawnCount(fired: boolean) {
+    const D = KIT.clericTree.dawn
+    this.dawnN = fired ? 0 : this.dawnN + 1
+    if (this.dawnN === D.every) this.floatText(HERO_X, GROUND - 170, '🌄 แสงรุ่งอรุณ พร้อม!', '#ffd36e')
+  }
+  /** (STR + WIS + atk x P.ATK + matk x M.ATK) as a sure crit (+clDawnCrit crit dmg), splash to the rest, heal a share of the main hit. */
+  private dawnSmash(f: Mon) {
+    const D = KIT.clericTree.dawn, st = this.st, s = save()
+    const b = totalBase(s), bl = this.buf.bless > 0 ? blessBase(s) ?? {} : {} // พรแสง adds STR / WIS while it lasts
+    const flat = b.str + (bl.str ?? 0) + b.wis + (bl.wis ?? 0) + D.atk * st.atk + D.matk * st.matk
+    const mul = flat / Math.max(1, st.atk), add = st.clDawnCrit, wasCrit = this.forceCrit
+    this.forceCrit = true; st.critMul += add
+    let dmg = 0
+    try {
+      dmg = this.strike(f, mul, false, '#ffd36e')
+      if (st.clDawnSplash > 0) for (const m of this.alive()) if (m !== f) this.strike(m, mul * st.clDawnSplash, false, '#ffd36e') // แสงแตก
+    } finally { st.critMul -= add; this.forceCrit = wasCrit }
+    this.burst(f.spr.x, f.spr.y - 30, 0xffd36e, 14, 170)
+    if (dmg <= 0 || this.hp <= 0) return
+    const big = f.def.ai === 'boss' || !!f.def.mini
+    const amt = dmg * (D.heal + st.clDawnHeal) * (big ? 1 : D.weak)
+    if (amt > 0) { this.heal(amt, true); this.floatText(HERO_X, GROUND - 150, `🌄 +${Math.round(amt * (1 + st.healAmp))}`, '#7fe39a') }
+  }
   private critAdd = 0 // temporary crit chance (คลื่นดาบ)
   private dualKnife = false // Rogue: a dagger in the off-hand (+KIT2.rogue.dualKnife flying knives)
   private critKnives = 0 // Rogue ★: knives owed by basic / combo crits, thrown after the swing
@@ -1147,11 +1198,13 @@ export class BattleScene extends Phaser.Scene {
     }
     if (this.hx.silence > 0) return
     if (this.s3Cd > 0) { this.s3Cd--; return }
+    if (!mayCast(!this.autoUlt, this.book.s3)) return // v86: manual mode waits for the booking
     if (j2.id === 'monk' && this.charges < KIT2.monk.thunderMin) return // Falling Thunder needs charges
-    const cost = Math.max(0, j2.skill3.cost - this.st.j2CmdCut) // v82 Beastmaster คำสั่งไว
+    const cost = this.s3Cost()
     if (this.res < cost) return
-    this.res -= cost
+    this.spendRes(cost)
     this.s3Cd = j2.skill3.cd
+    this.book.s3 = false; this.popSkill('s3')
     const pow = 1 + this.st.s3Pow
     if (j2.id === 'wizard' && this.charge({ kind: 'gust', pow, hit: pow, paid: 0 }, this.res + cost)) return // Storm Gust charges a turn
     await this.asSkill(async () => {
@@ -1302,6 +1355,7 @@ export class BattleScene extends Phaser.Scene {
   private rodUsed = false // Sage ★ Magic Rod: the wave's spell already absorbed
   private sageInt = 0 // total INT (Auto Spell chance)
   private heroDex = 0 // total DEX (v78 chant break)
+  private heroWis = 0 // total WIS (v86 💠 มานาพิทักษ์)
   private zenTurns = 0 // v78 เปิดฉากเต็มแรง: hero turns of Zen left (no miss, crit damage +)
   /** Start charging a spell (true), or cast it now (false): Wizard ★ Quagmire at high Mana. `mana` = Mana before paying. */
   private charge(c: Cast, mana: number) {
@@ -1559,7 +1613,11 @@ export class BattleScene extends Phaser.Scene {
     const rate = this.comboChance() - (target ? this.monCombo(target).ignore : 0), count = COMBO.baseCount + this.st.comboCount + (this.relic === 'wolf' ? RELIC_RULES.wolf.comboCount : 0)
     while (extra < count && Math.random() < rate) extra++ // Capybara-style: each extra hit rolls (rate - Ignore Combo), stop on a miss
     this.stayIn = extra > 0 || this.rampage > 0
+    const dawn = this.dawnOn() && this.dawnN >= KIT.clericTree.dawn.every // v86 แสงรุ่งอรุณ: this swing is the charged one
+    this.dawnArmed = dawn
     await this.basicOnce()
+    this.dawnArmed = false
+    if (this.dawnOn()) this.dawnCount(dawn)
     this.comboKnives(false) // Rogue ★: crit knives from the first swing
     this.sageSpell() // 📖 Sage Auto Spell
     if (this.rampage > 0 && this.alive().length) { this.floatText(HERO_X, GROUND - 150, '👹', '#ff5a4e'); await this.basicOnce() } // Berserker บ้าระห่ำ: every swing hits twice
@@ -1610,7 +1668,7 @@ export class BattleScene extends Phaser.Scene {
     else if (kind === 'mage' && this.j2?.id === 'sage') await this.lunge(f, () => { this.strike(f, KIT2.sage.basicMul) }) // 📖 Sage: melee x P.ATK
     else if (kind === 'mage') await this.shoot(f, 0x9f7bff, () => { if (this.strike(f, MAGE_SPELL.basicMul, true, '#c9a8ff') > 0) this.gainRes(MAGE_CAST.boltMana) }) // weak free magic bolt (v78: + Mana on hit); real damage = Mana spells
     else if (kind === 'thief') await this.lunge(f, () => { this.strike(f, 0.6); this.strike(f, 0.6); this.doubleAttack(f, 0.6) })
-    else if (kind === 'cleric') await this.maceSmash(f, () => { this.strike(f, clericBasic()) }) // v58 Q: melee mace/book smash, P.ATK (STR) only; spells carry M.ATK
+    else if (kind === 'cleric') await this.maceSmash(f, () => { if (this.dawnArmed) this.dawnSmash(f); else this.strike(f, clericBasic()) }) // v58 Q: melee mace/book smash, P.ATK (STR) only; spells carry M.ATK
     else await this.lunge(f, () => { const cl = BATTLE.cleave + this.st.cleaveAdd, fs = this.chargeMul(); if (live[1]) { this.strike(f, fs); this.strike(live[1], cl) } else this.strike(f, fs + (kind === 'swordsman' ? cl : 0)) }) // novice, swordsman: cleave (+talent ฟันกวาด) · swordsman alone vs 1 monster: the cleave lands on it too
     this.lsMul = 0
     if (this.j2?.id === 'monk') this.monkSwing(f)
@@ -1630,15 +1688,17 @@ export class BattleScene extends Phaser.Scene {
     const k = this.s2
     if (!k || this.hx.silence > 0 || !this.alive().length) return
     if (this.s2Cd > 0) { this.s2Cd--; return }
+    if (!mayCast(!this.autoUlt, this.book.s2)) return // v86: manual mode waits for the booking
     if (this.res < k.cost) return
     if (this.smashQueued && this.smashCdLeft <= 0 && this.res - k.cost < this.ultCost()) return // keep Mana for the booked ult
     if (k.id === 'mg_mshield' && B.mshield > 0) return
     if (k.id === 'cl_renew' && (B.renew > 0 || this.hp >= this.st.maxHp)) return
     if (k.id === 'sw_guard' && B.guard > 0) return
     if (k.id === 'cl_bless' && B.bless > 0) return
-    this.res -= k.cost
+    this.spendRes(k.cost)
     this.s2Cd = s2Cooldown(k, this.st)
     this.s2Count++
+    this.book.s2 = false; this.popSkill('s2')
     await this.asSkill(() => this.castSkill2(k), 'skill')
   }
 
@@ -1813,6 +1873,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (st.clUltWard > 0) { this.wardTurns = C.wardTurns + 1; this.floatText(HERO_X, GROUND - 175, `🕯️ ม่านพร −${Math.round(st.clUltWard * 100)}% ${C.wardTurns} เทิร์น`, '#fff3a0') } // +1: this turn's tick
     if (st.clUltMend > 0 && this.hp > 0 && this.hp < st.maxHp) this.skillHeal((st.maxHp - this.hp) * st.clUltMend)
+    if (st.clDawnUlt > 0 && this.dawnOn() && this.dawnN < KIT.clericTree.dawn.every) { this.dawnN = KIT.clericTree.dawn.every; this.floatText(HERO_X, GROUND - 190, '🌅 อรุณพิทักษ์: แสงรุ่งอรุณ พร้อม!', '#ffd36e') } // v86 web ★
   }
   private async ultNow(pow: number, hitPow: number) {
     const live = this.front()
@@ -2556,6 +2617,7 @@ export class BattleScene extends Phaser.Scene {
       return false
     }
     this.lastHurt = n; this.j2Hurt = true
+    if (this.st.clManaGuard > 0 && this.job.resource === 'mana') this.gainRes(n * this.st.clManaGuard * (1 + this.heroWis * KIT.clericTree.core.wisAmp)) // v86 💠 มานาพิทักษ์ (before shields)
     if (!magic && this.st.j2Reflect > 0 && src && !src.dead) this.damageMon(src, Math.max(1, Math.round(Math.min(n * this.st.j2Reflect, this.st.maxHp * BATTLE.reflectCap))), false, '#c9e0ff', true) // Crusader Reflect Shield
     if (src?.def.vengeance && n > 0 && !src.dead && !src.vengTurns && !src.vengCd) { // death knight โล่แห่งความแค้น
       src.shield += n * BATTLE.vengeance.share; src.vengTurns = BATTLE.vengeance.turns; this.dotIcon(src)
@@ -2867,7 +2929,7 @@ export class BattleScene extends Phaser.Scene {
     const hits = p.fx === 'zap' || p.fx === 'fireball' || p.fx === 'firewave' || p.fx === 'icespike' || p.fx === 'icewave' || p.fx === 'poison'
     if (hits && !this.alive().length) return false
     const cost = this.procCost(p.fx, n)
-    if (cost > 0) { if (this.res < cost) return false; this.res -= cost }
+    if (cost > 0) { if (this.res < cost) return false; this.spendRes(cost) }
     const pickT = () => { if (target && !target.dead) return target; const l = this.alive(); return l.length ? l[Phaser.Math.Between(0, l.length - 1)] : undefined }
     switch (p.fx) {
       case 'zap':
@@ -3717,6 +3779,7 @@ export class BattleScene extends Phaser.Scene {
     this.autoUlt = on
     const s = save(); s.autoUlt = on ? 'auto' : 'manual'; persist()
     this.autoBtn?.setLabel(on ? '⚡ อัตโนมัติ' : '🖐️ กดเอง')
+    if (on) this.clearBookings() // auto fires everything itself: no stale gold rings
   }
 
   private setFast(on: boolean) {
@@ -3737,7 +3800,7 @@ export class BattleScene extends Phaser.Scene {
       { text: `${this.run.where(this.room)} · เก็บได้ ${this.zeny} zeny · ${this.kills} ตัว`, size: 19 },
       { text: 'กลับเมืองตอนนี้ได้ zeny กับ EXP ที่เก็บมาแล้วครบ ไม่หายค่ะ', size: 16, color: '#a9a6c7' },
     ], 'ลุยต่อ', () => { this.unpause() }, { label: 'กลับเมือง', onGo: () => { this.unpause(); this.runId++; this.settle(false); go(this, 'hub') } })
-    const lab = () => (this.autoUlt ? '⚡ อัลติ: อัตโนมัติ' : '🖐️ อัลติ: กดเอง')
+    const lab = () => (this.autoUlt ? '⚡ ทักษะ: อัตโนมัติ' : '🖐️ ทักษะ: กดเอง (จองก่อนใช้)')
     const tg = button(this, 0, -170, 300, 48, lab(), () => { this.setAutoUlt(!this.autoUlt); tg.setLabel(lab()) }, { size: 18, fill: 0x5a5f8a, color: '#f6eedc' })
     ;(this.overlay as Phaser.GameObjects.Container | undefined)?.add(tg)
   }
@@ -3891,11 +3954,147 @@ export class BattleScene extends Phaser.Scene {
     this.smashBtn = button(this, W - 100, H - 70, 160, 84, 'ทุบ!', () => this.queueSmash(), { size: 22 }).setDepth(15003) as Btn
     this.autoBtn = button(this, W - 250, H - 50, 124, 44, '', () => this.setAutoUlt(!this.autoUlt), { size: 15, fill: 0x2a2e50, color: '#f6eedc' }).setDepth(15003) as Btn
     this.autoBtn.setLabel(this.autoUlt ? '⚡ อัตโนมัติ' : '🖐️ กดเอง')
-    this.s2Txt = this.add.text(W - 100, H - 124, '', { fontSize: '13px', color: '#7fd7ff', fontStyle: 'bold', stroke: '#14172b', strokeThickness: 3 }).setOrigin(0.5).setDepth(15003)
     this.fortuneTxt = this.add.text(W - 250, 34, '', { fontFamily: FONT_UI, fontSize: '14px', color: '#8fe08a', stroke: '#14172b', strokeThickness: 4 }).setDepth(15001)
     this.debuffTxt = this.add.text(22, 98, '', { fontFamily: FONT_UI, fontSize: '15px', color: '#ffb0e0', stroke: '#14172b', strokeThickness: 4 }).setDepth(15001)
     this.buffTxt = this.add.text(22, 98, '', { fontFamily: FONT_UI, fontSize: '15px', color: '#ffe08a', stroke: '#14172b', strokeThickness: 4 }).setDepth(15001)
     this.setFast(false)
+  }
+
+  // ---------- v86 MOBA-style skill buttons (docs/design/skill-buttons-v86.md) ----------
+  private clearBookings() { this.book = { s1: false, s2: false, s3: false } }
+  private s3Cost() { return Math.max(0, (this.j2?.skill3.cost ?? 0) - this.st.j2CmdCut) } // v82 Beastmaster คำสั่งไว
+
+  /** (Re)build the cluster for the current job. The Novice keeps the old long smash button. */
+  private buildSkillHud() {
+    for (const b of this.skillBtns) { this.tweens.killTweensOf([b.c, b.ring, b.flash, ...(b.spin ? [b.spin] : [])]); b.c.destroy() }
+    this.skillBtns = []
+    this.skillTip?.destroy(); this.skillTip = undefined
+    const nov = this.job.id === 'novice'
+    this.smashBtn.setVisible(nov)
+    if (!nov) this.smashBtn.disableInteractive()
+    const s1 = slotCenter('s1', W, H)
+    this.autoBtn?.setPosition(nov ? W - 250 : s1.x - s1.r - 10 - 62, nov ? H - 50 : H - 34)
+    if (nov) return
+    const slots: SkillSlot[] = []
+    if (this.job.resource) slots.push('s1')
+    if (this.s2) slots.push('s2')
+    if (this.j2) slots.push('s3')
+    slots.push('ult')
+    this.skillBtns = slots.map((s) => this.makeSkillBtn(s))
+    this.skillTip = this.add.text(W - 8, slotCenter('s3', W, H).y - 36, '', { fontFamily: FONT_UI, fontSize: '14px', fontStyle: 'bold', color: '#f6eedc', stroke: '#14172b', strokeThickness: 4, align: 'right' }).setOrigin(1, 1).setDepth(15004)
+  }
+
+  private makeSkillBtn(slot: SkillSlot): SkillBtnView {
+    const { x, y, r } = slotCenter(slot, W, H), big = slot === 'ult'
+    const base = this.add.graphics(), sweep = this.add.graphics(), ring = this.add.graphics(), bookRing = this.add.graphics()
+    const flash = this.add.graphics(); flash.fillStyle(0xffffff, 1).fillCircle(0, 0, r).setAlpha(0)
+    const t = (oy: number, size: number, color: string, font = FONT_NUM) => this.add.text(0, oy, '', { fontFamily: font, fontSize: `${size}px`, fontStyle: 'bold', color, stroke: '#14172b', strokeThickness: 3 }).setOrigin(0.5)
+    const icon = this.add.text(0, big ? -6 : -3, '', { fontSize: big ? '36px' : '24px' }).setOrigin(0.5)
+    const cd = t(0, big ? 38 : 26, '#ffffff'), cost = t(big ? r - 17 : r - 11, big ? 14 : 11, '#cfe8ff'), tag = t(-r + (big ? 13 : 9), big ? 12 : 10, '#ffd24a', FONT_UI)
+    let spin: Phaser.GameObjects.Graphics | undefined
+    if (big) { // Mage ult chant: a rotating magic ring (visible only while an 'ult' cast is charging)
+      spin = this.add.graphics().setVisible(false)
+      spin.lineStyle(3, 0xb48aff, 0.95)
+      for (let i = 0; i < 10; i++) { const a0 = (i * Math.PI) / 5; spin.beginPath(); spin.arc(0, 0, r + 10, a0, a0 + (Math.PI / 5) * 0.55); spin.strokePath() }
+      spin.fillStyle(0xe6d4ff, 1)
+      for (let i = 0; i < 4; i++) spin.fillCircle(Math.cos((i * Math.PI) / 2) * (r + 10), Math.sin((i * Math.PI) / 2) * (r + 10), 3.5)
+      this.tweens.add({ targets: spin, angle: 360, duration: 2200, repeat: -1 })
+    }
+    this.tweens.add({ targets: ring, alpha: { from: 0.35, to: 1 }, duration: 520, yoyo: true, repeat: -1 }) // ready glow
+    const c = this.add.container(x, y, [base, icon, sweep, cd, cost, tag, flash, ring, bookRing, ...(spin ? [spin] : [])]).setDepth(15003)
+    c.setSize(r * 2, r * 2).setInteractive(new Phaser.Geom.Circle(r, r, r), Phaser.Geom.Circle.Contains)
+    if (c.input) c.input.cursor = 'pointer'
+    const v: SkillBtnView = { slot, r, sig: '', c, base, sweep, ring, bookRing, spin, flash, icon, cd, cost, tag }
+    c.on('pointerover', () => { const sp = this.skillSpec(slot); this.skillTip?.setText(`${sp.icon} ${sp.name}${sp.costTxt ? `  ${sp.costTxt}` : ''}`) })
+    c.on('pointerout', () => { c.setScale(1); this.skillTip?.setText('') })
+    c.on('pointerdown', () => c.setScale(0.94))
+    c.on('pointerup', () => { c.setScale(1); unlock(); this.tapSkill(slot) })
+    return v
+  }
+
+  /** What one button shows right now: the pure rules in battle/skill-hud.ts get these numbers. */
+  private skillSpec(slot: SkillSlot): { in: SkillBtnIn; icon: string; name: string; costTxt: string } {
+    const manual = !this.autoUlt, silent = this.hx.silence > 0, ri = resourceIcon(this.job.resource)
+    const money = (n: number) => (n > 0 ? `${ri}${Math.round(n)}` : '')
+    if (slot === 's1') {
+      const cost = autoCost(this.job, this.st)
+      return { in: { cdLeft: 0, cdMax: 0, cost, res: this.res, booked: this.book.s1, manual }, icon: this.job.auto.icon, name: this.job.auto.name, costTxt: money(cost) }
+    }
+    if (slot === 's2' && this.s2) {
+      const k = this.s2
+      return { in: { cdLeft: this.s2Cd, cdMax: s2Cooldown(k, this.st), cost: k.cost, res: this.res, booked: this.book.s2, manual, blocked: silent }, icon: k.icon, name: k.name, costTxt: money(k.cost) }
+    }
+    if (slot === 's3' && this.j2) {
+      const sk = this.j2.skill3, cost = this.s3Cost(), monk = this.j2.id === 'monk', need = KIT2.monk.thunderMin
+      return { in: { cdLeft: this.s3Cd, cdMax: sk.cd, cost, res: this.res, booked: this.book.s3, manual, blocked: silent || (monk && this.charges < need) }, icon: sk.icon, name: sk.name, costTxt: monk ? `🔵${this.charges}/${need}` : money(cost) }
+    }
+    const cost = this.ultCost(), u = this.job.ult
+    return { in: { cdLeft: this.smashCdLeft, cdMax: Math.max(this.ultTurns(), this.smashCdLeft), cost, res: this.res, booked: this.smashQueued, manual, blocked: silent }, icon: u.icon, name: u.name, costTxt: money(cost) }
+  }
+
+  /** Called every frame, but only redraws a button whose signature changed (turn tick, resource crossing a cost, booking...). */
+  private refreshSkillHud() {
+    const chant = this.casts.some((c) => c.kind === 'ult')
+    for (const v of this.skillBtns) {
+      const sp = this.skillSpec(v.slot), s = skillButtonState(sp.in)
+      const tag = s.booked ? 'จอง' : v.slot === 'ult' && !sp.in.manual && s.ready ? 'ออโต้' : ''
+      const spin = v.slot === 'ult' && chant
+      const sig = `${s.ready}|${s.short}|${s.greyed}|${s.sweep.toFixed(2)}|${s.turns}|${tag}|${sp.icon}|${sp.costTxt}|${spin}`
+      if (sig === v.sig) continue
+      v.sig = sig
+      this.drawSkillBtn(v, s, sp.icon, sp.costTxt, tag, spin)
+    }
+  }
+
+  private drawSkillBtn(v: SkillBtnView, s: SkillBtnOut, icon: string, costTxt: string, tag: string, spin: boolean) {
+    const r = v.r
+    v.base.clear()
+      .fillStyle(0x000000, 0.35).fillCircle(0, 3, r)
+      .fillStyle(s.greyed ? 0x20243e : v.slot === 'ult' ? 0x4a3a7a : 0x2f3560, 1).fillCircle(0, 0, r)
+      .fillStyle(0xffffff, s.greyed ? 0.04 : 0.1).fillCircle(0, -r * 0.25, r * 0.7)
+      .lineStyle(3, s.greyed ? 0x454c80 : 0xf4e6c8, 1).strokeCircle(0, 0, r)
+    v.icon.setText(icon).setAlpha(s.greyed ? 0.55 : 1)
+    v.sweep.clear()
+    if (s.sweep > 0) {
+      v.sweep.fillStyle(0x000000, 0.62)
+      if (s.sweep >= 1) v.sweep.fillCircle(0, 0, r - 1)
+      else { const a = sweepAngles(s.sweep); v.sweep.beginPath(); v.sweep.slice(0, 0, r - 1, a.from, a.to, false); v.sweep.fillPath() }
+    }
+    v.cd.setText(s.turns > 0 ? String(s.turns) : '')
+    v.cost.setText(costTxt).setColor(s.short ? '#ff6b6b' : '#cfe8ff')
+    v.tag.setText(tag).setColor(tag === 'จอง' ? '#ffd24a' : '#9fe3ff')
+    v.ring.clear().setVisible(s.ready && !s.booked)
+    if (s.ready && !s.booked) v.ring.lineStyle(3, 0x7ff0ff, 1).strokeCircle(0, 0, r + 3)
+    v.bookRing.clear()
+    if (s.booked) v.bookRing.lineStyle(4, 0xffd24a, 1).strokeCircle(0, 0, r + 3).lineStyle(2, 0xfff1b0, 0.9).strokeCircle(0, 0, r + 7)
+    v.spin?.setVisible(spin)
+  }
+
+  /** Cast feedback: the button pops and flashes so the player SEES which skill just fired. */
+  private popSkill(slot: SkillSlot) {
+    const v = this.skillBtns.find((b) => b.slot === slot)
+    if (!v) return
+    this.tweens.killTweensOf([v.c, v.flash])
+    v.c.setScale(1)
+    this.tweens.add({ targets: v.c, scale: 1.28, duration: 110, yoyo: true, ease: 'Quad.easeOut' })
+    v.flash.setAlpha(0.85)
+    this.tweens.add({ targets: v.flash, alpha: 0, duration: 340 })
+  }
+
+  /** Tap: auto mode = hint only (the ult keeps its old tap = cancel / book); manual mode = toggle the booking. */
+  private tapSkill(slot: SkillSlot) {
+    if (this.over || this.paused) return
+    if (slot === 'ult') { this.queueSmash(); return }
+    if (tapAction(!this.autoUlt) === 'hint') { this.floatText(W - 200, H - 215, 'โหมดออโต้ — สลับเป็นกดเอง เพื่อจอง', '#a9a6c7'); return }
+    this.book[slot] = !this.book[slot]
+    if (this.book[slot]) sfx.pop()
+  }
+
+  /** Digit1-3 book Skill 1-3, Digit4 books the ult; manual mode only, never while a pick / pause overlay is up. */
+  private skillHotkey(e: KeyboardEvent) {
+    const slot = hotkeySlot(e.code)
+    if (!slot || e.repeat || this.autoUlt || this.pendingPick || this.overlay || !this.skillBtns.some((b) => b.slot === slot)) return
+    this.tapSkill(slot)
   }
 
   update() {
@@ -3962,8 +4161,7 @@ export class BattleScene extends Phaser.Scene {
     })
 
     // smash button state
-    const k2 = this.s2
-    this.s2Txt?.setText(k2 ? `${k2.icon} ${k2.name} ${this.s2Cd > 0 ? `อีก ${this.s2Cd}` : this.res < k2.cost ? `รอ ${k2.cost}` : 'พร้อม'}` : '')
+    if (this.job.id !== 'novice') { this.refreshSkillHud(); return } // v86: the cluster replaces the long button
     const ready = this.smashCdLeft <= 0
     const u = this.job.ult
     const cost = this.ultCost(), short = cost > 0 && this.res < cost

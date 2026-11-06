@@ -4,7 +4,7 @@ import { JOB_CHANGE, type JobId } from './data/jobs'
 import { JOB2, JOB2_RULES, type Job2Id, type PetId } from './data/jobs2'
 import type { RefineLine } from './data/craft'
 import type { ModeRecord } from './data/modes'
-import { FREE_GEMS, JOB_RULES, RACES, STAT_RULES, type BaseStat, type RaceId, type SkillId, EMPTY_ITEM, type EquipSlot, itemById, slotKind } from './data/meta'
+import { FREE_GEMS, JOB_RULES, NOVICE_PASSIVES, NOVICE_RULES, noviceSpent, RACES, STAT_RULES, type BaseStat, type RaceId, type SkillId, EMPTY_ITEM, type EquipSlot, itemById, slotKind } from './data/meta'
 
 export interface SaveData {
   v: 1
@@ -17,6 +17,8 @@ export interface SaveData {
   jobXp: number
   skillPoints: number
   skills: Record<SkillId, number>
+  nov3?: 1 // v86: ทุบ points refunded (it now levels with Job Lv)
+  nov2?: 1 // v85: novice passives moved to their own 10-point pool (old Job Lv points refunded once)
   job: JobId
   jobSkills: { auto: number; ult: number } // retired in skill web v1 (always 1/1): power now comes from the web's +power nodes
   jobTree?: Record<string, number> // skill web node -> level (data/tree.ts, design/skill-web-v1.md), current job only
@@ -74,7 +76,7 @@ export function newSave(name: string, race: RaceId): SaveData {
   const s = STAT_RULES.start
   return {
     v: 1, web: 1, stretch: 1, name, race, baseLevel: 1, baseXp: 0, statPoints: 3,
-    jobLevel: 1, jobXp: 0, skillPoints: 0, skills: { smash: 1, firstaid: 0, tough: 0 }, job: 'novice', jobSkills: { auto: 1, ult: 1 },
+    jobLevel: 1, jobXp: 0, skillPoints: 0, skills: { smash: 1, firstaid: 0, tough: 0, focus: 0, power: 0, iron: 0, swift: 0 }, nov2: 1, nov3: 1, job: 'novice', jobSkills: { auto: 1, ult: 1 },
     stats: { str: s, vit: s, wis: s, dex: s, int: s, luk: s, agi: s },
     zeny: 100, gems: 0,
     owned: ['knife', 'cloth', 'none', 'none_head', 'none_off'], equipped: { weapon: 'knife', armor: 'cloth', acc: 'none', head: 'none_head', offhand: 'none_off', acc2: 'none' },
@@ -100,8 +102,11 @@ export function load(): SaveData | null {
     if (!s.web) migrateToWeb(s)
     migrateThiefWeb(s)
     migratePriestBless(s)
+    migrateClericDawn(s)
     migrateNodeStretch(s)
     migrateGear(s)
+    migrateNovicePool(s)
+    migrateSmashAuto(s)
     s.modes ??= {} // v51 game modes: additive, old saves start with no records
     delete (s as SaveData & { reroll?: unknown }).reroll // v84 option gacha: no more pending keep-old / take-new (the old line stays)
     cache = s
@@ -182,6 +187,40 @@ function migratePriestBless(s: SaveData) {
   if (s.job !== 'cleric' || !t || (t.cl_bless ?? 0) <= 1) return
   s.skillPoints += t.cl_bless - 1; t.cl_bless = 1
 }
+/** v86 🌄 รุ่งอรุณ replaced the ⛪ ฟื้นคืน web branch: points in its old nodes come back as skill points. The short-lived
+ *  talent version (row II แสงรุ่งอรุณ, never shipped) is dropped too; Talent Points are counted from picks, so that refunds. */
+const GONE_NODES = ['cleric_d1', 'cleric_d2', 'cleric_d3', 'cleric_d4']
+export function migrateClericDawn(s: SaveData) {
+  const t = s.jobTree
+  if (t) for (const id of GONE_NODES) if (t[id]) { s.skillPoints += t[id]; delete t[id] }
+  const tal = s.jobTalents
+  if (tal) for (const [row, p] of Object.entries(tal)) if (p?.id === 'cleric_t2_dawnlight') delete tal[row]
+}
+/** v85 novice pool (Q 2026-11-06): ปฐมพยาบาล / ร่างกายแกร่ง used to cost Job Lv skill points. Those points come back
+ *  as skill points; the levels stay and now count against the free 10-point novice pool (max 5+5 = 10, always fits). */
+function migrateNovicePool(s: SaveData) {
+  for (const p of NOVICE_PASSIVES) s.skills[p.id] ??= 0
+  if (s.nov2) return
+  s.skillPoints += (s.skills.firstaid ?? 0) + (s.skills.tough ?? 0)
+  s.nov2 = 1
+}
+/** v86 (Q 2026-11-06): 💢 ทุบ levels with Job Lv (meta smashLv), so the Job Lv points put into it come back once. */
+export function migrateSmashAuto(s: SaveData) {
+  if (s.nov3) return
+  s.skillPoints += Math.max(0, (s.skills.smash ?? 1) - 1)
+  s.skills.smash = 1
+  s.nov3 = 1
+}
+
+/** Clear every novice passive for 💎 NOVICE_RULES.resetGems (the pool refills by itself). False when short or nothing to clear. */
+export function resetNovice(s: SaveData = save()): boolean {
+  if (!noviceSpent(s.skills) || s.gems < NOVICE_RULES.resetGems) return false
+  s.gems -= NOVICE_RULES.resetGems
+  for (const p of NOVICE_PASSIVES) s.skills[p.id] = 0
+  persist()
+  return true
+}
+
 /** v83 (Q 2026-11-06) node levels 1->3 / 2->4 / 3->5 at the same full value: the old levels no longer mean the same, so
  *  refund the whole class web and the whole ใยชั้น 2 web once (free re-spend). Novice skills and talents are untouched. */
 export function migrateNodeStretch(s: SaveData) {

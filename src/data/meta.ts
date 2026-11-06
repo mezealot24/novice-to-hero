@@ -49,13 +49,25 @@ export const STAT_RULES = {
 // ---------- job + skills (Novice only for now; job change = M3) ----------
 // Base Lv and Job Lv are separate (RO / Eden Eternal): Base Lv gives stat points, Job Lv gives skill points.
 export const JOB_RULES = { maxJobLevel: 10, xpBase: 20, xpStep: 10, jobXpNeed: (lv: number): number => JOB_RULES.xpBase + JOB_RULES.xpStep * (lv - 1), changeAt: 10 }
-export type SkillId = 'smash' | 'firstaid' | 'tough'
+export type SkillId = 'smash' | 'firstaid' | 'tough' | 'focus' | 'power' | 'iron' | 'swift'
 export interface SkillDef { id: SkillId; name: string; icon: string; kind: 'active' | 'passive'; max: number; desc: (lv: number) => string; mod: (lv: number) => Partial<Stats> }
 export const SKILLS: SkillDef[] = [
   { id: 'smash', name: 'ทุบ', icon: '💢', kind: 'active', max: 10, desc: (lv) => `ท่าไม้ตาย (กดเอง) ทุบทุกตัว คูลดาวน์ 4 เทิร์น แรง +${(lv - 1) * 15}%`, mod: (lv) => ({ smashMul: PLAYER.smashMul * 0.15 * (lv - 1) }) },
+  // v85 novice passives (Q 2026-11-06): 6 lines x 5 Lv, paid from their own NOVICE_RULES.points pool (not Job Lv)
   { id: 'firstaid', name: 'ปฐมพยาบาล', icon: '🩹', kind: 'passive', max: 5, desc: (lv) => `ฟื้น HP ${(lv * 0.3).toFixed(1)}% ทุกเทิร์น (WIS ช่วยเพิ่ม)`, mod: (lv) => ({ regen: 0.2 * lv }) },
   { id: 'tough', name: 'ร่างกายแกร่ง', icon: '💪', kind: 'passive', max: 5, desc: (lv) => `HP สูงสุด +${lv * 12}`, mod: (lv) => ({ maxHp: 12 * lv }) },
+  { id: 'focus', name: 'ฟื้นพลัง', icon: '💧', kind: 'passive', max: 5, desc: (lv) => `ฟื้น Mana/Energy +${(lv * 0.3).toFixed(1)}/วิ (มีผลหลังเปลี่ยนอาชีพ)`, mod: (lv) => ({ resRegen: 0.3 * lv }) },
+  { id: 'power', name: 'พลังโจมตี', icon: '⚔️', kind: 'passive', max: 5, desc: (lv) => `P.ATK +${lv * 3} · M.ATK +${lv * 3}`, mod: (lv) => ({ atk: 3 * lv, matk: 3 * lv }) },
+  { id: 'iron', name: 'ผิวเหล็ก', icon: '🛡️', kind: 'passive', max: 5, desc: (lv) => `DEF +${lv} · M.DEF +${lv}%`, mod: (lv) => ({ def: lv, mdef: 0.01 * lv }) },
+  { id: 'swift', name: 'ว่องไว', icon: '🍃', kind: 'passive', max: 5, desc: (lv) => `Flee +${lv * 2} · ตีเร็ว +${(lv * 0.03).toFixed(2)}/วิ`, mod: (lv) => ({ flee: 2 * lv, aspd: 0.03 * lv }) },
 ]
+/** Novice passive pool: a fixed 10 points from the start, not tied to Job Lv. Left = points - levels spent (derived, never stored). */
+export const NOVICE_RULES = { points: 10, resetGems: 10 }
+/** v86 (Q 2026-11-06): 💢 ทุบ levels itself = the novice's Job Lv (1..10), no points. Only novices use it (classes have an ult). */
+export const smashLv = (jobLevel: number) => Math.max(1, Math.min(10, Math.floor(jobLevel || 1)))
+export const NOVICE_PASSIVES = SKILLS.filter((x) => x.kind === 'passive')
+export const noviceSpent = (skills: Partial<Record<SkillId, number>>) => NOVICE_PASSIVES.reduce((a, x) => a + (skills[x.id] ?? 0), 0)
+export const noviceLeft = (skills: Partial<Record<SkillId, number>>) => Math.max(0, NOVICE_RULES.points - noviceSpent(skills))
 // Certificate-style passive slots (Eden Eternal idea): open with Base Lv, filled after job change.
 export const CERT_SLOTS_AT = [10, 20, 30, 40]
 
@@ -335,6 +347,12 @@ export function totalBase(s: StatsInput): Record<BaseStat, number> {
   const out = { ...s.stats }
   const bonus = RACES[s.race].bonus, gear = gearBase(s)
   for (const k of Object.keys(out) as BaseStat[]) out[k] = Math.max(1, out[k] + (bonus[k] ?? 0) + gear[k])
+  if (s.job === 'cleric' && s.jobTree) { // v86 💠 แก่นศรัทธา: จิตสงบ + STR / WIS · ศรัทธาสู่กาย INT -> STR
+    let flat = 0, per = 0
+    for (const m of treeMods(s.jobTree, 'cleric')) { flat += m.clCoreBase ?? 0; if (m.clIntToStr) per = per ? Math.min(per, m.clIntToStr) : m.clIntToStr }
+    out.str += Math.round(flat); out.wis += Math.round(flat)
+    if (per > 0) out.str += Math.floor(out.int / per)
+  }
   return out
 }
 
@@ -390,6 +408,10 @@ export function heroStats(s: StatsInput): Stats {
     st.matk += P.int.matk * extra; st.maxRes += P.int.maxRes * extra
   }
   if (job.id === 'cleric') st.spearLuck = Math.min(P.luk.spearCap, P.luk.spear * b.luk) // v37 Q: LUK -> light spear chance
+  if (job.id === 'cleric') { // v86 💠 จิตสงบ: Mana regen per 10 points of the lower of STR / WIS
+    const per = treeMods(s.jobTree, 'cleric').reduce((a, m) => a + (m.clMindRegen ?? 0), 0)
+    if (per > 0) st.resRegen += per * Math.min(b.str, b.wis) / 10
+  }
   st.maxHp = Math.round(st.maxHp)
   // Q: crit from talents/items/cards/tree also counts for magic (spellCrit); LUK crit above stays physical only
   const add = (mod: Partial<Stats>) => { for (const k of Object.keys(mod) as (keyof Stats)[]) { st[k] += mod[k]!; if (k === 'crit') st.spellCrit += mod[k]! } }
@@ -416,7 +438,8 @@ export function heroStats(s: StatsInput): Stats {
   if (j2pct.aspd) st.aspd *= 1 + j2pct.aspd
   if (st.j2DefAtk > 0) st.atk += st.def * st.j2DefAtk // Knight เกราะเป็นแรง
   if (j2?.id === 'crusader') st.j2Guard = Math.min(KIT2.crusader.guardCap, st.j2Guard + KIT2.crusader.guardVit * Math.max(0, d('vit'))) // Crusader Auto Guard: + per VIT point
-  for (const sk of SKILLS) if (s.skills[sk.id] > 0 && (sk.id !== 'smash' || job.id === 'novice')) add(sk.mod(s.skills[sk.id]))
+  for (const sk of SKILLS) if (sk.id !== 'smash' && (s.skills[sk.id] ?? 0) > 0) add(sk.mod(s.skills[sk.id]))
+  if (job.id === 'novice') add(SKILLS.find((x) => x.id === 'smash')!.mod(smashLv(s.jobLevel ?? 1))) // v86: ทุบ = Job Lv
   st.smashCd = Math.max(2500, st.smashCd)
   st.aspd = Math.max(0.6, st.aspd)
   st.minPct = Math.min(0.95, st.minPct)
