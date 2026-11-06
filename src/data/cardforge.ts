@@ -52,6 +52,15 @@ export function canCardforge(s: SaveData, it: Item): { ok: boolean; why?: 'locke
   return short.length ? { ok: false, why: 'short', short } : { ok: true, short }
 }
 
+/** v99 📌: the pinned recipe, if it can be built right now (so the run result can say so). Undefined when nothing is pinned, locked, owned or short. */
+export function pinnedReady(s: SaveData): Item | undefined {
+  const it = s.forgePin ? [...CRAFT_ITEMS, ...CARDFORGE_ITEMS].find((x) => x.id === s.forgePin) : undefined
+  if (!it?.craft || s.owned.includes(it.id) || !((s.clearsBy?.[it.craft.dg] ?? 0) > 0)) return undefined
+  if (it.craft.cards) return canCardforge(s, it).ok ? it : undefined
+  const c = craftCost(it)
+  return s.zeny >= c.zeny && Object.entries(c.mats).every(([id, n]) => (s.mats?.[id] ?? 0) >= n) ? it : undefined
+}
+
 /** Pay cards + mats + zeny ALL OR NOTHING and add the piece. False (nothing changes) when locked, owned, or short. */
 export function cardforge(s: SaveData, it: Item): boolean {
   if (!canCardforge(s, it).ok) return false

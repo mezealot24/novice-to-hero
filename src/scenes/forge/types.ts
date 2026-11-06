@@ -9,7 +9,9 @@ export type Mode = 'anvil' | 'recipe' | 'stash'
 /** What the stage plays when a verb resolves. Panels call these; they never touch stage objects directly. */
 export interface StageFx {
   /** Refine/grade went up: pop, "+N", then extra floaters (new bonus line, free gems). */
-  success(label: string, notes?: string[]): void
+  success(label: string, notes?: string[], tier?: 'light' | 'heavy' | 'epic'): void
+  /** The hammer taps before an outcome (the same for a hit and a miss: no tell). Resolves early on a tap, at once in ⚡ fast mode. */
+  anticipate(hits: number): Promise<void>
   /** The item broke: shake + crack + hit-stop + "แตก!". No popup. */
   fail(label: string): void
   /** Repair done. */

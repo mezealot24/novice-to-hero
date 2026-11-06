@@ -75,18 +75,42 @@ export class AnvilStage implements StageFx {
   // ---------- fx (all tweens/timers belong to the scene and die with it; ui-fx restores timeScale on SHUTDOWN) ----------
   private iconPos() { return { x: this.x + ICON_X, y: this.y + STAGE_H / 2 } } // the resting position (the icon itself may be mid-shake)
 
-  success(label: string, notes: string[] = []) {
+  private fast() { return !!save().forgeFast }
+
+  anticipate(hits: number): Promise<void> {
+    if (this.fast() || hits <= 0) return Promise.resolve()
+    const sc = this.scene
+    return new Promise((resolve) => {
+      let k = 0, done = false
+      const finish = () => { if (done) return; done = true; timer.remove(false); sc.input.off('pointerdown', finish); sc.events.off(Phaser.Scenes.Events.SHUTDOWN, finish); resolve() }
+      const timer = sc.time.addEvent({ delay: 140, repeat: hits - 1, callback: () => { sfx.clang(); punch(sc, this.icon, { by: 1.06, ms: 90 }); if (++k >= hits) finish() } })
+      sc.input.once('pointerdown', finish) // tap = skip to the result
+      sc.events.once(Phaser.Scenes.Events.SHUTDOWN, finish)
+    })
+  }
+
+  success(label: string, notes: string[] = [], tier: 'light' | 'heavy' | 'epic' = 'heavy') {
+    const p0 = this.iconPos()
+    if (tier === 'light') { // +1..+4: a small pop and the number, nothing more
+      sfx.coin()
+      punch(this.scene, this.icon, { by: 1.12, ms: 120 })
+      floatNum(this.scene, p0.x, p0.y - 56, label, { color: '#f2b84b', size: 28, ms: 650 })
+      notes.forEach((n, i) => floatNum(this.scene, p0.x + 150, p0.y - 24 + i * 28, n, { color: i === 0 ? '#d9c2ff' : UI.gem, size: 17, ui: true, ms: 1400, rise: 26 }))
+      return
+    }
+    if (!this.fast()) hitStop(this.scene, 80)
     sfx.coin()
-    punch(this.scene, this.icon, { by: 1.22, ms: 160 })
-    const p = this.iconPos()
-    floatNum(this.scene, p.x, p.y - 56, label, { color: '#f2b84b', size: 30 })
+    if (tier === 'epic') sfx.door()
+    punch(this.scene, this.icon, { by: tier === 'epic' ? 1.32 : 1.25, ms: 180 })
+    const p = p0
+    floatNum(this.scene, p.x, p.y - 56, label, { color: '#f2b84b', size: tier === 'epic' ? 40 : 34 })
     notes.forEach((n, i) => floatNum(this.scene, p.x + 150, p.y - 24 + i * 28, n, { color: i === 0 ? '#d9c2ff' : UI.gem, size: 17, ui: true, ms: 1400, rise: 26 }))
     this.scene.cameras.main.flash(120, 255, 230, 160)
   }
 
   fail(label: string) {
-    sfx.hurt()
-    hitStop(this.scene, 70)
+    sfx.clang(); sfx.hurt()
+    if (!this.fast()) hitStop(this.scene, 60)
     const p = this.iconPos(), ix = ICON_X // the resting x, not whatever a running shake left it at
     this.scene.tweens.killTweensOf(this.icon) // a running punch must not fight the shake
     this.icon.setScale(1)
@@ -105,7 +129,8 @@ export class AnvilStage implements StageFx {
 
   burst(kind: 'none' | 'gold' | 'curse' | 'brick', label: string) {
     const p = this.iconPos(), sc = this.scene, col = kind === 'gold' ? 0xffd35a : 0xc08cff
-    hitStop(sc, 120)
+    if (!this.fast()) hitStop(sc, 150)
+    sfx.critBoom()
     const vig = sc.add.rectangle(this.x + STAGE_W / 2, this.y + STAGE_H / 2, STAGE_W, STAGE_H, 0x1a0630, 0.75).setDepth(44000)
     sc.tweens.add({ targets: vig, alpha: 0, duration: 900, onComplete: () => vig.destroy() })
     const ring = sc.add.circle(p.x, p.y, 20).setStrokeStyle(6, col).setDepth(44001)

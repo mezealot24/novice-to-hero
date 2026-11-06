@@ -121,7 +121,11 @@ export class RecipeView {
       }
     }
     if (s.zeny < cost.zeny) lines.push(`• 🪙 zeny ขาด ${cost.zeny - s.zeny}z`)
-    root.add(fit(txt(sc, 304, cf ? 326 : 292, owned ? `✓ มีแล้ว ${gradeStars(gradeOf(s, it.id), 5)} · อัปขั้นกับตีบวกต่อที่ ⚒️ ทั่ง` : lines.length ? `ที่ขาดอยู่:\n${lines.join('\n')}` : 'ของครบแล้ว กดสร้างได้เลยค่ะ', 12, owned ? UI.green : lines.length ? UI.text : UI.green).setWordWrapWidth(624), cf ? 126 : 160))
+    root.add(fit(txt(sc, 304, cf ? 326 : 292, owned ? `✓ มีแล้ว ${gradeStars(gradeOf(s, it.id), 5)} · อัปขั้นกับตีบวกต่อที่ ⚒️ ทั่ง` : lines.length ? `ที่ขาดอยู่:\n${lines.join('\n')}` : 'ของครบแล้ว กดสร้างได้เลยค่ะ', 12, owned ? UI.green : lines.length ? UI.text : UI.green).setWordWrapWidth(624), cf ? 116 : 140))
+    if (!owned) { // 📌 the run result tells you when this becomes affordable
+      const pinned = s.forgePin === it.id
+      root.add(button(sc, 856, 446, 176, 28, pinned ? '📍 เลิกปักหมุด' : '📌 ปักหมุดสูตรนี้', () => { if (pinned) delete s.forgePin; else s.forgePin = it.id; persist(); toast(sc, pinned ? 'เลิกปักหมุดแล้วค่ะ' : '📌 ปักหมุดแล้ว พอของครบหน้าสรุปรันจะบอกค่ะ', UI.gold); this.rebuild() }, { size: 12, fill: pinned ? 0xf2b84b : 0x5a5f8a, color: pinned ? UI.ink : UI.text }))
+    }
     const ready = cf ? canCardforge(s, it).ok : canPay(s, cost)
     root.add(button(sc, 794, 522, 280, 48, owned ? '✓ มีแล้ว' : ready ? (cf ? '🃏 ผนึกสร้าง' : '🔨 สร้าง') : 'ของยังไม่ครบ', () => this.build(it, cf), { size: 17 }).setEnabled(ready && !owned))
   }

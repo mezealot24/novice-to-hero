@@ -15,6 +15,7 @@ import { autoCost, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericB
 import { addCard, addMat, addXp, persist, save, ultMode } from '../save'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
 import { TAINT_MAT } from '../data/taint'
+import { pinnedReady } from '../data/cardforge'
 import { rollUniqueDrop, UNIQUE } from '../data/uniques'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
@@ -3877,6 +3878,8 @@ export class BattleScene extends Phaser.Scene {
     const lines = [...uniq, ...(mode?.lines ?? []), `+${this.zeny} zeny · +${this.runXp} EXP${s.gems > before ? ` · +${s.gems - before} เพชร` : ''}`]
     if (ups.base) lines.push(`🎉 Base Lv ${s.baseLevel}! ได้แต้มสถานะเพิ่ม`)
     if (ups.job) lines.push(`✨ Job Lv ${s.jobLevel}! ได้แต้มสกิลเพิ่ม`)
+    const pin = pinnedReady(s) // v99 📌 pinned forge recipe
+    if (pin) lines.push(`📌 ตี ${pin.icon} ${pin.name} ได้แล้ว! ไปที่ 🔨 โรงตีเหล็ก › 📜 สูตร`)
     if (this.runCards.length) { // grouped + capped: a long tower run can find dozens
       const n = new Map<string, number>()
       for (const id of this.runCards) n.set(id, (n.get(id) ?? 0) + 1)

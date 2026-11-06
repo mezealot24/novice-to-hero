@@ -58,6 +58,8 @@ export interface SaveData {
   refinePity?: Record<string, number> // item id -> failed refines in a row
   refineLines?: Record<string, RefineLine[]> // item id -> bonus lines from +5 / +7 / +10 (index 0 / 1 / 2)
   taint?: Record<string, TaintRec> // v89: item id -> taint result (a record = tainted = locked; data/taint.ts)
+  forgeFast?: 1 // v99 ⚡ fast mode at the forge: no anticipation, no hit-stop, no spin
+  forgePin?: string // v99 📌 recipe id pinned at the forge: the run result says when it becomes affordable
   refineGems?: string[] // "itemId:7" / "itemId:10": free refine gems already paid out (kept after selling)
   rerollCount?: Record<string, number> // item id -> option-gacha rolls made (price +10% each, data/refine.ts rerollMul)
   fodder?: Record<string, number> // basic shop items kept as forge fodder, by item id (counts)

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { bagCards, canCardforge, cardforge, cardforgeCost } from '../src/data/cardforge'
+import { bagCards, canCardforge, cardforge, cardforgeCost, pinnedReady } from '../src/data/cardforge'
 import { itemById } from '../src/data/meta'
 
 const it = itemById('cf_jellthorn') // d1: card_jellop x3 + card_king x1
@@ -38,4 +38,13 @@ test('v98 cardforge: locked recipe and already-owned piece change nothing', () =
   assert.equal(canCardforge(own, it).why, 'owned')
   assert.equal(cardforge(own, it), false)
   assert.deepEqual(own.owned, [it.id]) // exactly one copy
+})
+
+test('v99 pin: pinnedReady only reports a pinned recipe that is unlocked, not owned, and affordable', () => {
+  assert.equal(pinnedReady(mk()), undefined) // nothing pinned
+  assert.equal(pinnedReady(mk({ forgePin: it.id }))?.id, it.id)
+  assert.equal(pinnedReady(mk({ forgePin: it.id, owned: [it.id] })), undefined)
+  assert.equal(pinnedReady(mk({ forgePin: it.id, clearsBy: {} })), undefined)
+  assert.equal(pinnedReady(mk({ forgePin: it.id, cards: {} })), undefined)
+  assert.equal(pinnedReady(mk({ forgePin: 'c_jellring', mats: { m_d1: 8, b_d1: 2 }, zeny: 200 }))?.id, 'c_jellring') // a classic recipe
 })

@@ -18,6 +18,7 @@ export class RefinePanel extends PanelBase implements VerbPanel {
   private legend!: Phaser.GameObjects.Text
   private info!: Phaser.GameObjects.Text
   private lines!: Phaser.GameObjects.Text
+  private dead = false
   constructor(private ctx: ForgeCtx) { super() }
 
   mount(box: Phaser.GameObjects.Container, it: Item) {
@@ -87,20 +88,25 @@ export class RefinePanel extends PanelBase implements VerbPanel {
   /** When the press buys fodder, one confirm lists everything it takes. Never charge silently (kept from the old screen). */
   act() {
     const s = save(), it = this.it, n = this.n(), cost = refineCost(it, n), f = fodderToBuy(s, cost)
-    if (!f) { this.go(false); return }
+    if (!f) return this.go(false)
     const total = totalZeny(s, cost)
     confirm(this.ctx.scene, `ตี ${it.name} +${n}?`, `ไม่มีเชื้อหลอม ซื้อให้อัตโนมัติ:\n🔩 ${f.icon} ${f.name} ${f.price}z + ค่าตี ${cost.zeny}z\nรวม ${total}z · เหลือ ${s.zeny - total}z · สำเร็จ ${Math.round(nextRate(s, it) * 100)}%`, `ซื้อ+ตี ${total}z`, () => this.go(true))
   }
 
-  private go(autoBuy: boolean) {
+  destroy() { this.dead = true; super.destroy() }
+
+  /** Result is saved first; then the same hammer taps play for a hit or a miss (no tell), then the outcome and the refresh. */
+  private async go(autoBuy: boolean) {
     const s = save(), it = this.it, rate = Math.round(nextRate(s, it) * 100)
     const res = tryRefine(s, it, Math.random, autoBuy)
     if (!res.ok) { toast(this.ctx.scene, res.why === 'short' ? 'วัตถุดิบ เชื้อหลอม หรือ zeny ยังไม่พอค่ะ' : 'ตีชิ้นนี้ต่อไม่ได้ค่ะ', UI.red); this.ctx.changed(); return }
     persist()
-    this.ctx.busy(600) // the confirm path calls go() later, outside the shell's act() guard
+    const release = this.ctx.hold() // the confirm path calls go() later, outside the shell's press() guard
+    try { await this.ctx.fx.anticipate(!res.success || res.n >= 5 ? 3 : 1) } finally { release() }
+    if (this.dead) return
     if (res.success) {
       const notes = [res.line ? `ค่าพิเศษ ${lineText(res.line)}` : '', res.gems ? `💎+${res.gems}` : ''].filter(Boolean)
-      this.ctx.fx.success(`+${res.n}`, notes)
+      this.ctx.fx.success(`+${res.n}`, notes, res.n <= 4 ? 'light' : res.n === 7 || res.n === 10 ? 'epic' : 'heavy')
       this.ctx.say(notes.length ? `+${res.n} สำเร็จ! ${notes.join(' · ')}` : `+${res.n} สำเร็จ! ตีต่อเลยไหม`)
     } else {
       this.ctx.fx.fail('💥 แตก!')

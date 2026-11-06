@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { isBroken, itemById, type Item } from '../../data/meta'
-import { save } from '../../save'
-import { button, costStrip, fit, go, holdButton, iconTabs, panel, tabs, topBar, txt, UI, type Btn, type CostStrip, type HoldBtn, type IconTabs } from '../../ui'
+import { persist, save } from '../../save'
+import { button, costStrip, fit, go, holdButton, iconTabs, panel, tabs, toast, topBar, txt, UI, type Btn, type CostStrip, type HoldBtn, type IconTabs } from '../../ui'
 import { AnvilStage } from './AnvilStage'
 import { ItemRail, railBackdrop } from './ItemRail'
 import { RecipeView } from './RecipeView'
@@ -61,10 +61,10 @@ export class ForgeScene extends Phaser.Scene {
     const host = { wallet: () => this.refreshWallet(), say: (t: string) => this.say(t), changed: () => this.changed() }
     this.recipe = new RecipeView(this, host)
     this.stash = new StashView(this, host)
-    this.bubble = txt(this, 520, 62, '', 13, UI.sub).setWordWrapWidth(424)
+    this.bubble = txt(this, 566, 62, '', 13, UI.sub).setWordWrapWidth(378)
     this.ctx = {
       scene: this,
-      fx: { success: (l, n) => this.stage?.success(l, n), fail: (l) => this.stage?.fail(l), mend: () => this.stage?.mend(), shine: (l) => this.stage?.shine(l), burst: (k, l) => this.stage?.burst(k, l) },
+      fx: { success: (l, n, t) => this.stage?.success(l, n, t), anticipate: (h) => this.stage?.anticipate(h) ?? Promise.resolve(), fail: (l) => this.stage?.fail(l), mend: () => this.stage?.mend(), shine: (l) => this.stage?.shine(l), burst: (k, l) => this.stage?.burst(k, l) },
       changed: () => this.changed(),
       say: (t) => this.say(t),
       busy: (ms) => this.lockFor(ms),
@@ -73,6 +73,13 @@ export class ForgeScene extends Phaser.Scene {
       jump: (v) => { const it = this.item(); if (it && !verbLock(save(), it, v)) this.setVerb(v) },
       locks: { get: (id) => this.optLocks.get(id) ?? [], set: (id, idx) => { this.optLocks.set(id, idx) } },
     }
+    const fastBtn = button(this, 534, 80, 56, 40, '⚡', () => {
+      const s = save()
+      if (s.forgeFast) delete s.forgeFast; else s.forgeFast = 1
+      persist(); paintFast(); toast(this, s.forgeFast ? '⚡ ตีเร็ว: ข้ามจังหวะรอและเอฟเฟกต์หนัก' : 'ตีเร็วปิดแล้ว', s.forgeFast ? UI.gold : UI.sub)
+    }, { size: 20, color: UI.text })
+    const paintFast = () => fastBtn.setFill(save().forgeFast ? 0xf2b84b : 0x5a5f8a)
+    paintFast()
     tabs(this, 24, 80, ['⚒️ ทั่ง', '📜 สูตร', '🎒 คลัง'], 150, (i) => this.setMode((['anvil', 'recipe', 'stash'] as Mode[])[i]), 0)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.alive = false // first: DisplayList / Clock are already shut down, a late release() -> syncBottom() would touch destroyed Text

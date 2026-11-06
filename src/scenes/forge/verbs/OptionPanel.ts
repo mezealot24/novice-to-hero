@@ -113,7 +113,7 @@ export class OptionPanel extends PanelBase implements VerbPanel {
     if (!res) { toast(this.ctx.scene, 'วัตถุดิบ zeny หรือเพชรยังไม่พอค่ะ', UI.red); return }
     persist(); sfx.pop()
     this.anim = new Set(order)
-    this.fast = false
+    this.fast = !!save().forgeFast // ⚡ fast mode: no spin, rows land at once
     this.release = this.ctx.hold() // the verb tabs and the action button stay shut until the last line lands
     this.zone = this.ctx.scene.add.rectangle(328, 65, 656, 130, 0x000000, 0.001).setInteractive()
     this.zone.on('pointerup', () => { this.fast = true; this.curSkip?.() }) // tap = skip to the end
