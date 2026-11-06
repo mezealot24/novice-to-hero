@@ -7,7 +7,7 @@ import { COSTUMES, FREE_GEMS, isBroken, itemById, JOB_RULES, noviceLeft, RACES, 
 import { canChangeJob, canChangeJob2, persist, save, today, ultMode, wipe } from '../save'
 import { JOB_CHANGE, JOBS } from '../data/jobs'
 import { JOB2, JOB2_RULES, job2Of } from '../data/jobs2'
-import { dailyOf, dailySeed, MODES, PANEL_MODES } from '../data/modes'
+import { dailyOf, dailySeed, MODES, PANEL_MODES, TOWER, towerCatchUp, towerCheckpoints, towerSkipCheck, towerSkipGems } from '../data/modes'
 import { cloudEnabled } from '../cloud'
 import { setMuted } from '../sfx'
 import { askRepick } from './JobScene'
@@ -190,8 +190,42 @@ export class HubScene extends Phaser.Scene {
         if (!u.ok) { confirm(this, `${m.name} ยังล็อกอยู่`, `${u.why} (โหมดทดสอบ: ลองได้)`, 'ลองเลย', startIt); return }
         startIt()
       }, { size: 20, fill: u.ok ? undefined : 0x4a4e6e, color: u.ok ? undefined : UI.sub }))
+      if (id === 'tower' && towerCheckpoints(s.modes?.tower?.bestFloor ?? 0).length) // v87: skip to a checkpoint (gems)
+        c.add(button(this, W / 2 + 290, y + 142, 130, 32, '⏭️ ข้ามชั้น', () => { c.destroy(); this.towerSkip() }, { size: 15, fill: 0x8a6fd1, color: UI.text }))
     })
     c.add(button(this, W / 2, H / 2 + 218, 200, 44, 'ปิด', () => c.destroy(), { size: 18, fill: 0x5a5f8a, color: UI.text }))
+  }
+
+  /** v87 🗼 floor skip picker (design/unique-taint-tower-skip-v1.md §1): pick a checkpoint, see the gem price and the level you start with, confirm. */
+  private towerSkip(pick?: number) {
+    const s = save(), cps = towerCheckpoints(s.modes?.tower?.bestFloor ?? 0)
+    if (!cps.length) return
+    const S = pick && cps.includes(pick) ? pick : cps[cps.length - 1]
+    const i = cps.indexOf(S), cost = towerSkipGems(S), chk = towerSkipCheck(s, S), up = towerCatchUp(s, S)
+    const c = this.add.container(0, 0).setDepth(40500)
+    c.add(this.add.rectangle(W / 2, H / 2, W, H, UI.night, 0.8).setInteractive())
+    c.add(panel(this, W / 2 - 320, H / 2 - 190, 640, 380, UI.panelHi, COLORS.gold))
+    c.add(txt(this, W / 2, H / 2 - 172, '⏭️ ข้ามชั้นหอคอย', 26, UI.gold, true).setOrigin(0.5, 0))
+    c.add(txt(this, W / 2, H / 2 - 134, `จุดข้ามทุก ${TOWER.skipEvery} ชั้น ไปได้ถึงชั้น ${cps[cps.length - 1]} (สถิติชั้น ${s.modes?.tower?.bestFloor ?? 0}) · ชั้นที่ข้ามไม่ได้ zeny วัตถุดิบ หรือเพชรรางวัล`, 13, UI.sub).setOrigin(0.5, 0).setAlign('center').setWordWrapWidth(580))
+    c.add(button(this, W / 2 - 170, H / 2 - 60, 56, 50, '◀', () => { c.destroy(); this.towerSkip(cps[i - 1]) }, { size: 22 }).setEnabled(i > 0))
+    c.add(button(this, W / 2 + 170, H / 2 - 60, 56, 50, '▶', () => { c.destroy(); this.towerSkip(cps[i + 1]) }, { size: 22 }).setEnabled(i < cps.length - 1))
+    c.add(txt(this, W / 2, H / 2 - 86, `ข้ามถึงชั้น ${S}`, 28, UI.text, true).setOrigin(0.5, 0))
+    c.add(txt(this, W / 2, H / 2 - 48, `เริ่มสู้ที่ชั้น ${S + 1}`, 17, '#9fe3a8').setOrigin(0.5, 0))
+    const info = [
+      `💎 ราคา ${cost} เพชร (ชั้นละ ${TOWER.skipGems}) · มี ${s.gems} · เหลือ ${Math.max(0, s.gems - cost)}`,
+      `🎓 เริ่ม Lv ${up.lv} ในรัน → เลือกการ์ด ${up.lv - 1} ใบก่อนสู้${up.relic ? ' + พรเทพ 1 ใบ' : ''}`,
+      up.est ? '(ยังไม่เคยมีบันทึกที่จุดนี้ เลเวลเป็นค่าประมาณ — ผ่านจุดนี้ในรันจริงครั้งหนึ่งจะจำของจริงไว้)' : '(เลเวล/พรเทพที่เคยมีตอนผ่านจุดนี้ในรันจริง)',
+    ]
+    c.add(txt(this, W / 2, H / 2 + 0, info.join('\n'), 15, chk.ok ? UI.text : '#ff9a9a').setOrigin(0.5, 0).setAlign('center').setWordWrapWidth(580))
+    if (!chk.ok) c.add(txt(this, W / 2, H / 2 + 90, chk.why === 'gems' ? `💎 เพชรไม่พอ (ขาด ${cost - s.gems})` : '🔒 ยังไม่ถึงจุดนี้', 16, '#ff9a9a', true).setOrigin(0.5, 0))
+    c.add(button(this, W / 2 - 120, H / 2 + 150, 200, 48, 'ปิด', () => c.destroy(), { size: 18, fill: 0x5a5f8a, color: UI.text }))
+    c.add(button(this, W / 2 + 120, H / 2 + 150, 200, 48, `ข้าม 💎${cost}`, () => {
+      c.destroy()
+      confirm(this, `ข้ามไปชั้น ${S + 1}?`, `จ่าย 💎${cost} (เหลือ ${s.gems - cost}) ตอนเริ่มรัน
+เริ่ม Lv ${up.lv} + เลือกการ์ดก่อนสู้
+ชั้น 1-${S} ไม่ได้รางวัลและไม่นับสถิติ`, `ข้าม 💎${cost}`,
+        () => go(this, 'battle', { mode: 'tower', skipTo: S }), 'ย้อนกลับ')
+    }, { size: 18 }).setEnabled(chk.ok))
   }
 
   private settings() {

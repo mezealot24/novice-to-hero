@@ -1,10 +1,12 @@
 import Phaser from 'phaser'
 import { COLORS, DUNGEONS, H, W } from '../data/game-data'
 import { JOBS } from '../data/jobs'
-import { canWear, forged, gradeOf, isBroken, itemStatLine, ITEMS, linesOf, refineOf, slotCount, SLOTS, wearText, type Item } from '../data/meta'
+import { canWear, forged, gradeOf, isBroken, isTainted, itemStatLine, ITEMS, linesOf, refineOf, slotCount, SLOTS, splitStatLine, wearText, type Item } from '../data/meta'
 import { craftCost, CRAFT_ITEMS, GRADE, gradeCap, gradeCost, gradeItem, gradeStars, REFINE, refinable } from '../data/craft'
-import { canAfford, canAffordAuto, FODDER, fodderFits, fodderMin, fodderToBuy, gemRepairCost, lineText, nextRate, pickFodder, refineCost, lineIdx, maxLocks, nextRerollCost, repair, repairCost, reroll, rerollMul, rollsOf, totalZeny, tryRefine, zenyShort, type ForgeCost } from '../data/refine'
+import { canAfford, canAffordAuto, FODDER, fodderFits, fodderMin, fodderToBuy, gemRepairCost, lineText, nextRate, pickFodder, refineCost, lineIdx, maxLocks, nextRerollCost, repair, repairCost, reroll, rerollMul, rollsOf, taintCheck, taintCost, totalZeny, tryRefine, tryTaint, upgradeGrade, zenyShort, type ForgeCost } from '../data/refine'
+import { curseById, TAINT } from '../data/taint'
 import { MAT_RULES, MATS, matById } from '../data/materials'
+import { TAINT_MAT as TAINT_MAT_ID } from '../data/taint'
 import { addFodder, canPay, equip, forgetForge, isWorn, pay, persist, save } from '../save'
 import { sfx } from '../sfx'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
@@ -12,7 +14,8 @@ import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
 // Forge (design/item-acquisition-v1.md): craft dungeon gear from materials, raise any item's grade.
 // Craft and grade-ups always succeed. Refine (+1..+10) can break an item above +4; gems may ONLY repair it
 // (design 3.6: never rate, break protection, mats, fodder or rerolls), and the material repair is always cheaper.
-// Exception (Q 2026-11-06): gems lock a bonus line in the option gacha; the roll itself is zeny + mats.
+// Two exceptions: (1) Q 2026-11-06, gems lock a bonus line in the option gacha (the roll itself is zeny + mats);
+// (2) Q 2026-11-07, gems skip Endless Tower floors (data/modes.ts), a pure time-saver that pays nothing.
 type Tab = 'craft' | 'grade' | 'refine' | 'fodder' | 'mats'
 const dgName = (id: string) => DUNGEONS.find((d) => d.id === id)?.name ?? id
 const dgBoss = (id: string) => DUNGEONS.find((d) => d.id === id)?.boss ?? ''
@@ -31,7 +34,7 @@ export class ForgeScene extends Phaser.Scene {
     this.cameras.main.fadeIn(160, 20, 23, 43)
     this.page = 0
     this.refreshWallet = topBar(this, '🔨 โรงตีเหล็ก', () => go(this, 'hub'))
-    txt(this, 24, 72, 'ช่างตีเหล็ก: "สร้างของกับอัปขั้นไม่มีพัง · ตีบวกเกิน +4 ลุ้นหน่อยนะ แตกแล้วซ่อมได้"', 15, UI.sub)
+    txt(this, 24, 72, 'ช่างตีเหล็ก: "สร้างของกับอัปขั้นไม่มีพัง · ตีบวกเกิน +4 ลุ้นหน่อยนะ แตกแล้วซ่อมได้ · 🌑 คำสาป = ลุ้นทีเดียวแล้วล็อกของ"', 15, UI.sub)
     const ids: Tab[] = ['craft', 'grade', 'refine', 'fodder', 'mats']
     tabs(this, 24, 118, ['🔨 สร้าง', '⬆️ อัปขั้น', '⚒️ ตีบวก', '🔩 เชื้อ', '🧱 วัตถุดิบ'], 116, (i) => { this.tab = ids[i]; this.page = 0; this.render() }, ids.indexOf(this.tab))
   }
@@ -120,28 +123,34 @@ export class ForgeScene extends Phaser.Scene {
     b.add(txt(this, x + 14, y + 10, it.icon, 30))
     b.add(txt(this, x + 60, y + 8, it.name, 18, GRADE.colors[g], true))
     b.add(txt(this, x + 60, y + 34, `${gradeStars(g, cap)}  ${GRADE.names[g]}${worn ? ' · ใส่อยู่' : ''}`, 13, GRADE.colors[g], true))
-    const line = fit(txt(this, x + 14, y + 56, itemStatLine(gradeItem(it, g)), 13, '#9fe3a8', true).setWordWrapWidth(cw - 28), 52) // grade only: refine/lines show on the ตีบวก tab
+    const gl = splitStatLine(gradeItem(it, g)) // v88: a unique's downside is split off and shown in red
+    const line = fit(txt(this, x + 14, y + 56, gl.good, 13, '#9fe3a8', true).setWordWrapWidth(cw - 28), gl.curse ? 34 : 52) // grade only: refine/lines show on the ตีบวก tab
     b.add(line)
+    if (gl.curse) b.add(fit(txt(this, x + 14, line.y + line.height + 1, `💀 ${gl.curse}`, 12, '#ff7a7a', true).setWordWrapWidth(cw - 28), 30))
     const by = y + ch - 24
     if (g >= cap) {
-      b.add(txt(this, x + 14, line.y + line.height + 4, cap < GRADE.max ? `ของ${it.jobs || it.req ? 'คลาส' : 'ร้าน'}อัปได้ถึง ★${cap} · ของดันกับของตีเองไปได้ถึง ★5` : 'ถึงขั้นตำนานแล้ว ✨', 12, UI.sub).setWordWrapWidth(cw - 28))
+      b.add(txt(this, x + 14, line.y + line.height + (gl.curse ? 34 : 4), cap < GRADE.max ? `ของ${it.jobs || it.req ? 'คลาส' : 'ร้าน'}อัปได้ถึง ★${cap} · ของดันกับของตีเองไปได้ถึง ★5` : 'ถึงขั้นตำนานแล้ว ✨', 12, UI.sub).setWordWrapWidth(cw - 28))
       b.add(txt(this, x + cw / 2, by, '✓ สูงสุดแล้ว', 14, UI.green).setOrigin(0.5))
+      return
+    }
+    if (isTainted(s, it.id)) { // v89: tainted items are locked
+      b.add(txt(this, x + 14, line.y + line.height + (gl.curse ? 34 : 4), '🌑 ติดคำสาปแล้ว: อัปขั้นไม่ได้อีก', 12, '#c9a8ff').setWordWrapWidth(cw - 28))
+      b.add(button(this, x + cw / 2, by, cw - 32, 34, '🔒 ล็อกโดยคำสาป', () => undefined, { size: 15, fill: 0x4a4e6e, color: UI.sub }).setEnabled(false))
       return
     }
     const n = g + 1, notes = [`ค่าทั้งชิ้น +${Math.round(GRADE.pct[n] * 100)}% จากพื้นฐาน`]
     if (n === GRADE.slotAt && slotCount(it, n) > slotCount(it, g)) notes.push('+1 ช่องการ์ด')
     const bi = GRADE.bonusAt.indexOf(n)
     if (it.craft && bi >= 0) notes.push(`ปลด: ${bonusLine(it.craft.bonus[bi])}`)
-    b.add(txt(this, x + 14, line.y + line.height + 4, `→ ★${n} ${GRADE.names[n]}: ${notes.join(' · ')}`, 12, GRADE.colors[n]).setWordWrapWidth(cw - 28))
+    b.add(txt(this, x + 14, line.y + line.height + (gl.curse ? 34 : 4), `→ ★${n} ${GRADE.names[n]}: ${notes.join(' · ')}`, 12, GRADE.colors[n]).setWordWrapWidth(cw - 28))
     const cost = gradeCost(it, n)
     b.add(this.costText(x + 14, by - 30, cost, cw - 28))
     b.add(button(this, x + cw / 2, by, cw - 32, 34, `อัปเป็น ★${n}`, () => this.upgrade(it), { size: 16 }).setEnabled(canPay(s, cost)))
   }
 
   private upgrade(it: Item) {
-    const s = save(), n = gradeOf(s, it.id) + 1
-    if (n > gradeCap(it) || !pay(s, gradeCost(it, n))) { toast(this, 'วัตถุดิบหรือ zeny ยังไม่พอค่ะ', UI.red); return }
-    ;(s.grade ??= {})[it.id] = n
+    const s = save(), res = upgradeGrade(s, it), n = gradeOf(s, it.id)
+    if (res !== 'ok') { toast(this, res === 'tainted' ? '🌑 ติดคำสาปแล้ว อัปขั้นไม่ได้ค่ะ' : 'วัตถุดิบหรือ zeny ยังไม่พอค่ะ', UI.red); return }
     persist(); sfx.coin()
     toast(this, `${it.icon} ${it.name} เป็น ★${n} ${GRADE.names[n]} แล้ว!`, GRADE.colors[n])
     this.cameras.main.flash(140, 255, 230, 160)
@@ -167,14 +176,16 @@ export class ForgeScene extends Phaser.Scene {
     b.add(txt(this, x + 14, y + 10, it.icon, 30).setAlpha(broken ? 0.55 : 1))
     b.add(txt(this, x + 60, y + 8, `${it.name}${r ? ` +${r}` : ''}`, 18, GRADE.colors[g], true))
     b.add(txt(this, x + 60, y + 34, `${gradeStars(g, gradeCap(it))} · ตีบวก +${r}/${REFINE.max}${worn ? ' · ใส่อยู่' : ''}`, 12, UI.sub))
-    const stat = broken ? '💔 แตก: ไม่ได้ค่าพลังและการ์ดจนกว่าจะซ่อม (บวก/ขั้น/การ์ด/ค่าพิเศษ ยังอยู่ครบ)' : itemStatLine(forged(s, it)) || it.desc
-    const line = fit(txt(this, x + 14, y + 54, stat, 12, broken ? '#ffb0b0' : '#9fe3a8', true).setWordWrapWidth(cw - 28), 48) // 3 lines max
+    const sl = splitStatLine(forged(s, it)) // v88: a unique's downside in red under the upside
+    const stat = broken ? '💔 แตก: ไม่ได้ค่าพลังและการ์ดจนกว่าจะซ่อม (บวก/ขั้น/การ์ด/ค่าพิเศษ ยังอยู่ครบ)' : sl.good || it.desc
+    const line = fit(txt(this, x + 14, y + 54, stat, 12, broken ? '#ffb0b0' : '#9fe3a8', true).setWordWrapWidth(cw - 28), sl.curse && !broken ? 34 : 48) // 3 lines max (2 + the red curse line)
+    if (sl.curse && !broken) b.add(fit(txt(this, x + 14, y + 90, `💀 ${sl.curse}`, 11, '#ff7a7a', true).setWordWrapWidth(cw - 28), 16))
     const extra = REFINE.lineAt.map((at, i) => `+${at} ${lines[i] ? lineText(lines[i]) : '—'}`).join(' · ')
     const has = lines.some(Boolean)
     const lt = fit(txt(this, x + 14, y + 106, `🎁 ${extra}`, 11, has ? '#d9c2ff' : UI.sub).setWordWrapWidth(cw - (has ? 100 : 28)), 32) // fixed row, 2 lines max
     b.add([line, lt])
     if (has) b.add(button(this, x + cw - 40, lt.y + 10, 64, 24, '🎲', () => this.linesView(it), { size: 13, fill: 0x8a6fd1, color: UI.text }))
-    const by = y + ch - 24
+    const by = y + ch - 24, tainted = isTainted(s, it.id)
     if (broken) {
       const mc = repairCost(it, r), short = zenyShort(s, mc)
       b.add(this.costText(x + 14, by - 30, mc, cw - 28, '🔧 '))
@@ -182,13 +193,20 @@ export class ForgeScene extends Phaser.Scene {
       b.add(button(this, x + cw - 78, by, 128, 34, `💎${REFINE.repairGems} ซ่อม`, () => this.doRepair(it, true), { size: 15, fill: 0x5a5f8a, color: UI.text }).setEnabled(canAfford(s, gemRepairCost)))
       return
     }
-    if (r >= REFINE.max) { b.add(txt(this, x + cw / 2, by, '✓ +10 สูงสุดแล้ว ✨', 14, UI.green).setOrigin(0.5)); return }
+    if (tainted) { // v89: tainted = locked. Say why, and what came out.
+      b.add(fit(txt(this, x + 14, by - 30, this.taintNote(it), 11, '#c9a8ff', true).setWordWrapWidth(cw - 28), 16))
+      b.add(button(this, x + cw / 2, by, cw - 32, 34, '🔒 ตีบวก · สุ่ม · อัปขั้น ไม่ได้ (ติดคำสาป)', () => undefined, { size: 13, fill: 0x4a4e6e, color: UI.sub }).setEnabled(false))
+      return
+    }
+    const taintBtn = () => b.add(button(this, x + cw - 48, by, 56, 34, '🌑', () => this.askTaint(it), { size: 18, fill: 0x5a3a8a, color: UI.text }))
+    if (r >= REFINE.max) { b.add(txt(this, x + 14, by - 4, '✓ +10 สูงสุดแล้ว ✨', 14, UI.green)); taintBtn(); return }
     const n = r + 1, rate = nextRate(s, it), cost = refineCost(it, n)
     const gift = REFINE.lineAt.includes(n) && !lines[REFINE.lineAt.indexOf(n)] ? ' 🎁' : ''
     b.add(this.costText(x + 14, by - 30, cost, cw - 28))
     const ok = canAffordAuto(s, cost), short = zenyShort(s, cost)
     const label = !ok && short && this.matsOk(cost) ? `ตี +${n} · ขาด ${short}z` : `ตี +${n} · ${totalZeny(s, cost)}z · ${Math.round(rate * 100)}%${gift}`
-    b.add(button(this, x + cw / 2, by, cw - 32, 34, label, () => this.askRefine(it), { size: 15, fill: rate < 1 ? 0xff9f5a : undefined }).setEnabled(ok))
+    b.add(button(this, x + 16 + (cw - 32 - 64) / 2, by, cw - 32 - 64, 34, label, () => this.askRefine(it), { size: 14, fill: rate < 1 ? 0xff9f5a : undefined }).setEnabled(ok))
+    taintBtn()
   }
 
   /** Mats + gems are there (so a short press is only about zeny). */
@@ -249,7 +267,7 @@ export class ForgeScene extends Phaser.Scene {
     c.add(panel(this, px, py, pw, ph, UI.panelHi, COLORS.gold))
     c.add(txt(this, W / 2, py + 18, `🎁 ค่าพิเศษ ${it.icon} ${it.name} +${refineOf(s, it.id)}`, 22, UI.gold, true).setOrigin(0.5, 0))
     const lines = linesOf(s, it.id), have = lineIdx(s, it.id), maxLk = maxLocks(have.length)
-    const rolls = rollsOf(s, it.id)
+    const rolls = rollsOf(s, it.id), tainted = isTainted(s, it.id)
     c.add(txt(this, W / 2, py + 52, `🎲 สุ่มทีเดียวเปลี่ยนทุกบรรทัดที่ไม่ล็อก (ค่าเก่าหายทันที) · สุ่มไปแล้ว ${rolls} ครั้ง ราคา x${rerollMul(rolls).toFixed(1)}\n${maxLk ? `🔒 ล็อกได้ ${maxLk} บรรทัด จ่ายเพชรทุกครั้งที่สุ่ม (${REFINE.lockGems.slice(0, maxLk).map((g, i) => `ล็อกที่ ${i + 1}: 💎${g}`).join(' · ')})` : `🔒 ตีถึง +${REFINE.lineAt[1]} ให้มี 2 บรรทัดก่อน ถึงจะล็อกได้`}`, 12, UI.sub).setOrigin(0.5, 0).setAlign('center').setWordWrapWidth(pw - 40))
     REFINE.lineAt.forEach((at, i) => {
       const y = py + 94 + i * 88, l = lines[i], on = locked.includes(i)
@@ -259,15 +277,53 @@ export class ForgeScene extends Phaser.Scene {
       c.add(txt(this, px + 36, y + 38, lineText(l), 18, l.gold ? UI.gold : UI.text, true))
       const canLock = on || locked.length < maxLk
       c.add(button(this, px + pw - 100, y + 39, 140, 34, on ? '🔒 ล็อกอยู่' : '🔓 ล็อก', () => again(on ? locked.filter((x) => x !== i) : [...locked, i]),
-        { size: 14, fill: on ? 0xb8860b : 0x5a5f8a, color: UI.text }).setEnabled(canLock))
+        { size: 14, fill: on ? 0xb8860b : 0x5a5f8a, color: UI.text }).setEnabled(canLock && !tainted))
     })
     const cost = nextRerollCost(s, it, locked)
     c.add(this.costText(px + 36, py + ph - 70, cost, pw - 72, locked.length ? '🔒 ' : ''))
     c.add(button(this, W / 2 - 100, py + ph - 26, 180, 36, `🎲 สุ่ม ${have.length - locked.length} บรรทัด`, () => {
       if (!reroll(s, it, locked)) { toast(this, 'วัตถุดิบ zeny หรือเพชรยังไม่พอค่ะ', UI.red); return }
       persist(); sfx.pop(); this.refreshWallet(); again(locked)
-    }, { size: 15 }).setEnabled(canAfford(s, cost)))
+    }, { size: 15 }).setEnabled(canAfford(s, cost) && !tainted))
+    if (tainted) c.add(txt(this, W / 2 - 100, py + ph - 56, '🌑 ติดคำสาปแล้ว: สุ่มบรรทัดไม่ได้อีก', 13, '#c9a8ff', true).setOrigin(0.5))
     c.add(button(this, W / 2 + 100, py + ph - 26, 160, 36, 'ปิด', close, { size: 16, fill: 0x5a5f8a, color: UI.text }))
+  }
+
+  // ---------- taint (v89, design/unique-taint-tower-skip-v1.md §3) ----------
+  /** One line saying what the taint did (card of a tainted item). */
+  private taintNote(it: Item): string {
+    const t = save().taint?.[it.id]
+    if (!t) return ''
+    if (t.kind === 'gold') return '🌑 ติดคำสาป: ✨ ค่าพิเศษทุกบรรทัดเป็นทอง (ล็อกแล้ว)'
+    if (t.kind === 'brick') return '🌑 ติดคำสาป: 💥 พัง เสียของไปหนึ่งอย่าง (ล็อกแล้ว)'
+    if (t.kind === 'curse') { const c = curseById(t.curse); return c ? `🌑 ${c.icon} ${c.name}: ${itemStatLine({ mod: c.mod, pct: c.pct })}` : '🌑 ติดคำสาป (ล็อกแล้ว)' }
+    return '🌑 ติดคำสาป: ไม่เกิดอะไร แต่ล็อกแล้ว'
+  }
+
+  private askTaint(it: Item) {
+    const s = save(), cost = taintCost(), have = s.mats?.[TAINT_MAT_ID] ?? 0
+    const why = taintCheck(s, it)
+    if (why === 'broken') { toast(this, '💔 ซ่อมของให้เสร็จก่อนค่อยใส่คำสาปค่ะ', UI.red); return }
+    if (why !== 'ok') return
+    const pc = (k: keyof typeof TAINT.odds) => `${Math.round(TAINT.odds[k] * 100)}%`
+    confirm(this, `🌑 ใส่คำสาป ${it.name}?`,
+      `⚠ ทำได้ครั้งเดียว แล้วของชิ้นนี้ถูกล็อกถาวร\n(ตีบวก · สุ่มค่าพิเศษ · อัปขั้น ไม่ได้อีก · ซ่อมได้)\n😐 ${pc('none')} ไม่เกิดอะไร · ✨ ${pc('gold')} ค่าพิเศษเป็นทอง\n💀 ${pc('curse')} ได้บรรทัดคำสาป (แรง+ข้อเสีย) · 💥 ${pc('brick')} พัง เสียค่าพิเศษ 1 บรรทัด/บวก -1\nราคา ${cost.zeny}z + 🔻x${TAINT.crystals} (มี ${have})`,
+      `🌑 ลุ้น ${cost.zeny}z`, () => this.doTaint(it))
+  }
+
+  private doTaint(it: Item) {
+    const s = save(), res = tryTaint(s, it)
+    if (!res.ok) { toast(this, res.why === 'short' ? `zeny หรือ 🔻ผลึกโลกันตร์ ยังไม่พอค่ะ (ต้อง ${TAINT.zeny}z + ${TAINT.crystals} ชิ้น)` : 'ใส่คำสาปชิ้นนี้ไม่ได้ค่ะ', UI.red); return }
+    persist(); this.refreshWallet()
+    const lines: Record<string, string> = {
+      none: '😐 ไม่เกิดอะไรขึ้น...\nแต่ของชิ้นนี้ถูกล็อกแล้วนะคะ',
+      gold: res.fallback ? `✨ ไม่มีค่าพิเศษให้เปลี่ยน เลยได้บรรทัดทองใหม่ 1 บรรทัด!\n${res.gold ? res.gold.map(lineText).join(' · ') : ''}` : `✨ ค่าพิเศษทุกบรรทัดกลายเป็นทอง!\n${(res.ok && res.gold ? res.gold : []).map(lineText).join(' · ')}`,
+      curse: res.curse ? `💀 ได้คำสาป ${res.curse.icon} ${res.curse.name}\n${itemStatLine({ mod: res.curse.mod, pct: res.curse.pct })}` : '',
+      brick: res.lost ? `💥 พัง! เสียค่าพิเศษ ${lineText(res.lost)}` : res.refineDown ? '💥 พัง! ไม่มีค่าพิเศษให้เสีย ตีบวก -1' : '💥 พัง! แต่ไม่มีอะไรให้เสียเลย (ตีบวก +0 ไม่มีค่าพิเศษ)',
+    }
+    if (res.kind === 'curse') { sfx.hurt(); this.cameras.main.shake(180, 0.006) } else if (res.kind === 'gold') { sfx.coin(); this.cameras.main.flash(140, 255, 230, 160) } else sfx.pop()
+    confirm(this, `🌑 ${it.icon} ${it.name}`, lines[res.kind], 'ตกลง', () => this.render(), 'ปิด')
+    this.render()
   }
 
   // ---------- fodder ----------
@@ -301,8 +357,8 @@ export class ForgeScene extends Phaser.Scene {
       b.add(txt(this, x + 12, y + 8, `${m.icon} ${m.name}`, 17, n ? UI.text : UI.sub, true))
       b.add(txt(this, x + 438, y + 8, `x${n}`, 20, n ? UI.gold : UI.sub, true).setOrigin(1, 0))
       const mini = DUNGEONS.find((d) => d.id === m.dungeon)?.rooms.some((r) => r.mini)
-      const from = m.boss ? `${mini ? `มินิบอส ได้ ${MAT_RULES.mini.boss} · ` : ''}บอส${dgBoss(m.dungeon)} ได้ ${MAT_RULES.boss.boss}` : `มอนธรรมดา ${Math.round(MAT_RULES.normalRate * 100)}% · บอสให้ ${MAT_RULES.boss.common}`
-      b.add(txt(this, x + 12, y + 33, `${dgName(m.dungeon)}: ${from}`, 12, UI.sub))
+      const from = m.note ?? (m.boss ? `${mini ? `มินิบอส ได้ ${MAT_RULES.mini.boss} · ` : ''}บอส${dgBoss(m.dungeon)} ได้ ${MAT_RULES.boss.boss}` : `มอนธรรมดา ${Math.round(MAT_RULES.normalRate * 100)}% · บอสให้ ${MAT_RULES.boss.common}`)
+      b.add(txt(this, x + 12, y + 33, m.note ? from : `${dgName(m.dungeon)}: ${from}`, 12, UI.sub))
     })
   }
 

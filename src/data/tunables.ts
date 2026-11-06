@@ -187,7 +187,8 @@ export const TABLES: Record<TableId, TableDef> = {
   },
   kit: {
     id: 'kit', label: 'Class KIT numbers', target: () => KIT,
-    fields: [[KIT_INTS, int(0, 50)], [KIT_NUMS, num(0, 20)], ['cast.breakBase|breakDex|breakMinHp|breakRefund', num(0, 1)], ['cast.fireMul|ultMul', num(0, 20)], ['cast.brokenUltCd|boltMana', int(0, 50)]], // v78 / v85 MAGE_CAST
+    fields: [[KIT_INTS, int(0, 50)], [KIT_NUMS, num(0, 20)], ['cast.breakBase|breakDex|breakMinHp|breakRefund', num(0, 1)], ['cast.fireMul|ultMul', num(0, 20)], ['cast.brokenUltCd|boltMana', int(0, 50)], // v78 / v85 MAGE_CAST
+      ['cleric.heal|smite|basic|ultAtk|ultLight|purifyHeal', num(0, 20)], ['cleric.ultShield|shieldCap', num(0, 1)], ['cleric.ultLights|ultShieldTurns|shieldTurns', int(0, 20)], ['cleric.ultMana', int(0, 200)]], // v86 CLERIC_KIT
   },
 }
 export const TABLE_IDS = Object.keys(TABLES) as TableId[]

@@ -7,6 +7,8 @@ import { JOB2, type Job2Id, type WeaponType } from './jobs2'
 import { JOBS, type JobId } from './jobs'
 import { cardById, type EquipCard } from './cards'
 import { CRAFT_ITEMS, forgeItem, GRADE, type CraftInfo, type RefineLine } from './craft'
+import { UNIQUE_ITEMS } from './uniques'
+import { applyCurse, type TaintRec } from './taint'
 
 // ---------- base stats (Q's spec, 2026-11-02): 7 stats, points from Base Level ----------
 export type BaseStat = 'str' | 'vit' | 'wis' | 'dex' | 'int' | 'luk' | 'agi'
@@ -109,7 +111,7 @@ export const slotKind = (sl: EquipSlot): Slot => (sl === 'acc2' ? 'acc' : sl)
 // jobs = who can wear it (none = everyone). req = when the shop sells it: 'job' after the first job change,
 // 'd2' after beating ป่าหมาป่าเงา. Item ids are save data: never rename or remove one.
 export type ItemReq = 'job' | 'd2' | 'd3' | 'd4' | 'job2'
-export interface Item { id: string; slot: Slot; name: string; icon: string; price: number; desc: string; base?: Partial<Record<BaseStat, number>>; mod: Partial<Stats>; jobs?: JobId[]; req?: ItemReq; slots?: number; twoHand?: boolean; wtype?: WeaponType; craft?: CraftInfo; pct?: { maxHp?: number; atk?: number; matk?: number } }
+export interface Item { id: string; slot: Slot; name: string; icon: string; price: number; desc: string; base?: Partial<Record<BaseStat, number>>; mod: Partial<Stats>; jobs?: JobId[]; req?: ItemReq; slots?: number; twoHand?: boolean; wtype?: WeaponType; craft?: CraftInfo; pct?: { maxHp?: number; atk?: number; matk?: number }; unique?: { dg: string } /* v88: boss-drop unique (data/uniques.ts); dg = the dungeon whose materials it uses */ }
 const SW: JobId[] = ['swordsman'], AR: JobId[] = ['archer'], MG: JobId[] = ['mage'], CL: JobId[] = ['cleric'], TH: JobId[] = ['thief']
 export const ITEMS: Item[] = [
   // ----- weapons: everyone -----
@@ -211,6 +213,8 @@ export const ITEMS: Item[] = [
   { id: 'o_mobknife', wtype: 'dagger', slot: 'offhand', name: 'มีดทวงหนี้', icon: '🩸', price: 1300, desc: 'อาชีพขั้น 2 · มีดมือรอง: พิษแรง stack สูง', base: { luk: 2, agi: 1 }, mod: { atk: 5, poisonDmg: 2, poisonCap: 3 }, jobs: TH, req: 'job2' },
   // ----- forge only (data/craft.ts) -----
   ...CRAFT_ITEMS,
+  // ----- boss drops (data/uniques.ts, v88) -----
+  ...UNIQUE_ITEMS,
 ]
 export const itemById = (id: string) => ITEMS.find((i) => i.id === id) ?? ITEMS[0]
 /** Can this job wear it? (no `jobs` list = everyone) */
@@ -222,14 +226,20 @@ export function slotCount(it: Item, grade = 1): number {
 /** Forge grade of an owned item (1 = never upgraded). */
 export const gradeOf = (s: { grade?: Record<string, number> }, id: string) => s.grade?.[id] ?? 1
 /** Forge state of an owned item: refine +0..+10, broken (refine failed, no stats or cards until repaired), bonus lines. */
-export interface ForgeState { grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]> }
+export interface ForgeState { grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]>; taint?: Record<string, TaintRec> }
 export const refineOf = (s: ForgeState, id: string) => s.refine?.[id] ?? 0
 export const isBroken = (s: ForgeState, id: string) => !!s.broken?.includes(id)
 export const linesOf = (s: ForgeState, id: string) => s.refineLines?.[id] ?? []
 /** The item with its grade, refine and bonus lines applied (what it gives when worn and not broken). */
-export const forged = (s: ForgeState, it: Item) => forgeItem(it, gradeOf(s, it.id), refineOf(s, it.id), linesOf(s, it.id))
+/** v89: a tainted item is locked (no refine, no reroll, no grade-up). Repair still works. */
+export const isTainted = (s: ForgeState, id: string) => !!s.taint?.[id]
+export const forged = (s: ForgeState, it: Item) => {
+  const f = forgeItem(it, gradeOf(s, it.id), refineOf(s, it.id), linesOf(s, it.id))
+  const t = s.taint?.[it.id]
+  return t?.kind === 'curse' ? applyCurse(f, t.curse) : f // v89 curse line: on top of the worn item, never scaled by grade / refine
+}
 /** " ★3 +7 💔" name tag for lists (empty for a plain item). */
-export const forgeTag = (s: ForgeState, id: string) => `${gradeOf(s, id) > 1 ? ` ★${gradeOf(s, id)}` : ''}${refineOf(s, id) ? ` +${refineOf(s, id)}` : ''}${isBroken(s, id) ? ' 💔' : ''}`
+export const forgeTag = (s: ForgeState, id: string) => `${isTainted(s, id) ? ' 🌑' : ''}${itemById(id).unique && splitStatLine(itemById(id)).curse ? ' 💀' : ''}${gradeOf(s, id) > 1 ? ` ★${gradeOf(s, id)}` : ''}${refineOf(s, id) ? ` +${refineOf(s, id)}` : ''}${isBroken(s, id) ? ' 💔' : ''}`
 export const canWear = (it: Item, job: JobId) => !it.jobs || it.jobs.includes(job)
 /** Is it on sale yet? */
 export function itemUnlocked(it: Item, s: { job: JobId; job2?: Job2Id; clearsBy?: Record<string, number> }) {
@@ -267,6 +277,15 @@ const STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => string]>> 
 }
 export const BASE_NAME: Record<BaseStat, string> = { str: 'STR', vit: 'VIT', wis: 'WIS', dex: 'DEX', int: 'INT', luk: 'LUK', agi: 'AGI' }
 /** "STR +3 · P.ATK +8 · ดูดเลือด +6%" */
+/** A stat line split in two: the upside, and the 💀 curse (every negative number). `force` defaults to "is a unique": plain gear has no curse. */
+export function splitStatLine(it: { base?: Item['base']; mod: Partial<Stats>; pct?: Item['pct']; unique?: Item['unique'] }, force = !!it.unique): { good: string; curse: string } {
+  if (!force) return { good: itemStatLine(it), curse: '' }
+  type Bag = { base: Record<string, number>; mod: Record<string, number>; pct: Record<string, number> }
+  const good: Bag = { base: {}, mod: {}, pct: {} }, bad: Bag = { base: {}, mod: {}, pct: {} }
+  for (const part of ['base', 'mod', 'pct'] as const) for (const [k, v] of Object.entries(it[part] ?? {}) as [string, number][]) (v < 0 ? bad : good)[part][k] = v
+  const line = (x: Bag) => itemStatLine({ base: x.base as Item['base'], mod: x.mod as Partial<Stats>, pct: x.pct as Item['pct'] })
+  return { good: line(good), curse: line(bad) }
+}
 export function itemStatLine(it: { base?: Item['base']; mod: Partial<Stats>; pct?: Item['pct'] }): string {
   const parts: string[] = []
   const p = it.pct ?? {}, sg = (n: number) => `${n > 0 ? '+' : '-'}${pc(Math.abs(n))}` // "% of max HP / ATK" (cards, refine lines)
@@ -318,7 +337,7 @@ export const SUPPORTER_PRICE = 300 // gems: badge + gold name, no stats
 export const FREE_GEMS = { firstClear: 50, clear: 5, levelUp: 10, daily: 20 }
 
 // ---------- combine everything into the hero's starting stats ----------
-export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; job2?: Job2Id; job2Tree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; sockets?: Record<string, string[]>; grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]>; tempBase?: Partial<Record<BaseStat, number>> }
+export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; job2?: Job2Id; job2Tree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; sockets?: Record<string, string[]>; grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]>; taint?: Record<string, TaintRec>; tempBase?: Partial<Record<BaseStat, number>> }
 
 /** Items the hero actually gets stats from (gear for another job, or broken by a failed refine, stays on but does nothing). */
 export function wornItems(s: StatsInput): Item[] {

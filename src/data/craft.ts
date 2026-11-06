@@ -71,13 +71,13 @@ export const CRAFT_ITEMS: Item[] = [
 
 /** Highest grade an item can reach: starters 1, plain shop gear 3, class shop gear 4, dungeon + crafted gear 5. */
 export function gradeCap(it: Item): number {
-  if (it.craft || (it.req && it.req !== 'job')) return 5
+  if (it.craft || it.unique || (it.req && it.req !== 'job')) return 5
   if (it.price === 0) return 1
   if (it.jobs || it.req === 'job') return 4
   return 3
 }
 /** Which dungeon's materials an item uses for grade-ups. */
-export const matDungeon = (it: Item) => it.craft?.dg ?? (it.req && it.req !== 'job' ? it.req : 'd1')
+export const matDungeon = (it: Item) => it.craft?.dg ?? it.unique?.dg ?? (it.req && it.req !== 'job' ? it.req : 'd1')
 /** Materials + zeny to raise `it` from grade g-1 to g. */
 export function gradeCost(it: Item, g: number) {
   const c = GRADE.cost[g], dg = matDungeon(it)
@@ -92,7 +92,8 @@ const r3 = (n: number) => Math.round(n * 1000) / 1000
 
 // ---------- refine +1..+10 (phase 2, design 3.5 / 3.5.1 / 3.6) ----------
 /** Refine rules. Gems only ever repair (Q 2026-11-03): never rate, break protection, mats, fodder or rerolls.
- * One exception (Q 2026-11-06): gems lock a bonus line during a reroll. The roll itself is always zeny + mats. */
+ * Two exceptions: (1) Q 2026-11-06, gems lock a bonus line during a reroll (the roll itself is always zeny + mats);
+ * (2) Q 2026-11-07, gems skip Endless Tower floors (data/modes.ts TOWER.skipGems), a pure time-saver that pays nothing. */
 export const REFINE = {
   max: 10,
   pct: 0.05, // whole-item stats per +, added to the grade % (grade 5 +10 = x2.1)
@@ -119,7 +120,7 @@ export const REFINE = {
 /** Zeny fee for one try at +n. */
 export const refineFee = (n: number) => (n <= 0 ? 0 : Math.round((REFINE.feeBase * REFINE.feeGrowth ** (n - 1)) / 5) * 5)
 /** Starter gear and the empty slots can't be refined; crafted gear (price 0) can. */
-export const refinable = (it: Item) => it.price > 0 || !!it.craft
+export const refinable = (it: Item) => it.price > 0 || !!it.craft || !!it.unique
 /** Chance to reach +n after `pity` fails in a row. */
 export const refineRate = (n: number, pity = 0) => Math.min(1, (REFINE.rate[n] ?? 0) + pity * REFINE.pity)
 

@@ -1,17 +1,19 @@
 // Refine +1..+10, repair and random bonus lines (design/item-acquisition-v1.md 3.5 / 3.5.1 / 3.6 / 3.7).
 // Pure rules + save actions, kept out of the UI so the bot and tests can use them.
 // Gem rule (Q 2026-11-03): gems may ONLY repair. Never success rate, break protection, mats, fodder or rerolls,
-// and the material repair is always the cheaper way. Exception (Q 2026-11-06): gems lock a bonus line during a
-// reroll (the roll itself is always zeny + mats).
+// and the material repair is always the cheaper way. Two exceptions: (1) Q 2026-11-06, gems lock a bonus line
+// during a reroll (the roll itself is always zeny + mats); (2) Q 2026-11-07, gems skip Endless Tower floors
+// (data/modes.ts), a pure time-saver that gives no zeny, mats or rank.
 import type { SaveData } from '../save'
 import type { Stats } from './game-data'
 import type { JobId } from './jobs'
 import { matOf } from './materials'
-import { matDungeon, REFINE, refinable, refineFee, refineRate, type RefineLine } from './craft'
-import { BASE_NAME, isBroken, itemStatLine, ITEMS, linesOf, refineOf, type BaseStat, type Item, type Slot } from './meta'
+import { gradeCost, gradeCap, matDungeon, REFINE, refinable, refineFee, refineRate, type RefineLine } from './craft'
+import { BASE_NAME, gradeOf, isBroken, isTainted, itemStatLine, ITEMS, linesOf, refineOf, type BaseStat, type Item, type Slot } from './meta'
+import { CURSES, pickTaintKind, TAINT, TAINT_MAT, type CurseDef, type TaintKind } from './taint'
 
 // ---------- fodder: basic shop items (no job lock, no unlock, not crafted) ----------
-export const isFodder = (it: Item) => it.price > 0 && !it.jobs && !it.req && !it.craft
+export const isFodder = (it: Item) => it.price > 0 && !it.jobs && !it.req && !it.craft && !it.unique // a unique is never fodder (v88)
 export const FODDER: Item[] = ITEMS.filter(isFodder)
 /** Refine tiers: +1~+4 / +5~+7 / +8~+10. */
 export const refineTier = (n: number) => (n <= 4 ? 0 : n <= 7 ? 1 : 2)
@@ -188,7 +190,7 @@ export function lineText(l: RefineLine): string {
 
 // ---------- actions on the save ----------
 export type RefineResult =
-  | { ok: false; why: 'short' | 'broken' | 'max' | 'cant' }
+  | { ok: false; why: 'short' | 'broken' | 'max' | 'cant' | 'tainted' }
   | { ok: true; success: boolean; n: number; rate: number; fodder: Item | null; bought?: Item; line?: RefineLine; gems?: number }
 
 /** Chance shown on the button for the next try. */
@@ -198,6 +200,7 @@ export const nextRate = (s: SaveData, it: Item) => refineRate(refineOf(s, it.id)
  * Fail: the item breaks (keeps its +, grade, cards and lines; gives nothing until repaired), pity +1. */
 export function tryRefine(s: SaveData, it: Item, rnd: () => number = Math.random, autoBuy = false): RefineResult {
   if (!refinable(it)) return { ok: false, why: 'cant' }
+  if (isTainted(s, it.id)) return { ok: false, why: 'tainted' } // v89: a tainted item is locked for good
   if (isBroken(s, it.id)) return { ok: false, why: 'broken' }
   const r = refineOf(s, it.id)
   if (r >= REFINE.max) return { ok: false, why: 'max' }
@@ -247,10 +250,79 @@ export const nextRerollCost = (s: SaveData, it: Item, locked: number[] = []) =>
 export function reroll(s: SaveData, it: Item, locked: number[] = [], rnd: () => number = Math.random): RefineLine[] | null {
   const have = lineIdx(s, it.id)
   const lock = [...new Set(locked)]
+  if (isTainted(s, it.id)) return null // v89: no gacha on a tainted item
   if (!have.length || lock.some((i) => !have.includes(i)) || lock.length > maxLocks(have.length)) return null
   if (spend(s, nextRerollCost(s, it, lock)) === false) return null
   const arr = s.refineLines![it.id]
   for (const i of have) if (!lock.includes(i)) arr[i] = rollLine(it, i, s.job, rnd)
   ;(s.rerollCount ??= {})[it.id] = rollsOf(s, it.id) + 1
   return arr.slice()
+}
+
+// ---------- grade-up (v89: moved here from ForgeScene so the taint lock lives in a pure rule) ----------
+export type GradeResult = 'ok' | 'tainted' | 'max' | 'short'
+/** Raise an item one grade (always succeeds when paid). A tainted item can't be graded. Nothing is spent unless 'ok'. */
+export function upgradeGrade(s: SaveData, it: Item): GradeResult {
+  if (isTainted(s, it.id)) return 'tainted'
+  const n = gradeOf(s, it.id) + 1
+  if (n > gradeCap(it)) return 'max'
+  if (spend(s, gradeCost(it, n)) === false) return 'short'
+  ;(s.grade ??= {})[it.id] = n
+  return 'ok'
+}
+
+// ---------- taint (v89, design/unique-taint-tower-skip-v1.md §3) ----------
+/** Price of one taint: zeny + ผลึกโลกันตร์. Pure sink, nothing comes back. */
+export const taintCost = (): ForgeCost => ({ mats: { [TAINT_MAT]: TAINT.crystals }, zeny: TAINT.zeny })
+/** Turn a line gold (value x goldMul); a line that is already gold stays as it is. */
+export function goldify(l: RefineLine): RefineLine {
+  if (l.gold) return l
+  const val = INT_STATS.has(l.stat) ? Math.round(l.val * REFINE.goldMul) : Math.round(l.val * REFINE.goldMul * 1000) / 1000
+  return { stat: l.stat, val, gold: 1 }
+}
+export type TaintResult =
+  | { ok: false; why: 'cant' | 'tainted' | 'broken' | 'short' }
+  | { ok: true; kind: TaintKind; curse?: CurseDef; gold?: RefineLine[]; fallback?: boolean; lost?: RefineLine; refineDown?: number }
+
+/** Can this item be tainted right now? (refinable, not tainted yet, not broken: repair first) */
+export function taintCheck(s: SaveData, it: Item): 'ok' | 'cant' | 'tainted' | 'broken' {
+  if (!refinable(it)) return 'cant'
+  if (isTainted(s, it.id)) return 'tainted'
+  if (isBroken(s, it.id)) return 'broken'
+  return 'ok'
+}
+
+/** One taint. Pay, then roll the 4 equal outcomes (the first rnd() picks the outcome, later ones the details):
+ * none = nothing · gold = every option line turns gold (no lines: one fresh gold line in the first slot) ·
+ * curse = one line from CURSES · brick = lose a random option line, or -1 refine when there are none.
+ * Whatever comes out, the item is now tainted = locked. Short wallet: nothing happens, nothing is spent. */
+export function tryTaint(s: SaveData, it: Item, rnd: () => number = Math.random): TaintResult {
+  const chk = taintCheck(s, it)
+  if (chk !== 'ok') return { ok: false, why: chk }
+  if (spend(s, taintCost()) === false) return { ok: false, why: 'short' }
+  const kind = pickTaintKind(rnd())
+  const rec: { kind: TaintKind; curse?: string } = { kind }
+  let out: TaintResult = { ok: true, kind }
+  if (kind === 'gold') {
+    const arr = ((s.refineLines ??= {})[it.id] ??= []), have = lineIdx(s, it.id)
+    if (have.length) { for (const i of have) arr[i] = goldify(arr[i]); out = { ok: true, kind, gold: have.map((i) => arr[i]) } }
+    else { arr[0] = goldify(rollLine(it, 0, s.job, rnd)); out = { ok: true, kind, gold: [arr[0]], fallback: true } }
+  } else if (kind === 'curse') {
+    const c = CURSES[Math.min(CURSES.length - 1, Math.floor(rnd() * CURSES.length))]
+    rec.curse = c.id
+    out = { ok: true, kind, curse: c }
+  } else if (kind === 'brick') {
+    const have = lineIdx(s, it.id)
+    if (have.length) {
+      const i = have[Math.min(have.length - 1, Math.floor(rnd() * have.length))], arr = s.refineLines![it.id]
+      out = { ok: true, kind, lost: arr[i] }
+      delete arr[i]
+    } else if (refineOf(s, it.id) > 0) {
+      const r = refineOf(s, it.id) - 1
+      if (r > 0) (s.refine ??= {})[it.id] = r; else delete s.refine![it.id]
+      out = { ok: true, kind, refineDown: 1 }
+    }
+  }
+  ;(s.taint ??= {})[it.id] = rec
+  return out
 }
