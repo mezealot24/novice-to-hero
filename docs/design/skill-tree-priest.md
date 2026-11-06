@@ -204,3 +204,16 @@ save เก่า: แต้มใน `cleric_d1..d4` (ม่านพร / ฉ�
 - ตัวเลข: `KIT.clericTree.dawn` (ต่อ old level max 3, stretch เป็น 5) · stat `clDawn / clDawnCrit / clDawnHeal / clDawnSplash / clDawnUlt`
 - BattleScene `dawnSmash()` + hook ใน `ultWebAfter()`
 - สูตร ≈ ตีปกติ 1.1x P.ATK ที่คริพอดี (Lv20 / 45 / 75 เช็คแล้ว) → ค่าของมันคือคริแน่ + ทะลุ DEF + ฮีล + AoE
+
+## v86 · คอลัมน์ core 💠 แก่นศรัทธา (Q 2026-11-06, Mana ให้ Priest)
+
+คอลัมน์ฟรี (tier 0 ไม่มี parent แบบ Mage แก่นเวท) · ตัวเลข `KIT.clericTree.core` · คู่กับ Ult ใช้ Mana 30 (v86)
+
+| Node | Lv | ผล (เต็ม) |
+|---|---|---|
+| 🧘 จิตสงบ | 5 | STR / WIS +15 (base, `totalBase`) · ฟื้น Mana +1.5/เทิร์น ต่อ 10 แต้มของ STR หรือ WIS ตัวที่ต่ำกว่า |
+| 💪 ศรัทธาสู่กาย | 3 (ไม่ stretch) | INT ทุก 7 / 6 / 5 แต้ม = STR +1 |
+| 💠 มานาพิทักษ์ | 5 | โดนตี (ก่อนโล่) ได้ Mana 15% ของดาเมจ × (1 + WIS × 0.5%) · ใช้ Mana คืน HP 20% ของที่ใช้ · ต้นเวฟโล่ 25% Max Mana |
+
+- ข้อเสนอเดิมของ Q: regen 1–5% ต่อแต้ม (≈ +300% ที่ STR 60) แรงเกิน → เปลี่ยนเป็นต่อ 10 แต้ม · "level up → โล่" เปลี่ยนเป็นต้นเวฟ
+- web Cleric 9 คอลัมน์ (node แคบลง) · spendable 79 → 92

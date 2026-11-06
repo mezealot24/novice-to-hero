@@ -6,7 +6,7 @@ import { KIT } from '../skill-math'
 import { CLERIC_KIT } from '../jobs'
 
 // v84 (design/skill-tree-priest.md v84): numbers in KIT.clericTree, written per OLD level (max 3); data/tree.ts stretches them to 5.
-const T = KIT.clericTree, D = T.dawn, pc = (x: number) => `${+(x * 100).toFixed(1)}%`, x2 = (x: number) => +x.toFixed(2)
+const T = KIT.clericTree, D = T.dawn, K = T.core, pc = (x: number) => `${+(x * 100).toFixed(1)}%`, x2 = (x: number) => +x.toFixed(2)
 
 
 export const tree: ClassTree = {
@@ -16,6 +16,8 @@ export const tree: ClassTree = {
     // v84: ATTACH in data/tree.ts: cleric_c under ทักษะ 1, cleric_d under Ult
     { id: 'cleric_c', job: 'cleric', name: 'ศรัทธา', icon: '🙏', blurb: 'ฮีล/แสงสะสมศรัทธา · เต็มแล้วระเบิดแสง · ★ ฮีลล้นเป็นดาเมจ' },
     // v86 (Q 2026-11-06): ⛪ ฟื้นคืน replaced by 🌄 รุ่งอรุณ (same branch id, new node ids; old points refunded in save.ts)
+    // v86 (Q 2026-11-06): free core column (not in ATTACH, like Mage แก่นเวท) for the Priest's Mana
+    { id: 'cleric_core', job: 'cleric', name: 'แก่นศรัทธา', icon: '💠', blurb: 'Mana: ฟื้นตาม STR/WIS · INT เป็น STR · โดนตีได้ Mana' },
     { id: 'cleric_d', job: 'cleric', name: 'รุ่งอรุณ', icon: '🌄', blurb: 'ตีปกติครบ 3 = ทุบแสงคริแน่ + ฮีล · แสงแตกใส่ทุกตัว · ★ Ult ชาร์จทันที' },
   ],
   nodes: [
@@ -35,6 +37,13 @@ export const tree: ClassTree = {
     n('cleric_c2', 'cleric_c', 2, '💛', 'ล้นศรัทธา', 3, (lv) => `ฮีลเกิน HP เต็ม (≥ ${pc(T.overMin)} HP) ${pc(T.faithOver * lv)} ได้ศรัทธา +1`, (lv) => ({ clFaithOver: T.faithOver * lv })),
     n('cleric_c3', 'cleric_c', 3, '🤲', 'พรเกื้อ', 3, (lv) => `ระเบิดศรัทธาฮีล ${pc(T.faithHealPer * lv)} HP ต่อศรัทธา (เต็ม = ${pc(T.faithHealPer * lv * T.faithMax)})`, (lv) => ({ clFaithHeal: T.faithHealPer * lv })),
     n('cleric_c4', 'cleric_c', 4, '🌞', 'แสงล้นฟ้า', 1, () => `ฮีลเกิน HP เต็ม → ดาเมจแสงใส่ตัวหน้า x${T.overBurst} ของส่วนเกิน (นับได้ถึง ${pc(T.overCap)} HP ต่อครั้ง)`, () => ({ clOverBurst: 1 })),
+    // Core: 💠 แก่นศรัทธา (v86, Q 2026-11-06) — tier 0, no parent, numbers in KIT.clericTree.core
+    n('cleric_core1', 'cleric_core', 0, '🧘', 'จิตสงบ', 3, (lv) => `STR / WIS +${x2(K.base * lv)} · ฟื้น Mana +${x2(K.regen * lv * 3)}/เทิร์น ต่อ 10 แต้มของ STR หรือ WIS (ตัวที่ต่ำกว่า)`,
+      (lv) => ({ clCoreBase: K.base * lv, clMindRegen: K.regen * lv })),
+    n('cleric_core2', 'cleric_core', 0, '💪', 'ศรัทธาสู่กาย', 3, (lv) => `INT ทุก ${K.intPer[Math.max(0, Math.min(2, Math.round(lv) - 1))]} แต้ม = STR +1`,
+      (lv) => ({ clIntToStr: K.intPer[Math.max(0, Math.min(2, Math.round(lv) - 1))] })),
+    n('cleric_core3', 'cleric_core', 0, '💠', 'มานาพิทักษ์', 3, (lv) => `โดนตี (รวมที่โล่รับ) ได้ Mana ${pc(K.guard * lv)} ของดาเมจ (WIS ขยาย) · ใช้ Mana คืน HP ${pc(K.heal)} ของที่ใช้ · ต้นเวฟได้โล่ ${pc(K.shield * lv)} ของ Max Mana`,
+      (lv) => ({ clManaGuard: K.guard * lv, clManaHeal: K.heal, clManaShield: K.shield * lv })),
     // D: 🌄 รุ่งอรุณ (v86, Q 2026-11-06): every D.every basic attacks the next swing = sure-crit holy smash
     // (STR + WIS + D.atk x P.ATK + D.matk x M.ATK) that heals a share of its damage. Numbers per OLD level (max 3), stretched to 5.
     n('cleric_dn1', 'cleric_d', 1, '🌄', 'แสงรุ่งอรุณ', 3, (lv) => `ตีปกติครบ ${D.every} ครั้ง → ครั้งถัดไปทุบแสงคริแน่ (STR+WIS+${pc(D.atk)} P.ATK+${pc(D.matk)} M.ATK) ดาเมจคริ +${pc(D.crit * lv)} · ฮีล ${pc(D.heal)} ของดาเมจ (มอนธรรมดา x${D.weak})`,

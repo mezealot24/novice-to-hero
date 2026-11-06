@@ -22,7 +22,7 @@ function spendable(nodes: TreeNode[]) {
 
 test('spendable points stay above the pool (forced ★ choice)', () => {
   assert.equal(spendable(swordNodes), 79)
-  assert.equal(spendable(clericNodes), 79)
+  assert.equal(spendable(clericNodes), 92) // v86: + 💠 แก่นศรัทธา core column (5 + 3 + 5)
   assert.equal(spendable(knightNodes), 79)
   assert.ok(spendable(swordNodes) >= SWORD_POOL)
   assert.ok(spendable(clericNodes) >= CLERIC_POOL)

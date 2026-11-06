@@ -284,7 +284,7 @@ export class BattleScene extends Phaser.Scene {
     this.j2 = s.job2 && JOB2[s.job2]?.parent === this.job.id ? JOB2[s.job2] : undefined // 2nd job (design/second-jobs-v1.md)
     if (this.j2) this.job = { ...this.job, resource: this.j2.resource ?? this.job.resource, auto: { ...this.job.auto, cost: this.j2.autoCost ?? this.job.auto.cost }, ult: { ...this.job.ult, ...this.j2.ult } } // Berserker: Rage · Ult วิวัฒน์
     if (this.j2?.id === 'sage') this.job = { ...this.job, attack: 'melee' } // 📖 Sage: melee basic + counters (P.ATK)
-    this.sageInt = totalBase(s).int; this.heroDex = totalBase(s).dex; this.casts = []; this.steady = false; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
+    this.sageInt = totalBase(s).int; this.heroDex = totalBase(s).dex; this.heroWis = totalBase(s).wis; this.casts = []; this.steady = false; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
     this.heroLuk = totalBase(s).luk; this.pet = s.pet ?? 'hawk' // Phase 4 Archer: hawk / gadget odds read base LUK
     { const wpn = itemById(s.equipped.weapon ?? ''); this.j2Weapon = !!this.j2?.mastery.ok(wpn); this.hasShield = !wpn.twoHand && !!s.equipped.offhand && s.equipped.offhand !== 'none_off'; this.dualKnife = this.hasShield && itemById(s.equipped.offhand ?? '').wtype === 'dagger' }
     this.frenzy = 0; this.frenzyAt = 0; this.s3Cd = 0; this.rampage = 0; this.charges = 0; this.allies = []; this.allyTxt.clear(); this.chargeTxt = undefined
@@ -400,6 +400,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.waveDodge > 0) this.dodgeCharges = Math.max(this.dodgeCharges, this.st.waveDodge) // Thief talent: ม่านควัน
     if (this.st.bossShield > 0 && this.mons.some((m) => !m.dead && m.def.ai === 'boss')) this.addShield(this.st.maxHp * this.st.bossShield) // cleric talent: ร่างพร
     if (this.st.spearStart > 0) this.spears += this.st.spearStart // cleric talent: หอกเปิดศึก
+    if (this.st.clManaShield > 0) this.addShield(this.st.maxRes * this.st.clManaShield, true) // v86 💠 มานาพิทักษ์: wave-start shield from Max Mana
     if (this.st.waveShield > 0) { // gear: tops the shield up (never stacks) at every wave start
       const target = Math.round(this.st.maxHp * this.st.waveShield * (1 + this.st.shieldAmp))
       if (this.shield < target) { this.shield = target; this.floatText(HERO_X, GROUND - 100, `🛡️ โล่ ${target}`, '#9fe3ff') }
@@ -732,7 +733,7 @@ export class BattleScene extends Phaser.Scene {
     if (ultWaiting && this.res >= ultCost) {
       this.smashQueued = false
       this.smashCdLeft = this.ultTurns()
-      this.res -= ultCost
+      this.spendRes(ultCost)
       this.ultOpen = 1 + this.pk.ultBoost // legend เปิดฉากเต็มแรง (v78: every ult)
       this.fightUlts++
       this.popSkill('ult')
@@ -744,7 +745,7 @@ export class BattleScene extends Phaser.Scene {
     if (ultWaiting) this.floatText(HERO_X, GROUND - 140, `🔷 Mana ไม่พอ ult (${Math.floor(this.res)}/${ultCost})`, '#5aa0ff') // keep it booked, save Mana for it
     const cost = autoCost(this.job, this.st)
     const s1Ok = mayCast(!this.autoUlt, this.book.s1) // v86: manual mode only casts Skill 1 when it is booked, otherwise a basic attack (saves Mana for the ult)
-    const castS1 = async () => { this.res -= cost; this.book.s1 = false; this.popSkill('s1'); await this.asSkill(() => this.autoSkill(), 'skill') }
+    const castS1 = async () => { this.spendRes(cost); this.book.s1 = false; this.popSkill('s1'); await this.asSkill(() => this.autoSkill(), 'skill') }
     if (this.job.id === 'cleric') { // v59 Q: the Priest smashes EVERY turn; Skill 1 rides along (heal first when low, holy light after the smash)
       const castable = () => s1Ok && !ultWaiting && this.res >= cost && this.alive().length > 0 && this.hp > 0
       const low = this.hp < this.st.maxHp * (KIT.clericHealBelow - this.st.healAt)
@@ -790,6 +791,12 @@ export class BattleScene extends Phaser.Scene {
   private front() { return this.alive().sort((a, b) => a.slot - b.slot) }
   private gainRage(n: number) { if (this.job.resource === 'rage') this.res = Math.min(RES_RULES.rageMax, this.res + n * (1 + this.st.rageGain)) }
   /** Flat resource gain for Mana/Energy jobs (talents that used to give Rage). */
+  /** Pay Mana / Energy / Rage; v86 💠 มานาพิทักษ์ heals a share of the Mana spent. */
+  private spendRes(n: number) {
+    if (n <= 0) return
+    this.res -= n
+    if (this.st.clManaHeal > 0 && this.job.resource === 'mana' && this.hp > 0) this.heal(n * this.st.clManaHeal, true)
+  }
   private gainRes(n: number) { if (this.job.resource && this.job.resource !== 'rage') this.res = Math.min(this.resMax(), this.res + n) }
   /** v78 focus: resource gain for any job; returns the share (0..1) that didn't fit (no resource = all of it). */
   private resGain(n: number) {
@@ -1195,7 +1202,7 @@ export class BattleScene extends Phaser.Scene {
     if (j2.id === 'monk' && this.charges < KIT2.monk.thunderMin) return // Falling Thunder needs charges
     const cost = this.s3Cost()
     if (this.res < cost) return
-    this.res -= cost
+    this.spendRes(cost)
     this.s3Cd = j2.skill3.cd
     this.book.s3 = false; this.popSkill('s3')
     const pow = 1 + this.st.s3Pow
@@ -1348,6 +1355,7 @@ export class BattleScene extends Phaser.Scene {
   private rodUsed = false // Sage ★ Magic Rod: the wave's spell already absorbed
   private sageInt = 0 // total INT (Auto Spell chance)
   private heroDex = 0 // total DEX (v78 chant break)
+  private heroWis = 0 // total WIS (v86 💠 มานาพิทักษ์)
   private zenTurns = 0 // v78 เปิดฉากเต็มแรง: hero turns of Zen left (no miss, crit damage +)
   /** Start charging a spell (true), or cast it now (false): Wizard ★ Quagmire at high Mana. `mana` = Mana before paying. */
   private charge(c: Cast, mana: number) {
@@ -1687,7 +1695,7 @@ export class BattleScene extends Phaser.Scene {
     if (k.id === 'cl_renew' && (B.renew > 0 || this.hp >= this.st.maxHp)) return
     if (k.id === 'sw_guard' && B.guard > 0) return
     if (k.id === 'cl_bless' && B.bless > 0) return
-    this.res -= k.cost
+    this.spendRes(k.cost)
     this.s2Cd = s2Cooldown(k, this.st)
     this.s2Count++
     this.book.s2 = false; this.popSkill('s2')
@@ -2609,6 +2617,7 @@ export class BattleScene extends Phaser.Scene {
       return false
     }
     this.lastHurt = n; this.j2Hurt = true
+    if (this.st.clManaGuard > 0 && this.job.resource === 'mana') this.gainRes(n * this.st.clManaGuard * (1 + this.heroWis * KIT.clericTree.core.wisAmp)) // v86 💠 มานาพิทักษ์ (before shields)
     if (!magic && this.st.j2Reflect > 0 && src && !src.dead) this.damageMon(src, Math.max(1, Math.round(Math.min(n * this.st.j2Reflect, this.st.maxHp * BATTLE.reflectCap))), false, '#c9e0ff', true) // Crusader Reflect Shield
     if (src?.def.vengeance && n > 0 && !src.dead && !src.vengTurns && !src.vengCd) { // death knight โล่แห่งความแค้น
       src.shield += n * BATTLE.vengeance.share; src.vengTurns = BATTLE.vengeance.turns; this.dotIcon(src)
@@ -2920,7 +2929,7 @@ export class BattleScene extends Phaser.Scene {
     const hits = p.fx === 'zap' || p.fx === 'fireball' || p.fx === 'firewave' || p.fx === 'icespike' || p.fx === 'icewave' || p.fx === 'poison'
     if (hits && !this.alive().length) return false
     const cost = this.procCost(p.fx, n)
-    if (cost > 0) { if (this.res < cost) return false; this.res -= cost }
+    if (cost > 0) { if (this.res < cost) return false; this.spendRes(cost) }
     const pickT = () => { if (target && !target.dead) return target; const l = this.alive(); return l.length ? l[Phaser.Math.Between(0, l.length - 1)] : undefined }
     switch (p.fx) {
       case 'zap':

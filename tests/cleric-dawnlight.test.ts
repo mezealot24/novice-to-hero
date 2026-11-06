@@ -54,3 +54,21 @@ test('v86 Crusader / Monk ults stay Mana-free (Grand Cross pays HP, Tempest Bell
   assert.equal(JOB2.crusader.ult.cost, 0)
   assert.equal(JOB2.monk.ult.cost, 0)
 })
+
+test('v86 💠 แก่นศรัทธา core column: free tier-0 nodes, STR/WIS, Mana regen, INT -> STR, Mana guard', async () => {
+  const { totalBase } = await import('../src/data/meta')
+  const { lockReason } = await import('../src/data/tree')
+  const core = nodesOf('cleric_core')
+  assert.deepEqual(core.map((n) => `${n.id}:${n.max}`), ['cleric_core1:5', 'cleric_core2:3', 'cleric_core3:5'])
+  assert.equal(branchesOf('cleric').find((b) => b.id === 'cleric_core')?.line, 'core')
+  for (const n of core) assert.equal(lockReason({}, 'cleric', n), '', `${n.id} is free to learn`)
+  const S = { race: 'human', stats: { str: 40, vit: 10, wis: 30, dex: 1, int: 21, luk: 1, agi: 1 }, equipped: {}, skills: {}, job: 'cleric', jobLevel: 40 }
+  const b0 = totalBase(S as never), b1 = totalBase({ ...S, jobTree: { cleric_core1: 5 } } as never), b2 = totalBase({ ...S, jobTree: { cleric_core2: 3 } } as never)
+  assert.equal(b1.str - b0.str, 15); assert.equal(b1.wis - b0.wis, 15) // จิตสงบ Lv5
+  assert.equal(b2.str - b0.str, Math.floor(b0.int / 5)) // ศรัทธาสู่กาย Lv3: every 5 INT
+  const r0 = heroStats(S as never).resRegen, r1 = heroStats({ ...S, jobTree: { cleric_core1: 5 } } as never).resRegen
+  assert.ok(r1 > r0)
+  const g = heroStats({ ...S, jobTree: { cleric_core3: 5 } } as never)
+  assert.ok(Math.abs(g.clManaGuard - 0.15) < 1e-9); assert.equal(g.clManaHeal, 0.2); assert.ok(Math.abs(g.clManaShield - 0.25) < 1e-9)
+  assert.equal(totalBase({ ...S, job: 'mage', jobTree: { cleric_core1: 5 } } as never).str, b0.str) // other classes ignore it
+})

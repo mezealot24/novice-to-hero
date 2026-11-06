@@ -347,6 +347,12 @@ export function totalBase(s: StatsInput): Record<BaseStat, number> {
   const out = { ...s.stats }
   const bonus = RACES[s.race].bonus, gear = gearBase(s)
   for (const k of Object.keys(out) as BaseStat[]) out[k] = Math.max(1, out[k] + (bonus[k] ?? 0) + gear[k])
+  if (s.job === 'cleric' && s.jobTree) { // v86 💠 แก่นศรัทธา: จิตสงบ + STR / WIS · ศรัทธาสู่กาย INT -> STR
+    let flat = 0, per = 0
+    for (const m of treeMods(s.jobTree, 'cleric')) { flat += m.clCoreBase ?? 0; if (m.clIntToStr) per = per ? Math.min(per, m.clIntToStr) : m.clIntToStr }
+    out.str += Math.round(flat); out.wis += Math.round(flat)
+    if (per > 0) out.str += Math.floor(out.int / per)
+  }
   return out
 }
 
@@ -402,6 +408,10 @@ export function heroStats(s: StatsInput): Stats {
     st.matk += P.int.matk * extra; st.maxRes += P.int.maxRes * extra
   }
   if (job.id === 'cleric') st.spearLuck = Math.min(P.luk.spearCap, P.luk.spear * b.luk) // v37 Q: LUK -> light spear chance
+  if (job.id === 'cleric') { // v86 💠 จิตสงบ: Mana regen per 10 points of the lower of STR / WIS
+    const per = treeMods(s.jobTree, 'cleric').reduce((a, m) => a + (m.clMindRegen ?? 0), 0)
+    if (per > 0) st.resRegen += per * Math.min(b.str, b.wis) / 10
+  }
   st.maxHp = Math.round(st.maxHp)
   // Q: crit from talents/items/cards/tree also counts for magic (spellCrit); LUK crit above stays physical only
   const add = (mod: Partial<Stats>) => { for (const k of Object.keys(mod) as (keyof Stats)[]) { st[k] += mod[k]!; if (k === 'crit') st.spellCrit += mod[k]! } }
