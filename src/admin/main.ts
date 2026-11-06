@@ -1,13 +1,14 @@
 // admin.html: live-ops balance editor. Edits a Patch (tunables.ts whitelist), saves it as the server draft, publishes it.
 // The server re-validates everything (server/src/config.ts); the checks here are only for fast feedback.
 import { MONSTERS, type MonsterKind } from '../data/game-data'
+import type { BaseStat } from '../data/meta'
 import { statNative } from '../data/mon-stats'
 import { canonicalJson, checkPatch, guardsFor, type FieldRow } from '../data/patch'
 import { TABLE_IDS, TABLES, type Patch, type TableId } from '../data/tunables'
 import { LOCAL_KEY } from '../live-keys'
 import { borrowPlan, heroClasses, type BorrowLine } from './borrow'
 import { API, authClient, call, errText, parseRow, type SRow } from './api'
-import { clampField, clonePatch, diffPatches, fieldLabel, fieldRow, fields, monSections, monsterGroups, patchSize, pctHint, previewMon, setIn, TIER_LABEL, valueIn, type MonPreview, type Tier } from './model'
+import { clampField, clonePatch, diffPatches, fieldLabel, fieldRow, fields, monSections, monsterGroups, patchSize, pctHint, previewLevels, previewMon, previewSkills, setIn, TIER_LABEL, valueIn, allocFor, BASE7, type AllocPlan, type MonPreview, type SkillPreview, type Tier } from './model'
 
 declare const __PREVIEW__: boolean
 const LOCAL_OK = import.meta.env.DEV || (typeof __PREVIEW__ !== 'undefined' && __PREVIEW__) // ?cfg=local only works in these game builds
@@ -171,7 +172,8 @@ function fieldGrid(t: TableId, rows: FieldRow[], labelOf: (p: string) => string,
 function monsterBody(k: MonsterKind, onChange: () => void): HTMLElement {
   const box = h('div', {}), idle: HTMLElement[] = []
   for (const s of monSections(k, rowsOfMonster(k))) {
-    const used = s.fields.filter((f) => isUsed('monsters', f.row)), rest = s.fields.filter((f) => !isUsed('monsters', f.row))
+    const shown = (f: { row: FieldRow }) => isUsed('monsters', f.row) || /\.skills\.\d+(\.pick\.\d+)?\.lv$/.test(f.row.path) // skill level: always in sight
+    const used = s.fields.filter(shown), rest = s.fields.filter((f) => !shown(f))
     if (!used.length) { idle.push(lazyDetails('extra', `${s.title} · ${rest.length}`, () => cells('monsters', rest, onChange))); continue }
     const sec = h('section', { class: 'sec' }, h('h4', {}, s.title), cells('monsters', used, onChange))
     if (rest.length) sec.append(lazyDetails('extra', `＋ ช่องที่ยังไม่ตั้ง · ${rest.length}`, () => cells('monsters', rest, onChange)))
@@ -208,12 +210,61 @@ function monsterCard(k: MonsterKind): HTMLElement {
     const prev = h('div', { class: 'preview' })
     const drawPrev = () => prev.replaceChildren(...previewBox(k))
     drawPrev()
-    d.append(prev, borrowBox(k, () => { while (d.children.length > 1) d.lastChild?.remove(); fill(); setBadge() }), h('p', { class: 'hint' }, statNative(k)
+    const rebuild = () => { while (d.children.length > 1) d.lastChild?.remove(); fill(); setBadge() }
+    d.append(prev, targetBox(k, rebuild), borrowBox(k, rebuild), h('p', { class: 'hint' }, statNative(k)
       ? 'ℹ️ ไม่ต้องใส่ HP / ATK เอง: แต้มรวม = เลเวลห้อง × tier อัตโนมัติ · statAlloc = สัดส่วนการแจกแต้ม · bodyMul = ตัวคูณ · def / hit / ... = โบนัสบวกเพิ่ม'
       : 'ℹ️ ค่าพลังด้านล่าง = ค่าที่เลเวลบ้านเกิด · แก้ statAlloc / legacy.lv / MON_STAT แล้วตัวเลขขยับตามสูตรเดียวกับ D6'))
     d.append(monsterBody(k, () => { setBadge(); drawPrev() }))
   }
   d.addEventListener('toggle', () => { if (d.open && d.children.length === 1) fill() })
+  return d
+}
+
+/** "🎯 พิมพ์ stat ที่อยากได้": type the 7 stats for one level, get statAlloc weights + pointsMul (budget), write them to the draft. */
+function targetBox(k: MonsterKind, rebuild: () => void): HTMLElement {
+  const lvs = previewLevels(k)
+  const lvSel = h('select', {}, ...lvs.map((v) => h('option', { value: String(v) }, `ที่ Lv ${v}`)))
+  lvSel.value = String(lvs[lvs.length - 1])
+  const inputs = Object.fromEntries(BASE7.map((s) => [s, h('input', { type: 'number', min: '1', max: '999', step: '1', title: s.toUpperCase() })])) as Record<BaseStat, HTMLInputElement>
+  const fit = h('input', { type: 'checkbox', checked: true })
+  const out = h('div', { class: 'plan' }), go = h('button', { class: 'primary small' }, '🎯 ใช้ค่านี้')
+  let plan: AllocPlan | null = null
+  const prefill = () => {
+    const p = previewMon(k, S.draft).find((x) => x.lv === Number(lvSel.value))
+    for (const s of BASE7) inputs[s].value = String(p?.base[s] ?? 1)
+    draw()
+  }
+  const draw = () => {
+    const target = Object.fromEntries(BASE7.map((s) => [s, Number(inputs[s].value) || 1])) as Record<BaseStat, number>
+    plan = allocFor(k, Number(lvSel.value), target, fit.checked ? null : draftOf('monsters', `${k}.pointsMul`) ?? 1)
+    const P = plan, budget = Math.round(P.base * P.pointsMul)
+    const off = BASE7.filter((s) => Math.abs(P.result[s] - target[s]) > 1)
+    out.replaceChildren(
+      h('div', {}, `แต้มที่ต้องใช้ ${P.need} · มอนตัวนี้มี ${P.base} (Lv × tier)`, P.pointsMul !== 1 ? h('b', {}, ` → pointsMul ×${P.pointsMul} = ${budget} แต้ม`) : ''),
+      h('div', { class: 'muted small' }, `สัดส่วนที่จะใส่: ${BASE7.filter((s) => P.weights[s]).map((s) => `${s.toUpperCase()} ${P.weights[s]}`).join(' · ') || '—'}`),
+      h('div', { class: off.length ? 'warn small' : 'small' }, `ผลจริงที่ Lv ${P.lv}: ${BASE7.map((s) => `${s.toUpperCase()} ${P.result[s]}`).join(' · ')}`),
+      off.length && !fit.checked ? h('div', { class: 'warn small' }, '⚠️ แต้มรวมไม่พอ / เกิน → ติ๊ก "ปรับแต้มรวม" เพื่อให้ได้ตามที่พิมพ์') : '',
+      P.pointsMul === 10 || P.pointsMul === 0.1 ? h('div', { class: 'bad small' }, `⛔ pointsMul ติดเพดาน ${P.pointsMul} (ช่วง 0.1 – 10)`) : '',
+    )
+  }
+  lvSel.addEventListener('change', prefill); fit.addEventListener('change', draw)
+  for (const s of BASE7) inputs[s].addEventListener('input', draw)
+  go.addEventListener('click', () => {
+    if (!plan) return
+    for (const s of BASE7) {
+      const path = `${k}.statAlloc.${s}`, row = fieldRow('monsters', path), w = plan.weights[s]
+      if (row) setIn(S.draft, 'monsters', path, w === row.value || (!w && row.value === undefined) ? null : w)
+    }
+    if (fit.checked) setIn(S.draft, 'monsters', `${k}.pointsMul`, plan.pointsMul === (fieldRow('monsters', `${k}.pointsMul`)?.value ?? 1) ? null : plan.pointsMul)
+    updateStatus(); toast(`ตั้ง stat ${MONSTERS[k].name} ที่ Lv ${plan.lv} แล้ว (ยังไม่บันทึก)`)
+    rebuild()
+  })
+  const d = h('details', { class: 'borrow target' }, h('summary', {}, '🎯 พิมพ์ stat ที่อยากได้'),
+    h('div', { class: 'row' }, lvSel, h('label', { class: 'small' }, fit, ' ปรับแต้มรวม (pointsMul) ให้พอดี')),
+    h('div', { class: 'grid stat7' }, ...BASE7.map((s) => h('label', { class: 'small' }, s.toUpperCase(), inputs[s]))),
+    out, h('div', { class: 'row' }, go),
+    h('p', { class: 'muted small' }, 'ระบบแปลงเป็นสัดส่วน (statAlloc) + ตัวคูณแต้มรวม → ห้องเลเวลอื่น / 🔥 โหมดยาก ยังโตตามสูตรเหมือนเดิม · ±1 จากการปัดเศษ'))
+  d.addEventListener('toggle', () => { if (d.open && !inputs.str.value) prefill() })
   return d
 }
 
@@ -236,7 +287,7 @@ function borrowBox(k: MonsterKind, rebuild: () => void): HTMLElement {
   }
   const fillLv = () => {
     const s = pickedSrc()
-    lv.replaceChildren(...Array.from({ length: s?.max ?? 0 }, (_, i) => h('option', { value: String(i + 1) }, `Lv ${i + 1}`)))
+    lv.replaceChildren(...Array.from({ length: s?.top ?? 0 }, (_, i) => h('option', { value: String(i + 1) }, `Lv ${i + 1}${s && i + 1 > s.max ? ' 🔺 เกิน Max' : ''}`)))
     lv.value = String(s?.max ?? 1)
     drawPlan()
   }
@@ -248,8 +299,8 @@ function borrowBox(k: MonsterKind, rebuild: () => void): HTMLElement {
     lines = p.lines
     const pct = (path: string, v: number) => (pctHint(fieldRow('monsters', path)?.def ?? { kind: 'int', min: 0, max: 0 }, v) ?? fmt(v))
     plan.replaceChildren(
-      h('div', { class: 'muted small' }, `ฮีโร่: ${s.desc(Number(lv.value))}`),
-      ...lines.map((l) => h('div', {}, `✅ ${l.label}: ${pct(l.path, l.from)} → `, h('b', {}, pct(l.path, l.to)), l.approx ? h('span', { class: 'warn small' }, ` ≈ ${l.approx}`) : '')),
+      h('div', { class: 'muted small' }, `ฮีโร่: ${s.desc(Number(lv.value))}${Number(lv.value) > s.max ? ` · 🔺 เกิน Max ${s.max} (สูตรเดียวกันต่อเลเวล)` : ''}${s.top === s.max && s.max > 0 ? ' · ช่องนี้ต่อเกิน Max ไม่ได้' : ''}`),
+      ...lines.map((l) => h('div', {}, `✅ ${l.label}: ${pct(l.path, l.from)} → `, h('b', {}, pct(l.path, l.to)), l.capped ? h('span', { class: 'bad small' }, ` ⛔ ติดเพดาน ${fmt(fieldRow('monsters', l.path)?.def.max)}`) : '', l.approx ? h('span', { class: 'warn small' }, ` ≈ ${l.approx}`) : '')),
       p.skipped.length ? h('div', { class: 'muted small', title: p.skipped.join('\n') }, `⏭️ ข้าม ${p.skipped.length} อย่าง (มอนยังไม่มีกลไก): ${p.skipped.join(', ')}`) : '',
       lines.length ? '' : h('div', { class: 'warn small' }, 'มอนตัวนี้รับอะไรจากช่องนี้ไม่ได้'),
     )
@@ -290,7 +341,21 @@ function previewBox(k: MonsterKind): Node[] {
     h('div', { class: 'ptitle' }, h('b', {}, '📈 ค่าจริงในเกม'), h('span', { class: 'muted' }, ` · Lv ${lv}${draft.length > 1 ? ' (ห้องแรก → ห้องสุดท้ายที่เจอ)' : ''} · ส้ม = ต่างจาก live`)),
     h('div', { class: 'chips' }, ...chips),
     h('div', { class: 'muted small' }, stats),
+    ...skillLines(k),
   ]
+}
+
+/** One line per skill as cast at its level: ✨ name Lv · every N · power · hits · effects (orange = differs from live). */
+function skillLines(k: MonsterKind): Node[] {
+  const now = previewSkills(k, S.draft), was = previewSkills(k, livePatch())
+  const txt = (p: SkillPreview) => [
+    `✨ ${p.name} Lv ${p.lv}`, `ทุก ${p.every} เทิร์น`, p.pow !== undefined ? `พลัง ${Number(p.pow.toFixed(3))}` : '',
+    p.hits && p.hits > 1 ? `${p.hits} ฮิต` : '', p.turns ? `${p.turns} เทิร์น` : '', p.fx,
+  ].filter(Boolean).join(' · ')
+  return now.map((p, i) => {
+    const a = txt(p), b = was[i] ? txt(was[i]) : ''
+    return h('div', { class: `small${a !== b ? ' warn' : ''}`, title: a !== b ? `live: ${b}` : '' }, a)
+  })
 }
 
 function renderMonsters(main: HTMLElement) {

@@ -6,7 +6,7 @@ import { canonicalJson, checkPatch, guardsFor } from '../src/data/patch'
 import { TABLES, type Patch } from '../src/data/tunables'
 import { statNative } from '../src/data/mon-stats'
 import { borrowPlan, heroClasses } from '../src/admin/borrow'
-import { clampField, diffPatches, fieldLabel, fieldRow, fields, monSections, monsterGroups, pctHint, previewMon, setIn } from '../src/admin/model'
+import { clampField, diffPatches, fieldLabel, fieldRow, allocFor, fields, monSections, monsterGroups, pctHint, previewMon, previewSkills, setIn } from '../src/admin/model'
 
 test('every monster is listed exactly once, in the right tier', () => {
   const all = monsterGroups().flatMap((g) => [...g.tiers.normal, ...g.tiers.mini, ...g.tiers.boss])
@@ -122,4 +122,44 @@ test('every monster has its own empty onHit / bodyMul (bosses: slamFx) slots, wi
   assert.equal(hasFx({ poison: 0 }), false)
   assert.equal(hasFx({ poison: 2 }), true)
   assert.ok(checkPatch({ monsters: { 'king.onHit.poison': 3, 'king.bodyMul.hp': 2 } }).ok, 'server accepts the new paths')
+})
+
+test('skill levels: Lv 1 = as written, RO style over-level scales pow / hits / fx', async () => {
+  const { skillAtLv, skillLvPow } = await import('../src/data/mon-stats')
+  const flat = MONSTERS.king.skills?.[0]
+  assert.ok(flat)
+  assert.equal(skillAtLv(flat, 1), flat, 'Lv 1 untouched')
+  const hi = skillAtLv(flat, 50)
+  assert.ok(Math.abs((hi.pow ?? 0) - (flat.pow ?? 1.3) * skillLvPow(50)) < 1e-9 && Math.abs(skillLvPow(50) - 5.9) < 1e-9, 'pow x5.9 at Lv 50')
+  assert.equal(hi.hits, (flat.hits ?? 1) + 4, '+1 hit per 10 Lv')
+  assert.equal(hi.fx?.freeze, flat.fx?.freeze, 'freeze gauge not stacked')
+  assert.equal(skillAtLv({ kind: 'heal', every: 3, name: 'h', pow: 0.3 }, 50).pow, 1, 'heal share capped at 100%')
+  assert.equal(skillAtLv({ kind: 'curse', every: 3, name: 'c', fx: { poison: 2 } }, 11).fx?.poison, 4, '+1 stack per 5 Lv')
+  assert.equal(previewSkills('king', { monsters: { 'king.skills.0.lv': 50 } })[0]?.lv, 50, 'patch path accepted + previewed')
+  assert.equal(MONSTERS.king.skills?.[0]?.lv, undefined, 'preview reverted')
+})
+
+test('borrow over-level: growing nodes go to Lv 50, talents stop at max, caps flagged', () => {
+  const thief = heroClasses().find((c) => c.id === 'thief')
+  const blade = thief?.srcs.find((s) => s.name === 'มีดคู่'), talent = thief?.srcs.find((s) => s.name === 'จุดบอด')
+  assert.ok(blade && talent)
+  assert.equal(blade.top, 50)
+  assert.equal(talent.top, talent.max, 'rank table talent cannot pass max')
+  const crit = borrowPlan('king', blade, 50, (p) => (p === 'king.crit' ? 0.06 : undefined)).lines.find((l) => l.path === 'king.crit')
+  assert.ok(crit?.capped && crit.to === 1.5, 'มีดคู่ Lv 50 crit +150% hits the 1.5 cap')
+})
+
+test('pointsMul + allocFor: typed stats -> weights + budget, defaults untouched', () => {
+  const [def] = previewMon('pharaoh', {})
+  const [x2] = previewMon('pharaoh', { monsters: { 'pharaoh.pointsMul': 2 } })
+  assert.ok((x2.base.str ?? 0) > (def.base.str ?? 0) * 1.8, `pointsMul 2 ~doubles stats: STR ${def.base.str} -> ${x2.base.str}`)
+  const [king] = previewMon('king', {})
+  assert.equal(king.hp, MONSTERS.king.hp, 'D1-5 anchor still neutral')
+  const want = { str: 120, vit: 80, wis: 1, dex: 40, int: 1, luk: 1, agi: 30 }
+  const p = allocFor('pharaoh', def.lv, want, null)
+  assert.equal(Math.max(...Object.values(p.weights)), 20, 'largest weight = 20')
+  for (const [s, v] of Object.entries(want)) assert.ok(Math.abs(p.result[s as keyof typeof want] - v) <= 1, `${s}: ${p.result[s as keyof typeof want]} ≈ ${v}`)
+  assert.ok(p.pointsMul > 1, `budget raised: x${p.pointsMul}`)
+  const kept = allocFor('pharaoh', def.lv, want, 1)
+  assert.equal(kept.pointsMul, 1)
 })

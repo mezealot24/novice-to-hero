@@ -394,6 +394,7 @@ export interface MonSkill {
   pick?: MonSkill[] // cast a random one of these instead (spell rotation: Mordecus' elements)
   big?: boolean // legendary spell: big callout + screen flash
   scale?: SkillScale | false // v68: stat it scales with (default by kind, mon-stats SKILL_SCALE); false = flat
+  lv?: number // v81 skill level (mon-stats skillAtLv, SKILL_SCALE.lv): 1 = as written; may pass the hero's max (RO style Lv 50)
 }
 /** Boss phase: entered once when HP drops under `at` (share of max HP). Effects stack with later phases. */
 export interface BossPhase {
@@ -468,6 +469,7 @@ export interface MonsterDef {
   // default statAlloc; changing statAlloc, LEGACY.lv or MON_STAT moves them by the same stat formulas (mon-stats withStats) -----
   statAlloc?: Archetype | StatAlloc // how its stat points are split (archetype or own weights; objects so admin.html can edit them). D6+: def / hit / flee / crit / combo / counter are bonuses on top
   bodyMul?: { hp?: number; dmg?: number; matk?: number } // x on the stat-built HP / ATK / M.ATK (a heavy body, a frail caster ...)
+  pointsMul?: number // v81: x its stat point budget (Lv x tier share), so this one monster gets more / fewer stats at every level
   speedMul?: number // x on the AGI turn speed
   slamScale?: SkillScale // v68: stat the charged attack scales with (default STR, INT when slamMagic)
   // filled in by statMonster (never written by hand):

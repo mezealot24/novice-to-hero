@@ -48,6 +48,7 @@ const SKILL: [string, FieldDef][] = [
   ['hits', int(1, 30, true)],
   ['alone', num(0, 10, true)],
   ['drain', num(0, 1, true)],
+  ['lv', int(1, 99, true)], // v81 skill level (mon-stats skillAtLv)
   ...pre('fx', HIT_FX), // no summon skill exists yet: add 'summon.1' when one does
 ]
 const BASE7 = 'str|vit|wis|dex|int|luk|agi'
@@ -70,6 +71,7 @@ const MONSTER_FIELDS: [string, FieldDef][] = [
   ['speedMul', num(0.1, 5, true)],
   ['bodyMul.hp|dmg|matk', num(0.05, 20, true)],
   [`statAlloc.${BASE7}`, num(0, 20, true)],
+  ['pointsMul', num(0.1, 10, true)], // v81: x the stat point budget (mon-stats derive)
   ['venom.dmg|dex', num(0, 10_000)],
   ['venom.turns', int(0, 50)],
   ['trueSight.after|turns', int(1, 20)],
@@ -170,7 +172,7 @@ export const TABLES: Record<TableId, TableDef> = {
     ],
   },
   archetypes: { id: 'archetypes', label: 'Monster archetypes (stat weights)', target: () => ARCHETYPES, fields: [[`*.${BASE7}`, num(0, 20, true)]] },
-  skillScale: { id: 'skillScale', label: 'Monster skill scaling', target: () => SKILL_SCALE, fields: [['per', num(0, 0.1)], ['min|max', num(0, 10)], ['fx.*.per', num(0, 0.1)]] }, // fx: v76 phase heal / shield, razor
+  skillScale: { id: 'skillScale', label: 'Monster skill scaling + skill levels', target: () => SKILL_SCALE, fields: [['per', num(0, 0.1)], ['min|max', num(0, 10)], ['fx.*.per', num(0, 0.1)], ['lv.powPer', num(0, 1)], ['lv.hitsEvery|fxEvery|turnsEvery', int(0, 99)]] }, // fx: v76 phase heal / shield, razor
   progression: {
     id: 'progression', label: 'Progression (stat points, EXP curves, run healing)',
     target: () => ({ stat: STAT_RULES, job: JOB_RULES, run: RULES }),
