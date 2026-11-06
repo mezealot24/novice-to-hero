@@ -3,6 +3,7 @@
 // tied to the mini boss you beat + 1 random from the rest of the pool.
 // Design + numbers: design/dungeon-3-miniboss.md. All tunable numbers live in RELIC_RULES.
 import type { MonsterKind } from './game-data'
+import { PACKS } from './dungeons'
 
 // พร v2 (design/skills-v2.md §4): these are the 🔴 mythic cards. Old 12 relics + 4 style switches + 3 transforms.
 export type RelicId = 'trinity' | 'storm' | 'iceage' | 'hellfire' | 'bloodpact' | 'riposte' | 'haste' | 'harvest'
@@ -67,6 +68,7 @@ export const MINI_RELICS: Partial<Record<MonsterKind, [RelicId, RelicId]>> = {
   frostgiant: ['aegis', 'iceage'],
   mirage: ['thornaura', 'riposte'],
   warlord: ['executioner', 'bloodpact'],
+  ...Object.assign({}, ...PACKS.map((p) => p.miniRelics)), // D7-D10 (v78, data/dungeons/dN.ts)
 }
 /** Dungeon 3's duel pool. Later dungeons name their own (RoomDef.miniPool). */
 export const MINI_POOL: MonsterKind[] = ['duelist', 'hunter', 'gunner', 'drainer']

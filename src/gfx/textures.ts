@@ -4,7 +4,16 @@ import { TILE } from '../data/game-data'
 // Placeholder art drawn in code: no image files to load, and nothing borrowed from RO.
 // Swap any key here for a real sprite sheet later; the game only refers to texture keys.
 
+import { drawD7 } from './tex/d7'
+import { drawD8 } from './tex/d8'
+import { drawD9 } from './tex/d9'
+import { drawD10 } from './tex/d10'
+
 type G = Phaser.GameObjects.Graphics
+/** v78 D7-D10 packs (gfx/tex/dN.ts): draw one texture under `key`, w x h px. */
+export type MakeFn = (key: string, w: number, h: number, draw: (g: G) => void) => void
+/** Two round eyes at (x1, y) and (x2, y). */
+export type EyesFn = (g: G, x1: number, x2: number, y: number, c?: number, r?: number) => G
 
 function make(scene: Phaser.Scene, key: string, w: number, h: number, draw: (g: G) => void) {
   const g = scene.make.graphics({ x: 0, y: 0 }, false)
@@ -531,6 +540,10 @@ export function makeTextures(scene: Phaser.Scene) {
     g.fillStyle(0x8a6a3a).fillRect(8, 24, 5, 84); g.fillStyle(0xf2b84b).fillCircle(10.5, 20, 9); g.fillStyle(0xffffff, 0.7).fillCircle(8, 17, 3) // sun staff
     g.fillStyle(0xf2b84b).fillTriangle(86, 60, 100, 50, 96, 70) // crook
   })
+
+  // ----- D7-D10 (v78): one file per dungeon, gfx/tex/dN.ts -----
+  const mk: MakeFn = (key, w, h, draw) => make(scene, key, w, h, draw)
+  drawD7(mk, eyes); drawD8(mk, eyes); drawD9(mk, eyes); drawD10(mk, eyes)
 
   // --- particles / pickups
   make(scene, 'dot', 8, 8, (g) => { g.fillStyle(0xffffff).fillCircle(4, 4, 4) })

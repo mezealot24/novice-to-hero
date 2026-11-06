@@ -1,5 +1,6 @@
 import type { Archetype, SkillScale, StatAlloc } from './mon-stats'
 import type { BaseStat } from './meta'
+import { PACKS, type D7Kind, type D7Mini, type D8Kind, type D8Mini, type D9Kind, type D9Mini, type D10Kind, type D10Mini } from './dungeons'
 // ===== All tunable numbers live here, so balance changes never touch game logic. =====
 
 export const TILE = 48
@@ -356,8 +357,10 @@ export type MonsterKind = 'jellop' | 'wolf' | 'king' | 'minijellop' | 'bat' | 's
   | 'dewsprite' | 'bonepriest'
   | 'mummy' | 'jackal' | 'sandscorp' | 'dunewraith' | 'scarab' | 'sunpriest' | 'sphinx' | 'jackallord' | 'pharaoh' // D6
   | 'maiden' // drainer's Summon Maiden (Q 2026-11-04)
+  | D7Kind | D8Kind | D9Kind | D10Kind // v78: D7-D10 packs (data/dungeons/dN.ts)
   | 'mimic' | 'mimicking' | 'goldjellop' // event monsters (design/roadmap-and-events-v1.md): stats scale with the dungeon tier at spawn
 export type MiniKind = 'duelist' | 'hunter' | 'gunner' | 'drainer' | 'venomqueen' | 'frostgiant' | 'mirage' | 'warlord' | 'sphinx' | 'jackallord'
+  | D7Mini | D8Mini | D9Mini | D10Mini
 
 // ----- Dungeon 4-5 (design/dungeon-4-5-brutal.md): data-driven monster skills, debuffs on the hero, boss phases -----
 /** What a landed monster hit (or a skill / charged attack) puts on the hero. Turns count hero turns. */
@@ -606,6 +609,8 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
     skills: [{ kind: 'bolt', every: 3, pow: 1.2, name: '☀️ เปลวสุริยะ', fx: { burn: 1 } }, { kind: 'curse', every: 5, name: 'คำสาปสุสาน', fx: { weaken: 3, poison: 2 } }, { kind: 'revive', every: 4, pow: 0.5, name: 'ปลุกองครักษ์' }],
     phases: [{ at: 0.6, name: 'ตื่นจากโลง! โล่ทรายทอง + มัมมี่องครักษ์', shield: 0.12, summon: ['mummy', 2] },
       { at: 0.3, name: 'สุริยคราส! เร็วขึ้น ชาร์จถี่', speed: 1.25, dmg: 1.15, chargeEvery: 2, cleanse: true, slamFx: { burn: 3, armorBreak: 3, silence: 1 } }] },
+  // ----- D7-D10 (v78): one pack per dungeon, data/dungeons/dN.ts -----
+  ...Object.assign({}, ...PACKS.map((p) => p.monsters)) as Record<D7Kind | D8Kind | D9Kind | D10Kind, MonsterDef>,
 }
 
 export interface RoomDef {
@@ -625,7 +630,7 @@ export interface DungeonDef {
   tier: number // event rewards scale with this
   sky: [number, number] // gradient top, bottom
   hills: number // tint on the far hills / trees
-  unlock: 'none' | 'job' | 'd2' | 'd3' | 'd4' | 'd5' | 'd6' | 'd7' | 'd8' | 'd9' // 'job' = after the first job change, 'dN' = after clearing dungeon N
+  unlock: 'none' | 'job' | 'd2' | 'd3' | 'd4' | 'd5' | 'd6' | 'd7' | 'd8' | 'd9' | 'd10' // 'job' = after the first job change, 'dN' = after clearing dungeon N
   rooms: RoomDef[]
   level?: [number, number] // D6+: fixed monster level band; its stat monsters use data/mon-stats.ts (no Hero Power scaling)
 }
@@ -689,7 +694,10 @@ export const DUNGEONS: DungeonDef[] = [{
     { title: 'เวฟ 4 · หน้าห้องบรรทม', spawn: [['mummy', 1], ['scarab', 1], ['sunpriest', 1]], lv: 48 },
     { title: 'ห้องบอส · ราชันย์ทรายเนเฟรู', spawn: [['pharaoh', 1]], boss: true, turnLimit: 50, lv: 50 },
   ],
-}]
+},
+// D7-D10 (v78): each pack adds its dungeon once it is built (data/dungeons/dN.ts)
+...PACKS.flatMap((p) => (p.dungeon ? [p.dungeon] : [])),
+]
 /** Old single-dungeon name (DungeonScene, the unused real-time prototype, still reads it). */
 export const DUNGEON = DUNGEONS[0]
 
@@ -744,7 +752,8 @@ export const BATTLE = {
     skeleton: 10, wisp: 14, gargoyle: 7, duelist: 15, hunter: 13, gunner: 14, drainer: 10, deathknight: 11,
     toad: 10, lizardshaman: 9, hornet: 17, turtleguard: 7, bloater: 8, spiderling: 15, venomqueen: 14, frostgiant: 9, hydra: 11,
     hellknight: 10, hexwitch: 11, imp: 17, necropriest: 9, wraith: 15, maiden: 11, shard: 14, mirage: 14, warlord: 12, lich: 11, dewsprite: 13, bonepriest: 9, mimic: 11, mimicking: 10, goldjellop: 12,
-    mummy: 10, jackal: 14, sandscorp: 13, dunewraith: 13, scarab: 8, sunpriest: 10, sphinx: 12, jackallord: 14, pharaoh: 11 /* D6: fallback only, stat monsters use def.speed (AGI) */ } as Record<MonsterKind, number>,
+    mummy: 10, jackal: 14, sandscorp: 13, dunewraith: 13, scarab: 8, sunpriest: 10, sphinx: 12, jackallord: 14, pharaoh: 11 /* D6: fallback only, stat monsters use def.speed (AGI) */,
+    ...Object.assign({}, ...PACKS.map((p) => p.monSpeed)) /* D7-D10 packs (v78) */ } as Record<MonsterKind, number>,
   monDmgMul: 0.55, // monster hit = def.dmg * this
   // v56 (Q: "มอนกากไป"): every spawned monster's HP / ATK / M.ATK and every turn limit, by dungeon tier 1..5
   monBuff: { hp: [1.05, 1.1, 1.18, 1.45, 1.45], dmg: [1.05, 1.1, 1.18, 1.36, 1.4], turns: [1, 1.04, 1.08, 1.16, 1.2] },

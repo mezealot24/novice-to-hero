@@ -2,6 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { DUNGEONS, MONSTERS, type MonsterKind } from '../src/data/game-data'
+import { PACKS } from '../src/data/dungeons'
 import { homeDungeon, legacyLevel, monPoints, scaleOf, skillMul, slamScaleOf, SKILL_SCALE, statMonster, statNative, withStats } from '../src/data/mon-stats'
 
 const kinds = Object.keys(MONSTERS) as MonsterKind[]
@@ -10,7 +11,9 @@ const d1 = DUNGEONS[0]
 test('every monster has its own statAlloc object (admin.html can edit it)', () => {
   const bad = kinds.filter((k) => !MONSTERS[k].statAlloc || typeof MONSTERS[k].statAlloc === 'string')
   assert.deepEqual(bad, [])
-  assert.deepEqual(kinds.filter(statNative).sort(), ['dunewraith', 'jackal', 'jackallord', 'mummy', 'pharaoh', 'sandscorp', 'scarab', 'sphinx', 'sunpriest'])
+  const d6 = ['dunewraith', 'jackal', 'jackallord', 'mummy', 'pharaoh', 'sandscorp', 'scarab', 'sphinx', 'sunpriest']
+  const packs = PACKS.filter((p) => p.dungeon).flatMap((p) => Object.keys(p.monsters)) // v78 D7-D10: every built pack monster is stat-native
+  assert.deepEqual(kinds.filter(statNative).sort(), [...d6, ...packs].sort())
 })
 
 test('old monsters: 7 stats added, tuned numbers untouched (balance-neutral)', () => {

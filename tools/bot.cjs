@@ -34,9 +34,12 @@ if (D >= 4) { // Dungeon 4-5 profiles: Lv 15 (45 points) / Lv 20 (60 points) + d
   Object.assign(save, { baseLevel: D === 4 ? 15 : 20, jobLevel: D === 4 ? 15 : 20, jobSkills: { auto: D === 4 ? 5 : 7, ult: D === 4 ? 5 : 7 }, owned: ['knife', 'cloth', 'none', w, a, acc], equipped: { weapon: w, armor: a, acc }, clearsBy: { d1: 3, d2: 2, d3: 2, d4: D === 5 ? 1 : 0 }, clears: 8 })
 }
 if (D >= 6) { // D6 profile (Q 2026-11-04 level dungeons): Base Lv 45 (135 points), Job Lv 40, D5 gear; pair with CRAFTED=1 EXTRA=1 REFINE=7
+  // v78: D=7..10 -> Base Lv 55 / 65 / 75 / 85 (points 3 x (Lv-1) split by the class alloc) · BL=n overrides
+  const bl = +(process.env.BL || [45, 55, 65, 75, 85][Math.min(4, D - 6)])
+  const k = D === 6 ? 9 : Math.round(3 * (bl - 1) / 15)
   for (const key in stats) stats[key] = 1
-  for (const key in alloc) stats[key] += alloc[key] * 9
-  Object.assign(save, { baseLevel: +(process.env.BL || 45), jobLevel: 40, jobSkills: { auto: 10, ult: 10 }, clearsBy: { d1: 3, d2: 2, d3: 2, d4: 2, d5: 1 }, clears: 10 })
+  for (const key in alloc) stats[key] += alloc[key] * k
+  Object.assign(save, { baseLevel: bl, jobLevel: 40, jobSkills: { auto: 10, ult: 10 }, clearsBy: { d1: 3, d2: 2, d3: 2, d4: 2, d5: 1, ...Object.fromEntries([6, 7, 8, 9].filter((n) => n < D).map((n) => [`d${n}`, 1])) }, clears: 10 })
   if (!process.env.ACC) { save.owned.push('r_hydraheart'); save.equipped.acc = 'r_hydraheart' }
 }
 // skill web (v27): old class skill levels -> +power nodes (12%/lv); S2=<skill2 id> learns that Skill 2 (+ PL "+" levels, STAR=1 its ★)

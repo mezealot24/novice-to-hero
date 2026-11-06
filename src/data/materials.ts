@@ -2,6 +2,8 @@
 // monsters and a boss one from its mini boss / boss. Materials are kept win or lose, like zeny and cards.
 // Material ids are save data: never rename or remove one.
 
+import { PACKS } from './dungeons'
+
 export interface Mat { id: string; name: string; icon: string; dungeon: string; boss: boolean }
 
 export const MATS: Mat[] = [
@@ -17,6 +19,7 @@ export const MATS: Mat[] = [
   { id: 'b_d5', name: 'ผลึกวิญญาณลิช', icon: '🔮', dungeon: 'd5', boss: true },
   { id: 'm_d6', name: 'ผ้าพันศพทองคำ', icon: '🎗️', dungeon: 'd6', boss: false },
   { id: 'b_d6', name: 'ตราประทับสุริยะ', icon: '☀️', dungeon: 'd6', boss: true },
+  ...PACKS.flatMap((p) => p.mats), // D7-D10 (v78, data/dungeons/dN.ts)
 ]
 
 export const MAT_RULES = {

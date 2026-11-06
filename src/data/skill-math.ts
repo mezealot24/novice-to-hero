@@ -6,6 +6,7 @@
 import { BATTLE, PLAYER, type MonsterKind, type Stats } from './game-data'
 import { CLERIC_KIT, JOBS, MAGE_SPELL, SPELL_VAMP, SWORD_MANA, type JobDef, type JobId } from './jobs'
 import type { Skill2Def } from './skill2'
+import { PACKS } from './dungeons'
 
 /** Q 2026-11-04 rule: magic damage = 70% M.ATK + 30% P.ATK for ALL hero magic (Mage/Priest class skills too). */
 export const MAGIC_MIX = { matk: 0.7, atk: 0.3 }
@@ -58,7 +59,7 @@ export const KIT2 = {
   },
   crusader: {
     guard: 0.1, guardVit: 0.002, guardCap: 0.4, // 🛡️ Auto Guard: block chance + per VIT point over the start (no off-hand = KIT2.knight.guardShieldless)
-    holyVs: 0.25, holyFoes: ['skeleton', 'wisp', 'deathknight', 'hellknight', 'imp', 'necropriest', 'wraith', 'maiden', 'lich', 'bonepriest', 'mummy', 'dunewraith', 'pharaoh', 'gargoyle'] as MonsterKind[], // ศรัทธา: undead / demons take +25%
+    holyVs: 0.25, holyFoes: ['skeleton', 'wisp', 'deathknight', 'hellknight', 'imp', 'necropriest', 'wraith', 'maiden', 'lich', 'bonepriest', 'mummy', 'dunewraith', 'pharaoh', 'gargoyle', ...PACKS.flatMap((p) => p.holyFoes)] as MonsterKind[], // ศรัทธา: undead / demons take +25%
     crossCost: 22, crossCd: 2, crossHits: 2, crossMul: 1, blindTurns: 2, blindHit: 0.2, // ✝️ Holy Cross: per hit P.ATK + Pm on the front monster · blind = its Hit -20%
     gcPay: 0.2, gcPm: 2.5, gcAtk: 1, gcRefund: 0.5, gcRefundAt: 3, // ✨ Grand Cross: pay 20% current HP · all monsters · 3+ hit = half the HP back
     martyrShield: 0.2, // ★ ผู้พลีชีพ: shield share of max HP (Reflect Shield is capped by BATTLE.reflectCap)

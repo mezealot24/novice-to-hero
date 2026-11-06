@@ -16,6 +16,8 @@ import { backdrop, button, confirm, fullscreenButton, go, panel, toast, topBar, 
 // Town / main menu. Everything branches from here and every run comes back here.
 export class HubScene extends Phaser.Scene {
   constructor() { super('hub') }
+  /** v78 D7-D10: dungeon list page (5 per page once there are more than 6). undefined = the page of the newest unlocked dungeon. */
+  private static dgPage?: number
 
   create(data: { fresh?: boolean }) {
     backdrop(this)
@@ -67,10 +69,21 @@ export class HubScene extends Phaser.Scene {
     const by = s.clearsBy ?? { d1: s.clears }
     const isLocked = (d: (typeof DUNGEONS)[number]) => (d.unlock === 'job' && s.job === 'novice') || (d.unlock.startsWith('d') && !(by[d.unlock] > 0))
     const prevName = (u: string) => DUNGEONS.find((x) => x.id === u)?.name ?? u
-    const rowH = Math.min(66, Math.floor(200 / DUNGEONS.length)) // 5+ dungeons: compact rows (6 = 33px)
+    // v78: more than 6 dungeons -> pages of 5 (◀ D1-5 / D6-10 ▶), opening on the newest unlocked one
+    const per = DUNGEONS.length > 6 ? 5 : DUNGEONS.length, pages = Math.ceil(DUNGEONS.length / per)
+    const newest = Math.max(0, DUNGEONS.reduce((a, d, i) => (isLocked(d) ? a : i), 0))
+    const page = Math.min(pages - 1, HubScene.dgPage ?? Math.floor(newest / per))
+    if (pages > 1) {
+      const flip = (to: number) => { HubScene.dgPage = (to + pages) % pages; this.scene.restart() }
+      button(this, 600, 98, 34, 26, '◀', () => flip(page - 1), { size: 13, fill: 0x4a5a8a, color: UI.text })
+      txt(this, 650, 98, `ดัน ${page * per + 1}-${Math.min(DUNGEONS.length, (page + 1) * per)}`, 13, UI.sub, true).setOrigin(0.5)
+      button(this, 700, 98, 34, 26, '▶', () => flip(page + 1), { size: 13, fill: 0x4a5a8a, color: UI.text })
+    }
+    const rowH = Math.min(66, Math.floor(200 / per)) // 5+ dungeons: compact rows (6 = 33px)
     const compact = rowH < 60
     DUNGEONS.forEach((d, i) => {
-      const y = 112 + i * rowH
+      if (Math.floor(i / per) !== page) return
+      const y = 112 + (i % per) * rowH
       const locked = isLocked(d)
       const n = by[d.id] ?? 0
       const mini = d.rooms.some((r) => r.mini)

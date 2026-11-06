@@ -218,7 +218,8 @@ export class CharacterScene extends Phaser.Scene {
     const seen = new Set(s.cardSeen ?? [])
     b.add(txt(this, 330, 298, `สมุดการ์ด · เจอแล้ว ${EQUIP_CARDS.filter((cd) => seen.has(cd.id)).length}/${EQUIP_CARDS.length} ใบ`, 13, UI.sub))
     DUNGEONS.forEach((dg, i) => {
-      b.add(button(this, 352 + i * 56, 334, 50, 28, `ดัน${i + 1}`, () => { this.bookDg = i; this.render() }, { size: 12, fill: i === this.bookDg ? COLORS.gold : 0x5a5f8a, color: i === this.bookDg ? UI.ink : UI.text }))
+      const many = DUNGEONS.length > 6 // v78 D7-D10: 10 tabs must end before the การ์ดสายอาชีพ button (x 665)
+      b.add(button(this, many ? 344 + i * 33 : 352 + i * 56, 334, many ? 31 : 50, 28, many ? `D${i + 1}` : `ดัน${i + 1}`, () => { this.bookDg = i; this.render() }, { size: 12, fill: i === this.bookDg ? COLORS.gold : 0x5a5f8a, color: i === this.bookDg ? UI.ink : UI.text }))
     })
     const dg = DUNGEONS[this.bookDg]
     b.add(button(this, 720, 334, 110, 28, this.bookV2 ? 'การ์ดหลัก' : 'การ์ดสายอาชีพ', () => { this.bookV2 = !this.bookV2; this.render() }, { size: 12, fill: 0x5a5f8a, color: UI.text }))
