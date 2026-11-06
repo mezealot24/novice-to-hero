@@ -1,4 +1,4 @@
-// ===== D9 ⚙️ ป้อมจักรกลลอยฟ้า (v81, Lv 70-80) — docs/design/dungeon-9-sky-fortress.md =====
+// ===== D9 ⚙️ ป้อมจักรกลลอยฟ้า (v82, Lv 70-80) — docs/design/dungeon-9-sky-fortress.md =====
 // Test: target choice (high P.DEF machines next to high M.DEF machines in the same wave) · Hit / DEX (fixed flee, multi-shot) ·
 // trueSight vs AGI builds. Stat monsters like D6: hp / dmg = 1 placeholders, numbers come from statAlloc at the room's Lv
 // (data/mon-stats.ts statMonster); def / hit / flee / crit / combo / counter here are BONUSES on top, bodyMul multiplies HP / ATK / M.ATK.
@@ -45,7 +45,7 @@ export const D9: DungeonPack<D9Kind> = {
         { at: 0.3, name: 'โอเวอร์ไดรฟ์! เร็วขึ้น ชาร์จถี่ + หุ่นใบเลื่อย', speed: 1.35, dmg: 1.15, chargeEvery: 2, cleanse: true, summon: ['sawbot', 2] }] },
   },
   dungeon: {
-    // D9 (v81): fixed level band, stat monsters (data/mon-stats.ts), no Hero Power scaling
+    // D9 (v82): fixed level band, stat monsters (data/mon-stats.ts), no Hero Power scaling
     id: 'd9', name: 'ป้อมจักรกลลอยฟ้า', boss: 'ออมนิคอร์', tier: 9, sky: [0x1a2a44, 0x8fb4d8], hills: 0xb08a4a, unlock: 'd8', level: [70, 80],
     rooms: [
       { title: 'เวฟ 1 · ลานจอดเรือเหาะ', spawn: [['clockknight', 2], ['gundrone', 1]], lv: 70 },

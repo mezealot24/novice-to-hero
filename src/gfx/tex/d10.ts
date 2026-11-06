@@ -1,4 +1,4 @@
-// ===== D10 textures (v82) ห้วงนิทราไร้ดาว. Procedural, every monster faces left (toward the hero), sizes like D7 / D8. =====
+// ===== D10 textures (v83) ห้วงนิทราไร้ดาว. Procedural, every monster faces left (toward the hero), sizes like D7 / D8. =====
 // Palette: starless black, deep violet, dream lavender, a few cold star specks.
 import type { EyesFn, MakeFn } from '../textures'
 

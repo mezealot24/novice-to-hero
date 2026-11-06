@@ -1,4 +1,4 @@
-// ===== D10 🌌 ห้วงนิทราไร้ดาว (v82, Lv 80-90, the final dungeon) — docs/design/dungeon-10-starless-dream.md =====
+// ===== D10 🌌 ห้วงนิทราไร้ดาว (v83, Lv 80-90, the final dungeon) — docs/design/dungeon-10-starless-dream.md =====
 // Test (final exam): everything together — silence / weaken that shut kits down · stat drain · fixed flee · revive · 3-phase boss.
 // Stat monsters like D6: hp / dmg = 1 placeholders, numbers come from statAlloc at the room's Lv (data/mon-stats.ts statMonster);
 // def / hit / flee / crit / combo / counter here are BONUSES on top, bodyMul multiplies HP / ATK / M.ATK.
@@ -64,7 +64,7 @@ export const D10: DungeonPack<D10Kind> = {
           skills: [{ kind: 'bolt', every: 3, name: 'เวทดวงดาว', pick: STAR_SPELLS }] }] },
   },
   dungeon: {
-    // D10 (v82): fixed level band, stat monsters (data/mon-stats.ts), no Hero Power scaling
+    // D10 (v83): fixed level band, stat monsters (data/mon-stats.ts), no Hero Power scaling
     id: 'd10', name: 'ห้วงนิทราไร้ดาว', boss: 'ผู้กลืนดวงดาวโนคทิส', tier: 10, sky: [0x05030f, 0x3a1f6a], hills: 0x24163f, unlock: 'd9', level: [80, 90],
     rooms: [
       { title: 'เวฟ 1 · ขอบฝันร้าย', spawn: [['nightmarehound', 2], ['shade', 1]], lv: 80 },

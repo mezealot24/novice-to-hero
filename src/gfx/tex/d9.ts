@@ -1,4 +1,4 @@
-// ===== D9 textures (v81) ป้อมจักรกลลอยฟ้า. Procedural, every monster faces left (toward the hero), sizes like D7/D8.
+// ===== D9 textures (v82) ป้อมจักรกลลอยฟ้า. Procedural, every monster faces left (toward the hero), sizes like D7/D8.
 // Palette: steel blue body, brass trim, aether cyan glow. =====
 import type { EyesFn, MakeFn } from '../textures'
 
