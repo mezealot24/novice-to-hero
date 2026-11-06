@@ -3,7 +3,7 @@ import { COLORS, DUNGEONS, H, W } from '../data/game-data'
 import { JOBS } from '../data/jobs'
 import { canWear, forged, gradeOf, isBroken, itemStatLine, ITEMS, linesOf, refineOf, slotCount, SLOTS, wearText, type Item } from '../data/meta'
 import { craftCost, CRAFT_ITEMS, GRADE, gradeCap, gradeCost, gradeItem, gradeStars, REFINE, refinable } from '../data/craft'
-import { canAfford, canAffordAuto, FODDER, fodderFits, fodderMin, fodderToBuy, gemRepairCost, lineText, nextRate, pickFodder, refineCost, repair, repairCost, reroll, rerollCost, settleReroll, totalZeny, tryRefine, zenyShort, type ForgeCost } from '../data/refine'
+import { canAfford, canAffordAuto, FODDER, fodderFits, fodderMin, fodderToBuy, gemRepairCost, lineText, nextRate, pickFodder, refineCost, lineIdx, maxLocks, nextRerollCost, repair, repairCost, reroll, rerollMul, rollsOf, totalZeny, tryRefine, zenyShort, type ForgeCost } from '../data/refine'
 import { MAT_RULES, MATS, matById } from '../data/materials'
 import { addFodder, canPay, equip, forgetForge, isWorn, pay, persist, save } from '../save'
 import { sfx } from '../sfx'
@@ -12,6 +12,7 @@ import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
 // Forge (design/item-acquisition-v1.md): craft dungeon gear from materials, raise any item's grade.
 // Craft and grade-ups always succeed. Refine (+1..+10) can break an item above +4; gems may ONLY repair it
 // (design 3.6: never rate, break protection, mats, fodder or rerolls), and the material repair is always cheaper.
+// Exception (Q 2026-11-06): gems lock a bonus line in the option gacha; the roll itself is zeny + mats.
 type Tab = 'craft' | 'grade' | 'refine' | 'fodder' | 'mats'
 const dgName = (id: string) => DUNGEONS.find((d) => d.id === id)?.name ?? id
 const dgBoss = (id: string) => DUNGEONS.find((d) => d.id === id)?.boss ?? ''
@@ -150,11 +151,11 @@ export class ForgeScene extends Phaser.Scene {
   // ---------- refine +1..+10 ----------
   private refineList(): Item[] {
     const s = save()
-    // Order must not change after a try (it would move the card under the player's finger): pending reroll first,
-    // then worn gear, then slot order. Never by refine level or broken state.
-    const rank = (it: Item) => (s.reroll?.item === it.id ? 0 : isWorn(s, it.id) ? 1 : 2)
+    // Order must not change after a try (it would move the card under the player's finger): worn gear first,
+    // then slot order. Never by refine level or broken state.
+    const rank = (it: Item) => (isWorn(s, it.id) ? 0 : 1)
     const slotIx = (it: Item) => SLOTS.findIndex((q) => q.id === it.slot)
-    return ITEMS.filter((it) => s.owned.includes(it.id) && refinable(it) && (!this.mineOnly || canWear(it, s.job) || s.reroll?.item === it.id))
+    return ITEMS.filter((it) => s.owned.includes(it.id) && refinable(it) && (!this.mineOnly || canWear(it, s.job)))
       .sort((a, c) => rank(a) - rank(c) || slotIx(a) - slotIx(c))
   }
 
@@ -172,7 +173,7 @@ export class ForgeScene extends Phaser.Scene {
     const has = lines.some(Boolean)
     const lt = fit(txt(this, x + 14, y + 106, `🎁 ${extra}`, 11, has ? '#d9c2ff' : UI.sub).setWordWrapWidth(cw - (has ? 100 : 28)), 32) // fixed row, 2 lines max
     b.add([line, lt])
-    if (has) b.add(button(this, x + cw - 40, lt.y + 10, 64, 24, s.reroll?.item === it.id ? '🎲 เลือก' : '🎲', () => this.linesView(it), { size: 13, fill: 0x8a6fd1, color: UI.text }))
+    if (has) b.add(button(this, x + cw - 40, lt.y + 10, 64, 24, '🎲', () => this.linesView(it), { size: 13, fill: 0x8a6fd1, color: UI.text }))
     const by = y + ch - 24
     if (broken) {
       const mc = repairCost(it, r), short = zenyShort(s, mc)
@@ -237,40 +238,36 @@ export class ForgeScene extends Phaser.Scene {
     this.render()
   }
 
-  /** Bonus lines of one item: reroll (materials + zeny only) and keep-old / take-new. */
-  private linesView(it: Item) {
+  /** Option gacha (Q 2026-11-06): one roll rerolls every unlocked line at once (zeny + mats). Gems only lock a line.
+   * `locked` survives re-opening after a roll, so the player can keep rolling with the same locks. */
+  private linesView(it: Item, locked: number[] = []) {
     const s = save(), c = this.add.container(0, 0).setDepth(30000)
     const close = () => { c.destroy(); this.render() }
+    const again = (lk: number[]) => { c.destroy(); this.linesView(it, lk) }
     c.add(this.add.rectangle(W / 2, H / 2, W, H, UI.night, 0.8).setInteractive())
-    const pw = 700, ph = 400, px = W / 2 - pw / 2, py = H / 2 - ph / 2
+    const pw = 700, ph = 420, px = W / 2 - pw / 2, py = H / 2 - ph / 2
     c.add(panel(this, px, py, pw, ph, UI.panelHi, COLORS.gold))
     c.add(txt(this, W / 2, py + 18, `🎁 ค่าพิเศษ ${it.icon} ${it.name} +${refineOf(s, it.id)}`, 22, UI.gold, true).setOrigin(0.5, 0))
-    const lines = linesOf(s, it.id), pend = s.reroll
-    const other = pend && pend.item !== it.id ? `🎲 มีค่าสุ่มใหม่รอเลือกอยู่ที่ ${ITEMS.find((x) => x.id === pend.item)?.name ?? pend.item} เลือกที่นั่นก่อนนะคะ` : ''
-    c.add(txt(this, W / 2, py + 52, other || 'สุ่มใหม่ใช้วัตถุดิบ + zeny เท่านั้น (ไม่ใช้เพชร) · ได้ค่าใหม่แล้วเลือกเก็บอันเดิมได้เสมอ', 13, other ? '#ffb0b0' : UI.sub).setOrigin(0.5, 0))
+    const lines = linesOf(s, it.id), have = lineIdx(s, it.id), maxLk = maxLocks(have.length)
+    const rolls = rollsOf(s, it.id)
+    c.add(txt(this, W / 2, py + 52, `🎲 สุ่มทีเดียวเปลี่ยนทุกบรรทัดที่ไม่ล็อก (ค่าเก่าหายทันที) · สุ่มไปแล้ว ${rolls} ครั้ง ราคา x${rerollMul(rolls).toFixed(1)}\n${maxLk ? `🔒 ล็อกได้ ${maxLk} บรรทัด จ่ายเพชรทุกครั้งที่สุ่ม (${REFINE.lockGems.slice(0, maxLk).map((g, i) => `ล็อกที่ ${i + 1}: 💎${g}`).join(' · ')})` : `🔒 ตีถึง +${REFINE.lineAt[1]} ให้มี 2 บรรทัดก่อน ถึงจะล็อกได้`}`, 12, UI.sub).setOrigin(0.5, 0).setAlign('center').setWordWrapWidth(pw - 40))
     REFINE.lineAt.forEach((at, i) => {
-      const y = py + 84 + i * 96, l = lines[i]
-      c.add(panel(this, px + 20, y, pw - 40, 86, UI.panel, UI.line, 10))
+      const y = py + 94 + i * 88, l = lines[i], on = locked.includes(i)
+      c.add(panel(this, px + 20, y, pw - 40, 78, UI.panel, on ? COLORS.gold : UI.line, 10))
       c.add(txt(this, px + 36, y + 10, `+${at} (${['เล็ก', 'กลาง', 'ใหญ่'][i]})`, 15, UI.sub, true))
       if (!l) { c.add(txt(this, px + 36, y + 40, `ยังไม่ได้ · ตีถึง +${at} ครั้งแรกจะได้ค่าสุ่ม 1 บรรทัด`, 14, UI.sub)); return }
-      const mine = pend && pend.item === it.id && pend.idx === i
-      if (mine) {
-        c.add(txt(this, px + 150, y + 8, `เดิม: ${lineText(l)}`, 16, l.gold ? UI.gold : UI.text, true))
-        c.add(txt(this, px + 150, y + 34, `ใหม่: ${lineText(pend!.line)}`, 18, pend!.line.gold ? UI.gold : '#9fe3a8', true))
-        c.add(txt(this, px + 150, y + 62, 'เลือกได้เลยค่ะ ไม่เลือกตอนนี้ก็ค้างไว้ได้', 12, UI.sub))
-        c.add(button(this, px + pw - 100, y + 24, 140, 30, 'เก็บอันเดิม', () => { settleReroll(s, false); persist(); close() }, { size: 14, fill: 0x5a5f8a, color: UI.text }))
-        c.add(button(this, px + pw - 100, y + 62, 140, 30, 'เอาอันใหม่', () => { settleReroll(s, true); persist(); close() }, { size: 14 }))
-        return
-      }
-      c.add(txt(this, px + 36, y + 36, lineText(l), 18, l.gold ? UI.gold : UI.text, true))
-      const cost = rerollCost(it, i)
-      c.add(this.costText(px + 36, y + 62, cost, 400))
-      c.add(button(this, px + pw - 100, y + 43, 140, 36, '🎲 สุ่มใหม่', () => {
-        if (!reroll(s, it, i)) { toast(this, s.reroll ? `เลือกค่าที่สุ่มค้างไว้ที่ ${ITEMS.find((x) => x.id === s.reroll!.item)?.name ?? ''} ก่อนนะคะ` : 'วัตถุดิบหรือ zeny ยังไม่พอค่ะ', UI.red); return }
-        persist(); sfx.pop(); this.refreshWallet(); c.destroy(); this.linesView(it)
-      }, { size: 15 }).setEnabled(!!pend || canAfford(s, cost)))
+      c.add(txt(this, px + 36, y + 38, lineText(l), 18, l.gold ? UI.gold : UI.text, true))
+      const canLock = on || locked.length < maxLk
+      c.add(button(this, px + pw - 100, y + 39, 140, 34, on ? '🔒 ล็อกอยู่' : '🔓 ล็อก', () => again(on ? locked.filter((x) => x !== i) : [...locked, i]),
+        { size: 14, fill: on ? 0xb8860b : 0x5a5f8a, color: UI.text }).setEnabled(canLock))
     })
-    c.add(button(this, W / 2, py + ph - 26, 160, 36, 'ปิด', close, { size: 16, fill: 0x5a5f8a, color: UI.text }))
+    const cost = nextRerollCost(s, it, locked)
+    c.add(this.costText(px + 36, py + ph - 70, cost, pw - 72, locked.length ? '🔒 ' : ''))
+    c.add(button(this, W / 2 - 100, py + ph - 26, 180, 36, `🎲 สุ่ม ${have.length - locked.length} บรรทัด`, () => {
+      if (!reroll(s, it, locked)) { toast(this, 'วัตถุดิบ zeny หรือเพชรยังไม่พอค่ะ', UI.red); return }
+      persist(); sfx.pop(); this.refreshWallet(); again(locked)
+    }, { size: 15 }).setEnabled(canAfford(s, cost)))
+    c.add(button(this, W / 2 + 100, py + ph - 26, 160, 36, 'ปิด', close, { size: 16, fill: 0x5a5f8a, color: UI.text }))
   }
 
   // ---------- fodder ----------

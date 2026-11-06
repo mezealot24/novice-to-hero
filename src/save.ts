@@ -52,7 +52,7 @@ export interface SaveData {
   refinePity?: Record<string, number> // item id -> failed refines in a row
   refineLines?: Record<string, RefineLine[]> // item id -> bonus lines from +5 / +7 / +10 (index 0 / 1 / 2)
   refineGems?: string[] // "itemId:7" / "itemId:10": free refine gems already paid out (kept after selling)
-  reroll?: { item: string; idx: number; line: RefineLine } // a rerolled line waiting for keep-old / take-new
+  rerollCount?: Record<string, number> // item id -> option-gacha rolls made (price +10% each, data/refine.ts rerollMul)
   fodder?: Record<string, number> // basic shop items kept as forge fodder, by item id (counts)
   modes?: Record<string, ModeRecord> // game modes v51 (data/modes.ts): tower bestFloor / clears, daily lastSeed (YYYYMMDD) / clears
   fortune?: number // Fortune meter 0..100 (data/events.ts FORTUNE), kept across runs: full = the next event is a JACKPOT
@@ -100,6 +100,7 @@ export function load(): SaveData | null {
     migratePriestBless(s)
     migrateGear(s)
     s.modes ??= {} // v51 game modes: additive, old saves start with no records
+    delete (s as SaveData & { reroll?: unknown }).reroll // v82 option gacha: no more pending keep-old / take-new (the old line stays)
     cache = s
     return s
   } catch { return null }
@@ -357,5 +358,5 @@ export function forgetForge(s: SaveData, id: string) {
   if (s.refinePity) delete s.refinePity[id]
   if (s.refineLines) delete s.refineLines[id]
   if (s.broken) s.broken = s.broken.filter((x) => x !== id)
-  if (s.reroll?.item === id) delete s.reroll
+  if (s.rerollCount) delete s.rerollCount[id]
 }
