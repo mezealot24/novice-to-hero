@@ -18,16 +18,21 @@ export const magicBase = (st: Stats) => { const pm = magicPower(st); return { lo
 export const physBase = (st: Stats) => ({ lo: st.atk * st.minPct, hi: st.atk })
 export const hitBase = (st: Stats, magic: boolean) => (magic ? magicBase(st) : physBase(st))
 
-/** v78 Mage cast time (Q 2026-11-06, design/mage-cast-focus-v78.md): base Mage + Sage chant ลูกไฟระเบิด (and the Mage element ult) for 1 turn.
- *  A hit that reaches HP while chanting can break it (DEX / tenacity lower the odds). Wizard keeps ร่ายใหญ่ (never breaks).
- *  The release IS the next turn's action (fireball every other turn: 1.8x / 2 ≈ the old 0.9x a turn); Wizard's release stays free.
- *  fireMul replaces MAGE_SPELL.autoMul on a chanted fireball · ultMul x the chanted ult · a broken ult waits brokenUltCd turns (not the full cd). */
-export const MAGE_CAST = { breakBase: 0.45, breakDex: 0.012, fireMul: 1.8, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 }
+/** v78 Mage cast time (Q 2026-11-06, design/mage-cast-focus-v78.md), softened in v85 (playtest: "punishes too much").
+ *  Only the base Mage element ult chants (1 turn); ลูกไฟระเบิด is instant again (fireMul x Pm, can't break). Wizard keeps ร่ายใหญ่ (never breaks).
+ *  A hit that reaches HP while chanting may break it: it must deal >= breakMinHp of max HP, then breakChance rolls (DoT never breaks).
+ *  Broken: refund breakRefund of the Mana paid, ult waits brokenUltCd turns (not the full cd), and the NEXT chant can't break (steady).
+ *  The release IS the next turn's action (Wizard's stays free). ultMul x the chanted ult. Numbers are guesses (v85). */
+export const MAGE_CAST = { breakBase: 0.25, breakDex: 0.012, breakMinHp: 0.06, breakRefund: 0.6, fireMul: 1, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 }
 /** v78: does a released chant use up the hero's turn? Base Mage / Sage yes, Wizard no (its edge). */
 export const castUsesTurn = (job2?: string) => job2 !== 'wizard'
-/** Chance one hit breaks the chant: 45% − 1.2%/DEX − tenacity, never below 0 (🧘 Poise = 0). */
+/** Chance one hit breaks the chant: 25% − 1.2%/DEX − tenacity, never below 0 (🧘 Poise = 0). */
 export const breakChance = (dex: number, tenacity: number, poise = false) =>
   poise ? 0 : Math.max(0, MAGE_CAST.breakBase - MAGE_CAST.breakDex * dex - tenacity)
+/** v85: only a hit of >= breakMinHp of max HP (after shields) may roll for a break at all. */
+export const breaksOn = (dmg: number, maxHp: number) => maxHp > 0 && dmg >= maxHp * MAGE_CAST.breakMinHp
+/** v85: Mana given back when a chant breaks (breakRefund of what was paid). */
+export const breakRefundMana = (paid: number) => Math.floor(Math.max(0, paid) * MAGE_CAST.breakRefund)
 
 /** Class kit multipliers that used to sit inline in BattleScene (SWORD_MANA / MAGE_SPELL / CLERIC_KIT live in jobs.ts). */
 export const KIT = {
@@ -44,6 +49,21 @@ export const KIT = {
     poisonArrow: [0.2, 0.35, 0.5], poisonArrowStacks: 1, vsPoison: 0.06, ricochet: [0.5, 0.7, 0.9], // ศรอาบพิษ chance per arrow · ซ้ำแผล per lv · ศรเด้ง shot mul
     markTurns: 3, markAmp: 0.05, markJumpRes: 8, killCd: [0.15, 0.25, 0.35], killCdCut: 1, // หมายหัว per lv · ไล่ล่า Energy per lv · ล่าต่อ chance
     execBelow: 0.25, execBig: 0.6, // ★ ศรประหาร: normal monster under 25% HP dies · boss / mini +60%
+  },
+  // v84 Swordsman web: ⚔️ จังหวะดาบ (under ทักษะ 1) + 🔨 ทลายเกราะ (under Ult), first guesses (design/skill-tree-swordsman.md v84).
+  // Per-lv numbers are per OLD level (node max 3, v83 stretch shows 5 levels at the same full value).
+  swordTree: {
+    flowMax: 5, flow: 0.03, flowMana: 0.6, flowCrit: 0.01, flowBreak: 0.15, // ไหลลื่น: ฟันพายุ in a row stacks (max 5) +dmg/stack/lv · ลมหายใจ Mana/stack/lv · เฉือนคม crit/stack/lv · a hit >= 15% max HP (after shields) resets
+    stormHits: 2, // ★ พันดาบ: at max stacks ฟันพายุ swings this many times, sure crit, then stacks reset
+    breakTurns: 3, breakAmp: 0.04, breakLeech: 0.02, breakSpreadRes: 4, shatterPush: 30, // ทุบเกราะ: ult breaks armor (Mon.armorBrk = DEF −KIT2.mobster.armorBrk) N turns + dmg taken/lv · ซ้ำรอย heal share/lv · ร้าวลาม Mana/lv · ★ หักท่า gauge push
+  },
+  // v84 Priest web: 🙏 ศรัทธา (under ทักษะ 1) + ⛪ ฟื้นคืน (under Ult), first guesses (design/skill-tree-priest.md v84)
+  clericTree: {
+    faithMax: 5, faithHeal: 2, faithCast: 1, faith: 0.4, // สวดภาวนา: Skill 1 cast +1 / skill heal +2 Faith · full = burst every monster x Pm per lv
+    faithOver: 0.2, overMin: 0.03, faithHealPer: 0.01, // ล้นศรัทธา: overheal >= 3% max HP: chance/lv of +1 Faith · พรเกื้อ: burst heals max HP share per stack per lv
+    overBurst: 1.5, overCap: 0.25, // ★ แสงล้นฟ้า: overheal x this as holy damage to the front monster (overheal counted up to 25% max HP per heal)
+    wardTurns: 2, ward: 0.06, emergencyAt: 0.3, emergency: 0.08, mend: 0.1, // ม่านพร: after ult −dmg taken/lv N hero turns · ฉุกเฉิน: under 30% HP heal max HP share/lv (1/wave) · ชุบชีวา: ult heals missing HP share/lv
+    reviveHp: 0.5, reviveShield: 0.2, // ★ คืนชีพ: 1/run lethal hit -> back at 50% HP + 20% shield, debuffs cleared
   },
 }
 
@@ -62,6 +82,13 @@ export const KIT2 = {
     pierceHits: 3, pierceBigHits: 4, pierceMul: 1.2, bashMul: 0.8, // 🎯 Pierce + Bowling Bash (boss / mini take one more hit)
     boomerang: 0.8, chargeFirst: 3, guardShieldless: 0.5, // Spear Boomerang mul · ★ ทะยาน · Auto Guard without an off-hand
     mastery: { atkPct: 0.05, hit: 10 }, // spear
+    // v84 ใยชั้น 2: 🚩 ธงศึก + 🌀 กวาดทวน, first guesses (design/second-jobs-v1.md §4 v84). Per-lv = per OLD level (max 3).
+    tree: {
+      banner: 0.04, provokeAt: 0.5, provoke: 0.08, bannerKill: 0.02, // ปักธง wave-start shield/lv (tops up) · ข่มขวัญ: monster under 50% HP hits −/lv · ธงชัย: kill shield/lv
+      auraHeal: 0.04, auraRes: 6, auraGuard: 0.06, // ★ ธงอมตะ: every block heals + Mana/Rage · + Auto Guard chance
+      sweepEvery: 3, sweep: 0.3, sweepPush: 5, sweepGauge: 10, // ทวนวน: every Nth hero turn sweep all x P.ATK/lv (+ max HP share) · เหวี่ยง gauge −/lv · ทวนเร็ว hero gauge +/lv per sweep kill
+      sweepBreak: 2, sweepStun: 0.25, // ★ พายุทวน: sweep breaks armor N turns + stun chance (boss / mini: gauge push)
+    },
   },
   rogue: {
     knifeMul: 0.4, knifePerCombo: 1, dualKnife: 1, // 🔪 มีดบิน: each extra combo hit throws knives at random monsters (+1 with a dagger off-hand) · no lifesteal
@@ -149,7 +176,7 @@ export const S2N = {
   spearPlus: (lv: number) => 0.03 * lv, spearCount: (star: boolean) => (star ? 4 : 2), // หอกคม: +10%/lv of the 0.3x base
   smokeHeal: (lv: number) => 0.03 * lv, smokeDodges: (star: boolean) => (star ? 2 : 1),
   pickMul: (star: boolean) => (star ? 1.6 : 1), pickRes: (lv: number) => 15 + 5 * lv, pickPoison: 3,
-  woundMul: (star: boolean) => (star ? 2 : 1.2), woundPoison: (lv: number) => 4 + lv,
+  woundMul: (star: boolean) => (star ? 2 : 1.2), woundPoison: (lv: number) => 4 + Math.round(lv), // stacks: whole numbers (v83 s2Lv can be fractional)
 }
 
 // ---------- costs / cooldowns ----------
@@ -195,7 +222,7 @@ export function autoInfo(jobId: JobId, st: Stats): InfoRow[] {
       else out.push({ label: `${st.arVolley > 0 ? KIT.archerVolleyShots : KIT.archerAutoShots} ดอก ดาเมจ/ดอก`, value: hitText(st, (st.arVolley > 0 ? st.arVolley : KIT.archerAuto) * pow, false) })
       break
     case 'mage':
-      out.push({ label: 'ร่าย', value: `1 เทิร์น + เทิร์นที่ปล่อย (โดนตีอาจร่ายแตก ${pct(MAGE_CAST.breakBase)} − ${(MAGE_CAST.breakDex * 100).toFixed(1)}%/DEX)` })
+      out.push({ label: 'ร่าย', value: 'ทันที (ไม่มีร่ายแตก) · เฉพาะ ult ที่ต้องร่าย' })
       out.push({ label: 'ไฟ/ตัว (ทุกตัว)', value: hitText(st, MAGE_CAST.fireMul * pow, true) })
       if (st.mgOverflow > 0) out.push({ label: 'ตอน Mana ≥ 90% (พลังล้น)', value: hitText(st, MAGE_CAST.fireMul * pow * st.mgOverflow, true) })
       break
@@ -231,7 +258,7 @@ export function ultInfo(jobId: JobId, st: Stats): InfoRow[] {
     case 'mage': {
       const amp = (x: number) => hitPow * MAGE_CAST.ultMul * (1 + st.mgUltAmp + x) * (st.mgDoubleCast > 0 ? st.mgDoubleCast : 1)
       const twice = st.mgDoubleCast > 0 ? ' ×2 รอบ' : ''
-      out.push({ label: 'ร่าย', value: `1 เทิร์น + เทิร์นที่ปล่อย · แรง ×${MAGE_CAST.ultMul} · ร่ายแตก = คูลดาวน์เหลือ ${MAGE_CAST.brokenUltCd} เทิร์น` })
+      out.push({ label: 'ร่าย', value: `1 เทิร์น + เทิร์นที่ปล่อย · แรง ×${MAGE_CAST.ultMul} · แตกเมื่อโดนตีแรง ≥ ${pct(MAGE_CAST.breakMinHp)} HP (${pct(MAGE_CAST.breakBase)} − ${(MAGE_CAST.breakDex * 100).toFixed(1)}%/DEX · พิษ/ไฟไม่ทำให้แตก) · แตก = คืน Mana ${pct(MAGE_CAST.breakRefund)} + คูลดาวน์เหลือ ${MAGE_CAST.brokenUltCd} เทิร์น + ร่ายครั้งหน้าไม่แตก` })
       out.push({ label: `⚡ ${KIT.mageLightHits + st.lightHits} ฮิต ดาเมจ/ฮิต${twice}`, value: (() => { const b = magicBase(st), a = amp(st.mgLightAmp); return range(b.lo * KIT.mageLightLo * a, b.hi * KIT.mageLightHi * a) })() })
       out.push({ label: `🔥 ทุกตัว + เผา ${KIT.mageFireStacks + st.mgFireStack} stack${twice}`, value: hitText(st, KIT.mageFire * amp(st.mgFireAmp), true) })
       out.push({ label: `❄️ ทุกตัว + ช้า ${KIT.mageIceChill + st.chillPlus} เทิร์น${twice}`, value: hitText(st, KIT.mageIce * amp(st.mgIceAmp), true) })

@@ -31,3 +31,14 @@ export const talent = (id: string, row: TalentDef['row'], icon: string, name: st
 export const node = (id: string, branch: string, tier: TreeNode['tier'], icon: string, name: string, max: number, desc: (lv: number) => string, mod: (lv: number) => Partial<Stats>): TreeNode =>
   ({ id, branch, tier, icon, name, max, desc, mod })
 
+
+/** Per-level table value (lv 1..n). Between two levels (v83 stretched nodes, design/skill-web-v1.md) it is the straight line
+ *  between them (0 below Lv 1), so whole levels read the table exactly as before. lv <= 0 reads Lv 1 (old behaviour). */
+export const lvAt = (a: readonly number[], lv: number): number => {
+  if (!a.length) return 0
+  if (lv <= 0) return a[0]
+  const x = Math.min(a.length, lv), i = Math.floor(x)
+  if (i >= a.length) return a[a.length - 1]
+  const lo = i > 0 ? a[i - 1] : 0
+  return lo + (a[i] - lo) * (x - i)
+}

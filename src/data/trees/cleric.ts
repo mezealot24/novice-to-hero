@@ -5,11 +5,17 @@ import { node as n, talent as t, type ClassTree } from '../tree-types'
 import { KIT } from '../skill-math'
 import { CLERIC_KIT } from '../jobs'
 
+// v84 (design/skill-tree-priest.md v84): numbers in KIT.clericTree, written per OLD level (max 3); data/tree.ts stretches them to 5.
+const T = KIT.clericTree, pc = (x: number) => `${+(x * 100).toFixed(1)}%`, x2 = (x: number) => +x.toFixed(2)
+
 
 export const tree: ClassTree = {
   branches: [
     { id: 'cleric_a', job: 'cleric', name: 'แสงคุ้มครอง', icon: '🛡️', blurb: 'ยืนนาน · โล่และฮีลกลายเป็นดาเมจ' },
     { id: 'cleric_b', job: 'cleric', name: 'ตัดสิน', icon: '⚖️', blurb: 'แสงตีหลายตัว · ฮีลน้อยครั้งแต่ก้อนใหญ่' },
+    // v84: ATTACH in data/tree.ts: cleric_c under ทักษะ 1, cleric_d under Ult
+    { id: 'cleric_c', job: 'cleric', name: 'ศรัทธา', icon: '🙏', blurb: 'ฮีล/แสงสะสมศรัทธา · เต็มแล้วระเบิดแสง · ★ ฮีลล้นเป็นดาเมจ' },
+    { id: 'cleric_d', job: 'cleric', name: 'ฟื้นคืน', icon: '⛪', blurb: 'หลัง ult รับดาเมจน้อยลง · ฮีลฉุกเฉิน · ★ คืนชีพ 1 ครั้ง/รอบ' },
   ],
   nodes: [
     // A: Sanctuary
@@ -23,6 +29,16 @@ export const tree: ClassTree = {
     n('cleric_b2', 'cleric_b', 2, '⚖️', 'ตัดสินหมู่', 3, (lv) => `แสงยิง ${2 + Math.min(lv, 2)} ตัว${lv >= 3 ? ' · ดาเมจแสง +15%' : ''}`, (lv) => ({ smiteTargets: Math.min(lv, 2), smiteMul: lv >= 3 ? 0.15 : 0 })),
     n('cleric_b3s', 'cleric_b', 3, '🧘', 'ใจนิ่ง', 3, (lv) => `ฮีลเมื่อ HP < ${75 - lv * 10}% · ฮีลแรง +${lv * 10}%`, (lv) => ({ healAt: 0.1 * lv, healAmp: 0.1 * lv })),
     n('cleric_b4j', 'cleric_b', 4, '⚖️', 'วันพิพากษา', 1, () => 'แสงครั้งที่ 3 ทุกรอบ = พิพากษา: ใส่ทุกตัว 2.2x + ตราบาป (รับดาเมจ +15% 2 เทิร์น)', () => ({ judge: 1 })),
+    // C: ศรัทธา (Faith stacks -> holy burst)
+    n('cleric_c1', 'cleric_c', 1, '📿', 'สวดภาวนา', 3, (lv) => `ทักษะ 1 ศรัทธา +${T.faithCast} · ฮีลสกิล +${T.faithHeal} · ครบ ${T.faithMax} = ระเบิดแสงใส่ทุกตัว ${x2(T.faith * lv)}x Pm`, (lv) => ({ clFaith: T.faith * lv })),
+    n('cleric_c2', 'cleric_c', 2, '💛', 'ล้นศรัทธา', 3, (lv) => `ฮีลเกิน HP เต็ม (≥ ${pc(T.overMin)} HP) ${pc(T.faithOver * lv)} ได้ศรัทธา +1`, (lv) => ({ clFaithOver: T.faithOver * lv })),
+    n('cleric_c3', 'cleric_c', 3, '🤲', 'พรเกื้อ', 3, (lv) => `ระเบิดศรัทธาฮีล ${pc(T.faithHealPer * lv)} HP ต่อศรัทธา (เต็ม = ${pc(T.faithHealPer * lv * T.faithMax)})`, (lv) => ({ clFaithHeal: T.faithHealPer * lv })),
+    n('cleric_c4', 'cleric_c', 4, '🌞', 'แสงล้นฟ้า', 1, () => `ฮีลเกิน HP เต็ม → ดาเมจแสงใส่ตัวหน้า x${T.overBurst} ของส่วนเกิน (นับได้ถึง ${pc(T.overCap)} HP ต่อครั้ง)`, () => ({ clOverBurst: 1 })),
+    // D: ฟื้นคืน (survival)
+    n('cleric_d1', 'cleric_d', 1, '🕯️', 'ม่านพร', 3, (lv) => `หลัง Ult รับดาเมจ −${pc(T.ward * lv)} ${T.wardTurns} เทิร์น`, (lv) => ({ clUltWard: T.ward * lv })),
+    n('cleric_d2', 'cleric_d', 2, '🚑', 'ฉุกเฉิน', 3, (lv) => `HP ตกต่ำกว่า ${pc(T.emergencyAt)} ครั้งแรกของเวฟ: ฮีล ${pc(T.emergency * lv)} HP ทันที`, (lv) => ({ clEmergency: T.emergency * lv })),
+    n('cleric_d3', 'cleric_d', 3, '🌿', 'ชุบชีวา', 3, (lv) => `Ult ฮีล ${pc(T.mend * lv)} ของ HP ที่หายไป`, (lv) => ({ clUltMend: T.mend * lv })),
+    n('cleric_d4', 'cleric_d', 4, '✨', 'คืนชีพ', 1, () => `1 ครั้ง/รอบดันเจี้ยน: โดนตีจนล้ม → ฟื้น HP ${pc(T.reviveHp)} + โล่ ${pc(T.reviveShield)} + ล้างดีบัฟ`, () => ({ clRevive: 1 })),
   ],
   talents: [
     // Row I · Job Lv 5

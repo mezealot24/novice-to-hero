@@ -2,6 +2,7 @@
 // + 1 shared node). Points = the same skill points as the class skills. Node N of a branch opens after
 // (N-1)*2 points in that branch and its parent node; a capstone (tier 4) needs 6, max 2 capstones per class.
 // Nodes only add stats; BattleScene reads the stats (thorns, lockOn, fireSpread...). Ids are save data: never rename.
+// v83 (Q 2026-11-06): stretchNode() gives class / ใยชั้น 2 nodes more levels (max 1->3, 2->4, 3->5) at the SAME full value.
 import { KIT } from './skill-math'
 import type { Stats } from './game-data'
 import type { ClassTree, TalentDef, TreeBranch, TreeNode } from './tree-types'
@@ -25,7 +26,55 @@ import { tree2 as sage } from './trees2/sage'
 import { tree2 as beastmaster } from './trees2/beastmaster'
 import { tree2 as innovator } from './trees2/innovator'
 
-export const TREE_RULES = { perTier: 2, capstoneNeed: 6, capstones: 2, powMax: 5, powPer: 0.12, s2PlusMax: 3 }
+// v83: s2PlusMax 3 -> 5 (Stats.s2Lv = Lv x s2PlusOld / s2PlusMax, so Lv 5 = the old Lv 3) · the ★ needs the "+" at s2StarNeed.
+// stretch: old max -> new max for class / ใยชั้น 2 nodes (stretchNode below); unlock rules + parentLv gates unchanged.
+export const TREE_RULES = { perTier: 2, capstoneNeed: 6, capstones: 2, powMax: 5, powPer: 0.12, s2PlusMax: 5, s2PlusOld: 3, s2StarNeed: 3,
+  stretch: { 1: 3, 2: 4, 3: 5 } as Readonly<Record<number, number>> }
+
+// ===== v83 node stretch (design/skill-web-v1.md "v83"): more levels, same full value =====
+/** Stats that count whole things (stacks, hits, turns, targets): a stretched level rounds them, never below 1 once learned.
+ *  A node with any of these steps on whole numbers and its text rounds to whole numbers too (so text = effect). */
+export const INT_FIELDS: ReadonlySet<keyof Stats> = new Set<keyof Stats>([
+  'poison', 'poisonCap', 'burnCap', 'autoBurn', 'lightHits', 'smiteTargets', 'clUltLights', 'doubleAtk', 'comboCount', 'mgFireStack',
+  'waveDodge', 'ultDodge', 'ultHits', 'ultPoison', 'arWaveDodge', 'arUltDodge',
+  'j2FrenzyMax', 'j2ChargeMax', 'j2DebuffTurns', 'j2BlindAdd', 'j2Traps', 'j2TurretTurns', 'j2EndowTurns', 'j2WolfBleed',
+  'j2PierceHits', 'j2HawkHits', 'j2AutoBolts', 'j2KnifeAdd', 'j2Meteors', 'j2LovHits',
+])
+/** Non-★ nodes that keep their max (tier-4 ★, pow / pow2 / s2root / s2star kinds are never stretched either). Reason per id. */
+export const NO_STRETCH: Readonly<Record<string, string>> = {
+  thief_core1: 'gate: D.Strike must be 5/5 to open ทักษะ 2 (parentLv), already max 5',
+  bm_h3: 'Blitz Beat +1 target: a whole count, nothing to split into 3',
+  kn_p2: 'Pierce +1 hit: a whole count',
+  kn_p3: 'Spear Boomerang: on/off flag',
+  sg_a3: 'Auto Spell +1 bolt: a whole count',
+}
+/** Text of a level between two old levels: long decimals -> 1 dp (or whole numbers on INT_FIELDS nodes), trailing .0 dropped.
+ *  Numbers already written with 1-2 decimals (toFixed(2) multipliers) stay as written. */
+const tidy = (s: string, whole: boolean) => s.replace(/\d+\.\d+/g, (m) => {
+  if (whole) return String(Math.round(+m))
+  return m.split('.')[1].length <= 2 ? m : String(Math.round(+m * 10) / 10)
+})
+/** Old node -> the same node with TREE_RULES.stretch levels: Lv n reads the old formula at n x oldMax / newMax (whole at the top). */
+export function stretchNode(n: TreeNode): TreeNode {
+  const max = TREE_RULES.stretch[n.max]
+  if (!max || max === n.max || n.kind || n.tier === 4 || n.id in NO_STRETCH) return n
+  const old = n.max, at = (lv: number) => (lv * old) / max
+  const whole = Object.keys(n.mod(old)).some((k) => INT_FIELDS.has(k as keyof Stats))
+  const mod = (lv: number): Partial<Stats> => {
+    const raw = n.mod(at(lv))
+    if (!whole) return raw
+    const out: Partial<Stats> = {}
+    for (const k of Object.keys(raw) as (keyof Stats)[]) {
+      const v = raw[k] ?? 0
+      out[k] = INT_FIELDS.has(k) ? (v > 0 ? Math.max(1, Math.round(v)) : Math.round(v)) : v
+    }
+    return out
+  }
+  const desc = (lv: number) => { const x = at(lv); return Number.isInteger(x) ? n.desc(x) : tidy(n.desc(x), whole) }
+  return { ...n, max, mod, desc }
+}
+/** "+" node level -> Stats.s2Lv (Lv 5 = the old Lv 3). */
+export const s2LvOf = (lv: number) => (lv * TREE_RULES.s2PlusOld) / TREE_RULES.s2PlusMax
 // rowsAt: Job Lv that opens talent row 1..4. Talent Points: 1 per `pointEveryJobLv` Job Lv (8 at Job Lv 40), separate from skill points.
 export const TALENT_RULES = { rowsAt: [5, 10, 20, 30] as const, pointEveryJobLv: 5 }
 
@@ -35,6 +84,7 @@ export const TALENT_RULES = { rowsAt: [5, 10, 20, 30] as const, pointEveryJobLv:
 // each with a "+" node and a ★. Old tier-0 nodes (Mage แก่นเวท) form a free "core" column.
 const ATTACH: Record<string, 's1' | 'ult'> = {
   swordsman_a: 'ult', swordsman_b: 's1', archer_a: 'ult', archer_b: 's1', archer_c: 's1', archer_d: 'ult', cleric_a: 'ult', cleric_b: 's1',
+  swordsman_c: 's1', swordsman_d: 'ult', cleric_c: 's1', cleric_d: 'ult', // v84
   thief_a: 's1', thief_b: 'ult', mage_l: 'ult', mage_f: 'ult', mage_i: 'ult',
 }
 const CLASS_TREES: ClassTree[] = [swordsman, archer, mage, cleric, thief]
@@ -59,7 +109,7 @@ for (const c of CLASS_TREES) {
     webNodes.push({ id: `${k.id}`, branch: `${job}_s2`, tier: 0, icon: k.icon, name: k.name, max: 1, kind: 's2root', s2: k.id, ...(gate ? { parent: gate.id, parentLv: gate.max } : {}),
       desc: () => `${k.desc} · ${RESOURCE_NAME[J.resource ?? 'mana']} ${k.cost} · คูลดาวน์ ${k.cd} เทิร์น · ร่ายเองอัตโนมัติ`, mod: () => ({}) })
     webNodes.push({ id: `${k.id}_p`, branch: `${job}_s2`, tier: 1, icon: k.plus.icon, name: k.plus.name, max: TREE_RULES.s2PlusMax, kind: 's2plus', s2: k.id, parent: k.id,
-      desc: k.plus.desc, mod: (lv) => ({ s2Lv: lv }) })
+      desc: (lv) => { const x = s2LvOf(lv); return Number.isInteger(x) ? k.plus.desc(x) : tidy(k.plus.desc(x), false) }, mod: (lv) => ({ s2Lv: s2LvOf(lv) }) })
     webNodes.push({ id: `${k.id}_x`, branch: `${job}_s2`, tier: 2, icon: k.star.icon, name: k.star.name, max: 1, kind: 's2star', s2: k.id, parent: `${k.id}_p`,
       desc: () => k.star.desc, mod: () => ({ s2Star: 1 }) })
   }
@@ -68,7 +118,7 @@ for (const c of CLASS_TREES) {
     webBranches.push({ ...b, line: line ?? 'core' })
     let prev = line ? powId(job, line) : undefined
     for (const x of c.nodes.filter((q) => q.branch === b.id).sort((p, q) => p.tier - q.tier)) {
-      webNodes.push({ ...x, parent: x.tier === 0 ? undefined : prev })
+      webNodes.push({ ...stretchNode(x), parent: x.tier === 0 ? undefined : prev })
       prev = x.id
     }
   }
@@ -91,7 +141,7 @@ for (const id of Object.keys(JOB2_TREES) as Job2Id[]) {
   for (const b of c.branches) {
     web2Branches.push({ ...b, line: 'job2' })
     let prev: string | undefined
-    for (const x of c.nodes.filter((q) => q.branch === b.id).sort((p, q) => p.tier - q.tier)) { web2Nodes.push({ ...x, parent: prev }); prev = x.id }
+    for (const x of c.nodes.filter((q) => q.branch === b.id).sort((p, q) => p.tier - q.tier)) { web2Nodes.push({ ...stretchNode(x), parent: prev }); prev = x.id }
   }
 }
 export const BRANCHES2: TreeBranch[] = web2Branches
@@ -130,7 +180,7 @@ export function lockReason(t: TreeSave, job: JobId, node: TreeNode, j2?: Job2Id)
     if (other && other.id !== node.s2) return `เลือก "${other.name}" ไปแล้ว (รีเซ็ตเพื่อเปลี่ยน)`
     return ''
   }
-  if (node.kind === 's2star') return (t[`${node.s2}_p`] ?? 0) >= TREE_RULES.s2PlusMax ? '' : `ลง "${nodeById(`${node.s2}_p`)?.name ?? ''}" ให้เต็มก่อน`
+  if (node.kind === 's2star') return (t[`${node.s2}_p`] ?? 0) >= TREE_RULES.s2StarNeed ? '' : `ลง "${nodeById(`${node.s2}_p`)?.name ?? ''}" ให้ถึง Lv ${TREE_RULES.s2StarNeed} ก่อน`
   if (node.kind) return ''
   const need = node.tier === 4 ? TREE_RULES.capstoneNeed : Math.max(0, node.tier - 1) * TREE_RULES.perTier
   const spent = branchSpent(t, node.branch) - lv
