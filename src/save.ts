@@ -17,6 +17,7 @@ export interface SaveData {
   jobXp: number
   skillPoints: number
   skills: Record<SkillId, number>
+  nov3?: 1 // v86: ทุบ points refunded (it now levels with Job Lv)
   nov2?: 1 // v85: novice passives moved to their own 10-point pool (old Job Lv points refunded once)
   job: JobId
   jobSkills: { auto: number; ult: number } // retired in skill web v1 (always 1/1): power now comes from the web's +power nodes
@@ -75,7 +76,7 @@ export function newSave(name: string, race: RaceId): SaveData {
   const s = STAT_RULES.start
   return {
     v: 1, web: 1, stretch: 1, name, race, baseLevel: 1, baseXp: 0, statPoints: 3,
-    jobLevel: 1, jobXp: 0, skillPoints: 0, skills: { smash: 1, firstaid: 0, tough: 0, focus: 0, power: 0, iron: 0, swift: 0 }, nov2: 1, job: 'novice', jobSkills: { auto: 1, ult: 1 },
+    jobLevel: 1, jobXp: 0, skillPoints: 0, skills: { smash: 1, firstaid: 0, tough: 0, focus: 0, power: 0, iron: 0, swift: 0 }, nov2: 1, nov3: 1, job: 'novice', jobSkills: { auto: 1, ult: 1 },
     stats: { str: s, vit: s, wis: s, dex: s, int: s, luk: s, agi: s },
     zeny: 100, gems: 0,
     owned: ['knife', 'cloth', 'none', 'none_head', 'none_off'], equipped: { weapon: 'knife', armor: 'cloth', acc: 'none', head: 'none_head', offhand: 'none_off', acc2: 'none' },
@@ -105,6 +106,7 @@ export function load(): SaveData | null {
     migrateNodeStretch(s)
     migrateGear(s)
     migrateNovicePool(s)
+    migrateSmashAuto(s)
     s.modes ??= {} // v51 game modes: additive, old saves start with no records
     delete (s as SaveData & { reroll?: unknown }).reroll // v84 option gacha: no more pending keep-old / take-new (the old line stays)
     cache = s
@@ -200,6 +202,13 @@ function migrateNovicePool(s: SaveData) {
   if (s.nov2) return
   s.skillPoints += (s.skills.firstaid ?? 0) + (s.skills.tough ?? 0)
   s.nov2 = 1
+}
+/** v86 (Q 2026-11-06): 💢 ทุบ levels with Job Lv (meta smashLv), so the Job Lv points put into it come back once. */
+export function migrateSmashAuto(s: SaveData) {
+  if (s.nov3) return
+  s.skillPoints += Math.max(0, (s.skills.smash ?? 1) - 1)
+  s.skills.smash = 1
+  s.nov3 = 1
 }
 
 /** Clear every novice passive for 💎 NOVICE_RULES.resetGems (the pool refills by itself). False when short or nothing to clear. */

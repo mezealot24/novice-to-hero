@@ -4,7 +4,7 @@ import { autoInfo, magicPower, skill2Info, ultInfo, type InfoRow } from '../data
 import { skill2ById } from '../data/skill2'
 import { CARD_RULES, cardIcon, cardName, EQUIP_CARDS, TIER_COLOR, type EquipCard } from '../data/cards'
 import { gradeStars, gradeCap } from '../data/craft'
-import { BASE_STATS, canWear, forged, forgeTag, gradeOf, isBroken, refineOf, cardFits, CERT_SLOTS_AT, EQUIP_SLOTS, offhandLocked, slotKind, type EquipSlot, COSTUMES, gearBase, heroStats, cardStatLine, itemStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, NOVICE_PASSIVES, NOVICE_RULES, noviceLeft, noviceSpent, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText, type BaseStat } from '../data/meta'
+import { BASE_STATS, smashLv, canWear, forged, forgeTag, gradeOf, isBroken, refineOf, cardFits, CERT_SLOTS_AT, EQUIP_SLOTS, offhandLocked, slotKind, type EquipSlot, COSTUMES, gearBase, heroStats, cardStatLine, itemStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, NOVICE_PASSIVES, NOVICE_RULES, noviceLeft, noviceSpent, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText, type BaseStat } from '../data/meta'
 import { canChangeJob, equip, persist, resetNovice, resetTree, resetTree2, save, socketCard, unsocketCard } from '../save'
 import { branches2Of, tree2Spent, BRANCHES, branchesOf, lockReason, skill2Picked, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
 import { JOB_CHANGE, JOBS, type JobId } from '../data/jobs'
@@ -289,7 +289,7 @@ export class CharacterScene extends Phaser.Scene {
     const s = save(), b = this.body!
     const novice = s.job === 'novice', left = noviceLeft(s.skills), spent = noviceSpent(s.skills)
     b.add(txt(this, 330, 116, `แต้มโนวิส: ${left}/${NOVICE_RULES.points}`, 20, left ? UI.gold : UI.sub, true))
-    b.add(txt(this, 330, 144, novice ? `ฟรี ${NOVICE_RULES.points} แต้มตั้งแต่เริ่ม · 💢 ทุบ ใช้แต้มจาก Job Lv` : 'สกิลโนวิสติดตัวไปด้วย · สกิลอาชีพอยู่ใน 🕸️ ใยสกิล', 14, UI.sub))
+    b.add(txt(this, 330, 144, novice ? `ฟรี ${NOVICE_RULES.points} แต้มตั้งแต่เริ่ม · 💢 ทุบ เลเวลขึ้นเองตาม Job Lv` : 'สกิลโนวิสติดตัวไปด้วย · สกิลอาชีพอยู่ใน 🕸️ ใยสกิล', 14, UI.sub))
     if (!novice) b.add(button(this, 885, 124, 120, 30, '🕸️ ใยสกิล', () => { this.skillBasic = false; this.render() }, { size: 13 }))
     b.add(button(this, novice ? 870 : 755, 124, 120, 30, `↺ รีเซ็ต 💎${NOVICE_RULES.resetGems}`, () => {
       if (s.gems < NOVICE_RULES.resetGems) { toast(this, `เพชรไม่พอ ต้องใช้ 💎${NOVICE_RULES.resetGems} (มี ${s.gems})`, UI.sub); return }
@@ -298,17 +298,13 @@ export class CharacterScene extends Phaser.Scene {
       })
     }, { size: 12, fill: 0x5a5f8a, color: UI.text }).setEnabled(spent > 0))
 
-    // 💢 ทุบ (novice only): Job Lv skill points, one slim row
+    // 💢 ทุบ (novice only): v86 levels itself with Job Lv (meta smashLv), one slim row
     let gy = 168
     if (novice) {
-      const sm = SKILLS.find((x) => x.id === 'smash')!, lv = s.skills.smash
+      const sm = SKILLS.find((x) => x.id === 'smash')!, lv = smashLv(s.jobLevel)
       b.add(panel(this, 330, 164, 600, 36, UI.panel, UI.line, 10))
       b.add(txt(this, 342, 172, `${sm.icon} ${sm.name}  Lv ${lv}/${sm.max}`, 14, UI.text, true))
-      b.add(txt(this, 520, 174, `${sm.desc(lv)} · แต้ม Job: ${s.skillPoints}`, 10, UI.green).setWordWrapWidth(330))
-      b.add(button(this, 898, 182, 50, 28, '+1', () => {
-        if (s.skillPoints <= 0 || s.skills.smash >= sm.max) return
-        s.skills.smash++; s.skillPoints--; persist(); this.redraw()
-      }, { size: 13 }).setEnabled(s.skillPoints > 0 && lv < sm.max))
+      b.add(txt(this, 520, 174, `${sm.desc(lv)} · เลเวลขึ้นเองตาม Job Lv`, 10, UI.green).setWordWrapWidth(400))
       gy = 206
     }
     // 6 novice passives: 2 columns x 3 rows, paid from the free novice pool

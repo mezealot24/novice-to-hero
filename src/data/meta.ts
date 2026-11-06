@@ -63,6 +63,8 @@ export const SKILLS: SkillDef[] = [
 ]
 /** Novice passive pool: a fixed 10 points from the start, not tied to Job Lv. Left = points - levels spent (derived, never stored). */
 export const NOVICE_RULES = { points: 10, resetGems: 10 }
+/** v86 (Q 2026-11-06): 💢 ทุบ levels itself = the novice's Job Lv (1..10), no points. Only novices use it (classes have an ult). */
+export const smashLv = (jobLevel: number) => Math.max(1, Math.min(10, Math.floor(jobLevel || 1)))
 export const NOVICE_PASSIVES = SKILLS.filter((x) => x.kind === 'passive')
 export const noviceSpent = (skills: Partial<Record<SkillId, number>>) => NOVICE_PASSIVES.reduce((a, x) => a + (skills[x.id] ?? 0), 0)
 export const noviceLeft = (skills: Partial<Record<SkillId, number>>) => Math.max(0, NOVICE_RULES.points - noviceSpent(skills))
@@ -426,7 +428,8 @@ export function heroStats(s: StatsInput): Stats {
   if (j2pct.aspd) st.aspd *= 1 + j2pct.aspd
   if (st.j2DefAtk > 0) st.atk += st.def * st.j2DefAtk // Knight เกราะเป็นแรง
   if (j2?.id === 'crusader') st.j2Guard = Math.min(KIT2.crusader.guardCap, st.j2Guard + KIT2.crusader.guardVit * Math.max(0, d('vit'))) // Crusader Auto Guard: + per VIT point
-  for (const sk of SKILLS) if ((s.skills[sk.id] ?? 0) > 0 &&(sk.id !== 'smash' || job.id === 'novice')) add(sk.mod(s.skills[sk.id]))
+  for (const sk of SKILLS) if (sk.id !== 'smash' && (s.skills[sk.id] ?? 0) > 0) add(sk.mod(s.skills[sk.id]))
+  if (job.id === 'novice') add(SKILLS.find((x) => x.id === 'smash')!.mod(smashLv(s.jobLevel ?? 1))) // v86: ทุบ = Job Lv
   st.smashCd = Math.max(2500, st.smashCd)
   st.aspd = Math.max(0.6, st.aspd)
   st.minPct = Math.min(0.95, st.minPct)
