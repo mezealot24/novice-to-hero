@@ -154,12 +154,13 @@ export function payTowerSkip(s: SaveData, floor: number): { lv: number; relic: b
   s.gems -= towerSkipGems(floor)
   return towerCatchUp(s, floor)
 }
-/** First time a run clears a checkpoint floor: remember its level + relic (never overwritten). True when written. */
+/** A run clears a checkpoint floor: keep the BEST level seen there across runs, and relic = true if any run held one (Q 2026-11-07, was first-run-only). True when the record changed. */
 export function recordTowerCheckpoint(s: SaveData, floor: number, lv: number, relic: boolean): boolean {
   if (floor < TOWER.skipEvery || floor % TOWER.skipEvery !== 0) return false
-  const rec = modeRec(s, 'tower'), cp = (rec.cp ??= {})
-  if (cp[floor]) return false
-  cp[floor] = { lv: Math.max(1, Math.floor(lv)), ...(relic ? { relic: true } : {}) }
+  const rec = modeRec(s, 'tower'), cp = (rec.cp ??= {}), old = cp[floor], nlv = Math.max(1, Math.floor(lv))
+  const best = Math.max(old?.lv ?? 0, nlv), keepRelic = !!old?.relic || relic
+  if (old && old.lv === best && !!old.relic === keepRelic) return false
+  cp[floor] = { lv: best, ...(keepRelic ? { relic: true } : {}) }
   return true
 }
 

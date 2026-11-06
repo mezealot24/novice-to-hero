@@ -49,10 +49,14 @@ test('v87 tower skip: catch-up uses the recorded level, or a guess for old saves
   assert.equal(towerCatchUp(s, 10).lv, 6)
   assert.equal(recordTowerCheckpoint(s, 30, 22, true), true)
   assert.deepEqual(towerCatchUp(s, 30), { lv: 22, relic: true, est: false })
-  assert.equal(recordTowerCheckpoint(s, 30, 40, false), false) // first time only, never overwritten
-  assert.equal(towerCatchUp(s, 30).lv, 22)
+  assert.equal(recordTowerCheckpoint(s, 30, 18, false), false) // a weaker run never lowers the record or drops the relic
+  assert.deepEqual(towerCatchUp(s, 30), { lv: 22, relic: true, est: false })
+  assert.equal(recordTowerCheckpoint(s, 30, 40, false), true) // a stronger run raises the level (Q 2026-11-07: max, not first)
+  assert.deepEqual(towerCatchUp(s, 30), { lv: 40, relic: true, est: false }) // relic stays: some run held one
   recordTowerCheckpoint(s, 20, 15, false)
-  assert.deepEqual(towerCatchUp(s, 20), { lv: 15, relic: false, est: false })
+  assert.equal(recordTowerCheckpoint(s, 20, 15, true), true) // same level but a relic this time: relic becomes true
+  assert.deepEqual(towerCatchUp(s, 20), { lv: 15, relic: true, est: false })
+  assert.equal(recordTowerCheckpoint(s, 20, 15, true), false) // nothing changed
   assert.equal(recordTowerCheckpoint(s, 25, 9, false), false) // only every 10th floor
   assert.equal(recordTowerCheckpoint(s, 0, 9, false), false)
   assert.equal(towerCatchUp(mk(1000), 1000).lv, TOWER.skipLvMax) // guess is capped

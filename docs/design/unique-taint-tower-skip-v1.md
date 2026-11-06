@@ -38,7 +38,7 @@
 
 | หัวข้อ | ค่า |
 |---|---|
-| บันทึก | ครั้งแรกที่รันผ่าน checkpoint f (ชั้น 10, 20, ...) เก็บ `cp[f] = { lv, relic? }` ลง `save.modes.tower` (ครั้งแรกเท่านั้น ไม่ทับ) |
+| บันทึก | ครั้งแรกที่รันผ่าน checkpoint f (ชั้น 10, 20, ...) เก็บ `cp[f] = { lv, relic? }` ลง `save.modes.tower` (เก็บ **level สูงสุด** ข้ามทุกรัน · `relic: true` ถ้ามีรันไหนถือพรเทพ · Q 2026-11-07) |
 | ตอนข้าม | เริ่มรันที่ `level = lv` · `pendingLevels = lv - 1` → เลือกการ์ด (perk) ครบทุกใบก่อนสู้ชั้นแรก |
 | พรเทพ | ถ้าบันทึก `relic: true` → เปิดหน้าเลือกพรเทพ 1 ครั้งหลังเลือกการ์ดเสร็จ (ใช้ `offerRelic` เดิม, ชุดตัวเลือกต่างจากของจริงนิดหน่อยเพราะไม่มีมินิบอสให้อิง) |
 | ไม่มีบันทึก (เซฟเก่า) | ประมาณ: `lv = clamp(1 + round(S * TOWER.skipLvPerFloor), 1, TOWER.skipLvMax)` · `skipLvPerFloor = 0.5` · `skipLvMax = 60` · relic = true (ชั้น 10 มี gauntlet เสมอ) |
@@ -53,7 +53,7 @@
 ### 1.4 Save (เพิ่มอย่างเดียว ทุกฟิลด์ optional)
 | field | ที่ | ความหมาย |
 |---|---|---|
-| `modes.tower.cp?: Record<number, { lv: number; relic?: boolean }>` | `ModeRecord` | บันทึก checkpoint ครั้งแรก |
+| `modes.tower.cp?: Record<number, { lv: number; relic?: boolean }>` | `ModeRecord` | บันทึก checkpoint (level สูงสุด + relic ถ้าเคยถือ) |
 
 ### 1.5 กฎเพชร
 เพชร = ซ่อม (+ ข้อยกเว้น: ล็อกบรรทัด gacha v84) → **เพิ่มข้อยกเว้นที่ 2: ข้ามชั้นหอคอย** (ประหยัดเวลาล้วน ไม่ให้ของ ไม่ให้ zeny) แก้คอมเมนต์ใน `craft.ts` `refine.ts` `ForgeScene.ts` + `item-acquisition-v1.md` §3.6
@@ -178,7 +178,7 @@ UI: ปุ่มที่ห้ามจะดับ + ข้อความ "�
 | 1 | label | v87/v88/v89 | v85/v86 ถูกใช้แล้วใน main |
 | 2 | 🔥 `fireEvery` | ไม่ใช้ แทนด้วย 🪓 berserk | BattleScene ไม่อ่าน `fireEvery` (เหลือแค่ `Hero.ts` เก่า) |
 | 3 | ประมาณเลเวลเซฟเก่า | `1 + round(S*0.5)` cap 60, relic true | ไม่มีข้อมูลจริง → เดาให้ปลอดภัย; พอรันผ่าน checkpoint จะมีบันทึกจริงแทน |
-| 4 | บันทึก checkpoint | ครั้งแรกเท่านั้น (ไม่ใช่ max) | ตาม spec; อาจต่ำถ้ารันแรกเก่งน้อย |
+| 4 | บันทึก checkpoint | เก็บ max level ข้ามรัน, relic = ถ้ามีรันไหนถือ (Q 2026-11-07 เปลี่ยนจาก first-only) | รันแรกอ่อนไม่ทำให้ catch-up ต่ำถาวร |
 | 5 | ราคาข้ามตอน retry | จ่ายใหม่ทุกรัน | รันใหม่ = ข้ามใหม่ |
 | 6 | ยูนีค drop | 5% / 10% hard, ไม่คูณ LUK, ไม่มี pity | เรียบง่าย; ปรับได้ที่ `UNIQUE` |
 | 7 | ซ้ำ | วัตถุดิบบอส x4 | = 2 เท่าของบอสปกติ (2) |
