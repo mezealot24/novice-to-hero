@@ -10,7 +10,7 @@ import { JOB2, PET_IDS, type Job2Def, type PetId } from '../data/jobs2'
 import { skill2Picked } from '../data/tree'
 import { ALLIES, fillAllies, gadgetById, hawkMul, hurtAlly, liveAllies, makeAlly, rollGadget, tauntTarget, tickAllies, TRAP_IDS, useAlly, wolfMul, type Ally, type AllyCtx, type GadgetId } from '../battle/allies'
 import type { Skill2Def } from '../data/skill2'
-import { autoCost, breakChance, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, hitBase, KIT, KIT2, MAGE_CAST, magicPower, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
+import { autoCost, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, hitBase, KIT, KIT2, MAGE_CAST, magicPower, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, ultMode } from '../save'
 import { MAT_RULES, matName, matOf } from '../data/materials'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
@@ -58,6 +58,8 @@ interface Mon {
   huntMark: number // v82 Archer หมายหัว: turns of +st.arMark damage taken (ticks with its turns)
 }
 type Element = 'lightning' | 'fire' | 'ice'
+/** v78 / v85 chant entry: `paid` = Mana spent (partly refunded on a break) · `safe` = the steady pity chant (can't break). */
+type Cast = { kind: 'gust' | 'ult'; pow: number; hit: number; paid: number; safe?: boolean }
 const ELEMENTS: Record<Element, { icon: string; name: string; sub: string }> = {
   lightning: { icon: '⚡', name: 'สายฟ้า', sub: 'เป้าเดียว ฟาด 6 ฮิต (0.3–1.2x ต่อฮิต) ฆ่าบอส' },
   fire: { icon: '🔥', name: 'ไฟ', sub: 'ดาเมจกลาง 2x + เผาซ้อน (ลดฮีลศัตรู)' },
@@ -272,7 +274,7 @@ export class BattleScene extends Phaser.Scene {
     this.j2 = s.job2 && JOB2[s.job2]?.parent === this.job.id ? JOB2[s.job2] : undefined // 2nd job (design/second-jobs-v1.md)
     if (this.j2) this.job = { ...this.job, resource: this.j2.resource ?? this.job.resource, auto: { ...this.job.auto, cost: this.j2.autoCost ?? this.job.auto.cost }, ult: { ...this.job.ult, ...this.j2.ult } } // Berserker: Rage · Ult วิวัฒน์
     if (this.j2?.id === 'sage') this.job = { ...this.job, attack: 'melee' } // 📖 Sage: melee basic + counters (P.ATK)
-    this.sageInt = totalBase(s).int; this.heroDex = totalBase(s).dex; this.casts = []; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
+    this.sageInt = totalBase(s).int; this.heroDex = totalBase(s).dex; this.casts = []; this.steady = false; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
     this.heroLuk = totalBase(s).luk; this.pet = s.pet ?? 'hawk' // Phase 4 Archer: hawk / gadget odds read base LUK
     { const wpn = itemById(s.equipped.weapon ?? ''); this.j2Weapon = !!this.j2?.mastery.ok(wpn); this.hasShield = !wpn.twoHand && !!s.equipped.offhand && s.equipped.offhand !== 'none_off'; this.dualKnife = this.hasShield && itemById(s.equipped.offhand ?? '').wtype === 'dagger' }
     this.frenzy = 0; this.frenzyAt = 0; this.s3Cd = 0; this.rampage = 0; this.charges = 0; this.allies = []; this.allyTxt.clear(); this.chargeTxt = undefined
@@ -1151,7 +1153,7 @@ export class BattleScene extends Phaser.Scene {
     this.res -= cost
     this.s3Cd = j2.skill3.cd
     const pow = 1 + this.st.s3Pow
-    if (j2.id === 'wizard' && this.charge({ kind: 'gust', pow, hit: pow }, this.res + cost)) return // Storm Gust charges a turn
+    if (j2.id === 'wizard' && this.charge({ kind: 'gust', pow, hit: pow, paid: 0 }, this.res + cost)) return // Storm Gust charges a turn
     await this.asSkill(async () => {
       await this.skillName(j2.skill3)
       const live = this.front()
@@ -1289,9 +1291,11 @@ export class BattleScene extends Phaser.Scene {
   }
 
   // ===== Phase 5 Mage: 🌩️ Wizard / 📖 Sage (numbers KIT2.wizard / KIT2.sage) =====
-  /** v78 cast queue (was Wizard-only): Wizard ร่ายใหญ่ (Storm Gust / ult) · base Mage + Sage chant ลูกไฟระเบิด, the Mage its element ult.
-   *  Paid on charge, released at the start of the next hero turn. Wizard never breaks (takes +15% instead); a Mage / Sage chant can (castBreak). */
-  private casts: { kind: 'gust' | 'ult' | 'fire'; pow: number; hit: number }[] = []
+  /** v78 cast queue (was Wizard-only): Wizard ร่ายใหญ่ (Storm Gust / ult) · base Mage its element ult (v85: ลูกไฟระเบิด is instant again).
+   *  Paid on charge, released at the start of the next hero turn. Wizard never breaks (takes +15% instead); a Mage chant can (castBreak).
+   *  `paid` = Mana spent on it (refunded in part when it breaks) · `safe` = the pity chant after a break: can't break. */
+  private casts: Cast[] = []
+  private steady = false // v85: the last chant broke, so the NEXT one can't
   private castRing?: Phaser.GameObjects.Ellipse // magic circle under the hero while a big spell charges
   private endow = 0 // Sage Endow turns left
   private autoSpelling = false // a Sage Auto Spell bolt is landing (Endow applies)
@@ -1299,16 +1303,15 @@ export class BattleScene extends Phaser.Scene {
   private sageInt = 0 // total INT (Auto Spell chance)
   private heroDex = 0 // total DEX (v78 chant break)
   private zenTurns = 0 // v78 เปิดฉากเต็มแรง: hero turns of Zen left (no miss, crit damage +)
-  /** Base Mage / Sage: ลูกไฟระเบิด chants (Wizard casts it at once). */
-  private chanting() { return this.job.id === 'mage' && this.j2?.id !== 'wizard' }
   /** Start charging a spell (true), or cast it now (false): Wizard ★ Quagmire at high Mana. `mana` = Mana before paying. */
-  private charge(c: { kind: 'gust' | 'ult' | 'fire'; pow: number; hit: number }, mana: number) {
+  private charge(c: Cast, mana: number) {
     const wz = this.j2?.id === 'wizard'
     if (wz && this.st.j2QuickCast > 0 && mana >= this.resMax() * KIT2.wizard.quickMana) { this.floatText(HERO_X, GROUND - 165, '🌀 Quagmire: ร่ายด่วน!', '#c9a8ff'); return false }
+    if (!wz && this.steady) { c.safe = true; this.steady = false; this.floatText(HERO_X, GROUND - 175, '🧘 ตั้งสติ (ร่ายนี้ไม่แตก)', '#9fe3ff') }
     this.casts.push(c)
     this.castFx(true)
     if (wz) this.floatText(HERO_X, GROUND - 150, `🔮 ร่าย${c.kind === 'gust' ? ' Storm Gust' : 'มหาเวท'}... (ดาเมจเข้า +${Math.round(KIT2.wizard.castTaken * 100)}%)`, '#c9a8ff')
-    else this.floatText(HERO_X, GROUND - 150, `🔮 ร่าย${c.kind === 'fire' ? this.job.auto.name : this.job.ult.name}... (โดนตีอาจแตก)`, '#c9a8ff')
+    else this.floatText(HERO_X, GROUND - 150, `🔮 ร่าย${this.job.ult.name}... ${c.safe ? '' : '(โดนตีแรงอาจแตก)'}`, '#c9a8ff')
     return true
   }
   private async releaseCasts() {
@@ -1317,19 +1320,23 @@ export class BattleScene extends Phaser.Scene {
     for (const c of casts) {
       if (!this.alive().length || this.hp <= 0) return
       if (c.kind === 'gust') await this.asSkill(async () => { await this.skillName(this.j2!.skill3); await this.stormGust(c.pow) }, 'skill')
-      else if (c.kind === 'fire') await this.asSkill(async () => { await this.skillName(this.job.auto); await this.mageFire(c.pow, MAGE_CAST.fireMul) }, 'skill')
       else {
         await this.asSkill(async () => { await this.skillName(this.job.ult); if (this.j2?.id === 'wizard') await this.wizUlt(c.pow, c.hit); else { sfx.slam(); await this.ultNow(c.pow, c.hit) } }, 'ult')
         await this.afterUlt()
       }
     }
   }
-  /** v78: a hit that reached HP may break a Mage / Sage chant: queue gone, Mana spent is lost, a broken ult is back in brokenUltCd turns. */
-  private castBreak() {
-    if (!this.casts.length || this.j2?.id === 'wizard' || Math.random() >= breakChance(this.heroDex, this.st.tenacity, this.st.poise > 0)) return
+  /** v78 / v85: a hit that reached HP (dmg after shields, >= breakMinHp of max HP; never a DoT tick) may break a Mage chant: queue gone,
+   *  breakRefund of the Mana paid comes back, a broken ult is back in brokenUltCd turns, and the next chant is steady (can't break). */
+  private castBreak(dmg: number) {
+    if (!this.casts.length || this.j2?.id === 'wizard' || this.casts.every((c) => c.safe) || !breaksOn(dmg, this.st.maxHp)) return
+    if (Math.random() >= breakChance(this.heroDex, this.st.tenacity, this.st.poise > 0)) return
     if (this.casts.some((c) => c.kind === 'ult')) this.smashCdLeft = Math.min(this.smashCdLeft, MAGE_CAST.brokenUltCd)
+    const back = breakRefundMana(this.casts.reduce((a, c) => a + c.paid, 0))
+    this.res = Math.min(this.resMax(), this.res + back)
+    this.steady = true
     this.casts = []; this.castFx(false)
-    this.floatText(HERO_X, GROUND - 150, '💔 ร่ายแตก!', '#ff7a7a')
+    this.floatText(HERO_X, GROUND - 150, `💔 ร่ายแตก! คืน Mana +${back}`, '#ff7a7a')
   }
   /** After an ult lands: เปิดฉากเต็มแรง Zen + after-ult cards. */
   private async afterUlt() {
@@ -1373,7 +1380,7 @@ export class BattleScene extends Phaser.Scene {
   }
   /** Ult วิวัฒน์ of the Mage 2nd jobs. Wizard charges a turn first (ร่ายใหญ่). */
   private async mageUlt2(live: Mon[], p2: number, h2: number) {
-    if (this.j2!.id === 'wizard') { if (!this.charge({ kind: 'ult', pow: p2, hit: h2 }, this.res + this.ultCost())) await this.wizUlt(p2, h2); return }
+    if (this.j2!.id === 'wizard') { if (!this.charge({ kind: 'ult', pow: p2, hit: h2, paid: 0 }, this.res + this.ultCost())) await this.wizUlt(p2, h2); return }
     // 🚫 Dispell + Spell Breaker: strip every monster, steal Mana, smash the caster (charging one first)
     const S = KIT2.sage, t = this.alive().find((m) => m.charging) ?? live[0]
     let n = 0
@@ -1752,8 +1759,7 @@ export class BattleScene extends Phaser.Scene {
         }
         break
       case 'mage':
-        if (this.chanting()) this.charge({ kind: 'fire', pow, hit: pow }, this.res + autoCost(this.job, this.st)) // v78: chant 1 turn, fires at MAGE_CAST.fireMul
-        else await this.mageFire(pow, MAGE_SPELL.autoMul) // Wizard: at once
+        await this.mageFire(pow, this.j2?.id === 'wizard' ? MAGE_SPELL.autoMul : MAGE_CAST.fireMul) // v85: instant for every Mage (Mage / Sage MAGE_CAST.fireMul · Wizard MAGE_SPELL.autoMul)
         break
       case 'cleric':
         if (this.hp < this.st.maxHp * (KIT.clericHealBelow - this.st.healAt)) { this.skillHeal(this.st.matk * CLERIC_KIT.heal * pow); this.burst(HERO_X, GROUND - 40, 0x6fd08c, 18, 160) }
@@ -1774,7 +1780,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  /** ลูกไฟระเบิด: fire on every monster at `mul` x Pm (chanted: MAGE_CAST.fireMul · Wizard: MAGE_SPELL.autoMul). */
+  /** ลูกไฟระเบิด: fire on every monster at `mul` x Pm (Mage / Sage: MAGE_CAST.fireMul · Wizard: MAGE_SPELL.autoMul). */
   private async mageFire(pow: number, mul: number) {
     this.burst(700, GROUND - 30, 0xff8c42, 30, 300)
     for (const m of this.front()) {
@@ -1789,7 +1795,7 @@ export class BattleScene extends Phaser.Scene {
     const pow = 1 + this.st.ultPow // skill web: Ult +power node
     const hitPow = pow * (1 + this.st.ultAmp) // run pick บดกระดูก: damage only, shields/heals stay
     await this.skillName(this.job.ult)
-    if (this.job.id === 'mage' && !this.j2) { this.charge({ kind: 'ult', pow: pow * MAGE_CAST.ultMul, hit: hitPow * MAGE_CAST.ultMul }, this.res + this.ultCost()); return } // v78: the element ult chants 1 turn
+    if (this.job.id === 'mage' && !this.j2) { this.charge({ kind: 'ult', pow: pow * MAGE_CAST.ultMul, hit: hitPow * MAGE_CAST.ultMul, paid: this.ultCost() }, this.res + this.ultCost()); return } // v78: the element ult chants 1 turn
     sfx.slam()
     await this.ultNow(pow, hitPow)
     this.ultWebAfter()
@@ -2587,7 +2593,7 @@ export class BattleScene extends Phaser.Scene {
       this.addShield(this.st.maxHp * KIT2.crusader.martyrShield, true)
       this.callout('🕊️ ผู้พลีชีพ! ยังไม่ล้ม', HERO_X + 120, GROUND - 150)
     }
-    this.castBreak() // v78: only a hit that got past every shield
+    this.castBreak(n) // v78: only a hit that got past every shield (v85: and big enough)
     this.hp = Math.max(this.hpFloor, this.hp - n)
     if (this.flow > 0 && n >= this.st.maxHp * KIT.swordTree.flowBreak) { this.flow = 0; this.floatText(HERO_X, GROUND - 165, '💢 เสียจังหวะ', '#c9c9d6') } // v84 ไหลลื่น
     if (this.hp > 0) this.lowHpCheck()
@@ -3236,7 +3242,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.dodgeCharges > 0) { this.dodgeCharges--; this.evadeJuice('เงาพริ้ว!', '#c9c9d6'); return 0 }
     if (this.hx.web <= 0 && Math.random() < this.st.luckyDodge) { this.evadeJuice('LUCKY!', '#6fd08c'); return 0 }
     if (this.shield > 0) { const a = Math.min(Math.ceil(this.shield), n); this.shield = Math.max(0, this.shield - a); n -= a; if (n <= 0) { this.floatText(HERO_X, GROUND - 110, '🛡️ กันไว้', '#9fe3ff'); return 0 } }
-    this.castBreak()
+    this.castBreak(n)
     const before = this.hp
     this.hp = lethal ? this.hp - n : Math.max(this.hpFloor, 1, this.hp - n)
     if (lethal && this.hp <= 0 && this.hpFloor > 0) this.hp = this.hpFloor
@@ -3494,8 +3500,7 @@ export class BattleScene extends Phaser.Scene {
   private dotHurt(dmg: number, icon: string, color: string) {
     let n = Math.max(1, Math.ceil(dmg))
     if (this.shield > 0) { const a = Math.min(Math.ceil(this.shield), n); this.shield = Math.max(0, this.shield - a); n -= a; if (n <= 0) return }
-    this.castBreak()
-    this.hp = Math.max(this.hpFloor, this.hp - n)
+    this.hp = Math.max(this.hpFloor, this.hp - n) // v85: a poison / burn tick never breaks a chant
     if (this.hp > 0) this.lowHpCheck()
     this.minHpPct = Math.min(this.minHpPct, this.hp / this.st.maxHp)
     this.damageNumber(HERO_X, GROUND - 70, n, false, color)

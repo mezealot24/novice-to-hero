@@ -1,23 +1,41 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FOCUS_RULES, JOB_LINES, OUTSIDE_CAP, overflowShare, perkById } from '../src/data/perks'
-import { breakChance, castUsesTurn, KIT, MAGE_CAST } from '../src/data/skill-math'
+import { breakChance, breakRefundMana, breaksOn, castUsesTurn, KIT, MAGE_CAST } from '../src/data/skill-math'
 import { TABLES } from '../src/data/tunables'
 
 const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`)
 
-test('v78 breakChance: 45% at DEX 0, 9% at DEX 30, tenacity lowers it, never negative, Poise = 0', () => {
-  near(breakChance(0, 0), 0.45)
-  near(breakChance(30, 0), 0.09)
-  near(breakChance(30, 0.05), 0.04)
-  assert.ok(breakChance(10, 0.2) < breakChance(10, 0))
+test('v85 breakChance: 25% at DEX 0, 0 clamp from DEX 21, tenacity lowers it, never negative, Poise = 0', () => {
+  near(breakChance(0, 0), 0.25)
+  near(breakChance(10, 0), 0.13)
+  near(breakChance(10, 0.05), 0.08)
+  assert.equal(breakChance(30, 0), 0) // 0.25 - 0.36 clamps
+  assert.ok(breakChance(5, 0.1) < breakChance(5, 0))
   assert.equal(breakChance(99, 0), 0)
   assert.equal(breakChance(0, 1), 0)
   assert.equal(breakChance(0, 0, true), 0)
 })
 
-test('v78 MAGE_CAST numbers live in one place and are tunable as kit cast.*', () => {
-  assert.deepEqual(MAGE_CAST, { breakBase: 0.45, breakDex: 0.012, fireMul: 1.8, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 })
+test('v85 breaksOn: a hit must deal >= 6% of max HP to roll for a break', () => {
+  assert.equal(breaksOn(5, 100), false)
+  assert.equal(breaksOn(5.99, 100), false)
+  assert.equal(breaksOn(6, 100), true)
+  assert.equal(breaksOn(60, 1000), true)
+  assert.equal(breaksOn(59, 1000), false)
+  assert.equal(breaksOn(10, 0), false) // no max HP: never
+})
+
+test('v85 breakRefundMana: 60% of the Mana paid comes back, rounded down, never negative', () => {
+  assert.equal(breakRefundMana(30), 18)
+  assert.equal(breakRefundMana(25), 15)
+  assert.equal(breakRefundMana(11), 6)
+  assert.equal(breakRefundMana(0), 0)
+  assert.equal(breakRefundMana(-5), 0)
+})
+
+test('v78 / v85 MAGE_CAST numbers live in one place and are tunable as kit cast.*', () => {
+  assert.deepEqual(MAGE_CAST, { breakBase: 0.25, breakDex: 0.012, breakMinHp: 0.06, breakRefund: 0.6, fireMul: 1, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 })
   assert.equal(KIT.cast, MAGE_CAST)
   const pats = TABLES.kit.fields.map(([p]) => p).join(' ')
   for (const k of Object.keys(MAGE_CAST)) assert.ok(pats.includes(k), `kit table misses cast.${k}`)
@@ -27,7 +45,7 @@ test('v78 release rule: a Mage / Sage chant uses up the release turn, Wizard rel
   assert.equal(castUsesTurn(undefined), true) // base Mage
   assert.equal(castUsesTurn('sage'), true)
   assert.equal(castUsesTurn('wizard'), false)
-  near(MAGE_CAST.fireMul / 2, 0.9) // fireball every other turn ≈ the old 0.9x every turn
+  assert.ok(MAGE_CAST.fireMul >= 0.9) // v85: ลูกไฟระเบิด is instant again (no chant), at least the pre-v78 0.9x
 })
 
 test('v78 focus fallbacks: full bar -> shield / heal, empty bar -> resource, Novice -> all shield / heal', () => {

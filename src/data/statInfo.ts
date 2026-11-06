@@ -38,7 +38,7 @@ export const STAT_INFO: Record<BaseStat, StatInfo> = {
       archer: [(_b, d) => `P.ATK +${P.str.atk}/แต้ม (ตอนนี้ +${P.str.atk * d})`],
       swordsman: [(_b, d) => `สวนกลับ +${f1(P.off.swordDexCounter * 100)}%/แต้ม (ตอนนี้ +${f1(P.off.swordDexCounter * 100 * d)}%)`],
       cleric: [(_b, d) => `หอกแสง +${P.off.clericDexSpear}x M.ATK/แต้ม (ตอนนี้ +${(P.off.clericDexSpear * d).toFixed(2)}x)`],
-      mage: [(b) => `ลดโอกาสร่ายแตก ${f1(MAGE_CAST.breakDex * 100)}%/แต้ม (ตอนนี้แตก ${f1(breakChance(b, 0) * 100)}% ต่อครั้งที่โดนตี ก่อนต้านทาน)`],
+      mage: [(b) => `ลดโอกาสร่ายแตก ${f1(MAGE_CAST.breakDex * 100)}%/แต้ม (ตอนนี้แตก ${f1(breakChance(b, 0) * 100)}% ต่อครั้งที่โดนตีแรง ≥ ${f1(MAGE_CAST.breakMinHp * 100)}% HP ก่อนต้านทาน · เฉพาะ ult)`],
     },
   },
   int: {
