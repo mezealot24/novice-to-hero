@@ -1,10 +1,11 @@
 // admin.html model (src/admin/model.ts) + the patch round trip the server does on PUT /admin/draft. Run: npm test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MONSTERS, type MonsterKind } from '../src/data/game-data'
+import { hasFx, MONSTERS, type MonsterKind } from '../src/data/game-data'
 import { canonicalJson, checkPatch, guardsFor } from '../src/data/patch'
 import { TABLES, type Patch } from '../src/data/tunables'
 import { statNative } from '../src/data/mon-stats'
+import { borrowPlan, heroClasses } from '../src/admin/borrow'
 import { clampField, diffPatches, fieldLabel, fieldRow, fields, monSections, monsterGroups, pctHint, previewMon, setIn } from '../src/admin/model'
 
 test('every monster is listed exactly once, in the right tier', () => {
@@ -85,4 +86,40 @@ test('previewMon: game formulas on a draft, defaults restored after', () => {
   const [king] = previewMon('king', {})
   assert.equal(king.hp, MONSTERS.king.hp, 'D1-5 defaults derive their tuned numbers')
   assert.ok(!monSections('pharaoh', fields('monsters').filter((r) => r.path.startsWith('pharaoh.'))).flatMap((s) => s.fields).some((f) => f.row.path === 'pharaoh.hp'), 'placeholder hp hidden')
+})
+
+test('borrow: hero tree nodes map onto monster fields, the rest is skipped', () => {
+  const cls = heroClasses()
+  const thief = cls.find((c) => c.id === 'thief')
+  assert.ok(thief && cls.length >= 5, 'base classes listed')
+  const pick = (name: string) => thief.srcs.find((s) => s.name === name)
+  const blade = pick('มีดคู่'), bite = pick('คมเลือด'), strike = pick('D.Strike')
+  assert.ok(blade && bite && strike)
+  const king = (path: string) => (path === 'king.crit' ? 0.06 : undefined)
+  const p = borrowPlan('king', blade, 3, king)
+  const crit = p.lines.find((l) => l.path === 'king.crit'), combo = p.lines.find((l) => l.path === 'king.combo')
+  assert.ok(crit && Math.abs(crit.to - 0.15) < 1e-9, `มีดคู่ Lv3 crit 0.06 + 0.09 -> ${crit?.to}`)
+  assert.ok(combo && Math.abs(combo.to - 0.15) < 1e-9)
+  assert.equal(borrowPlan('king', bite, 3, () => undefined).lines[0]?.path, 'king.lifesteal')
+  assert.ok(Math.abs((borrowPlan('king', strike, 5, () => undefined).lines[0]?.to ?? 0) - 0.6) < 1e-9, 'D.Strike 5 -> combo 60%')
+  const poison = pick('เคลือบพิษ')
+  assert.ok(poison)
+  assert.equal(borrowPlan('king', poison, 3, () => undefined).lines[0]?.to, 3, 'king had no onHit: the empty slot now takes it')
+  for (const c of cls) for (const s of c.srcs) for (const l of borrowPlan('pharaoh', s, s.max, () => undefined).lines) {
+    const row = fieldRow('monsters', l.path)
+    assert.ok(row && l.to >= row.def.min && l.to <= row.def.max, `${c.id}/${s.name}: ${l.path} ${l.to} in range`)
+  }
+})
+
+test('every monster has its own empty onHit / bodyMul (bosses: slamFx) slots, with no effect', () => {
+  const seen = new Set<object>()
+  for (const [k, d] of Object.entries(MONSTERS)) {
+    assert.ok(d.onHit && d.bodyMul, `${k}: slots exist`)
+    if (d.ai === 'boss') assert.ok(d.slamFx, `${k}: boss slamFx slot`)
+    for (const o of [d.onHit, d.bodyMul]) { assert.ok(!seen.has(o), `${k}: own object, not shared`); seen.add(o) }
+  }
+  assert.equal(hasFx({}), false)
+  assert.equal(hasFx({ poison: 0 }), false)
+  assert.equal(hasFx({ poison: 2 }), true)
+  assert.ok(checkPatch({ monsters: { 'king.onHit.poison': 3, 'king.bodyMul.hp': 2 } }).ok, 'server accepts the new paths')
 })

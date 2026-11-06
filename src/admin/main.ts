@@ -5,6 +5,7 @@ import { statNative } from '../data/mon-stats'
 import { canonicalJson, checkPatch, guardsFor, type FieldRow } from '../data/patch'
 import { TABLE_IDS, TABLES, type Patch, type TableId } from '../data/tunables'
 import { LOCAL_KEY } from '../live-keys'
+import { borrowPlan, heroClasses, type BorrowLine } from './borrow'
 import { API, authClient, call, errText, parseRow, type SRow } from './api'
 import { clampField, clonePatch, diffPatches, fieldLabel, fieldRow, fields, monSections, monsterGroups, patchSize, pctHint, previewMon, setIn, TIER_LABEL, valueIn, type MonPreview, type Tier } from './model'
 
@@ -203,16 +204,68 @@ function monsterCard(k: MonsterKind): HTMLElement {
   const d = h('details', { class: 'mon' },
     h('summary', {}, h('b', {}, m.name), m.title ? h('span', { class: 'muted' }, ` · ${m.title}`) : null, ' ', h('code', {}, k),
       h('span', { class: 'muted' }, statNative(k) ? ' · stat monster' : ` · HP ${fmt(liveOf('monsters', `${k}.hp`))}`), ' ', badge))
-  d.addEventListener('toggle', () => {
-    if (!d.open || d.children.length > 1) return
+  const fill = () => {
     const prev = h('div', { class: 'preview' })
     const drawPrev = () => prev.replaceChildren(...previewBox(k))
     drawPrev()
-    d.append(prev, h('p', { class: 'hint' }, statNative(k)
+    d.append(prev, borrowBox(k, () => { while (d.children.length > 1) d.lastChild?.remove(); fill(); setBadge() }), h('p', { class: 'hint' }, statNative(k)
       ? 'ℹ️ ไม่ต้องใส่ HP / ATK เอง: แต้มรวม = เลเวลห้อง × tier อัตโนมัติ · statAlloc = สัดส่วนการแจกแต้ม · bodyMul = ตัวคูณ · def / hit / ... = โบนัสบวกเพิ่ม'
       : 'ℹ️ ค่าพลังด้านล่าง = ค่าที่เลเวลบ้านเกิด · แก้ statAlloc / legacy.lv / MON_STAT แล้วตัวเลขขยับตามสูตรเดียวกับ D6'))
     d.append(monsterBody(k, () => { setBadge(); drawPrev() }))
+  }
+  d.addEventListener('toggle', () => { if (d.open && d.children.length === 1) fill() })
+  return d
+}
+
+/** "📥 ยืมจาก Hero tree": pick class -> node / talent -> Lv, see what it adds, then write it into the draft. */
+function borrowBox(k: MonsterKind, rebuild: () => void): HTMLElement {
+  const classes = heroClasses()
+  const cls = h('select', {}, ...classes.map((c, i) => h('option', { value: String(i) }, `${c.name} · ${c.srcs.length}`)))
+  const src = h('select', {}), lv = h('select', {}), plan = h('div', { class: 'plan' })
+  const go = h('button', { class: 'primary small' }, '📥 ใส่ให้มอน')
+  const pickedSrc = () => classes[Number(cls.value)]?.srcs[Number(src.value)]
+  const fillSrc = () => {
+    const c = classes[Number(cls.value)], groups = new Map<string, HTMLOptGroupElement>()
+    src.replaceChildren()
+    c?.srcs.forEach((s, i) => {
+      const g = groups.get(s.group) ?? h('optgroup', { label: s.group })
+      g.append(h('option', { value: String(i) }, `${s.icon} ${s.name}`)); groups.set(s.group, g)
+    })
+    src.append(...groups.values())
+    fillLv()
+  }
+  const fillLv = () => {
+    const s = pickedSrc()
+    lv.replaceChildren(...Array.from({ length: s?.max ?? 0 }, (_, i) => h('option', { value: String(i + 1) }, `Lv ${i + 1}`)))
+    lv.value = String(s?.max ?? 1)
+    drawPlan()
+  }
+  let lines: BorrowLine[] = []
+  const drawPlan = () => {
+    const s = pickedSrc()
+    if (!s) { plan.replaceChildren(); return }
+    const p = borrowPlan(k, s, Number(lv.value), (path) => draftOf('monsters', path))
+    lines = p.lines
+    const pct = (path: string, v: number) => (pctHint(fieldRow('monsters', path)?.def ?? { kind: 'int', min: 0, max: 0 }, v) ?? fmt(v))
+    plan.replaceChildren(
+      h('div', { class: 'muted small' }, `ฮีโร่: ${s.desc(Number(lv.value))}`),
+      ...lines.map((l) => h('div', {}, `✅ ${l.label}: ${pct(l.path, l.from)} → `, h('b', {}, pct(l.path, l.to)), l.approx ? h('span', { class: 'warn small' }, ` ≈ ${l.approx}`) : '')),
+      p.skipped.length ? h('div', { class: 'muted small', title: p.skipped.join('\n') }, `⏭️ ข้าม ${p.skipped.length} อย่าง (มอนยังไม่มีกลไก): ${p.skipped.join(', ')}`) : '',
+      lines.length ? '' : h('div', { class: 'warn small' }, 'มอนตัวนี้รับอะไรจากช่องนี้ไม่ได้'),
+    )
+    go.toggleAttribute('disabled', !lines.length)
+  }
+  cls.addEventListener('change', fillSrc); src.addEventListener('change', fillLv); lv.addEventListener('change', drawPlan)
+  go.addEventListener('click', () => {
+    const s = pickedSrc()
+    for (const l of lines) setIn(S.draft, 'monsters', l.path, l.to === fieldRow('monsters', l.path)?.value ? null : l.to)
+    updateStatus(); toast(`ยืม ${s?.icon ?? ''} ${s?.name ?? ''} Lv ${lv.value} ให้ ${MONSTERS[k].name} แล้ว (${lines.length} ช่อง · ยังไม่บันทึก)`)
+    rebuild()
   })
+  const d = h('details', { class: 'borrow' }, h('summary', {}, '📥 ยืมจาก Hero tree'),
+    h('div', { class: 'row' }, cls, src, lv, go), plan,
+    h('p', { class: 'muted small' }, 'บวกเพิ่มจากค่าปัจจุบันของมอน · ยืมซ้ำ = บวกซ้ำ · กด ↺ / × ที่ช่องเพื่อย้อน · ใช้ได้เฉพาะ stat ที่มอนมีกลไกอยู่แล้ว (คริ คอมโบ สวนกลับ ดูดเลือด Flee Hit พิษ สะท้อน)'))
+  d.addEventListener('toggle', () => { if (d.open && !src.children.length) fillSrc() }, { once: true })
   return d
 }
 

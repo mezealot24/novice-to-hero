@@ -878,3 +878,14 @@ for (const [k, kit] of Object.entries(KITS) as [MonsterKind, NonNullable<(typeof
   Object.assign(MONSTERS[k], stats)
   if (add) MONSTERS[k].skills = [...(MONSTERS[k].skills ?? []), ...add]
 }
+
+// v81 (admin.html "ยืมจาก Hero tree"): every monster gets its OWN empty hit-effect / body objects, so a live-config patch can add
+// e.g. onHit.poison to a monster that had none (a patch only writes into objects that exist). Empty = no effect: applyFx skips
+// absent / 0 keys and bodyMul reads `?? 1`. So test "has an effect" with hasFx(), never with `if (d.onHit)`.
+// venom / trueSight are NOT pre-made: their numbers are required, an empty one would break the monster.
+export const hasFx = (fx: HitFx | undefined): boolean => !!fx && Object.values(fx).some((v) => !!v)
+for (const d of Object.values(MONSTERS)) {
+  d.onHit ??= {}
+  d.bodyMul ??= {}
+  if (d.ai === 'boss') d.slamFx ??= {}
+}

@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { afterDef, BATTLE, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats } from '../data/game-data'
+import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats } from '../data/game-data'
 import { ELEM_SRC, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, PERKS_V2, OFFER_RULES, OUTSIDE_CAP, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type OutsideKey, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
 import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
@@ -468,7 +468,7 @@ export class BattleScene extends Phaser.Scene {
     d.skills = [...(d.skills ?? []), sk] // own skills keep priority
     d.trueSight = HARD_POWER.bossSight // v59 anti-evasion (Q: Flee 159 Thief made bosses useless): 1 dodge -> sure hits for 3 turns
     if (d.phases) d.phases = d.phases.map((p) => (p.skills ? { ...p, skills: [...p.skills, sk] } : p))
-    const pool = HARD_PASSIVES.filter((p) => !(p.onHit && d.onHit) && !(p.reflect && (d.reflect || d.absorb)) && !(p.lifesteal && d.lifesteal))
+    const pool = HARD_PASSIVES.filter((p) => !(p.onHit && hasFx(d.onHit)) && !(p.reflect && (d.reflect || d.absorb)) && !(p.lifesteal && d.lifesteal))
     const n = !d.mini && this.dg.tier >= 3 ? 2 : 1
     const got: string[] = []
     this.lastSpeed = 1
