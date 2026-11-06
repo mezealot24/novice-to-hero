@@ -18,6 +18,7 @@ import { sfx, unlock } from '../sfx'
 import { HARD_POWER, matchScale, overpowerMul, TOWER_POWER } from '../data/power'
 import { legacyLevel, levelDropMul, roomLevel, scaleOf, skillMul, slamScaleOf, statMonster, statNative, withStats } from '../data/mon-stats'
 import { foldAffixes } from '../data/affixes'
+import { PACKS } from '../data/dungeons'
 import { buildRun, MODES, towerFloorLoot, type ModeArgs, type RunConfig, type RunRoom } from '../data/modes'
 import { button, fullscreenButton, go, type Btn } from '../ui'
 
@@ -73,6 +74,7 @@ const MINI_HINT: Record<string, string> = {
   warlord: 'ทุก 3 เทิร์นคลั่งเลือดแรงขึ้นสะสม! ต้องจบไว · ดูดเลือด · ต่ำกว่า 30% เร็วมาก',
   sphinx: 'สายเวท มี M.DEF สูง (สายกายภาพได้เปรียบ) · ลำแสง 3 ลูกทุก 3 เทิร์น · ชาร์จปริศนา = ใบ้ + อ่อนแรง · ครึ่งเลือดได้โล่และแรงขึ้น',
   jackallord: 'AGI สูง หลบเก่ง ตีรัว + สวนกลับ · หลบได้ 2 ครั้งแล้วตาเหยี่ยวโดนแน่ · ครึ่งเลือดเรียกหมาไน 2 ตัว',
+  ...Object.assign({}, ...PACKS.map((p) => p.miniHints)), // D7-D10 (v78, data/dungeons/dN.ts)
 }
 const FX_ICON: Record<keyof HitFx, string> = { poison: '☠️', burn: '🔥', weaken: '💔', armorBreak: '🛡️💥', silence: '🤐', freeze: '❄️', web: '🕸️', slow: '💙' }
 

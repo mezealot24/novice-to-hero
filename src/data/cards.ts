@@ -4,6 +4,7 @@
 // the few "% of max HP / ATK" cards (applied after everything else is added up).
 import { MONSTERS, type MonsterKind, type Stats } from './game-data'
 import type { BaseStat, Slot } from './meta'
+import { PACKS } from './dungeons'
 
 export type CardTier = 'normal' | 'mini' | 'boss'
 export interface CardPct { maxHp?: number; atk?: number; matk?: number }
@@ -118,6 +119,8 @@ export const EQUIP_CARDS: EquipCard[] = [
   c2('mirage', 'armor', 'mini', 'd5', 'เงาพันหน้า', '🗡️โจร', { ultDodge: 1, ultHits: 1 }, undefined, { maxHp: -0.06 }),
   c2('warlord', 'weapon', 'mini', 'd5', 'เลือดขุนศึก', '🏹นักธนู 🗡️โจร', { critMul: 0.25, crit: 0.04, hit: -8 }),
   c2('lich', 'armor', 'boss', 'd5', 'คัมภีร์ลิช', 'ทุกคลาส (ult)', { mgUltCd: -1, resRegenCut: 0.1, aspd: -0.12 }, undefined, { maxHp: -0.05 }),
+  // ----- D7-D10 (v78): each pack's 9 cards (data/dungeons/dN.ts) -----
+  ...PACKS.flatMap((p) => p.cards),
 ]
 
 export const cardById = (id: string) => EQUIP_CARDS.find((x) => x.id === id)

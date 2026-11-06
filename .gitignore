@@ -7,3 +7,5 @@ coverage/
 .phaser-cache/
 .env
 .env.*
+.tests-out/
+.bot-dist/
