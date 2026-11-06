@@ -102,7 +102,7 @@ export function load(): SaveData | null {
     if (!s.web) migrateToWeb(s)
     migrateThiefWeb(s)
     migratePriestBless(s)
-    migrateHiddenTalents(s)
+    migrateClericDawn(s)
     migrateNodeStretch(s)
     migrateGear(s)
     migrateNovicePool(s)
@@ -187,13 +187,14 @@ function migratePriestBless(s: SaveData) {
   if (s.job !== 'cleric' || !t || (t.cl_bless ?? 0) <= 1) return
   s.skillPoints += t.cl_bless - 1; t.cl_bless = 1
 }
-/** v86 Cleric talent row II: พรยืนยาว / แสงลงทัณฑ์ / ใต้ปีกเทพ are hidden (replaced by แสงรุ่งอรุณ). Drop those picks;
- *  Talent Points are counted from the picks, so dropping one refunds its TP. */
-const HIDDEN_TALENTS = new Set(['cleric_t2_regen', 'cleric_t2_holy', 'cleric_t2_wing'])
-export function migrateHiddenTalents(s: SaveData) {
-  const t = s.jobTalents
-  if (!t) return
-  for (const [row, p] of Object.entries(t)) if (p && HIDDEN_TALENTS.has(p.id)) delete t[row]
+/** v86 🌄 รุ่งอรุณ replaced the ⛪ ฟื้นคืน web branch: points in its old nodes come back as skill points. The short-lived
+ *  talent version (row II แสงรุ่งอรุณ, never shipped) is dropped too; Talent Points are counted from picks, so that refunds. */
+const GONE_NODES = ['cleric_d1', 'cleric_d2', 'cleric_d3', 'cleric_d4']
+export function migrateClericDawn(s: SaveData) {
+  const t = s.jobTree
+  if (t) for (const id of GONE_NODES) if (t[id]) { s.skillPoints += t[id]; delete t[id] }
+  const tal = s.jobTalents
+  if (tal) for (const [row, p] of Object.entries(tal)) if (p?.id === 'cleric_t2_dawnlight') delete tal[row]
 }
 /** v85 novice pool (Q 2026-11-06): ปฐมพยาบาล / ร่างกายแกร่ง used to cost Job Lv skill points. Those points come back
  *  as skill points; the levels stay and now count against the free 10-point novice pool (max 5+5 = 10, always fits). */

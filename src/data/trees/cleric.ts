@@ -15,7 +15,8 @@ export const tree: ClassTree = {
     { id: 'cleric_b', job: 'cleric', name: 'ตัดสิน', icon: '⚖️', blurb: 'แสงตีหลายตัว · ฮีลน้อยครั้งแต่ก้อนใหญ่' },
     // v84: ATTACH in data/tree.ts: cleric_c under ทักษะ 1, cleric_d under Ult
     { id: 'cleric_c', job: 'cleric', name: 'ศรัทธา', icon: '🙏', blurb: 'ฮีล/แสงสะสมศรัทธา · เต็มแล้วระเบิดแสง · ★ ฮีลล้นเป็นดาเมจ' },
-    { id: 'cleric_d', job: 'cleric', name: 'ฟื้นคืน', icon: '⛪', blurb: 'หลัง ult รับดาเมจน้อยลง · ฮีลฉุกเฉิน · ★ คืนชีพ 1 ครั้ง/รอบ' },
+    // v86 (Q 2026-11-06): ⛪ ฟื้นคืน replaced by 🌄 รุ่งอรุณ (same branch id, new node ids; old points refunded in save.ts)
+    { id: 'cleric_d', job: 'cleric', name: 'รุ่งอรุณ', icon: '🌄', blurb: 'ตีปกติครบ 3 = ทุบแสงคริแน่ + ฮีล · แสงแตกใส่ทุกตัว · ★ Ult ชาร์จทันที' },
   ],
   nodes: [
     // A: Sanctuary
@@ -34,26 +35,23 @@ export const tree: ClassTree = {
     n('cleric_c2', 'cleric_c', 2, '💛', 'ล้นศรัทธา', 3, (lv) => `ฮีลเกิน HP เต็ม (≥ ${pc(T.overMin)} HP) ${pc(T.faithOver * lv)} ได้ศรัทธา +1`, (lv) => ({ clFaithOver: T.faithOver * lv })),
     n('cleric_c3', 'cleric_c', 3, '🤲', 'พรเกื้อ', 3, (lv) => `ระเบิดศรัทธาฮีล ${pc(T.faithHealPer * lv)} HP ต่อศรัทธา (เต็ม = ${pc(T.faithHealPer * lv * T.faithMax)})`, (lv) => ({ clFaithHeal: T.faithHealPer * lv })),
     n('cleric_c4', 'cleric_c', 4, '🌞', 'แสงล้นฟ้า', 1, () => `ฮีลเกิน HP เต็ม → ดาเมจแสงใส่ตัวหน้า x${T.overBurst} ของส่วนเกิน (นับได้ถึง ${pc(T.overCap)} HP ต่อครั้ง)`, () => ({ clOverBurst: 1 })),
-    // D: ฟื้นคืน (survival)
-    n('cleric_d1', 'cleric_d', 1, '🕯️', 'ม่านพร', 3, (lv) => `หลัง Ult รับดาเมจ −${pc(T.ward * lv)} ${T.wardTurns} เทิร์น`, (lv) => ({ clUltWard: T.ward * lv })),
-    n('cleric_d2', 'cleric_d', 2, '🚑', 'ฉุกเฉิน', 3, (lv) => `HP ตกต่ำกว่า ${pc(T.emergencyAt)} ครั้งแรกของเวฟ: ฮีล ${pc(T.emergency * lv)} HP ทันที`, (lv) => ({ clEmergency: T.emergency * lv })),
-    n('cleric_d3', 'cleric_d', 3, '🌿', 'ชุบชีวา', 3, (lv) => `Ult ฮีล ${pc(T.mend * lv)} ของ HP ที่หายไป`, (lv) => ({ clUltMend: T.mend * lv })),
-    n('cleric_d4', 'cleric_d', 4, '✨', 'คืนชีพ', 1, () => `1 ครั้ง/รอบดันเจี้ยน: โดนตีจนล้ม → ฟื้น HP ${pc(T.reviveHp)} + โล่ ${pc(T.reviveShield)} + ล้างดีบัฟ`, () => ({ clRevive: 1 })),
+    // D: 🌄 รุ่งอรุณ (v86, Q 2026-11-06): every D.every basic attacks the next swing = sure-crit holy smash
+    // (STR + WIS + D.atk x P.ATK + D.matk x M.ATK) that heals a share of its damage. Numbers per OLD level (max 3), stretched to 5.
+    n('cleric_dn1', 'cleric_d', 1, '🌄', 'แสงรุ่งอรุณ', 3, (lv) => `ตีปกติครบ ${D.every} ครั้ง → ครั้งถัดไปทุบแสงคริแน่ (STR+WIS+${pc(D.atk)} P.ATK+${pc(D.matk)} M.ATK) ดาเมจคริ +${pc(D.crit * lv)} · ฮีล ${pc(D.heal)} ของดาเมจ (มอนธรรมดา x${D.weak})`,
+      (lv) => ({ clDawn: 1, clDawnCrit: D.crit * lv })),
+    n('cleric_dn2', 'cleric_d', 2, '💛', 'อรุณสมานแผล', 3, (lv) => `แสงรุ่งอรุณฮีลเพิ่ม +${pc(D.healLv * lv)} ของดาเมจ (รวม ${pc(D.heal + D.healLv * lv)})`, (lv) => ({ clDawnHeal: D.healLv * lv })),
+    n('cleric_dn3', 'cleric_d', 3, '☀️', 'แสงแตก', 3, (lv) => `แสงรุ่งอรุณแตกใส่มอนตัวอื่นทุกตัว ${pc(D.splash * lv)} ของดาเมจ (คริด้วย)`, (lv) => ({ clDawnSplash: D.splash * lv })),
+    n('cleric_dn4', 'cleric_d', 4, '🌅', 'อรุณพิทักษ์', 1, () => 'กด Ult = ชาร์จแสงรุ่งอรุณทันที (ตีปกติครั้งถัดไปทุบแสงคริแน่)', () => ({ clDawnUlt: 1 })),
   ],
   talents: [
     // Row I · Job Lv 5
     t('cleric_t1_focus', 1, '💧', 'สมาธิ', 2, (r) => `ฟื้น Mana +${r === 1 ? 6 : 10}/เทิร์น`, (r) => ({ resRegen: r === 1 ? 2 : 3.4 })),
     t('cleric_t1_spear', 1, '🔱', 'หอกเปิดศึก', 2, (r) => `เริ่มทุกไฟต์ด้วยหอกแสง ${r === 1 ? 2 : 3} เล่ม (เล่มละ 30% M.ATK ใส่ทุกตัว)`, (r) => ({ spearStart: r === 1 ? 2 : 3 })),
     t('cleric_t1_ward', 1, '🛡️', 'ร่างพร', 2, (r) => `เริ่มไฟต์บอสด้วยโล่ ${r === 1 ? 12 : 20}% HP`, (r) => ({ bossShield: r === 1 ? 0.12 : 0.2 })),
-    // Row II · Job Lv 10 — v86 (Q 2026-11-06): the 3 ult talents are hidden (code paths kept, stats stay 0; old picks are refunded on load,
-    // save.ts) and replaced by one 4-rank talent: แสงรุ่งอรุณ.
-    t('cleric_t2_dawnlight', 2, '🌄', 'แสงรุ่งอรุณ', 4,
-      (r) => `ตีปกติครบ ${D.every} ครั้ง → ครั้งถัดไปทุบแสงคริแน่: (STR + WIS + ${pc(D.atk)} P.ATK + ${pc(D.matk)} M.ATK) ดาเมจคริ${D.crit[r - 1] ? ` +${pc(D.crit[r - 1])}` : ''} · ฮีล ${pc(D.heal[r - 1])} ของดาเมจ (มอนธรรมดา x${D.weak})`,
-      (r) => ({ clDawn: r })),
-    // hidden v86:
-    // t('cleric_t2_regen', 2, '🌿', 'พรยืนยาว', 2, (r) => `ult แถมฟื้น ${r === 1 ? 2 : 3}% HP/เทิร์น 3 เทิร์น`, (r) => ({ ultRegen: r === 1 ? 0.02 : 0.03 })),
-    // t('cleric_t2_holy', 2, '☀️', 'แสงลงทัณฑ์', 2, (r) => `ult แถมดาเมจ ${r === 1 ? '1.0' : '1.6'}x M.ATK ใส่ทุกตัว`, (r) => ({ ultHoly: r === 1 ? 1 : 1.6 })),
-    // t('cleric_t2_wing', 2, '🕊️', 'ใต้ปีกเทพ', 2, (r) => `กด ult ตอนบอสชาร์จ: โล่ x${r === 1 ? '1.5' : '2'}`, (r) => ({ ultChargeShield: r === 1 ? 0.5 : 1 })),
+    // Row II · Job Lv 10 (ult "พรคุ้มครอง")
+    t('cleric_t2_regen', 2, '🌿', 'พรยืนยาว', 2, (r) => `ult แถมฟื้น ${r === 1 ? 2 : 3}% HP/เทิร์น 3 เทิร์น`, (r) => ({ ultRegen: r === 1 ? 0.02 : 0.03 })),
+    t('cleric_t2_holy', 2, '☀️', 'แสงลงทัณฑ์', 2, (r) => `ult แถมดาเมจ ${r === 1 ? '1.0' : '1.6'}x M.ATK ใส่ทุกตัว`, (r) => ({ ultHoly: r === 1 ? 1 : 1.6 })),
+    t('cleric_t2_wing', 2, '🕊️', 'ใต้ปีกเทพ', 2, (r) => `กด ult ตอนบอสชาร์จ: โล่ x${r === 1 ? '1.5' : '2'}`, (r) => ({ ultChargeShield: r === 1 ? 0.5 : 1 })),
     // Row III · Job Lv 20 (auto skill)
     t('cleric_t3_spear', 3, '🔱', 'หอกรายเทิร์น', 2, (r) => `ได้หอกแสง 1 เล่ม${r === 1 ? 'ทุก 2 เทิร์น' : 'ทุกเทิร์น'}`, (r) => ({ spearRate: r === 1 ? 0.5 : 1 })),
     t('cleric_t3_miracle', 3, '🍀', 'ปาฏิหาริย์', 2, (r) => `แสงและหอกแสงคริได้ ${r === 1 ? 10 : 18}% (ดาเมจคริตามค่าคริของเกม)`, (r) => ({ spellCrit: r === 1 ? 0.1 : 0.18 })),

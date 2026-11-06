@@ -16,10 +16,10 @@ export interface TreeNode {
 }
 
 /** Talent: 4 rows that open at Job Lv 5/10/20/30 (TALENT_RULES.rowsAt); pick 1 of the row's 3 options.
- *  Costs Talent Points (own pool, 1 TP per 5 Job Lv, see TALENT_RULES): 1 TP per rank, rank 1..max (usually max 2 = stronger numbers).
+ *  Costs Talent Points (own pool, 1 TP per 5 Job Lv, see TALENT_RULES): 1 TP per rank, rank 1..max (max 2 = stronger numbers).
  *  Free reset/swap in town refunds TP. Usually changes how a skill behaves: give it a Stats flag in `mod` and read it in BattleScene. */
 export interface TalentDef {
-  id: string; row: 1 | 2 | 3 | 4; name: string; icon: string; max: 1 | 2 | 3 | 4 // v86: Cleric แสงรุ่งอรุณ has 4 ranks
+  id: string; row: 1 | 2 | 3 | 4; name: string; icon: string; max: 1 | 2
   desc: (rank: number) => string; mod: (rank: number) => Partial<Stats>
 }
 /** One class's content, in data/trees/<job>.ts. */

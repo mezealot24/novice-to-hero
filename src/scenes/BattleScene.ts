@@ -875,20 +875,23 @@ export class BattleScene extends Phaser.Scene {
     this.dawnN = fired ? 0 : this.dawnN + 1
     if (this.dawnN === D.every) this.floatText(HERO_X, GROUND - 170, '🌄 แสงรุ่งอรุณ พร้อม!', '#ffd36e')
   }
-  /** (STR + WIS + atk x P.ATK + matk x M.ATK) as a sure crit with +crit dmg by rank, then heal a share of what landed. */
+  /** (STR + WIS + atk x P.ATK + matk x M.ATK) as a sure crit (+clDawnCrit crit dmg), splash to the rest, heal a share of the main hit. */
   private dawnSmash(f: Mon) {
-    const D = KIT.clericTree.dawn, r = Math.max(1, Math.min(D.heal.length, Math.round(this.st.clDawn))), s = save()
+    const D = KIT.clericTree.dawn, st = this.st, s = save()
     const b = totalBase(s), bl = this.buf.bless > 0 ? blessBase(s) ?? {} : {} // พรแสง adds STR / WIS while it lasts
-    const flat = b.str + (bl.str ?? 0) + b.wis + (bl.wis ?? 0) + D.atk * this.st.atk + D.matk * this.st.matk
-    const add = D.crit[r - 1] ?? 0, wasCrit = this.forceCrit
-    this.forceCrit = true; this.st.critMul += add
+    const flat = b.str + (bl.str ?? 0) + b.wis + (bl.wis ?? 0) + D.atk * st.atk + D.matk * st.matk
+    const mul = flat / Math.max(1, st.atk), add = st.clDawnCrit, wasCrit = this.forceCrit
+    this.forceCrit = true; st.critMul += add
     let dmg = 0
-    try { dmg = this.strike(f, flat / Math.max(1, this.st.atk), false, '#ffd36e') } finally { this.st.critMul -= add; this.forceCrit = wasCrit }
+    try {
+      dmg = this.strike(f, mul, false, '#ffd36e')
+      if (st.clDawnSplash > 0) for (const m of this.alive()) if (m !== f) this.strike(m, mul * st.clDawnSplash, false, '#ffd36e') // แสงแตก
+    } finally { st.critMul -= add; this.forceCrit = wasCrit }
     this.burst(f.spr.x, f.spr.y - 30, 0xffd36e, 14, 170)
     if (dmg <= 0 || this.hp <= 0) return
     const big = f.def.ai === 'boss' || !!f.def.mini
-    const amt = dmg * (D.heal[r - 1] ?? 0) * (big ? 1 : D.weak)
-    if (amt > 0) { this.heal(amt, true); this.floatText(HERO_X, GROUND - 150, `🌄 +${Math.round(amt * (1 + this.st.healAmp))}`, '#7fe39a') }
+    const amt = dmg * (D.heal + st.clDawnHeal) * (big ? 1 : D.weak)
+    if (amt > 0) { this.heal(amt, true); this.floatText(HERO_X, GROUND - 150, `🌄 +${Math.round(amt * (1 + st.healAmp))}`, '#7fe39a') }
   }
   private critAdd = 0 // temporary crit chance (คลื่นดาบ)
   private dualKnife = false // Rogue: a dagger in the off-hand (+KIT2.rogue.dualKnife flying knives)
@@ -1862,6 +1865,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (st.clUltWard > 0) { this.wardTurns = C.wardTurns + 1; this.floatText(HERO_X, GROUND - 175, `🕯️ ม่านพร −${Math.round(st.clUltWard * 100)}% ${C.wardTurns} เทิร์น`, '#fff3a0') } // +1: this turn's tick
     if (st.clUltMend > 0 && this.hp > 0 && this.hp < st.maxHp) this.skillHeal((st.maxHp - this.hp) * st.clUltMend)
+    if (st.clDawnUlt > 0 && this.dawnOn() && this.dawnN < KIT.clericTree.dawn.every) { this.dawnN = KIT.clericTree.dawn.every; this.floatText(HERO_X, GROUND - 190, '🌅 อรุณพิทักษ์: แสงรุ่งอรุณ พร้อม!', '#ffd36e') } // v86 web ★
   }
   private async ultNow(pow: number, hitPow: number) {
     const live = this.front()
