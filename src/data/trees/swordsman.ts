@@ -2,11 +2,18 @@
 // Spec: design/skill-tree-swordsman.md. Identity: "getting hit is an advantage" (counter, lifesteal). Rage left with v26: the Swordsman runs on Mana (design/swordsman-mana-nerf.md).
 // Node and talent ids are save data: never rename or remove a shipped id (retire it by leaving it out of the UI instead).
 import { node as n, talent as t, type ClassTree } from '../tree-types'
+import { KIT, KIT2 } from '../skill-math'
+
+// v84 (design/skill-tree-swordsman.md v84): numbers in KIT.swordTree, written per OLD level (max 3); data/tree.ts stretches them to 5.
+const T = KIT.swordTree, pc = (x: number) => `${+(x * 100).toFixed(1)}%`, r1 = (x: number) => +x.toFixed(1)
 
 export const tree: ClassTree = {
   branches: [
     { id: 'swordsman_a', job: 'swordsman', name: 'ป้อมเหล็ก', icon: '🛡️', blurb: 'สวนกลับ · โล่รับแล้วสะท้อนคืน' },
     { id: 'swordsman_b', job: 'swordsman', name: 'โลหิต', icon: '🩸', blurb: 'Mana · ดูดเลือด · คลั่งตอนเลือดน้อย' },
+    // v84: ATTACH in data/tree.ts: swordsman_c under ทักษะ 1, swordsman_d under Ult
+    { id: 'swordsman_c', job: 'swordsman', name: 'จังหวะดาบ', icon: '⚔️', blurb: 'ฟันพายุติดกันสะสมจังหวะ · คืน Mana · คริ · ★ พันดาบ' },
+    { id: 'swordsman_d', job: 'swordsman', name: 'ทลายเกราะ', icon: '🔨', blurb: 'Ult ทุบเกราะ · ตีตัวเกราะแตกฮีล · แตกลาม · ★ ขัดชาร์จ' },
   ],
   nodes: [
     n('swordsman_a1', 'swordsman_a', 1, '↩️', 'ท่าสวนชำนาญ', 3, (lv) => `สวนกลับ +${lv * 5}%`, (lv) => ({ counter: 0.05 * lv })),
@@ -17,6 +24,16 @@ export const tree: ClassTree = {
     n('swordsman_b2', 'swordsman_b', 2, '😤', 'โทสะ', 3, (lv) => `ฟื้น Mana +${lv * 3}/เทิร์น (ช่วยมากตอนสู้บอสตัวเดียว)`, (lv) => ({ resRegen: lv })),
     n('swordsman_b3', 'swordsman_b', 3, '🗡️', 'ฟันพายุคม', 3, (lv) => `ฟันพายุใช้ Mana −${lv * 2} · ดาเมจสกิล +${lv * 5}%`, (lv) => ({ autoCostCut: 2 * lv, pskill: 0.05 * lv })),
     n('swordsman_b4', 'swordsman_b', 4, '👹', 'คลั่ง', 1, () => 'HP ต่ำกว่า 30%: ATK +40% และดูดเลือด x2', () => ({ berserk: 1 })),
+    // C: จังหวะดาบ (momentum on ฟันพายุ)
+    n('swordsman_c1', 'swordsman_c', 1, '🌊', 'ไหลลื่น', 3, (lv) => `ฟันพายุติดกันได้จังหวะ +1 (สูงสุด ${T.flowMax}) · ฟันพายุแรง +${pc(T.flow * lv)}/จังหวะ · โดนตีแรง ≥ ${pc(T.flowBreak)} HP = เสียจังหวะ`, (lv) => ({ swFlow: T.flow * lv })),
+    n('swordsman_c2', 'swordsman_c', 2, '💨', 'ลมหายใจ', 3, (lv) => `ฟันพายุคืน Mana +${r1(T.flowMana * lv)}/จังหวะ (เต็ม ${T.flowMax} = +${r1(T.flowMana * lv * T.flowMax)})`, (lv) => ({ swFlowMana: T.flowMana * lv })),
+    n('swordsman_c3', 'swordsman_c', 3, '🗡️', 'เฉือนคม', 3, (lv) => `ฟันพายุคริ +${pc(T.flowCrit * lv)}/จังหวะ (เต็ม ${T.flowMax} = +${pc(T.flowCrit * lv * T.flowMax)})`, (lv) => ({ swFlowCrit: T.flowCrit * lv })),
+    n('swordsman_c4', 'swordsman_c', 4, '⚔️', 'พันดาบ', 1, () => `จังหวะเต็ม ${T.flowMax}: ฟันพายุครั้งถัดไปฟัน ${T.stormHits} รอบ คริแน่นอน แล้วจังหวะรีเซ็ต`, () => ({ swFlowStar: 1 })),
+    // D: ทลายเกราะ (ult armor break)
+    n('swordsman_d1', 'swordsman_d', 1, '🔨', 'ทุบเกราะ', 3, (lv) => `Ult ทุบเกราะมอนทุกตัว ${T.breakTurns} เทิร์น: P.DEF −${pc(KIT2.mobster.armorBrk)} · โดนฮิตแรงขึ้น +${pc(T.breakAmp * lv)}`, (lv) => ({ swBreak: T.breakAmp * lv })),
+    n('swordsman_d2', 'swordsman_d', 2, '🩸', 'ซ้ำรอย', 3, (lv) => `ตีตัวเกราะแตก ฮีล ${pc(T.breakLeech * lv)} ของดาเมจ`, (lv) => ({ swBreakLeech: T.breakLeech * lv })),
+    n('swordsman_d3', 'swordsman_d', 3, '💥', 'ร้าวลาม', 3, (lv) => `ตัวเกราะแตกตาย → เกราะแตกลามไปทุกตัว + Mana +${r1(T.breakSpreadRes * lv)}`, (lv) => ({ swBreakSpread: T.breakSpreadRes * lv })),
+    n('swordsman_d4', 'swordsman_d', 4, '⚡', 'หักท่า', 1, () => `Ult ขัดชาร์จมอน/บอสทุกตัวที่กำลังชาร์จ + เกจถอย −${T.shatterPush}`, () => ({ swShatter: 1 })),
   ],
   talents: [
     // ----- row 1 · Job Lv 5 · basic swing -----
