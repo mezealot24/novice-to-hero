@@ -14,7 +14,7 @@ function mk(n: number, zeny = 1e6, gems = 1000) {
 }
 const seq = (...xs: number[]) => { let i = 0; return () => xs[i++ % xs.length] }
 
-test('v82 option gacha: zeny = per-line prices summed, +10% per roll, capped at x3', () => {
+test('v84 option gacha: zeny = per-line prices summed, +10% per roll, capped at x3', () => {
   assert.equal(rerollCost(it, 1).zeny, 200)
   assert.equal(rerollCost(it, 2).zeny, 600)
   assert.equal(rerollCost(it, 3).zeny, 1400)
@@ -24,7 +24,7 @@ test('v82 option gacha: zeny = per-line prices summed, +10% per roll, capped at 
   assert.equal(rerollCost(it, 3).gems, undefined) // rolling never costs gems
 })
 
-test('v82 option gacha: locks cost gems only, never all lines', () => {
+test('v84 option gacha: locks cost gems only, never all lines', () => {
   assert.deepEqual([maxLocks(1), maxLocks(2), maxLocks(3)], [0, 1, 2])
   assert.deepEqual([lockGems(0), lockGems(1), lockGems(2)], [0, 10, 40])
   const c = rerollCost(it, 3, 0, 2)
@@ -32,7 +32,7 @@ test('v82 option gacha: locks cost gems only, never all lines', () => {
   assert.equal(c.zeny, 1400) // locking does not change the zeny price
 })
 
-test('v82 option gacha: a roll replaces every unlocked line at once and keeps locked ones', () => {
+test('v84 option gacha: a roll replaces every unlocked line at once and keeps locked ones', () => {
   const s = mk(3) as never as { zeny: number; gems: number; rerollCount?: Record<string, number>; refineLines: Record<string, RefineLine[]> }
   const keep = s.refineLines[it.id][1]
   const out = reroll(s as never, it, [1], seq(0.99, 0.5, 0.99))
@@ -44,7 +44,7 @@ test('v82 option gacha: a roll replaces every unlocked line at once and keeps lo
   assert.equal(nextRerollCost(s as never, it).zeny, 1540) // 1400 x 1.1
 })
 
-test('v82 option gacha: refuses bad locks and short wallets without spending', () => {
+test('v84 option gacha: refuses bad locks and short wallets without spending', () => {
   const one = mk(1)
   assert.equal(reroll(one, it, [0]), null) // the only line cannot be locked
   const three = mk(3)

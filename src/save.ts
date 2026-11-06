@@ -100,7 +100,7 @@ export function load(): SaveData | null {
     migratePriestBless(s)
     migrateGear(s)
     s.modes ??= {} // v51 game modes: additive, old saves start with no records
-    delete (s as SaveData & { reroll?: unknown }).reroll // v82 option gacha: no more pending keep-old / take-new (the old line stays)
+    delete (s as SaveData & { reroll?: unknown }).reroll // v84 option gacha: no more pending keep-old / take-new (the old line stays)
     cache = s
     return s
   } catch { return null }
