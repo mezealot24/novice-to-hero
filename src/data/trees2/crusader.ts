@@ -13,7 +13,7 @@ export const tree2: ClassTree = {
     n('cr_c3', 'cr_c', 3, '🙈', 'แสงบาดตา', 2, (lv) => `ตาบอดจาก Holy Cross นาน +${lv} เทิร์น`, (lv) => ({ j2BlindAdd: lv })),
     n('cr_c4', 'cr_c', 4, '✨', 'Grand Cross ซ้อน', 1, () => 'Grand Cross ยิง 2 ครั้ง (ครั้งที่ 2 ไม่จ่าย HP)', () => ({ j2GcTwice: 1 })),
     n('cr_s1', 'cr_s', 1, '🛡️', 'Auto Guard+', 3, (lv) => `โอกาสบล็อก +${lv * 3}%`, (lv) => ({ j2Guard: 0.03 * lv })),
-    n('cr_s2', 'cr_s', 2, '🪃', 'Shield Boomerang', 3, (lv) => `Holy Cross ปาโล่ใส่ตัวสุ่ม P.DEF x ${(lv * 0.6).toFixed(1)} (ต้องถือมือรอง)`, (lv) => ({ j2ShieldBoom: 0.6 * lv })),
+    n('cr_s2', 'cr_s', 2, '🪃', 'Shield Boomerang', 3, (lv) => `Holy Cross ปาโล่ใส่ตัวสุ่ม P.DEF x ${+(lv * 0.6).toFixed(2)} (ต้องถือมือรอง)`, (lv) => ({ j2ShieldBoom: 0.6 * lv })),
     n('cr_s3', 'cr_s', 3, '🪞', 'Reflect Shield', 3, (lv) => `โดนตีกายภาพ สะท้อน ${lv * 5}% กลับ (ไม่เกินเพดานสะท้อน)`, (lv) => ({ j2Reflect: 0.05 * lv })),
     n('cr_s4', 'cr_s', 4, '🏰', 'ป้อมศรัทธา', 1, () => 'บล็อกได้ = โล่ 5% HP สูงสุด', () => ({ j2BlockShield: 0.05 })),
     n('cr_d1', 'cr_d', 1, '❤️', 'อุทิศกาย', 3, (lv) => `HP สูงสุด +${lv * 4}%`, (lv) => ({ j2HpPct: 0.04 * lv })),

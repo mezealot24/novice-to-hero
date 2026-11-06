@@ -2,7 +2,7 @@
 // Each class picks ONE of three actives at the root of the "ทักษะ 2" line of the skill web.
 // Skill 2 casts by itself at the start of the hero's turn (a free extra action) when its cooldown is
 // ready, the resource covers the cost and its condition holds. BattleScene.castSkill2() runs the effect.
-// Its "+" node (max 3) sets Stats.s2Lv, its ★ node sets Stats.s2Star (one Skill 2 per class, so the keys are shared).
+// Its "+" node (max 5 since v83; Stats.s2Lv = Lv x 3/5, so Lv 5 = the old Lv 3) sets Stats.s2Lv, its ★ node sets Stats.s2Star (one Skill 2 per class, so the keys are shared).
 import type { JobId } from './jobs'
 import { S2N } from './skill-math'
 
@@ -17,7 +17,7 @@ export interface Skill2Def {
   id: Skill2Id; job: JobId; icon: string; name: string
   cost: number; cd: number // resource cost, hero turns between casts
   desc: string
-  plus: { icon: string; name: string; desc: (lv: number) => string } // max 3, Stats.s2Lv
+  plus: { icon: string; name: string; desc: (lv: number) => string } // lv = Stats.s2Lv 0..3 (v83: the "+" node has 5 levels, Lv n -> s2Lv n x 3/5, data/tree.ts)
   star: { icon: string; name: string; desc: string } // max 1, Stats.s2Star
 }
 
@@ -45,7 +45,7 @@ export const SKILL2: Skill2Def[] = [
   s('mg_nova', 'mage', '❄️', 'วงน้ำแข็ง', 30, 3, 'ร่ายทันที · ทุกตัว 0.8x M.ATK + ช้า 2 เทิร์น',
     { icon: '🧊', name: 'วงหนาว', desc: (lv) => `วงน้ำแข็ง ${(0.8 + lv * 0.15).toFixed(2)}x` }, { icon: '🌨️', name: 'พายุหิมะ', desc: 'ช้านานขึ้น +1 เทิร์น และผลักเทิร์น 15' }),
   s('mg_arcane', 'mage', '✨', 'ลูกศรเวท', 15, 2, 'ร่ายทันที · เป้าเดียว (บอสก่อน) 3 ฮิต ฮิตละ 0.6x M.ATK',
-    { icon: '➶', name: 'ศรคม', desc: (lv) => `ฮิตละ ${(0.6 + lv * 0.1).toFixed(1)}x` }, { icon: '🌠', name: 'ฝนดาว', desc: 'ลูกศรเวท +2 ฮิต' }),
+    { icon: '➶', name: 'ศรคม', desc: (lv) => `ฮิตละ ${+(0.6 + lv * 0.1).toFixed(2)}x` }, { icon: '🌠', name: 'ฝนดาว', desc: 'ลูกศรเวท +2 ฮิต' }),
   // ✨ Cleric (Mana)
   s('cl_renew', 'cleric', '🌿', 'ฟื้นฟู', 40, 5, `ฮีล ${S2N.renewHeal(0).toFixed(2)}x M.ATK ทุกเทิร์น 4 เทิร์น (ร่ายเมื่อ HP ไม่เต็ม)`, // v37 Q: easier to cast, costs more
     { icon: '🍃', name: 'ฟื้นฟูลึก', desc: (lv) => `ฮีล ${S2N.renewHeal(lv).toFixed(2)}x M.ATK/เทิร์น` }, { icon: '🌳', name: 'ต้นไม้ชีวิต', desc: 'ฟื้นฟูนาน 6 เทิร์น' }),
@@ -60,7 +60,7 @@ export const SKILL2: Skill2Def[] = [
   s('th_pick', 'thief', '💰', 'ล้วงกระเป๋า', 30, 3, 'แทงตัวหน้า 1x + คืน Energy 15',
     { icon: '🪙', name: 'มือไว', desc: (lv) => `คืน Energy ${15 + lv * 5}` }, { icon: '🎭', name: 'จอมโจร', desc: 'แทงแรง 1.6x + ติดพิษ 3 stack' }),
   s('th_wound', 'thief', '🩸', 'แผลลึก', 35, 3, 'แทงตัวหน้า 1.2x ทะลุ DEF + พิษ 4 stack',
-    { icon: '🔪', name: 'แผลฉีก', desc: (lv) => `พิษ ${4 + lv} stack` }, { icon: '⚰️', name: 'แผลมรณะ', desc: 'แทงแรง 2x ทะลุ DEF' }),
+    { icon: '🔪', name: 'แผลฉีก', desc: (lv) => `พิษ ${S2N.woundPoison(lv)} stack` }, { icon: '⚰️', name: 'แผลมรณะ', desc: 'แทงแรง 2x ทะลุ DEF' }),
 ]
 export const skill2ById = (id: string) => SKILL2.find((x) => x.id === id)
 export const skill2Of = (job: JobId) => SKILL2.filter((x) => x.job === job)

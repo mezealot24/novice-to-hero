@@ -96,15 +96,15 @@ test('borrow: hero tree nodes map onto monster fields, the rest is skipped', () 
   const blade = pick('มีดคู่'), bite = pick('คมเลือด'), strike = pick('D.Strike')
   assert.ok(blade && bite && strike)
   const king = (path: string) => (path === 'king.crit' ? 0.06 : undefined)
-  const p = borrowPlan('king', blade, 3, king)
+  const p = borrowPlan('king', blade, blade.max, king) // v83: full = Lv 5 (was 3), same value
   const crit = p.lines.find((l) => l.path === 'king.crit'), combo = p.lines.find((l) => l.path === 'king.combo')
-  assert.ok(crit && Math.abs(crit.to - 0.15) < 1e-9, `มีดคู่ Lv3 crit 0.06 + 0.09 -> ${crit?.to}`)
+  assert.ok(crit && Math.abs(crit.to - 0.15) < 1e-9, `มีดคู่ full crit 0.06 + 0.09 -> ${crit?.to}`)
   assert.ok(combo && Math.abs(combo.to - 0.15) < 1e-9)
-  assert.equal(borrowPlan('king', bite, 3, () => undefined).lines[0]?.path, 'king.lifesteal')
+  assert.equal(borrowPlan('king', bite, bite.max, () => undefined).lines[0]?.path, 'king.lifesteal')
   assert.ok(Math.abs((borrowPlan('king', strike, 5, () => undefined).lines[0]?.to ?? 0) - 0.6) < 1e-9, 'D.Strike 5 -> combo 60%')
   const poison = pick('เคลือบพิษ')
   assert.ok(poison)
-  assert.equal(borrowPlan('king', poison, 3, () => undefined).lines[0]?.to, 3, 'king had no onHit: the empty slot now takes it')
+  assert.equal(borrowPlan('king', poison, poison.max, () => undefined).lines[0]?.to, 3, 'king had no onHit: the empty slot now takes it')
   for (const c of cls) for (const s of c.srcs) for (const l of borrowPlan('pharaoh', s, s.max, () => undefined).lines) {
     const row = fieldRow('monsters', l.path)
     assert.ok(row && l.to >= row.def.min && l.to <= row.def.max, `${c.id}/${s.name}: ${l.path} ${l.to} in range`)
@@ -145,8 +145,9 @@ test('borrow over-level: growing nodes go to Lv 50, talents stop at max, caps fl
   assert.ok(blade && talent)
   assert.equal(blade.top, 50)
   assert.equal(talent.top, talent.max, 'rank table talent cannot pass max')
-  const crit = borrowPlan('king', blade, 50, (p) => (p === 'king.crit' ? 0.06 : undefined)).lines.find((l) => l.path === 'king.crit')
-  assert.ok(crit?.capped && crit.to === 1.5, 'มีดคู่ Lv 50 crit +150% hits the 1.5 cap')
+  // v83: มีดคู่ is 5 levels now (Lv n = old Lv n x 3/5), so Lv 50 = old Lv 30: crit +0.03 x 30 = +90%
+  const crit = borrowPlan('king', blade, 50, (p) => (p === 'king.crit' ? 0.7 : undefined)).lines.find((l) => l.path === 'king.crit')
+  assert.ok(crit?.capped && crit.to === 1.5, 'มีดคู่ Lv 50 crit 0.7 + 0.9 hits the 1.5 cap')
 })
 
 test('pointsMul + allocFor: typed stats -> weights + budget, defaults untouched', () => {

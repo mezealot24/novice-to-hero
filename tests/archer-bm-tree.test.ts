@@ -21,8 +21,9 @@ function spendable(nodes: TreeNode[]) {
 }
 
 test('spendable points stay above the pool (forced ★ choice)', () => {
-  assert.equal(spendable(archerNodes), 53)
-  assert.equal(spendable(bmNodes), 54)
+  // v83 stretch (1->3 / 2->4 / 3->5, "+" 3->5): was 53 / 54
+  assert.equal(spendable(archerNodes), 79)
+  assert.equal(spendable(bmNodes), 82)
   assert.ok(spendable(archerNodes) >= ARCHER_POOL)
   assert.ok(spendable(bmNodes) >= BM_POOL)
 })
