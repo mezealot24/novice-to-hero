@@ -59,9 +59,9 @@ test('v86 Cleric ult พรคุ้มครอง costs Mana (like Mage / Swor
   assert.match(JOBS.cleric.ult.desc, /^Mana \d+–\d+ \(ตาม Lv Ult\):/)
 })
 
-test('v86 Crusader / Monk ults stay Mana-free (Grand Cross pays HP, Tempest Bell is free)', async () => {
+test('v105 Grand Cross costs the Cleric ult Mana (it runs the Cleric ult); Tempest Bell stays free', async () => {
   const { JOB2 } = await import('../src/data/jobs2')
-  assert.equal(JOB2.crusader.ult.cost, 0)
+  assert.equal(JOB2.crusader.ult.cost, 30)
   assert.equal(JOB2.monk.ult.cost, 0)
 })
 
@@ -98,13 +98,14 @@ test('v102 ☀️ แสงแตก: max 3 (not stretched), WIS +25/30/35% for 
   migrateDawnBurst(s); assert.equal(s.skillPoints, 2) // once
 })
 
-test('v102 Cleric Ult Mana 30/35/40/45/50 by Ult node Lv; Crusader / Monk ults stay free', async () => {
+test('v102 Cleric Ult Mana 30/35/40/45/50 by Ult node Lv; v105 Grand Cross too, Monk stays free', async () => {
   const { JOBS } = await import('../src/data/jobs')
   const { ultCost } = await import('../src/data/skill-math')
   const { JOB2 } = await import('../src/data/jobs2')
   assert.deepEqual([0, 1, 2, 3, 4, 5].map((lv) => ultCost(JOBS.cleric, heroStats(tree(lv ? { cleric_ultp: lv } : {})))), [30, 30, 35, 40, 45, 50])
   const st5 = heroStats(tree({ cleric_ultp: 5 }))
-  assert.equal(ultCost({ ...JOBS.cleric, ult: { ...JOBS.cleric.ult, ...JOB2.crusader.ult } }, st5), 0)
+  assert.equal(ultCost({ ...JOBS.cleric, ult: { ...JOBS.cleric.ult, ...JOB2.crusader.ult } }, st5), 50)
+  assert.equal(ultCost({ ...JOBS.cleric, ult: { ...JOBS.cleric.ult, ...JOB2.monk.ult } }, st5), 0)
   assert.equal(ultCost(JOBS.mage, st5), JOBS.mage.ult.cost)
 })
 

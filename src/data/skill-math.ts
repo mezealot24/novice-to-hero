@@ -119,7 +119,7 @@ export const KIT2 = {
     guard: 0.1, guardVit: 0.002, guardCap: 0.4, // 🛡️ Auto Guard: block chance + per VIT point over the start (no off-hand = KIT2.knight.guardShieldless)
     holyVs: 0.25, holyFoes: ['skeleton', 'wisp', 'deathknight', 'hellknight', 'imp', 'necropriest', 'wraith', 'maiden', 'lich', 'bonepriest', 'mummy', 'dunewraith', 'pharaoh', 'gargoyle', ...PACKS.flatMap((p) => p.holyFoes)] as MonsterKind[], // ศรัทธา: undead / demons take +25%
     crossCost: 22, crossCd: 2, crossHits: 2, crossMul: 1, blindTurns: 2, blindHit: 0.2, // ✝️ Holy Cross: per hit P.ATK + Pm on the front monster · blind = its Hit -20%
-    gcPay: 0.2, gcPm: 2.5, gcAtk: 1, gcRefund: 0.5, gcRefundAt: 3, // ✨ Grand Cross: pay 20% current HP · all monsters · 3+ hit = half the HP back
+    gcPay: 0.2, gcPm: 1.5, gcAtk: 0.6, gcRefund: 0.5, gcRefundAt: 3, gcMana: 30, // ✨ Grand Cross: pay 20% current HP · all monsters · 3+ hit = half the HP back · v105 nerf (Q 'แรงชิบหาย'): Pm 2.5 -> 1.5, P.ATK 1 -> 0.6, costs the Cleric ult Mana (30-50, = CLERIC_KIT.ultMana), cross not x Cleric root ultPow
     martyrShield: 0.2, // ★ ผู้พลีชีพ: shield share of max HP (Reflect Shield is capped by BATTLE.reflectCap)
     mastery: { atkPct: 0.05, def: 6 }, // mace / sword
   },
@@ -309,7 +309,7 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
       if (st.clPurify > 0) out.push({ label: 'ไฟชำระ: ล้างดีบัฟ + ฮีล (M.ATK)', value: `${heal(st, st.matk * CLERIC_KIT.purifyHeal)} HP` })
       if (st.ultHoly > 0) out.push({ label: 'แสงลงทัณฑ์/ตัว', value: hitText(st, st.ultHoly, true) })
       if (job2 === 'crusader') { // v103: Grand Cross = all of the above, then the cross
-        const C = KIT2.crusader, k = hitPow * (1 + st.ult2Pow) * (1 + st.j2CrossAdd)
+        const C = KIT2.crusader, k = (1 + st.ultAmp) * (1 + st.ult2Pow) * (1 + st.j2CrossAdd) // v105: the Cleric root (ultPow) no longer scales the cross
         out.push({ label: `✨ + Grand Cross: จ่าย HP ${pct(C.gcPay * Math.max(0, 1 - st.j2PayCut))} ปัจจุบัน`, value: `โดน ${C.gcRefundAt}+ ตัว คืน ${pct(C.gcRefund)}${st.j2GcTwice > 0 ? ' · ยิง 2 ครั้ง' : ''}` })
         out.push({ label: `✝️ กางเขน/ตัว ${C.gcPm}x พลังเวท (เวท)`, value: hitText(st, C.gcPm * k, true) })
         out.push({ label: `✝️ กางเขน/ตัว ${C.gcAtk}x P.ATK (กาย)`, value: hitText(st, C.gcAtk * k * (1 + st.pskill), false) })

@@ -1327,7 +1327,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (this.j2!.id === 'crusader') { // ✨ Grand Cross: v103 the whole Cleric ult first (smash, Dawn Light, Holy Light, shield, Ult-web extras), then pay HP, holy cross on every monster (★ twice, 2nd free)
       await this.clericUlt(live, pow, hitPow)
-      const C = KIT2.crusader, k = h2 * (1 + this.st.j2CrossAdd)
+      const C = KIT2.crusader, k = (h2 / (1 + this.st.ultPow)) * (1 + this.st.j2CrossAdd) // v105 nerf: the Cleric root (ultPow) scales the Cleric part only
       for (let cast = 0; cast < (this.st.j2GcTwice > 0 ? 2 : 1) && this.alive().length; cast++) {
         const paid = cast === 0 ? Math.min(this.hp - 1, Math.floor(this.hp * C.gcPay * Math.max(0, 1 - this.st.j2PayCut))) : 0
         if (paid > 0) { this.hp -= paid; this.damageNumber(HERO_X, GROUND - 70, paid, false, '#ff9a9a') }
