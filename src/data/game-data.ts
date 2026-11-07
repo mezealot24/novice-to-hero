@@ -912,7 +912,7 @@ export const HARD_PASSIVES: HardPassive[] = [
   { id: 'swift', name: '💨 ว่องไว', speed: 1.2 },
   { id: 'venom', name: '🐍 พิษติดตัว', onHit: { poison: 1 } },
   { id: 'enrage', name: '😡 คลั่ง', enrage: 1.35 }, // below 35% HP: x1.35 damage, x1.15 speed
-  { id: 'iron', name: '🪨 ผิวเหล็ก', def: 25 },
+  { id: 'iron', name: '⛰️ ผิวเหล็ก', def: 25 },
 ]
 
 // ===== v49 monster kits (Q 2026-11-04: "ให้แต่ละตัวมี stat combo, counter, cri, สกิลโหดๆ"): merged into MONSTERS below =====
@@ -932,7 +932,7 @@ const KITS: Partial<Record<MonsterKind, Pick<MonsterDef, 'crit' | 'combo' | 'cou
   venomqueen: { combo: 0.25, crit: 0.08, add: [{ kind: 'strike', every: 2, hits: 2, pow: 0.7, name: '🦂 เหล็กใน', fx: { poison: 4 } }] }, // Q: no ตาเหยี่ยว (the web does that job)
   frostgiant: { counter: 0.15, add: [{ kind: 'strike', every: 5, pow: 1.6, name: '🧊 ทุบธารน้ำแข็ง', fx: { freeze: 50 } }, { kind: 'curse', every: 4, name: '💙 Frozen Heart', fx: { slow: 2 } }] }, // Q: Frozen Heart replaces ตาเหยี่ยว
   hydra: { combo: 0.3, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'bolt', every: 4, hits: 3, pow: 0.5, name: '🐍 พ่นพิษสามหัว', fx: { poison: 1 } }] },
-  mirage: { crit: 0.15, add: [{ kind: 'bolt', every: 5, hits: 2, pow: 0.7, name: '🪞 ภาพลวงสองเงา' }] },
+  mirage: { crit: 0.15, add: [{ kind: 'bolt', every: 5, hits: 2, pow: 0.7, name: '🔁 ภาพลวงสองเงา' }] },
   warlord: { counter: 0.2, crit: 0.15, combo: 0.15, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 5, hits: 2, pow: 0.9, name: '🪓 ขวานคู่ผ่าฟ้า', fx: { armorBreak: 1 } }] },
   lich: { crit: 0.15 },
 }

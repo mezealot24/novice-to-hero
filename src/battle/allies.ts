@@ -108,8 +108,8 @@ export const ALLIES = {
   // ----- Phase 4 🔧 Innovator: traps (one-shot, set off when a monster acts), robot turret, rubber chicken -----
   mine: { id: 'mine', name: 'Land Mine', icon: '💣', kind: 'trap', trigger: 'monsterAct', uses: 1,
     act: (c) => { c.say('💣 Land Mine!', '#ff8c42'); const k = (IN.mineMul + c.st.j2TrapMul) * c.ally.pow; if (c.st.j2Claymore) c.hitAll(k, false, '#ff8c42'); else c.hitFoe(k, '#ff8c42') } },
-  snare: { id: 'snare', name: 'Ankle Snare', icon: '🪤', kind: 'trap', trigger: 'monsterAct', uses: 1,
-    act: (c) => { c.say('🪤 Ankle Snare!', '#e0b07a'); c.stun(false) } },
+  snare: { id: 'snare', name: 'Ankle Snare', icon: '🕳️', kind: 'trap', trigger: 'monsterAct', uses: 1,
+    act: (c) => { c.say('🕳️ Ankle Snare!', '#e0b07a'); c.stun(false) } },
   freeze: { id: 'freeze', name: 'Freezing Trap', icon: '❄️', kind: 'trap', trigger: 'monsterAct', uses: 1,
     act: (c) => { c.say('❄️ Freezing Trap!', '#9fe3ff'); c.hitFoe((IN.freezeMul + c.st.j2TrapMul) * c.ally.pow, '#9fe3ff'); c.chill(IN.freezeChill, false); c.stun(false) } },
   turret: { id: 'turret', name: 'หุ่นจิ๋ว', icon: '🤖', kind: 'turret', trigger: 'heroTurn', turns: IN.turretTurns,
@@ -123,7 +123,7 @@ export const TRAP_IDS = ['mine', 'snare', 'freeze'] as const
 export type GadgetId = 'chicken' | 'banana' | 'rocket' | 'robot' | 'magnet' | 'mirror' | 'cola' | 'balloon' | 'cloud' | 'jackpot'
 export const GADGETS: { id: GadgetId; icon: string; name: string; w: number; rare?: boolean }[] = [
   { id: 'chicken', icon: '🐔', name: 'ไก่ยาง', w: 12 }, { id: 'banana', icon: '🍌', name: 'เปลือกกล้วย', w: 12 }, { id: 'rocket', icon: '🚀', name: 'จรวดขวด', w: 12 },
-  { id: 'robot', icon: '🤖', name: 'หุ่นจิ๋ว', w: 8, rare: true }, { id: 'magnet', icon: '🧲', name: 'แม่เหล็ก', w: 6, rare: true }, { id: 'mirror', icon: '🪞', name: 'กระจก', w: 6, rare: true },
+  { id: 'robot', icon: '🤖', name: 'หุ่นจิ๋ว', w: 8, rare: true }, { id: 'magnet', icon: '🧲', name: 'แม่เหล็ก', w: 6, rare: true }, { id: 'mirror', icon: '🔁', name: 'กระจก', w: 6, rare: true },
   { id: 'cola', icon: '🥤', name: 'โคล่าระเบิด', w: 12 }, { id: 'balloon', icon: '🎈', name: 'ลูกโป่ง', w: 12 }, { id: 'cloud', icon: '☁️', name: 'เมฆฝน', w: 10 },
   { id: 'jackpot', icon: '💥', name: 'แจ็คพอต', w: 1.5, rare: true },
 ]

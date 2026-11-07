@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { COLORS, doubleAtkChance, DUNGEONS, type Stats } from '../data/game-data'
+import { COLORS, doubleAtkChance, DUNGEONS, H, W, type Stats } from '../data/game-data'
 import { derivedRows } from '../data/stat-rows'
 export { derivedRows }
 import { autoInfo, dawnInfo, skill2Info, ultInfo, type InfoRow } from '../data/skill-math'
@@ -32,7 +32,8 @@ export class CharacterScene extends Phaser.Scene {
   private bookV2 = false
   private skillBasic = false // skill tab: false = skill web, true = Novice skills + certificates + job
   private selNode = ''
-  private showDetail = false // skill web: detail panel over the web
+  private showDetail = false // skill web: node detail modal open
+  private modal?: Phaser.GameObjects.Container
   private web2 = false // skill tab: show ใยชั้น 2 (2nd job)
   constructor() { super('character') }
 
@@ -40,6 +41,8 @@ export class CharacterScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(UI.night)
     this.cameras.main.fadeIn(160, 20, 23, 43)
     this.tab = data?.tab ?? 0
+    this.showDetail = false
+    this.input.keyboard?.on('keydown-ESC', () => { if (this.showDetail) { this.showDetail = false; this.render() } })
     const back = data?.back // v101: opened from the forge's 🃏 button -> ‹ กลับ returns there (same item on the anvil)
     topBar(this, '👤 ตัวละคร', () => (back ? go(this, back.key, back.data) : go(this, 'hub')))
     this.drawPreview()
@@ -48,6 +51,7 @@ export class CharacterScene extends Phaser.Scene {
 
   private render() {
     this.body?.destroy()
+    this.modal?.destroy(); this.modal = undefined
     this.body = this.add.container(0, 0)
     if (this.tab === 0) this.equipTab()
     else if (this.tab === 1) this.cardTab()
@@ -404,25 +408,17 @@ export class CharacterScene extends Phaser.Scene {
       b.add(panel(this, p.x, p.y, nw, nh, lv ? 0x2a3b5a : open ? UI.panel : 0x161a33, sel ? 0xffffff : star ? COLORS.gold : lv ? 0x7fd7ff : UI.line, 10))
       b.add(txt(this, p.x + 6, p.y + 4, `${star ? '★' : ''}${n.icon}`, 17, UI.text))
       b.add(txt(this, p.x + nw - 6, p.y + 6, `${lv}/${n.max}`, 11, lv ? UI.gold : UI.sub, true).setOrigin(1, 0))
-      b.add(txt(this, p.x + 6, p.y + 30, clip(n.name, Math.max(5, Math.floor(nw / 11))), 11, open ? UI.text : UI.sub))
+      b.add(clipW(txt(this, p.x + 6, p.y + 29, n.name, 12, open ? UI.text : UI.sub), nw - 12))
       const z = this.add.zone(p.x, p.y, nw, nh).setOrigin(0).setInteractive({ useHandCursor: true })
       z.on('pointerdown', () => { this.selNode = id; this.render() })
       b.add(z)
     }
     // detail of the selected node
     const n = nodeById(this.selNode)!, lv = t[n.id] ?? 0, why = lockReason(t, s.job, n)
-    b.add(panel(this, 330, 500, 620, 70, UI.panel, COLORS.gold, 10))
-    b.add(txt(this, 342, 505, `${n.icon} ${n.name}  ${lv}/${n.max}${n.kind === 's2root' ? '  · ทักษะ 2' : ''}`, 15, UI.gold, true))
-    const now = lv ? n.desc(lv) : n.desc(1)
-    const next = lv && lv < n.max ? `  → Lv ${lv + 1}: ${n.desc(lv + 1)}` : ''
-    b.add(txt(this, 342, 527, `${lv ? '' : 'Lv 1: '}${now}${next}`, 11, UI.green).setWordWrapWidth(400))
-    if (why && why !== 'เต็มแล้ว') b.add(txt(this, 342, 553, `🔒 ${why}`, 11, UI.sub))
-    b.add(button(this, 900, 535, 84, 40, lv ? '+1' : 'เรียน', () => {
+    this.nodeFooter(n, lv, why, n.kind === 's2root' ? 'ทักษะ 2' : '', '', s.skillPoints > 0 && !why, () => {
       if (s.skillPoints <= 0 || lockReason(t, s.job, n)) return
       t[n.id] = (t[n.id] ?? 0) + 1; s.skillPoints--; persist(); this.redraw()
-    }, { size: 16 }).setEnabled(s.skillPoints > 0 && !why))
-    b.add(button(this, 806, 535, 96, 32, this.showDetail ? '✕ ปิด' : '📋 รายละเอียด', () => { this.showDetail = !this.showDetail; this.render() }, { size: 12, fill: this.showDetail ? COLORS.gold : 0x5a5f8a, color: this.showDetail ? UI.ink : UI.text }))
-    if (this.showDetail) this.detailPanel(n)
+    }, false)
   }
 
   // ---------- tab 3b: ใยชั้น 2 (2nd job, data/trees2/, design/second-jobs-v1.md) ----------
@@ -464,48 +460,86 @@ export class CharacterScene extends Phaser.Scene {
       b.add(panel(this, p.x, p.y, cw, nh, lv ? 0x2a3b5a : open ? UI.panel : 0x161a33, sel ? 0xffffff : star ? COLORS.gold : lv ? 0x7fd7ff : UI.line, 10))
       b.add(txt(this, p.x + 6, p.y + 4, `${star ? '★' : ''}${n.icon}`, 17, UI.text))
       b.add(txt(this, p.x + cw - 6, p.y + 6, `${lv}/${n.max}`, 11, lv ? UI.gold : UI.sub, true).setOrigin(1, 0))
-      b.add(txt(this, p.x + 6, p.y + 30, clip(n.name, Math.max(5, Math.floor(cw / 11))), 11, open ? UI.text : UI.sub))
+      b.add(clipW(txt(this, p.x + 6, p.y + 29, n.name, 12, open ? UI.text : UI.sub), cw - 12))
       const z = this.add.zone(p.x, p.y, cw, nh).setOrigin(0).setInteractive({ useHandCursor: true })
       z.on('pointerdown', () => { this.selNode = id; this.render() })
       b.add(z)
     }
     const n = nodeById(this.selNode)!, lv = t[n.id] ?? 0, why = lockReason(t, s.job, n, j2.id)
-    const root = n.kind === 'pow2' ? (n.branch.endsWith('_s3') ? j2.skill3 : j2.ult) : undefined
-    b.add(panel(this, 330, 500, 620, 70, UI.panel, COLORS.gold, 10))
-    b.add(txt(this, 342, 505, `${n.icon} ${n.name}  ${lv}/${n.max}`, 15, UI.gold, true))
-    const now = lv ? n.desc(lv) : n.desc(1), next = lv && lv < n.max ? `  → Lv ${lv + 1}: ${n.desc(lv + 1)}` : ''
-    b.add(txt(this, 342, 527, `${root ? `${root.desc} · ` : ''}${lv ? '' : 'Lv 1: '}${now}${next}`, 10, UI.green).setWordWrapWidth(450))
-    if (why && why !== 'เต็มแล้ว') b.add(txt(this, 800, 505, `🔒 ${why}`, 11, UI.sub).setWordWrapWidth(140))
-    b.add(button(this, 900, 540, 84, 36, lv ? '+1' : 'เรียน', () => {
+    const s3 = n.branch.endsWith('_s3'), root = n.kind === 'pow2' ? (s3 ? j2.skill3 : j2.ult) : undefined
+    this.nodeFooter(n, lv, why, n.kind === 'pow2' ? (s3 ? 'ทักษะ 3' : 'Ult วิวัฒน์') : n.tier === 4 ? '★ ปลายสาย' : '', root ? `${root.icon} ${root.name}: ${root.desc}` : '', pts > 0 && !why, () => {
       if ((s.job2Points ?? 0) <= 0 || lockReason(t, s.job, n, j2.id)) return
       t[n.id] = (t[n.id] ?? 0) + 1; s.job2Points = (s.job2Points ?? 0) - 1; persist(); this.redraw()
-    }, { size: 16 }).setEnabled(pts > 0 && !why))
+    }, true)
   }
 
-  /** Skill detail (Q 2026-11-04): the node's real numbers with the hero's current stats, now vs one more level. */
-  private detailPanel(n: TreeNode) {
-    const s = save(), b = this.body!, t = s.jobTree ?? {}, lv = t[n.id] ?? 0
-    const d = nodeDetail(s, n)
-    const x = 330, y = 150, w = 620, h = 344
-    b.add(this.add.rectangle(x - 3, y, w + 6, h, 0x141834, 1).setOrigin(0)) // opaque: hide the web behind
-    b.add(panel(this, x - 3, y, w + 6, h, 0x141834, COLORS.gold, 10))
-    const block = this.add.zone(x - 3, y, w + 6, h).setOrigin(0).setInteractive() // the web under the panel stays untouchable
-    b.add(block)
-    b.add(txt(this, x + 10, y + 8, `${n.icon} ${n.name} · รายละเอียด`, 15, UI.gold, true))
-    b.add(txt(this, x + 10, y + 30, d.note, 10, UI.sub).setWordWrapWidth(w - 20).setLineSpacing(0))
-    const c1 = x + 300, c2 = x + 460, top = y + 58
-    b.add(txt(this, c1, top, lv ? `ตอนนี้ (Lv ${lv})` : 'ตอนนี้ (ยังไม่เรียน)', 12, UI.text, true))
-    b.add(txt(this, c2, top, lv < n.max ? `Lv ${lv + 1}` : 'เต็มแล้ว', 12, lv < n.max ? UI.green : UI.sub, true))
-    const rows = d.rows.slice(0, 13)
+  /** Bottom strip of both skill webs: the picked node in 2 short lines + 📋 detail (opens the modal) + learn. */
+  private nodeFooter(n: TreeNode, lv: number, why: string | null | undefined, tag: string, rootDesc: string, can: boolean, learn: () => void, tier2: boolean) {
+    const b = this.body!, locked = !!why && why !== 'เต็มแล้ว'
+    b.add(panel(this, 330, 500, 620, 70, UI.panel, COLORS.gold, 10))
+    b.add(clipW(txt(this, 342, 504, `${n.icon} ${n.name}  ${lv}/${n.max}${tag ? `  · ${tag}` : ''}`, 15, UI.gold, true), 440))
+    const now = lv ? `ตอนนี้: ${n.desc(lv)}` : `Lv 1: ${n.desc(1)}`
+    b.add(clipW(txt(this, 342, 527, now, 12, lv ? UI.text : UI.green), 440))
+    b.add(clipW(txt(this, 342, 547, locked ? `🔒 ${why}` : lv && lv < n.max ? `ถัดไป: ${n.desc(lv + 1)}` : lv >= n.max ? '✅ เต็มแล้ว' : rootDesc || 'แตะ 📋 เพื่อดูตัวเลขจริง', 12, locked ? '#ffb0b0' : UI.green), 440))
+    b.add(button(this, 822, 535, 104, 40, '📋 รายละเอียด', () => { this.showDetail = true; this.render() }, { size: 13, fill: 0x5a5f8a, color: UI.text }))
+    b.add(button(this, 912, 535, 60, 40, lv ? '+1' : 'เรียน', learn, { size: 15 }).setEnabled(can))
+    if (this.showDetail) this.nodeModal(n, lv, why, tag, rootDesc, can, learn, tier2)
+  }
+
+  /** Node detail modal (tier-1 and tier-2 webs): full text now / next level + the real numbers (nodeDetail). Esc / ✕ / tap outside closes. */
+  private nodeModal(n: TreeNode, lv: number, why: string | null | undefined, tag: string, rootDesc: string, can: boolean, learn: () => void, tier2: boolean) {
+    const d = nodeDetail(save(), n, tier2)
+    const close = () => { this.showDetail = false; this.render() }
+    const c = this.add.container(0, 0).setDepth(30000) // above the top bar (20001)
+    this.modal = c
+    const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x080a18, 0.8).setInteractive()
+    dim.on('pointerup', close)
+    const x = 70, y = 40, w = W - 140, h = H - 80
+    c.add([dim, panel(this, x, y, w, h, 0x141834, COLORS.gold, 14), this.add.zone(x, y, w, h).setOrigin(0).setInteractive()]) // the zone keeps taps inside from closing
+    c.add(clipW(txt(this, x + 20, y + 14, `${n.icon} ${n.name}`, 22, UI.gold, true), w - 260))
+    c.add(txt(this, x + 20, y + 46, `Lv ${lv}/${n.max}${tag ? ` · ${tag}` : ''}${tier2 ? ' · ใยชั้น 2' : ''}`, 13, UI.sub, true))
+    c.add(button(this, x + w - 34, y + 30, 44, 40, '✕', close, { size: 18, fill: 0x5a5f8a, color: UI.text }))
+
+    // left: words
+    const lx = x + 20, lw = 300
+    const words: { head: string; body: string; color: string }[] = []
+    if (rootDesc) words.push({ head: '📖 ตัวสกิล', body: rootDesc, color: UI.text })
+    words.push({ head: lv ? `✅ ตอนนี้ (Lv ${lv})` : '⬜ ยังไม่เรียน', body: lv ? n.desc(lv) : '—', color: lv ? UI.text : UI.sub })
+    if (lv < n.max) words.push({ head: `⬆️ Lv ${lv + 1}`, body: n.desc(lv + 1), color: UI.green })
+    if (why && why !== 'เต็มแล้ว') words.push({ head: '🔒 ยังเรียนไม่ได้', body: why, color: '#ffb0b0' })
+    let size = 14, made: Phaser.GameObjects.Text[] = []
+    for (;; size--) { // shrink the words until they fit the left column
+      made.forEach((m) => m.destroy()); made = []
+      let ty = y + 80
+      for (const wd of words) {
+        const hd = txt(this, lx, ty, wd.head, size, UI.gold, true); ty += hd.height + 2
+        const bd = txt(this, lx, ty, wd.body, size, wd.color).setWordWrapWidth(lw, true).setLineSpacing(2); ty += bd.height + 12
+        made.push(hd, bd)
+      }
+      if (ty <= y + h - 70 || size <= 10) break
+    }
+    c.add(made)
+
+    // right: numbers
+    const rx = x + 340, rw = w - 360, c1 = rx + rw - 236, c2 = rx + rw - 116
+    c.add(this.add.rectangle(rx - 10, y + 76, 1, h - 150, 0x454c80).setOrigin(0))
+    c.add(txt(this, rx, y + 80, '🔢 ตัวเลขจริง', 14, UI.gold, true))
+    c.add(txt(this, c1, y + 82, 'ตอนนี้', 12, UI.text, true))
+    c.add(txt(this, c2, y + 82, lv < n.max ? `Lv ${lv + 1}` : 'เต็ม', 12, lv < n.max ? UI.green : UI.sub, true))
+    const rowH = 21, maxRows = Math.floor((h - 190) / rowH), rows = d.rows.slice(0, maxRows)
     rows.forEach((r, i) => {
-      const ry = top + 22 + i * 20
-      if (r.section) { b.add(txt(this, x + 10, ry, r.label, 12, UI.gold, true)); return }
+      const ry = y + 106 + i * rowH
+      if (r.section) { c.add(clipW(txt(this, rx, ry, r.label, 12, UI.gold, true), rw)); return }
       const changed = r.next !== undefined && r.next !== r.now
-      b.add(txt(this, x + 18, ry, clip(r.label, 40), 11, '#d8d4f0'))
-      b.add(txt(this, c1, ry, clip(r.now, 30), 11, UI.text))
-      if (r.next !== undefined) b.add(txt(this, c2, ry, clip(r.next, 30), 11, changed ? UI.green : UI.sub, changed))
+      if (i % 2) c.add(this.add.rectangle(rx - 4, ry - 2, rw + 4, rowH, 0xffffff, 0.04).setOrigin(0))
+      c.add(clipW(txt(this, rx + 8, ry, r.label, 12, '#d8d4f0'), c1 - rx - 16))
+      c.add(clipW(txt(this, c1, ry, r.now, 12, UI.text), c2 - c1 - 8))
+      if (r.next !== undefined) c.add(clipW(txt(this, c2, ry, r.next, 12, changed ? UI.green : UI.sub, changed), rx + rw - c2))
     })
-    if (!rows.length) b.add(txt(this, x + 10, top + 24, 'โหนดนี้เปลี่ยนการทำงานในการต่อสู้ ดูคำอธิบายด้านล่างนะคะ', 12, UI.sub))
+    if (!rows.length) c.add(txt(this, rx, y + 110, 'โหนดนี้เปลี่ยนการทำงานในการต่อสู้\nดูคำอธิบายด้านซ้ายนะคะ', 13, UI.sub).setLineSpacing(4))
+    if (d.rows.length > rows.length) c.add(txt(this, rx, y + 106 + rows.length * rowH, `… และอีก ${d.rows.length - rows.length} บรรทัด`, 11, UI.sub))
+    c.add(txt(this, x + 20, y + h - 52, d.note, 10, UI.sub).setWordWrapWidth(w - 200, true))
+    c.add(button(this, x + w - 80, y + h - 36, 130, 44, lv ? '+1 แต้ม' : 'เรียน', learn, { size: 17 }).setEnabled(can))
   }
 
   // ---------- tab 4: talents (4 tiers by Job Lv, pick 1 of 3, free swap in town) ----------
@@ -555,19 +589,21 @@ export class CharacterScene extends Phaser.Scene {
 
 type DetailRow = { label: string; now: string; next?: string; section?: boolean }
 /** Rows for the skill detail panel: the skill this node powers (all rows), other skills / stats that this level changes. */
-export function nodeDetail(s: ReturnType<typeof save>, n: TreeNode): { rows: DetailRow[]; note: string } {
-  const t = s.jobTree ?? {}, lv = t[n.id] ?? 0, job = s.job
-  const stOf = (tree: Record<string, number>) => heroStats({ ...s, jobTree: tree })
+export function nodeDetail(s: ReturnType<typeof save>, n: TreeNode, tier2 = false): { rows: DetailRow[]; note: string } {
+  const key = tier2 ? 'job2Tree' : 'jobTree' // v113: the 2nd-job web had no detail (Q bug)
+  const t = s[key] ?? {}, lv = t[n.id] ?? 0, job = s.job
+  const withTree = (tree: Record<string, number>) => ({ ...s, [key]: tree })
+  const stOf = (tree: Record<string, number>) => heroStats(withTree(tree))
   const nowT = t, nextT = lv < n.max ? { ...t, [n.id]: lv + 1 } : undefined
   const stNow = stOf(nowT), stNext = nextT ? stOf(nextT) : undefined
   const line = BRANCHES.find((x) => x.id === n.branch)?.line
   const s2 = n.s2 ? skill2ById(n.s2) : undefined
   type Sec = { name: string; info: (st: Stats, tree: Record<string, number>) => InfoRow[] | null; all: boolean }
-  const picked = (tree: Record<string, number>) => skill2Picked(tree, job)
+  const picked = (tree: Record<string, number>) => skill2Picked(tier2 ? s.jobTree ?? {} : tree, job)
   const secs: Sec[] = [
     { name: `${JOBS[job].auto.icon} ทักษะ 1: ${JOBS[job].auto.name}`, info: (st) => autoInfo(job, st), all: line === 's1' },
-    ...(job === 'cleric' ? [{ name: '🌄 รุ่งอรุณ (passive · ตีธรรมดา/คอมโบ)', info: (st: Stats, tree: Record<string, number>) => { const x = dawnInfo(st, totalBase({ ...s, jobTree: tree })); return x.length ? x : null }, all: n.branch === 'cleric_d' }] : []),
-    { name: s.job2 === 'crusader' ? `✨ Ult: Grand Cross` : `${JOBS[job].ult.icon} Ult: ${JOBS[job].ult.name}`, info: (st, tree) => ultInfo(job, st, totalBase({ ...s, jobTree: tree }), s.job2), all: line === 'ult' },
+    ...(job === 'cleric' ? [{ name: '🌄 รุ่งอรุณ (passive · ตีธรรมดา/คอมโบ)', info: (st: Stats, tree: Record<string, number>) => { const x = dawnInfo(st, totalBase(withTree(tree))); return x.length ? x : null }, all: n.branch === 'cleric_d' }] : []),
+    { name: s.job2 === 'crusader' ? `✨ Ult: Grand Cross` : `${JOBS[job].ult.icon} Ult: ${JOBS[job].ult.name}`, info: (st, tree) => ultInfo(job, st, totalBase(withTree(tree)), s.job2), all: line === 'ult' || (tier2 && n.branch.endsWith('_u2')) },
     { name: `${(s2 ?? picked(t))?.icon ?? '🔀'} ทักษะ 2: ${(s2 ?? picked(t))?.name ?? ''}`, all: !!s2,
       info: (st, tree) => { const k = s2 ?? picked(tree); return k && (tree[k.id] ?? 0) > 0 ? skill2Info(k, st) : null } },
   ]
@@ -591,3 +627,11 @@ export function nodeDetail(s: ReturnType<typeof save>, n: TreeNode): { rows: Det
 }
 
 const clip = (t: string, n: number) => (t.length > n ? t.slice(0, n - 1) + '…' : t)
+/** Clip a text object to maxW pixels with an ellipsis (pixel-based: Thai vowel / tone marks take no width). */
+function clipW(t: Phaser.GameObjects.Text, maxW: number) {
+  if (t.width <= maxW) return t
+  const full = t.text
+  let lo = 0, hi = full.length
+  while (lo < hi) { const m = (lo + hi + 1) >> 1; t.setText(full.slice(0, m) + '…'); if (t.width <= maxW) lo = m; else hi = m - 1 }
+  return t.setText(full.slice(0, lo) + '…')
+}

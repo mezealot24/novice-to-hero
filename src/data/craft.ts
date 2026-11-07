@@ -39,9 +39,9 @@ export const CRAFT_ITEMS: Item[] = [
   // ----- d1 ทุ่งเจลล็อป -----
   { id: 'c_jellring', slot: 'acc', name: 'แหวนเมือกใส', icon: '💧', price: 0, slots: 1, desc: 'ตีจากเมือกเจลล็อป ฟื้นตัวทุกเทิร์น', base: { vit: 1 }, mod: { maxHp: 40, regen: 0.3 },
     craft: { dg: 'd1', common: 8, boss: 2, zeny: 200, bonus: [{ waveShield: 0.03 }, { regen: 0.3, tenacity: 0.05 }] } },
-  { id: 'c_jellcoat', slot: 'armor', name: 'เสื้อคลุมเยลลี่', icon: '🫧', price: 0, slots: 1, desc: 'นุ่มแต่หนึบ กันได้ทั้งกายภาพและเวท', base: { vit: 2 }, mod: { maxHp: 60, def: 10, mdef: 0.05 },
+  { id: 'c_jellcoat', slot: 'armor', name: 'เสื้อคลุมเยลลี่', icon: '💧', price: 0, slots: 1, desc: 'นุ่มแต่หนึบ กันได้ทั้งกายภาพและเวท', base: { vit: 2 }, mod: { maxHp: 60, def: 10, mdef: 0.05 },
     craft: { dg: 'd1', common: 8, boss: 2, zeny: 250, bonus: [{ tenacity: 0.06 }, { regen: 0.4, maxHp: 30 }] } },
-  { id: 'c_jellhood', slot: 'head', name: 'หมวกเมือกใส', icon: '🪼', price: 0, slots: 1, desc: 'หมวกหนึบ ๆ กันเวทได้นิด', mod: { maxHp: 30, mdef: 0.03 },
+  { id: 'c_jellhood', slot: 'head', name: 'หมวกเมือกใส', icon: '🐙', price: 0, slots: 1, desc: 'หมวกหนึบ ๆ กันเวทได้นิด', mod: { maxHp: 30, mdef: 0.03 },
     craft: { dg: 'd1', common: 6, boss: 2, zeny: 200, bonus: [{ waveShield: 0.03 }, { regen: 0.3 }] } },
   // ----- d2 ป่าหมาป่าเงา -----
   { id: 'c_moonfur', slot: 'armor', name: 'ผ้าคลุมขนเงาจันทร์', icon: '🌙', price: 0, slots: 1, desc: 'เบา หลบง่าย', base: { agi: 3 }, mod: { maxHp: 60, def: 6, flee: 8 },
@@ -68,7 +68,7 @@ export const CRAFT_ITEMS: Item[] = [
   // ----- d4 บึงพิษมรกต -----
   { id: 'c_emeraldmail', slot: 'armor', name: 'เสื้อเกล็ดมรกต', icon: '🐊', price: 0, slots: 1, desc: 'ถึก กันพิษ', base: { vit: 4 }, mod: { maxHp: 140, def: 10, debuffRes: 0.15 },
     craft: { dg: 'd4', common: 14, boss: 3, zeny: 1500, bonus: [{ regen: 0.5 }, { debuffRes: 0.15, waveShield: 0.05 }] } },
-  { id: 'c_venomgauche', wtype: 'dagger', slot: 'offhand', name: 'มีดปัดเกล็ดหนอง', icon: '🪡', price: 0, slots: 1, desc: 'ปัดป้องแล้วแทงพิษ', base: { agi: 2 }, mod: { flee: 8 }, jobs: TH,
+  { id: 'c_venomgauche', wtype: 'dagger', slot: 'offhand', name: 'มีดปัดเกล็ดหนอง', icon: '🧵', price: 0, slots: 1, desc: 'ปัดป้องแล้วแทงพิษ', base: { agi: 2 }, mod: { flee: 8 }, jobs: TH,
     craft: { dg: 'd4', common: 14, boss: 3, zeny: 1500, bonus: [{ poison: 1 }, { dodgeHeal: 0.03 }] } },
   // ----- d5 บัลลังก์อเวจี -----
   { id: 'c_lichring', slot: 'acc', name: 'แหวนผลึกลิช', icon: '💀', price: 0, slots: 1, desc: 'ทุกค่าสถานะ +3 ท่าไม้ตายแรงขึ้น', base: ALL7(3), mod: { maxHp: 30 },

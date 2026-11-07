@@ -28,7 +28,7 @@ export const tree: ClassTree = {
     n('archer_b4', 'archer_b', 4, '↪️', 'ยิงถอย', 1, () => 'หลบได้แล้วยิงสวน 0.8x ทันที + Energy +5', () => ({ dodgeStrike: 1, arDodgeRes: 5 })),
     n('archer_c1', 'archer_c', 1, '🧪', 'ศรอาบพิษ', 3, (lv) => `ยิงคู่ทุกดอก ${pc(at(A.poisonArrow, lv))} ติดพิษ +${A.poisonArrowStacks} stack`, (lv) => ({ arPoisonArrow: at(A.poisonArrow, lv) })),
     n('archer_c2', 'archer_c', 2, '🩸', 'ซ้ำแผล', 3, (lv) => `ตีตัวที่ติดพิษ +${pc(A.vsPoison * lv)}`, (lv) => ({ vsPoison: A.vsPoison * lv })),
-    n('archer_c3', 'archer_c', 3, '🪶', 'ศรเด้ง', 3, (lv) => `ยิงคู่ฆ่าได้ → ศรเด้งไปตัวถัดไปฟรี ${at(A.ricochet, lv)}x`, (lv) => ({ arRicochet: at(A.ricochet, lv) })),
+    n('archer_c3', 'archer_c', 3, '🍃', 'ศรเด้ง', 3, (lv) => `ยิงคู่ฆ่าได้ → ศรเด้งไปตัวถัดไปฟรี ${at(A.ricochet, lv)}x`, (lv) => ({ arRicochet: at(A.ricochet, lv) })),
     n('archer_c4', 'archer_c', 4, '🌫️', 'หมอกพิษ', 1, () => 'ตัวติดพิษตาย → พิษครึ่งหนึ่งลามไปตัวอื่น · ฝนธนู / กับดัก ติดพิษ +1 stack', () => ({ poisonSpread: 1, arPoisonS2: 1 })),
     n('archer_d1', 'archer_d', 1, '🏷️', 'หมายหัว', 3, (lv) => `ศรทะลวงหมายหัวเป้า ${A.markTurns} เทิร์น: โดนทุกฮิตแรงขึ้น +${pc(A.markAmp * lv)}`, (lv) => ({ arMark: A.markAmp * lv })),
     n('archer_d2', 'archer_d', 2, '⚡', 'ไล่ล่า', 3, (lv) => `ฆ่าตัวที่หมายหัว → Energy +${A.markJumpRes * lv} · หมายหัวกระโดดไปตัวหน้าสุด`, (lv) => ({ arMarkJump: A.markJumpRes * lv })),
@@ -37,7 +37,7 @@ export const tree: ClassTree = {
   ],
   talents: [
     // row 1 (Job Lv 5): basic shot
-    t('ar_t1a', 1, '🪶', 'ศรนำทาง', 2, (r) => `Hit +${r2(r, 10, 18)}`, (r) => ({ hit: r2(r, 10, 18) })),
+    t('ar_t1a', 1, '🍃', 'ศรนำทาง', 2, (r) => `Hit +${r2(r, 10, 18)}`, (r) => ({ hit: r2(r, 10, 18) })),
     t('ar_t1b', 1, '🏃', 'ก้าวถอย', 2, (r) => `เริ่มทุกเวฟด้วยหลบแน่นอน 1 ครั้ง${r >= 2 ? ' · Flee +6' : ''}`, (r) => ({ arWaveDodge: 1, flee: r2(r, 0, 6) })),
     t('ar_t1c', 1, '🩸', 'เก็บตัวเปราะ', 2, (r) => `ยิงปกติเล็งตัวที่ HP ต่ำสุด${r >= 2 ? ' · ดาเมจใส่ตัวที่ HP < 50% +15%' : ''}`, (r) => ({ arSnipeLow: 1, arLowHpBonus: r2(r, 0, 0.15) })),
     // row 2 (Job Lv 10): ยิงคู่ (auto)

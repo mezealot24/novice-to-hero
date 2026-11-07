@@ -16,7 +16,7 @@ export const tree2: ClassTree = {
     n('sg_e2', 'sg_e', 2, '💪', 'แขนปราชญ์', 3, (lv) => `P.ATK +${lv * 4}`, (lv) => ({ atk: 4 * lv })),
     n('sg_e3', 'sg_e', 3, '⏳', 'ติดทน', 2, (lv) => `Endow +${lv} เทิร์น`, (lv) => ({ j2EndowTurns: lv })),
     n('sg_e4', 'sg_e', 4, '♾️', 'อาวุธธาตุ', 1, () => 'Endow อยู่ทั้งเวฟ', () => ({ j2EndowWave: 1 })),
-    n('sg_r1', 'sg_r', 1, '🪄', 'Magic Rod', 3, (lv) => `โดนเวท = Mana +${lv * 3}`, (lv) => ({ j2MagicRod: 3 * lv })),
+    n('sg_r1', 'sg_r', 1, '🔮', 'Magic Rod', 3, (lv) => `โดนเวท = Mana +${lv * 3}`, (lv) => ({ j2MagicRod: 3 * lv })),
     n('sg_r2', 'sg_r', 2, '🛡️', 'ผนึกเวท', 3, (lv) => `M.DEF +${lv * 3}%`, (lv) => ({ mdef: 0.03 * lv })),
     n('sg_r3', 'sg_r', 3, '❤️', 'กายปราชญ์', 3, (lv) => `HP สูงสุด +${lv * 30}`, (lv) => ({ maxHp: 30 * lv })),
     n('sg_r4', 'sg_r', 4, '🌀', 'Magic Rod เต็มขั้น', 1, () => 'เวทลูกแรกของทุกเวฟถูกดูดหาย (ไม่โดน) + Mana', () => ({ j2RodBlock: 1 })),
