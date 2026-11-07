@@ -27,10 +27,13 @@ test('v93 full branch numbers: bonus share 200%, heal 30%, v102 แสงแต�
   assert.ok(Math.abs(lv1.clDawn - 0.4) < 1e-9) // Lv 1 of 5 = old 0.6 x 2/3 (v93)
 })
 
-test('v92 Ult smash = 150% + 50%/Lv P.ATK; dawn bonus = (STR + WIS + 10% M.ATK) x share', () => {
-  const lv = (n: number) => clericUltSmash(heroStats(tree({ cleric_ultp: n })))
-  assert.ok(Math.abs(lv(1) - 2) < 1e-9)
-  assert.ok(Math.abs(lv(5) - 4) < 1e-9)
+test('v104 Ult smash = 200% + 🌄 20%/Lv P.ATK; root = Ult +12%/Lv; dawn bonus = (STR + WIS + 10% M.ATK) x share', () => {
+  const lv = (n: number) => clericUltSmash(heroStats(tree({ cleric_ultp: 5, ...(n ? { cleric_dn1: n } : {}) })))
+  assert.ok(Math.abs(lv(0) - 2) < 1e-9)
+  assert.ok(Math.abs(lv(1) - 2.2) < 1e-9)
+  assert.ok(Math.abs(lv(5) - 3) < 1e-9)
+  const root = heroStats(tree({ cleric_ultp: 5 }))
+  assert.ok(Math.abs(root.ultPow - 0.6) < 1e-9); assert.equal(root.clUltAtk, 0)
   const st = { ...heroStats(tree({ cleric_ultp: 1 })), matk: 100, clDawn: 1 }
   assert.equal(dawnBonus(st, 50, 50), 110) // Q's example
   assert.equal(dawnBonus({ ...st, clDawn: 0 }, 50, 50), 0)

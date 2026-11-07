@@ -45,7 +45,8 @@ export const SWORD_MANA = {
  *  Ult: ultAtk x P.ATK to every monster + ultLights Holy Light (ultLight x M.ATK each, random target) + shield ultShield of max HP that lasts ultShieldTurns hero turns.
  *  Q 09:50: every Priest heal = x M.ATK (heal, ฟื้นฟู, ไฟชำระ) then x (1 + ฮีลแรง from WIS); shields = x max HP, last shieldTurns hero turns, total capped at shieldCap of max HP.
  *  Per-level node numbers live in skill-math.ts KIT. */
-export const CLERIC_KIT = { heal: 0.7, smite: 1.4, basic: 1.1, ultAtk: 1.5, ultLights: 3, ultLight: 0.8, ultShield: 0.14, ultShieldTurns: 3, purifyHeal: 1, shieldTurns: 3, shieldCap: 0.5, ultMana: 30, ultManaLv: 5 } // ultMana: v86 Q 2026-11-06, the ult costs Mana like Mage / Swordsman · v102 nerf: +ultManaLv per Ult node Lv above 1 (30/35/40/45/50)
+// v104: ultAtk 1.5 -> 2 (the root node no longer adds smash P.ATK; 🌄 แสงรุ่งอรุณ does)
+export const CLERIC_KIT = { heal: 0.7, smite: 1.4, basic: 1.1, ultAtk: 2, ultLights: 3, ultLight: 0.8, ultShield: 0.14, ultShieldTurns: 3, purifyHeal: 1, shieldTurns: 3, shieldCap: 0.5, ultMana: 30, ultManaLv: 5 } // ultMana: v86 Q 2026-11-06, the ult costs Mana like Mage / Swordsman · v102 nerf: +ultManaLv per Ult node Lv above 1 (30/35/40/45/50)
 
 /** Spell vamp (Q 2026-11-04): skill lifesteal, its own stat. AoE skills heal 1/3; Skill 2 เลือดเดือด trades skill damage for it. */
 export const SPELL_VAMP = { aoe: 1 / 3, bloodCut: 0.3 }

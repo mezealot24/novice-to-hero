@@ -42,7 +42,8 @@ export const KIT = {
   mageFire: 2, mageFireStacks: 3, mageIce: 1.6, mageIceChill: 3, mageLightHits: 6, mageLightLo: 0.3, mageLightHi: 1.2,
   clericHealBelow: 0.75, clericSmiteTargets: 2, clericJudge: 2.2, clericJudgeEvery: 3,
   // v58 Priest Ult web (Q 2026-11-04), linear per level: พรคุ้มครอง (v92 Q 2026-11-07) = ult smash 150% + 50%/Lv P.ATK, Lv5 = 400% · พรอุ่นไอ Lv5 = counter +12.5%, Holy Light 3 -> 8 · เกราะแสง Lv3 = 6% shield per spear volley
-  clericUltAtkLv: 0.5, clericWarmCounterLv: 0.025, clericWarmLightLv: 1, clericSpearShieldLv: 0.02,
+  clericUltAtkLv: 0.2, // v104: smash P.ATK per 🌄 แสงรุ่งอรุณ Lv (was per root Lv 0.5)
+  clericWarmCounterLv: 0.025, clericWarmLightLv: 1, clericSpearShieldLv: 0.02,
   spearBase: 0.3, spearMax: 8,
   thiefAuto: 1.6, thiefAutoPoison: 3, thiefUlt: 0.7, thiefUltHits: 4, thiefUltDodge: 2,
   // v82 Archer web: 🧪 ศรพิษ (under ทักษะ 1) + 🏷️ ล่าหัว (under Ult), first guesses (design/skill-tree-archer.md v82)
@@ -215,7 +216,7 @@ export const s2Cooldown = (k: Skill2Def, _st: Stats) => Math.max(1, k.cd)
 /** Light spear multiplier x M.ATK (Skill 2 หอกคม adds on top at run start). */
 export const spearMul = (st: Stats, s2?: Skill2Def) => KIT.spearBase + st.spearMul + (s2?.id === 'cl_spear' ? S2N.spearPlus(st.s2Lv) : 0)
 /** v58 Priest: ult smash multiplier x P.ATK (before ultAmp / pskill), Holy Light count, basic smash x P.ATK. */
-export const clericUltSmash = (st: Stats) => CLERIC_KIT.ultAtk + st.clUltAtk // v92: additive, 150% + 50%/Lv
+export const clericUltSmash = (st: Stats) => CLERIC_KIT.ultAtk + st.clUltAtk // v104: 200% + 🌄 แสงรุ่งอรุณ 20%/Lv (was 150% + root 50%/Lv)
 /** v92 🌄 แสงรุ่งอรุณ: flat bonus magic damage per Ult smash target = (STR + WIS + matk x M.ATK) x node share (v102: แสงแตก no longer amps it). */
 export const dawnBonus = (st: Stats, str: number, wis: number) =>
   st.clDawn > 0 ? (str + wis + KIT.clericTree.dawn.matk * st.matk) * st.clDawn : 0

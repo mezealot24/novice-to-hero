@@ -48,8 +48,9 @@ export const tree: ClassTree = {
       (lv) => ({ clManaGuard: K.guard * lv, clManaHeal: K.heal, clManaShield: K.shield * lv })),
     // D: 🌄 รุ่งอรุณ (v92, Q 2026-11-07): Ult smash + bonus MAGIC damage (STR + WIS + D.matk x M.ATK) on every monster it hits.
     // Same node ids as v86 (shipped a day earlier, same theme). Numbers per OLD level (max 3), stretched to 5.
-    n('cleric_dn1', 'cleric_d', 1, '🌄', 'แสงรุ่งอรุณ', 3, (lv) => `Ult ทุบแถมดาเมจเวท ${pc(D.share * lv)} ของ (STR + WIS + ${pc(D.matk)} M.ATK) ใส่ทุกตัวที่โดนทุบ`,
-      (lv) => ({ clDawn: D.share * lv })),
+    // v104 (Q 2026-11-07): + the smash P.ATK that the root node used to give (stretched 3 -> 5: +20%/Lv, Lv5 +100%)
+    n('cleric_dn1', 'cleric_d', 1, '🌄', 'แสงรุ่งอรุณ', 3, (lv) => `Ult ทุบแรง +${pc(KIT.clericUltAtkLv * lv * 5 / 3)} P.ATK · แถมดาเมจเวท ${pc(D.share * lv)} ของ (STR + WIS + ${pc(D.matk)} M.ATK) ใส่ทุกตัวที่โดนทุบ`,
+      (lv) => ({ clDawn: D.share * lv, clUltAtk: KIT.clericUltAtkLv * lv * 5 / 3 })),
     n('cleric_dn2', 'cleric_d', 2, '💛', 'อรุณสมานแผล', 3, (lv) => `ฮีล ${pc(D.heal * lv)} ของดาเมจแสงรุ่งอรุณที่ตัวหน้า (มอนธรรมดา x${D.weak})`, (lv) => ({ clDawnHeal: D.heal * lv })),
     // v102 (Q 2026-11-07): was +dmg/lv; now the Dawn Light bonus hitting gives WIS = 25/30/35% of the bonus/target for 3/4/5 turns. Max 3, not stretched (tree.ts NO_STRETCH).
     n('cleric_dn3', 'cleric_d', 3, '☀️', 'แสงแตก', 3, (lv) => `แสงรุ่งอรุณโดนแล้ว ได้ WIS = ${pc(D.wis[i3(lv)])} ของดาเมจแสงรุ่งอรุณ/ตัว ${D.wisTurns[i3(lv)]} เทิร์น`,
