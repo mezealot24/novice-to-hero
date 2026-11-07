@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DUNGEONS, MONSTERS, type MonsterKind } from '../src/data/game-data'
 import { HELL, hellify, HELL_TRAITS } from '../src/data/hell'
-import { deepAnchor, homeDungeon, monTier, statNative } from '../src/data/mon-stats'
+import { deepAnchor, homeDungeon, legacyLevel, monTier, restatAt, statNative, towerMonLv, withStats } from '../src/data/mon-stats'
 import { towerFloor, TOWER } from '../src/data/modes'
 
 const DEEP = DUNGEONS.filter((d) => d.level)
@@ -72,4 +72,25 @@ test('floor 40+: every D1-D5 monster in the room is Hell (Q 2026-11-08)', () => 
     const old = [...new Set([...r.spawn.map(([k]) => k), ...(r.miniPool ?? [])])].filter((k) => !statNative(k))
     for (const k of old) assert.ok(r.hell?.includes(k), `floor ${f}: ${k} not Hell`)
   }
+})
+
+test('tower Lv: a D3 mini locked at its home Lv grows stats + skill Lv on deep floors, HP / ATK untouched', () => {
+  const d = MONSTERS.duelist, home = withStats(d, 'duelist', legacyLevel('duelist', d, { id: 'd3' }))
+  const lv = towerMonLv(40) + HELL.lv
+  assert.ok(lv > (home.lv ?? 0))
+  const up = restatAt(home, 'duelist', lv)
+  assert.equal(up.lv, lv)
+  assert.equal(up.hp, home.hp)
+  assert.equal(up.dmg, home.dmg)
+  assert.ok((up.flee ?? 0) > (home.flee ?? 0) && (up.hit ?? 0) > (home.hit ?? 0), 'flee / hit grow')
+  assert.ok((up.skills ?? []).every((s, i) => (s.lv ?? 1) > (home.skills?.[i]?.lv ?? 1)), 'skill Lv grows')
+  assert.equal(JSON.stringify(restatAt(home, 'duelist', 5)), JSON.stringify(home), 'D1-D5 never go below home Lv')
+})
+
+test('tower Lv: a D6+ monster follows the floor Lv down too (no Lv 90 kit on floor 25)', () => {
+  const k = (Object.keys(MONSTERS) as MonsterKind[]).find((x) => statNative(x) && homeDungeon(x) === 'd10' && !MONSTERS[x].passive && MONSTERS[x].ai !== 'boss')!
+  const base = deepAnchor(k), low = restatAt(base, k, towerMonLv(25))
+  assert.equal(low.lv, towerMonLv(25))
+  assert.equal(low.hp, base.hp)
+  assert.ok((low.flee ?? 0) < (base.flee ?? 0), `${k} flee ${low.flee} < ${base.flee}`)
 })

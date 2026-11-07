@@ -21,7 +21,7 @@ import { rollUniqueDrop, UNIQUE } from '../data/uniques'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
 import { HARD_POWER, matchScale, overpowerMul, TOWER_POWER } from '../data/power'
-import { deepAnchor, homeDungeon, legacyLevel, levelDropMul, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, statNative, withStats } from '../data/mon-stats'
+import { deepAnchor, homeDungeon, legacyLevel, levelDropMul, restatAt, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, statNative, towerMonLv, withStats } from '../data/mon-stats'
 import { HELL, hellify } from '../data/hell'
 import { foldAffixes } from '../data/affixes'
 import { PACKS } from '../data/dungeons'
@@ -489,9 +489,16 @@ export class BattleScene extends Phaser.Scene {
 
   /** v68: 7 stats on an old monster at its home dungeon's level (numbers stay as tuned; see mon-stats withStats). */
   private legacyStats(kind: MonsterKind): MonsterDef {
-    if (statNative(kind)) return deepAnchor(kind) // v114: a D6+ monster in the tower (no level dungeon here)
     const d = MONSTERS[kind], src = this.dg
-    return withStats(d, kind, legacyLevel(kind, d, src), { hard: this.hard, statMul: this.run.corrupt?.statMul })
+    const base = statNative(kind) ? deepAnchor(kind) /* v114: a D6+ monster in the tower (no level dungeon here) */ : withStats(d, kind, legacyLevel(kind, d, src), { hard: this.hard, statMul: this.run.corrupt?.statMul })
+    const lv = this.towerLv(kind)
+    return lv ? restatAt(base, kind, lv) : base // v116: tower Lv by floor (stats + skill Lv; HP / ATK stay the tower's)
+  }
+  /** v116: Lv a monster of `kind` takes on this tower floor (0 = not a tower floor). Hell copies get HELL.lv more. */
+  private towerLv(kind: MonsterKind): number {
+    const r = this.roomDef(this.room)
+    if (this.run.modeId !== 'tower' || !r?.floor) return 0
+    return towerMonLv(r.floor) + (r.hell?.includes(kind) ? HELL.lv : 0)
   }
 
   /** v56 global monster buff by dungeon tier (BATTLE.monBuff): HP, ATK and M.ATK. */

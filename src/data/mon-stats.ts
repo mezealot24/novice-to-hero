@@ -319,3 +319,27 @@ export function skillAtLv(sk: MonSkill, lv = sk.lv ?? 1): MonSkill {
   }
   return out
 }
+
+// ===== v116 tower Lv (Q 2026-11-08 "ทำให้ D1-D10 scale skill / stat ได้") =====
+// Tower HP / ATK / M.ATK already follow Hero Power + floor (modes.towerScale). Everything else (DEF, Hit, Flee, crit, combo,
+// counter, speed, M.DEF, lucky dodge, skill levels) used to stay at the monster's home level: a Hell D3 mini on floor 40 was Lv 12,
+// a D10 monster on floor 25 was Lv 90. Now every monster on a floor is rebuilt at that floor's tower Lv (Hell: + HELL.lv),
+// keeping the tower's HP / ATK. D1-D5 only move up from their home level; D6+ follow the tower Lv both ways.
+export const TOWER_LV = { perFloor: 1.5, skillEvery: 10 } // skill Lv +1 per `skillEvery` Lv above the monster's home Lv
+export const towerMonLv = (floor: number) => Math.max(1, Math.round(TOWER_LV.perFloor * floor))
+const lvUp = (s: MonSkill, n: number): MonSkill => ({ ...s, lv: (s.lv ?? 1) + n, ...(s.pick ? { pick: s.pick.map((p) => lvUp(p, n)) } : {}) })
+/** `base` (already built at its home level) rebuilt at Lv `lv`: stats + skill levels move, HP / ATK / M.ATK stay. */
+export function restatAt(base: MonsterDef, kind: MonsterKind, lv: number): MonsterDef {
+  const d = MONSTERS[kind], home = base.lv ?? 1, deep = statNative(kind)
+  if (!d || lv === home || (!deep && (lv < home || !d.statAlloc))) return base
+  const at = deep ? statMonster(d, lv) : withStats(d, kind, lv)
+  const out: MonsterDef = { ...at, hp: base.hp, dmg: base.dmg }
+  if (base.matk !== undefined) out.matk = base.matk
+  else delete out.matk
+  const n = Math.floor(Math.max(0, lv - home) / TOWER_LV.skillEvery)
+  if (n > 0) {
+    if (out.skills) out.skills = out.skills.map((s) => lvUp(s, n))
+    if (out.phases) out.phases = out.phases.map((p) => (p.skills ? { ...p, skills: p.skills.map((s) => lvUp(s, n)) } : p))
+  }
+  return out
+}
