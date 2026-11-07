@@ -132,6 +132,20 @@ test('v106/v108 Grand Cross detail: cross rows (🙏 root P.ATK on the P.ATK cro
   assert.ok(!gc.some((x) => x.startsWith('ทุบ') || x.startsWith('Holy Light')))
 })
 
+test('v116 Crusader Auto Guard over the cap is kept as j2GuardOver (block shield / heal scale), not lost', async () => {
+  const { KIT2 } = await import('../src/data/skill-math')
+  const C = KIT2.crusader
+  const cru = (vit: number) => heroStats({ ...(base as object), job2: 'crusader', stats: { str: 5, vit, wis: 5, dex: 5, int: 5, luk: 5, agi: 5 } } as never)
+  const low = cru(5)
+  assert.ok(low.j2Guard < C.guardCap); assert.equal(low.j2GuardOver, 0)
+  const a = cru(250), b = cru(300)
+  assert.equal(a.j2Guard, C.guardCap); assert.equal(b.j2Guard, C.guardCap)
+  assert.ok(a.j2GuardOver > 0)
+  assert.ok(Math.abs(b.j2GuardOver - a.j2GuardOver - C.guardVit * 50) < 1e-9) // every VIT past the cap still counts
+  const knight = heroStats({ ...(base as object), job: 'swordsman', job2: 'knight', stats: { str: 5, vit: 300, wis: 5, dex: 5, int: 5, luk: 5, agi: 5 } } as never)
+  assert.equal(knight.j2GuardOver, 0) // Crusader only
+})
+
 test('v109 Grand Cross pulses 2/2/3/4/4 by Ult วิวัฒน์ Lv (Lv0 = 2)', async () => {
   const { gcPulses } = await import('../src/data/skill-math')
   const { applyPatch } = await import('../src/data/patch')

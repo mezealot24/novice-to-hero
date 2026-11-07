@@ -78,7 +78,7 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     blurb: 'อัศวินศักดิ์สิทธิ์แบบ RO · กระบอง/ดาบ + โล่ บล็อกเก่ง · แรงใส่อันเดด/ปีศาจ · Grand Cross จ่าย HP แลกแสงกางเขนทุกตัว',
     mod: { j2Guard: C.guard },
     mastery: { weapon: 'กระบอง / ดาบ', ok: (it) => it.wtype === 'mace' || it.wtype === 'sword', mod: { def: C.mastery.def }, pct: { atk: C.mastery.atkPct } },
-    signature: { name: 'Auto Guard + ศรัทธา', icon: '🛡️', desc: `บล็อกการโจมตีกายภาพ ${pc(C.guard)} (+${pc(C.guardVit)}/VIT สูงสุด ${pc(C.guardCap)} · ไม่มีโล่ = ครึ่งเดียว) · ดาเมจ +${pc(C.holyVs)} ใส่อันเดด/ปีศาจ` },
+    signature: { name: 'Auto Guard + ศรัทธา', icon: '🛡️', desc: `บล็อกการโจมตีกายภาพ ${pc(C.guard)} (+${pc(C.guardVit)}/VIT สูงสุด ${pc(C.guardCap)} เกินได้โล่/ฮีลตอนบล็อก +${pc(C.guardOverMul / 100)} ต่อ 1% · ไม่มีโล่ = ครึ่งเดียว) · ดาเมจ +${pc(C.holyVs)} ใส่อันเดด/ปีศาจ` },
     skill3: { name: 'Holy Cross', icon: '✝️', cost: C.crossCost, cd: C.crossCd, desc: `Mana ${C.crossCost} · คูลดาวน์ ${C.crossCd}: ฟันกางเขนตัวหน้า ${C.crossHits} ฮิต ฮิตละ ${C.crossMul}x P.ATK + ${C.crossMul}x Pm · 🙈 ตาบอด Hit -${pc(C.blindHit)} ${C.blindTurns} เทิร์น` },
     ult: { name: 'Grand Cross', icon: '✨', cd: 4, cost: 0, desc: `จ่าย ${pc(C.gcPay)} HP + เผา Mana ที่เหลือ → แสงกางเขนใส่ทุกตัว ${C.gcPulses.join('/')} ครั้งตาม Lv (ตอนกด แล้วต้นเทิร์นละครั้ง) · เผามากยิ่งแรง · ดูดเลือด +${pc(C.gcVamp)} · โดน ${C.gcRefundAt}+ ตัว คืน HP ${pc(C.gcRefund)}` },
   },

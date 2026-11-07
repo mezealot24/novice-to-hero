@@ -966,8 +966,9 @@ export class BattleScene extends Phaser.Scene {
   }
   /** Crusader Auto Guard landed: ★ ป้อมศรัทธา shield + บล็อกฟื้นฟู heal. */
   private onBlock() {
-    if (this.st.j2BlockShield > 0) this.addShield(this.st.maxHp * this.st.j2BlockShield, true)
-    if (this.st.j2BlockHeal > 0) this.heal(this.st.maxHp * this.st.j2BlockHeal, true)
+    const over = 1 + this.st.j2GuardOver * KIT2.crusader.guardOverMul // v116: Auto Guard over the cap = bigger block shield / heal
+    if (this.st.j2BlockShield > 0) this.addShield(this.st.maxHp * this.st.j2BlockShield * over, true)
+    if (this.st.j2BlockHeal > 0) this.heal(this.st.maxHp * this.st.j2BlockHeal * over, true)
     if (this.st.j2BannerAura > 0) { // v84 Knight ★ ธงอมตะ
       const T = KIT2.knight.tree
       this.heal(this.st.maxHp * T.auraHeal, true); this.gainRage(T.auraRes); this.gainRes(T.auraRes)

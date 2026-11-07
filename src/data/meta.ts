@@ -476,7 +476,10 @@ export function heroStats(s: StatsInput): Stats {
   st.maxHp = Math.max(1, Math.round(st.maxHp * (1 + pct.maxHp + j2pct.maxHp))); st.atk *= 1 + pct.atk + j2pct.atk; st.matk *= 1 + pct.matk
   if (j2pct.aspd) st.aspd *= 1 + j2pct.aspd
   if (st.j2DefAtk > 0) st.atk += st.def * st.j2DefAtk // Knight เกราะเป็นแรง
-  if (j2?.id === 'crusader') st.j2Guard = Math.min(KIT2.crusader.guardCap, st.j2Guard + KIT2.crusader.guardVit * Math.max(0, d('vit'))) // Crusader Auto Guard: + per VIT point
+  if (j2?.id === 'crusader') { // Crusader Auto Guard: + per VIT point · v116 (Q 2026-11-08): what goes over the cap powers the block shield / heal instead of being lost
+    const raw = st.j2Guard + KIT2.crusader.guardVit * Math.max(0, d('vit'))
+    st.j2Guard = Math.min(KIT2.crusader.guardCap, raw); st.j2GuardOver = Math.max(0, raw - KIT2.crusader.guardCap)
+  }
   for (const sk of SKILLS) if (sk.id !== 'smash' && (s.skills[sk.id] ?? 0) > 0) add(sk.mod(s.skills[sk.id]))
   if (job.id === 'novice') add(SKILLS.find((x) => x.id === 'smash')!.mod(smashLv(s.jobLevel ?? 1))) // v86: ทุบ = Job Lv
   st.smashCd = Math.max(2500, st.smashCd)
