@@ -449,7 +449,7 @@ export class BattleScene extends Phaser.Scene {
 
   private addMon(kind: MonsterKind, slot: number, gauge?: number) {
     let def = statNative(kind) && this.dg.level ? this.statDef(MONSTERS[kind]) : this.hardDef(this.modeDef(this.buffDef(this.legacyStats(kind)), kind))
-    if (this.roomDef(this.room)?.hell?.includes(kind)) def = hellify(def, Math.random()) // v114 🔥 tower floor 25+
+    if (this.isHell(kind)) def = hellify(def, Math.random()) // v114 🔥 tower floor 25+
     const big = def.ai === 'boss'
     const x = this.roomDef(this.room)?.mixed ? MIX_X[slot] ?? SLOT_X[slot] : big ? 720 : SLOT_X[slot] // tower mixed fight: adds in front, big ones behind
     const y = GROUND + (slot % 2 ? 14 : -4)
@@ -498,7 +498,13 @@ export class BattleScene extends Phaser.Scene {
   private towerLv(kind: MonsterKind): number {
     const r = this.roomDef(this.room)
     if (this.run.modeId !== 'tower' || !r?.floor) return 0
-    return towerMonLv(r.floor) + (r.hell?.includes(kind) ? HELL.lv : 0)
+    return towerMonLv(r.floor) + (this.isHell(kind) ? HELL.lv : 0)
+  }
+  /** v114 / v118: a 🔥 Hell copy here? Rolled per room (RunRoom.hell); from HELL.allFrom every D1-D5 kind is, summons included. */
+  private isHell(kind: MonsterKind): boolean {
+    const r = this.roomDef(this.room)
+    if (this.run.modeId !== 'tower' || !r?.floor) return false
+    return !!r.hell?.includes(kind) || (r.floor >= HELL.allFrom && !statNative(kind))
   }
 
   /** v56 global monster buff by dungeon tier (BATTLE.monBuff): HP, ATK and M.ATK. */

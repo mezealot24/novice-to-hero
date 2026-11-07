@@ -3,7 +3,7 @@
 // + one hell trait each. Worth more EXP, so the deep floors pay for the danger.
 import type { MonsterDef } from './game-data'
 
-export interface HellTrait { id: string; icon: string; name: string; apply: (d: MonsterDef) => void; bossOk?: boolean }
+export interface HellTrait { id: string; icon: string; name: string; apply: (d: MonsterDef) => void; bossOk?: boolean; bossOnly?: boolean }
 
 export const HELL = {
   from: 25, // first tower floor that can roll Hell monsters
@@ -18,8 +18,11 @@ export const HELL = {
 export const HELL_TRAITS: HellTrait[] = [
   { id: 'blood', icon: '🩸', name: 'กระหายเลือด', apply: (d) => { d.lifesteal = (d.lifesteal ?? 0) + 0.12 }, bossOk: true },
   { id: 'hide', icon: '⛓️', name: 'หนังนรก', apply: (d) => { d.def = (d.def ?? 0) + 20 }, bossOk: true },
-  { id: 'eye', icon: '👁️', name: 'ตานรก', apply: (d) => { d.trueSight ??= { after: 2, turns: 3 } }, bossOk: true },
+  // v118: not for minis / bosses: the tower already gives them a sharper True Sight (HARD_POWER.bossSight), so this one did nothing
+  { id: 'eye', icon: '👁️', name: 'ตานรก', apply: (d) => { d.trueSight ??= { after: 2, turns: 3 } } },
   { id: 'blast', icon: '💥', name: 'ระเบิดนรก', apply: (d) => { d.deathBlast = Math.max(d.deathBlast ?? 0, 0.8) } },
+  // v118: minis / bosses only (replaces ตานรก for them): every hit sets the hero on fire 2 turns (3% max HP / turn, healing -40%)
+  { id: 'flame', icon: '🔥', name: 'เปลวนรก', apply: (d) => { d.onHit = { ...(d.onHit ?? {}), burn: Math.max(d.onHit?.burn ?? 0, 2) } }, bossOk: true, bossOnly: true },
 ]
 
 /** Chance that one D1-D5 kind on tower floor f is Hell (0 below HELL.from). */
@@ -27,7 +30,7 @@ export const hellChance = (f: number) => (f < HELL.from ? 0 : f >= HELL.allFrom 
 
 /** A Hell copy of `d`: name, numbers, one trait (rand in [0,1) picks it). Never touches the passed def. */
 export function hellify(d: MonsterDef, rand: number): MonsterDef {
-  const pool = HELL_TRAITS.filter((t) => d.ai !== 'boss' || t.bossOk)
+  const pool = HELL_TRAITS.filter((t) => (d.ai === 'boss' ? t.bossOk : !t.bossOnly))
   const t = pool[Math.min(pool.length - 1, Math.floor(rand * pool.length))]
   const out: MonsterDef = { ...d, name: `${d.name}นรก`, hp: Math.round(d.hp * HELL.hp), dmg: d.dmg * HELL.atk, xp: Math.round(d.xp * HELL.xp), hellish: `${t.icon} ${t.name}` }
   if (d.matk !== undefined) out.matk = d.matk * HELL.atk
