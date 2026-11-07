@@ -272,7 +272,7 @@ export function autoInfo(jobId: JobId, st: Stats): InfoRow[] {
 }
 
 /** Ult with these stats. */
-export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: number }): InfoRow[] {
+export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: number }, job2?: string): InfoRow[] {
   const job = JOBS[jobId], pow = 1 + st.ultPow, hitPow = pow * (1 + st.ultAmp)
   const out: InfoRow[] = [{ label: 'คูลดาวน์', value: `${ultCooldown(job, st)} เทิร์น${ultCost(job, st) ? ` · Mana ${ultCost(job, st)}` : ''}` }]
   switch (jobId) {
@@ -307,6 +307,12 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
       out.push({ label: `โล่ ${CLERIC_KIT.ultShieldTurns} เทิร์น`, value: `${shield(st, st.maxHp * CLERIC_KIT.ultShield)} (รวมไม่เกิน ${r(st.maxHp * CLERIC_KIT.shieldCap)})` })
       if (st.clPurify > 0) out.push({ label: 'ไฟชำระ: ล้างดีบัฟ + ฮีล (M.ATK)', value: `${heal(st, st.matk * CLERIC_KIT.purifyHeal)} HP` })
       if (st.ultHoly > 0) out.push({ label: 'แสงลงทัณฑ์/ตัว', value: hitText(st, st.ultHoly, true) })
+      if (job2 === 'crusader') { // v103: Grand Cross = all of the above, then the cross
+        const C = KIT2.crusader, k = hitPow * (1 + st.ult2Pow) * (1 + st.j2CrossAdd)
+        out.push({ label: `✨ + Grand Cross: จ่าย HP ${pct(C.gcPay * Math.max(0, 1 - st.j2PayCut))} ปัจจุบัน`, value: `โดน ${C.gcRefundAt}+ ตัว คืน ${pct(C.gcRefund)}${st.j2GcTwice > 0 ? ' · ยิง 2 ครั้ง' : ''}` })
+        out.push({ label: `✝️ กางเขน/ตัว ${C.gcPm}x พลังเวท (เวท)`, value: hitText(st, C.gcPm * k, true) })
+        out.push({ label: `✝️ กางเขน/ตัว ${C.gcAtk}x P.ATK (กาย)`, value: hitText(st, C.gcAtk * k * (1 + st.pskill), false) })
+      }
       break
     case 'thief':
       out.push({ label: `แทง ${KIT.thiefUltHits + st.ultHits} ที ดาเมจ/ที`, value: hitText(st, KIT.thiefUlt * hitPow * (1 + st.thUltAgi), false) })

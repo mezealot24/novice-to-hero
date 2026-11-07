@@ -113,3 +113,11 @@ test('v102 ☀️ แสงแตก WIS = share x Dawn Light bonus/target, show
   const row = ultInfo('cleric', st, { str: 50, wis: 50 }).find((x) => x.label.startsWith('☀️'))
   assert.match(row?.value ?? '', /^\+\d+ WIS \(35% ของ \d+\)$/)
 })
+
+test('v103 Grand Cross detail = the Cleric ult rows + the cross rows', async () => {
+  const { ultInfo } = await import('../src/data/skill-math')
+  const st = heroStats(tree({ cleric_ultp: 5, cleric_dn1: 1 }))
+  const base = ultInfo('cleric', st, { str: 50, wis: 50 }), gc = ultInfo('cleric', st, { str: 50, wis: 50 }, 'crusader')
+  assert.deepEqual(gc.slice(0, base.length), base)
+  assert.equal(gc.filter((x) => x.label.startsWith('✝️')).length, 2)
+})
