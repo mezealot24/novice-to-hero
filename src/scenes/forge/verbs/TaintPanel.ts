@@ -24,7 +24,7 @@ export class TaintPanel extends PanelBase implements VerbPanel {
   private head!: Phaser.GameObjects.Text
   private warn!: Phaser.GameObjects.Text
   private foot!: Phaser.GameObjects.Text
-  private odds: Phaser.GameObjects.GameObject[] = []
+  private odds: (Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Visible)[] = []
   constructor(private ctx: ForgeCtx) { super() }
 
   mount(box: Phaser.GameObjects.Container, it: Item) {
@@ -49,7 +49,7 @@ export class TaintPanel extends PanelBase implements VerbPanel {
 
   refresh() {
     const s = save(), it = this.it, tainted = isTainted(s, it.id)
-    for (const o of this.odds) (o as Phaser.GameObjects.Text).setVisible(!tainted)
+    for (const o of this.odds) o.setVisible(!tainted)
     if (tainted) {
       this.head.setText('☠️ Corrupted: ล็อกถาวรแล้ว')
       this.warn.setY(34).setColor('#c9a8ff').setText(`${taintNote(s, it)}\nอัปขั้น · ตีบวก · สุ่มค่าพิเศษ ทำไม่ได้อีก (ซ่อมได้ ยังใส่/เสียบการ์ดได้ปกติ)`)

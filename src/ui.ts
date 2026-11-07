@@ -48,7 +48,7 @@ export function button(scene: Phaser.Scene, x: number, y: number, w: number, h: 
   const g = scene.add.graphics()
   const t = scene.add.text(0, 0, label, { fontFamily: FONT_UI, fontSize: `${o.size ?? 20}px`, fontStyle: 'bold', color: o.color ?? UI.ink, align: 'center', lineSpacing: 2 }).setOrigin(0.5)
   const c = scene.add.container(x, y, [g, t]) as Btn
-  let enabled = true, hover = false
+  let enabled = true, hover = false, armed = false // armed: the press STARTED on this button while it was enabled (a tap that began elsewhere, e.g. a tap-to-skip, must not fire it)
   const draw = () => {
     const f = enabled ? fill : 0x4a4e6e
     g.clear()
@@ -61,11 +61,13 @@ export function button(scene: Phaser.Scene, x: number, y: number, w: number, h: 
   draw()
   c.setSize(w, h).setInteractive({ useHandCursor: true })
   c.on('pointerover', () => { hover = true; draw() })
-  c.on('pointerout', () => { hover = false; c.setScale(1); draw() })
-  c.on('pointerdown', () => { if (enabled) c.setScale(0.96) })
+  c.on('pointerout', () => { hover = false; armed = false; c.setScale(1); draw() })
+  c.on('pointerdown', () => { if (enabled) { armed = true; c.setScale(0.96) } })
   c.on('pointerup', () => {
     c.setScale(1)
-    if (!enabled) return
+    const fire = armed
+    armed = false
+    if (!enabled || !fire) return
     unlock(); sfx.pop()
     onClick()
   })

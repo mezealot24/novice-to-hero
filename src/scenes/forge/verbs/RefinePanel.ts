@@ -104,6 +104,7 @@ export class RefinePanel extends PanelBase implements VerbPanel {
     const release = this.ctx.hold() // the confirm path calls go() later, outside the shell's press() guard
     try { await this.ctx.fx.anticipate(!res.success || res.n >= 5 ? 3 : 1) } finally { release() }
     if (this.dead) return
+    this.ctx.busy(600) // a tap that skipped the hammer taps must not land on the action button as a second paid press
     if (res.success) {
       const notes = [res.line ? `ค่าพิเศษ ${lineText(res.line)}` : '', res.gems ? `💎+${res.gems}` : ''].filter(Boolean)
       this.ctx.fx.success(`+${res.n}`, notes, res.n <= 4 ? 'light' : res.n === 7 || res.n === 10 ? 'epic' : 'heavy')

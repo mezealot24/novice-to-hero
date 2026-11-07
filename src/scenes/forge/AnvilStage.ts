@@ -77,12 +77,16 @@ export class AnvilStage implements StageFx {
 
   private fast() { return !!save().forgeFast }
 
+  private endAnticipation?: () => void
+
   anticipate(hits: number): Promise<void> {
     if (this.fast() || hits <= 0) return Promise.resolve()
     const sc = this.scene
+    this.endAnticipation?.()
     return new Promise((resolve) => {
       let k = 0, done = false
-      const finish = () => { if (done) return; done = true; timer.remove(false); sc.input.off('pointerdown', finish); sc.events.off(Phaser.Scenes.Events.SHUTDOWN, finish); resolve() }
+      const finish = () => { if (done) return; done = true; this.endAnticipation = undefined; timer.remove(false); sc.input.off('pointerdown', finish); sc.events.off(Phaser.Scenes.Events.SHUTDOWN, finish); resolve() }
+      this.endAnticipation = finish // destroy() ends it too, so no stray clang / punch lands on a destroyed icon
       const timer = sc.time.addEvent({ delay: 140, repeat: hits - 1, callback: () => { sfx.clang(); punch(sc, this.icon, { by: 1.06, ms: 90 }); if (++k >= hits) finish() } })
       sc.input.once('pointerdown', finish) // tap = skip to the result
       sc.events.once(Phaser.Scenes.Events.SHUTDOWN, finish)
@@ -146,5 +150,5 @@ export class AnvilStage implements StageFx {
     floatNum(this.scene, p.x, p.y - 56, '🔧 ซ่อมแล้ว', { color: UI.green, size: 22, ui: true })
   }
 
-  destroy() { this.root.destroy() }
+  destroy() { this.endAnticipation?.(); this.root.destroy() }
 }

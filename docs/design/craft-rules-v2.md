@@ -130,6 +130,7 @@ export interface CardforgeCost extends ForgeCost { cards: Record<string, number>
 - หลังหลอม: เอาไอดีออกจาก `owned` + `forgetForge()` (เดิม: ล้างขั้น/บวก/บรรทัด/pity/rerollCount) · **`refineGems` ไม่ล้าง** (กฎเดิม) → สร้างใหม่แล้วตี +7/+10 ไม่ได้เพชรซ้ำ
 - ของ Corrupt: หลอมได้ แต่คืน `SALVAGE.taintedReturn` (25%) → Corrupt ยังเสี่ยงจริง (คิว Approve 2026-11-07)
 - สร้างใหม่ทีหลังได้ (สูตรไม่หาย)
+- ⚠ หลอมแล้วสร้างใหม่ = `rerollCount` (ราคาสุ่มออปชันกลับเป็น x1.0) และ `refinePity` ถูกล้างด้วย (`forgetForge`) · ยอมรับได้: ตีบวกใหม่ถึง +5..+10 จ่ายแพงกว่าที่ประหยัดได้จากการรีเซ็ตมาก (คิวอนุมัติ review v100)
 
 ### 3.2 ตัวอย่าง (`c_herosword` ดัน3 ★5 +7)
 - ลงไป: สร้าง 🔩12 + 🔱3 · อัปขั้น 2→5 = 🔩34 + 🔱7 → รวม 🔩46 + 🔱10

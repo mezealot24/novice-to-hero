@@ -158,6 +158,7 @@ export class OptionPanel extends PanelBase implements VerbPanel {
     this.zone?.destroy(); this.zone = undefined
     const rel = this.release
     this.release = undefined
+    this.ctx.busy(600) // the skip-tap's release must not press the roll button again
     if (gold) this.ctx.fx.shine('✨ ทอง!') // once per roll, however many lines came out gold
     this.ctx.say(gold ? 'ทองเลย! เก็บบรรทัดนี้ไว้แล้วสุ่มต่อก็ได้นะ' : 'สุ่มเสร็จแล้ว ไม่ถูกใจก็ล็อกบรรทัดที่ชอบแล้วสุ่มต่อ')
     this.ctx.changed()

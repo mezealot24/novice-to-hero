@@ -109,10 +109,12 @@ export class StashView {
     const sc = this.scene
     const owned = s.owned.includes(it.id)
     const movable = owned && !isWorn(s, it.id) && !(s.sockets?.[it.id]?.length) && gradeOf(s, it.id) <= 1 && refineOf(s, it.id) === 0 && !isBroken(s, it.id)
-    root.add(button(sc, 817, 470, 230, 36, `ซื้อ ${it.price}z`, () => {
-      if (s.zeny < it.price) { toast(sc, 'zeny ไม่พอค่ะ', UI.red); return }
-      s.zeny -= it.price; addFodder(s, it.id); persist(); sfx.coin(); this.host.wallet(); this.rebuild()
-    }, { size: 14 }).setEnabled(s.zeny >= it.price))
+    root.add(button(sc, 817, 470, 230, 36, `ซื้อ ${it.price}z`, () =>
+      confirm(sc, `ซื้อ ${it.name}?`, `จ่าย ${it.price}z · เหลือ ${s.zeny - it.price}z
+เชื้อหลอมใช้ตีบวก/ซ่อม (ซื้อแล้วคืนเป็น zeny ไม่ได้)`, `ซื้อ ${it.price}z`, () => {
+        if (s.zeny < it.price) { toast(sc, 'zeny ไม่พอค่ะ', UI.red); return }
+        s.zeny -= it.price; addFodder(s, it.id); persist(); sfx.coin(); this.host.wallet(); this.rebuild()
+      }), { size: 14 }).setEnabled(s.zeny >= it.price))
     root.add(button(sc, 817, 514, 230, 36, owned ? 'ย้ายจากกระเป๋า' : 'ไม่มีในกระเป๋า', () =>
       confirm(sc, `ใช้ ${it.name} เป็นเชื้อ?`, 'ของชิ้นนี้จะออกจากกระเป๋า ไปอยู่ในกองเชื้อหลอมแทน\n(ซื้อคืนที่ร้านได้ตลอด)', 'ย้ายเลย', () => {
         s.owned = s.owned.filter((id) => id !== it.id); forgetForge(s, it.id); addFodder(s, it.id); persist(); this.host.changed()
