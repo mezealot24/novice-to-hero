@@ -23,6 +23,7 @@ jobs:
       - run: npm run build
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }} # cloud save API (server/); empty = cloud off
+          VITE_BUILD: ${{ vars.VITE_BUILD || github.sha }} # v119: telemetry events carry the build (repo variable, else the commit)
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

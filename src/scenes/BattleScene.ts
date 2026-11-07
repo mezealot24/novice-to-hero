@@ -4022,7 +4022,7 @@ export class BattleScene extends Phaser.Scene {
     track('run_end', { won, mode: this.run.modeId, dungeon: this.dg.id, hard: this.hard, room: this.room, floor: this.towerFloor, kills: this.kills, timedOut: this.timedOut,
       job: s.job, baseLv: s.baseLevel, jobLv: s.jobLevel, zeny: this.zeny, xp: this.runXp })
     if (ups.base) track('level_up', { kind: 'base', lv: s.baseLevel, job: s.job })
-    if (ups.job) track('level_up', { kind: 'job', lv: s.jobLevel, job: s.job })
+    if (ups.job) track('level_up', { kind: s.job2 ? 'job2' : 'job', lv: s.job2 ? s.job2Level ?? 1 : s.jobLevel, job: s.job2 ?? s.job }) // v119: 2nd-job levels report as job2
     if (ups.base) lines.push(`🎉 Base Lv ${s.baseLevel}! ได้แต้มสถานะเพิ่ม`)
     if (ups.job) lines.push(`✨ Job Lv ${s.jobLevel}! ได้แต้มสกิลเพิ่ม`)
     const pin = pinnedReady(s) // v99 📌 pinned forge recipe

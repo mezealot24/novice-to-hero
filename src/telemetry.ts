@@ -14,13 +14,25 @@ const FLUSH_MS = 15_000
 const MAX_QUEUE = 100 // drop the oldest beyond this (offline for a long time)
 const MAX_BATCH = 20
 
+// v119 (PDPA): opt-IN. Nothing is queued or sent until the player says yes (hub prompt / ⚙️ settings).
+const CONSENT_KEY = 'novice-to-hero.telemetry.consent' // 'yes' | 'no'; missing = not asked yet
+
 export const telemetryAvailable = !!API
-export function telemetryEnabled(): boolean {
-  try { return !!API && localStorage.getItem(OPT_OUT_KEY) !== '1' } catch { return false }
+/** 'yes' / 'no', or null when the player was never asked (an old opt-out counts as 'no'). */
+export function telemetryConsent(): 'yes' | 'no' | null {
+  try {
+    const v = localStorage.getItem(CONSENT_KEY)
+    if (v === 'yes' || v === 'no') return v
+    return localStorage.getItem(OPT_OUT_KEY) === '1' ? 'no' : null
+  } catch { return 'no' }
 }
-/** For a settings toggle (store policy: players can opt out). */
+/** The hub should ask once: telemetry is built in and the player has not answered. */
+export const needsTelemetryConsent = () => telemetryAvailable && telemetryConsent() === null
+export function telemetryEnabled(): boolean { return !!API && telemetryConsent() === 'yes' }
+/** Consent prompt / settings toggle. Turning it off drops anything still queued. */
 export function setTelemetryEnabled(on: boolean) {
-  try { if (on) localStorage.removeItem(OPT_OUT_KEY); else { localStorage.setItem(OPT_OUT_KEY, '1'); queue.length = 0 } } catch { /* ignore */ }
+  try { localStorage.setItem(CONSENT_KEY, on ? 'yes' : 'no'); localStorage.removeItem(OPT_OUT_KEY) } catch { /* ignore */ }
+  if (!on) queue.length = 0
 }
 
 function deviceId(): string {
@@ -64,3 +76,6 @@ export async function flush(beacon = false): Promise<void> {
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') void flush(true) })
 }
+
+/** v119 consent text (PDPA: say what is sent and why, at the point of asking). Kept short: the confirm box is 260 px tall. */
+export const TELEMETRY_ASK = 'ส่งสถิติการเล่นแบบไม่ระบุตัวตน (ดันที่เล่น · ชนะ/แพ้ · เลเวล)\nใช้ปรับความยากเท่านั้น ไม่มีชื่อ อีเมล หรือข้อมูลส่วนตัว\nเปลี่ยนใจได้ทุกเมื่อที่ ⚙️ ตั้งค่า'
