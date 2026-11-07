@@ -533,7 +533,7 @@ export class CharacterScene extends Phaser.Scene {
       const changed = r.next !== undefined && r.next !== r.now
       if (i % 2) c.add(this.add.rectangle(rx - 4, ry - 2, rw + 4, rowH, 0xffffff, 0.04).setOrigin(0))
       c.add(clipW(txt(this, rx + 8, ry, r.label, 12, '#d8d4f0'), c1 - rx - 16))
-      c.add(clipW(txt(this, c1, ry, r.now, 12, UI.text), c2 - c1 - 8))
+      c.add(clipW(txt(this, c1, ry, r.now, 12, UI.text), r.next === undefined ? rx + rw - c1 : c2 - c1 - 8)) // v116: no next column (maxed) = use its width too
       if (r.next !== undefined) c.add(clipW(txt(this, c2, ry, r.next, 12, changed ? UI.green : UI.sub, changed), rx + rw - c2))
     })
     if (!rows.length) c.add(txt(this, rx, y + 110, 'โหนดนี้เปลี่ยนการทำงานในการต่อสู้\nดูคำอธิบายด้านซ้ายนะคะ', 13, UI.sub).setLineSpacing(4))

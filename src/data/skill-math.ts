@@ -116,7 +116,7 @@ export const KIT2 = {
     mastery: { atkPct: 0.05, poisonDmg: 1 }, // dagger
   },
   crusader: {
-    guard: 0.1, guardVit: 0.002, guardCap: 0.4, // 🛡️ Auto Guard: block chance + per VIT point over the start (no off-hand = KIT2.knight.guardShieldless)
+    guard: 0.1, guardVit: 0.002, guardCap: 0.4, guardOverMul: 2, // v116: each 1% over the cap = block shield / heal +2% · 🛡️ Auto Guard: block chance + per VIT point over the start (no off-hand = KIT2.knight.guardShieldless)
     holyVs: 0.25, holyFoes: ['skeleton', 'wisp', 'deathknight', 'hellknight', 'imp', 'necropriest', 'wraith', 'maiden', 'lich', 'bonepriest', 'mummy', 'dunewraith', 'pharaoh', 'gargoyle', ...PACKS.flatMap((p) => p.holyFoes)] as MonsterKind[], // ศรัทธา: undead / demons take +25%
     crossCost: 22, crossCd: 2, crossHits: 2, crossMul: 1, blindTurns: 2, blindHit: 0.2, // ✝️ Holy Cross: per hit P.ATK + Pm on the front monster · blind = its Hit -20%
     gcPay: 0.2, gcPm: 0.5, gcAtk: 0.6, gcStr: 0.8, gcPulses: [2, 2, 2, 3, 4, 4], gcRefund: 0.5, gcRefundAt: 3, gcBurn: 1, gcVamp: 0.25, // v109 (Q): PER PULSE gcPm x Pm (magic) + gcAtk x P.ATK + gcStr x STR (physical), pulses by Ult วิวัฒน์ Lv 0..5; burn bonus + root P.ATK split over the pulses · // ✨ Grand Cross: pay 20% current HP · all monsters · 3+ hit = half the HP back · v106 (Q 2026-11-07): back to the v102 cross (no Mana cost, no Cleric ult) + burns ALL Mana left: bonus magic dmg/target = gcBurn x (Mana burnt + HP paid) · spellVamp +gcVamp while it casts · Cleric Ult-web node buffs apply (root Ult +12%/Lv, 🌄 P.ATK + Dawn Light, ไฟชำระ, talents)
@@ -314,14 +314,25 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
     case 'cleric':
       if (job2 === 'crusader') { // v106: Grand Cross + the Cleric Ult-web buffs (v108: 🌄 is a basic-attack passive now, not here)
         const C = KIT2.crusader, k = hitPow * (1 + st.ult2Pow) * (1 + st.j2CrossAdd)
-        out[0] = { label: 'คูลดาวน์', value: `${ultCooldown(job, st)} เทิร์น · ไม่ใช้ Mana (เผา Mana ที่เหลือทั้งหมด)` }
-        out.push({ label: `จ่าย HP ${pct(C.gcPay * Math.max(0, 1 - st.j2PayCut))} ปัจจุบัน`, value: `โดน ${C.gcRefundAt}+ ตัว คืน ${pct(C.gcRefund)}${st.j2GcTwice > 0 ? ' · ★ ทุก pulse ยิง 2 ครั้ง (ครั้ง 2 ไม่มีโบนัสเผา)' : ''}` })
+        // v116 (Q 2026-11-08): short values so they fit the 112px column; labels stay the same across Lv so now/next rows pair up
+        out[0] = { label: 'คูลดาวน์ (ไม่ใช้ Mana)', value: `${ultCooldown(job, st)} เทิร์น` }
         const n = gcPulses(st), atkPer = C.gcAtk + st.clUltAtk / n, strFlat = C.gcStr * (base?.str ?? 0) * k
-        out.push({ label: `✝️ ${n} pulse ใส่ทุกตัว (ตาม Lv Ult วิวัฒน์ ${C.gcPulses.join('/')})`, value: `ตอนกด 1 + ต้นเทิร์นละ 1 (อีก ${n - 1} เทิร์น) · ต่อ pulse ต่อตัว ↓` })
+        // v116 summary (Q 2026-11-08): one pulse = magic + P.ATK + STR (x2 with ★ ซ้อน); total = n pulses + burn (full Mana + HP paid at full HP)
+        const payPct = C.gcPay * Math.max(0, 1 - st.j2PayCut), mb = hitBase(st, true), pb = hitBase(st, false)
+        const mMul = C.gcPm * k, pMul = atkPer * k * (1 + st.pskill), times = st.j2GcTwice > 0 ? 2 : 1
+        const perLo = (mb.lo * mMul + pb.lo * pMul + strFlat) * times, perHi = (mb.hi * mMul + pb.hi * pMul + strFlat) * times
+        const burn = C.gcBurn * (st.maxRes + st.maxHp * payPct) * k
+        out.push({ label: '💥 ดาเมจต่อครั้ง/ตัว', value: range(perLo, perHi) })
+        out.push({ label: '💥 รวม/ตัว (ทุกครั้ง + เผา)', value: range(perLo * n + burn, perHi * n + burn) })
+        out.push({ label: '💔 จ่าย HP ปัจจุบัน', value: pct(payPct) })
+        out.push({ label: `↩️ คืน HP (โดน ${C.gcRefundAt}+ ตัว)`, value: `${pct(C.gcRefund)} ที่จ่าย` })
+        if (st.j2GcTwice > 0) out.push({ label: '★ ยิงซ้ำทุกครั้ง', value: 'รอบ 2 ไม่มีเผา' })
+        out.push({ label: '✝️ ใส่ทุกตัว (ตอนกด + ต้นเทิร์น)', value: `${n} ครั้ง` })
         out.push({ label: `· ${C.gcPm}x พลังเวท (เวท)`, value: hitText(st, C.gcPm * k, true) })
-        out.push({ label: `· ${+atkPer.toFixed(2)}x P.ATK + ${C.gcStr}x STR (กาย${st.clUltAtk > 0 ? ' · 🙏 ราก' : ''})`, value: `${hitText(st, atkPer * k * (1 + st.pskill), false)} + ${r(strFlat)}` })
-        out.push({ label: '🔥 โบนัส/ตัว (เวท, แบ่งทุก pulse)', value: `${C.gcBurn}x (Mana ที่เผา + HP ที่จ่าย) · เต็ม Mana ≈ +${r(C.gcBurn * st.maxRes * k)}` })
-        out.push({ label: '🩸 ดูดเลือดสกิล ทุก pulse', value: `+${pct(C.gcVamp)} (รวมไม่เกิน 40%)` })
+        out.push({ label: `· P.ATK (กาย${st.clUltAtk > 0 ? ' · 🙏 ราก' : ''})`, value: hitText(st, atkPer * k * (1 + st.pskill), false) })
+        out.push({ label: `· ${C.gcStr}x STR (กาย)`, value: `+${r(strFlat)}` })
+        out.push({ label: '🔥 โบนัสเผา/ตัว (หลอดเต็ม)', value: `+${r(burn)} รวม` })
+        out.push({ label: '🩸 ดูดเลือดสกิล', value: `+${pct(C.gcVamp)}` })
         out.push({ label: `โล่ ${CLERIC_KIT.ultShieldTurns} เทิร์น`, value: `${shield(st, st.maxHp * CLERIC_KIT.ultShield * (1 + st.ultPow) * (1 + st.ult2Pow))}` })
         if (st.clPurify > 0) out.push({ label: 'ไฟชำระ: ล้างดีบัฟ + ฮีล (M.ATK)', value: `${heal(st, st.matk * CLERIC_KIT.purifyHeal)} HP` })
         if (st.ultHoly > 0) out.push({ label: 'แสงลงทัณฑ์/ตัว', value: hitText(st, st.ultHoly, true) })

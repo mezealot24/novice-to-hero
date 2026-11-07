@@ -147,8 +147,10 @@ export const ITEMS: Item[] = [
   { id: 'w_holymace', wtype: 'mace', slot: 'weapon', name: 'กระบองศักดิ์สิทธิ์', icon: '🔱', price: 520, desc: 'ทุบแรง ฮีลแรงขึ้น', base: { str: 1, wis: 2 }, mod: { atk: 8, matk: 6, healAmp: 0.15 }, jobs: CL, req: 'job' },
   { id: 'w_lightbook', wtype: 'book', slot: 'weapon', name: 'คัมภีร์แสง', icon: '📖', price: 560, desc: 'โล่หนา ฟื้น HP ทุกเทิร์น', base: { int: 2, wis: 1 }, mod: { atk: 5, matk: 6, shieldAmp: 0.15, regen: 0.5 }, jobs: CL, req: 'job' },
   { id: 'w_sunmace', wtype: 'mace', slot: 'weapon', name: 'ค้อนตะวัน', icon: '☀️', price: 1100, desc: 'ของดัน 2: ทุบแรง ได้โล่ทุกเวฟ', base: { str: 2, wis: 3 }, mod: { atk: 14, matk: 10, healAmp: 0.15, waveShield: 0.06 }, jobs: CL, req: 'd2' },
-  // ----- weapons: Priest 2nd jobs: Crusader mace (+ shield), Monk knuckles / quarterstaff -----
+  // ----- weapons: Priest 2nd jobs: Crusader mace/sword (+ shield), Monk knuckles / quarterstaff -----
   { id: 'w_crusmace', wtype: 'mace', slot: 'weapon', name: 'กระบองครูเสด', icon: '✝️', price: 1600, desc: 'อาชีพขั้น 2 · กระบอง 1 มือ: ทุบแรง ถึก ใส่โล่ได้', base: { str: 4, vit: 3 }, mod: { atk: 18, matk: 8, def: 6 }, jobs: CL, req: 'job2' },
+  { id: 'w_solarcross', wtype: 'sword', slot: 'weapon', name: 'ดาบสุริยกางเขน', icon: '⚔️', price: 1650, desc: 'อาชีพขั้น 2 · ดาบ 1 มือ (ครูเซเดอร์สาย DMG): STR+INT · Holy/Grand Cross แรง +15% · เวทคริ +5%', base: { str: 4, int: 4 }, mod: { atk: 18, matk: 16, j2CrossAdd: 0.15, spellCrit: 0.05 }, jobs: CL, req: 'job2' },
+  { id: 'w_bastionblade', wtype: 'sword', slot: 'weapon', name: 'ดาบปราการผู้ศรัทธา', icon: '🗡️', price: 1650, desc: 'อาชีพขั้น 2 · ดาบ 1 มือ (ครูเซเดอร์สาย BLOCK): ดาบตั้งรับ บล็อก +4% · สวนกลับ +8% สะท้อนกายภาพ +8%', base: { vit: 5, str: 2 }, mod: { atk: 14, def: 10, j2Guard: 0.04, counter: 0.08, j2Reflect: 0.08 }, jobs: CL, req: 'job2' },
   { id: 'w_knuckle', wtype: 'fist', slot: 'weapon', name: 'สนับมือสายฟ้า', icon: '🥊', price: 1500, desc: 'อาชีพขั้น 2 · สนับมือ: ต่อยไว คอมโบติดง่าย', base: { agi: 4, str: 2 }, mod: { atk: 15, aspd: 0.15, combo: 0.06 }, jobs: CL, req: 'job2' },
   { id: 'w_monkstaff', wtype: 'staff', slot: 'weapon', name: 'ไม้พลองระฆัง', icon: '🦯', price: 1700, twoHand: true, desc: 'อาชีพขั้น 2 · ไม้พลอง 2 มือ: แรงกว่าสนับมือ ใส่มือรองไม่ได้', base: { str: 4, wis: 3 }, mod: { atk: 22, matk: 10, combo: 0.04 }, jobs: CL, req: 'job2' },
   // ----- weapons: Thief (poison / dodge) -----
@@ -202,6 +204,8 @@ export const ITEMS: Item[] = [
   { id: 'o_ironshield', slot: 'offhand', name: 'โล่เหล็ก', icon: '🛡️', price: 420, desc: 'โล่หนัก ทนแต่ช้าลงนิด', base: { vit: 2 }, mod: { maxHp: 30, def: 8, counter: 0.04, aspd: -0.05 }, jobs: ['novice', 'swordsman', 'cleric'] },
   { id: 'o_holyshield', slot: 'offhand', name: 'โล่ศักดิ์สิทธิ์', icon: '✨', price: 560, desc: 'โล่แรงขึ้น กันเวท', base: { wis: 2 }, mod: { def: 5, shieldAmp: 0.1, mdef: 0.04 }, jobs: CL, req: 'job' },
   { id: 'o_crusshield', slot: 'offhand', name: 'โล่ครูเสด', icon: '🛡️', price: 1300, desc: 'อาชีพขั้น 2 · โล่: บล็อกบ่อย DEF หนา (ครูเซเดอร์: Auto Guard เต็มแรง)', base: { vit: 3 }, mod: { def: 12, maxHp: 40, mdef: 0.04, j2Guard: 0.03 }, jobs: CL, req: 'job2' },
+  { id: 'o_solarflare', slot: 'offhand', name: 'โล่สุริยะระเบิดแสง', icon: '☀️', price: 1350, desc: 'อาชีพขั้น 2 · โล่รุก (ครูเซเดอร์สาย DMG): ปาโล่แถมแรงตาม DEF (Shield Boomerang) · จ่าย HP ร่าย Grand Cross น้อยลง 15%', base: { str: 2, int: 2 }, mod: { def: 10, matk: 10, j2ShieldBoom: 0.8, j2PayCut: 0.15 }, jobs: CL, req: 'job2' },
+  { id: 'o_sanctuary', slot: 'offhand', name: 'โล่มหาวิหารศักดิ์สิทธิ์', icon: '🏰', price: 1400, desc: 'อาชีพขั้น 2 · โล่หนัก (ครูเซเดอร์สาย BLOCK): โอกาสบล็อก +6% · บล็อกสำเร็จได้เกราะ +5% HP และฮีลฟื้นฟู +3% HP', base: { vit: 4, wis: 2 }, mod: { def: 16, maxHp: 50, mdef: 0.05, j2Guard: 0.06, j2BlockShield: 0.05, j2BlockHeal: 0.03 }, jobs: CL, req: 'job2' },
   { id: 'o_tower', slot: 'offhand', name: 'โล่ปราการ', icon: '🏰', price: 1100, desc: 'ของดัน 2: กำแพงเหล็ก สวนกลับบ่อย', base: { vit: 3 }, mod: { maxHp: 50, def: 12, counter: 0.06, tenacity: 0.1 }, jobs: SW, req: 'd2' },
   { id: 'o_quiver', slot: 'offhand', name: 'กระบอกธนูหนัง', icon: '🎯', price: 480, desc: 'ลูกธนูคม ยิงแม่น', base: { dex: 2 }, mod: { hit: 5, crit: 0.02 }, jobs: AR, req: 'job' },
   { id: 'o_windquiver', slot: 'offhand', name: 'กระบอกธนูลมกรด', icon: '🌬️', price: 1100, desc: 'ของดัน 2: ยิงรัว คริแรง', base: { agi: 2 }, mod: { combo: 0.05, crit: 0.03, critMul: 0.1 }, jobs: AR, req: 'd2' },
@@ -472,7 +476,10 @@ export function heroStats(s: StatsInput): Stats {
   st.maxHp = Math.max(1, Math.round(st.maxHp * (1 + pct.maxHp + j2pct.maxHp))); st.atk *= 1 + pct.atk + j2pct.atk; st.matk *= 1 + pct.matk
   if (j2pct.aspd) st.aspd *= 1 + j2pct.aspd
   if (st.j2DefAtk > 0) st.atk += st.def * st.j2DefAtk // Knight เกราะเป็นแรง
-  if (j2?.id === 'crusader') st.j2Guard = Math.min(KIT2.crusader.guardCap, st.j2Guard + KIT2.crusader.guardVit * Math.max(0, d('vit'))) // Crusader Auto Guard: + per VIT point
+  if (j2?.id === 'crusader') { // Crusader Auto Guard: + per VIT point · v116 (Q 2026-11-08): what goes over the cap powers the block shield / heal instead of being lost
+    const raw = st.j2Guard + KIT2.crusader.guardVit * Math.max(0, d('vit'))
+    st.j2Guard = Math.min(KIT2.crusader.guardCap, raw); st.j2GuardOver = Math.max(0, raw - KIT2.crusader.guardCap)
+  }
   for (const sk of SKILLS) if (sk.id !== 'smash' && (s.skills[sk.id] ?? 0) > 0) add(sk.mod(s.skills[sk.id]))
   if (job.id === 'novice') add(SKILLS.find((x) => x.id === 'smash')!.mod(smashLv(s.jobLevel ?? 1))) // v86: ทุบ = Job Lv
   st.smashCd = Math.max(2500, st.smashCd)
