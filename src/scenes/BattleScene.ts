@@ -26,6 +26,9 @@ import { foldAffixes } from '../data/affixes'
 import { PACKS } from '../data/dungeons'
 import { buildRun, MODES, payTowerSkip, recordTowerCheckpoint, towerFloorLoot, towerSkipGems, type ModeArgs, type RunConfig, type RunRoom } from '../data/modes'
 import { button, fullscreenButton, go, type Btn } from '../ui'
+import { chipGrid, floatLane, HUD_THEME, stagePill, statusChips, type StatusChip } from '../battle/hud-layout'
+import { fitWidth, openPauseMenu, type PauseExtra } from '../battle/pause-menu'
+import { derivedRows } from '../data/stat-rows'
 
 // Side-scroll, turn-based (Capybara Go-like): the hero walks right, meets a group, and everyone
 // takes turns by speed (AGI). The player's job: the build (1-of-3 cards) and when to fire Smash.
@@ -128,7 +131,19 @@ export class BattleScene extends Phaser.Scene {
   private mid!: Phaser.GameObjects.TileSprite
   private ground!: Phaser.GameObjects.TileSprite
   private hud!: Phaser.GameObjects.Graphics
-  private hudTxt!: Record<'hp' | 'res' | 'lv' | 'zeny' | 'room' | 'build', Phaser.GameObjects.Text>
+  private hudTxt!: Record<'hp' | 'res' | 'lv' | 'zeny' | 'room' | 'affix', Phaser.GameObjects.Text>
+  // v112 modern HUD: hero portrait, HP drain ghost, status chips (hud-layout.ts), cached stage / affix strings, float-text lanes
+  private portrait?: Phaser.GameObjects.Image
+  private coinImg?: Phaser.GameObjects.Image
+  private hpGhost = 1
+  private stageTxt = ''
+  private affixTxt = ''
+  private chipViews: { c: Phaser.GameObjects.Container; g: Phaser.GameObjects.Graphics; icon: Phaser.GameObjects.Text; n: Phaser.GameObjects.Text }[] = []
+  private chipNames: string[] = []
+  private chipSig = ''
+  private chipTip?: Phaser.GameObjects.Text
+  private floatRecent: { x: number; y: number; t: number }[] = []
+  private pauseOpen = false
   private queueIcons: Phaser.GameObjects.Image[] = []
   private smashBtn!: Btn
   private autoBtn?: Btn
@@ -183,8 +198,6 @@ export class BattleScene extends Phaser.Scene {
   debuffCount = 0 // playtest: debuffs that landed this run
   resistCount = 0
   private roomStart = 0
-  private debuffTxt?: Phaser.GameObjects.Text
-  private buffTxt?: Phaser.GameObjects.Text // hero Skill 2 buffs (v77), right of the debuff line
   /** Event v2 (scenes/battle-events.ts): per-run flags, the HP an event fight can't push the hero below, 777 crit wave */
   flags: RunFlags = newFlags()
   private hpFloor = 0
@@ -3903,22 +3916,45 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private showPause() {
+    if (this.pauseOpen) { this.unpause(); return } // Esc again = resume
     if (this.over || this.paused || this.overlay) return
     this.paused = true
     this.time.paused = true
     this.tweens.pauseAll()
-    this.panel([
-      { text: 'พักก่อน', size: 40, color: '#f2b84b', bold: true },
-      { text: `${this.run.where(this.room)} · เก็บได้ ${this.zeny} zeny · ${this.kills} ตัว`, size: 19 },
-      { text: 'กลับเมืองตอนนี้ได้ zeny กับ EXP ที่เก็บมาแล้วครบ ไม่หายค่ะ', size: 16, color: '#a9a6c7' },
-    ], 'ลุยต่อ', () => { this.unpause() }, { label: 'กลับเมือง', onGo: () => { this.unpause(); this.runId++; this.settle(false); go(this, 'hub') } })
-    const lab = () => (this.autoUlt ? '⚡ ทักษะ: อัตโนมัติ' : '🖐️ ทักษะ: กดเอง (จองก่อนใช้)')
-    const tg = button(this, 0, -170, 300, 48, lab(), () => { this.setAutoUlt(!this.autoUlt); tg.setLabel(lab()) }, { size: 18, fill: 0x5a5f8a, color: '#f6eedc' })
-    ;(this.overlay as Phaser.GameObjects.Container | undefined)?.add(tg)
+    const rows = derivedRows(this.st)
+    rows[0] = ['HP', `${Math.round(this.hp)} / ${Math.round(this.st.maxHp)}`]
+    const perks = this.perks.map((o) => {
+      const p = o.def, line = LINES[p.line], up = o.lv >= 2 && p.max === 2, leg = p.rarity === 'legend', gen = p.line === 'common'
+      return {
+        icon: p.icon, name: p.name, badge: up ? '+' : o.lv > 1 ? `x${o.lv}` : '', color: line.color, legend: leg,
+        tag: gen ? 'พรทั่วไป' : `${leg ? '🟠 ตำนาน · ' : ''}${line.icon} สาย${line.name}`,
+        desc: perkDesc(p.desc[up ? 1 : 0] || p.desc[0], this.job.ult),
+      }
+    })
+    const ex: PauseExtra[] = []
+    if (this.relic) { const r = RELICS[this.relic]; ex.push({ icon: r.icon, name: r.name, desc: r.desc, color: '#f2b84b' }) }
+    if (this.immortal) { const im = IMMORTALS[this.immortal]; ex.push({ icon: `🌈${im.icon}`, name: im.name, desc: im.desc, color: '#9fe3ff' }) }
+    const f = this.flags
+    if (f.clover) ex.push({ icon: '🍀', name: 'แจ็กพอต', desc: 'อีเวนต์ต่อจากนี้เป็นแบบหายาก · เช็คทุกครั้ง +20%', color: '#8fe08a' })
+    if (f.allLegend) ex.push({ icon: '🌠', name: '777', desc: 'เลือกพร 1 ใน 3 ครั้งต่อ ๆ ไปเป็นพรตำนานทั้งหมด', color: '#ffd86b' })
+    for (const c of f.curses) ex.push(c === 'frail'
+      ? { icon: '💀', name: 'ร่างเปราะ', desc: `คำสาป: Max HP -${f.curseHp} (ล้างได้ที่อีเวนต์ 🕯️)`, color: '#b48aff' }
+      : { icon: '💀', name: 'ถูกล่า', desc: `คำสาป: มอนตีแรง +${Math.round(f.curseDmg * 100)}% (ล้างได้ที่อีเวนต์ 🕯️)`, color: '#b48aff' })
+    this.overlay = openPauseMenu(this, {
+      title: 'พักเกม',
+      sub: `${this.job.icon} ${this.job.name} Lv ${this.level} · ${this.run.where(this.room)} · 💰 ${this.zeny} · ⚔️ ${this.kills} ตัว`,
+      stats: rows, build: this.buildText(), perks, extras: ex,
+      autoLabel: () => (this.autoUlt ? '⚡ ทักษะ: อัตโนมัติ' : '🖐️ ทักษะ: กดเอง (จองก่อนใช้)'),
+      onToggleAuto: () => this.setAutoUlt(!this.autoUlt),
+      onResume: () => this.unpause(),
+      onLeave: () => { this.unpause(); this.runId++; this.settle(false); go(this, 'hub') },
+    })
+    this.pauseOpen = true
   }
 
   private unpause() {
     this.overlay?.destroy(); this.overlay = undefined
+    this.pauseOpen = false
     this.paused = false
     this.time.paused = false
     this.tweens.resumeAll()
@@ -4065,10 +4101,13 @@ export class BattleScene extends Phaser.Scene {
     const t = (x: number, y: number, size: number, color = '#f6eedc', font = FONT_NUM) =>
       this.add.text(x, y, '', { fontFamily: font, fontSize: `${size}px`, color, stroke: '#14172b', strokeThickness: 4 }).setDepth(15001)
     this.hudTxt = {
-      hp: t(22, 13, 16), res: t(22, 40, 13), lv: t(232, 40, 13, '#a9a6c7'),
-      zeny: t(W - 20, 13, 20, '#f2b84b').setOrigin(1, 0), room: t(18, 78, 16, '#f6eedc', FONT_UI), build: t(W / 2, 100, 18, '#f6eedc', FONT_UI).setOrigin(0.5, 0),
+      hp: t(179, 23, 14).setOrigin(0.5), res: t(179, 42, 11).setOrigin(0.5).setStroke('#14172b', 3), lv: t(36, 63, 12, '#14172b').setOrigin(0.5).setStroke('#14172b', 0).setFontStyle('bold'),
+      zeny: t(W - 20, 12, 20, '#f2b84b').setOrigin(1, 0), room: t(W / 2, 20, 15, '#f6eedc', FONT_UI).setOrigin(0.5), affix: t(W / 2, 99, 13, '#ffd0a0', FONT_UI).setOrigin(0.5),
     }
-    this.add.image(W - 70, 25, 'coin').setDepth(15001).setScale(1.2)
+    this.portrait = this.add.image(36, 34, 'novice').setDepth(15001)
+    this.coinImg = this.add.image(W - 70, 25, 'coin').setDepth(15001).setScale(1.2)
+    this.chipViews = []; this.chipNames = []; this.chipSig = ''; this.stageTxt = ''; this.affixTxt = ''; this.floatRecent = []; this.pauseOpen = false
+    this.chipTip = this.add.text(12, 0, '', { fontFamily: FONT_UI, fontSize: '13px', fontStyle: 'bold', color: '#f6eedc', backgroundColor: '#0f1226', padding: { x: 6, y: 3 } }).setDepth(15005).setVisible(false)
     fullscreenButton(this, W - 30, 66)
     button(this, W - 30, 110, 38, 38, 'II', () => this.showPause(), { size: 16, fill: 0x2a2e50, color: '#f6eedc' }).setDepth(15003)
     this.speedBtn = button(this, W - 90, 110, 70, 38, '▶ x1', () => this.setFast(!this.fast), { size: 15, fill: 0x2a2e50, color: '#f6eedc' }).setDepth(15003) as Btn
@@ -4076,9 +4115,39 @@ export class BattleScene extends Phaser.Scene {
     this.autoBtn = button(this, W - 250, H - 50, 124, 44, '', () => this.setAutoUlt(!this.autoUlt), { size: 15, fill: 0x2a2e50, color: '#f6eedc' }).setDepth(15003) as Btn
     this.autoBtn.setLabel(this.autoUlt ? '⚡ อัตโนมัติ' : '🖐️ กดเอง')
     this.fortuneTxt = this.add.text(W - 250, 34, '', { fontFamily: FONT_UI, fontSize: '14px', color: '#8fe08a', stroke: '#14172b', strokeThickness: 4 }).setDepth(15001)
-    this.debuffTxt = this.add.text(22, 98, '', { fontFamily: FONT_UI, fontSize: '15px', color: '#ffb0e0', stroke: '#14172b', strokeThickness: 4 }).setDepth(15001)
-    this.buffTxt = this.add.text(22, 98, '', { fontFamily: FONT_UI, fontSize: '15px', color: '#ffe08a', stroke: '#14172b', strokeThickness: 4 }).setDepth(15001)
     this.setFast(false)
+  }
+
+  /** Status chips under the hero card: redrawn only when the list changes; hover shows the name. */
+  private drawChips(chips: StatusChip[]) {
+    const sig = chips.map((c) => `${c.icon}${c.n}${c.kind}`).join('|')
+    if (sig === this.chipSig) return
+    this.chipSig = sig
+    const S = 28, X0 = 10, Y0 = 80, T = HUD_THEME
+    const grid = chipGrid(chips.length, 290, S, 4)
+    while (this.chipViews.length < grid.pos.length) {
+      const i = this.chipViews.length
+      const g = this.add.graphics()
+      const icon = this.add.text(0, -1, '', { fontSize: '15px' }).setOrigin(0.5)
+      const n = this.add.text(S / 2 - 1, S / 2 + 1, '', { fontFamily: FONT_NUM, fontSize: '11px', fontStyle: 'bold', color: '#ffffff', stroke: '#14172b', strokeThickness: 3 }).setOrigin(1, 1)
+      const c = this.add.container(0, 0, [g, icon, n]).setDepth(15001).setSize(S, S).setInteractive()
+      c.on('pointerover', () => { const name = this.chipNames[i]; if (name) this.chipTip?.setText(name).setPosition(X0, c.y + S / 2 + 4).setVisible(true) })
+      c.on('pointerout', () => this.chipTip?.setVisible(false))
+      this.chipViews.push({ c, g, icon, n })
+    }
+    this.chipViews.forEach((v, i) => {
+      const p = grid.pos[i]
+      if (!p) { v.c.setVisible(false); this.chipNames[i] = ''; return }
+      const more = grid.overflow > 0 && i === grid.pos.length - 1
+      const ch = chips[i], edge = more ? T.edge : ch.kind === 'debuff' ? T.debuff : T.buff
+      v.c.setVisible(true).setPosition(X0 + p.x + S / 2, Y0 + p.y + S / 2)
+      v.g.clear().fillStyle(0x000000, 0.3).fillRoundedRect(-S / 2, -S / 2 + 2, S, S, 7)
+        .fillStyle(!more && ch.kind === 'debuff' ? 0x3a1424 : T.glass, 0.92).fillRoundedRect(-S / 2, -S / 2, S, S, 7)
+        .lineStyle(1.5, edge, more ? 0.4 : 0.95).strokeRoundedRect(-S / 2, -S / 2, S, S, 7)
+      v.icon.setText(more ? `+${grid.overflow}` : ch.icon).setFontSize(more ? 12 : ch.icon.length > 2 ? 11 : 15).setColor('#f6eedc')
+      v.n.setText(more ? '' : ch.n)
+      this.chipNames[i] = more ? chips.slice(i).map((c) => `${c.icon} ${c.name} ${c.n}`).join('  ') : `${ch.icon} ${ch.name}${ch.n ? ` · ${ch.n}` : ''}`
+    })
   }
 
   // ---------- v86 MOBA-style skill buttons (docs/design/skill-buttons-v86.md) ----------
@@ -4218,44 +4287,75 @@ export class BattleScene extends Phaser.Scene {
     this.tapSkill(slot)
   }
 
-  update() {
+  update(_time = 0, delta = 16) {
     if (!this.st) return
-    const g = this.hud.clear()
-    const hpW = 200
-    g.fillStyle(COLORS.night, 0.8).fillRoundedRect(12, 10, hpW + 8, 26, 6)
-    g.fillStyle(COLORS.hpBack).fillRoundedRect(16, 14, hpW, 18, 4)
-    g.fillStyle(this.hp / this.st.maxHp > 0.3 ? COLORS.hp : 0xff9a3c).fillRoundedRect(16, 14, Math.max(0, hpW * this.hp / this.st.maxHp), 18, 4)
-    this.hudTxt.hp.setText(`HP ${Math.round(this.hp)}/${Math.round(this.st.maxHp)}`)
-    g.fillStyle(COLORS.night, 0.8).fillRoundedRect(12, 38, hpW + 8, 10, 3)
-    g.fillStyle(0x7fd7ff).fillRect(16, 41, hpW * Math.min(1, this.xp / RULES.xpNeed(this.level)), 4)
-    // shield over the HP bar
-    if (this.shield + this.kyrie.hp > 0) g.fillStyle(0x9fe3ff, 0.75).fillRoundedRect(16, 14, Math.min(hpW, hpW * (this.shield + this.kyrie.hp) / this.st.maxHp), 6, 2) // + v77 Kyrie barrier
-    // job resource
+    const g = this.hud.clear(), T = HUD_THEME
+    const bar = (x: number, y: number, w: number, h: number, pct: number, color: number, back: number, ghost = 0) => {
+      const r = Math.min(h / 2, 5)
+      g.fillStyle(back, 1).fillRoundedRect(x, y, w, h, r)
+      if (ghost > pct) g.fillStyle(T.hpGhost, 0.85).fillRoundedRect(x, y, Math.max(2 * r, w * ghost), h, r)
+      if (pct > 0) g.fillStyle(color, 1).fillRoundedRect(x, y, Math.max(2 * r, w * pct), h, r)
+      if (pct > 0) g.fillStyle(0xffffff, 0.2).fillRect(x + r, y + 1, Math.max(0, w * pct - 2 * r), Math.max(1, Math.floor(h / 3)))
+      g.lineStyle(1, 0x000000, 0.45).strokeRoundedRect(x, y, w, h, r)
+    }
+    // hero card (top-left): portrait + Lv badge, HP (drain ghost + shield), resource, XP
+    const res = !!this.job.resource, bx = 68, bw = 222
+    g.fillStyle(0x000000, 0.28).fillRoundedRect(10, 11, 290, 64, T.r)
+    g.fillStyle(T.glass, T.glassA).fillRoundedRect(10, 8, 290, 64, T.r)
+    g.fillStyle(0xffffff, 0.05).fillRoundedRect(12, 10, 286, 22, T.r - 2)
+    g.lineStyle(1, T.edge, T.edgeA).strokeRoundedRect(10, 8, 290, 64, T.r)
+    g.fillStyle(T.tileHi, 1).fillCircle(36, 34, 22).lineStyle(2, T.gold, 0.9).strokeCircle(36, 34, 22)
+    g.fillStyle(T.gold, 1).fillRoundedRect(16, 55, 40, 16, 8)
+    const tex = this.job.tex
+    if (this.portrait && this.portrait.texture.key !== tex && this.textures.exists(tex)) {
+      const fr = this.portrait.setTexture(tex).frame
+      this.portrait.setScale(Math.min(34 / fr.width, 34 / fr.height))
+      this.portrait.setTint((COSTUMES.find((c) => c.id === save().costume) ?? COSTUMES[0]).tint)
+    }
+    this.hudTxt.lv.setText(`Lv${this.level}`)
+    const hpPct = Math.max(0, Math.min(1, this.hp / this.st.maxHp))
+    this.hpGhost = this.hpGhost < hpPct ? hpPct : Math.max(hpPct, this.hpGhost - (delta / 1000) * 0.4)
+    const hy = res ? 14 : 18, hh = res ? 18 : 22
+    bar(bx, hy, bw, hh, hpPct, hpPct > 0.3 ? T.hp : T.hpLow, T.hpBack, this.hpGhost)
+    if (this.shield + this.kyrie.hp > 0) g.fillStyle(T.shield, 0.8).fillRoundedRect(bx, hy, Math.min(bw, bw * (this.shield + this.kyrie.hp) / this.st.maxHp), 5, 2) // + v77 Kyrie barrier
+    this.hudTxt.hp.setText(`${Math.round(this.hp)} / ${Math.round(this.st.maxHp)}`).setPosition(bx + bw / 2, hy + hh / 2)
     if (this.job.resource) {
       const r = RESOURCES[this.job.resource], max = this.resMax()
-      g.fillStyle(COLORS.night, 0.8).fillRoundedRect(12, 50, hpW + 8, 14, 4)
-      g.fillStyle(0x1d2140).fillRect(16, 53, hpW, 8)
-      g.fillStyle(r.color).fillRect(16, 53, hpW * Math.min(1, this.res / max), 8)
-      this.hudTxt.res.setText(`${r.name} ${Math.floor(this.res)}/${Math.round(max)}`).setPosition(hpW + 24, 48)
+      bar(bx, 36, bw, 13, Math.min(1, this.res / max), r.color, 0x1d2140)
+      this.hudTxt.res.setText(`${r.name} ${Math.floor(this.res)}/${Math.round(max)}`).setPosition(bx + bw / 2, 42.5)
     } else this.hudTxt.res.setText('')
-    this.hudTxt.lv.setText(`Lv ${this.level}`).setPosition(hpW + 24, 12)
-    this.hudTxt.zeny.setText(`${this.zeny}`)
+    bar(bx, res ? 54 : 46, bw, 5, Math.min(1, this.xp / RULES.xpNeed(this.level)), T.xp, 0x1d2140)
+    // zeny pill (top-right)
+    const zw = this.hudTxt.zeny.setText(`${this.zeny}`).width
+    this.coinImg?.setPosition(W - 20 - zw - 16, 25)
+    g.fillStyle(T.glass, T.glassA).fillRoundedRect(W - zw - 54, 8, zw + 44, 34, 17).lineStyle(1, T.gold, 0.5).strokeRoundedRect(W - zw - 54, 8, zw + 44, 34, 17)
     if (this.dg.tier >= FORTUNE.minTier) { // Fortune meter (kept across runs): full = the next event is a JACKPOT
-      const f = Math.min(1, (save().fortune ?? 0) / FORTUNE.max), bx = W - 228, by = 40, bw = 110
-      g.fillStyle(COLORS.night, 0.8).fillRoundedRect(bx - 2, by - 2, bw + 4, 12, 4)
-      g.fillStyle(f >= 1 ? 0xffd86b : 0x5fbf5a).fillRoundedRect(bx, by, Math.max(0, bw * f), 8, 3)
-      this.fortuneTxt?.setText(f >= 1 ? '🍀 JACKPOT!' : '🍀').setPosition(f >= 1 ? bx - 4 : W - 250, by + (f >= 1 ? 10 : -6))
+      const f = Math.min(1, (save().fortune ?? 0) / FORTUNE.max), fx = W - 228, fy = 50, fw = 110
+      bar(fx, fy, fw, 8, f, f >= 1 ? 0xffd86b : 0x5fbf5a, 0x1d2140)
+      this.fortuneTxt?.setText(f >= 1 ? '🍀 JACKPOT!' : '🍀').setPosition(f >= 1 ? fx - 4 : W - 250, fy + (f >= 1 ? 10 : -6))
     } else this.fortuneTxt?.setText('')
-    const left = this.turnLimit - this.fightTurns
-    const affix = this.alive().find((m) => m.affix)?.affix
-    this.hudTxt.room.setText(`${this.dg.level ? `Lv${this.roomDef(this.room)?.lv ?? roomLevel(this.dg.level, this.dg.rooms, this.room)}${this.hard ? ' 🔥ยาก' : ''} · ` : this.hard ? `🔥ยาก HP x${this.hardK.hp.toFixed(1)} ATK x${this.hardK.atk.toFixed(1)} · ` : ''}${this.run.corrupt ? `${this.run.corrupt.list.map((c) => c.icon).join('')} · ` : this.aff.defs.length ? `${this.aff.defs.map((a) => a.icon).join('')} · ` : ''}${this.run.where(this.room)} · ⏳ ${this.alive().length ? `${left}/${this.turnLimit} เทิร์น` : '-'}${affix ? `\n${affix}` : ''}`).setColor(this.alive().length && left <= 3 ? '#ff7a7a' : '#f6eedc').setPosition(18, this.job.resource ? 68 : 54)
-    this.hudTxt.build.setText(this.buildText()).setY(14)
-    const X = this.hx
-    this.debuffTxt?.setText([X.poison > 0 ? `☠️${X.poison}` : '', X.burn > 0 ? `🔥${X.burn}` : '', X.weaken > 0 ? `💔${X.weaken}` : '', X.armorBreak > 0 ? `🛡️💥${X.armorBreak}` : '', X.silence > 0 ? `🤐${X.silence}` : '', X.web > 0 ? `🕸️${X.web}` : '', X.slow > 0 ? `💙${X.slow}` : '', X.thorn > 0 ? `❄️${X.thorn}` : '', X.venomTurns > 0 ? `🕷️${X.venomTurns}` : ''].filter(Boolean).join(' ')).setY(this.job.resource ? 92 : 78)
-    { const B = this.buf, d = this.debuffTxt, k2i = this.s2?.icon ?? '' // v77: hero buffs (the picked Skill 2's icon + turns left; พรแสง adds Kyrie hits / Gloria)
-      this.buffTxt?.setText([this.gc ? `✝️${this.gc.left}` : '', this.st.clDawn > 0 && this.job.id === 'cleric' ? `🌄${this.dawnCount}/${KIT.clericTree.dawn.every}` : '', B.dawnWis > 0 ? `☀️${B.dawnWis}` : '', B.bless > 0 ? `${k2i}${B.bless}` : '', this.kyrie.hits > 0 ? `🛡️${this.kyrie.hits}` : '', B.bless > 0 && this.st.s2Star > 0 && this.s2?.id === 'cl_bless' ? '✨' : '',
-        ...(['guard', 'blood', 'hawk', 'mshield', 'renew'] as const).map((k) => (B[k] > 0 ? `${k2i}${B[k]}` : ''))].filter(Boolean).join(' '))
-        .setPosition(22 + (d && d.text ? d.width + 10 : 0), this.job.resource ? 92 : 78) }
+    // stage pill (top-centre) + affix line under the turn queue
+    const left = this.turnLimit - this.fightTurns, fighting = this.alive().length > 0
+    const sp = stagePill({
+      roomLv: this.dg.level ? this.roomDef(this.room)?.lv ?? roomLevel(this.dg.level, this.dg.rooms, this.room) : undefined, hard: this.hard, hardK: this.hardK,
+      modIcons: this.run.corrupt ? this.run.corrupt.list.map((c) => c.icon).join('') : this.aff.defs.map((a) => a.icon).join(''),
+      where: this.run.where(this.room), fighting, left, limit: this.turnLimit,
+    })
+    if (sp.text !== this.stageTxt) { this.stageTxt = sp.text; fitWidth(this.hudTxt.room.setText(sp.text), 330, 15, 10) }
+    this.hudTxt.room.setColor(sp.warn ? '#ff7a7a' : '#f6eedc')
+    const rw = this.hudTxt.room.width + 28
+    g.fillStyle(sp.warn ? 0x3a1424 : T.glass, T.glassA).fillRoundedRect(W / 2 - rw / 2, 6, rw, 28, 14)
+    g.lineStyle(1, sp.warn ? T.debuff : T.edge, sp.warn ? 0.9 : T.edgeA).strokeRoundedRect(W / 2 - rw / 2, 6, rw, 28, 14)
+    const affix = this.alive().find((m) => m.affix)?.affix ?? ''
+    if (affix !== this.affixTxt) { this.affixTxt = affix; fitWidth(this.hudTxt.affix.setText(affix), 360, 13, 10) }
+    if (affix) { const aw = this.hudTxt.affix.width + 20; g.fillStyle(T.glass, 0.7).fillRoundedRect(W / 2 - aw / 2, 89, aw, 20, 10) }
+    // status chips (debuffs red, buffs gold) under the hero card
+    const B = this.buf
+    this.drawChips(statusChips(this.hx, {
+      gcLeft: this.gc?.left, dawn: this.st.clDawn > 0 && this.job.id === 'cleric' ? { n: this.dawnCount, every: KIT.clericTree.dawn.every } : undefined,
+      dawnWis: B.dawnWis, bless: B.bless, kyrieHits: this.kyrie.hits, gloria: this.st.s2Star > 0 && this.s2?.id === 'cl_bless',
+      guard: B.guard, blood: B.blood, hawk: B.hawk, mshield: B.mshield, renew: B.renew, s2Icon: this.s2?.icon ?? '✨', s2Name: this.s2?.name ?? 'บัฟ',
+    }))
 
     // monster HP bars + boss charge
     for (const m of this.mons) {
@@ -4269,8 +4369,8 @@ export class BattleScene extends Phaser.Scene {
     // turn queue strip (top centre): who acts next, left to right
     const q = this.over ? [] : this.previewQueue(7)
     while (this.queueIcons.length < 7) this.queueIcons.push(this.add.image(0, 0, 'novice').setDepth(15002))
-    const qx = W / 2 - 3 * 46, qy = 66
-    g.fillStyle(COLORS.night, q.length ? 0.6 : 0).fillRoundedRect(qx - 30, qy - 24, 7 * 46 + 14, 48, 10)
+    const qx = W / 2 - 3 * 46, qy = 62
+    if (q.length) g.fillStyle(HUD_THEME.glass, 0.6).fillRoundedRect(qx - 30, qy - 23, 7 * 46 + 14, 46, 12).lineStyle(1, HUD_THEME.edge, 0.1).strokeRoundedRect(qx - 30, qy - 23, 7 * 46 + 14, 46, 12)
     this.queueIcons.forEach((ic, i) => {
       const a = q[i]
       if (a === undefined) { ic.setVisible(false); return }
@@ -4384,8 +4484,18 @@ export class BattleScene extends Phaser.Scene {
   }
 
   floatText(x: number, y: number, s: string, color: string) {
+    y -= this.laneOf(x, y) * 24 // v112: texts fired at the same spot stack instead of overlapping
     const t = this.add.text(x, y, s, { fontFamily: FONT_UI, fontSize: '18px', fontStyle: 'bold', color, stroke: '#14172b', strokeThickness: 5 }).setOrigin(0.5).setDepth(9999)
     this.tweens.add({ targets: t, y: y - 34, alpha: 0, delay: 400, duration: 700, onComplete: () => t.destroy() })
+  }
+
+  /** Lane for a new float text / callout at (x, y): how many fired near there just now (max 4). Real time, so a pause doesn't matter. */
+  private laneOf(x: number, y: number) {
+    const now = performance.now()
+    this.floatRecent = this.floatRecent.filter((r) => now - r.t < 650)
+    const lane = Math.min(4, floatLane(this.floatRecent, x, y, now))
+    this.floatRecent.push({ x, y, t: now })
+    return lane
   }
 
   private burst(x: number, y: number, color: number, n: number, speed: number, star = false) {
@@ -4402,11 +4512,12 @@ export class BattleScene extends Phaser.Scene {
     for (let i = 0; i < n; i++) {
       const c = this.add.image(x, y, 'coin').setDepth(9800)
       this.tweens.add({ targets: c, x: x + Phaser.Math.Between(-40, 40), y: y - Phaser.Math.Between(20, 60), duration: 220, ease: 'Quad.easeOut',
-        onComplete: () => this.tweens.add({ targets: c, x: W - 70, y: 25, duration: 380, delay: i * 30, ease: 'Quad.easeIn', onComplete: () => { c.destroy(); this.zeny++; sfx.coin() } }) })
+        onComplete: () => this.tweens.add({ targets: c, x: this.coinImg?.x ?? W - 70, y: 25, duration: 380, delay: i * 30, ease: 'Quad.easeIn', onComplete: () => { c.destroy(); this.zeny++; sfx.coin() } }) })
     }
   }
 
   private callout(text: string, x: number, y: number, color = '#f2b84b') {
+    y -= this.laneOf(x, y) * 28
     const t = this.add.text(x, y, text, { fontFamily: FONT_UI, fontSize: '22px', fontStyle: 'bold', color, stroke: '#14172b', strokeThickness: 6 }).setOrigin(0.5).setDepth(9999)
     this.tweens.add({ targets: t, y: y - 20, alpha: 0, delay: 1300, duration: 500, onComplete: () => t.destroy() })
   }
