@@ -30,7 +30,7 @@ export interface CorruptDef {
 export const CORRUPTIONS: CorruptDef[] = [
   // tower affixes, reused
   { id: 'grievous', icon: '🩸', name: 'แผลลึก', desc: 'ฮีลทุกอย่างของเราลด 30%', major: false, weight: 10, affix: 'grievous' },
-  { id: 'armor', icon: '🪨', name: 'เกราะหนา', desc: 'มอน DEF +25 และ HP +10%', major: false, weight: 10, affix: 'armor' },
+  { id: 'armor', icon: '⛰️', name: 'เกราะหนา', desc: 'มอน DEF +25 และ HP +10%', major: false, weight: 10, affix: 'armor' },
   { id: 'hawkeye', icon: '🎯', name: 'ตาเหยี่ยว', desc: 'มอนทุกตัวหลบหลีกเราได้แค่ 2 ครั้ง แล้วตีโดนแน่นอน 3 เทิร์น', major: false, weight: 10, affix: 'hawkeye' },
   { id: 'swift', icon: '💨', name: 'ว่องไว', desc: 'มอนเร็วขึ้น 15%', major: false, weight: 10, affix: 'swift' },
   { id: 'vampire', icon: '🧛', name: 'ผีดูดเลือด', desc: 'มอนดูดเลือด 15% ของดาเมจที่ทำ', major: false, weight: 10, affix: 'vampire' },

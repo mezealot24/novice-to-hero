@@ -22,7 +22,7 @@ export interface AffixDef {
 
 export const AFFIXES: AffixDef[] = [
   { id: 'grievous', icon: '🩸', name: 'แผลลึก', desc: 'ฮีลทุกอย่างของเราลด 30%', healMul: 0.7 },
-  { id: 'armor', icon: '🪨', name: 'เกราะหนา', desc: 'มอน DEF +25 และ HP +10%', mon: (d) => { d.def = (d.def ?? 0) + 25; d.hp = Math.round(d.hp * 1.1) } },
+  { id: 'armor', icon: '⛰️', name: 'เกราะหนา', desc: 'มอน DEF +25 และ HP +10%', mon: (d) => { d.def = (d.def ?? 0) + 25; d.hp = Math.round(d.hp * 1.1) } },
   { id: 'hawkeye', icon: '🎯', name: 'ตาเหยี่ยว', desc: 'มอนทุกตัวหลบหลีกเราได้แค่ 2 ครั้ง แล้วตีโดนแน่นอน 3 เทิร์น', mon: (d) => { d.trueSight ??= { after: 2, turns: 3 } } },
   { id: 'split', icon: '🧬', name: 'แยกร่าง', desc: 'มอนธรรมดาตายแล้วแยกร่างกลับมา 1 ตัว (HP 40%)', split: 0.4 },
   { id: 'swift', icon: '💨', name: 'ว่องไว', desc: 'มอนเร็วขึ้น 15%', speed: 1.15 },

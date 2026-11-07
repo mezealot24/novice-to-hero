@@ -125,8 +125,8 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     blurb: 'สายกับดัก / สุ่มของประหลาด · ต้นเวฟวางกับดัก RO Hunter · กล่องสุ่ม 10 แบบ (LUK = ของหายาก) · หุ่นจิ๋วป้อมปืน',
     mod: { crit: 0.03 },
     mastery: { weapon: 'ธนู', ok: (it) => it.wtype === 'bow', mod: { crit: IN.mastery.crit }, pct: { atk: IN.mastery.atkPct } },
-    signature: { name: 'กล่องเครื่องมือ', icon: '🧰', desc: `ต้นเวฟวางกับดัก ${IN.traps} อัน (สุ่ม) ทำงานตอนมอนลงมือ: 💣 Land Mine ${IN.mineMul}x · 🪤 Ankle Snare มอนเสียเทิร์น (บอส: เกจ -${IN.snarePush}) · ❄️ Freezing Trap ${IN.freezeMul}x + แช่แข็ง (บอส: ช้า)` },
-    skill3: { name: 'กล่องสุ่มประหลาด', icon: '🎲', cost: IN.boxCost, cd: IN.boxCd, desc: `Energy ${IN.boxCost} · คูลดาวน์ ${IN.boxCd}: สุ่ม 1 จาก 10 (LUK ดันของหายาก ⭐) · 🐔 ไก่ยาง · 🍌 เปลือกกล้วย · 🚀 จรวด ${IN.rocketMul}x · ⭐🤖 หุ่นจิ๋ว · ⭐🧲 แม่เหล็ก zeny +${pc(IN.magnetZeny)} · ⭐🪞 กระจก · 🥤 โคล่า · 🎈 ลูกโป่ง · ☁️ เมฆฝน · ⭐💥 แจ็คพอต (ทุกอย่าง)` },
+    signature: { name: 'กล่องเครื่องมือ', icon: '🧰', desc: `ต้นเวฟวางกับดัก ${IN.traps} อัน (สุ่ม) ทำงานตอนมอนลงมือ: 💣 Land Mine ${IN.mineMul}x · 🕳️ Ankle Snare มอนเสียเทิร์น (บอส: เกจ -${IN.snarePush}) · ❄️ Freezing Trap ${IN.freezeMul}x + แช่แข็ง (บอส: ช้า)` },
+    skill3: { name: 'กล่องสุ่มประหลาด', icon: '🎲', cost: IN.boxCost, cd: IN.boxCd, desc: `Energy ${IN.boxCost} · คูลดาวน์ ${IN.boxCd}: สุ่ม 1 จาก 10 (LUK ดันของหายาก ⭐) · 🐔 ไก่ยาง · 🍌 เปลือกกล้วย · 🚀 จรวด ${IN.rocketMul}x · ⭐🤖 หุ่นจิ๋ว · ⭐🧲 แม่เหล็ก zeny +${pc(IN.magnetZeny)} · ⭐🔁 กระจก · 🥤 โคล่า · 🎈 ลูกโป่ง · ☁️ เมฆฝน · ⭐💥 แจ็คพอต (ทุกอย่าง)` },
     ult: { name: 'สิ่งประดิษฐ์สุดเพี้ยน', icon: '🛠️', cd: 4, desc: `สุ่มกล่อง ${IN.ultBoxes} ครั้ง + วางกับดักครบ 3 แบบ + ยิงศรทะลวงเดิม` },
   },
 }

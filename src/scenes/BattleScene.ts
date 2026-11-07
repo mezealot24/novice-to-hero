@@ -1031,7 +1031,7 @@ export class BattleScene extends Phaser.Scene {
   private pets: { id: PetId; pow: number }[] = [] // this wave's pet lineup (main + ★★ second)
   private sureHit = false // Blitz Beat: skips Flee
   private zenyWave = 0 // 🧲 แม่เหล็ก: + zeny share this wave
-  private mirror = false // 🪞 กระจก: the next landed monster hit is bounced back
+  private mirror = false // 🔁 กระจก: the next landed monster hit is bounced back
   /** Wave start: Beastmaster pets, Innovator traps (+ ★ ป้อมถาวร free turret). */
   private waveAllies() {
     this.pets = []
@@ -1120,7 +1120,7 @@ export class BattleScene extends Phaser.Scene {
     if (on('rocket')) { const t = this.alive(); if (t.length) { const m = t[Phaser.Math.Between(0, t.length - 1)]; await this.shoot(m, 0xff8c42, () => { this.strike(m, I.rocketMul * k * (1 + this.st.pskill), false, '#ff8c42'); this.burst(m.spr.x, m.spr.y - 30, 0xff8c42, 14, 200) }) } }
     if (on('robot')) this.spawnTurret(k)
     if (on('magnet')) { this.zenyWave = Math.max(this.zenyWave, I.magnetZeny); this.floatText(HERO_X, GROUND - 170, `🧲 zeny +${Math.round(I.magnetZeny * 100)}% เวฟนี้`, '#f2b84b') }
-    if (on('mirror')) { this.mirror = true; this.floatText(HERO_X, GROUND - 150, '🪞 สะท้อนฮิตถัดไป', '#c9e0ff') }
+    if (on('mirror')) { this.mirror = true; this.floatText(HERO_X, GROUND - 150, '🔁 สะท้อนฮิตถัดไป', '#c9e0ff') }
     if (on('cola')) { for (const m of this.alive()) { this.strike(m, I.colaMul * k * (1 + this.st.pskill), false, '#c98a4a'); if (!m.dead) { m.chill = Math.max(m.chill, I.colaChill); this.dotIcon(m) } } this.burst(700, GROUND - 40, 0xc98a4a, 16, 200) }
     if (on('balloon')) { this.dodgeCharges++; this.floatText(HERO_X, GROUND - 130, '🎈 หลบ 1 ครั้ง', '#ff9ac9') }
     if (on('cloud')) for (const m of this.alive()) { m.wet = Math.max(m.wet, I.wetTurns); this.dotIcon(m) }
@@ -1230,7 +1230,7 @@ export class BattleScene extends Phaser.Scene {
       const ch = this.alive().find((m) => m.charging)
       if (ch) {
         this.boomUsed = true
-        await this.skillName({ name: 'Spear Boomerang', icon: '🪃' })
+        await this.skillName({ name: 'Spear Boomerang', icon: '↩️' })
         await this.shoot(ch, 0xd8d8e8, () => { this.withSrc('skill', () => this.strike(ch, K.boomerang + this.hpMul())); if (!ch.dead) { ch.charging = false; ch.spr.clearTint(); this.floatText(ch.spr.x, ch.spr.y - ch.spr.displayHeight - 24, '❌ ขัดชาร์จ!', '#9fe3ff') } })
         if (!this.alive().length) return
       }
@@ -1777,7 +1777,7 @@ export class BattleScene extends Phaser.Scene {
         break
       case 'ar_hawk': B.hawk = S2N.hawkTurns; break
       case 'ar_trap':
-        for (const m of star ? this.alive() : [front()].filter(Boolean) as Mon[]) { this.strike(m, S2N.trapMul); if (this.st.arPoisonS2 > 0) this.addPoison(m, KIT.archerTree.poisonArrowStacks); m.gauge -= S2N.trapPush(lv); this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, '🪤', '#c9c9d6') }
+        for (const m of star ? this.alive() : [front()].filter(Boolean) as Mon[]) { this.strike(m, S2N.trapMul); if (this.st.arPoisonS2 > 0) this.addPoison(m, KIT.archerTree.poisonArrowStacks); m.gauge -= S2N.trapPush(lv); this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, '🕳️', '#c9c9d6') }
         break
       case 'mg_mshield': B.mshield = S2N.mshieldTurns(star); this.floatText(HERO_X, GROUND - 100, '🔷 Mana Shield', '#5aa0ff'); break
       case 'mg_nova':
@@ -2038,7 +2038,7 @@ export class BattleScene extends Phaser.Scene {
     if (!was || !m.dead || this.st.arRicochet <= 0) return
     const n = this.front()[0]
     if (!n) return
-    this.floatText(n.spr.x, n.spr.y - n.spr.displayHeight - 40, '🪶 ศรเด้ง!', '#c9f2a0')
+    this.floatText(n.spr.x, n.spr.y - n.spr.displayHeight - 40, '🍃 ศรเด้ง!', '#c9f2a0')
     await this.shoot(n, 0xc9f2a0, () => { if (this.strike(n, this.st.arRicochet * pow) > 0) this.poisonArrow(n) })
   }
   private poisonArrow(m: Mon) { if (this.st.arPoisonArrow > 0 && Math.random() < this.st.arPoisonArrow) this.addPoison(m, KIT.archerTree.poisonArrowStacks) }
@@ -2708,15 +2708,15 @@ export class BattleScene extends Phaser.Scene {
     if (!sure && Math.random() > hitChance(monHit, this.st.flee, 0.8 - this.st.fleeFloor)) return dodged('EVADE!', '#9fe3ff') // Thief เงาบาง lowers the floor
     if (!magic && this.st.j2Guard > 0 && Math.random() < this.st.j2Guard * (this.hasShield ? 1 : KIT2.knight.guardShieldless)) { this.floatText(HERO_X, GROUND - 120, '🛡️ BLOCK!', '#9fe3ff'); sfx.hit(); this.onBlock(); return false } // Knight / Crusader Auto Guard
     if (magic && this.j2?.id === 'sage') { // 🛡️ Sage Magic Rod
-      if (this.st.j2RodBlock > 0 && !this.rodUsed) { this.rodUsed = true; this.gainRes(KIT2.sage.rodBlockMana); this.floatText(HERO_X, GROUND - 120, '🪄 Magic Rod! ดูดเวท', '#c9a8ff'); return false }
+      if (this.st.j2RodBlock > 0 && !this.rodUsed) { this.rodUsed = true; this.gainRes(KIT2.sage.rodBlockMana); this.floatText(HERO_X, GROUND - 120, '🔮 Magic Rod! ดูดเวท', '#c9a8ff'); return false }
       if (this.st.j2MagicRod > 0) this.gainRes(this.st.j2MagicRod)
     }
     const ab = this.hx.armorBreak > 0 ? BATTLE.armorBreakMul : 1 // เกราะแตก: P.DEF / M.DEF count half
     const raw = magic ? dmg * (1 - this.st.mdef * ab) : afterDef(dmg, this.st.def * ab)
     let n = Math.max(1, Math.ceil(raw * (1 - this.st.guard) * (this.buf.guard > 0 ? 1 - S2N.guardCut(this.st.s2Lv) : 1) * this.takenMul())) // Skill 2 ตั้งการ์ด · พร v2
     if (src && this.st.j2Provoke > 0 && src.hp < src.def.hp * KIT2.knight.tree.provokeAt) n = Math.max(1, Math.ceil(n * (1 - this.st.j2Provoke))) // v84 Knight ข่มขวัญ
-    if (this.mirror && src && !src.dead) { // Innovator 🪞 กระจก: the hit bounces back, capped like every reflect (BATTLE.reflectCap)
-      this.mirror = false; this.floatText(HERO_X, GROUND - 120, '🪞 สะท้อน!', '#c9e0ff')
+    if (this.mirror && src && !src.dead) { // Innovator 🔁 กระจก: the hit bounces back, capped like every reflect (BATTLE.reflectCap)
+      this.mirror = false; this.floatText(HERO_X, GROUND - 120, '🔁 สะท้อน!', '#c9e0ff')
       this.damageMon(src, Math.max(1, Math.round(Math.min(n * KIT2.innovator.mirrorCap, this.st.maxHp * BATTLE.reflectCap))), false, '#c9e0ff', true)
       return false
     }
@@ -2774,7 +2774,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.hp <= 0 && this.st.revive > 0) {
       this.st.revive--; this.revivedCount++
       this.hp = Math.round(this.st.maxHp * Math.max(BATTLE.reviveHp, this.st.reviveHp))
-      this.callout('🪶 ขนนกฟีนิกซ์! ลุกขึ้นอีกครั้ง', HERO_X + 120, GROUND - 150)
+      this.callout('🍃 ขนนกฟีนิกซ์! ลุกขึ้นอีกครั้ง', HERO_X + 120, GROUND - 150)
       this.burst(HERO_X, GROUND - 40, 0xffb347, 24, 220)
       sfx.win()
       return true
@@ -2807,7 +2807,7 @@ export class BattleScene extends Phaser.Scene {
   private dotIcon(m: Mon) {
     if (m.dead || !m.spr.active) return // a DoT tick or card can land after the kill: its icon text is already gone (page error 'drawImage' of null)
     if (!m.dotTxt) m.dotTxt = this.add.text(0, 0, '', { fontSize: '14px' }).setOrigin(0.5).setDepth(9500)
-    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${m.armorBrk > 0 ? '🦴' : ''}${m.blind > 0 ? '🙈' : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${m.reflect > 0 ? '🪞' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
+    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${m.armorBrk > 0 ? '🦴' : ''}${m.blind > 0 ? '🙈' : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${m.reflect > 0 ? '🔁' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
   }
 
   // ---------- xp / perks ----------
@@ -3704,7 +3704,7 @@ export class BattleScene extends Phaser.Scene {
     this.hp = Math.max(this.hpFloor, 1, this.hp - n) // reflect alone never knocks the hero out
     this.minHpPct = Math.min(this.minHpPct, this.hp / this.st.maxHp)
     this.damageNumber(HERO_X, GROUND - 70, n, false, '#c9e0ff')
-    if (Math.random() < 0.3) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '🪞 สะท้อน!', '#c9e0ff')
+    if (Math.random() < 0.3) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '🔁 สะท้อน!', '#c9e0ff')
     this.knockedOut()
   }
 
@@ -3714,7 +3714,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.revive > 0) {
       this.st.revive--; this.revivedCount++
       this.hp = Math.round(this.st.maxHp * Math.max(BATTLE.reviveHp, this.st.reviveHp))
-      this.callout('🪶 ขนนกฟีนิกซ์! ลุกขึ้นอีกครั้ง', HERO_X + 120, GROUND - 150)
+      this.callout('🍃 ขนนกฟีนิกซ์! ลุกขึ้นอีกครั้ง', HERO_X + 120, GROUND - 150)
       return
     }
     sfx.die(); this.tweens.add({ targets: this.heroSpr, angle: -90, alpha: 0.6, duration: 400 })

@@ -256,7 +256,7 @@ export function costStrip(scene: Phaser.Scene, x: number, y: number, w: number):
         else if (buy) need.push({ icon: sl?.icon ?? '📦', label: `ซื้อ ${buy.name} ${buy.price}z`, st: zShort ? 'short' : 'buy' })
         else need.push({ icon: sl?.icon ?? '📦', label: `ขาดของ${sl?.name ?? ''}`, st: 'short' })
       }
-      if (cost.zeny > 0 || zShort) need.push({ icon: '🪙', label: `${cost.zeny}`, st: zShort ? 'short' : 'ok' })
+      if (cost.zeny > 0 || zShort) need.push({ icon: '💰', label: `${cost.zeny}`, st: zShort ? 'short' : 'ok' })
       if (cost.gems) need.push({ icon: '💎', label: `${cost.gems}`, st: wallet.gems >= cost.gems ? 'ok' : 'short' })
     }
     while (pool.length < need.length) { const ch = chip(scene, 0, 0, '', ''); pool.push(ch); c.add(ch) }
