@@ -14,8 +14,8 @@ import { hellChance } from './hell'
 export type ModeId = 'dungeon' | 'hard' | 'tower' | 'daily'
 /** v87 tower checkpoint record: the in-run level (and whether a relic was held) the first time a run cleared that floor. */
 export interface TowerCp { lv: number; relic?: boolean }
-export interface ModeRecord { bestFloor?: number; clears: number; lastSeed?: number; cp?: Record<number, TowerCp> /* v87: tower checkpoints, keyed by floor (10, 20, ...) */ }
-export interface ModeArgs { mode?: ModeId; d?: number; hard?: boolean; seed?: number; startFloor?: number /* tower starts at this floor (set by startRun from skipTo; bot / test may pass it directly, no gems) */; skipTo?: number /* v87: tower checkpoint S picked in the hub: pay S gems at run start, first fight is floor S+1 */ }
+export interface ModeRecord { bestFloor?: number; clears: number; lastSeed?: number; lastDeepSeed?: number /* v118 🌌 deep daily */; cp?: Record<number, TowerCp> /* v87: tower checkpoints, keyed by floor (10, 20, ...) */ }
+export interface ModeArgs { mode?: ModeId; d?: number; hard?: boolean; seed?: number; deep?: boolean /* v118: 🌌 deep daily (D6-D10) */; startFloor?: number /* tower starts at this floor (set by startRun from skipTo; bot / test may pass it directly, no gems) */; skipTo?: number /* v87: tower checkpoint S picked in the hub: pay S gems at run start, first fight is floor S+1 */ }
 
 /** A room of a run: a dungeon room + where it sits in the tower + the dungeon its monsters scale from. */
 export interface RunRoom extends RoomDef {
@@ -42,6 +42,8 @@ export interface RunConfig {
   /** Bosses and minis roll the hard-mode extra skill + passive. */
   affix: boolean
   tint?: number
+  /** v118: 🌌 deep daily run (D6-D10 pool, own reward record) */
+  deepDaily?: boolean
   turnMul(room: RunRoom): number
   mutators: MutatorDef[]
   mut: FoldedMutators
@@ -289,28 +291,35 @@ export function towerFloorLoot(f: number, lv: number, room?: RunRoom): { zeny: n
 }
 
 // ---------- 🎲 Daily Challenge ----------
-export const DAILY = { unlock: 'd2', pool: ['d2', 'd3', 'd4', 'd5'], gems: 15, fortune: 25 }
+export const DAILY = {
+  unlock: 'd2', pool: ['d2', 'd3', 'd4', 'd5'], gems: 15, fortune: 25,
+  // v118 (research ①): 🌌 deep daily, the same idea on D6-D10 at their own level band. Opens after D10 so everyone who has it can play every pick.
+  deepUnlock: 'd10', deepPool: ['d6', 'd7', 'd8', 'd9', 'd10'], deepGems: 25, deepFortune: 25,
+}
+export const deepDailyOk = (s: SaveData) => cleared(s, DAILY.deepUnlock)
 export const dailySeed = (d = new Date()) => +d.toISOString().slice(0, 10).replace(/-/g, '')
 /** The day's challenge: the same for every player with the same seed. */
-export function dailyOf(seed: number) {
-  const rand = rng(seed)
-  const id = DAILY.pool[Math.floor(rand() * DAILY.pool.length)] // draw once (not inside find: that would re-roll per dungeon)
+export function dailyOf(seed: number, deep = false) {
+  const rand = rng(deep ? seed + 1 : seed) // v118: the deep daily draws its own stream (not the same rules as today's normal one)
+  const pool = deep ? DAILY.deepPool : DAILY.pool
+  const id = pool[Math.floor(rand() * pool.length)] // draw once (not inside find: that would re-roll per dungeon)
   const dg = DUNGEONS.find((d) => d.id === id)!
   const n = 2 + Math.floor(rand() * 2)
   return { dg, mutators: rollMutators(rand, n) }
 }
 
-function dailyRun(s: SaveData, seed: number): RunConfig {
-  const { dg, mutators } = dailyOf(seed), mut = foldMutators(mutators), lv = s.baseLevel
+/** deep = 🌌 D6-D10: a level dungeon, so BattleScene builds its monsters at the room's level (statDef) with the mutators; scale() is not read. */
+function dailyRun(s: SaveData, seed: number, deep = false): RunConfig {
+  const { dg, mutators } = dailyOf(seed, deep), mut = foldMutators(mutators), lv = s.baseLevel
   return {
-    modeId: 'daily', seed, endless: false, ...(() => { const pp = heroParts(s); return { pp, power: pp.power } })(), affix: false, mutators, mut, tag: '🎲', tint: 0xb0a0ff,
+    modeId: 'daily', seed, endless: false, ...(() => { const pp = heroParts(s); return { pp, power: pp.power } })(), affix: false, mutators, mut, tag: deep ? '🌌' : '🎲', tint: 0xb0a0ff, deepDaily: deep,
     roomAt: (i) => (dg.rooms[i] ? { ...dg.rooms[i], src: dg.id } : null),
     themeAt: () => dg,
     scale: (r) => { const k = levelScale(r.src ?? dg.id, lv); return { hp: k.hp * mut.monHp, atk: k.atk * mut.monAtk, hit: k.hit, speed: mut.monSpeed } },
     turnMul: () => mut.turnMul,
     eventsAfter: (i, r) => (r.boss || i >= dg.rooms.length - 1 ? 0 : mut.events),
     relicAfter: () => true,
-    where: (i) => `🎲 รายวัน ${String(seed).slice(4, 6)}/${String(seed).slice(6)} · ${dg.name} · ด่าน ${i + 1}/${dg.rooms.length}`,
+    where: (i) => `${deep ? '🌌 รายวันลึก' : '🎲 รายวัน'} ${String(seed).slice(4, 6)}/${String(seed).slice(6)} · ${dg.name} · ด่าน ${i + 1}/${dg.rooms.length}`,
   }
 }
 
@@ -353,11 +362,19 @@ export const MODES: Record<ModeId, GameMode> = {
     id: 'daily', name: 'ท้าทายรายวัน', icon: '🎲',
     desc: `ดัน + กฎพิเศษ 2-3 อย่าง สุ่มจากวันที่ · ทุกคนได้โจทย์เดียวกัน\nมอนแกร่งตามเลเวลเรา · เคลียร์ครั้งแรกของวัน 💎${DAILY.gems} + 🍀${DAILY.fortune}`,
     unlock: (s) => (cleared(s, DAILY.unlock) ? { ok: true, why: '' } : { ok: false, why: `ปลดล็อกหลังเคลียร์${dungeonName(DAILY.unlock)}` }),
-    record: (s) => { const r = s.modes?.daily; return `${r?.lastSeed === dailySeed() ? '✅ วันนี้เคลียร์แล้ว' : 'วันนี้ยังไม่เคลียร์'} · รวม ${r?.clears ?? 0} วัน` },
-    buildRun: (s, a) => dailyRun(s, a.seed ?? dailySeed()),
+    record: (s) => {
+      const r = s.modes?.daily, today = dailySeed()
+      return `${r?.lastSeed === today ? '✅ วันนี้เคลียร์แล้ว' : 'วันนี้ยังไม่เคลียร์'}${deepDailyOk(s) ? ` · 🌌 ${r?.lastDeepSeed === today ? '✅' : '—'}` : ''} · รวม ${r?.clears ?? 0} วัน`
+    },
+    buildRun: (s, a) => dailyRun(s, a.seed ?? dailySeed(), !!a.deep),
     reward: (s, cfg, r) => {
       const rec = modeRec(s, 'daily')
       if (!r.won) return { ...none, lines: [] }
+      if (cfg.deepDaily) { // v118 🌌: its own once-a-day reward, does not touch the normal daily's record
+        if (rec.lastDeepSeed === cfg.seed) return { ...none, lines: ['🌌 วันนี้รับรางวัลรายวันลึกไปแล้ว (เล่นซ้ำได้ของปกติ)'] }
+        rec.lastDeepSeed = cfg.seed
+        return { ...none, mats: {}, gems: DAILY.deepGems, fortune: DAILY.deepFortune, lines: [`🌌 เคลียร์รายวันลึก! +${DAILY.deepGems} เพชร · 🍀 +${DAILY.deepFortune}`] }
+      }
       if (rec.lastSeed === cfg.seed) return { ...none, lines: ['🎲 วันนี้รับรางวัลรายวันไปแล้ว (เล่นซ้ำได้ของปกติ)'] }
       rec.lastSeed = cfg.seed; rec.clears++
       return { ...none, mats: {}, gems: DAILY.gems, fortune: DAILY.fortune, lines: [`🎲 เคลียร์ท้าทายรายวัน! +${DAILY.gems} เพชร · 🍀 +${DAILY.fortune}`] }

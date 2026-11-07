@@ -94,3 +94,13 @@ test('tower Lv: a D6+ monster follows the floor Lv down too (no Lv 90 kit on flo
   assert.equal(low.hp, base.hp)
   assert.ok((low.flee ?? 0) < (base.flee ?? 0), `${k} flee ${low.flee} < ${base.flee}`)
 })
+
+test('Hell bosses / minis never roll ตานรก (the tower gives them a sharper True Sight) and can roll เปลวนรก; normals never get เปลวนรก', () => {
+  const boss = Object.values(MONSTERS).find((d) => d.ai === 'boss' && !d.mini && !d.passive)!, wolf = MONSTERS.wolf
+  const bossTraits = new Set(Array.from({ length: 40 }, (_, i) => hellify(boss, i / 40).hellish))
+  const wolfTraits = new Set(Array.from({ length: 40 }, (_, i) => hellify(wolf, i / 40).hellish))
+  assert.ok(![...bossTraits].some((t) => t?.includes('ตานรก')))
+  assert.ok([...bossTraits].some((t) => t?.includes('เปลวนรก')))
+  assert.ok(![...wolfTraits].some((t) => t?.includes('เปลวนรก')))
+  assert.equal(hellify(boss, HELL_TRAITS.filter((t) => t.bossOk).findIndex((t) => t.id === 'flame') / 3 + 0.01).onHit?.burn, 2)
+})
