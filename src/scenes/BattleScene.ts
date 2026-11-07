@@ -1334,7 +1334,8 @@ export class BattleScene extends Phaser.Scene {
           const paid = cast === 0 ? Math.min(this.hp - 1, Math.floor(this.hp * C.gcPay * Math.max(0, 1 - this.st.j2PayCut))) : 0
           if (paid > 0) { this.hp -= paid; this.damageNumber(HERO_X, GROUND - 70, paid, false, '#ff9a9a') }
           const burnt = cast === 0 ? Math.floor(this.res) : 0
-          if (burnt > 0) { this.res -= burnt; this.floatText(HERO_X, GROUND - 130, `🔥 เผา Mana ${burnt}`, '#9fc3ff') }
+          if (burnt > 0) { this.spendRes(burnt); // v110: counts as Mana spent (💠 มานาพิทักษ์ heal)
+            this.floatText(HERO_X, GROUND - 130, `🔥 เผา Mana ${burnt}`, '#9fc3ff') }
           // v109 (Q): pulses by Ult วิวัฒน์ Lv · each pulse: Pm (magic, + burn bonus share) and P.ATK + STR (physical) on every monster still up
           const n = gcPulses(this.st), extra = C.gcBurn * (burnt + paid) * k / n // flat bonus magic dmg / target / pulse
           const b = totalBase(save()), bl = this.buf.bless > 0 ? blessBase(save()) ?? {} : {}
