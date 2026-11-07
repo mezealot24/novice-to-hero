@@ -130,8 +130,11 @@ function fieldCell(t: TableId, row: FieldRow, label: string, onChange: () => voi
     const d = valueIn(S.draft, t, path), live = liveOf(t, path), cur = draftOf(t, path)
     input.value = d === undefined ? (row.value === undefined ? '' : String(row.value)) : String(d)
     input.placeholder = row.value === undefined ? '—' : ''
-    // only say what matters: the % reading, and where the value came from when it is not the plain default
-    const parts = [pctHint(def, cur), cur !== live ? `live ${fmt(live)}` : '', live !== row.value ? `default ${fmt(row.value)}` : ''].filter(Boolean)
+    // only say what matters: the % reading, and where the value came from when it is not the plain default.
+    // v117 (Q 2026-11-08: "publish แล้วยัง default —"): "default —" read as "not applied". Say it plainly instead.
+    const show = (v: number | undefined) => (v === undefined ? 'ไม่ได้ตั้ง' : fmt(v))
+    const src = cur !== live ? `✏️ ยังไม่ publish · live ${show(live)}` : live !== row.value ? '✅ ใช้ค่านี้ใน live แล้ว' : ''
+    const parts = [pctHint(def, cur), src, cur !== row.value || live !== row.value ? `ค่าเดิมในโค้ด ${show(row.value)}` : ''].filter(Boolean)
     meta.textContent = parts.join(' · ')
     toLive.hidden = cur === live
     toDef.hidden = d === undefined
