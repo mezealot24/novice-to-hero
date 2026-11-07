@@ -88,14 +88,23 @@ const REQ_DG: Partial<Record<NonNullable<Item['req']>, string>> = { job2: 'd5' }
 export const matDungeon = (it: Item) => it.craft?.dg ?? it.unique?.dg ?? (it.req && it.req !== 'job' ? REQ_DG[it.req] ?? it.req : 'd1')
 /** v114 (Q 2026-11-08): 2nd-job gear climbs the deep dungeons step by step, so it is not cheap on D5 mats alone.
  * refine = by refine tier (+1-4 / +5-7 / +8-10), grade = by target ★, reroll = by line count (lines exist from +5). */
-export const JOB2_MATS = { refine: ['d5', 'd7', 'd9'], grade: { 2: 'd5', 3: 'd6', 4: 'd8', 5: 'd10' } as Record<number, string>, reroll: ['d7', 'd9'] }
-const isJob2 = (it: Item) => it.req === 'job2' && !it.craft && !it.unique
+export interface StepMats { refine: string[]; grade: Record<number, string>; reroll: string[] }
+export const JOB2_MATS: StepMats = { refine: ['d5', 'd7', 'd9'], grade: { 2: 'd5', 3: 'd6', 4: 'd8', 5: 'd10' }, reroll: ['d7', 'd9'] }
+/** v116 (Q 2026-11-08 "เมือกใสหายาก late game"): 1st-class shop gear (cap ★4) used D1 mats at every step, and D1 is the only
+ * source of them. It now climbs D1 -> D3 -> D5 like 2nd-job gear (D3 / D5 also drop in the tower). */
+export const JOB_MATS: StepMats = { refine: ['d1', 'd3', 'd5'], grade: { 2: 'd1', 3: 'd3', 4: 'd5' }, reroll: ['d3', 'd5'] }
+const stepMats = (it: Item): StepMats | null => {
+  if (it.craft || it.unique) return null
+  if (it.req === 'job2') return JOB2_MATS
+  if (it.req === 'job' || (it.jobs && !it.req)) return JOB_MATS
+  return null
+}
 /** Dungeon whose mats a refine of tier `tier` (0..2) uses. */
-export const refineDungeon = (it: Item, tier: number) => (isJob2(it) ? JOB2_MATS.refine[Math.max(0, Math.min(2, tier))] : matDungeon(it))
+export const refineDungeon = (it: Item, tier: number) => stepMats(it)?.refine[Math.max(0, Math.min(2, tier))] ?? matDungeon(it)
 /** Dungeon whose mats grade-up to ★g uses. */
-export const gradeDungeon = (it: Item, g: number) => (isJob2(it) ? JOB2_MATS.grade[g] ?? matDungeon(it) : matDungeon(it))
+export const gradeDungeon = (it: Item, g: number) => stepMats(it)?.grade[g] ?? matDungeon(it)
 /** Dungeon whose mats an option reroll over `lines` lines uses. */
-export const rerollDungeon = (it: Item, lines: number) => (isJob2(it) ? JOB2_MATS.reroll[lines >= 2 ? 1 : 0] : matDungeon(it))
+export const rerollDungeon = (it: Item, lines: number) => stepMats(it)?.reroll[lines >= 2 ? 1 : 0] ?? matDungeon(it)
 /** Materials + zeny to raise `it` from grade g-1 to g. */
 export function gradeCost(it: Item, g: number) {
   const c = GRADE.cost[g], dg = gradeDungeon(it, g)

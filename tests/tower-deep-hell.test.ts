@@ -66,3 +66,10 @@ test('hellify: numbers, name, trait; the source def is untouched; bosses never g
   const boss = (Object.values(MONSTERS).find((d) => d.ai === 'boss' && !d.mini))!
   for (let i = 0; i < 20; i++) assert.ok(!hellify(boss, i / 20).hellish?.includes(HELL_TRAITS.find((t) => t.id === 'blast')!.name))
 })
+
+test('floor 40+: every D1-D5 monster in the room is Hell (Q 2026-11-08)', () => {
+  for (let i = 0; i < 40; i++) for (let f = HELL.allFrom; f <= HELL.allFrom + 20; f++) for (const r of towerFloor(f, 40, DEEP)) {
+    const old = [...new Set([...r.spawn.map(([k]) => k), ...(r.miniPool ?? [])])].filter((k) => !statNative(k))
+    for (const k of old) assert.ok(r.hell?.includes(k), `floor ${f}: ${k} not Hell`)
+  }
+})
