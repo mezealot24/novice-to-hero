@@ -146,7 +146,9 @@ export function compareLine(now: Stats, next: Stats): string {
   d('M.DEF', now.mdef, next.mdef, p)
   d('Hit', now.hit, next.hit, (n) => `${Math.round(n)}`)
   d('Flee', now.flee, next.flee, (n) => `${Math.round(n)}`)
-  d('คริ', now.crit, next.crit, p)
+  // v94: gear / cards add crit to BOTH pools (shown as one 'คริ'); a stat that moves only one pool (เวทคริ items, Mage LUK) is split
+  if (Math.abs((next.crit - now.crit) - (next.spellCrit - now.spellCrit)) < 1e-6) d('คริ', now.crit, next.crit, p)
+  else { d('คริ กาย', now.crit, next.crit, p); d('เวทคริ', now.spellCrit, next.spellCrit, p) }
   d('เร็ว', now.aspd, next.aspd, (n) => p(n / 1.6))
   d('ดูดเลือด', now.lifesteal, next.lifesteal, p)
   d('สวน', now.counter, next.counter, p)
