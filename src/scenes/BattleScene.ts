@@ -13,6 +13,7 @@ import type { Skill2Def } from '../data/skill2'
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { autoCost, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnMul, hitBase, KIT, KIT2, MAGE_CAST, magicPower, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, ultMode } from '../save'
+import { track } from '../telemetry'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
 import { TAINT_MAT } from '../data/taint'
 import { pinnedReady } from '../data/cardforge'
@@ -3876,6 +3877,10 @@ export class BattleScene extends Phaser.Scene {
       ...Object.entries(this.runDupeMats).map(([id, n]) => `💎 ของยูนีคซ้ำ → ได้วัตถุดิบแทน ${matName(id)} x${n}`),
     ]
     const lines = [...uniq, ...(mode?.lines ?? []), `+${this.zeny} zeny · +${this.runXp} EXP${s.gems > before ? ` · +${s.gems - before} เพชร` : ''}`]
+    track('run_end', { won, mode: this.run.modeId, dungeon: this.dg.id, hard: this.hard, room: this.room, floor: this.towerFloor, kills: this.kills, timedOut: this.timedOut,
+      job: s.job, baseLv: s.baseLevel, jobLv: s.jobLevel, zeny: this.zeny, xp: this.runXp })
+    if (ups.base) track('level_up', { kind: 'base', lv: s.baseLevel, job: s.job })
+    if (ups.job) track('level_up', { kind: 'job', lv: s.jobLevel, job: s.job })
     if (ups.base) lines.push(`🎉 Base Lv ${s.baseLevel}! ได้แต้มสถานะเพิ่ม`)
     if (ups.job) lines.push(`✨ Job Lv ${s.jobLevel}! ได้แต้มสกิลเพิ่ม`)
     const pin = pinnedReady(s) // v99 📌 pinned forge recipe
