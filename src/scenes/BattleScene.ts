@@ -1325,23 +1325,33 @@ export class BattleScene extends Phaser.Scene {
       await this.wait(BATTLE.stepMs * 0.4)
       return
     }
-    if (this.j2!.id === 'crusader') { // ✨ Grand Cross: v103 the whole Cleric ult first (smash, Dawn Light, Holy Light, shield, Ult-web extras), then pay HP, holy cross on every monster (★ twice, 2nd free)
-      await this.clericUlt(live, pow, hitPow)
-      const C = KIT2.crusader, k = (h2 / (1 + this.st.ultPow)) * (1 + this.st.j2CrossAdd) // v105 nerf: the Cleric root (ultPow) scales the Cleric part only
-      for (let cast = 0; cast < (this.st.j2GcTwice > 0 ? 2 : 1) && this.alive().length; cast++) {
-        const paid = cast === 0 ? Math.min(this.hp - 1, Math.floor(this.hp * C.gcPay * Math.max(0, 1 - this.st.j2PayCut))) : 0
-        if (paid > 0) { this.hp -= paid; this.damageNumber(HERO_X, GROUND - 70, paid, false, '#ff9a9a') }
-        const all = this.alive()
-        this.cameras.main.flash(140, 255, 243, 160)
-        for (const m of all) {
-          const cross = this.add.text(m.spr.x, m.spr.y - m.spr.displayHeight / 2, '✝️', { fontSize: '44px' }).setOrigin(0.5).setDepth(9000)
-          this.tweens.add({ targets: cross, scale: 1.6, alpha: 0, duration: 380, onComplete: () => cross.destroy() })
-          this.strike(m, C.gcPm * k, true, '#fff3a0'); this.strike(m, C.gcAtk * k * (1 + this.st.pskill), false, '#ffe08a')
+    if (this.j2!.id === 'crusader') { // ✨ Grand Cross (v106 Q 2026-11-07): pay HP + burn ALL Mana left -> holy cross on every monster (+ that as bonus dmg), spellVamp up while casting (★ twice, 2nd free)
+      // Cleric Ult-web buffs: root Ult +12%/Lv (in h2) · 🌄 smash P.ATK on the P.ATK cross + Dawn Light on the first cross · ใต้ปีกเทพ shield · ไฟชำระ / talents
+      const C = KIT2.crusader, k = h2 * (1 + this.st.j2CrossAdd), charging = this.alive().some((m) => m.charging)
+      this.castVamp = C.gcVamp // 🩸 this cast only: asSkill() heals from it at the end, then clears it (cap 40%)
+      {
+        for (let cast = 0; cast < (this.st.j2GcTwice > 0 ? 2 : 1) && this.alive().length; cast++) {
+          const paid = cast === 0 ? Math.min(this.hp - 1, Math.floor(this.hp * C.gcPay * Math.max(0, 1 - this.st.j2PayCut))) : 0
+          if (paid > 0) { this.hp -= paid; this.damageNumber(HERO_X, GROUND - 70, paid, false, '#ff9a9a') }
+          const burnt = cast === 0 ? Math.floor(this.res) : 0
+          if (burnt > 0) { this.res -= burnt; this.floatText(HERO_X, GROUND - 130, `🔥 เผา Mana ${burnt}`, '#9fc3ff') }
+          const extra = C.gcBurn * (burnt + paid) * k // flat bonus magic dmg / target
+          const all = this.alive()
+          this.cameras.main.flash(140, 255, 243, 160)
+          for (const m of all) {
+            const cross = this.add.text(m.spr.x, m.spr.y - m.spr.displayHeight / 2, '✝️', { fontSize: '44px' }).setOrigin(0.5).setDepth(9000)
+            this.tweens.add({ targets: cross, scale: 1.6, alpha: 0, duration: 380, onComplete: () => cross.destroy() })
+            this.strike(m, C.gcPm * k + extra / Math.max(1, magicPower(this.st)), true, '#fff3a0')
+            this.strike(m, (C.gcAtk + this.st.clUltAtk) * k * (1 + this.st.pskill), false, '#ffe08a')
+          }
+          if (cast === 0) this.dawnBonus(all.filter((m) => !m.dead), h2) // 🌄 แสงรุ่งอรุณ (+ แสงแตก / สมานแผล / ★)
+          if (paid > 0 && all.length >= C.gcRefundAt) { this.hp = Math.min(this.st.maxHp, this.hp + Math.round(paid * C.gcRefund)); this.floatText(HERO_X, GROUND - 160, `✨ คืน HP ${Math.round(paid * C.gcRefund)}`, '#6fd08c') }
+          await this.wait(BATTLE.stepMs * 0.35)
         }
-        if (paid > 0 && all.length >= C.gcRefundAt) { this.hp = Math.min(this.st.maxHp, this.hp + Math.round(paid * C.gcRefund)); this.floatText(HERO_X, GROUND - 160, `✨ คืน HP ${Math.round(paid * C.gcRefund)}`, '#6fd08c') }
-        await this.wait(BATTLE.stepMs * 0.35)
       }
-      return // v103: the shield now comes from clericUlt() (was the same shield x p2 here)
+      this.addShield(this.st.maxHp * CLERIC_KIT.ultShield * p2 * (charging ? 1 + this.st.ultChargeShield : 1))
+      await this.clericUltExtras()
+      return
     }
     if (this.j2!.id === 'monk') { // 🔔 Tempest Bell: an Ally object that soaks hits, rings on swings, bursts when broken
       const old = this.allies.find((a) => a.def.id === ALLIES.tempestBell.id && !a.dead)
@@ -1557,7 +1567,9 @@ export class BattleScene extends Phaser.Scene {
     return canRollCrit(this.job.id, this.skillSlot)
   }
   private skillCut() { return Math.min(0.9, this.st.skillDmgCut + (this.buf.blood > 0 ? SPELL_VAMP.bloodCut : 0) + (this.relic === 'bloodpact' ? RELIC_RULES.bloodpact.skillCut : 0)) }
-  private spellVamp() { return Math.min(0.4, this.st.spellVamp + (this.buf.blood > 0 ? S2N.bloodVamp(this.st.s2Lv) : 0) + (this.relic === 'bloodpact' ? RELIC_RULES.bloodpact.spellVamp : 0)) }
+  /** v106: one-cast spellVamp bonus (Grand Cross); asSkill() clears it after healing. */
+  private castVamp = 0
+  private spellVamp() { return Math.min(0.4, this.st.spellVamp + this.castVamp + (this.buf.blood > 0 ? S2N.bloodVamp(this.st.s2Lv) : 0) + (this.relic === 'bloodpact' ? RELIC_RULES.bloodpact.spellVamp : 0)) }
   /** relic สัญญาเลือด: burn / poison / hellfire ticks are weaker too (Q 2026-11-04) */
   private dotMul() { return this.relic === 'bloodpact' ? 1 - RELIC_RULES.bloodpact.dotCut : 1 }
   /** `slot` = which crit switch (data/skill-registry.ts SKILL_CRIT) governs this cast's own hits; null = none (Skill 3 ...). */
@@ -1570,7 +1582,7 @@ export class BattleScene extends Phaser.Scene {
       this.src = prev
       this.skillSlot = prevSlot
       const h = this.skillHits; this.skillHits = null
-      const v = this.spellVamp()
+      const v = this.spellVamp(); this.castVamp = 0
       if (v > 0 && h.dmg > 0 && this.hp > 0) this.heal(h.dmg * v * (h.mons.size > 1 ? SPELL_VAMP.aoe : 1) * (this.berserking() ? 2 : 1), true)
     }
   }
@@ -1946,6 +1958,10 @@ export class BattleScene extends Phaser.Scene {
     this.dawnBonus(live.filter((m) => !m.dead), hitPow) // v92 🌄 แสงรุ่งอรุณ: bonus magic hit on every smash target still standing
     for (let i = 0; i < clericUltLights(this.st); i++) { const t = this.alive(); if (!t.length) break; await this.holyLight(t[Phaser.Math.Between(0, t.length - 1)], CLERIC_KIT.ultLight * hitPow) }
     this.addShield(this.st.maxHp * CLERIC_KIT.ultShield * pow * (charging ? 1 + this.st.ultChargeShield : 1)) // talent: ใต้ปีกเทพ · lasts shieldTurns, capped
+    await this.clericUltExtras()
+  }
+  /** Cleric Ult-web extras after the hits: ★ ไฟชำระ + talents แสงลงทัณฑ์ / พรยืนยาว (v106: Grand Cross too). */
+  private async clericUltExtras() {
     if (this.st.clPurify > 0) { // Ult web ★: ไฟชำระ
       const X = this.hx, n = X.poison + X.burn + X.weaken + X.armorBreak + X.silence + X.web + X.slow + X.thorn + X.venomTurns
       this.hx = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0, web: 0, slow: 0, thorn: 0, venom: 0, venomTurns: 0 }; this.syncWeb()

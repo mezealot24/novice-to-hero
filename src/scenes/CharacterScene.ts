@@ -584,7 +584,7 @@ export function nodeDetail(s: ReturnType<typeof save>, n: TreeNode): { rows: Det
   const picked = (tree: Record<string, number>) => skill2Picked(tree, job)
   const secs: Sec[] = [
     { name: `${JOBS[job].auto.icon} ทักษะ 1: ${JOBS[job].auto.name}`, info: (st) => autoInfo(job, st), all: line === 's1' },
-    { name: s.job2 === 'crusader' ? `✨ Ult: Grand Cross (+ ${JOBS[job].ult.name})` : `${JOBS[job].ult.icon} Ult: ${JOBS[job].ult.name}`, info: (st, tree) => ultInfo(job, st, totalBase({ ...s, jobTree: tree }), s.job2), all: line === 'ult' },
+    { name: s.job2 === 'crusader' ? `✨ Ult: Grand Cross` : `${JOBS[job].ult.icon} Ult: ${JOBS[job].ult.name}`, info: (st, tree) => ultInfo(job, st, totalBase({ ...s, jobTree: tree }), s.job2), all: line === 'ult' },
     { name: `${(s2 ?? picked(t))?.icon ?? '🔀'} ทักษะ 2: ${(s2 ?? picked(t))?.name ?? ''}`, all: !!s2,
       info: (st, tree) => { const k = s2 ?? picked(tree); return k && (tree[k.id] ?? 0) > 0 ? skill2Info(k, st) : null } },
   ]
