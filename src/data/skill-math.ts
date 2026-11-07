@@ -315,13 +315,13 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
       if (job2 === 'crusader') { // v106: Grand Cross + the Cleric Ult-web buffs (v108: 🌄 is a basic-attack passive now, not here)
         const C = KIT2.crusader, k = hitPow * (1 + st.ult2Pow) * (1 + st.j2CrossAdd)
         out[0] = { label: 'คูลดาวน์', value: `${ultCooldown(job, st)} เทิร์น · ไม่ใช้ Mana (เผา Mana ที่เหลือทั้งหมด)` }
-        out.push({ label: `จ่าย HP ${pct(C.gcPay * Math.max(0, 1 - st.j2PayCut))} ปัจจุบัน`, value: `โดน ${C.gcRefundAt}+ ตัว คืน ${pct(C.gcRefund)}${st.j2GcTwice > 0 ? ' · ยิง 2 ครั้ง (ครั้ง 2 ไม่จ่าย/ไม่เผา)' : ''}` })
+        out.push({ label: `จ่าย HP ${pct(C.gcPay * Math.max(0, 1 - st.j2PayCut))} ปัจจุบัน`, value: `โดน ${C.gcRefundAt}+ ตัว คืน ${pct(C.gcRefund)}${st.j2GcTwice > 0 ? ' · ★ ทุก pulse ยิง 2 ครั้ง (ครั้ง 2 ไม่มีโบนัสเผา)' : ''}` })
         const n = gcPulses(st), atkPer = C.gcAtk + st.clUltAtk / n, strFlat = C.gcStr * (base?.str ?? 0) * k
-        out.push({ label: `✝️ ${n} pulse ใส่ทุกตัว (ตาม Lv Ult วิวัฒน์ ${C.gcPulses.join('/')})`, value: `ต่อ pulse ต่อตัว ↓ · รวม ×${n}` })
+        out.push({ label: `✝️ ${n} pulse ใส่ทุกตัว (ตาม Lv Ult วิวัฒน์ ${C.gcPulses.join('/')})`, value: `ตอนกด 1 + ต้นเทิร์นละ 1 (อีก ${n - 1} เทิร์น) · ต่อ pulse ต่อตัว ↓` })
         out.push({ label: `· ${C.gcPm}x พลังเวท (เวท)`, value: hitText(st, C.gcPm * k, true) })
         out.push({ label: `· ${+atkPer.toFixed(2)}x P.ATK + ${C.gcStr}x STR (กาย${st.clUltAtk > 0 ? ' · 🙏 ราก' : ''})`, value: `${hitText(st, atkPer * k * (1 + st.pskill), false)} + ${r(strFlat)}` })
         out.push({ label: '🔥 โบนัส/ตัว (เวท, แบ่งทุก pulse)', value: `${C.gcBurn}x (Mana ที่เผา + HP ที่จ่าย) · เต็ม Mana ≈ +${r(C.gcBurn * st.maxRes * k)}` })
-        out.push({ label: '🩸 ดูดเลือดสกิล ระหว่างร่าย', value: `+${pct(C.gcVamp)} (รวมไม่เกิน 40%)` })
+        out.push({ label: '🩸 ดูดเลือดสกิล ทุก pulse', value: `+${pct(C.gcVamp)} (รวมไม่เกิน 40%)` })
         out.push({ label: `โล่ ${CLERIC_KIT.ultShieldTurns} เทิร์น`, value: `${shield(st, st.maxHp * CLERIC_KIT.ultShield * (1 + st.ultPow) * (1 + st.ult2Pow))}` })
         if (st.clPurify > 0) out.push({ label: 'ไฟชำระ: ล้างดีบัฟ + ฮีล (M.ATK)', value: `${heal(st, st.matk * CLERIC_KIT.purifyHeal)} HP` })
         if (st.ultHoly > 0) out.push({ label: 'แสงลงทัณฑ์/ตัว', value: hitText(st, st.ultHoly, true) })

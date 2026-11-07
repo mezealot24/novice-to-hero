@@ -305,7 +305,7 @@ export class BattleScene extends Phaser.Scene {
     this.frenzy = 0; this.frenzyAt = 0; this.s3Cd = 0; this.rampage = 0; this.charges = 0; this.allies = []; this.allyTxt.clear(); this.chargeTxt = undefined
     this.s2 = this.job.id === 'novice' ? undefined : skill2Picked(s.jobTree, this.job.id); this.s2Cd = 0
     this.buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, bless: 0, dawnWis: 0 }; this.s2Count = 0
-    this.dawnWisAmt = 0; this.dawnWisDelta = {}; this.dawnCount = 0 // v102 ☀️ แสงแตก · v108 🌄 hit counter
+    this.dawnWisAmt = 0; this.dawnWisDelta = {}; this.dawnCount = 0; this.gc = null // v102 ☀️ แสงแตก · v108 🌄 hit counter · v111 ✨ pulses
     this.blessOn = false; this.blessDelta = undefined; this.kyrie = { hp: 0, hits: 0 } // v77 พรแสง
     if (this.s2?.id === 'cl_spear') this.st.spearMul += S2N.spearPlus(this.st.s2Lv) // หอกคม: +10%/lv of the 0.3x base
     this.res = this.job.resource === 'rage' ? 0 : this.resMax()
@@ -747,6 +747,7 @@ export class BattleScene extends Phaser.Scene {
     const chantDone = this.casts.length > 0 && castUsesTurn(this.j2?.id) // v78: a Mage / Sage chant landing IS this turn's action (Wizard: free)
     if (this.casts.length) { await this.releaseCasts(); if (!this.alive().length || this.hp <= 0) return } // 🔮 last turn's chant goes off (before the silence check)
     await this.skill2Turn()
+    if (this.gc && this.alive().length && this.hp > 0) { await this.asSkill(() => this.gcPulse(), 'ult', 'ult'); if (!this.alive().length || this.hp <= 0) return } // v111 ✨ Grand Cross: next pulse
     if (this.j2 && this.alive().length && this.hp > 0) await this.skill3Turn()
     if (!this.alive().length || this.hp <= 0) return
     if (this.st.arHawk > 0 && ++this.hawkTurn % 3 === 0) { const t = this.alive(); if (t.length) { const m = t[Phaser.Math.Between(0, t.length - 1)]; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, '🦅', '#f2d24b'); this.strike(m, this.st.arHawk, true, '#f2d24b') } } // archer talent เหยี่ยวคู่ใจ
@@ -1325,37 +1326,18 @@ export class BattleScene extends Phaser.Scene {
       await this.wait(BATTLE.stepMs * 0.4)
       return
     }
-    if (this.j2!.id === 'crusader') { // ✨ Grand Cross (v106 Q 2026-11-07): pay HP + burn ALL Mana left -> holy cross on every monster (+ that as bonus dmg), spellVamp up while casting (★ twice, 2nd free)
-      // Cleric Ult-web buffs: root Ult +12%/Lv (in h2) · 🌄 smash P.ATK on the P.ATK cross + Dawn Light on the first cross · ใต้ปีกเทพ shield · ไฟชำระ / talents
+    if (this.j2!.id === 'crusader') { // ✨ Grand Cross (v106/v111 Q 2026-11-08): pay HP + burn ALL Mana left; pulse 1 now, the rest one per hero turn (spread, not burst)
+      // Cleric Ult-web buffs: root P.ATK (split over the pulses) · ใต้ปีกเทพ shield · ไฟชำระ / talents · ★ ซ้อน: every pulse hits twice (the 2nd without the burn bonus)
       const C = KIT2.crusader, k = h2 * (1 + this.st.j2CrossAdd), charging = this.alive().some((m) => m.charging)
-      this.castVamp = C.gcVamp // 🩸 this cast only: asSkill() heals from it at the end, then clears it (cap 40%)
-      {
-        for (let cast = 0; cast < (this.st.j2GcTwice > 0 ? 2 : 1) && this.alive().length; cast++) {
-          const paid = cast === 0 ? Math.min(this.hp - 1, Math.floor(this.hp * C.gcPay * Math.max(0, 1 - this.st.j2PayCut))) : 0
-          if (paid > 0) { this.hp -= paid; this.damageNumber(HERO_X, GROUND - 70, paid, false, '#ff9a9a') }
-          const burnt = cast === 0 ? Math.floor(this.res) : 0
-          if (burnt > 0) { this.spendRes(burnt); // v110: counts as Mana spent (💠 มานาพิทักษ์ heal)
-            this.floatText(HERO_X, GROUND - 130, `🔥 เผา Mana ${burnt}`, '#9fc3ff') }
-          // v109 (Q): pulses by Ult วิวัฒน์ Lv · each pulse: Pm (magic, + burn bonus share) and P.ATK + STR (physical) on every monster still up
-          const n = gcPulses(this.st), extra = C.gcBurn * (burnt + paid) * k / n // flat bonus magic dmg / target / pulse
-          const b = totalBase(save()), bl = this.buf.bless > 0 ? blessBase(save()) ?? {} : {}
-          const pb = physBase(this.st), atkAvg = Math.max(1, (pb.lo + pb.hi) / 2)
-          const physMul = (C.gcAtk + this.st.clUltAtk / n) * k * (1 + this.st.pskill) + C.gcStr * (b.str + (bl.str ?? 0)) * k / atkAvg
-          const all = this.alive()
-          for (let p = 0; p < n && this.alive().length; p++) {
-            this.cameras.main.flash(110, 255, 243, 160)
-            for (const m of this.alive()) {
-              const cross = this.add.text(m.spr.x, m.spr.y - m.spr.displayHeight / 2, '✝️', { fontSize: p === n - 1 ? '50px' : '38px' }).setOrigin(0.5).setDepth(9000)
-              this.tweens.add({ targets: cross, scale: 1.6, alpha: 0, duration: 300, onComplete: () => cross.destroy() })
-              this.strike(m, C.gcPm * k + extra / Math.max(1, magicPower(this.st)), true, '#fff3a0')
-              this.strike(m, physMul, false, '#ffe08a')
-            }
-            if (p < n - 1) await this.wait(BATTLE.stepMs * 0.22)
-          }
-          if (paid > 0 && all.length >= C.gcRefundAt) { this.hp = Math.min(this.st.maxHp, this.hp + Math.round(paid * C.gcRefund)); this.floatText(HERO_X, GROUND - 160, `✨ คืน HP ${Math.round(paid * C.gcRefund)}`, '#6fd08c') }
-          await this.wait(BATTLE.stepMs * 0.35)
-        }
-      }
+      const paid = Math.min(this.hp - 1, Math.floor(this.hp * C.gcPay * Math.max(0, 1 - this.st.j2PayCut)))
+      if (paid > 0) { this.hp -= paid; this.damageNumber(HERO_X, GROUND - 70, paid, false, '#ff9a9a') }
+      const burnt = Math.floor(this.res)
+      if (burnt > 0) { this.spendRes(burnt); this.floatText(HERO_X, GROUND - 130, `🔥 เผา Mana ${burnt}`, '#9fc3ff') } // v110: counts as Mana spent (💠 มานาพิทักษ์ heal)
+      const n = gcPulses(this.st)
+      this.gc = { left: n, n, k, extra: C.gcBurn * (burnt + paid) * k / n } // a new cast replaces what is left of the old one
+      const hit = this.alive().length
+      await this.gcPulse()
+      if (paid > 0 && hit >= C.gcRefundAt) { this.hp = Math.min(this.st.maxHp, this.hp + Math.round(paid * C.gcRefund)); this.floatText(HERO_X, GROUND - 160, `✨ คืน HP ${Math.round(paid * C.gcRefund)}`, '#6fd08c') }
       this.addShield(this.st.maxHp * CLERIC_KIT.ultShield * p2 * (charging ? 1 + this.st.ultChargeShield : 1))
       await this.clericUltExtras()
       return
@@ -1962,6 +1944,32 @@ export class BattleScene extends Phaser.Scene {
         await this.shadowDance(hitPow)
         break
     }
+  }
+
+  /** v111 ✨ Grand Cross pulses left (one fires on cast, then one at the start of each hero turn). k / extra are fixed at cast. */
+  private gc: { left: number; n: number; k: number; extra: number } | null = null
+  /** One Grand Cross pulse on every monster: gcPm x Pm (+ burn share, magic) and gcAtk x P.ATK + gcStr x STR (+ root share, physical).
+   *  ★ ซ้อน: hits twice, the 2nd without the burn share. Spell vamp +gcVamp on every pulse (asSkill heals, then clears it). */
+  private async gcPulse() {
+    const g = this.gc
+    if (!g || g.left <= 0 || !this.alive().length) return
+    const C = KIT2.crusader, b = totalBase(save()), bl = this.buf.bless > 0 ? blessBase(save()) ?? {} : {}
+    const pb = physBase(this.st), atkAvg = Math.max(1, (pb.lo + pb.hi) / 2)
+    const physMul = (C.gcAtk + this.st.clUltAtk / g.n) * g.k * (1 + this.st.pskill) + C.gcStr * (b.str + (bl.str ?? 0)) * g.k / atkAvg
+    const last = g.left === 1
+    g.left--
+    this.castVamp = C.gcVamp
+    for (let twice = 0; twice < (this.st.j2GcTwice > 0 ? 2 : 1) && this.alive().length; twice++) {
+      this.cameras.main.flash(110, 255, 243, 160)
+      for (const m of this.alive()) {
+        const cross = this.add.text(m.spr.x, m.spr.y - m.spr.displayHeight / 2, '✝️', { fontSize: last ? '50px' : '40px' }).setOrigin(0.5).setDepth(9000)
+        this.tweens.add({ targets: cross, scale: 1.6, alpha: 0, duration: 300, onComplete: () => cross.destroy() })
+        this.strike(m, C.gcPm * g.k + (twice === 0 ? g.extra / Math.max(1, magicPower(this.st)) : 0), true, '#fff3a0')
+        this.strike(m, physMul, false, '#ffe08a')
+      }
+      await this.wait(BATTLE.stepMs * 0.25)
+    }
+    if (g.left <= 0) this.gc = null
   }
 
   /** v58 Cleric ult พรคุ้มครอง: smash all (P.ATK) + 🌄 Dawn Light + Holy Light (M.ATK) + timed shield + Ult-web extras.
@@ -4245,7 +4253,7 @@ export class BattleScene extends Phaser.Scene {
     const X = this.hx
     this.debuffTxt?.setText([X.poison > 0 ? `☠️${X.poison}` : '', X.burn > 0 ? `🔥${X.burn}` : '', X.weaken > 0 ? `💔${X.weaken}` : '', X.armorBreak > 0 ? `🛡️💥${X.armorBreak}` : '', X.silence > 0 ? `🤐${X.silence}` : '', X.web > 0 ? `🕸️${X.web}` : '', X.slow > 0 ? `💙${X.slow}` : '', X.thorn > 0 ? `❄️${X.thorn}` : '', X.venomTurns > 0 ? `🕷️${X.venomTurns}` : ''].filter(Boolean).join(' ')).setY(this.job.resource ? 92 : 78)
     { const B = this.buf, d = this.debuffTxt, k2i = this.s2?.icon ?? '' // v77: hero buffs (the picked Skill 2's icon + turns left; พรแสง adds Kyrie hits / Gloria)
-      this.buffTxt?.setText([this.st.clDawn > 0 && this.job.id === 'cleric' ? `🌄${this.dawnCount}/${KIT.clericTree.dawn.every}` : '', B.dawnWis > 0 ? `☀️${B.dawnWis}` : '', B.bless > 0 ? `${k2i}${B.bless}` : '', this.kyrie.hits > 0 ? `🛡️${this.kyrie.hits}` : '', B.bless > 0 && this.st.s2Star > 0 && this.s2?.id === 'cl_bless' ? '✨' : '',
+      this.buffTxt?.setText([this.gc ? `✝️${this.gc.left}` : '', this.st.clDawn > 0 && this.job.id === 'cleric' ? `🌄${this.dawnCount}/${KIT.clericTree.dawn.every}` : '', B.dawnWis > 0 ? `☀️${B.dawnWis}` : '', B.bless > 0 ? `${k2i}${B.bless}` : '', this.kyrie.hits > 0 ? `🛡️${this.kyrie.hits}` : '', B.bless > 0 && this.st.s2Star > 0 && this.s2?.id === 'cl_bless' ? '✨' : '',
         ...(['guard', 'blood', 'hawk', 'mshield', 'renew'] as const).map((k) => (B[k] > 0 ? `${k2i}${B[k]}` : ''))].filter(Boolean).join(' '))
         .setPosition(22 + (d && d.text ? d.width + 10 : 0), this.job.resource ? 92 : 78) }
 
