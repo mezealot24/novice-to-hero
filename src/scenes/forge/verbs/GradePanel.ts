@@ -6,7 +6,7 @@ import { canAffordAuto, upgradeGrade } from '../../../data/refine'
 import { persist, save } from '../../../save'
 import { toast, txt, UI } from '../../../ui'
 import { pressLabel } from '../state'
-import type { ForgeCtx, Preview, VerbAction, VerbPanel } from '../types'
+import { INNER_W, PAD, type ForgeCtx, type Preview, type VerbAction, type VerbPanel } from '../types'
 import { PanelBase } from './PanelBase'
 
 export class GradePanel extends PanelBase implements VerbPanel {
@@ -17,8 +17,8 @@ export class GradePanel extends PanelBase implements VerbPanel {
 
   mount(box: Phaser.GameObjects.Container, it: Item) {
     this.it = it
-    this.head = txt(this.ctx.scene, 16, 12, '', 18, UI.text, true).setWordWrapWidth(624)
-    this.notes = txt(this.ctx.scene, 16, 48, '', 13, UI.sub).setWordWrapWidth(624)
+    this.head = txt(this.ctx.scene, PAD, 14, '', 18, UI.text, true).setWordWrapWidth(INNER_W)
+    this.notes = txt(this.ctx.scene, PAD, 74, '', 13, UI.sub).setWordWrapWidth(INNER_W).setLineSpacing(4)
     this.put(box, this.head, this.notes)
     this.refresh()
   }
@@ -36,8 +36,8 @@ export class GradePanel extends PanelBase implements VerbPanel {
     if (n === GRADE.slotAt && slotCount(it, n) > slotCount(it, g)) notes.push('+1 ช่องการ์ด')
     const bi = GRADE.bonusAt.indexOf(n)
     if (it.craft && bi >= 0) notes.push(`ปลด: ${itemStatLine({ mod: it.craft.bonus[bi] })}`)
-    this.head.setText(`★${g} ${GRADE.names[g]}  →  ★${n} ${GRADE.names[n]}`).setColor(GRADE.colors[n])
-    this.notes.setText(`${notes.join(' · ')}\nอัปขั้นสำเร็จเสมอ ไม่มีพัง · ต้องมีวัตถุดิบตามแถบด้านล่าง`)
+    this.head.setText(`★${g} ${GRADE.names[g]}\n→ ★${n} ${GRADE.names[n]}`).setColor(GRADE.colors[n])
+    this.notes.setText(`${notes.join('\n')}\n\n✅ อัปขั้นสำเร็จเสมอ ไม่มีพัง\nใช้วัตถุดิบตามแถบด้านล่าง`)
   }
 
   cost() { const n = this.next(); return n ? gradeCost(this.it, n) : null }

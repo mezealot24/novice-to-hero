@@ -7,14 +7,14 @@ import { isBroken, isTainted, linesOf, refineOf, type Item } from '../../../data
 import { canAfford, lineIdx, lineText, lockGems, maxLocks, nextRerollCost, reroll, rerollMul, rollLine, rollsOf } from '../../../data/refine'
 import { persist, save } from '../../../save'
 import { sfx } from '../../../sfx'
-import { button, fit, toast, txt, UI, type Btn } from '../../../ui'
+import { button, fit, panel, toast, txt, UI, type Btn } from '../../../ui'
 import { punch, spinText } from '../../../ui-fx'
 import { pressLabel } from '../state'
-import type { ForgeCtx, Preview, VerbAction, VerbPanel } from '../types'
+import { BOX_H, BOX_W, INNER_W, PAD, type ForgeCtx, type Preview, type VerbAction, type VerbPanel } from '../types'
 import { PanelBase } from './PanelBase'
 
-const ROW_Y = [46, 74, 102], SIZE = ['เล็ก', 'กลาง', 'ใหญ่'], OLD_MAX_X = 536, GAP_MS = 120
-interface Row { label: Phaser.GameObjects.Text; val: Phaser.GameObjects.Text; old: Phaser.GameObjects.Text; strike: Phaser.GameObjects.Graphics; lock: Btn; oldTimer?: Phaser.Time.TimerEvent }
+const ROW_Y = [112, 178, 244], SIZE = ['เล็ก', 'กลาง', 'ใหญ่'], GAP_MS = 120 // v101: each line is a 2-row card (label + lock / value) in the 340px column
+interface Row { card: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text; val: Phaser.GameObjects.Text; old: Phaser.GameObjects.Text; strike: Phaser.GameObjects.Graphics; lock: Btn; oldTimer?: Phaser.Time.TimerEvent }
 
 export class OptionPanel extends PanelBase implements VerbPanel {
   private it!: Item
@@ -38,19 +38,20 @@ export class OptionPanel extends PanelBase implements VerbPanel {
     this.box = box
     const sc = this.ctx.scene
     this.locked = this.ctx.locks.get(it.id).filter((i) => lineIdx(save(), it.id).includes(i))
-    this.headR = txt(sc, 640, 10, '', 12, UI.sub).setOrigin(1, 0)
-    this.sub = txt(sc, 16, 30, 'สุ่มครั้งเดียว เปลี่ยนทุกบรรทัดที่ไม่ล็อก ค่าเก่าหายทันที', 12, UI.sub)
-    this.note = txt(sc, 16, 48, '', 14, UI.text).setWordWrapWidth(624)
-    this.put(box, txt(sc, 16, 6, '🎲 สุ่มค่าพิเศษ', 18, UI.text, true), this.headR, this.sub, this.note)
+    this.headR = txt(sc, PAD, 38, '', 12, UI.gold).setWordWrapWidth(INNER_W)
+    this.sub = txt(sc, PAD, 76, 'สุ่มทีเดียวทุกบรรทัดที่ไม่ล็อก ค่าเก่าหายทันที', 12, UI.sub).setWordWrapWidth(INNER_W)
+    this.note = txt(sc, PAD, 48, '', 14, UI.text).setWordWrapWidth(INNER_W).setLineSpacing(4)
+    this.put(box, txt(sc, PAD, 10, '🎲 สุ่มค่าพิเศษ', 18, UI.text, true), this.headR, this.sub, this.note)
     REFINE.lineAt.forEach((at, i) => {
       const y = ROW_Y[i]
-      const label = txt(sc, 16, y + 3, `+${at} (${SIZE[i]})`, 14, UI.sub, true)
-      const val = txt(sc, 100, y, '', 17, UI.text, true)
-      const old = txt(sc, 300, y + 5, '', 12, UI.sub).setVisible(false)
+      const card = panel(sc, PAD - 6, y - 4, INNER_W + 12, 60, 0x1d2140, UI.line, 10)
+      const label = txt(sc, PAD, y + 2, `+${at} (${SIZE[i]})`, 13, UI.sub, true)
+      const val = txt(sc, PAD, y + 26, '', 16, UI.text, true)
+      const old = txt(sc, PAD, y + 28, '', 12, UI.sub).setVisible(false)
       const strike = sc.add.graphics()
-      const lock = button(sc, 640 - 48, y + 13, 96, 26, '', () => this.toggle(i), { size: 13, fill: 0x5a5f8a, color: UI.text })
-      this.put(box, label, val, old, strike, lock)
-      this.rows.push({ label, val, old, strike, lock })
+      const lock = button(sc, BOX_W - PAD - 46, y + 11, 92, 24, '', () => this.toggle(i), { size: 12, fill: 0x5a5f8a, color: UI.text })
+      this.put(box, card, label, val, old, strike, lock)
+      this.rows.push({ card, label, val, old, strike, lock })
     })
     this.refresh()
   }
@@ -69,16 +70,18 @@ export class OptionPanel extends PanelBase implements VerbPanel {
       this.headR.setText('')
       this.sub.setVisible(false)
       this.note.setText(`ตีถึง +${REFINE.lineAt[0]} ก่อนนะคะ (ตอนนี้ +${refineOf(s, it.id)})\nถึง +${REFINE.lineAt[0]} / +${REFINE.lineAt[1]} / +${REFINE.lineAt[2]} ครั้งแรกจะได้ค่าพิเศษทีละบรรทัด แล้วค่อยมาสุ่มที่นี่`).setVisible(true)
-      for (const r of this.rows) for (const o of [r.label, r.val, r.old, r.strike, r.lock]) o.setVisible(false)
+      for (const r of this.rows) for (const o of [r.card, r.label, r.val, r.old, r.strike, r.lock]) o.setVisible(false)
       return
     }
     this.note.setVisible(false)
     this.sub.setVisible(true)
     const rolls = rollsOf(s, it.id), maxLk = maxLocks(have.length), busy = this.ctx.isBusy() || this.anim.size > 0
     this.headR.setText(`สุ่มไปแล้ว ${rolls} ครั้ง · ราคา x${rerollMul(rolls).toFixed(1)} · ${maxLk ? `ล็อก ${this.locked.length}/${maxLk} · 💎${lockGems(this.locked.length)} ต่อการสุ่ม` : 'ล็อกไม่ได้ (ต้องเหลือบรรทัดให้สุ่ม)'}`)
+    fit(this.headR, 34)
+    this.sub.setY(this.headR.y + this.headR.height + 4)
     this.rows.forEach((r, i) => {
       const l = lines[i], on = this.locked.includes(i)
-      r.label.setVisible(true); r.val.setVisible(true)
+      r.card.setVisible(true); r.label.setVisible(true); r.val.setVisible(true)
       if (!l) {
         r.val.setText(`— ยังไม่ได้ (ตีถึง +${REFINE.lineAt[i]})`).setColor(UI.sub)
         r.lock.setVisible(false)
@@ -115,7 +118,7 @@ export class OptionPanel extends PanelBase implements VerbPanel {
     this.anim = new Set(order)
     this.fast = !!save().forgeFast // ⚡ fast mode: no spin, rows land at once
     this.release = this.ctx.hold() // the verb tabs and the action button stay shut until the last line lands
-    this.zone = this.ctx.scene.add.rectangle(328, 65, 656, 130, 0x000000, 0.001).setInteractive()
+    this.zone = this.ctx.scene.add.rectangle(BOX_W / 2, BOX_H / 2, BOX_W, BOX_H, 0x000000, 0.001).setInteractive()
     this.zone.on('pointerup', () => { this.fast = true; this.curSkip?.() }) // tap = skip to the end
     this.box.add(this.zone)
     this.own.push(this.zone)
@@ -142,11 +145,11 @@ export class OptionPanel extends PanelBase implements VerbPanel {
     this.curSkip = spinText(this.ctx.scene, row.val, fin, { ms: 450, scramble: () => lineText(rollLine(this.it, i, s.job)), onDone: land })
   }
 
-  /** The value that was just replaced: dimmed and struck through for about 1.5 s, right after the new value and clear of the lock button. */
+  /** The value that was just replaced: dimmed and struck through for about 1.5 s, right after the new value (inside the card's right half). */
   private showOld(row: Row, old: RefineLine | undefined) {
     if (!old) return
-    const x = row.val.x + row.val.width + 14
-    row.old.setText(`เดิม ${lineText(old)}`).setPosition(x, row.old.y).setWordWrapWidth(Math.max(60, OLD_MAX_X - x)).setVisible(true).setAlpha(0.75)
+    const x = Math.min(row.val.x + row.val.width + 10, BOX_W - PAD - 90)
+    row.old.setText(`เดิม ${lineText(old)}`).setPosition(x, row.old.y).setWordWrapWidth(Math.max(60, BOX_W - PAD - x)).setVisible(true).setAlpha(0.75)
     fit(row.old, 16)
     row.strike.clear().lineStyle(2, 0xff7a7a, 1).lineBetween(row.old.x, row.old.y + row.old.height / 2, row.old.x + row.old.width, row.old.y + row.old.height / 2).setVisible(true)
     row.oldTimer?.remove(false) // one timer per row: a newer roll replaces the older one

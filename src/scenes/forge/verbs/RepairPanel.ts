@@ -7,7 +7,7 @@ import { canAfford, canAffordAuto, fodderToBuy, gemRepairCost, repair, repairCos
 import { persist, save } from '../../../save'
 import { button, confirm, fit, toast, txt, UI, type Btn } from '../../../ui'
 import { pressLabel } from '../state'
-import type { ForgeCtx, Preview, VerbAction, VerbPanel } from '../types'
+import { BOX_H, BOX_W, INNER_W, PAD, type ForgeCtx, type Preview, type VerbAction, type VerbPanel } from '../types'
 import { PanelBase } from './PanelBase'
 
 export class RepairPanel extends PanelBase implements VerbPanel {
@@ -21,10 +21,10 @@ export class RepairPanel extends PanelBase implements VerbPanel {
   mount(box: Phaser.GameObjects.Container, it: Item) {
     this.it = it
     const sc = this.ctx.scene
-    this.head = txt(sc, 16, 8, '', 18, UI.text, true)
-    this.info = txt(sc, 16, 36, '', 13, UI.sub).setWordWrapWidth(624)
-    this.matBtn = button(sc, 16 + 150, 100, 300, 40, '', () => this.go(false, false), { size: 15 })
-    this.gemBtn = button(sc, 656 - 16 - 150, 100, 300, 40, `💎${REFINE.repairGems} ซ่อมด้วยเพชร`, () => this.go(true, false), { size: 15, fill: 0x5a5f8a, color: UI.text })
+    this.head = txt(sc, PAD, 12, '', 18, UI.text, true).setWordWrapWidth(INNER_W)
+    this.info = txt(sc, PAD, 46, '', 13, UI.sub).setWordWrapWidth(INNER_W).setLineSpacing(3)
+    this.matBtn = button(sc, BOX_W / 2, BOX_H - 92, INNER_W, 42, '', () => this.go(false, false), { size: 15 })
+    this.gemBtn = button(sc, BOX_W / 2, BOX_H - 40, INNER_W, 42, `💎${REFINE.repairGems} ซ่อมด้วยเพชร`, () => this.go(true, false), { size: 15, fill: 0x5a5f8a, color: UI.text })
     this.put(box, this.head, this.info, this.matBtn, this.gemBtn)
     this.refresh()
   }
@@ -35,7 +35,7 @@ export class RepairPanel extends PanelBase implements VerbPanel {
     this.info.setText(broken
       ? `ซ่อมแล้วใช้ได้เต็มที่ทันที · บวก (+${refineOf(s, it.id)}) ขั้น การ์ด ค่าพิเศษ ยังอยู่ครบ\n${pity ? `pity เก็บไว้ให้: ครั้งหน้าตีบวกโอกาส +${Math.round(pity * REFINE.pity * 100)}%\n` : ''}ซ่อมด้วยวัสดุถูกกว่าเพชรเสมอ`
       : 'ของชิ้นนี้ยังไม่แตก ไม่ต้องซ่อมค่ะ')
-    fit(this.info, 56)
+    fit(this.info, 150)
     const c = repairCost(it, refineOf(s, it.id))
     this.matBtn.setLabel(broken ? pressLabel('🔧 ซ่อมด้วยวัสดุ', s, c) : '🔧 ซ่อมด้วยวัสดุ').setEnabled(broken && canAffordAuto(s, c) && !this.ctx.isBusy())
     this.gemBtn.setEnabled(broken && canAfford(s, gemRepairCost) && !this.ctx.isBusy())

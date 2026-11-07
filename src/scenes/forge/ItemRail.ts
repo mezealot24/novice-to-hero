@@ -55,10 +55,11 @@ export class ItemRail {
   private buildHead() {
     const { x, y } = this
     const filterLabel = () => (this.mineOnly ? `${JOBS[save().job].icon} ของฉัน` : '🌐 ทั้งหมด')
-    this.filter = button(this.scene, x + 56, y + 16, 112, 32, filterLabel(), () => {
+    const fw = Math.min(112, this.w - 116) // v101: the rail is 204 wide, leave room for ◀ 1/1 ▶
+    this.filter = button(this.scene, x + fw / 2, y + 16, fw, 32, filterLabel(), () => {
       this.mineOnly = !this.mineOnly; this.page = 0; this.filter.setLabel(filterLabel()); this.rebuild()
       if (!this.list.some((it) => it.id === this.selected)) this.onPick(this.list[0]?.id ?? '')
-    }, { size: 14, fill: 0x5a5f8a, color: UI.text })
+    }, { size: 13, fill: 0x5a5f8a, color: UI.text })
     this.prev = button(this.scene, x + this.w - 92, y + 16, 34, 32, '◀', () => { this.page--; this.rebuild() }, { size: 14 })
     this.pageT = txt(this.scene, x + this.w - 54, y + 16, '', 13, UI.text, true).setOrigin(0.5)
     this.next = button(this.scene, x + this.w - 16, y + 16, 34, 32, '▶', () => { this.page++; this.rebuild() }, { size: 14 })
