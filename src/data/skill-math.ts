@@ -170,24 +170,35 @@ export const KIT2 = {
   },
 }
 
+/** Skill 2 linear "+" numbers: base + per x Stats.s2Lv. Plain numbers so the admin can tune them (skills `s2p.<key>.base|per`);
+ *  the S2N functions below read them on every call. Defaults are the v83 values. */
+export const S2P = {
+  guardCut: { base: 0.4, per: 0.05 }, bloodVamp: { base: 0.15, per: 0.05 }, tauntWeak: { base: 0.2, per: 0.05 },
+  rainMul: { base: 0.8, per: 0.15 }, hawkCrit: { base: 0.2, per: 0.05 }, trapPush: { base: 30, per: 10 },
+  mshieldTake: { base: 0.4, per: 0.05 }, novaMul: { base: 0.8, per: 0.15 }, arcaneMul: { base: 0.6, per: 0.1 },
+  renewHeal: { base: 0.3, per: 0.05 }, kyrieHp: { base: 0, per: 0.05 }, spearPlus: { base: 0, per: 0.03 },
+  smokeHeal: { base: 0, per: 0.03 }, pickRes: { base: 15, per: 5 },
+}
+const lin = (k: { base: number; per: number }, lv: number) => k.base + k.per * lv
+
 /** Skill 2 numbers by "+" level (Stats.s2Lv) and ★ (Stats.s2Star). data/skill2.ts texts and BattleScene.castSkill2 read these. */
 export const S2N = {
-  guardCut: (lv: number) => 0.4 + 0.05 * lv, guardTurns: (star: boolean) => (star ? 3 : 2), guardCounters: (star: boolean) => (star ? 2 : 1),
-  bloodVamp: (lv: number) => 0.15 + 0.05 * lv, bloodTurns: 3, bloodAtk: 0.15,
-  tauntWeak: (lv: number) => 0.2 + 0.05 * lv, tauntTurns: (star: boolean) => (star ? 3 : 2),
-  rainMul: (lv: number) => 0.8 + 0.15 * lv, rainWaves: (star: boolean) => (star ? 2 : 1),
-  hawkCrit: (lv: number) => 0.2 + 0.05 * lv, hawkTurns: 3, hawkCritDmg: 0.3,
-  trapMul: 0.6, trapPush: (lv: number) => 30 + 10 * lv,
-  mshieldTake: (lv: number) => 0.4 + 0.05 * lv, mshieldTurns: (star: boolean) => (star ? 5 : 3),
-  novaMul: (lv: number) => 0.8 + 0.15 * lv, novaChill: (star: boolean) => 2 + (star ? 1 : 0), novaPush: 15,
-  arcaneMul: (lv: number) => 0.6 + 0.1 * lv, arcaneHits: (star: boolean) => 3 + (star ? 2 : 0),
-  renewHeal: (lv: number) => 0.3 + 0.05 * lv, renewTurns: (star: boolean) => (star ? 6 : 4), // heal x M.ATK per turn (Q 2026-11-04: Priest heals scale with M.ATK; was 6% +1%/lv max HP)
+  guardCut: (lv: number) => lin(S2P.guardCut, lv), guardTurns: (star: boolean) => (star ? 3 : 2), guardCounters: (star: boolean) => (star ? 2 : 1),
+  bloodVamp: (lv: number) => lin(S2P.bloodVamp, lv), bloodTurns: 3, bloodAtk: 0.15,
+  tauntWeak: (lv: number) => lin(S2P.tauntWeak, lv), tauntTurns: (star: boolean) => (star ? 3 : 2),
+  rainMul: (lv: number) => lin(S2P.rainMul, lv), rainWaves: (star: boolean) => (star ? 2 : 1),
+  hawkCrit: (lv: number) => lin(S2P.hawkCrit, lv), hawkTurns: 3, hawkCritDmg: 0.3,
+  trapMul: 0.6, trapPush: (lv: number) => lin(S2P.trapPush, lv),
+  mshieldTake: (lv: number) => lin(S2P.mshieldTake, lv), mshieldTurns: (star: boolean) => (star ? 5 : 3),
+  novaMul: (lv: number) => lin(S2P.novaMul, lv), novaChill: (star: boolean) => 2 + (star ? 1 : 0), novaPush: 15,
+  arcaneMul: (lv: number) => lin(S2P.arcaneMul, lv), arcaneHits: (star: boolean) => 3 + (star ? 2 : 0),
+  renewHeal: (lv: number) => lin(S2P.renewHeal, lv), renewTurns: (star: boolean) => (star ? 6 : 4), // heal x M.ATK per turn (Q 2026-11-04: Priest heals scale with M.ATK; was 6% +1%/lv max HP)
   // v77 Q 2026-11-06: Priest ทักษะ 2 พรแสง = active Blessing (Mana 30 · cd 4 in skill2.ts). 3 hero turns: STR/DEX/INT/WIS +15 + cleanse 1 debuff on cast
   // · "+" 🛡️ Kyrie Eleison: barrier 5%/lv max HP (Lv3 = 15%), breaks after 3 hits · ★ ✨ Gloria: LUK +30 while blessed
-  blessTurns: 3, blessStat: 15, blessCleanse: 1, kyrieHp: (lv: number) => 0.05 * lv, kyrieHits: 3, gloriaLuk: 30,
-  spearPlus: (lv: number) => 0.03 * lv, spearCount: (star: boolean) => (star ? 4 : 2), // หอกคม: +10%/lv of the 0.3x base
-  smokeHeal: (lv: number) => 0.03 * lv, smokeDodges: (star: boolean) => (star ? 2 : 1),
-  pickMul: (star: boolean) => (star ? 1.6 : 1), pickRes: (lv: number) => 15 + 5 * lv, pickPoison: 3,
+  blessTurns: 3, blessStat: 15, blessCleanse: 1, kyrieHp: (lv: number) => lin(S2P.kyrieHp, lv), kyrieHits: 3, gloriaLuk: 30,
+  spearPlus: (lv: number) => lin(S2P.spearPlus, lv), spearCount: (star: boolean) => (star ? 4 : 2), // หอกคม: +10%/lv of the 0.3x base
+  smokeHeal: (lv: number) => lin(S2P.smokeHeal, lv), smokeDodges: (star: boolean) => (star ? 2 : 1),
+  pickMul: (star: boolean) => (star ? 1.6 : 1), pickRes: (lv: number) => lin(S2P.pickRes, lv), pickPoison: 3,
   woundMul: (star: boolean) => (star ? 2 : 1.2), woundPoison: (lv: number) => 4 + Math.round(lv), // stacks: whole numbers (v83 s2Lv can be fractional)
 }
 

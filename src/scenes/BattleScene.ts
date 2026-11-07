@@ -10,6 +10,7 @@ import { JOB2, PET_IDS, type Job2Def, type PetId } from '../data/jobs2'
 import { skill2Picked } from '../data/tree'
 import { ALLIES, fillAllies, gadgetById, hawkMul, hurtAlly, liveAllies, makeAlly, rollGadget, tauntTarget, tickAllies, TRAP_IDS, useAlly, wolfMul, type Ally, type AllyCtx, type GadgetId } from '../battle/allies'
 import type { Skill2Def } from '../data/skill2'
+import { canRollCrit, type CritSlot } from '../data/skill-registry'
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { autoCost, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnMul, hitBase, KIT, KIT2, MAGE_CAST, magicPower, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, ultMode } from '../save'
@@ -760,7 +761,7 @@ export class BattleScene extends Phaser.Scene {
       this.ultOpen = 1 + this.pk.ultBoost // legend เปิดฉากเต็มแรง (v78: every ult)
       this.fightUlts++
       this.popSkill('ult')
-      await this.asSkill(() => (this.job.id === 'novice' ? this.smash() : this.ultimate()), 'ult')
+      await this.asSkill(() => (this.job.id === 'novice' ? this.smash() : this.ultimate()), 'ult', 'ult')
       if (!this.casts.some((c) => c.kind === 'ult')) await this.afterUlt() // a chanted ult runs these when it lands
       await this.faithBurst() // v84 ศรัทธา: an ult heal can fill Faith too
       return
@@ -768,7 +769,7 @@ export class BattleScene extends Phaser.Scene {
     if (ultWaiting) this.floatText(HERO_X, GROUND - 140, `🔷 Mana ไม่พอ ult (${Math.floor(this.res)}/${ultCost})`, '#5aa0ff') // keep it booked, save Mana for it
     const cost = autoCost(this.job, this.st)
     const s1Ok = mayCast(!this.autoUlt, this.book.s1) // v86: manual mode only casts Skill 1 when it is booked, otherwise a basic attack (saves Mana for the ult)
-    const castS1 = async () => { this.spendRes(cost); this.book.s1 = false; this.popSkill('s1'); await this.asSkill(() => this.autoSkill(), 'skill') }
+    const castS1 = async () => { this.spendRes(cost); this.book.s1 = false; this.popSkill('s1'); await this.asSkill(() => this.autoSkill(), 'skill', 's1') }
     if (this.job.id === 'cleric') { // v59 Q: the Priest smashes EVERY turn; Skill 1 rides along (heal first when low, holy light after the smash)
       const castable = () => s1Ok && !ultWaiting && this.res >= cost && this.alive().length > 0 && this.hp > 0
       const low = this.hp < this.st.maxHp * (KIT.clericHealBelow - this.st.healAt)
@@ -845,7 +846,7 @@ export class BattleScene extends Phaser.Scene {
    *  Magic never misses and never crits. Returns damage dealt. */
   private strike(m: Mon, mul: number, magic = false, color?: string, pierce = 0): number {
     if (m.dead || this.hp <= 0) return 0
-    const crit = this.forceCrit || Math.random() < (magic ? this.st.spellCrit : this.st.crit + (this.buf.hawk > 0 ? S2N.hawkCrit(this.st.s2Lv) : 0) + this.critAdd + (this.rampage > 0 ? KIT2.berserker.ultCrit : 0)) // magic crits only with spellCrit (talent/item/card) · Skill 2 ตาเหยี่ยว · 2nd job
+    const crit = this.forceCrit || (this.critAllowed() && Math.random() < (magic ? this.st.spellCrit : this.st.crit + (this.buf.hawk > 0 ? S2N.hawkCrit(this.st.s2Lv) : 0) + this.critAdd + (this.rampage > 0 ? KIT2.berserker.ultCrit : 0))) // magic crits only with spellCrit (talent/item/card) · Skill 2 ตาเหยี่ยว · 2nd job
     if (!magic && !crit && !this.sureHit && this.zenTurns <= 0 && Math.random() > hitChance(this.st.hit, m.def.flee ?? 5)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
     if (!magic && m.def.luckyDodge && Math.random() < m.def.luckyDodge) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, '🍀 หลบ!', '#a9a6c7'); return 0 } // D6+ stat monsters: LUK lucky dodge (even vs crits, like the hero's)
     if (m.def.fixedFlee && Math.random() < m.def.fixedFlee) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS 👻', '#e0a8ff'); return 0 } // Maiden: always 50%
@@ -1392,7 +1393,7 @@ export class BattleScene extends Phaser.Scene {
       if (!this.alive().length || this.hp <= 0) return
       if (c.kind === 'gust') await this.asSkill(async () => { await this.skillName(this.j2!.skill3); await this.stormGust(c.pow) }, 'skill')
       else {
-        await this.asSkill(async () => { await this.skillName(this.job.ult); if (this.j2?.id === 'wizard') await this.wizUlt(c.pow, c.hit); else { sfx.slam(); await this.ultNow(c.pow, c.hit) } }, 'ult')
+        await this.asSkill(async () => { await this.skillName(this.job.ult); if (this.j2?.id === 'wizard') await this.wizUlt(c.pow, c.hit); else { sfx.slam(); await this.ultNow(c.pow, c.hit) } }, 'ult', 'ult')
         await this.afterUlt()
       }
     }
@@ -1541,16 +1542,26 @@ export class BattleScene extends Phaser.Scene {
   private lsMul = 0
   /** Spell vamp (Q 2026-11-04): skill hits are collected while a skill runs, then healed once; hitting several monsters heals 1/3. */
   private skillHits: { dmg: number; mons: Set<Mon> } | null = null
+  private skillSlot: CritSlot | null = null
+  /** Per-skill crit switch (admin: skills `crit.<class>.<slot>`, default on). Off = the skill's OWN hits (src skill / ult / other) never roll a crit.
+   *  Not governed: forceCrit (a sure crit is a deliberate effect) and element procs (zap / fire / ice / spear / light ...: ELEM_SRC). */
+  private critAllowed() {
+    if (this.skillSlot === null || ELEM_SRC.has(this.src)) return true
+    return canRollCrit(this.job.id, this.skillSlot)
+  }
   private skillCut() { return Math.min(0.9, this.st.skillDmgCut + (this.buf.blood > 0 ? SPELL_VAMP.bloodCut : 0) + (this.relic === 'bloodpact' ? RELIC_RULES.bloodpact.skillCut : 0)) }
   private spellVamp() { return Math.min(0.4, this.st.spellVamp + (this.buf.blood > 0 ? S2N.bloodVamp(this.st.s2Lv) : 0) + (this.relic === 'bloodpact' ? RELIC_RULES.bloodpact.spellVamp : 0)) }
   /** relic สัญญาเลือด: burn / poison / hellfire ticks are weaker too (Q 2026-11-04) */
   private dotMul() { return this.relic === 'bloodpact' ? 1 - RELIC_RULES.bloodpact.dotCut : 1 }
-  private async asSkill(fn: () => Promise<void>, src: Src) {
+  /** `slot` = which crit switch (data/skill-registry.ts SKILL_CRIT) governs this cast's own hits; null = none (Skill 3 ...). */
+  private async asSkill(fn: () => Promise<void>, src: Src, slot: CritSlot | null = null) {
     this.skillHits = { dmg: 0, mons: new Set() }
-    const prev = this.src
+    const prev = this.src, prevSlot = this.skillSlot
     this.src = src
+    this.skillSlot = slot
     try { await fn() } finally {
       this.src = prev
+      this.skillSlot = prevSlot
       const h = this.skillHits; this.skillHits = null
       const v = this.spellVamp()
       if (v > 0 && h.dmg > 0 && this.hp > 0) this.heal(h.dmg * v * (h.mons.size > 1 ? SPELL_VAMP.aoe : 1) * (this.berserking() ? 2 : 1), true)
@@ -1712,7 +1723,7 @@ export class BattleScene extends Phaser.Scene {
     this.s2Cd = s2Cooldown(k, this.st)
     this.s2Count++
     this.book.s2 = false; this.popSkill('s2')
-    await this.asSkill(() => this.castSkill2(k), 'skill')
+    await this.asSkill(() => this.castSkill2(k), 'skill', 's2')
   }
 
   private async castSkill2(k: Skill2Def) {
