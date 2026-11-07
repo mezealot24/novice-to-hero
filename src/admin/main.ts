@@ -1,6 +1,10 @@
 // admin.html: live-ops balance editor. Edits a Patch (tunables.ts whitelist), saves it as the server draft, publishes it.
 // The server re-validates everything (server/src/config.ts); the checks here are only for fast feedback.
 import { MONSTERS, type MonsterKind } from '../data/game-data'
+import { JOBS } from '../data/jobs'
+import { SKILL2 } from '../data/skill2'
+import { CRIT_SLOTS, critRef, JOB2_IDS, job2Layout, SKILL_CLASSES, SKILL_LAYOUT, type SkillClass, type SkillRef } from '../data/skill-registry'
+import { JOB2, type Job2Id } from '../data/jobs2'
 import type { BaseStat } from '../data/meta'
 import { MON_STAT, monPoints, monTier, statNative } from '../data/mon-stats'
 import { canonicalJson, checkPatch, guardsFor, type FieldRow } from '../data/patch'
@@ -37,10 +41,10 @@ function toast(msg: string, bad = false) {
 }
 
 // ---------- state ----------
-type Tab = 'mon' | 'tables' | 'diff' | 'history'
+type Tab = 'mon' | 'skills' | 'tables' | 'diff' | 'history'
 const S = {
   offline: !API, me: '', live: null as SRow | null, draftRow: null as SRow | null,
-  draft: {} as Patch, saved: '{}', tab: 'mon' as Tab, search: '', table: 'monStat' as TableId, busy: false,
+  draft: {} as Patch, saved: '{}', tab: 'mon' as Tab, search: '', table: 'monStat' as TableId, skillClass: 'swordsman' as SkillClass | Job2Id, busy: false,
 }
 const livePatch = (): Patch => S.live?.patch ?? {}
 const dirty = () => canonicalJson(S.draft) !== S.saved
@@ -80,7 +84,7 @@ function renderGate(kind: 'login' | 'forbidden' | 'error', info: string) {
 
 // ---------- shell ----------
 function renderApp() {
-  const tabs: [Tab, string][] = [['mon', '👾 มอนสเตอร์'], ['tables', '📊 ตารางอื่น'], ['diff', '📝 สรุป / เผยแพร่'], ['history', '🕘 ประวัติ']]
+  const tabs: [Tab, string][] = [['mon', '👾 มอนสเตอร์'], ['skills', '⚔️ สกิลอาชีพ'], ['tables', '📊 ตารางอื่น'], ['diff', '📝 สรุป / เผยแพร่'], ['history', '🕘 ประวัติ']]
   const header = h('header', {},
     h('div', { class: 'row top' }, h('b', {}, '⚙️ Balance Editor'), h('span', { class: 'muted' }, S.me),
       S.offline ? null : h('button', { class: 'small', onclick: () => { void authClient?.signOut().then(() => location.reload()) } }, 'ออก')),
@@ -109,6 +113,7 @@ function renderTab() {
   const main = $('main')
   main.replaceChildren()
   if (S.tab === 'mon') renderMonsters(main)
+  else if (S.tab === 'skills') renderSkills(main)
   else if (S.tab === 'tables') renderTables(main)
   else if (S.tab === 'diff') renderDiff(main)
   else void renderHistory(main)
@@ -125,8 +130,11 @@ function fieldCell(t: TableId, row: FieldRow, label: string, onChange: () => voi
     const d = valueIn(S.draft, t, path), live = liveOf(t, path), cur = draftOf(t, path)
     input.value = d === undefined ? (row.value === undefined ? '' : String(row.value)) : String(d)
     input.placeholder = row.value === undefined ? '—' : ''
-    // only say what matters: the % reading, and where the value came from when it is not the plain default
-    const parts = [pctHint(def, cur), cur !== live ? `live ${fmt(live)}` : '', live !== row.value ? `default ${fmt(row.value)}` : ''].filter(Boolean)
+    // only say what matters: the % reading, and where the value came from when it is not the plain default.
+    // v117 (Q 2026-11-08: "publish แล้วยัง default —"): "default —" read as "not applied". Say it plainly instead.
+    const show = (v: number | undefined) => (v === undefined ? 'ไม่ได้ตั้ง' : fmt(v))
+    const src = cur !== live ? `✏️ ยังไม่ publish · live ${show(live)}` : live !== row.value ? '✅ ใช้ค่านี้ใน live แล้ว' : ''
+    const parts = [pctHint(def, cur), src, cur !== row.value || live !== row.value ? `ค่าเดิมในโค้ด ${show(row.value)}` : ''].filter(Boolean)
     meta.textContent = parts.join(' · ')
     toLive.hidden = cur === live
     toDef.hidden = d === undefined
@@ -431,6 +439,41 @@ function renderMonsters(main: HTMLElement) {
   search.addEventListener('input', () => { S.search = search.value; clearTimeout(timer); timer = setTimeout(draw, 150) })
   draw()
   main.append(h('div', { class: 'sticky-search' }, search), list)
+}
+
+// ---------- class skills (skill-registry.ts) ----------
+/** One column: a titled block of fields. The crit switch of the slot comes first. */
+function skillBlock(title: string, refs: SkillRef[], hint?: string): HTMLElement {
+  const cs = refs.map((ref) => { const row = fieldRow(ref.table, ref.path); return row ? fieldCell(ref.table, row, ref.label, updateStatus) : null })
+  return h('section', { class: 'sec skillcol' }, h('h4', {}, title), hint ? h('p', { class: 'hint' }, hint) : null, h('div', { class: 'grid' }, ...cs))
+}
+function renderSkills(main: HTMLElement) {
+  const sel = S.skillClass, j2 = (JOB2_IDS as string[]).includes(sel) ? JOB2[sel as Job2Id] : undefined
+  const c = (j2 ? j2.parent : sel) as SkillClass, job = JOBS[c], L = SKILL_LAYOUT[c]
+  const chip = (id: SkillClass | Job2Id, label: string) => h('button', { class: sel === id ? 'on' : '', onclick: () => { S.skillClass = id; renderTab() } }, label)
+  const pick = h('div', { class: 'chips' }, ...SKILL_CLASSES.map((id) => chip(id, `${JOBS[id].icon} ${JOBS[id].name}`)))
+  const pick2 = h('div', { class: 'chips' }, h('span', { class: 'muted' }, 'อาชีพขั้น 2: '), ...JOB2_IDS.filter((id) => JOB2[id].parent === c).map((id) => chip(id, `${JOB2[id].icon} ${JOB2[id].name}`)))
+  if (j2) { // v107 round 2: skill 3 / Ult วิวัฒน์ / signature + other KIT2 numbers
+    const l = job2Layout(sel as Job2Id)
+    main.append(pick, pick2, h('h2', {}, `${j2.icon} ${j2.name}`),
+      h('p', { class: 'hint' }, 'สวิตช์คริใช้ของคลาสแม่ · ตัวเลขในคำอธิบายบนจอเกมยังเป็นค่าเดิมจนกว่าจะ build ใหม่ แต่หน้ารายละเอียด Ult และค่าที่คำนวณจริงเปลี่ยนทันที'),
+      h('div', { class: 'skillcols' },
+        skillBlock(`3 · ${j2.skill3.icon} ${j2.skill3.name}`, l.s3),
+        skillBlock(`Ult วิวัฒน์ · ${j2.ult.icon} ${j2.ult.name}`, l.ult),
+        skillBlock(`${j2.signature.icon} ${j2.signature.name} · ตัวเลขอื่น`, l.other)))
+    return
+  }
+  const crit = (slot: (typeof CRIT_SLOTS)[number]) => critRef(c, slot)
+  const cols: HTMLElement[] = [
+    skillBlock(`1 · ${job.auto.icon} ${job.auto.name}`, [crit('s1'), ...L.s1]),
+    ...L.s2.map((x) => { const d = SKILL2.find((s) => s.id === x.id); return skillBlock(`2 · ${d?.icon ?? ''} ${d?.name ?? x.id}`, [crit('s2'), ...x.refs], 'ทักษะ 2 เลือกได้ 1 ใน 3 · สวิตช์คริใช้ร่วมกันทั้ง 3 ท่า') }),
+    skillBlock(`Ult · ${job.ult.icon} ${job.ult.name}`, [crit('ult'), ...L.ult]),
+    ...(L.tree ? [skillBlock('🌳 Skill tree (node)', L.tree, '"Lv เดิม" = ค่าต่อ Lv ก่อนยืด 3 → 5 (Lv จริง × 3/5)')] : []),
+  ]
+  main.append(pick, pick2, h('h2', {}, `${job.icon} ${job.name}`),
+    h('p', { class: 'hint' }, 'คริได้ไหม: 1 = ท่านี้คริได้ (ตอนนี้ทุกท่าเป็นแบบนี้) · 0 = ฮิตของท่านี้ไม่คริ · ไม่รวมคริตายตัว (เช่น ★ พันดาบ) และดาเมจ on-hit (สายฟ้า/ไฟ/น้ำแข็ง/หอก/แสง) · ใช้กับอาชีพขั้น 2 ของคลาสนี้ด้วย'),
+    h('p', { class: 'hint' }, 'ตัวเลขในคำอธิบายสกิลบนจอเกมยังเป็นค่าเดิมจนกว่าจะ build ใหม่ — ค่าที่ใช้คำนวณจริงเปลี่ยนตามที่ตั้งทันที'),
+    h('div', { class: 'skillcols' }, ...cols))
 }
 
 // ---------- other tables (generic from TABLES) ----------

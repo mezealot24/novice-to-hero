@@ -177,7 +177,7 @@ const HANDLERS: Record<EventId, Handler> = {
   async slots(h, ev) {
     const cost = R.slotsCost * h.tier, nudge = luk(h) >= R.slotsLukNudge
     const c = await h.choose(ev, [
-      { label: `🎰 หมุน! (${cost} zeny)`, sub: `คู่ = คืน ${cost * 2}\n🟢🟢🟢 = เพชร 3 · ⭐/🪙 x3 = พรตำนาน\n🍀🍀🍀 = มาตรดวงเต็ม · 💀💀💀 = คำสาป` },
+      { label: `🎰 หมุน! (${cost} zeny)`, sub: `คู่ = คืน ${cost * 2}\n🟢🟢🟢 = เพชร 3 · ⭐/💰 x3 = พรตำนาน\n🍀🍀🍀 = มาตรดวงเต็ม · 💀💀💀 = คำสาป` },
       { label: '👋 ไม่เล่น', sub: nudge ? 'LUK ถึงแล้ว: ช่องที่ไม่ตรงหมุนใหม่ได้ 1 ครั้ง' : `LUK ${R.slotsLukNudge}+ ได้สิทธิ์เคาะ 1 ช่อง` },
     ])
     if (c === 1) return
@@ -297,7 +297,7 @@ const HANDLERS: Record<EventId, Handler> = {
   async goddess(h, ev) {
     type Gift = { id: 'legend' | 'gems' | 'zeny' | 'empty'; label: string }
     const gifts = shuffle<Gift>([
-      { id: 'legend', label: '🟠 พรตำนาน' }, { id: 'gems', label: '💎 เพชร 3' }, { id: 'zeny', label: '🪙 zeny ก้อนโต' }, { id: 'empty', label: '💨 ว่างเปล่า' },
+      { id: 'legend', label: '🟠 พรตำนาน' }, { id: 'gems', label: '💎 เพชร 3' }, { id: 'zeny', label: '💰 zeny ก้อนโต' }, { id: 'empty', label: '💨 ว่างเปล่า' },
     ]).slice(0, 3)
     const peek = Math.min(2, Math.floor(luk(h) / R.goddessPeekPer))
     const c = await h.choose({ ...ev, desc: `${ev.desc}\nLUK ${luk(h)}: แอบดูได้ ${peek} ใบ${peek < 2 ? ` (ทุก ${R.goddessPeekPer} LUK = 1 ใบ)` : ''}` },
@@ -339,7 +339,7 @@ const HANDLERS: Record<EventId, Handler> = {
     const cost = R.altarZeny * h.tier, A = IMMORTALS.angel
     const cs = checkChance('wis', h.stat('wis'), bonus(h))
     const c = await h.choose(ev, [
-      { label: `🪙 ถวาย ${cost} zeny`, sub: `ได้ ${A.icon} ${A.name} แน่นอน\n${A.desc}`, off: h.zeny() < cost },
+      { label: `💰 ถวาย ${cost} zeny`, sub: `ได้ ${A.icon} ${A.name} แน่นอน\n${A.desc}`, off: h.zeny() < cost },
       { label: `🧘 ภาวนา ${pc(cs)}`, sub: `ใช้ WIS ${h.stat('wis')}\nผ่าน: ได้ ${A.icon} ${A.name}\nพลาด: ไม่ได้อะไร` },
       { label: '🚶 เดินผ่าน', sub: 'ไม่ต้องการพร' },
     ])
@@ -367,14 +367,14 @@ const HANDLERS: Record<EventId, Handler> = {
     const mon = eventMon('mimic', h.tier) // scaled by dungeon tier (the gargoyle's own DEF 90 is a D3 wall)
     const r = await h.fight('gargoyle', { ...mon, hp: Math.round(mon.hp * R.nestHp), turns: R.nestTurns, tint: 0xffd86b })
     if (r.won) h.grantImmortal('egg')
-    else h.say('🪺 แม่นกไล่เราออกมา...', '#a9a6c7')
+    else h.say('🐣 แม่นกไล่เราออกมา...', '#a9a6c7')
   },
   // ---------------- jackpot ----------------
   async vault(h, ev) {
     type Loot = { id: 'legend' | 'zeny' | 'gems' | 'heal'; label: string; sub: string }
     const all: Loot[] = [
       { id: 'legend', label: '🟠 พรตำนาน', sub: 'เลือกพรตำนานของสายที่มี' },
-      { id: 'zeny', label: `🪙 zeny x${R.vaultZeny}`, sub: 'กองทองท่วมหัว' },
+      { id: 'zeny', label: `💰 zeny x${R.vaultZeny}`, sub: 'กองทองท่วมหัว' },
       { id: 'gems', label: `💎 เพชร ${R.vaultGems}`, sub: 'เก็บไว้ซื้อชุด/ซ่อมของ' },
       { id: 'heal', label: '💖 ฟื้นเต็ม + โล่', sub: `ฮีล 100% + โล่ ${pc(R.vaultShield)}` },
     ]

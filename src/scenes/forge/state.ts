@@ -1,10 +1,10 @@
 // Pure helpers shared by the rail, the stage and the verb panels (no Phaser objects here). Rules live in src/data/*.
 import { gradeCost, REFINE } from '../../data/craft'
 import { matById } from '../../data/materials'
-import { canWear, forged, gradeOf, isBroken, isTainted, itemStatLine, ITEMS, linesOf, refineOf, SLOTS, splitStatLine, type Item } from '../../data/meta'
+import { canWear, EMPTY_ITEM, forged, gradeOf, isBroken, isTainted, itemStatLine, ITEMS, linesOf, refineOf, SLOTS, splitStatLine, statEntries, type Item, type StatEntry } from '../../data/meta'
 import { canAffordAuto, costGap, fodderToBuy, gradeCheck, lineText, refineCheck, refineCost, taintCheck, totalZeny, type ForgeCost, type TaintResult } from '../../data/refine'
 import { curseById } from '../../data/taint'
-import { isWorn, type SaveData } from '../../save'
+import { isWorn, replaceSlot, type SaveData } from '../../save'
 import type { ItemIconState } from '../../ui'
 import type { Verb } from './types'
 
@@ -14,7 +14,7 @@ export function statSplit(s: SaveData, it: Item) {
 }
 
 export function iconState(s: SaveData, it: Item): ItemIconState {
-  return { grade: gradeOf(s, it.id), refine: refineOf(s, it.id), broken: isBroken(s, it.id), tainted: isTainted(s, it.id), unique: !!it.unique, cursed: !!statSplit(s, it).curse }
+  return { grade: gradeOf(s, it.id), refine: refineOf(s, it.id), broken: isBroken(s, it.id), tainted: isTainted(s, it.id), unique: !!it.unique, cursed: !!statSplit(s, it).curse, worn: isWorn(s, it.id) }
 }
 
 /** Items the anvil can work on, in a FIXED order (worn first, then slot, then catalogue order). Grade / refine / break never reorder it,
@@ -130,4 +130,35 @@ export function taintOutcome(res: Extract<TaintResult, { ok: true }>): string {
     case 'curse': return res.curse ? `💀 ได้คำสาป ${res.curse.icon} ${res.curse.name}: ${itemStatLine({ mod: res.curse.mod, pct: res.curse.pct })}` : '💀 ได้คำสาป'
     case 'brick': return res.lost ? `💥 พัง! เสียค่าพิเศษ ${lineText(res.lost)}` : res.refineDown ? '💥 พัง! ไม่มีค่าพิเศษให้เสีย ตีบวก -1' : '💥 พัง! แต่ไม่มีอะไรให้เสียเลย'
   }
+}
+
+// ---------- v115 compare table (anvil stage) ----------
+/** Stats where a bigger number is worse (cooldowns, cuts): the arrow colour flips so ▲ green always means "better". */
+const LOWER_BETTER = new Set(['mod.mgUltCd', 'mod.smashCd', 'mod.resRegenCut', 'mod.skillDmgCut'])
+/** One row of the compare table. d: 1 better, -1 worse, 0 same. `curse` = the new value is a downside (shown with 💀). */
+export interface CmpRow { key: string; label: string; now: string; next: string; d: -1 | 0 | 1; curse: boolean }
+
+const show = (e: StatEntry | undefined) => (!e ? '—' : e.fmt(Math.abs(e.v)) === '' ? '✓' : `${e.v < 0 ? '-' : ''}${e.fmt(Math.abs(e.v))}`)
+
+/** Item-level diff a -> b (a = null: nothing there, every stat of b is new). Changed rows first; otherwise b's stat order, then a's leftovers. */
+export function compareRows(a: Item | null, b: Item): CmpRow[] {
+  const ea = new Map(a ? statEntries(a, false).map((e) => [e.key, e] as const) : [])
+  const eb = new Map(statEntries(b, false).map((e) => [e.key, e] as const))
+  const keys = [...eb.keys(), ...[...ea.keys()].filter((k) => !eb.has(k))]
+  const rows = keys.map((key): CmpRow => {
+    const x = ea.get(key), y = eb.get(key), ref = (y ?? x)!
+    const va = x?.v ?? 0, vb = y?.v ?? 0, diff = vb - va
+    const moved = Math.abs(diff) > 1e-6 && ref.fmt(Math.abs(diff)) !== ref.fmt(0)
+    const up = (diff > 0) !== LOWER_BETTER.has(key)
+    return { key, label: ref.label, now: show(x), next: show(y), d: !moved ? 0 : up ? 1 : -1, curse: (y ? vb : va) < 0 || (LOWER_BETTER.has(key) && (y ? vb : va) > 0) }
+  })
+  return rows.map((r, i) => ({ r, i })).sort((p, q) => Number(q.r.d !== 0) - Number(p.r.d !== 0) || p.i - q.i).map((x) => x.r)
+}
+
+/** What this item would replace if worn (forged as worn), or null: it is worn already, or that slot holds an empty item. */
+export function wornRival(s: SaveData, it: Item): Item | null {
+  if (isWorn(s, it.id)) return null
+  const id = s.equipped[replaceSlot(s.equipped, it.id)]
+  if (!id || Object.values(EMPTY_ITEM).includes(id)) return null
+  return ITEMS.find((x) => x.id === id) ?? null
 }

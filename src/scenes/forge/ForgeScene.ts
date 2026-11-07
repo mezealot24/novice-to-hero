@@ -3,11 +3,12 @@ import { isBroken, itemById, type Item } from '../../data/meta'
 import { persist, save } from '../../save'
 import { button, costStrip, fit, go, holdButton, iconTabs, panel, tabs, toast, topBar, txt, UI, type Btn, type CostStrip, type HoldBtn, type IconTabs } from '../../ui'
 import { AnvilStage } from './AnvilStage'
+import type { CmpMode } from './CompareView'
 import { ItemRail, railBackdrop } from './ItemRail'
 import { RecipeView } from './RecipeView'
 import { StashView } from './stash'
 import { defaultVerb, slotOf, slotVerb, SLOT_COUNT, smithLine, verbForPick, verbLock, VERB_TAB } from './state'
-import type { ForgeCtx, Mode, Verb, VerbPanel } from './types'
+import { BOX_H, BOX_W, type ForgeCtx, type Mode, type Verb, type VerbPanel } from './types'
 import { GradePanel } from './verbs/GradePanel'
 import { OptionPanel } from './verbs/OptionPanel'
 import { RefinePanel } from './verbs/RefinePanel'
@@ -17,10 +18,13 @@ import { TaintPanel } from './verbs/TaintPanel'
 // Forge, "anvil" layout (design/forge-ux-v1.md): pick an item on the rail, it sits on the anvil, every verb works on it.
 // Money rules are unchanged from the card layout (design/item-acquisition-v1.md): gems only repair / lock option lines / skip tower floors.
 // Shell only: state { mode, itemId, verb }, the busy lock, the smith's bubble, and wiring. All rules are in src/data/*.
-const RAIL_X = 16, RAIL_Y = 112, RAIL_W = 256, RAIL_H = 450
-const STAGE_X = 288, STAGE_Y = 112
-const VERB_Y = 296, BOX_Y = 336, BOX_W = 656, BOX_H = 130
-const STRIP_Y = 480, ACT_X = STAGE_X + BOX_W - 150, ACT_Y = 522
+// v101: 3 columns as in the mockup (spec 3.2): rail | anvil stage | verb column (tabs + box), and one action bar under stage + verbs.
+const RAIL_X = 12, RAIL_Y = 112, RAIL_W = 204, RAIL_H = 454
+const STAGE_X = 228, STAGE_Y = 112
+const VERB_X = 608, VERB_Y = 140, BOX_Y = 172
+const BAR_X = STAGE_X, BAR_Y = 498, BAR_W = VERB_X + BOX_W - STAGE_X, BAR_H = 68
+const STRIP_X = BAR_X + 14, STRIP_W = 436
+const ACT_W = 250, ACT_H = 48, ACT_X = BAR_X + BAR_W - 14 - ACT_W / 2, ACT_Y = BAR_Y + BAR_H / 2
 const BUSY_MS = 500 // after a press (and after the verb auto-switches) the action button and the verb tabs ignore taps for this long
 
 export class ForgeScene extends Phaser.Scene {
@@ -28,6 +32,7 @@ export class ForgeScene extends Phaser.Scene {
   private itemId?: string
   private verb: Verb = 'refine'
   private railView = { mineOnly: true, page: 0 }
+  private cmpMode: CmpMode = 'next' // v115: compare table mode, sticky while the scene is open
   private busyUntil = 0
   private holdSet = new Set<symbol>() // one token per open hold, so a stale release can never unlock a newer hold
   private alive = true // false once SHUTDOWN started: the display list is already gone, so nothing may touch game objects
@@ -50,9 +55,10 @@ export class ForgeScene extends Phaser.Scene {
 
   constructor() { super('forge') }
 
-  create() {
+  create(data?: { item?: string }) {
     // Scene instances are reused by Phaser: reset everything that survives between visits.
-    this.mode = 'anvil'; this.itemId = undefined; this.verb = 'refine'; this.railView = { mineOnly: true, page: 0 }
+    this.mode = 'anvil'; this.itemId = data?.item; // v101: back from the card tab keeps the same item on the anvil
+    this.verb = 'refine'; this.railView = { mineOnly: true, page: 0 }; this.cmpMode = 'next'
     this.busyUntil = 0; this.holdSet = new Set(); this.alive = true; this.optLocks = new Map()
     this.modeObjs = []; this.rail = undefined; this.stage = undefined; this.verbTabs = undefined; this.box = undefined; this.panel = undefined; this.strip = undefined; this.actBtn = undefined; this.holdBtn = undefined; this.holdMs = 0
     this.cameras.main.setBackgroundColor(UI.night)
@@ -141,14 +147,15 @@ export class ForgeScene extends Phaser.Scene {
     this.modeObjs.push(railBackdrop(this, RAIL_X, RAIL_Y, RAIL_W, RAIL_H))
     this.rail = new ItemRail(this, RAIL_X, RAIL_Y + 6, RAIL_W, (id) => { if (!this.isBusy()) this.pick(id) }, this.railView)
     this.modeObjs.push(this.rail.container)
-    this.stage = new AnvilStage(this, STAGE_X, STAGE_Y)
+    this.stage = new AnvilStage(this, STAGE_X, STAGE_Y, () => { if (!this.isBusy()) go(this, 'character', { tab: 1, back: { key: 'forge', data: { item: this.itemId } } }) }, this.cmpMode, (m) => { this.cmpMode = m })
     this.modeObjs.push(this.stage.container)
     const slots = Array.from({ length: SLOT_COUNT }, (_, i) => VERB_TAB[slotVerb(i, false)])
-    this.verbTabs = iconTabs(this, STAGE_X, VERB_Y, slots, (i) => { const it = this.item(); if (it) this.setVerb(slotVerb(i, isBroken(save(), it.id))) }, { w: 110, h: 56, start: -1, gate: () => !this.isBusy() })
+    this.verbTabs = iconTabs(this, VERB_X, VERB_Y, slots, (i) => { const it = this.item(); if (it) this.setVerb(slotVerb(i, isBroken(save(), it.id))) }, { w: 80, h: 52, start: -1, gate: () => !this.isBusy() })
     this.modeObjs.push(this.verbTabs)
-    this.strip = costStrip(this, STAGE_X, STRIP_Y, 360)
+    this.modeObjs.push(panel(this, BAR_X, BAR_Y, BAR_W, BAR_H, 0x262b52, UI.line, 12))
+    this.strip = costStrip(this, STRIP_X, BAR_Y, STRIP_W)
     this.modeObjs.push(this.strip)
-    this.actBtn = button(this, ACT_X, ACT_Y, 280, 48, '', () => this.press(), { size: 17 })
+    this.actBtn = button(this, ACT_X, ACT_Y, ACT_W, ACT_H, '', () => this.press(), { size: 16 })
     this.modeObjs.push(this.actBtn)
     const first = (this.itemId && this.rail.items().find((it) => it.id === this.itemId)) || this.rail.items()[0]
     this.pick(first?.id, true)
@@ -207,7 +214,7 @@ export class ForgeScene extends Phaser.Scene {
     this.panel = undefined
     prev?.destroy()
     this.box?.destroy()
-    this.box = this.add.container(STAGE_X, BOX_Y, [panel(this, 0, 0, BOX_W, BOX_H)])
+    this.box = this.add.container(VERB_X, BOX_Y, [panel(this, 0, 0, BOX_W, BOX_H)])
     this.panel = this.makePanel(v)
     this.panel.mount(this.box, it)
     if (speak) this.say(smithLine(s, it, v)) // not after an outcome: the smith is still commenting on it
@@ -227,7 +234,7 @@ export class ForgeScene extends Phaser.Scene {
   private ensureHold(ms: number) {
     if (this.holdBtn && this.holdMs === ms) return this.holdBtn
     if (this.holdBtn) { const old = this.holdBtn; this.modeObjs = this.modeObjs.filter((o) => o !== old); old.destroy() }
-    this.holdBtn = holdButton(this, ACT_X, ACT_Y, 280, 48, '', ms, () => this.press(), { size: 17 })
+    this.holdBtn = holdButton(this, ACT_X, ACT_Y, ACT_W, ACT_H, '', ms, () => this.press(), { size: 16 })
     this.holdMs = ms
     this.modeObjs.push(this.holdBtn)
     return this.holdBtn
@@ -238,7 +245,8 @@ export class ForgeScene extends Phaser.Scene {
     if (!this.alive) return
     const s = save(), p = this.panel, a = p?.action() ?? null, busy = this.isBusy()
     p?.refresh() // panel-owned buttons follow the busy state
-    this.strip?.setCost(p?.cost() ?? null, s)
+    const sh = this.strip?.setCost(p?.cost() ?? null, s) ?? 0
+    this.strip?.setY(BAR_Y + (BAR_H - Math.min(sh, 60)) / 2) // one row centred in the bar, two rows fill it
     this.actBtn?.setVisible(!!a && !a.hold)
     if (a && !a.hold) this.actBtn?.setLabel(a.label).setEnabled(a.enabled && !busy).setFill(a.fill ?? 0xf2b84b)
     if (a?.hold && this.mode === 'anvil') this.ensureHold(a.hold).setVisible(true).setLabel(a.label).setEnabled(a.enabled && !busy).setFill(a.fill ?? 0x8a4fd0)

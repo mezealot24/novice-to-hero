@@ -26,7 +26,7 @@ export const MUTATORS: Record<MutatorId, MutatorDef> = {
   events: { id: 'events', icon: '🎪', name: 'เทศกาลเหตุการณ์', desc: 'เหตุการณ์ 2 ครั้งหลังทุกเวฟ', events: 2 },
   critonly: { id: 'critonly', icon: '🎯', name: 'คริหรือศูนย์', desc: 'คริทุกฮิต แต่ ATK / M.ATK x0.6', hero: { crit: 1 }, heroMul: { atk: 0.6, matk: 0.6 } },
   lucky: { id: 'lucky', icon: '🍀', name: 'ดวงพุ่ง', desc: 'LUK ที่ลงแต้มไว้ x2', lukMul: 2 },
-  giant: { id: 'giant', icon: '🦣', name: 'มอนยักษ์', desc: 'มอน HP x1.5 แต่ช้าลง x0.85 · zeny x1.3', mon: { hp: 1.5, speed: 0.85 }, zenyMul: 1.3 },
+  giant: { id: 'giant', icon: '🐘', name: 'มอนยักษ์', desc: 'มอน HP x1.5 แต่ช้าลง x0.85 · zeny x1.3', mon: { hp: 1.5, speed: 0.85 }, zenyMul: 1.3 },
   glass: { id: 'glass', icon: '🗡️', name: 'ปืนใหญ่กระจก', desc: 'ATK / M.ATK x1.4 แต่ HP สูงสุด x0.6', heroMul: { atk: 1.4, matk: 1.4, maxHp: 0.6 } },
   brutal: { id: 'brutal', icon: '💢', name: 'มอนเดือด', desc: 'มอนตีแรงขึ้น x1.3 · zeny x1.2', mon: { atk: 1.3 }, zenyMul: 1.2 },
   rush: { id: 'rush', icon: '⏳', name: 'รีบเร่ง', desc: 'เทิร์นจำกัด x0.75 · zeny x1.3', turnMul: 0.75, zenyMul: 1.3 },

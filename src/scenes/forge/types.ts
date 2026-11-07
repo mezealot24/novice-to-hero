@@ -43,7 +43,8 @@ export interface ForgeCtx {
 
 /** hold = press-and-hold for that many ms instead of a tap (the risky verbs: Corrupt, Salvage). */
 export interface VerbAction { label: string; enabled: boolean; fill?: number; hold?: number }
-export interface Preview { text: string; color?: string }
+/** v115: the item as it will be after the press (the stage diffs it against now in the compare table); label = "+5" / "★3". */
+export interface Preview { label: string; next: Item; color?: string }
 
 /** One verb of the anvil. mount() builds the static layout once per (item, verb); refresh() updates it in place after every change. */
 export interface VerbPanel {
@@ -55,8 +56,13 @@ export interface VerbPanel {
   action(): VerbAction | null
   /** May return a promise: the shell keeps the busy lock until it settles. */
   act(): Promise<void> | void
-  /** Optional "what you get" line for the stage. */
+  /** Optional "what you get" item for the stage's compare table. */
   preview(): Preview | null
   /** Free everything the panel started (its own objects, timers, holds). The box itself is destroyed by the shell. */
   destroy(): void
 }
+
+/** The verb box in the right column (v101, 3-column layout of forge-ux-v1.md 3.2). Panels lay out inside 0..BOX_W, 0..BOX_H. */
+export const BOX_W = 340, BOX_H = 316
+/** Inner content: x from PAD to BOX_W - PAD. */
+export const PAD = 16, INNER_W = BOX_W - PAD * 2

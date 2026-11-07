@@ -39,9 +39,9 @@ export const CRAFT_ITEMS: Item[] = [
   // ----- d1 ทุ่งเจลล็อป -----
   { id: 'c_jellring', slot: 'acc', name: 'แหวนเมือกใส', icon: '💧', price: 0, slots: 1, desc: 'ตีจากเมือกเจลล็อป ฟื้นตัวทุกเทิร์น', base: { vit: 1 }, mod: { maxHp: 40, regen: 0.3 },
     craft: { dg: 'd1', common: 8, boss: 2, zeny: 200, bonus: [{ waveShield: 0.03 }, { regen: 0.3, tenacity: 0.05 }] } },
-  { id: 'c_jellcoat', slot: 'armor', name: 'เสื้อคลุมเยลลี่', icon: '🫧', price: 0, slots: 1, desc: 'นุ่มแต่หนึบ กันได้ทั้งกายภาพและเวท', base: { vit: 2 }, mod: { maxHp: 60, def: 10, mdef: 0.05 },
+  { id: 'c_jellcoat', slot: 'armor', name: 'เสื้อคลุมเยลลี่', icon: '💧', price: 0, slots: 1, desc: 'นุ่มแต่หนึบ กันได้ทั้งกายภาพและเวท', base: { vit: 2 }, mod: { maxHp: 60, def: 10, mdef: 0.05 },
     craft: { dg: 'd1', common: 8, boss: 2, zeny: 250, bonus: [{ tenacity: 0.06 }, { regen: 0.4, maxHp: 30 }] } },
-  { id: 'c_jellhood', slot: 'head', name: 'หมวกเมือกใส', icon: '🪼', price: 0, slots: 1, desc: 'หมวกหนึบ ๆ กันเวทได้นิด', mod: { maxHp: 30, mdef: 0.03 },
+  { id: 'c_jellhood', slot: 'head', name: 'หมวกเมือกใส', icon: '🐙', price: 0, slots: 1, desc: 'หมวกหนึบ ๆ กันเวทได้นิด', mod: { maxHp: 30, mdef: 0.03 },
     craft: { dg: 'd1', common: 6, boss: 2, zeny: 200, bonus: [{ waveShield: 0.03 }, { regen: 0.3 }] } },
   // ----- d2 ป่าหมาป่าเงา -----
   { id: 'c_moonfur', slot: 'armor', name: 'ผ้าคลุมขนเงาจันทร์', icon: '🌙', price: 0, slots: 1, desc: 'เบา หลบง่าย', base: { agi: 3 }, mod: { maxHp: 60, def: 6, flee: 8 },
@@ -68,11 +68,52 @@ export const CRAFT_ITEMS: Item[] = [
   // ----- d4 บึงพิษมรกต -----
   { id: 'c_emeraldmail', slot: 'armor', name: 'เสื้อเกล็ดมรกต', icon: '🐊', price: 0, slots: 1, desc: 'ถึก กันพิษ', base: { vit: 4 }, mod: { maxHp: 140, def: 10, debuffRes: 0.15 },
     craft: { dg: 'd4', common: 14, boss: 3, zeny: 1500, bonus: [{ regen: 0.5 }, { debuffRes: 0.15, waveShield: 0.05 }] } },
-  { id: 'c_venomgauche', wtype: 'dagger', slot: 'offhand', name: 'มีดปัดเกล็ดหนอง', icon: '🪡', price: 0, slots: 1, desc: 'ปัดป้องแล้วแทงพิษ', base: { agi: 2 }, mod: { flee: 8 }, jobs: TH,
+  { id: 'c_venomgauche', wtype: 'dagger', slot: 'offhand', name: 'มีดปัดเกล็ดหนอง', icon: '🧵', price: 0, slots: 1, desc: 'ปัดป้องแล้วแทงพิษ', base: { agi: 2 }, mod: { flee: 8 }, jobs: TH,
     craft: { dg: 'd4', common: 14, boss: 3, zeny: 1500, bonus: [{ poison: 1 }, { dodgeHeal: 0.03 }] } },
   // ----- d5 บัลลังก์อเวจี -----
   { id: 'c_lichring', slot: 'acc', name: 'แหวนผลึกลิช', icon: '💀', price: 0, slots: 1, desc: 'ทุกค่าสถานะ +3 ท่าไม้ตายแรงขึ้น', base: ALL7(3), mod: { maxHp: 30 },
     craft: { dg: 'd5', common: 16, boss: 4, zeny: 2500, bonus: [{ ultAmp: 0.15 }, { smashCd: -1500 }] } },
+  // ----- 2nd Jobs Crafted Gear (d5 บัลลังก์อเวจี) -----
+  { id: 'c_berserkcleaver', wtype: 'twohand', slot: 'weapon', name: 'ขวานสังหารโลหิตคลั่ง', icon: '🪓', price: 0, twoHand: true, slots: 2,
+    desc: 'ของคราฟอาชีพขั้น 2 · อาวุธ 2 มือ (เบอร์เซิร์กเกอร์): Frenzy สูงสุด +2 · คริแรง · ดาเมจสกิลกายภาพ +15%',
+    base: { str: 8, agi: 3 }, mod: { atk: 28, crit: 0.08, aspd: -0.05, pskill: 0.15, j2FrenzyMax: 2 }, jobs: SW, req: 'job2',
+    craft: { dg: 'd5', common: 18, boss: 4, zeny: 2500, bonus: [{ critMul: 0.2 }, { lifesteal: 0.04, j2Duel: 0.1 }] } },
+  { id: 'c_dragonspear', wtype: 'spear', slot: 'weapon', name: 'หอกทะลวงมังกร', icon: '🔱', price: 0, slots: 2,
+    desc: 'ของคราฟอาชีพขั้น 2 · หอก (อัศวิน): ถึกเป็นแรง เพิ่มดาเมจสกิลหอกตาม Max HP · เจาะเกราะและแม่นยำ',
+    base: { str: 4, vit: 6 }, mod: { atk: 22, maxHp: 80, hit: 10, pskill: 0.12, j2HpDmg: 0.02 }, jobs: SW, req: 'job2',
+    craft: { dg: 'd5', common: 18, boss: 4, zeny: 2500, bonus: [{ j2PierceHits: 1 }, { pierce: 0.3, def: 10 }] } },
+  { id: 'c_shadowdaggers', wtype: 'dagger', slot: 'weapon', name: 'กริชเงาพันเล่ม', icon: '🗡️', price: 0, slots: 2,
+    desc: 'ของคราฟอาชีพขั้น 2 · มีด (โร้ก): คอมโบติดรัว ปามีดบินแรงขึ้น +25% · มีดบิน +1 เล่มทุกการปา',
+    base: { agi: 7, luk: 4 }, mod: { atk: 16, combo: 0.12, crit: 0.06, j2KnifeMul: 0.25, j2KnifeAdd: 1 }, jobs: TH, req: 'job2',
+    craft: { dg: 'd5', common: 18, boss: 4, zeny: 2500, bonus: [{ critMul: 0.2 }, { combo: 0.06, dodgeHeal: 0.03 }] } },
+  { id: 'c_blackledger', wtype: 'dagger', slot: 'offhand', name: 'สมุดบัญชีเลือด', icon: '🩸', price: 0, slots: 2,
+    desc: 'ของคราฟอาชีพขั้น 2 · มือรอง (มาเฟีย): พิษแรง stack สูง · เกณฑ์ปลิดชีพ Execute เพิ่ม +4% HP',
+    base: { str: 4, int: 5, luk: 3 }, mod: { atk: 10, poison: 1, poisonDmg: 2, poisonCap: 3, j2ExecAdd: 0.04, debuffRes: 0.15 }, jobs: TH, req: 'job2',
+    craft: { dg: 'd5', common: 18, boss: 4, zeny: 2500, bonus: [{ vsPoison: 0.1 }, { j2DebuffTurns: 1, poisonSpread: 1 }] } },
+  { id: 'c_paladinblade', wtype: 'sword', slot: 'weapon', name: 'ดาบพิทักษ์วิสุทธิ์', icon: '✝️', price: 0, slots: 2,
+    desc: 'ของคราฟอาชีพขั้น 2 · ดาบ 1 มือ (ครูเซเดอร์): STR+VIT+INT กางเขนแรง +15% · บล็อกได้เกราะ +5% HP',
+    base: { str: 5, vit: 5, int: 5 }, mod: { atk: 20, matk: 18, def: 10, j2CrossAdd: 0.15, j2Guard: 0.04, j2BlockShield: 0.05 }, jobs: CL, req: 'job2',
+    craft: { dg: 'd5', common: 18, boss: 4, zeny: 2500, bonus: [{ j2CrossAdd: 0.1, spellVamp: 0.05 }, { j2PayCut: 0.15, def: 12 }] } },
+  { id: 'c_vajraknuckle', wtype: 'fist', slot: 'weapon', name: 'สนับมือวชิระอัสนี', icon: '🥊', price: 0, slots: 2,
+    desc: 'ของคราฟอาชีพขั้น 2 · สนับมือ (มังค์): ต่อยไว คอมโบรัว · สะสมลูกพลังได้สูงสุด +2 ลูก และสายฟ้าแรง +15%/ลูก',
+    base: { agi: 6, str: 4, wis: 3 }, mod: { atk: 20, aspd: 0.2, combo: 0.12, matk: 14, j2ChargeMax: 2, j2ThunderPer: 0.15 }, jobs: CL, req: 'job2',
+    craft: { dg: 'd5', common: 18, boss: 4, zeny: 2500, bonus: [{ combo: 0.06, crit: 0.04 }, { critMul: 0.2, lifesteal: 0.03 }] } },
+  { id: 'c_archonstaff', wtype: 'staff', slot: 'weapon', name: 'คทามหาจอมเวทพายุ', icon: '🌩️', price: 0, slots: 2,
+    desc: 'ของคราฟอาชีพขั้น 2 · ไม้เท้า (วิซาร์ด): เวทแรงจัด Mana มหาศาล · Storm Gust แรงขึ้น +25% ต่อฮิต',
+    base: { int: 9, wis: 4 }, mod: { matk: 36, maxRes: 30, resRegen: 2, spellCrit: 0.06, j2GustMul: 0.25 }, jobs: MG, req: 'job2',
+    craft: { dg: 'd5', common: 18, boss: 4, zeny: 2500, bonus: [{ mgUltAmp: 0.25 }, { spellCrit: 0.08, mdef: 0.08 }] } },
+  { id: 'c_elementalgrimoire', wtype: 'book', slot: 'weapon', name: 'คัมภีร์ธาตุบรรจบ', icon: '📖', price: 0, slots: 2,
+    desc: 'ของคราฟอาชีพขั้น 2 · หนังสือ (เซจ): ผสานฟันและเวท · โอกาส Auto Spell +10% · Auto Spell ยิง +1 ลูก',
+    base: { int: 6, str: 6, dex: 3 }, mod: { atk: 22, matk: 24, maxRes: 20, aspd: 0.1, j2AutoChance: 0.1, j2AutoBolts: 1 }, jobs: MG, req: 'job2',
+    craft: { dg: 'd5', common: 18, boss: 4, zeny: 2500, bonus: [{ j2EndowAmp: 0.2 }, { spellCrit: 0.06, counter: 0.08 }] } },
+  { id: 'c_beastlordbow', wtype: 'bow', slot: 'weapon', name: 'ธนูราชันพงไพร', icon: '🏹', price: 0, slots: 2,
+    desc: 'ของคราฟอาชีพขั้น 2 · ธนู (บีสต์มาสเตอร์): แม่นยำสูง ยิงไว · พลังโจมตีของสัตว์เลี้ยงทุกตัวแรงขึ้น +20%',
+    base: { dex: 7, luk: 5, agi: 4 }, mod: { atk: 24, hit: 14, crit: 0.06, aspd: 0.1, j2PetPow: 0.2 }, jobs: AR, req: 'job2',
+    craft: { dg: 'd5', common: 18, boss: 4, zeny: 2500, bonus: [{ j2HawkMul: 0.25 }, { critMul: 0.2, hit: 10 }] } },
+  { id: 'c_clockworkcrossbow', wtype: 'bow', slot: 'weapon', name: 'หน้าไม้กลจักรพันกลอง', icon: '🔧', price: 0, slots: 2,
+    desc: 'ของคราฟอาชีพขั้น 2 · ธนู (อินโนเวเตอร์): อัจฉริยะนักประดิษฐ์ · ดาเมจกับดักแรง +25% · น้ำหนักของหายากในกล่องสุ่ม x1.5',
+    base: { dex: 6, luk: 8 }, mod: { atk: 24, crit: 0.08, critMul: 0.15, hit: 10, j2TrapMul: 0.25, j2BoxLuck: 0.5 }, jobs: AR, req: 'job2',
+    craft: { dg: 'd5', common: 18, boss: 4, zeny: 2500, bonus: [{ dropChance: 0.06, crit: 0.05 }, { smashCd: -1500, critMul: 0.25 }] } },
 ]
 
 /** Highest grade an item can reach: starters 1, plain shop gear 3, class shop gear 4, dungeon + crafted gear 5. */
@@ -83,10 +124,31 @@ export function gradeCap(it: Item): number {
   return 3
 }
 /** Which dungeon's materials an item uses for grade-ups. */
-export const matDungeon = (it: Item) => it.craft?.dg ?? it.unique?.dg ?? (it.req && it.req !== 'job' ? it.req : 'd1')
+// v114 fix: `req: 'job2'` is not a dungeon id (it built the unobtainable m_job2 / b_job2). 2nd-job gear uses D5 mats, the dungeon that unlocks the 2nd job (JOB2_RULES.unlockClear).
+const REQ_DG: Partial<Record<NonNullable<Item['req']>, string>> = { job2: 'd5' }
+export const matDungeon = (it: Item) => it.craft?.dg ?? it.unique?.dg ?? (it.req && it.req !== 'job' ? REQ_DG[it.req] ?? it.req : 'd1')
+/** v114 (Q 2026-11-08): 2nd-job gear climbs the deep dungeons step by step, so it is not cheap on D5 mats alone.
+ * refine = by refine tier (+1-4 / +5-7 / +8-10), grade = by target ★, reroll = by line count (lines exist from +5). */
+export interface StepMats { refine: string[]; grade: Record<number, string>; reroll: string[] }
+export const JOB2_MATS: StepMats = { refine: ['d5', 'd7', 'd9'], grade: { 2: 'd5', 3: 'd6', 4: 'd8', 5: 'd10' }, reroll: ['d7', 'd9'] }
+/** v116 (Q 2026-11-08 "เมือกใสหายาก late game"): 1st-class shop gear (cap ★4) used D1 mats at every step, and D1 is the only
+ * source of them. It now climbs D1 -> D3 -> D5 like 2nd-job gear (D3 / D5 also drop in the tower). */
+export const JOB_MATS: StepMats = { refine: ['d1', 'd3', 'd5'], grade: { 2: 'd1', 3: 'd3', 4: 'd5' }, reroll: ['d3', 'd5'] }
+const stepMats = (it: Item): StepMats | null => {
+  if (it.craft || it.unique) return null
+  if (it.req === 'job2') return JOB2_MATS
+  if (it.req === 'job' || (it.jobs && !it.req)) return JOB_MATS
+  return null
+}
+/** Dungeon whose mats a refine of tier `tier` (0..2) uses. */
+export const refineDungeon = (it: Item, tier: number) => stepMats(it)?.refine[Math.max(0, Math.min(2, tier))] ?? matDungeon(it)
+/** Dungeon whose mats grade-up to ★g uses. */
+export const gradeDungeon = (it: Item, g: number) => stepMats(it)?.grade[g] ?? matDungeon(it)
+/** Dungeon whose mats an option reroll over `lines` lines uses. */
+export const rerollDungeon = (it: Item, lines: number) => stepMats(it)?.reroll[lines >= 2 ? 1 : 0] ?? matDungeon(it)
 /** Materials + zeny to raise `it` from grade g-1 to g. */
 export function gradeCost(it: Item, g: number) {
-  const c = GRADE.cost[g], dg = matDungeon(it)
+  const c = GRADE.cost[g], dg = gradeDungeon(it, g)
   return { mats: { [matOf(dg, false)]: c.common, ...(c.boss ? { [matOf(dg, true)]: c.boss } : {}) } as Record<string, number>, zeny: c.zeny }
 }
 export function craftCost(it: Item) {

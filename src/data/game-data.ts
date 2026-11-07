@@ -217,10 +217,12 @@ export interface Stats {
   j2PayCut: number // Crusader: Grand Cross pays this much less HP (share of the cost)
   j2BlindAdd: number // Crusader: + turns of Holy Cross blind
   j2GcTwice: number // Crusader ★ Grand Cross ซ้อน flag: fires twice, the 2nd one free
+  j2GcLv: number // v109 Crusader Ult วิวัฒน์ node Lv (Grand Cross pulses KIT2.crusader.gcPulses[Lv])
   j2ShieldBoom: number // Crusader Shield Boomerang: Holy Cross also throws the shield for P.DEF x this (needs an off-hand)
   j2Reflect: number // Crusader Reflect Shield: landed physical hits bounce this share back (capped by BATTLE.reflectCap)
   j2BlockShield: number // Crusader ★ ป้อมศรัทธา: a block gives this share of max HP as shield
   j2BlockHeal: number // Crusader: a block heals this share of max HP
+  j2GuardOver: number // v116 Crusader: Auto Guard above guardCap (not a stat to give: meta.ts sets it) -> block shield / heal x (1 + over x guardOverMul)
   j2Martyr: number // Crusader ★ ผู้พลีชีพ flag: first lethal hit per wave leaves 1 HP + shield
   j2ChargeMax: number // Monk: + max power charges
   j2ThunderPer: number // Monk: + Falling Thunder power per charge
@@ -292,11 +294,14 @@ export interface Stats {
   clDawn: number // v92 🌄 แสงรุ่งอรุณ: share of (STR + WIS + dawn.matk x M.ATK) added as magic damage to each Ult smash target
   clDawnCrit: number // + crit dmg on that bonus (★ อรุณพิทักษ์)
   clDawnHeal: number // heal share of the bonus dealt to the front monster (อรุณสมานแผล)
-  clDawnAmp: number // + bonus damage (แสงแตก)
+  clDawnWis: number // v102 ☀️ แสงแตก: + share of WIS for clDawnWisTurns hero turns after the Dawn Light bonus hits
+  clDawnWisTurns: number // v102 ☀️ แสงแตก: hero turns the WIS buff lasts (refreshed by every Dawn Light bonus)
   clDawnUlt: number // ★ อรุณพิทักษ์ flag: the bonus is a sure crit
   clCoreBase: number // v86 💠 จิตสงบ: + STR and WIS (base stats, meta totalBase)
   clMindRegen: number // v86 💠 จิตสงบ: + resRegen per 10 points of the lower of STR / WIS (meta heroStats)
   clIntToStr: number // v86 💠 ศรัทธาสู่กาย: every this many INT = +1 STR (0 = off; meta totalBase)
+  clWisToVit: number // v102 💠 ศรัทธาสู่กาย: every this many WIS = +1 VIT (0 = off; meta totalBase)
+  clUltMana: number // v102: + Mana the base Cleric ult costs (Ult node Lv: 30/35/40/45/50)
   clManaGuard: number // v86 💠 มานาพิทักษ์: share of damage taken (before shields) gained as Mana
   clManaHeal: number // v86 💠 มานาพิทักษ์: share of Mana spent healed as HP
   clManaShield: number // v86 💠 มานาพิทักษ์: wave-start shield, share of Max Mana
@@ -317,7 +322,7 @@ export const PLAYER: Stats = {
   aspd: 1.6, range: 110, crit: 0, critMul: 1.4, /* Q: crit only from items, skill tree, talents (+ in-run cards) */ speed: 190,
   guard: 0, lifesteal: 0, regen: 0, fireEvery: 0, boltMul: 2, burnDps: 0, poison: 0, poisonDmg: 2,
   smashMul: 3, smashCd: 6000, smashCost: 0, revive: 0, counter: 0, combo: 0, dodgeHeal: 0, waveShield: 0,
-  thorns: 0, rageGain: 0, autoCostCut: 0, ctrAoe: 0, berserk: 0, pierce: 0, lockOn: 0, dodgeStrike: 0, doubleAtk: 0, thExecute: 0, poisonLeech: 0, killHeal: 0, bloodKing: 0, thUltAgi: 0, lightMax: 0, overload: 0, lightLuck: 0, burnCap: 0, autoBurn: 0, fireSpread: 0, chillPlus: 0, brittle: 0, comboCount: 0, comboDmg: 0, ignoreCombo: 0, ignoreCounter: 0, comboDR: 0, counterDR: 0, critDR: 0, vsBurn: 0, vsChill: 0, vsPoison: 0, chillWeak: 0, spearShield: 0, counterDmg: 0, basicDmg: 0, resTurn: 0, shatter: 0, reviveHp: 0, smiteTargets: 0, holyCounter: 0, overhealShield: 0, poisonCap: 0, poisonSpread: 0, fleeFloor: 0, waveDodge: 0, dodgeEnergy: 0, ultDodge: 0, ultHits: 0, ultPoison: 0, poisonAmp: 0, lightHits: 0, lightChain: 0, burnTick: 0, chillSlow: 0, iceBarrier: 0, boltHits: 0, boltCharge: 0, stormSet: 0, mgLightAmp: 0, mgFireAmp: 0, mgIceAmp: 0, mgFirstCard: 0, mgFireStack: 0, mgWaveBarrier: 0, resRegenCut: 0, mgUltAmp: 0, elemWheel: 0, mgBarrierCut: 0, barrierBoom: 0, mgEmergency: 0, mgDoubleCast: 0, mgUltCd: 0, mgUltMana: 0, mgOverflow: 0, cleaveAdd: 0, startRage: 0, rageOnHurtAdd: 0, spellVamp: 0, skillDmgCut: 0, ultMulAdd: 0, ultAmp: 0, ultPierce: 0, poise: 0, ultShieldAdd: 0, ultVsCharge: 0, ultCounters: 0, counterRage: 0, counterShield: 0, arDodgeShield: 0, arUltBreak: 0, arWaveDodge: 0, arSnipeLow: 0, arLowHpBonus: 0, arVolley: 0, arAim: 0, arAimCrit: 0, arUltSplash: 0, arUltDodge: 0, arUltMulCut: 0, arHawk: 0, arStartFull: 0, arTurnRes: 0, arCritRes: 0, arDodgeRes: 0, arPoisonArrow: 0, arRicochet: 0, arPoisonS2: 0, arMark: 0, arMarkJump: 0, arKillCd: 0, arExecute: 0, debuffRes: 0, healAt: 0, atone: 0, judge: 0, smiteMul: 0, smiteVamp: 0, healShield: 0, spearStart: 0, spearRate: 0, spearMul: 0, spearHeal: 0, ultRegen: 0, ultHoly: 0, ultChargeShield: 0, clDawn: 0, clDawnCrit: 0, clDawnHeal: 0, clDawnAmp: 0, clDawnUlt: 0, clCoreBase: 0, clMindRegen: 0, clIntToStr: 0, clManaGuard: 0, clManaHeal: 0, clManaShield: 0, bossShield: 0, lateDmg: 0, spellCrit: 0, spearLuck: 0, strToInt: 0, s1Pow: 0, ultPow: 0, s2Lv: 0, s2Star: 0, clUltAtk: 0, clUltLights: 0, clSpearShield: 0, clPurify: 0, s3Pow: 0, ult2Pow: 0, j2FrenzyMax: 0, j2BossCrit: 0, j2Duel: 0, j2DuelExec: 0, j2LowHp: 0, j2RageTurn: 0, j2HpDmg: 0, j2PierceHits: 0, j2Boomerang: 0, j2Spiral: 0, j2Guard: 0, j2DefAtk: 0, j2HpPct: 0, j2CounterCrit: 0, j2Charge: 0, j2ChargeFirst: 0, j2KnifeAdd: 0, j2KnifeMul: 0, j2KnifeCrit: 0, j2ExecAdd: 0, j2DebtX2: 0, j2ExecTurn: 0, j2DebuffTurns: 0, j2CrossAdd: 0, j2PayCut: 0, j2BlindAdd: 0, j2GcTwice: 0, j2ShieldBoom: 0, j2Reflect: 0, j2BlockShield: 0, j2BlockHeal: 0, j2Martyr: 0, j2ChargeMax: 0, j2ThunderPer: 0, j2Es: 0, j2Chill: 0, j2Instill: 0, j2Dark: 0, j2NoLight: 0, // Novice: cooldown only (resources come with job change)
+  thorns: 0, rageGain: 0, autoCostCut: 0, ctrAoe: 0, berserk: 0, pierce: 0, lockOn: 0, dodgeStrike: 0, doubleAtk: 0, thExecute: 0, poisonLeech: 0, killHeal: 0, bloodKing: 0, thUltAgi: 0, lightMax: 0, overload: 0, lightLuck: 0, burnCap: 0, autoBurn: 0, fireSpread: 0, chillPlus: 0, brittle: 0, comboCount: 0, comboDmg: 0, ignoreCombo: 0, ignoreCounter: 0, comboDR: 0, counterDR: 0, critDR: 0, vsBurn: 0, vsChill: 0, vsPoison: 0, chillWeak: 0, spearShield: 0, counterDmg: 0, basicDmg: 0, resTurn: 0, shatter: 0, reviveHp: 0, smiteTargets: 0, holyCounter: 0, overhealShield: 0, poisonCap: 0, poisonSpread: 0, fleeFloor: 0, waveDodge: 0, dodgeEnergy: 0, ultDodge: 0, ultHits: 0, ultPoison: 0, poisonAmp: 0, lightHits: 0, lightChain: 0, burnTick: 0, chillSlow: 0, iceBarrier: 0, boltHits: 0, boltCharge: 0, stormSet: 0, mgLightAmp: 0, mgFireAmp: 0, mgIceAmp: 0, mgFirstCard: 0, mgFireStack: 0, mgWaveBarrier: 0, resRegenCut: 0, mgUltAmp: 0, elemWheel: 0, mgBarrierCut: 0, barrierBoom: 0, mgEmergency: 0, mgDoubleCast: 0, mgUltCd: 0, mgUltMana: 0, mgOverflow: 0, cleaveAdd: 0, startRage: 0, rageOnHurtAdd: 0, spellVamp: 0, skillDmgCut: 0, ultMulAdd: 0, ultAmp: 0, ultPierce: 0, poise: 0, ultShieldAdd: 0, ultVsCharge: 0, ultCounters: 0, counterRage: 0, counterShield: 0, arDodgeShield: 0, arUltBreak: 0, arWaveDodge: 0, arSnipeLow: 0, arLowHpBonus: 0, arVolley: 0, arAim: 0, arAimCrit: 0, arUltSplash: 0, arUltDodge: 0, arUltMulCut: 0, arHawk: 0, arStartFull: 0, arTurnRes: 0, arCritRes: 0, arDodgeRes: 0, arPoisonArrow: 0, arRicochet: 0, arPoisonS2: 0, arMark: 0, arMarkJump: 0, arKillCd: 0, arExecute: 0, debuffRes: 0, healAt: 0, atone: 0, judge: 0, smiteMul: 0, smiteVamp: 0, healShield: 0, spearStart: 0, spearRate: 0, spearMul: 0, spearHeal: 0, ultRegen: 0, ultHoly: 0, ultChargeShield: 0, clDawn: 0, clDawnCrit: 0, clDawnHeal: 0, clDawnWis: 0, clDawnWisTurns: 0, clDawnUlt: 0, clCoreBase: 0, clMindRegen: 0, clIntToStr: 0, clWisToVit: 0, clUltMana: 0, clManaGuard: 0, clManaHeal: 0, clManaShield: 0, bossShield: 0, lateDmg: 0, spellCrit: 0, spearLuck: 0, strToInt: 0, s1Pow: 0, ultPow: 0, s2Lv: 0, s2Star: 0, clUltAtk: 0, clUltLights: 0, clSpearShield: 0, clPurify: 0, s3Pow: 0, ult2Pow: 0, j2FrenzyMax: 0, j2BossCrit: 0, j2Duel: 0, j2DuelExec: 0, j2LowHp: 0, j2RageTurn: 0, j2HpDmg: 0, j2PierceHits: 0, j2Boomerang: 0, j2Spiral: 0, j2Guard: 0, j2DefAtk: 0, j2HpPct: 0, j2CounterCrit: 0, j2Charge: 0, j2ChargeFirst: 0, j2KnifeAdd: 0, j2KnifeMul: 0, j2KnifeCrit: 0, j2ExecAdd: 0, j2DebtX2: 0, j2ExecTurn: 0, j2DebuffTurns: 0, j2CrossAdd: 0, j2PayCut: 0, j2BlindAdd: 0, j2GcTwice: 0, j2GcLv: 0, j2ShieldBoom: 0, j2Reflect: 0, j2BlockShield: 0, j2BlockHeal: 0, j2GuardOver: 0, j2Martyr: 0, j2ChargeMax: 0, j2ThunderPer: 0, j2Es: 0, j2Chill: 0, j2Instill: 0, j2Dark: 0, j2NoLight: 0, // Novice: cooldown only (resources come with job change)
   j2MeteorMul: 0, j2Meteors: 0, j2LovMul: 0, j2LovStun: 0, j2LovHits: 0, j2GustMul: 0, j2QuickCast: 0, j2AutoChance: 0, j2AutoBolts: 0, j2Hindsight: 0, j2EndowTurns: 0, j2EndowAmp: 0, j2EndowWave: 0, j2MagicRod: 0, j2RodBlock: 0, // Phase 5 Wizard / Sage
   j2HawkChance: 0, j2HawkMul: 0, j2HawkHits: 0, j2HawkEvo: 0, j2BoarHp: 0, j2BoarMul: 0, j2BoarShield: 0, j2BoarEvo: 0, j2WolfMul: 0, j2WolfBleed: 0, j2WolfSpeed: 0, j2WolfEvo: 0, j2PetPow: 0, j2PetRes: 0, j2CmdCut: 0, j2Pack3: 0, j2PackLead: 0, j2PetHeal: 0, j2Roar: 0, j2CritPet: 0, j2Traps: 0, j2TrapMul: 0, j2Claymore: 0, j2BoxLuck: 0, j2BoxMul: 0, j2Reroll: 0, j2TurretMul: 0, j2TurretTurns: 0, j2TurretWave: 0, // Phase 4 Beastmaster / Innovator
   swFlow: 0, swFlowMana: 0, swFlowCrit: 0, swFlowStar: 0, swBreak: 0, swBreakLeech: 0, swBreakSpread: 0, swShatter: 0, // v84 Swordsman web
@@ -471,6 +476,7 @@ export interface BossPhase {
 }
 
 export interface MonsterDef {
+  hellish?: string // v114 tower Hell copy (data/hell.ts): its trait label; also marks the tint
   name: string
   tex: string
   hp: number
@@ -908,7 +914,7 @@ export const HARD_PASSIVES: HardPassive[] = [
   { id: 'swift', name: '💨 ว่องไว', speed: 1.2 },
   { id: 'venom', name: '🐍 พิษติดตัว', onHit: { poison: 1 } },
   { id: 'enrage', name: '😡 คลั่ง', enrage: 1.35 }, // below 35% HP: x1.35 damage, x1.15 speed
-  { id: 'iron', name: '🪨 ผิวเหล็ก', def: 25 },
+  { id: 'iron', name: '⛰️ ผิวเหล็ก', def: 25 },
 ]
 
 // ===== v49 monster kits (Q 2026-11-04: "ให้แต่ละตัวมี stat combo, counter, cri, สกิลโหดๆ"): merged into MONSTERS below =====
@@ -928,7 +934,7 @@ const KITS: Partial<Record<MonsterKind, Pick<MonsterDef, 'crit' | 'combo' | 'cou
   venomqueen: { combo: 0.25, crit: 0.08, add: [{ kind: 'strike', every: 2, hits: 2, pow: 0.7, name: '🦂 เหล็กใน', fx: { poison: 4 } }] }, // Q: no ตาเหยี่ยว (the web does that job)
   frostgiant: { counter: 0.15, add: [{ kind: 'strike', every: 5, pow: 1.6, name: '🧊 ทุบธารน้ำแข็ง', fx: { freeze: 50 } }, { kind: 'curse', every: 4, name: '💙 Frozen Heart', fx: { slow: 2 } }] }, // Q: Frozen Heart replaces ตาเหยี่ยว
   hydra: { combo: 0.3, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'bolt', every: 4, hits: 3, pow: 0.5, name: '🐍 พ่นพิษสามหัว', fx: { poison: 1 } }] },
-  mirage: { crit: 0.15, add: [{ kind: 'bolt', every: 5, hits: 2, pow: 0.7, name: '🪞 ภาพลวงสองเงา' }] },
+  mirage: { crit: 0.15, add: [{ kind: 'bolt', every: 5, hits: 2, pow: 0.7, name: '🔁 ภาพลวงสองเงา' }] },
   warlord: { counter: 0.2, crit: 0.15, combo: 0.15, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 5, hits: 2, pow: 0.9, name: '🪓 ขวานคู่ผ่าฟ้า', fx: { armorBreak: 1 } }] },
   lich: { crit: 0.15 },
 }

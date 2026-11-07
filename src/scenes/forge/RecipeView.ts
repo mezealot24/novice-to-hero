@@ -120,7 +120,7 @@ export class RecipeView {
         if (have < n) lines.push(seen && cd ? `• 🃏 ${cardName(cd)} ขาด ${n - have} ใบ — ดรอปจากมอนในดัน${dgName(cd.dungeon)} (การ์ดที่เสียบอยู่ไม่นับ)` : `• ❓ การ์ดที่ยังไม่เคยได้ ขาด ${n - have} ใบ — ลองฟาร์มมอนของดัน${dgName(c.dg)}`)
       }
     }
-    if (s.zeny < cost.zeny) lines.push(`• 🪙 zeny ขาด ${cost.zeny - s.zeny}z`)
+    if (s.zeny < cost.zeny) lines.push(`• 💰 zeny ขาด ${cost.zeny - s.zeny}z`)
     root.add(fit(txt(sc, 304, cf ? 326 : 292, owned ? `✓ มีแล้ว ${gradeStars(gradeOf(s, it.id), 5)} · อัปขั้นกับตีบวกต่อที่ ⚒️ ทั่ง` : lines.length ? `ที่ขาดอยู่:\n${lines.join('\n')}` : 'ของครบแล้ว กดสร้างได้เลยค่ะ', 12, owned ? UI.green : lines.length ? UI.text : UI.green).setWordWrapWidth(624), cf ? 100 : 136))
     if (!owned) { // 📌 the run result tells you when this becomes affordable
       const pinned = s.forgePin === it.id
@@ -152,7 +152,7 @@ export class RecipeView {
     x = 392
     for (const [id, n] of Object.entries(p.mats)) { const m = matById(id), ch = chip(sc, x, 332, m?.icon ?? '📦', `${m?.name ?? id} +${n}`, 'gain', 200); root.add(ch); x += ch.chipW + 6 }
     if (!Object.keys(p.mats).length) root.add(txt(sc, x, 326, 'ไม่มีอะไรคืน', 13, UI.sub))
-    const feeChip = chip(sc, 304, 376, '🪙', `ค่าธรรมเนียม ${p.fee}z`, s.zeny >= p.fee ? 'ok' : 'short', 300)
+    const feeChip = chip(sc, 304, 376, '💰', `ค่าธรรมเนียม ${p.fee}z`, s.zeny >= p.fee ? 'ok' : 'short', 300)
     root.add(feeChip)
     if (p.cards.length) root.add(txt(sc, 304, 400, `🃏 การ์ดที่เสียบอยู่ ${p.cards.length} ใบ จะกลับเข้ากระเป๋า`, 12, UI.green))
     if (s.taint?.[it.id]) root.add(txt(sc, 304, 420, '🌑 ของ Corrupt ได้คืนแค่ครึ่งหนึ่งของปกติ', 12, '#c9a8ff'))

@@ -108,6 +108,7 @@ export function load(): SaveData | null {
     migrateThiefWeb(s)
     migratePriestBless(s)
     migrateClericDawn(s)
+    migrateDawnBurst(s)
     migrateNodeStretch(s)
     migrateGear(s)
     migrateNovicePool(s)
@@ -130,12 +131,18 @@ function migrateGear(s: SaveData) {
   if (eq.acc2 !== 'none' && eq.acc2 === eq.acc) eq.acc2 = 'none' // one copy of each item: never worn twice
 }
 
+/** The slot wearing `itemId` would fill: its own kind; an accessory fills an empty side first, else the left one. Shop / forge compare use it too. */
+export function replaceSlot(eq: Record<EquipSlot, string>, itemId: string): EquipSlot {
+  const kind = itemById(itemId).slot
+  if (kind !== 'acc') return kind
+  return eq.acc === 'none' || eq.acc2 !== 'none' ? 'acc' : 'acc2'
+}
+
 /** Wear an item. Accessories: `slot` picks the side; with no side it fills an empty side first. The same
  * accessory can't be on both sides (one copy per id), so it moves over instead. */
 export function equip(s: SaveData, itemId: string, slot?: EquipSlot): boolean {
   const kind = itemById(itemId).slot
-  let at: EquipSlot = slot ?? kind
-  if (kind === 'acc' && !slot) at = s.equipped.acc === 'none' || s.equipped.acc2 !== 'none' ? 'acc' : 'acc2'
+  const at: EquipSlot = slot ?? replaceSlot(s.equipped, itemId)
   if (slotKind(at) !== kind) return false
   if (uniqueEquipBlocked(s, itemId, at)) return false // v88: at most UNIQUE.maxEquipped uniques at once
   if (kind === 'acc' && itemId !== 'none') {
@@ -209,6 +216,12 @@ export function migrateClericDawn(s: SaveData) {
   if (t) for (const id of GONE_NODES) if (t[id]) { s.skillPoints += t[id]; delete t[id] }
   const tal = s.jobTalents
   if (tal) for (const [row, p] of Object.entries(tal)) if (p?.id === 'cleric_t2_dawnlight') delete tal[row]
+}
+/** v102 ☀️ แสงแตก (Q 2026-11-07): new effect (WIS buff), max 5 -> 3. Points above 3 come back as skill points. Id unchanged. */
+export function migrateDawnBurst(s: SaveData) {
+  const t = s.jobTree
+  if (!t || (t.cleric_dn3 ?? 0) <= 3) return
+  s.skillPoints += t.cleric_dn3 - 3; t.cleric_dn3 = 3
 }
 /** v85 novice pool (Q 2026-11-06): ปฐมพยาบาล / ร่างกายแกร่ง used to cost Job Lv skill points. Those points come back
  *  as skill points; the levels stay and now count against the free 10-point novice pool (max 5+5 = 10, always fits). */

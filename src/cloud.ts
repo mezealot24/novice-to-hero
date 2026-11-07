@@ -1,5 +1,6 @@
 // Cloud save + social login client (server/ = Better Auth + Neon on a Worker). Off unless VITE_API_URL is set,
-// so the plain GitHub Pages build behaves exactly as before. localStorage stays the cache and the offline fallback.
+// so the plain GitHub Pages build behaves exactly as before (local save only).
+// With the cloud on, the cloud save is the truth; localStorage is only the cache the game reads synchronously.
 import { createAuthClient } from 'better-auth/client'
 import { anonymousClient } from 'better-auth/client/plugins'
 import { adopt, localJson, setSaveHooks } from './save'
@@ -12,7 +13,7 @@ export const PROVIDERS = [
 ] as const
 export type ProviderId = (typeof PROVIDERS)[number]['id']
 
-export type SyncState = 'off' | 'idle' | 'syncing' | 'offline' | 'conflict' | 'error'
+export type SyncState = 'off' | 'idle' | 'syncing' | 'offline' | 'error'
 export interface CloudStatus { state: SyncState; guest: boolean; linked: string[]; paidGems: number; lastSync: number }
 export const status: CloudStatus = { state: cloudEnabled ? 'idle' : 'off', guest: true, linked: [], paidGems: 0, lastSync: 0 }
 const listeners = new Set<() => void>()
@@ -67,13 +68,13 @@ async function ensureSession(): Promise<boolean> {
   return true
 }
 
-// ---------- sync ----------
-export interface Conflict { cloud: unknown; cloudRev: number }
-let pending: Conflict | null = null
-export const conflict = () => pending
+// ---------- sync: the cloud is the only source of truth ----------
+// localStorage is just the cache the game reads synchronously. There is no "pick a save" prompt any more:
+// the cloud copy always wins, except unsynced progress made on top of the latest cloud revision (pushed up),
+// and the very first login of an account with no cloud save (the local save is uploaded once).
 
-/** Call once on the title screen (before the player picks a save). Resolves when local and cloud agree, or a conflict is pending. */
-export async function syncStart(): Promise<'ok' | 'conflict' | 'offline'> {
+/** Call on the title screen (before the player picks a save). 'adopted' = this device's save was replaced by the cloud copy. */
+export async function syncStart(): Promise<'ok' | 'adopted' | 'offline'> {
   if (!authClient) return 'ok'
   try {
     set({ state: 'syncing' })
@@ -84,30 +85,63 @@ export async function syncStart(): Promise<'ok' | 'conflict' | 'offline'> {
     const cloud = r.body.data, cloudRev = typeof r.body.rev === 'number' ? r.body.rev : 0
     const local = localJson()
     const sameUser = meta.uid === uid
-    if (!isSave(cloud)) { // nothing in the cloud yet: first login uploads the existing local save
-      if (!sameUser) patchMeta({ uid, rev: 0 })
+    if (!isSave(cloud)) { // nothing in the cloud yet: upload this device's save once
+      patchMeta({ uid, rev: cloudRev })
       if (local) { patchMeta({ dirty: true }); await push() } else set({ state: 'idle' })
       return 'ok'
     }
-    if (!local) { // fresh device (or deleted on purpose): take the cloud copy unless the player just wiped it
-      if (meta.wiped && sameUser) { patchMeta({ rev: cloudRev }); set({ state: 'idle' }); return 'ok' }
-      if (adopt(cloud)) { patchMeta({ uid, rev: cloudRev, dirty: false, wiped: false }); set({ state: 'idle', lastSync: Date.now() }) }
-      return 'ok'
+    if (!local && meta.wiped && sameUser) { patchMeta({ rev: cloudRev }); set({ state: 'idle' }); return 'ok' } // player chose a new game here
+    if (local && (JSON.stringify(cloud) === local || JSON.stringify(cloud) === JSON.stringify(JSON.parse(local)))) {
+      patchMeta({ uid, rev: cloudRev, dirty: false }); set({ state: 'idle', lastSync: Date.now() }); return 'ok'
     }
-    if (JSON.stringify(cloud) === local || JSON.stringify(cloud) === JSON.stringify(JSON.parse(local))) { patchMeta({ uid, rev: cloudRev, dirty: false }); set({ state: 'idle', lastSync: Date.now() }); return 'ok' }
-    if (sameUser && meta.rev === cloudRev && meta.dirty) { await push(); return 'ok' } // only this device changed
-    if (sameUser && meta.rev !== cloudRev && !meta.dirty) { // only the cloud changed: take it
-      if (adopt(cloud)) patchMeta({ rev: cloudRev, dirty: false })
-      set({ state: 'idle', lastSync: Date.now() }); return 'ok'
-    }
-    pending = { cloud, cloudRev }; set({ state: 'conflict' }); return 'conflict' // both changed, or a different account
+    if (local && sameUser && meta.rev === cloudRev && meta.dirty) { await push(); return 'ok' } // unsynced progress on top of the latest cloud save
+    return takeCloud(cloud, cloudRev) ? 'adopted' : 'ok' // anything else: the cloud wins
   } catch { set({ state: 'offline' }); return 'offline' }
+}
+
+// The local save a cloud copy replaced, kept so a player can undo "the cloud wins" once (CloudScene restore button).
+const BACKUP_KEY = 'novice-to-hero.save.backup'
+export interface Backup { name: string; level: number; at: number }
+export function backupInfo(): Backup | null {
+  try {
+    const b: unknown = JSON.parse(localStorage.getItem(BACKUP_KEY) ?? 'null')
+    if (!b || typeof b !== 'object') return null
+    const o = b as { at?: unknown; data?: { name?: unknown; baseLevel?: unknown } }
+    return { name: typeof o.data?.name === 'string' ? o.data.name : '?', level: typeof o.data?.baseLevel === 'number' ? o.data.baseLevel : 0, at: typeof o.at === 'number' ? o.at : 0 }
+  } catch { return null }
+}
+/** Put the backed-up save back and upload it over the cloud copy (the player asked for it). Page reloads on success. */
+export async function restoreBackup(): Promise<string | null> {
+  if (!authClient || !uid) return 'offline'
+  try {
+    const b: unknown = JSON.parse(localStorage.getItem(BACKUP_KEY) ?? 'null')
+    const data = b && typeof b === 'object' ? (b as { data?: unknown }).data : null
+    if (!isSave(data)) return 'no backup'
+    const g = await api('/save')
+    if (g.status !== 200) return 'offline'
+    if (!adopt(data)) return 'failed'
+    patchMeta({ uid, rev: typeof g.body.rev === 'number' ? g.body.rev : 0, dirty: true, wiped: false })
+    await push()
+    if (meta.dirty) return 'failed'
+    localStorage.removeItem(BACKUP_KEY)
+    location.reload()
+    return null
+  } catch { return 'offline' }
+}
+
+function takeCloud(cloud: unknown, cloudRev: number): boolean {
+  const local = localJson()
+  if (local && local !== JSON.stringify(cloud)) try { localStorage.setItem(BACKUP_KEY, `{"at":${Date.now()},"data":${local}}`) } catch { /* ignore */ }
+  if (!adopt(cloud)) { set({ state: 'error' }); return false }
+  patchMeta({ uid, rev: cloudRev, dirty: false, wiped: false })
+  set({ state: 'idle', lastSync: Date.now() })
+  return true
 }
 
 let timer: ReturnType<typeof setTimeout> | undefined
 let inFlight = false
 async function push(): Promise<void> {
-  if (!authClient || pending || inFlight) return
+  if (!authClient || inFlight) return
   const body = localJson()
   if (!body || !uid) return
   inFlight = true; set({ state: 'syncing' })
@@ -117,32 +151,18 @@ async function push(): Promise<void> {
       patchMeta({ rev: r.body.rev, dirty: localJson() !== body })
       set({ state: 'idle', lastSync: Date.now() })
       if (meta.dirty) schedulePush()
-    } else if (r.status === 409) {
+    } else if (r.status === 409) { // another device/tab saved first: the cloud wins, reload so every scene sees it
       const g = await api('/save')
-      pending = { cloud: g.body.data, cloudRev: typeof g.body.rev === 'number' ? g.body.rev : 0 }
-      set({ state: 'conflict' })
+      if (isSave(g.body.data) && takeCloud(g.body.data, typeof g.body.rev === 'number' ? g.body.rev : 0)) location.reload()
+      else set({ state: 'error' })
     } else if (r.status === 401) { set({ state: 'offline' }) } else set({ state: 'error' })
   } catch { set({ state: 'offline' }) } finally { inFlight = false }
 }
 function schedulePush() { clearTimeout(timer); timer = setTimeout(() => { void push() }, 4000) }
 
-/** Player's choice for a pending conflict. 'cloud' replaces this device's save (page reloads so every scene sees it). */
-export async function resolve(choice: 'cloud' | 'local'): Promise<void> {
-  const c = pending
-  if (!c) return
-  pending = null
-  if (choice === 'cloud') {
-    if (adopt(c.cloud)) { patchMeta({ uid, rev: c.cloudRev, dirty: false, wiped: false }); set({ state: 'idle', lastSync: Date.now() }); location.reload() }
-    else set({ state: 'error' })
-  } else {
-    patchMeta({ uid, rev: c.cloudRev, dirty: true })
-    await push()
-  }
-}
-
 if (cloudEnabled) {
   setSaveHooks({
-    persist: () => { patchMeta({ dirty: true, wiped: false }); if (status.state !== 'conflict') schedulePush() },
+    persist: () => { patchMeta({ dirty: true, wiped: false }); schedulePush() },
     wipe: () => patchMeta({ wiped: true }),
   })
   window.addEventListener('online', () => { if (meta.dirty) schedulePush() })

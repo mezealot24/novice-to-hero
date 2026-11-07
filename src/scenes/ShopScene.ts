@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { COLORS, type Stats } from '../data/game-data'
 import { JOBS } from '../data/jobs'
 import { canWear, forgeTag, gradeOf, heroStats, refineOf, itemStatLine, itemUnlocked, ITEMS, REQ_TEXT, SELL_RATE, slotCount, SLOTS, wearText, type Item, type Slot } from '../data/meta'
-import { addFodder, equip, forgetForge, isWorn, persist, save, unsocketAll } from '../save'
+import { addFodder, equip, replaceSlot, forgetForge, isWorn, persist, save, unsocketAll } from '../save'
 import { isFodder } from '../data/refine'
 import { sfx } from '../sfx'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
@@ -89,7 +89,7 @@ export class ShopScene extends Phaser.Scene {
   private compare(it: Item): string {
     const s = save()
     const now = heroStats(s)
-    const next = heroStats({ ...s, equipped: { ...s.equipped, [shopSlot(s.equipped, it)]: it.id } })
+    const next = heroStats({ ...s, equipped: { ...s.equipped, [replaceSlot(s.equipped, it.id)]: it.id } })
     return compareLine(now, next)
   }
 
@@ -128,12 +128,6 @@ export class ShopScene extends Phaser.Scene {
   }
 }
 
-/** Which worn slot a new item would replace (accessories: an empty side first, else the left one). */
-function shopSlot(eq: Record<string, string>, it: Item): string {
-  if (it.slot !== 'acc') return it.slot
-  return eq.acc === 'none' || eq.acc2 !== 'none' ? 'acc' : 'acc2'
-}
-
 /** Short "HP +30 · คริ +5%" diff between two stat blocks (used by the shop and the bag). */
 export function compareLine(now: Stats, next: Stats): string {
   const parts: string[] = []
@@ -146,7 +140,9 @@ export function compareLine(now: Stats, next: Stats): string {
   d('M.DEF', now.mdef, next.mdef, p)
   d('Hit', now.hit, next.hit, (n) => `${Math.round(n)}`)
   d('Flee', now.flee, next.flee, (n) => `${Math.round(n)}`)
-  d('คริ', now.crit, next.crit, p)
+  // v94: gear / cards add crit to BOTH pools (shown as one 'คริ'); a stat that moves only one pool (เวทคริ items, Mage LUK) is split
+  if (Math.abs((next.crit - now.crit) - (next.spellCrit - now.spellCrit)) < 1e-6) d('คริ', now.crit, next.crit, p)
+  else { d('คริ กาย', now.crit, next.crit, p); d('เวทคริ', now.spellCrit, next.spellCrit, p) }
   d('เร็ว', now.aspd, next.aspd, (n) => p(n / 1.6))
   d('ดูดเลือด', now.lifesteal, next.lifesteal, p)
   d('สวน', now.counter, next.counter, p)

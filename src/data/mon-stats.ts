@@ -174,6 +174,39 @@ export function statNative(kind: MonsterKind): boolean {
   return !!home && !!DUNGEONS.find((d) => d.id === home)?.level
 }
 
+// ===== v114 tower floors 25+ (Q 2026-11-08): D6+ monsters outside their level dungeon =====
+// A D6+ monster is built from its own stats at its home boss level, then rescaled so its dungeon's tier average (normal / mini / boss)
+// lands on D5's. Its kit (skills, AI, speed, Flee, crit...) stays its own; the tower then scales it as a D5 monster (src 'd5').
+export const DEEP_ANCHOR = 'd5'
+type Ref = { hp: number; dmg: number; matk: number }
+const REF_AVG: Record<string, Ref | null> = {}
+const levelOfHome = (home: string) => DUNGEONS.find((d) => d.id === home)?.level?.[1]
+function buildAt(kind: MonsterKind, home: string): MonsterDef {
+  const d = MONSTERS[kind], lv = levelOfHome(home)
+  return lv ? statMonster(d, lv) : withStats(d, kind, legacyLevel(kind, d, { id: home }))
+}
+/** Mean HP / ATK / M.ATK of one tier of monsters whose home is `home` (null = none of that tier). */
+function refAvg(home: string, tier: MonTier): Ref | null {
+  const key = `${home}:${tier}`
+  if (key in REF_AVG) return REF_AVG[key]
+  const kinds = (Object.keys(MONSTERS) as MonsterKind[]).filter((k) => homeDungeon(k) === home && monTier(MONSTERS[k]) === tier && !MONSTERS[k].passive)
+  if (!kinds.length) return (REF_AVG[key] = null)
+  const defs = kinds.map((k) => buildAt(k, home)), mean = (f: (d: MonsterDef) => number) => defs.reduce((a, d) => a + f(d), 0) / defs.length
+  return (REF_AVG[key] = { hp: mean((d) => d.hp), dmg: mean((d) => d.dmg), matk: mean((d) => d.matk ?? d.dmg) })
+}
+/** v114: a D6+ monster ready for a non-level run (tower / daily), anchored to D5 numbers. Non-D6+ kinds come back unchanged. */
+export function deepAnchor(kind: MonsterKind): MonsterDef {
+  const home = homeDungeon(kind), d = MONSTERS[kind]
+  if (!home || !statNative(kind)) return d
+  const tier = monTier(d), out = buildAt(kind, home)
+  const a = refAvg(home, tier) ?? refAvg(home, 'normal'), b = refAvg(DEEP_ANCHOR, tier) ?? refAvg(DEEP_ANCHOR, 'normal')
+  if (!a || !b) return out
+  out.hp = Math.max(1, Math.round(out.hp * (b.hp / a.hp)))
+  out.dmg *= b.dmg / a.dmg
+  if (out.matk !== undefined) out.matk *= b.matk / a.matk
+  return out
+}
+
 /** Build defaults at load (before any live-config patch): the default statAlloc + what it derives at the home level. */
 const DEFAULT_ALLOC: Partial<Record<MonsterKind, StatAlloc>> = {}
 const DEFAULT_PM: Partial<Record<MonsterKind, number>> = {}
@@ -283,6 +316,30 @@ export function skillAtLv(sk: MonSkill, lv = sk.lv ?? 1): MonSkill {
     const add = lvStep(lv, L.fxEvery), fx: HitFx = {}
     for (const [k, v] of Object.entries(sk.fx) as [keyof HitFx, number][]) fx[k] = v && k !== 'freeze' ? v + add : v
     out.fx = fx
+  }
+  return out
+}
+
+// ===== v116 tower Lv (Q 2026-11-08 "ทำให้ D1-D10 scale skill / stat ได้") =====
+// Tower HP / ATK / M.ATK already follow Hero Power + floor (modes.towerScale). Everything else (DEF, Hit, Flee, crit, combo,
+// counter, speed, M.DEF, lucky dodge, skill levels) used to stay at the monster's home level: a Hell D3 mini on floor 40 was Lv 12,
+// a D10 monster on floor 25 was Lv 90. Now every monster on a floor is rebuilt at that floor's tower Lv (Hell: + HELL.lv),
+// keeping the tower's HP / ATK. D1-D5 only move up from their home level; D6+ follow the tower Lv both ways.
+export const TOWER_LV = { perFloor: 1.5, skillEvery: 10 } // skill Lv +1 per `skillEvery` Lv above the monster's home Lv
+export const towerMonLv = (floor: number) => Math.max(1, Math.round(TOWER_LV.perFloor * floor))
+const lvUp = (s: MonSkill, n: number): MonSkill => ({ ...s, lv: (s.lv ?? 1) + n, ...(s.pick ? { pick: s.pick.map((p) => lvUp(p, n)) } : {}) })
+/** `base` (already built at its home level) rebuilt at Lv `lv`: stats + skill levels move, HP / ATK / M.ATK stay. */
+export function restatAt(base: MonsterDef, kind: MonsterKind, lv: number): MonsterDef {
+  const d = MONSTERS[kind], home = base.lv ?? 1, deep = statNative(kind)
+  if (!d || lv === home || (!deep && (lv < home || !d.statAlloc))) return base
+  const at = deep ? statMonster(d, lv) : withStats(d, kind, lv)
+  const out: MonsterDef = { ...at, hp: base.hp, dmg: base.dmg }
+  if (base.matk !== undefined) out.matk = base.matk
+  else delete out.matk
+  const n = Math.floor(Math.max(0, lv - home) / TOWER_LV.skillEvery)
+  if (n > 0) {
+    if (out.skills) out.skills = out.skills.map((s) => lvUp(s, n))
+    if (out.phases) out.phases = out.phases.map((p) => (p.skills ? { ...p, skills: p.skills.map((s) => lvUp(s, n)) } : p))
   }
   return out
 }

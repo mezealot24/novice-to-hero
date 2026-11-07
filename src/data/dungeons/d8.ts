@@ -64,7 +64,7 @@ export const D8: DungeonPack<D8Kind> = {
     { id: 'card_lavatitan', monster: 'lavatitan', slot: 'armor', tier: 'boss', dungeon: 'd8', mod: { debuffRes: 0.1, healAmp: 0.1 }, pct: { maxHp: 0.12 } },
   ],
   mats: [
-    { id: 'm_d8', name: 'หินหลอมเหลว', icon: '🪨', dungeon: 'd8', boss: false },
+    { id: 'm_d8', name: 'หินหลอมเหลว', icon: '⛰️', dungeon: 'd8', boss: false },
     { id: 'b_d8', name: 'แกนอัคนีไททัน', icon: '🌋', dungeon: 'd8', boss: true },
   ],
   miniRelics: {

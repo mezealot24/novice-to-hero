@@ -7,6 +7,7 @@ import { CLERIC_KIT } from '../jobs'
 
 // v84 (design/skill-tree-priest.md v84): numbers in KIT.clericTree, written per OLD level (max 3); data/tree.ts stretches them to 5.
 const T = KIT.clericTree, D = T.dawn, K = T.core, pc = (x: number) => `${+(x * 100).toFixed(1)}%`, x2 = (x: number) => +x.toFixed(2)
+const i3 = (lv: number) => Math.max(0, Math.min(2, Math.round(lv) - 1)) // Lv 1..3 -> table index
 
 
 export const tree: ClassTree = {
@@ -17,8 +18,8 @@ export const tree: ClassTree = {
     { id: 'cleric_c', job: 'cleric', name: 'ศรัทธา', icon: '🙏', blurb: 'ฮีล/แสงสะสมศรัทธา · เต็มแล้วระเบิดแสง · ★ ฮีลล้นเป็นดาเมจ' },
     // v86 (Q 2026-11-06): ⛪ ฟื้นคืน replaced by 🌄 รุ่งอรุณ (same branch id, new node ids; old points refunded in save.ts)
     // v86 (Q 2026-11-06): free core column (not in ATTACH, like Mage แก่นเวท) for the Priest's Mana
-    { id: 'cleric_core', job: 'cleric', name: 'แก่นศรัทธา', icon: '💠', blurb: 'Mana: ฟื้นตาม STR/WIS · INT เป็น STR · โดนตีได้ Mana' },
-    { id: 'cleric_d', job: 'cleric', name: 'รุ่งอรุณ', icon: '🌄', blurb: 'Ult ทุบแถมดาเมจเวท STR + WIS + M.ATK · ฮีลจากแสง · ★ คริแน่' },
+    { id: 'cleric_core', job: 'cleric', name: 'แก่นศรัทธา', icon: '💠', blurb: 'Mana: ฟื้นตาม STR/WIS · INT เป็น STR · WIS เป็น VIT · โดนตีได้ Mana' },
+    { id: 'cleric_d', job: 'cleric', name: 'รุ่งอรุณ', icon: '🌄', blurb: 'Passive: ตีครบ 3 ฮิตแถมดาเมจเวท STR + WIS + M.ATK · ฮีลจากแสง · บัฟ WIS · ★ คริแน่' },
   ],
   nodes: [
     // A: Sanctuary
@@ -40,16 +41,20 @@ export const tree: ClassTree = {
     // Core: 💠 แก่นศรัทธา (v86, Q 2026-11-06) — tier 0, no parent, numbers in KIT.clericTree.core
     n('cleric_core1', 'cleric_core', 0, '🧘', 'จิตสงบ', 3, (lv) => `STR / WIS +${x2(K.base * lv)} · ฟื้น Mana +${x2(K.regen * lv * 3)}/เทิร์น ต่อ 10 แต้มของ STR หรือ WIS (ตัวที่ต่ำกว่า)`,
       (lv) => ({ clCoreBase: K.base * lv, clMindRegen: K.regen * lv })),
-    n('cleric_core2', 'cleric_core', 0, '💪', 'ศรัทธาสู่กาย', 3, (lv) => `INT ทุก ${K.intPer[Math.max(0, Math.min(2, Math.round(lv) - 1))]} แต้ม = STR +1`,
-      (lv) => ({ clIntToStr: K.intPer[Math.max(0, Math.min(2, Math.round(lv) - 1))] })),
+    // v102 (Q 2026-11-07): also WIS -> VIT at the same steps
+    n('cleric_core2', 'cleric_core', 0, '💪', 'ศรัทธาสู่กาย', 3, (lv) => `INT ทุก ${K.intPer[i3(lv)]} แต้ม = STR +1 · WIS ทุก ${K.intPer[i3(lv)]} แต้ม = VIT +1`,
+      (lv) => ({ clIntToStr: K.intPer[i3(lv)], clWisToVit: K.intPer[i3(lv)] })),
     n('cleric_core3', 'cleric_core', 0, '💠', 'มานาพิทักษ์', 3, (lv) => `โดนตี (รวมที่โล่รับ) ได้ Mana ${pc(K.guard * lv)} ของดาเมจ (WIS ขยาย) · ใช้ Mana คืน HP ${pc(K.heal)} ของที่ใช้ · ต้นเวฟได้โล่ ${pc(K.shield * lv)} ของ Max Mana`,
       (lv) => ({ clManaGuard: K.guard * lv, clManaHeal: K.heal, clManaShield: K.shield * lv })),
     // D: 🌄 รุ่งอรุณ (v92, Q 2026-11-07): Ult smash + bonus MAGIC damage (STR + WIS + D.matk x M.ATK) on every monster it hits.
     // Same node ids as v86 (shipped a day earlier, same theme). Numbers per OLD level (max 3), stretched to 5.
-    n('cleric_dn1', 'cleric_d', 1, '🌄', 'แสงรุ่งอรุณ', 3, (lv) => `Ult ทุบแถมดาเมจเวท ${pc(D.share * lv)} ของ (STR + WIS + ${pc(D.matk)} M.ATK) ใส่ทุกตัวที่โดนทุบ`,
+    // v108 (Q 2026-11-07, Dawnbreaker-style passive): every D.every-th basic / combo hit adds the bonus to the monster hit (was: on the Ult smash)
+    n('cleric_dn1', 'cleric_d', 1, '🌄', 'แสงรุ่งอรุณ', 3, (lv) => `ตีธรรมดา/คอมโบครบ ${D.every} ฮิต → แถมดาเมจเวท ${pc(D.share * lv)} ของ (STR + WIS + ${pc(D.matk)} M.ATK) ใส่ตัวที่ตี`,
       (lv) => ({ clDawn: D.share * lv })),
     n('cleric_dn2', 'cleric_d', 2, '💛', 'อรุณสมานแผล', 3, (lv) => `ฮีล ${pc(D.heal * lv)} ของดาเมจแสงรุ่งอรุณที่ตัวหน้า (มอนธรรมดา x${D.weak})`, (lv) => ({ clDawnHeal: D.heal * lv })),
-    n('cleric_dn3', 'cleric_d', 3, '☀️', 'แสงแตก', 3, (lv) => `ดาเมจแสงรุ่งอรุณ +${pc(D.amp * lv)}`, (lv) => ({ clDawnAmp: D.amp * lv })),
+    // v102 (Q 2026-11-07): was +dmg/lv; now the Dawn Light bonus hitting gives WIS = 25/30/35% of the bonus/target for 3/4/5 turns. Max 3, not stretched (tree.ts NO_STRETCH).
+    n('cleric_dn3', 'cleric_d', 3, '☀️', 'แสงแตก', 3, (lv) => `แสงรุ่งอรุณโดนแล้ว ได้ WIS = ${pc(D.wis[i3(lv)])} ของดาเมจแสงรุ่งอรุณ/ตัว ${D.wisTurns[i3(lv)]} เทิร์น`,
+      (lv) => ({ clDawnWis: D.wis[i3(lv)], clDawnWisTurns: D.wisTurns[i3(lv)] })),
     n('cleric_dn4', 'cleric_d', 4, '🌅', 'อรุณพิทักษ์', 1, () => `แสงรุ่งอรุณคริแน่ · ดาเมจคริ +${pc(D.crit)}`, () => ({ clDawnUlt: 1, clDawnCrit: D.crit })),
   ],
   talents: [

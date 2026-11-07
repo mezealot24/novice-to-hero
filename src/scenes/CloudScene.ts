@@ -1,10 +1,10 @@
 import Phaser from 'phaser'
-import { cloudEnabled, conflict, linkProvider, onStatus, PROVIDERS, resolve, status, syncStart } from '../cloud'
-import { button, go, panel, toast, topBar, txt, UI } from '../ui'
+import { backupInfo, cloudEnabled, linkProvider, onStatus, PROVIDERS, restoreBackup, status, syncStart } from '../cloud'
+import { button, confirm, go, panel, toast, topBar, txt, UI } from '../ui'
 
-const STATE_LABEL = { off: 'ปิดอยู่', idle: '✅ ซิงก์แล้ว', syncing: '⏳ กำลังซิงก์…', offline: '📴 ออฟไลน์ (เล่นต่อได้ ซิงก์ทีหลัง)', conflict: '⚠️ เซฟไม่ตรงกัน ต้องเลือก', error: '❌ ซิงก์ไม่สำเร็จ' } as const
+const STATE_LABEL = { off: 'ปิดอยู่', idle: '✅ ซิงก์แล้ว', syncing: '⏳ กำลังซิงก์…', offline: '📴 ออฟไลน์ (เล่นต่อได้ ซิงก์ทีหลัง)', error: '❌ ซิงก์ไม่สำเร็จ' } as const
 
-// Account + cloud save screen: sync status, link a guest to Google / Apple / Facebook / LINE, resolve a save conflict.
+// Account + cloud save screen: sync status, link a guest to Google / Apple / Facebook / LINE, sync now. The cloud save always wins (no conflict prompt).
 export class CloudScene extends Phaser.Scene {
   private off?: () => void
   private body?: Phaser.GameObjects.Container
@@ -18,7 +18,13 @@ export class CloudScene extends Phaser.Scene {
     this.off = onStatus(() => this.render())
     this.events.once('shutdown', () => this.off?.())
     this.render()
-    if (cloudEnabled && status.state !== 'syncing') void syncStart().then(() => this.render())
+    if (cloudEnabled && status.state !== 'syncing') void this.sync()
+  }
+
+  /** A cloud copy replaced this device's save: reload so every scene reads it fresh. */
+  private async sync() {
+    if ((await syncStart()) === 'adopted') location.reload()
+    else if (this.scene.isActive('cloud')) this.render()
   }
 
   private render() {
@@ -32,12 +38,16 @@ export class CloudScene extends Phaser.Scene {
     b.add(txt(this, 144, 96, `สถานะ: ${STATE_LABEL[status.state]}`, 20, UI.text, true))
     b.add(txt(this, 144, 130, status.guest ? '👤 ตอนนี้เป็นผู้เล่นชั่วคราว (guest): ผูกบัญชีเพื่อไม่ให้เซฟหาย' : `🔗 ผูกแล้ว: ${status.linked.join(', ')}`, 16, UI.sub))
 
-    const c = conflict()
-    if (c) {
-      b.add(panel(this, 120, 186, 720, 150, 0x4a2a3a, 0xff7a7a))
-      b.add(txt(this, 144, 200, 'เซฟในเครื่องนี้กับบน cloud ไม่ตรงกัน เลือกอันที่จะใช้ (อีกอันจะถูกทับ)', 17, UI.text, true).setWordWrapWidth(680))
-      b.add(button(this, 300, 290, 280, 52, '☁️ ใช้เซฟบน cloud', () => { void resolve('cloud') }, { size: 18 }))
-      b.add(button(this, 640, 290, 280, 52, '📱 ใช้เซฟเครื่องนี้', () => { void resolve('local') }, { size: 18, fill: 0x5a5f8a, color: UI.text }))
+    b.add(txt(this, 144, 200, '☁️ เซฟอยู่บน cloud: เปิดเครื่องไหนก็ได้เซฟล่าสุดเสมอ', 16, UI.sub))
+    const bk = backupInfo()
+    if (bk) {
+      b.add(panel(this, 120, 236, 720, 100, 0x3a3550, UI.line))
+      b.add(txt(this, 144, 248, `เซฟเดิมของเครื่องนี้ถูก cloud ทับไป: "${bk.name}" Lv ${bk.level}`, 16, UI.text, true))
+      b.add(button(this, 300, 306, 300, 44, '↩️ กู้เซฟนี้ขึ้น cloud แทน', () => {
+        confirm(this, 'กู้เซฟเครื่องนี้?', `"${bk.name}" Lv ${bk.level} จะขึ้นไปทับเซฟบน cloud\nทุกเครื่องจะใช้เซฟนี้แทนนะคะ`, 'กู้เลย', () => {
+          void restoreBackup().then((err) => { if (err) toast(this, `กู้ไม่ได้: ${err}`, UI.red) })
+        })
+      }, { size: 16, fill: 0x5a5f8a, color: UI.text }))
     }
 
     b.add(txt(this, 120, 360, status.guest ? 'ผูกบัญชีด้วย:' : 'ผูกบัญชีเพิ่ม:', 18, UI.text, true))
@@ -48,6 +58,6 @@ export class CloudScene extends Phaser.Scene {
         if (err) toast(this, `ผูกไม่ได้: ${err}`, UI.red)
       }, { size: 18, fill: done ? 0x3a6b4a : 0x2f6a8a, color: UI.text }).setEnabled(!done))
     })
-    b.add(button(this, 220, 500, 200, 48, '🔄 ซิงก์ตอนนี้', () => { void syncStart().then(() => this.render()) }, { size: 17, fill: 0x5a5f8a, color: UI.text }))
+    b.add(button(this, 220, 500, 200, 48, '🔄 ซิงก์ตอนนี้', () => { void this.sync() }, { size: 17, fill: 0x5a5f8a, color: UI.text }))
   }
 }

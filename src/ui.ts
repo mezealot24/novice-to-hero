@@ -56,7 +56,7 @@ export function button(scene: Phaser.Scene, x: number, y: number, w: number, h: 
     g.fillStyle(f, 1).fillRoundedRect(-w / 2, -h / 2, w, h, 12)
     g.fillStyle(0xffffff, hover && enabled ? 0.18 : 0.08).fillRoundedRect(-w / 2 + 3, -h / 2 + 3, w - 6, h / 2 - 3, 9)
     g.lineStyle(2, o.stroke ?? 0x000000, 0.35).strokeRoundedRect(-w / 2, -h / 2, w, h, 12)
-    t.setAlpha(enabled ? 1 : 0.55)
+    t.setColor(enabled ? o.color ?? UI.ink : '#c3c6e4').setAlpha(enabled ? 1 : 0.9) // v101: dark ink on the grey disabled fill was unreadable ("ขาด 💧9")
   }
   draw()
   c.setSize(w, h).setInteractive({ useHandCursor: true })
@@ -256,7 +256,7 @@ export function costStrip(scene: Phaser.Scene, x: number, y: number, w: number):
         else if (buy) need.push({ icon: sl?.icon ?? '📦', label: `ซื้อ ${buy.name} ${buy.price}z`, st: zShort ? 'short' : 'buy' })
         else need.push({ icon: sl?.icon ?? '📦', label: `ขาดของ${sl?.name ?? ''}`, st: 'short' })
       }
-      if (cost.zeny > 0 || zShort) need.push({ icon: '🪙', label: `${cost.zeny}`, st: zShort ? 'short' : 'ok' })
+      if (cost.zeny > 0 || zShort) need.push({ icon: '💰', label: `${cost.zeny}`, st: zShort ? 'short' : 'ok' })
       if (cost.gems) need.push({ icon: '💎', label: `${cost.gems}`, st: wallet.gems >= cost.gems ? 'ok' : 'short' })
     }
     while (pool.length < need.length) { const ch = chip(scene, 0, 0, '', ''); pool.push(ch); c.add(ch) }
@@ -349,10 +349,10 @@ export function holdButton(scene: Phaser.Scene, x: number, y: number, w: number,
   return c
 }
 
-export interface ItemIconState { grade: number; refine: number; broken?: boolean; tainted?: boolean; unique?: boolean; cursed?: boolean }
+export interface ItemIconState { grade: number; refine: number; broken?: boolean; tainted?: boolean; unique?: boolean; cursed?: boolean; worn?: boolean }
 export interface ItemIcon extends Phaser.GameObjects.Container { setItem(it: Item, st: ItemIconState): ItemIcon }
 
-/** Item tile: frame in the grade colour, emoji, and the badges (star grade, +N, broken, tainted, unique, cursed). Used by the rail and the anvil stage; setItem() redraws in place. */
+/** Item tile: frame in the grade colour, emoji, and the badges (star grade, +N, broken, tainted, unique, cursed, v115 worn ✓ pill on the bottom edge). Used by the rail and the anvil stage; setItem() redraws in place. */
 export function itemIcon(scene: Phaser.Scene, x: number, y: number, size: number, it: Item, st: ItemIconState): ItemIcon {
   const g = scene.add.graphics()
   const ico = scene.add.text(0, 0, '', { fontFamily: FONT_UI, fontSize: `${Math.round(size * 0.55)}px` }).setOrigin(0.5)
@@ -361,7 +361,8 @@ export function itemIcon(scene: Phaser.Scene, x: number, y: number, size: number
   const star = label(-half + 4, half - small - 5, '#ffffff'), plus = label(half - 4, -half + 3, UI.gold).setOrigin(1, 0)
   const tag = scene.add.text(half - 2, half - 2, '', { fontFamily: FONT_UI, fontSize: `${small + 2}px` }).setOrigin(1, 1)
   const crown = scene.add.text(-half + 3, -half + 2, '', { fontFamily: FONT_UI, fontSize: `${small + 2}px` })
-  const c = scene.add.container(x, y, [g, ico, star, plus, tag, crown]) as ItemIcon
+  const wornT = scene.add.text(0, half, '✓', { fontFamily: FONT_UI, fontSize: `${small}px`, fontStyle: 'bold', color: '#0f2a1c' }).setOrigin(0.5)
+  const c = scene.add.container(x, y, [g, ico, star, plus, tag, crown, wornT]) as ItemIcon
   c.setItem = (item, s) => {
     const gc = GRADE.colors[Math.max(1, Math.min(GRADE.max, s.grade || 1))]
     const frame = s.tainted ? 0xc08cff : s.unique ? 0xff6b4a : hex(gc)
@@ -374,6 +375,8 @@ export function itemIcon(scene: Phaser.Scene, x: number, y: number, size: number
     plus.setText(s.refine > 0 ? `+${s.refine}` : '')
     tag.setText(s.broken ? '💥' : s.tainted ? '☠️' : s.cursed ? '💀' : '')
     crown.setText(s.unique ? '👑' : '')
+    wornT.setVisible(!!s.worn)
+    if (s.worn) { const pw = small * 1.9, ph = small + 4; g.fillStyle(0x6fd08c, 1).fillRoundedRect(-pw / 2, half - ph / 2, pw, ph, ph / 2).lineStyle(1.5, 0x14172b, 1).strokeRoundedRect(-pw / 2, half - ph / 2, pw, ph, ph / 2) }
     return c
   }
   return c.setItem(it, st)

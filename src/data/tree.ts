@@ -3,11 +3,11 @@
 // (N-1)*2 points in that branch and its parent node; a capstone (tier 4) needs 6, max 2 capstones per class.
 // Nodes only add stats; BattleScene reads the stats (thorns, lockOn, fireSpread...). Ids are save data: never rename.
 // v83 (Q 2026-11-06): stretchNode() gives class / ใยชั้น 2 nodes more levels (max 1->3, 2->4, 3->5) at the SAME full value.
-import { KIT } from './skill-math'
 import type { Stats } from './game-data'
 import type { ClassTree, TalentDef, TreeBranch, TreeNode } from './tree-types'
 export * from './tree-types'
-import { JOBS, type JobId } from './jobs'
+import { CLERIC_KIT, JOBS, type JobId } from './jobs'
+import { KIT, KIT2 } from './skill-math'
 import { skill2Of } from './skill2'
 import { tree as swordsman } from './trees/swordsman'
 import { tree as archer } from './trees/archer'
@@ -48,6 +48,7 @@ export const NO_STRETCH: Readonly<Record<string, string>> = {
   kn_p3: 'Spear Boomerang: on/off flag',
   sg_a3: 'Auto Spell +1 bolt: a whole count',
   cleric_core2: 'v86 INT per +1 STR steps 7 / 6 / 5: whole steps',
+  cleric_dn3: 'v102 แสงแตก WIS buff 25/30/35% for 3/4/5 turns: Q set max 3',
 }
 /** Text of a level between two old levels: long decimals -> 1 dp (or whole numbers on INT_FIELDS nodes), trailing .0 dropped.
  *  Numbers already written with 1-2 decimals (toFixed(2) multipliers) stay as written. */
@@ -91,6 +92,8 @@ const ATTACH: Record<string, 's1' | 'ult'> = {
 const CLASS_TREES: ClassTree[] = [swordsman, archer, mage, cleric, thief]
 const RESOURCE_NAME = { mana: 'Mana', rage: 'Rage', energy: 'Energy' } as const
 const powId = (job: JobId, line: 's1' | 'ult') => `${job}_${line}p`
+/** v102: extra Mana of the Cleric ult at this Ult node Lv (Lv 1 = +0 ... Lv 5 = +20). */
+const clUltManaAt = (lv: number) => Math.max(0, Math.round(lv) - 1) * CLERIC_KIT.ultManaLv
 const webBranches: TreeBranch[] = []
 const webNodes: TreeNode[] = []
 for (const c of CLASS_TREES) {
@@ -99,8 +102,9 @@ for (const c of CLASS_TREES) {
     const sk = line === 's1' ? J.auto : J.ult, label = line === 's1' ? 'ทักษะ 1' : 'Ult'
     webBranches.push({ id: `${job}_${line}`, job, name: label, icon: sk.icon, blurb: sk.name, line })
     webNodes.push({ id: powId(job, line), branch: `${job}_${line}`, tier: 0, icon: sk.icon, name: `${sk.name}`, max: TREE_RULES.powMax, kind: 'pow',
-      ...(job === 'cleric' && line === 'ult' // v58 Q: Priest's พรคุ้มครอง node = ult P.ATK +10%/lv (Lv5 +50%)
-        ? { desc: (lv: number) => `Ult ทุบแรง +${Math.round(lv * KIT.clericUltAtkLv * 100)}% P.ATK`, mod: (lv: number) => ({ clUltAtk: KIT.clericUltAtkLv * lv }) }
+      ...(job === 'cleric' && line === 'ult' // v108 Q 2026-11-07: back to v58, Priest's พรคุ้มครอง node = ult smash +10%/lv of 150% (KIT.clericUltAtkLv) · Mana by Lv only if CLERIC_KIT.ultManaLv > 0
+        ? { desc: (lv: number) => `Ult ทุบแรง +${Math.round(lv * KIT.clericUltAtkLv * 100)}% P.ATK${CLERIC_KIT.ultManaLv ? ` · Mana Ult ${CLERIC_KIT.ultMana + clUltManaAt(lv)}` : ''}`,
+            mod: (lv: number) => ({ clUltAtk: KIT.clericUltAtkLv * lv, clUltMana: clUltManaAt(lv) }) }
         : { desc: (lv: number) => `${label} แรง +${Math.round(lv * TREE_RULES.powPer * 100)}%`, mod: (lv: number) => (line === 's1' ? { s1Pow: TREE_RULES.powPer * lv } : { ultPow: TREE_RULES.powPer * lv }) }) })
   }
   webBranches.push({ id: `${job}_s2`, job, name: 'ทักษะ 2', icon: '🔀', blurb: 'เลือก 1 จาก 3', line: 's2' })
@@ -137,7 +141,8 @@ for (const id of Object.keys(JOB2_TREES) as Job2Id[]) {
     const label = line === 's3' ? 'ทักษะ 3' : 'Ult วิวัฒน์'
     web2Branches.push({ id: `${id}_${line}`, job: J.parent, job2: id, name: label, icon: sk.icon, blurb: sk.name, line: 'job2' })
     web2Nodes.push({ id: `${id}_${line}p`, branch: `${id}_${line}`, tier: 0, icon: sk.icon, name: sk.name, max: TREE_RULES.powMax, kind: 'pow2',
-      desc: (lv: number) => `${label} แรง +${Math.round(lv * TREE_RULES.powPer * 100)}%`, mod: (lv: number) => ({ [key]: TREE_RULES.powPer * lv }) })
+      desc: (lv: number) => `${label} แรง +${Math.round(lv * TREE_RULES.powPer * 100)}%${id === 'crusader' && line === 'u2' ? ` · ${KIT2.crusader.gcPulses[Math.min(5, Math.round(lv))]} pulse` : ''}`,
+      mod: (lv: number) => ({ [key]: TREE_RULES.powPer * lv, ...(id === 'crusader' && line === 'u2' ? { j2GcLv: lv } : {}) }) }) // v109: Grand Cross pulses by Lv
   }
   for (const b of c.branches) {
     web2Branches.push({ ...b, line: 'job2' })
@@ -214,6 +219,29 @@ export const talentEarned = (jobLevel: number) => Math.floor(jobLevel / TALENT_R
 export const talentSpent = (t: TalentSave | undefined) => [1, 2, 3, 4].reduce((a, r) => a + (talentPick(t, r)?.rank ?? 0), 0)
 export const talentFree = (t: TalentSave | undefined, jobLevel: number) => talentEarned(jobLevel) - talentSpent(t)
 
+/** v102 (Q 2026-11-07, all jobs): talent card text that matches the rank shown ("1/2" used to show the rank-2 numbers).
+ *  now = the current rank's text (rank 0 = a "ขั้น 1" preview); next = what the next rank changes, short when it can be. */
+export function talentRankText(def: TalentDef, rank: number): { now: string; next?: string } {
+  const at = Math.max(1, Math.min(rank, def.max)), now = def.desc(at)
+  const head = rank <= 0 ? `ขั้น 1: ${now}` : now
+  if (at >= def.max) return { now: head }
+  return { now: head, next: `▲ ขั้น ${at + 1}: ${rankHint(now, def.desc(at + 1))}` }
+}
+const NUM = /x?[+−-]?\d+(?:\.\d+)?(?:%|x)?/g
+/** "a" -> "b" texts: same wording with other numbers -> just the changed numbers; "a" + more -> "+ more"; else all of "b". */
+export function rankHint(a: string, b: string): string {
+  if (a.replace(NUM, '#') === b.replace(NUM, '#')) {
+    const x = [...a.matchAll(NUM)], y = b.match(NUM) ?? []
+    const label = (m: RegExpMatchArray) => { // the short word right before the number ("Hit", "โล่"), if there is one
+      const w = a.slice(0, m.index).trimEnd().split(/\s+/).pop() ?? ''
+      return w && w.length <= 8 && !/[→·:(]/.test(w) && !/\d/.test(w) ? `${w} ` : ''
+    }
+    const diff = x.map((m, i) => (m[0] !== y[i] ? `${label(m)}${m[0]} → ${y[i]}` : '')).filter(Boolean)
+    if (diff.length) return diff.join(' · ')
+  }
+  if (b.startsWith(a) && b.length > a.length) return `+ ${b.slice(a.length).replace(/^\s*·\s*/, '')}`
+  return b
+}
 /** Stats from the picked talents whose row is open at this Job Lv. */
 export function talentMods(t: TalentSave | undefined, job: JobId, jobLevel: number): Partial<Stats>[] {
   if (!t) return []

@@ -78,9 +78,9 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     blurb: 'อัศวินศักดิ์สิทธิ์แบบ RO · กระบอง/ดาบ + โล่ บล็อกเก่ง · แรงใส่อันเดด/ปีศาจ · Grand Cross จ่าย HP แลกแสงกางเขนทุกตัว',
     mod: { j2Guard: C.guard },
     mastery: { weapon: 'กระบอง / ดาบ', ok: (it) => it.wtype === 'mace' || it.wtype === 'sword', mod: { def: C.mastery.def }, pct: { atk: C.mastery.atkPct } },
-    signature: { name: 'Auto Guard + ศรัทธา', icon: '🛡️', desc: `บล็อกการโจมตีกายภาพ ${pc(C.guard)} (+${pc(C.guardVit)}/VIT สูงสุด ${pc(C.guardCap)} · ไม่มีโล่ = ครึ่งเดียว) · ดาเมจ +${pc(C.holyVs)} ใส่อันเดด/ปีศาจ` },
+    signature: { name: 'Auto Guard + ศรัทธา', icon: '🛡️', desc: `บล็อกการโจมตีกายภาพ ${pc(C.guard)} (+${pc(C.guardVit)}/VIT สูงสุด ${pc(C.guardCap)} เกินได้โล่/ฮีลตอนบล็อก +${pc(C.guardOverMul / 100)} ต่อ 1% · ไม่มีโล่ = ครึ่งเดียว) · ดาเมจ +${pc(C.holyVs)} ใส่อันเดด/ปีศาจ` },
     skill3: { name: 'Holy Cross', icon: '✝️', cost: C.crossCost, cd: C.crossCd, desc: `Mana ${C.crossCost} · คูลดาวน์ ${C.crossCd}: ฟันกางเขนตัวหน้า ${C.crossHits} ฮิต ฮิตละ ${C.crossMul}x P.ATK + ${C.crossMul}x Pm · 🙈 ตาบอด Hit -${pc(C.blindHit)} ${C.blindTurns} เทิร์น` },
-    ult: { name: 'Grand Cross', icon: '✨', cd: 4, cost: 0, desc: `จ่าย ${pc(C.gcPay)} HP ปัจจุบัน → แสงกางเขนทุกตัว ${C.gcPm}x Pm + ${C.gcAtk}x P.ATK · โดน ${C.gcRefundAt} ตัวขึ้นไป ได้ HP คืน ${pc(C.gcRefund)} ของที่จ่าย · โล่แบบพรคุ้มครอง` },
+    ult: { name: 'Grand Cross', icon: '✨', cd: 4, cost: 0, desc: `จ่าย ${pc(C.gcPay)} HP + เผา Mana ที่เหลือ → แสงกางเขนใส่ทุกตัว ${C.gcPulses.join('/')} ครั้งตาม Lv (ตอนกด แล้วต้นเทิร์นละครั้ง) · เผามากยิ่งแรง · ดูดเลือด +${pc(C.gcVamp)} · โดน ${C.gcRefundAt}+ ตัว คืน HP ${pc(C.gcRefund)}` },
   },
   monk: {
     id: 'monk', parent: 'cleric', name: 'มังค์', icon: '👊', focus: 'STR · AGI · WIS',
@@ -125,8 +125,8 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     blurb: 'สายกับดัก / สุ่มของประหลาด · ต้นเวฟวางกับดัก RO Hunter · กล่องสุ่ม 10 แบบ (LUK = ของหายาก) · หุ่นจิ๋วป้อมปืน',
     mod: { crit: 0.03 },
     mastery: { weapon: 'ธนู', ok: (it) => it.wtype === 'bow', mod: { crit: IN.mastery.crit }, pct: { atk: IN.mastery.atkPct } },
-    signature: { name: 'กล่องเครื่องมือ', icon: '🧰', desc: `ต้นเวฟวางกับดัก ${IN.traps} อัน (สุ่ม) ทำงานตอนมอนลงมือ: 💣 Land Mine ${IN.mineMul}x · 🪤 Ankle Snare มอนเสียเทิร์น (บอส: เกจ -${IN.snarePush}) · ❄️ Freezing Trap ${IN.freezeMul}x + แช่แข็ง (บอส: ช้า)` },
-    skill3: { name: 'กล่องสุ่มประหลาด', icon: '🎲', cost: IN.boxCost, cd: IN.boxCd, desc: `Energy ${IN.boxCost} · คูลดาวน์ ${IN.boxCd}: สุ่ม 1 จาก 10 (LUK ดันของหายาก ⭐) · 🐔 ไก่ยาง · 🍌 เปลือกกล้วย · 🚀 จรวด ${IN.rocketMul}x · ⭐🤖 หุ่นจิ๋ว · ⭐🧲 แม่เหล็ก zeny +${pc(IN.magnetZeny)} · ⭐🪞 กระจก · 🥤 โคล่า · 🎈 ลูกโป่ง · ☁️ เมฆฝน · ⭐💥 แจ็คพอต (ทุกอย่าง)` },
+    signature: { name: 'กล่องเครื่องมือ', icon: '🧰', desc: `ต้นเวฟวางกับดัก ${IN.traps} อัน (สุ่ม) ทำงานตอนมอนลงมือ: 💣 Land Mine ${IN.mineMul}x · 🕳️ Ankle Snare มอนเสียเทิร์น (บอส: เกจ -${IN.snarePush}) · ❄️ Freezing Trap ${IN.freezeMul}x + แช่แข็ง (บอส: ช้า)` },
+    skill3: { name: 'กล่องสุ่มประหลาด', icon: '🎲', cost: IN.boxCost, cd: IN.boxCd, desc: `Energy ${IN.boxCost} · คูลดาวน์ ${IN.boxCd}: สุ่ม 1 จาก 10 (LUK ดันของหายาก ⭐) · 🐔 ไก่ยาง · 🍌 เปลือกกล้วย · 🚀 จรวด ${IN.rocketMul}x · ⭐🤖 หุ่นจิ๋ว · ⭐🧲 แม่เหล็ก zeny +${pc(IN.magnetZeny)} · ⭐🔁 กระจก · 🥤 โคล่า · 🎈 ลูกโป่ง · ☁️ เมฆฝน · ⭐💥 แจ็คพอต (ทุกอย่าง)` },
     ult: { name: 'สิ่งประดิษฐ์สุดเพี้ยน', icon: '🛠️', cd: 4, desc: `สุ่มกล่อง ${IN.ultBoxes} ครั้ง + วางกับดักครบ 3 แบบ + ยิงศรทะลวงเดิม` },
   },
 }

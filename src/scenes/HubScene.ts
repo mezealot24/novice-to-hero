@@ -7,7 +7,7 @@ import { COSTUMES, FREE_GEMS, isBroken, itemById, JOB_RULES, noviceLeft, RACES, 
 import { canChangeJob, canChangeJob2, persist, save, today, ultMode, wipe } from '../save'
 import { JOB_CHANGE, JOBS } from '../data/jobs'
 import { JOB2, JOB2_RULES, job2Of } from '../data/jobs2'
-import { dailyOf, dailySeed, MODES, PANEL_MODES, TOWER, towerCatchUp, towerCheckpoints, towerSkipCheck, towerSkipGems } from '../data/modes'
+import { DAILY, dailyOf, dailySeed, deepDailyOk, MODES, PANEL_MODES, TOWER, towerCatchUp, towerCheckpoints, towerSkipCheck, towerSkipGems } from '../data/modes'
 import { cloudEnabled } from '../cloud'
 import { setMuted } from '../sfx'
 import { askRepick } from './JobScene'
@@ -183,6 +183,10 @@ export class HubScene extends Phaser.Scene {
       if (id === 'daily') {
         const seed = dailySeed(), d = dailyOf(seed)
         body = `วันนี้: ${d.dg.name} · ${d.mutators.map((x) => `${x.icon} ${x.name} (${x.desc})`).join(' · ')}\n${m.desc}`
+        if (deepDailyOk(s)) { // v118 🌌 deep daily: names only (the panel row is short)
+          const dd = dailyOf(seed, true)
+          body += `\n🌌 รายวันลึก: ${dd.dg.name} · ${dd.mutators.map((x) => `${x.icon} ${x.name}`).join(' ')} · 💎${DAILY.deepGems}`
+        }
       }
       c.add(txt(this, W / 2 - 360, y + 46, body, 13, UI.sub).setWordWrapWidth(560).setLineSpacing(4))
       const startIt = () => go(this, 'battle', { mode: id })
@@ -192,6 +196,8 @@ export class HubScene extends Phaser.Scene {
       }, { size: 20, fill: u.ok ? undefined : 0x4a4e6e, color: u.ok ? undefined : UI.sub }))
       if (id === 'tower' && towerCheckpoints(s.modes?.tower?.bestFloor ?? 0).length) // v87: skip to a checkpoint (gems)
         c.add(button(this, W / 2 + 290, y + 142, 130, 32, '⏭️ ข้ามชั้น', () => { c.destroy(); this.towerSkip() }, { size: 15, fill: 0x8a6fd1, color: UI.text }))
+      if (id === 'daily' && u.ok && deepDailyOk(s)) // v118 🌌 deep daily (D6-D10), opens after D10
+        c.add(button(this, W / 2 + 290, y + 142, 130, 32, '🌌 รายวันลึก', () => go(this, 'battle', { mode: 'daily', deep: true }), { size: 15, fill: 0x4a3a8a, color: UI.text }))
     })
     c.add(button(this, W / 2, H / 2 + 218, 200, 44, 'ปิด', () => c.destroy(), { size: 18, fill: 0x5a5f8a, color: UI.text }))
   }

@@ -42,7 +42,8 @@ export const KIT = {
   mageFire: 2, mageFireStacks: 3, mageIce: 1.6, mageIceChill: 3, mageLightHits: 6, mageLightLo: 0.3, mageLightHi: 1.2,
   clericHealBelow: 0.75, clericSmiteTargets: 2, clericJudge: 2.2, clericJudgeEvery: 3,
   // v58 Priest Ult web (Q 2026-11-04), linear per level: พรคุ้มครอง (v92 Q 2026-11-07) = ult smash 150% + 50%/Lv P.ATK, Lv5 = 400% · พรอุ่นไอ Lv5 = counter +12.5%, Holy Light 3 -> 8 · เกราะแสง Lv3 = 6% shield per spear volley
-  clericUltAtkLv: 0.5, clericWarmCounterLv: 0.025, clericWarmLightLv: 1, clericSpearShieldLv: 0.02,
+  clericUltAtkLv: 0.15, // v108 (Q: Ult back to v58): root พรคุ้มครอง smash +0.15x P.ATK per Lv = 150% x (1 + 10%/Lv) · v104 0.2 per 🌄 Lv · v92 0.5 per root Lv
+  clericWarmCounterLv: 0.025, clericWarmLightLv: 1, clericSpearShieldLv: 0.02,
   spearBase: 0.3, spearMax: 8,
   thiefAuto: 1.6, thiefAutoPoison: 3, thiefUlt: 0.7, thiefUltHits: 4, thiefUltDodge: 2,
   // v82 Archer web: 🧪 ศรพิษ (under ทักษะ 1) + 🏷️ ล่าหัว (under Ult), first guesses (design/skill-tree-archer.md v82)
@@ -65,15 +66,16 @@ export const KIT = {
     overBurst: 1.5, overCap: 0.25, // ★ แสงล้นฟ้า: overheal x this as holy damage to the front monster (overheal counted up to 25% max HP per heal)
     wardTurns: 2, ward: 0.06, emergencyAt: 0.3, emergency: 0.08, mend: 0.1, // ม่านพร: after ult −dmg taken/lv N hero turns · ฉุกเฉิน: under 30% HP heal max HP share/lv (1/wave) · ชุบชีวา: ult heals missing HP share/lv
     // v86 web 🌄 รุ่งอรุณ (Q 2026-11-06, replaces ⛪ ฟื้นคืน; its numbers above stay for the old code paths). Per OLD level (max 3):
+    // v93 (Q 2026-11-07): share 1/3 -> 2/3 per old lv (Lv5 = 200% of the base, was 100%): +16 per point instead of +8, Lv5 about +35% of the Ult smash.
     // v92 (Q 2026-11-07) แสงรุ่งอรุณ: the Ult smash adds bonus MAGIC damage (STR + WIS + matk x M.ATK) to each monster it hits, x share/lv
     // (full at old lv 3 = Lv5) · อรุณสมานแผล: heal/lv of the bonus dealt to the front monster (normal monsters x weak)
-    // · แสงแตก: bonus +amp/lv · ★ อรุณพิทักษ์: the bonus is a sure crit, crit dmg +crit. (v86 every-3-basics smash removed.)
+    // · v102 แสงแตก (max 3, not stretched): the bonus hitting gives WIS = wis[lv-1] x the bonus/target for wisTurns[lv-1] hero turns · ★ อรุณพิทักษ์: the bonus is a sure crit, crit dmg +crit. (v86 every-3-basics smash removed.)
     // v86 core column 💠 แก่นศรัทธา (Q 2026-11-06, Mana for the Priest). Per OLD level (max 3, stretched to 5) unless noted:
     // จิตสงบ: STR + WIS +base/lv · Mana regen +regen/lv (resRegen units, x3 per turn) per 10 points of the lower of STR / WIS
-    // ศรัทธาสู่กาย (max 3, not stretched): every intPer[lv-1] INT = +1 STR · มานาพิทักษ์: damage taken (shield absorb too)
+    // ศรัทธาสู่กาย (max 3, not stretched): every intPer[lv-1] INT = +1 STR, v102 also every intPer[lv-1] WIS = +1 VIT · มานาพิทักษ์: damage taken (shield absorb too)
     // -> guard/lv of it as Mana (x (1 + WIS x wisAmp)) · Mana spent -> heal of it as HP · wave start shield = shield/lv x Max Mana
     core: { base: 5, regen: 1 / 6, intPer: [7, 6, 5], guard: 0.05, wisAmp: 0.005, heal: 0.2, shield: 0.25 / 3 },
-    dawn: { matk: 0.1, share: 1 / 3, heal: 0.1, amp: 0.2, crit: 0.5, weak: 0.6 },
+    dawn: { every: 3, matk: 0.1, share: 2 / 3, heal: 0.1, wis: [0.25, 0.3, 0.35], wisTurns: [3, 4, 5], crit: 0.5, weak: 0.6 }, // v108: passive, every Nth basic / combo hit (Dawnbreaker Luminosity)
     reviveHp: 0.5, reviveShield: 0.2, // ★ คืนชีพ: 1/run lethal hit -> back at 50% HP + 20% shield, debuffs cleared
   },
 }
@@ -114,10 +116,10 @@ export const KIT2 = {
     mastery: { atkPct: 0.05, poisonDmg: 1 }, // dagger
   },
   crusader: {
-    guard: 0.1, guardVit: 0.002, guardCap: 0.4, // 🛡️ Auto Guard: block chance + per VIT point over the start (no off-hand = KIT2.knight.guardShieldless)
+    guard: 0.1, guardVit: 0.002, guardCap: 0.4, guardOverMul: 2, // v116: each 1% over the cap = block shield / heal +2% · 🛡️ Auto Guard: block chance + per VIT point over the start (no off-hand = KIT2.knight.guardShieldless)
     holyVs: 0.25, holyFoes: ['skeleton', 'wisp', 'deathknight', 'hellknight', 'imp', 'necropriest', 'wraith', 'maiden', 'lich', 'bonepriest', 'mummy', 'dunewraith', 'pharaoh', 'gargoyle', ...PACKS.flatMap((p) => p.holyFoes)] as MonsterKind[], // ศรัทธา: undead / demons take +25%
     crossCost: 22, crossCd: 2, crossHits: 2, crossMul: 1, blindTurns: 2, blindHit: 0.2, // ✝️ Holy Cross: per hit P.ATK + Pm on the front monster · blind = its Hit -20%
-    gcPay: 0.2, gcPm: 2.5, gcAtk: 1, gcRefund: 0.5, gcRefundAt: 3, // ✨ Grand Cross: pay 20% current HP · all monsters · 3+ hit = half the HP back
+    gcPay: 0.2, gcPm: 0.5, gcAtk: 0.6, gcStr: 0.8, gcPulses: [2, 2, 2, 3, 4, 4], gcRefund: 0.5, gcRefundAt: 3, gcBurn: 1, gcVamp: 0.25, // v109 (Q): PER PULSE gcPm x Pm (magic) + gcAtk x P.ATK + gcStr x STR (physical), pulses by Ult วิวัฒน์ Lv 0..5; burn bonus + root P.ATK split over the pulses · // ✨ Grand Cross: pay 20% current HP · all monsters · 3+ hit = half the HP back · v106 (Q 2026-11-07): back to the v102 cross (no Mana cost, no Cleric ult) + burns ALL Mana left: bonus magic dmg/target = gcBurn x (Mana burnt + HP paid) · spellVamp +gcVamp while it casts · Cleric Ult-web node buffs apply (root Ult +12%/Lv, 🌄 P.ATK + Dawn Light, ไฟชำระ, talents)
     martyrShield: 0.2, // ★ ผู้พลีชีพ: shield share of max HP (Reflect Shield is capped by BATTLE.reflectCap)
     mastery: { atkPct: 0.05, def: 6 }, // mace / sword
   },
@@ -161,7 +163,7 @@ export const KIT2 = {
     tree: { petPow: 0.08, petRes: 1, cmdCut: 5, pack3Pow: 0.35, packLead: 0.04, petHeal: 0.005, roar: 10 },
   },
   innovator: {
-    traps: 1, mineMul: 1.5, snarePush: 30, freezeMul: 0.6, freezeChill: 2, // 🧰 wave-start trap (random of 3) fires when a monster acts: 💣 Land Mine · 🪤 Ankle Snare (boss: gauge -30) · ❄️ Freezing Trap
+    traps: 1, mineMul: 1.5, snarePush: 30, freezeMul: 0.6, freezeChill: 2, // 🧰 wave-start trap (random of 3) fires when a monster acts: 💣 Land Mine · 🕳️ Ankle Snare (boss: gauge -30) · ❄️ Freezing Trap
     boxCost: 35, boxCd: 3, rareLuk: 0.01, rareLukCap: 1.5, // 🎲 กล่องสุ่ม: rare gadget weight x (1 + LUK x this, capped)
     chickenSoaks: 2, rocketMul: 3, turretMul: 0.6, turretTurns: 3, magnetZeny: 0.3, mirrorCap: 1, colaMul: 1, colaChill: 2, wetTurns: 3, wetAmp: 0.25, // gadgets (☁️ wet: +25% from every hero hit, doc: lightning x1.5 — archers have no lightning)
     ultBoxes: 3, // 🛠️ สิ่งประดิษฐ์สุดเพี้ยน: 3 boxes + every trap + the base archer pierce shot
@@ -169,31 +171,42 @@ export const KIT2 = {
   },
 }
 
+/** Skill 2 linear "+" numbers: base + per x Stats.s2Lv. Plain numbers so the admin can tune them (skills `s2p.<key>.base|per`);
+ *  the S2N functions below read them on every call. Defaults are the v83 values. */
+export const S2P = {
+  guardCut: { base: 0.4, per: 0.05 }, bloodVamp: { base: 0.15, per: 0.05 }, tauntWeak: { base: 0.2, per: 0.05 },
+  rainMul: { base: 0.8, per: 0.15 }, hawkCrit: { base: 0.2, per: 0.05 }, trapPush: { base: 30, per: 10 },
+  mshieldTake: { base: 0.4, per: 0.05 }, novaMul: { base: 0.8, per: 0.15 }, arcaneMul: { base: 0.6, per: 0.1 },
+  renewHeal: { base: 0.3, per: 0.05 }, kyrieHp: { base: 0, per: 0.05 }, spearPlus: { base: 0, per: 0.03 },
+  smokeHeal: { base: 0, per: 0.03 }, pickRes: { base: 15, per: 5 },
+}
+const lin = (k: { base: number; per: number }, lv: number) => k.base + k.per * lv
+
 /** Skill 2 numbers by "+" level (Stats.s2Lv) and ★ (Stats.s2Star). data/skill2.ts texts and BattleScene.castSkill2 read these. */
 export const S2N = {
-  guardCut: (lv: number) => 0.4 + 0.05 * lv, guardTurns: (star: boolean) => (star ? 3 : 2), guardCounters: (star: boolean) => (star ? 2 : 1),
-  bloodVamp: (lv: number) => 0.15 + 0.05 * lv, bloodTurns: 3, bloodAtk: 0.15,
-  tauntWeak: (lv: number) => 0.2 + 0.05 * lv, tauntTurns: (star: boolean) => (star ? 3 : 2),
-  rainMul: (lv: number) => 0.8 + 0.15 * lv, rainWaves: (star: boolean) => (star ? 2 : 1),
-  hawkCrit: (lv: number) => 0.2 + 0.05 * lv, hawkTurns: 3, hawkCritDmg: 0.3,
-  trapMul: 0.6, trapPush: (lv: number) => 30 + 10 * lv,
-  mshieldTake: (lv: number) => 0.4 + 0.05 * lv, mshieldTurns: (star: boolean) => (star ? 5 : 3),
-  novaMul: (lv: number) => 0.8 + 0.15 * lv, novaChill: (star: boolean) => 2 + (star ? 1 : 0), novaPush: 15,
-  arcaneMul: (lv: number) => 0.6 + 0.1 * lv, arcaneHits: (star: boolean) => 3 + (star ? 2 : 0),
-  renewHeal: (lv: number) => 0.3 + 0.05 * lv, renewTurns: (star: boolean) => (star ? 6 : 4), // heal x M.ATK per turn (Q 2026-11-04: Priest heals scale with M.ATK; was 6% +1%/lv max HP)
+  guardCut: (lv: number) => lin(S2P.guardCut, lv), guardTurns: (star: boolean) => (star ? 3 : 2), guardCounters: (star: boolean) => (star ? 2 : 1),
+  bloodVamp: (lv: number) => lin(S2P.bloodVamp, lv), bloodTurns: 3, bloodAtk: 0.15,
+  tauntWeak: (lv: number) => lin(S2P.tauntWeak, lv), tauntTurns: (star: boolean) => (star ? 3 : 2),
+  rainMul: (lv: number) => lin(S2P.rainMul, lv), rainWaves: (star: boolean) => (star ? 2 : 1),
+  hawkCrit: (lv: number) => lin(S2P.hawkCrit, lv), hawkTurns: 3, hawkCritDmg: 0.3,
+  trapMul: 0.6, trapPush: (lv: number) => lin(S2P.trapPush, lv),
+  mshieldTake: (lv: number) => lin(S2P.mshieldTake, lv), mshieldTurns: (star: boolean) => (star ? 5 : 3),
+  novaMul: (lv: number) => lin(S2P.novaMul, lv), novaChill: (star: boolean) => 2 + (star ? 1 : 0), novaPush: 15,
+  arcaneMul: (lv: number) => lin(S2P.arcaneMul, lv), arcaneHits: (star: boolean) => 3 + (star ? 2 : 0),
+  renewHeal: (lv: number) => lin(S2P.renewHeal, lv), renewTurns: (star: boolean) => (star ? 6 : 4), // heal x M.ATK per turn (Q 2026-11-04: Priest heals scale with M.ATK; was 6% +1%/lv max HP)
   // v77 Q 2026-11-06: Priest ทักษะ 2 พรแสง = active Blessing (Mana 30 · cd 4 in skill2.ts). 3 hero turns: STR/DEX/INT/WIS +15 + cleanse 1 debuff on cast
   // · "+" 🛡️ Kyrie Eleison: barrier 5%/lv max HP (Lv3 = 15%), breaks after 3 hits · ★ ✨ Gloria: LUK +30 while blessed
-  blessTurns: 3, blessStat: 15, blessCleanse: 1, kyrieHp: (lv: number) => 0.05 * lv, kyrieHits: 3, gloriaLuk: 30,
-  spearPlus: (lv: number) => 0.03 * lv, spearCount: (star: boolean) => (star ? 4 : 2), // หอกคม: +10%/lv of the 0.3x base
-  smokeHeal: (lv: number) => 0.03 * lv, smokeDodges: (star: boolean) => (star ? 2 : 1),
-  pickMul: (star: boolean) => (star ? 1.6 : 1), pickRes: (lv: number) => 15 + 5 * lv, pickPoison: 3,
+  blessTurns: 3, blessStat: 15, blessCleanse: 1, kyrieHp: (lv: number) => lin(S2P.kyrieHp, lv), kyrieHits: 3, gloriaLuk: 30,
+  spearPlus: (lv: number) => lin(S2P.spearPlus, lv), spearCount: (star: boolean) => (star ? 4 : 2), // หอกคม: +10%/lv of the 0.3x base
+  smokeHeal: (lv: number) => lin(S2P.smokeHeal, lv), smokeDodges: (star: boolean) => (star ? 2 : 1),
+  pickMul: (star: boolean) => (star ? 1.6 : 1), pickRes: (lv: number) => lin(S2P.pickRes, lv), pickPoison: 3,
   woundMul: (star: boolean) => (star ? 2 : 1.2), woundPoison: (lv: number) => 4 + Math.round(lv), // stacks: whole numbers (v83 s2Lv can be fractional)
 }
 
 // ---------- costs / cooldowns ----------
 export const autoCost = (job: JobDef, st: Stats) => Math.max(10, job.auto.cost - st.autoCostCut)
-/** Mana the ult costs (Mage, Swordsman, Cleric since v86); 0 for every other job. */
-export const ultCost = (job: JobDef) => (job.resource === 'mana' ? job.ult.cost ?? 0 : 0)
+/** Mana the ult costs (Mage, Swordsman, Cleric since v86); 0 for every other job. v102: pass st for the base Cleric ult (+clUltMana by Ult node Lv). */
+export const ultCost = (job: JobDef, st?: Stats) => (job.resource === 'mana' ? (job.ult.cost ?? 0) + (job.id === 'cleric' && (job.ult.cost ?? 0) > 0 ? st?.clUltMana ?? 0 : 0) : 0)
 /** Ult cooldown in hero turns before relics (gear smashCd lowers it for every job). */
 export const ultCooldown = (job: JobDef, st: Stats) => {
   const cdCut = Math.round((PLAYER.smashCd - st.smashCd) / BATTLE.msPerTurn)
@@ -203,10 +216,26 @@ export const s2Cooldown = (k: Skill2Def, _st: Stats) => Math.max(1, k.cd)
 /** Light spear multiplier x M.ATK (Skill 2 หอกคม adds on top at run start). */
 export const spearMul = (st: Stats, s2?: Skill2Def) => KIT.spearBase + st.spearMul + (s2?.id === 'cl_spear' ? S2N.spearPlus(st.s2Lv) : 0)
 /** v58 Priest: ult smash multiplier x P.ATK (before ultAmp / pskill), Holy Light count, basic smash x P.ATK. */
-export const clericUltSmash = (st: Stats) => CLERIC_KIT.ultAtk + st.clUltAtk // v92: additive, 150% + 50%/Lv
-/** v92 🌄 แสงรุ่งอรุณ: flat bonus magic damage per Ult smash target = (STR + WIS + matk x M.ATK) x node share x (1 + แสงแตก). */
+export const clericUltSmash = (st: Stats) => CLERIC_KIT.ultAtk + st.clUltAtk // v108: v58 again, 150% + root 15%/Lv (Lv5 225%)
+/** v92 🌄 แสงรุ่งอรุณ: flat bonus magic damage per Ult smash target = (STR + WIS + matk x M.ATK) x node share (v102: แสงแตก no longer amps it). */
 export const dawnBonus = (st: Stats, str: number, wis: number) =>
-  st.clDawn > 0 ? (str + wis + KIT.clericTree.dawn.matk * st.matk) * st.clDawn * (1 + st.clDawnAmp) : 0
+  st.clDawn > 0 ? (str + wis + KIT.clericTree.dawn.matk * st.matk) * st.clDawn : 0
+/** v102 ☀️ แสงแตก: WIS the buff gives = share x the per-target bonus (x ult hitPow). The bonus is taken WITHOUT the buff's own WIS (no snowball). */
+export const dawnWisGain = (st: Stats, bonus: number) => (st.clDawnWis > 0 ? Math.round(bonus * st.clDawnWis) : 0)
+/** v109 Grand Cross pulses at this Ult วิวัฒน์ Lv. */
+export const gcPulses = (st: Stats) => KIT2.crusader.gcPulses[Math.max(0, Math.min(KIT2.crusader.gcPulses.length - 1, Math.round(st.j2GcLv)))]
+/** v108 🌄 รุ่งอรุณ passive detail rows (every Nth basic / combo hit). */
+export function dawnInfo(st: Stats, base: { str: number; wis: number }): InfoRow[] {
+  if (st.clDawn <= 0) return []
+  const D = KIT.clericTree.dawn, bonus = dawnBonus(st, base.str, base.wis)
+  const out: InfoRow[] = [
+    { label: 'ทำงานเมื่อ', value: `ตีธรรมดา / คอมโบ ครบ ${D.every} ฮิต (ฮิตที่ ${D.every})` },
+    { label: `🌄 ดาเมจเวทใส่ตัวที่ตี${st.clDawnUlt > 0 ? ' · คริแน่' : ''}`, value: `+${r(bonus)}` },
+  ]
+  if (st.clDawnHeal > 0) out.push({ label: '💛 ฮีลตัวเอง', value: `${pct(st.clDawnHeal)} ของดาเมจ (มอนธรรมดา x${D.weak})` })
+  if (st.clDawnWis > 0) out.push({ label: `☀️ แสงแตก: WIS ${st.clDawnWisTurns} เทิร์น`, value: `+${dawnWisGain(st, bonus)} WIS (${pct(st.clDawnWis)} ของ ${r(bonus)})` })
+  return out
+}
 /** The same bonus as a magic-hit multiplier (strike() scales mul by magic power). */
 export const dawnMul = (st: Stats, str: number, wis: number) => dawnBonus(st, str, wis) / Math.max(1, magicPower(st))
 export const clericUltLights = (st: Stats) => CLERIC_KIT.ultLights + st.clUltLights
@@ -258,9 +287,9 @@ export function autoInfo(jobId: JobId, st: Stats): InfoRow[] {
 }
 
 /** Ult with these stats. */
-export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: number }): InfoRow[] {
+export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: number }, job2?: string): InfoRow[] {
   const job = JOBS[jobId], pow = 1 + st.ultPow, hitPow = pow * (1 + st.ultAmp)
-  const out: InfoRow[] = [{ label: 'คูลดาวน์', value: `${ultCooldown(job, st)} เทิร์น${ultCost(job) ? ` · Mana ${ultCost(job)}` : ''}` }]
+  const out: InfoRow[] = [{ label: 'คูลดาวน์', value: `${ultCooldown(job, st)} เทิร์น${ultCost(job, st) ? ` · Mana ${ultCost(job, st)}` : ''}` }]
   switch (jobId) {
     case 'swordsman':
       out.push({ label: 'ดาเมจ/ตัว (ทุกตัว)', value: hitText(st, (SWORD_MANA.ultMul + st.ultMulAdd) * hitPow * (1 + st.pskill), false) })
@@ -283,8 +312,33 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
       break
     }
     case 'cleric':
+      if (job2 === 'crusader') { // v106: Grand Cross + the Cleric Ult-web buffs (v108: 🌄 is a basic-attack passive now, not here)
+        const C = KIT2.crusader, k = hitPow * (1 + st.ult2Pow) * (1 + st.j2CrossAdd)
+        // v116 (Q 2026-11-08): short values so they fit the 112px column; labels stay the same across Lv so now/next rows pair up
+        out[0] = { label: 'คูลดาวน์ (ไม่ใช้ Mana)', value: `${ultCooldown(job, st)} เทิร์น` }
+        const n = gcPulses(st), atkPer = C.gcAtk + st.clUltAtk / n, strFlat = C.gcStr * (base?.str ?? 0) * k
+        // v116 summary (Q 2026-11-08): one pulse = magic + P.ATK + STR (x2 with ★ ซ้อน); total = n pulses + burn (full Mana + HP paid at full HP)
+        const payPct = C.gcPay * Math.max(0, 1 - st.j2PayCut), mb = hitBase(st, true), pb = hitBase(st, false)
+        const mMul = C.gcPm * k, pMul = atkPer * k * (1 + st.pskill), times = st.j2GcTwice > 0 ? 2 : 1
+        const perLo = (mb.lo * mMul + pb.lo * pMul + strFlat) * times, perHi = (mb.hi * mMul + pb.hi * pMul + strFlat) * times
+        const burn = C.gcBurn * (st.maxRes + st.maxHp * payPct) * k
+        out.push({ label: '💥 ดาเมจต่อครั้ง/ตัว', value: range(perLo, perHi) })
+        out.push({ label: '💥 รวม/ตัว (ทุกครั้ง + เผา)', value: range(perLo * n + burn, perHi * n + burn) })
+        out.push({ label: '💔 จ่าย HP ปัจจุบัน', value: pct(payPct) })
+        out.push({ label: `↩️ คืน HP (โดน ${C.gcRefundAt}+ ตัว)`, value: `${pct(C.gcRefund)} ที่จ่าย` })
+        if (st.j2GcTwice > 0) out.push({ label: '★ ยิงซ้ำทุกครั้ง', value: 'รอบ 2 ไม่มีเผา' })
+        out.push({ label: '✝️ ใส่ทุกตัว (ตอนกด + ต้นเทิร์น)', value: `${n} ครั้ง` })
+        out.push({ label: `· ${C.gcPm}x พลังเวท (เวท)`, value: hitText(st, C.gcPm * k, true) })
+        out.push({ label: `· P.ATK (กาย${st.clUltAtk > 0 ? ' · 🙏 ราก' : ''})`, value: hitText(st, atkPer * k * (1 + st.pskill), false) })
+        out.push({ label: `· ${C.gcStr}x STR (กาย)`, value: `+${r(strFlat)}` })
+        out.push({ label: '🔥 โบนัสเผา/ตัว (หลอดเต็ม)', value: `+${r(burn)} รวม` })
+        out.push({ label: '🩸 ดูดเลือดสกิล', value: `+${pct(C.gcVamp)}` })
+        out.push({ label: `โล่ ${CLERIC_KIT.ultShieldTurns} เทิร์น`, value: `${shield(st, st.maxHp * CLERIC_KIT.ultShield * (1 + st.ultPow) * (1 + st.ult2Pow))}` })
+        if (st.clPurify > 0) out.push({ label: 'ไฟชำระ: ล้างดีบัฟ + ฮีล (M.ATK)', value: `${heal(st, st.matk * CLERIC_KIT.purifyHeal)} HP` })
+        if (st.ultHoly > 0) out.push({ label: 'แสงลงทัณฑ์/ตัว', value: hitText(st, st.ultHoly, true) })
+        break
+      }
       out.push({ label: `ทุบทุกตัว ${pct(clericUltSmash(st))} P.ATK`, value: hitText(st, clericUltSmash(st) * hitPow * (1 + st.pskill), false) })
-      if (st.clDawn > 0 && base) out.push({ label: `🌄 แสงรุ่งอรุณ/ตัว (เวท${st.clDawnUlt > 0 ? ' · คริแน่' : ''})`, value: `+${r(dawnBonus(st, base.str, base.wis) * hitPow)}` })
       out.push({ label: `Holy Light ${clericUltLights(st)} ลูก ตัวสุ่ม (พลังเวท)`, value: hitText(st, CLERIC_KIT.ultLight * hitPow, true) })
       out.push({ label: `โล่ ${CLERIC_KIT.ultShieldTurns} เทิร์น`, value: `${shield(st, st.maxHp * CLERIC_KIT.ultShield)} (รวมไม่เกิน ${r(st.maxHp * CLERIC_KIT.shieldCap)})` })
       if (st.clPurify > 0) out.push({ label: 'ไฟชำระ: ล้างดีบัฟ + ฮีล (M.ATK)', value: `${heal(st, st.matk * CLERIC_KIT.purifyHeal)} HP` })

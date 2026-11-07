@@ -1,5 +1,6 @@
 // One validator for game, server and admin.html (no deps). Errors reject the WHOLE release; unknown paths / guard
 // mismatches are skipped one by one (code moved on since the release was made). Own keys only, no prototype keys.
+import { CLERIC_KIT, JOBS, SWORD_MANA } from './jobs'
 import { CONFIG_SCHEMA, TABLES, TABLE_IDS, type FieldDef, type Guards, type Patch, type Release, type TableId } from './tunables'
 
 export const MAX_ENTRIES = 5000
@@ -157,9 +158,15 @@ export function readPath(table: TableId, path: string): number | undefined {
   return typeof node === 'number' ? node : undefined
 }
 
-/** Recompute values that are copied from tunables at module load. MVP tables have none (MON_STAT.pointsPerLv is a getter);
+/** Recompute values that are copied from tunables at module load (MON_STAT.pointsPerLv is a getter, so it needs nothing).
+ *  jobs.ts copies three Mana costs into JOBS at import, but the cast code reads JOBS: re-copy them from their source consts
+ *  (SWORD_MANA.auto / .ult, CLERIC_KIT.ultMana), so tuning those consts (skills `sword.*`, kit `cleric.ultMana`) takes effect.
  *  refine.ts FODDER must be rebuilt here once ITEMS becomes tunable. */
-export function rebuildDerived(): void {}
+export function rebuildDerived(): void {
+  JOBS.swordsman.auto.cost = SWORD_MANA.auto
+  JOBS.swordsman.ult.cost = SWORD_MANA.ult
+  JOBS.cleric.ult.cost = CLERIC_KIT.ultMana
+}
 
 /** Guards for every array element a patch walks through, read from the current (default) objects. admin.html / tools. */
 export function guardsFor(patch: Patch): Guards {
