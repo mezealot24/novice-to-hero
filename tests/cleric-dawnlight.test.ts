@@ -125,8 +125,16 @@ test('v106/v108 Grand Cross detail: cross rows (🙏 root P.ATK on the P.ATK cro
   const { ultInfo, KIT2 } = await import('../src/data/skill-math')
   const st = heroStats(tree({ cleric_ultp: 5, cleric_dn1: 5 }))
   const gc = ultInfo('cleric', st, { str: 50, wis: 50 }, 'crusader').map((x) => x.label)
-  assert.equal(gc.filter((x) => x.startsWith('✝️')).length, 2)
-  assert.ok(gc.some((x) => x.includes(`${KIT2.crusader.gcAtk + 0.75}x P.ATK`)))
+  assert.equal(gc.filter((x) => x.startsWith('✝️')).length, 1)
+  assert.ok(gc.some((x) => x.includes(`${+(KIT2.crusader.gcAtk + 0.75 / 2).toFixed(2)}x P.ATK + ${KIT2.crusader.gcStr}x STR`))) // Lv0: 2 pulses, root split
   assert.ok(gc.some((x) => x.startsWith('🔥')) && gc.some((x) => x.startsWith('🩸')) && !gc.some((x) => x.startsWith('🌄')))
   assert.ok(!gc.some((x) => x.startsWith('ทุบ') || x.startsWith('Holy Light')))
+})
+
+test('v109 Grand Cross pulses 2/2/3/4/4 by Ult วิวัฒน์ Lv (Lv0 = 2)', async () => {
+  const { gcPulses } = await import('../src/data/skill-math')
+  const { applyPatch } = await import('../src/data/patch')
+  const { KIT2 } = await import('../src/data/skill-math')
+  assert.deepEqual([0, 1, 2, 3, 4, 5].map((lv) => gcPulses({ ...heroStats(tree({})), j2GcLv: lv })), [2, 2, 2, 3, 4, 4])
+  const r = applyPatch({ skills: { 'kit2.crusader.gcPulses.5': 6 } }); assert.equal(r.ok, true); assert.equal(KIT2.crusader.gcPulses[5], 6); r.revert()
 })

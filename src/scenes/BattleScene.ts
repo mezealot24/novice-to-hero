@@ -12,7 +12,7 @@ import { ALLIES, fillAllies, gadgetById, hawkMul, hurtAlly, liveAllies, makeAlly
 import type { Skill2Def } from '../data/skill2'
 import { canRollCrit, type CritSlot } from '../data/skill-registry'
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
-import { autoCost, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, hitBase, KIT, KIT2, MAGE_CAST, magicPower, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
+import { autoCost, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, physBase, hitBase, KIT, KIT2, MAGE_CAST, magicPower, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, ultMode } from '../save'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
 import { TAINT_MAT } from '../data/taint'
@@ -1335,14 +1335,21 @@ export class BattleScene extends Phaser.Scene {
           if (paid > 0) { this.hp -= paid; this.damageNumber(HERO_X, GROUND - 70, paid, false, '#ff9a9a') }
           const burnt = cast === 0 ? Math.floor(this.res) : 0
           if (burnt > 0) { this.res -= burnt; this.floatText(HERO_X, GROUND - 130, `🔥 เผา Mana ${burnt}`, '#9fc3ff') }
-          const extra = C.gcBurn * (burnt + paid) * k // flat bonus magic dmg / target
+          // v109 (Q): pulses by Ult วิวัฒน์ Lv · each pulse: Pm (magic, + burn bonus share) and P.ATK + STR (physical) on every monster still up
+          const n = gcPulses(this.st), extra = C.gcBurn * (burnt + paid) * k / n // flat bonus magic dmg / target / pulse
+          const b = totalBase(save()), bl = this.buf.bless > 0 ? blessBase(save()) ?? {} : {}
+          const pb = physBase(this.st), atkAvg = Math.max(1, (pb.lo + pb.hi) / 2)
+          const physMul = (C.gcAtk + this.st.clUltAtk / n) * k * (1 + this.st.pskill) + C.gcStr * (b.str + (bl.str ?? 0)) * k / atkAvg
           const all = this.alive()
-          this.cameras.main.flash(140, 255, 243, 160)
-          for (const m of all) {
-            const cross = this.add.text(m.spr.x, m.spr.y - m.spr.displayHeight / 2, '✝️', { fontSize: '44px' }).setOrigin(0.5).setDepth(9000)
-            this.tweens.add({ targets: cross, scale: 1.6, alpha: 0, duration: 380, onComplete: () => cross.destroy() })
-            this.strike(m, C.gcPm * k + extra / Math.max(1, magicPower(this.st)), true, '#fff3a0')
-            this.strike(m, (C.gcAtk + this.st.clUltAtk) * k * (1 + this.st.pskill), false, '#ffe08a')
+          for (let p = 0; p < n && this.alive().length; p++) {
+            this.cameras.main.flash(110, 255, 243, 160)
+            for (const m of this.alive()) {
+              const cross = this.add.text(m.spr.x, m.spr.y - m.spr.displayHeight / 2, '✝️', { fontSize: p === n - 1 ? '50px' : '38px' }).setOrigin(0.5).setDepth(9000)
+              this.tweens.add({ targets: cross, scale: 1.6, alpha: 0, duration: 300, onComplete: () => cross.destroy() })
+              this.strike(m, C.gcPm * k + extra / Math.max(1, magicPower(this.st)), true, '#fff3a0')
+              this.strike(m, physMul, false, '#ffe08a')
+            }
+            if (p < n - 1) await this.wait(BATTLE.stepMs * 0.22)
           }
           if (paid > 0 && all.length >= C.gcRefundAt) { this.hp = Math.min(this.st.maxHp, this.hp + Math.round(paid * C.gcRefund)); this.floatText(HERO_X, GROUND - 160, `✨ คืน HP ${Math.round(paid * C.gcRefund)}`, '#6fd08c') }
           await this.wait(BATTLE.stepMs * 0.35)

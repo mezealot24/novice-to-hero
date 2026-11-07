@@ -306,3 +306,10 @@ save เก่า: แต้มใน `cleric_d1..d4` (ม่านพร / ฉ�
 - node อยู่ที่เดิม (ใต้ราก Ult) · ไม่รีเซ็ตแต้มอัตโนมัติ → ใช้ปุ่ม "รีเซ็ตฟรี" ได้
 - ปรับใน admin ได้: `clericTree.dawn.every` / `share` / `heal` / `wis.*` · `clericUltAtkLv` · `cleric.ultManaLv`
 - ⚠️ ต้อง deploy worker (v107) ก่อน ช่องใหม่ถึงจะบันทึก draft ได้ · ยังไม่ผ่านบอท (เครื่อง cloud ไม่มี browser)
+
+## v109 · Grand Cross เป็น pulse 2/2/3/4/4 + สเกล P.ATK / STR (Q 2026-11-08)
+
+- pulse ตาม Lv node Ult วิวัฒน์ (`KIT2.crusader.gcPulses` = Lv0–5: 2/2/2/3/4/4) · Lv มาจาก stat `j2GcLv`
+- **ต่อ pulse ต่อตัว:** 0.5x Pm (เวท) + 0.6x P.ATK + 0.8x STR flat (กาย) · × Ult วิวัฒน์ × กางเขนแรง · ราก Ult Cleric (P.ATK) + โบนัสเผา Mana/HP แบ่งเท่ากันทุก pulse
+- Lv0–1 ≈ เท่าตัวเก่า · Lv5 (4 pulse × 1.6) ≈ 2.5–3 เท่า ขึ้นกับ STR · ปรับใน admin ได้ทุกตัว (`gcPm` / `gcAtk` / `gcStr` / `gcPulses.*`)
+- ตอบคำถาม Q: ดูดเลือดสกิลฮีลผ่าน `heal()` → × (1 + ฮีลแรง) ซึ่ง WIS ให้ +1%/แต้ม **มีผลอยู่แล้ว** · เผา Mana ของ Grand Cross **ไม่** ไปกระตุ้น 💠 มานาพิทักษ์ (ไม่ผ่าน `spendRes`) และ HP ที่จ่ายไม่ไปกระตุ้นอะไรของ Cleric

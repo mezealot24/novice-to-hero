@@ -131,7 +131,7 @@ export interface Job2Layout { s3: SkillRef[]; ult: SkillRef[]; other: SkillRef[]
 const J2_LABEL: Record<string, string> = {
   'crusader.guard': '🛡️ Auto Guard: บล็อก', 'crusader.guardVit': '🛡️ บล็อกเพิ่มต่อ VIT', 'crusader.guardCap': '🛡️ บล็อกสูงสุด', 'crusader.holyVs': 'ศรัทธา: แรงใส่อันเดด/ปีศาจ',
   'crusader.crossHits': '✝️ จำนวนฮิต', 'crusader.crossMul': '✝️ ต่อฮิต × (P.ATK + Pm)', 'crusader.blindTurns': '🙈 ตาบอด (เทิร์น)', 'crusader.blindHit': '🙈 Hit มอนลด',
-  'crusader.gcPay': '✨ จ่าย HP % ปัจจุบัน', 'crusader.gcPm': '✨ กางเขน × พลังเวท', 'crusader.gcAtk': '✨ กางเขน × P.ATK', 'crusader.gcRefund': '✨ คืน HP % ของที่จ่าย',
+  'crusader.gcPay': '✨ จ่าย HP % ปัจจุบัน', 'crusader.gcPm': '✨ ต่อ pulse × พลังเวท', 'crusader.gcAtk': '✨ ต่อ pulse × P.ATK', 'crusader.gcStr': '✨ ต่อ pulse × STR (flat)', 'crusader.gcPulses.0': '✨ pulse ที่ Lv0', 'crusader.gcPulses.1': '✨ pulse ที่ Lv1', 'crusader.gcPulses.2': '✨ pulse ที่ Lv2', 'crusader.gcPulses.3': '✨ pulse ที่ Lv3', 'crusader.gcPulses.4': '✨ pulse ที่ Lv4', 'crusader.gcPulses.5': '✨ pulse ที่ Lv5', 'crusader.gcRefund': '✨ คืน HP % ของที่จ่าย',
   'crusader.gcRefundAt': '✨ คืน HP เมื่อโดนกี่ตัวขึ้นไป', 'crusader.gcBurn': '🔥 โบนัส × (Mana ที่เผา + HP ที่จ่าย)', 'crusader.gcVamp': '🩸 ดูดเลือดสกิลเพิ่มตอนร่าย',
   'crusader.martyrShield': '★ ผู้พลีชีพ: โล่ % HP', 'crusader.mastery.atkPct': 'ชำนาญอาวุธ: ATK %', 'crusader.mastery.def': 'ชำนาญอาวุธ: DEF',
 }
@@ -147,6 +147,8 @@ function j2Leaves(id: Job2Id): SkillOwnRef[] {
         if (/(Cost|Cd)$/.test(k)) continue // copied into JOB2 at import (see above)
         const hi = Math.max(10, Math.ceil(Math.abs(v) * 10))
         out.push(sk(`kit2.${id}.${key}`, J2_LABEL[`${id}.${key}`] ?? key, INTISH.test(k) && Number.isInteger(v) ? int(0, hi) : num(0, hi)))
+      } else if (Array.isArray(v) && v.every((x) => typeof x === 'number')) { // v109: number lists (Grand Cross pulses per Lv)
+        v.forEach((x: number, i: number) => out.push(sk(`kit2.${id}.${key}.${i}`, J2_LABEL[`${id}.${key}.${i}`] ?? `${key}[${i}]`, Number.isInteger(x) ? int(0, Math.max(10, x * 10)) : num(0, Math.max(10, Math.ceil(x * 10))))))
       } else if (v && typeof v === 'object' && !Array.isArray(v)) walk(v as Record<string, unknown>, key)
     }
   }

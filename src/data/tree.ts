@@ -7,7 +7,7 @@ import type { Stats } from './game-data'
 import type { ClassTree, TalentDef, TreeBranch, TreeNode } from './tree-types'
 export * from './tree-types'
 import { CLERIC_KIT, JOBS, type JobId } from './jobs'
-import { KIT } from './skill-math'
+import { KIT, KIT2 } from './skill-math'
 import { skill2Of } from './skill2'
 import { tree as swordsman } from './trees/swordsman'
 import { tree as archer } from './trees/archer'
@@ -141,7 +141,8 @@ for (const id of Object.keys(JOB2_TREES) as Job2Id[]) {
     const label = line === 's3' ? 'ทักษะ 3' : 'Ult วิวัฒน์'
     web2Branches.push({ id: `${id}_${line}`, job: J.parent, job2: id, name: label, icon: sk.icon, blurb: sk.name, line: 'job2' })
     web2Nodes.push({ id: `${id}_${line}p`, branch: `${id}_${line}`, tier: 0, icon: sk.icon, name: sk.name, max: TREE_RULES.powMax, kind: 'pow2',
-      desc: (lv: number) => `${label} แรง +${Math.round(lv * TREE_RULES.powPer * 100)}%`, mod: (lv: number) => ({ [key]: TREE_RULES.powPer * lv }) })
+      desc: (lv: number) => `${label} แรง +${Math.round(lv * TREE_RULES.powPer * 100)}%${id === 'crusader' && line === 'u2' ? ` · ${KIT2.crusader.gcPulses[Math.min(5, Math.round(lv))]} pulse` : ''}`,
+      mod: (lv: number) => ({ [key]: TREE_RULES.powPer * lv, ...(id === 'crusader' && line === 'u2' ? { j2GcLv: lv } : {}) }) }) // v109: Grand Cross pulses by Lv
   }
   for (const b of c.branches) {
     web2Branches.push({ ...b, line: 'job2' })
