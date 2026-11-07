@@ -16,15 +16,15 @@ test('the Ult branch cleric_d is now รุ่งอรุณ with 4 nodes (5 / 
   assert.deepEqual(talentsOf('cleric', 2).map((x) => x.id), ['cleric_t2_regen', 'cleric_t2_holy', 'cleric_t2_wing'])
 })
 
-test('v92 full branch numbers: bonus share 100%, heal 30%, +60% dmg, ★ sure crit +50% crit dmg', () => {
+test('v93 full branch numbers: bonus share 200%, heal 30%, +60% dmg, ★ sure crit +50% crit dmg', () => {
   const st = heroStats(tree({ cleric_ultp: 1, cleric_dn1: 5, cleric_dn2: 5, cleric_dn3: 5, cleric_dn4: 1 }))
-  assert.ok(Math.abs(st.clDawn - 1) < 1e-9)
+  assert.ok(Math.abs(st.clDawn - 2) < 1e-9)
   assert.ok(Math.abs(st.clDawnHeal - 0.3) < 1e-9)
   assert.ok(Math.abs(st.clDawnAmp - 0.6) < 1e-9)
   assert.equal(st.clDawnUlt, 1)
   assert.ok(Math.abs(st.clDawnCrit - 0.5) < 1e-9)
   const lv1 = heroStats(tree({ cleric_ultp: 1, cleric_dn1: 1 }))
-  assert.ok(Math.abs(lv1.clDawn - 0.2) < 1e-9) // Lv 1 of 5 = old 0.6 x 1/3
+  assert.ok(Math.abs(lv1.clDawn - 0.4) < 1e-9) // Lv 1 of 5 = old 0.6 x 2/3 (v93)
 })
 
 test('v92 Ult smash = 150% + 50%/Lv P.ATK; dawn bonus = (STR + WIS + 10% M.ATK) x share x (1 + amp)', () => {
