@@ -85,14 +85,14 @@ export function toast(scene: Phaser.Scene, s: string, color = UI.gold) {
 }
 
 /** Modal yes/no. Background swallows taps. */
-export function confirm(scene: Phaser.Scene, title: string, body: string, ok: string, onOk: () => void, cancel = 'ยกเลิก') {
+export function confirm(scene: Phaser.Scene, title: string, body: string, ok: string, onOk: () => void, cancel = 'ยกเลิก', onCancel?: () => void) {
   const c = scene.add.container(0, 0).setDepth(40000)
   c.add(scene.add.rectangle(W / 2, H / 2, W, H, UI.night, 0.75).setInteractive())
   const pw = 520, ph = 260
   c.add(panel(scene, W / 2 - pw / 2, H / 2 - ph / 2, pw, ph, UI.panelHi, COLORS.gold))
   c.add(txt(scene, W / 2, H / 2 - ph / 2 + 26, title, 24, UI.gold, true).setOrigin(0.5, 0))
   c.add(txt(scene, W / 2, H / 2 - ph / 2 + 70, body, 17, UI.text).setOrigin(0.5, 0).setAlign('center').setWordWrapWidth(pw - 50))
-  c.add(button(scene, W / 2 - 110, H / 2 + ph / 2 - 44, 190, 50, cancel, () => c.destroy(), { fill: 0x5a5f8a, color: UI.text }))
+  c.add(button(scene, W / 2 - 110, H / 2 + ph / 2 - 44, 190, 50, cancel, () => { c.destroy(); onCancel?.() }, { fill: 0x5a5f8a, color: UI.text }))
   c.add(button(scene, W / 2 + 110, H / 2 + ph / 2 - 44, 190, 50, ok, () => { c.destroy(); onOk() }))
   return c
 }

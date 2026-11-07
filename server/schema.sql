@@ -53,3 +53,15 @@ create table if not exists config_release (
 create unique index if not exists config_release_one_live on config_release ((status)) where status = 'live';
 create unique index if not exists config_release_one_draft on config_release ((status)) where status = 'draft';
 create index if not exists config_release_recent on config_release (id desc);
+-- Beta telemetry (src/telemetry.ts -> POST /telemetry). Anonymous: did = random device id from the client, no user_id / PII.
+-- Query it in the Neon SQL editor, e.g. deaths per dungeon: select props->>'dungeon', count(*) from telemetry_event where name = 'run_end' and props->>'won' = 'false' group by 1;
+create table if not exists telemetry_event (
+  id bigserial primary key,
+  did text not null,
+  build text not null,
+  name text not null,
+  props jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists telemetry_event_did_time on telemetry_event (did, created_at desc);
+create index if not exists telemetry_event_name_time on telemetry_event (name, created_at desc);

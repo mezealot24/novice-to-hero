@@ -1,3 +1,4 @@
+import { needsTelemetryConsent, setTelemetryEnabled, TELEMETRY_ASK, telemetryAvailable, telemetryEnabled, track } from '../telemetry'
 import Phaser from 'phaser'
 import { COLORS, DUNGEONS, H, HARD, W } from '../data/game-data'
 import { levelDropMul } from '../data/mon-stats'
@@ -163,6 +164,10 @@ export class HubScene extends Phaser.Scene {
       delete s.stretchRefund; persist()
       const back = [skill > 0 ? `แต้มสกิล ${skill}` : '', job2 > 0 ? `แต้มใยชั้น 2 ${job2}` : ''].filter(Boolean).join(' + ')
       this.time.delayedCall(300, () => confirm(this, '✨ โหนดสกิลมีเลเวลมากขึ้น!', `โหนด 1→3 · 2→4 · 3→5 เลเวล (เต็มแล้วแรงเท่าเดิม)\nคืน ${back} ไปลงใหม่ได้ฟรีค่ะ`, 'ไปหน้าสกิล', () => go(this, 'character', { tab: 3 })))
+    } else if (needsTelemetryConsent()) { // v119 PDPA: ask once before any gameplay stat is sent (opt-in)
+      this.time.delayedCall(data?.fresh ? 1600 : 400, () => confirm(this, '📊 ช่วยเราปรับเกมไหม?', TELEMETRY_ASK, 'ยินยอม', () => {
+        setTelemetryEnabled(true); track('session_start', { touch: matchMedia('(pointer: coarse)').matches }); toast(this, 'ขอบคุณค่ะ 💛 ปิดได้ที่ ⚙️ ตั้งค่า')
+      }, 'ไม่ยินยอม', () => setTelemetryEnabled(false)))
     }
   }
 
@@ -238,8 +243,17 @@ export class HubScene extends Phaser.Scene {
     const s = save()
     const c = this.add.container(0, 0).setDepth(40000)
     c.add(this.add.rectangle(W / 2, H / 2, W, H, UI.night, 0.75).setInteractive())
-    c.add(panel(this, W / 2 - 230, H / 2 - 180, 460, 420, UI.panelHi, COLORS.gold))
-    c.add(txt(this, W / 2, H / 2 - 154, 'ตั้งค่า', 26, UI.gold, true).setOrigin(0.5, 0))
+    const tel = telemetryAvailable ? 62 : 0 // v119: one more row for the 📊 stats toggle
+    c.add(panel(this, W / 2 - 230, H / 2 - 180 - tel, 460, 420 + tel, UI.panelHi, COLORS.gold))
+    c.add(txt(this, W / 2, H / 2 - 154 - tel, 'ตั้งค่า', 26, UI.gold, true).setOrigin(0.5, 0))
+    if (telemetryAvailable) {
+      const telLab = () => (telemetryEnabled() ? '📊 ส่งสถิติ (ไม่ระบุตัวตน): เปิด' : '📊 ส่งสถิติ (ไม่ระบุตัวตน): ปิด')
+      const tb = button(this, W / 2, H / 2 - 70 - tel, 320, 52, telLab(), () => {
+        if (telemetryEnabled()) { setTelemetryEnabled(false); tb.setLabel(telLab()); return }
+        confirm(this, '📊 ส่งสถิติการเล่น', TELEMETRY_ASK, 'ยินยอม', () => { setTelemetryEnabled(true); tb.setLabel(telLab()) }, 'ไม่ยินยอม')
+      }, { fill: 0x5a5f8a, color: UI.text, size: 17 })
+      c.add(tb)
+    }
     const snd = button(this, W / 2, H / 2 - 70, 320, 52, s.muted ? '🔇 เสียง: ปิด' : '🔊 เสียง: เปิด', () => {
       s.muted = !s.muted; setMuted(s.muted); persist()
       snd.setLabel(s.muted ? '🔇 เสียง: ปิด' : '🔊 เสียง: เปิด')

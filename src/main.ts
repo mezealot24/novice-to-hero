@@ -13,11 +13,13 @@ import { BattleScene } from './scenes/BattleScene'
 import { JobScene } from './scenes/JobScene'
 import { CloudScene } from './scenes/CloudScene'
 import { liveInfo, loadLiveConfig } from './live-config'
+import { track } from './telemetry'
 
 class BootScene extends Phaser.Scene {
   constructor() { super('boot') }
   create() {
     makeTextures(this)
+    track('session_start', { touch: matchMedia('(pointer: coarse)').matches })
     this.scene.start('title')
   }
 }
