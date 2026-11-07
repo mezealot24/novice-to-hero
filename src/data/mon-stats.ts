@@ -174,6 +174,39 @@ export function statNative(kind: MonsterKind): boolean {
   return !!home && !!DUNGEONS.find((d) => d.id === home)?.level
 }
 
+// ===== v114 tower floors 25+ (Q 2026-11-08): D6+ monsters outside their level dungeon =====
+// A D6+ monster is built from its own stats at its home boss level, then rescaled so its dungeon's tier average (normal / mini / boss)
+// lands on D5's. Its kit (skills, AI, speed, Flee, crit...) stays its own; the tower then scales it as a D5 monster (src 'd5').
+export const DEEP_ANCHOR = 'd5'
+type Ref = { hp: number; dmg: number; matk: number }
+const REF_AVG: Record<string, Ref | null> = {}
+const levelOfHome = (home: string) => DUNGEONS.find((d) => d.id === home)?.level?.[1]
+function buildAt(kind: MonsterKind, home: string): MonsterDef {
+  const d = MONSTERS[kind], lv = levelOfHome(home)
+  return lv ? statMonster(d, lv) : withStats(d, kind, legacyLevel(kind, d, { id: home }))
+}
+/** Mean HP / ATK / M.ATK of one tier of monsters whose home is `home` (null = none of that tier). */
+function refAvg(home: string, tier: MonTier): Ref | null {
+  const key = `${home}:${tier}`
+  if (key in REF_AVG) return REF_AVG[key]
+  const kinds = (Object.keys(MONSTERS) as MonsterKind[]).filter((k) => homeDungeon(k) === home && monTier(MONSTERS[k]) === tier && !MONSTERS[k].passive)
+  if (!kinds.length) return (REF_AVG[key] = null)
+  const defs = kinds.map((k) => buildAt(k, home)), mean = (f: (d: MonsterDef) => number) => defs.reduce((a, d) => a + f(d), 0) / defs.length
+  return (REF_AVG[key] = { hp: mean((d) => d.hp), dmg: mean((d) => d.dmg), matk: mean((d) => d.matk ?? d.dmg) })
+}
+/** v114: a D6+ monster ready for a non-level run (tower / daily), anchored to D5 numbers. Non-D6+ kinds come back unchanged. */
+export function deepAnchor(kind: MonsterKind): MonsterDef {
+  const home = homeDungeon(kind), d = MONSTERS[kind]
+  if (!home || !statNative(kind)) return d
+  const tier = monTier(d), out = buildAt(kind, home)
+  const a = refAvg(home, tier) ?? refAvg(home, 'normal'), b = refAvg(DEEP_ANCHOR, tier) ?? refAvg(DEEP_ANCHOR, 'normal')
+  if (!a || !b) return out
+  out.hp = Math.max(1, Math.round(out.hp * (b.hp / a.hp)))
+  out.dmg *= b.dmg / a.dmg
+  if (out.matk !== undefined) out.matk *= b.matk / a.matk
+  return out
+}
+
 /** Build defaults at load (before any live-config patch): the default statAlloc + what it derives at the home level. */
 const DEFAULT_ALLOC: Partial<Record<MonsterKind, StatAlloc>> = {}
 const DEFAULT_PM: Partial<Record<MonsterKind, number>> = {}

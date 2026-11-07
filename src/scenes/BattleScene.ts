@@ -21,7 +21,8 @@ import { rollUniqueDrop, UNIQUE } from '../data/uniques'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
 import { HARD_POWER, matchScale, overpowerMul, TOWER_POWER } from '../data/power'
-import { legacyLevel, levelDropMul, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, statNative, withStats } from '../data/mon-stats'
+import { deepAnchor, homeDungeon, legacyLevel, levelDropMul, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, statNative, withStats } from '../data/mon-stats'
+import { HELL, hellify } from '../data/hell'
 import { foldAffixes } from '../data/affixes'
 import { PACKS } from '../data/dungeons'
 import { buildRun, MODES, payTowerSkip, recordTowerCheckpoint, towerFloorLoot, towerSkipGems, type ModeArgs, type RunConfig, type RunRoom } from '../data/modes'
@@ -447,14 +448,16 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private addMon(kind: MonsterKind, slot: number, gauge?: number) {
-    const def = statNative(kind) && this.dg.level ? this.statDef(MONSTERS[kind]) : this.hardDef(this.modeDef(this.buffDef(this.legacyStats(kind)), kind))
+    let def = statNative(kind) && this.dg.level ? this.statDef(MONSTERS[kind]) : this.hardDef(this.modeDef(this.buffDef(this.legacyStats(kind)), kind))
+    if (this.roomDef(this.room)?.hell?.includes(kind)) def = hellify(def, Math.random()) // v114 🔥 tower floor 25+
     const big = def.ai === 'boss'
     const x = this.roomDef(this.room)?.mixed ? MIX_X[slot] ?? SLOT_X[slot] : big ? 720 : SLOT_X[slot] // tower mixed fight: adds in front, big ones behind
     const y = GROUND + (slot % 2 ? 14 : -4)
     const shadow = this.add.image(W + 80, y + 2, 'shadow').setScale((def.radius * 2.4) / 60 * 1.4, 1.2).setDepth(y - 1)
     const spr = this.add.image(W + 80, y, def.tex).setOrigin(0.5, 1).setScale(kind === 'minijellop' ? 1.1 : big ? 1.6 : 1.5).setDepth(y)
     if (FACES_RIGHT.includes(kind)) spr.setFlipX(true)
-    if (this.hard) spr.setTint(HARD.tint)
+    if (def.hellish) spr.setTint(HELL.tint)
+    else if (this.hard) spr.setTint(HARD.tint)
     else if (this.run.tint) spr.setTint(this.run.tint)
     else if (this.run.affix && def.ai === 'boss') spr.setTint(HARD.tint)
     const affix = (this.hard || this.run.affix) && def.ai === 'boss' ? this.lastAffix : undefined
@@ -463,6 +466,8 @@ export class BattleScene extends Phaser.Scene {
     if (affix) m.speedMul = this.lastSpeed
     m.speedMul *= this.modeSpeed
     if (affix) this.time.delayedCall(700, () => this.callout(`🔥 ${def.name}: ${affix}`, W / 2, 205))
+    else if (def.hellish && big) this.time.delayedCall(700, () => this.callout(`🔥 ${def.name}: ${def.hellish}`, W / 2, 205))
+    else if (def.hellish) this.time.delayedCall(500 + slot * 120, () => this.floatText(spr.x, spr.y - 90, def.hellish!, '#ff8a80'))
     this.mons.push(m)
     this.tweens.add({ targets: [spr, shadow], x, duration: 600, ease: 'Quad.easeOut', delay: slot * 90 })
     return m
@@ -484,6 +489,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** v68: 7 stats on an old monster at its home dungeon's level (numbers stay as tuned; see mon-stats withStats). */
   private legacyStats(kind: MonsterKind): MonsterDef {
+    if (statNative(kind)) return deepAnchor(kind) // v114: a D6+ monster in the tower (no level dungeon here)
     const d = MONSTERS[kind], src = this.dg
     return withStats(d, kind, legacyLevel(kind, d, src), { hard: this.hard, statMul: this.run.corrupt?.statMul })
   }
@@ -2318,7 +2324,7 @@ export class BattleScene extends Phaser.Scene {
   /** Forge materials (design/item-acquisition-v1.md): this dungeon's common one from normal monsters, its boss one from minis / bosses. Summons (no card) drop nothing. */
   private rollMat(m: Mon) {
     if (m.revived || !cardsOfMonster(m.kind).length) return
-    const dg = this.dg.id, got: [string, number][] = []
+    const dg = (!this.dg.level && statNative(m.kind) && homeDungeon(m.kind)) || this.dg.id, got: [string, number][] = [] // v114: a D6+ monster in the tower drops its own dungeon's mats
     if (m.def.ai === 'boss' && !m.def.mini) {
       got.push([matOf(dg, true), MAT_RULES.boss.boss], [matOf(dg, false), MAT_RULES.boss.common])
       if ((this.run.modeId === 'dungeon' || this.run.modeId === 'hard') && this.roomDef(this.room)?.boss && taintDrop(dg)) got.push([TAINT_MAT, taintDrop(dg)]) // v89 ผลึกโลกันตร์: D6+ final boss only
