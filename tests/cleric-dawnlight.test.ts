@@ -126,7 +126,8 @@ test('v106/v108 Grand Cross detail: cross rows (🙏 root P.ATK on the P.ATK cro
   const st = heroStats(tree({ cleric_ultp: 5, cleric_dn1: 5 }))
   const gc = ultInfo('cleric', st, { str: 50, wis: 50 }, 'crusader').map((x) => x.label)
   assert.equal(gc.filter((x) => x.startsWith('✝️')).length, 1)
-  assert.ok(gc.some((x) => x.includes(`${+(KIT2.crusader.gcAtk + 0.75 / 2).toFixed(2)}x P.ATK + ${KIT2.crusader.gcStr}x STR`))) // Lv0: 2 pulses, root split
+  assert.ok(gc.includes('💥 ดาเมจต่อครั้ง/ตัว') && gc.includes('💥 รวม/ตัว (ทุกครั้ง + เผา)')) // v116 summary rows
+  assert.ok(gc.includes('· P.ATK (กาย · 🙏 ราก)') && gc.includes(`· ${KIT2.crusader.gcStr}x STR (กาย)`)) // v116: root P.ATK shown on the P.ATK row; STR its own row
   assert.ok(gc.some((x) => x.startsWith('🔥')) && gc.some((x) => x.startsWith('🩸')) && !gc.some((x) => x.startsWith('🌄')))
   assert.ok(!gc.some((x) => x.startsWith('ทุบ') || x.startsWith('Holy Light')))
 })
