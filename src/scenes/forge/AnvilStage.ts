@@ -3,10 +3,10 @@
 import Phaser from 'phaser'
 import { FONT_UI } from '../../data/game-data'
 import { gradeCap, GRADE } from '../../data/craft'
-import { gradeOf, isBroken, isTainted, refineOf, type Item } from '../../data/meta'
+import { gradeOf, isBroken, isTainted, refineOf, slotCount, socketed, type Item } from '../../data/meta'
 import { isWorn, save } from '../../save'
 import { sfx } from '../../sfx'
-import { itemIcon, panel, UI, type ItemIcon } from '../../ui'
+import { button, itemIcon, panel, UI, type Btn, type ItemIcon } from '../../ui'
 import { crack, floatNum, hitStop, punch } from '../../ui-fx'
 import { fit } from '../../ui'
 import { iconState, statSplit, taintNote } from './state'
@@ -37,10 +37,11 @@ export class AnvilStage implements StageFx {
   private prevBg: Phaser.GameObjects.Graphics
   private prevT: Phaser.GameObjects.Text
   private emptyT: Phaser.GameObjects.Text
+  private cardBtn: Btn
   private it?: Item
   private preview: Preview | null = null
 
-  constructor(private scene: Phaser.Scene, private x: number, private y: number) {
+  constructor(private scene: Phaser.Scene, private x: number, private y: number, onCards: () => void) {
     const t = (px: number, py: number, size: number, color: string, bold: boolean, w: number) =>
       scene.add.text(px, py, '', { fontFamily: FONT_UI, fontSize: `${size}px`, fontStyle: bold ? 'bold' : 'normal', color, lineSpacing: 3, align: 'center', wordWrap: { width: w } }).setOrigin(0.5, 0)
     this.glow = scene.add.graphics()
@@ -56,7 +57,9 @@ export class AnvilStage implements StageFx {
     this.prevT = t(CX, 0, 12, UI.gold, true, TEXT_W - 16)
     this.emptyT = t(CX, ICON_Y + 120, 15, UI.sub, false, TEXT_W)
     this.emptyT.setText('เลือกของจากรายการด้านซ้ายเพื่อวางบนทั่งค่ะ')
-    this.root = scene.add.container(x, y, [panel(scene, 0, 0, STAGE_W, STAGE_H), this.glow, anvil, this.icon, this.nameT, this.subT, this.tagT, this.goodT, this.curseT, this.prevBg, this.prevT, this.emptyT])
+    // 🃏 shortcut (spec 3.4): cards are socketed on the equipment screen, not duplicated here
+    this.cardBtn = button(scene, 62, 26, 100, 28, '', onCards, { size: 12, fill: 0x5a5f8a, color: UI.text })
+    this.root = scene.add.container(x, y, [panel(scene, 0, 0, STAGE_W, STAGE_H), this.glow, anvil, this.icon, this.nameT, this.subT, this.tagT, this.goodT, this.curseT, this.prevBg, this.prevT, this.emptyT, this.cardBtn])
   }
 
   get container() { return this.root }
@@ -69,8 +72,11 @@ export class AnvilStage implements StageFx {
     const it = this.it, s = save()
     for (const o of [this.glow, this.icon, this.nameT, this.subT, this.tagT, this.goodT, this.curseT, this.prevBg, this.prevT]) o.setVisible(!!it)
     this.emptyT.setVisible(!it)
+    this.cardBtn.setVisible(false)
     if (!it) return
     const g = gradeOf(s, it.id), r = refineOf(s, it.id), broken = isBroken(s, it.id), tainted = isTainted(s, it.id)
+    const slots = slotCount(it, g)
+    if (slots > 0) this.cardBtn.setVisible(true).setLabel(`🃏 การ์ด ${socketed(s, it).length}/${slots} ›`)
     const gc = GRADE.colors[Math.max(1, Math.min(GRADE.max, g))]
     // soft halo in the grade colour (purple when tainted, dim when broken): a few stacked circles, cheap on weak phones
     const halo = tainted ? 0xc08cff : Phaser.Display.Color.HexStringToColor(gc).color

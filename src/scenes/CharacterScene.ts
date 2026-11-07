@@ -34,11 +34,12 @@ export class CharacterScene extends Phaser.Scene {
   private web2 = false // skill tab: show ใยชั้น 2 (2nd job)
   constructor() { super('character') }
 
-  create(data: { tab?: number }) {
+  create(data: { tab?: number; back?: { key: string; data?: object } }) {
     this.cameras.main.setBackgroundColor(UI.night)
     this.cameras.main.fadeIn(160, 20, 23, 43)
     this.tab = data?.tab ?? 0
-    topBar(this, '👤 ตัวละคร', () => go(this, 'hub'))
+    const back = data?.back // v101: opened from the forge's 🃏 button -> ‹ กลับ returns there (same item on the anvil)
+    topBar(this, '👤 ตัวละคร', () => (back ? go(this, back.key, back.data) : go(this, 'hub')))
     this.drawPreview()
     tabs(this, 330, 84, ['🎒 อุปกรณ์', '🃏 การ์ด', '📊 สถานะ', '✨ สกิล', '⭐ ทาเลนต์'], 112, (i) => { this.tab = i; this.redraw() }, this.tab)
   }
