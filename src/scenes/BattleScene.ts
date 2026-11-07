@@ -811,7 +811,11 @@ export class BattleScene extends Phaser.Scene {
   private zapTurn = new Map<Mon, number>() // storm set: hits per target this turn
   private emergencyUsed = false
   private firstOffer = true
-  private front() { return this.alive().sort((a, b) => a.slot - b.slot) }
+  /** Drainer under Summon Maiden takes 0 damage, so auto-targeting skips her while the Maiden lives (beta report 2026-11-07). */
+  private maidenGuarded(m: Mon) { return !!m.maiden && !m.maiden.dead }
+  private front() { return this.alive().sort((a, b) => Number(this.maidenGuarded(a)) - Number(this.maidenGuarded(b)) || a.slot - b.slot) }
+  /** Boss / mini boss first, unless she is immortal right now. */
+  private bossTarget() { return this.alive().find((m) => m.def.ai === 'boss' && !this.maidenGuarded(m)) }
   private gainRage(n: number) { if (this.job.resource === 'rage') this.res = Math.min(RES_RULES.rageMax, this.res + n * (1 + this.st.rageGain)) }
   /** Flat resource gain for Mana/Energy jobs (talents that used to give Rage). */
   /** Pay Mana / Energy / Rage; v86 💠 มานาพิทักษ์ heals a share of the Mana spent. */
@@ -1249,7 +1253,7 @@ export class BattleScene extends Phaser.Scene {
         const t = this.alive().sort((a, b) => b.hp - a.hp)[0]
         if (t) { this.forceCrit = true; await this.lunge(t, () => this.strike(t, KIT2.rogue.stabMul * pow * (1 + this.st.pskill), false, '#ffd36b')); this.forceCrit = false }
       } else if (j2.id === 'mobster') { // ⛓️ ตัดเส้นเอ็น: boss first, DEF break + chill
-        const M = KIT2.mobster, t = this.alive().find((m) => m.def.ai === 'boss') ?? live[0], turns = M.cutTurns + this.st.j2DebuffTurns
+        const M = KIT2.mobster, t = this.bossTarget() ?? live[0], turns = M.cutTurns + this.st.j2DebuffTurns
         if (t) await this.lunge(t, () => {
           this.strike(t, M.cutMul * pow * (1 + this.st.pskill), false, '#c9a8ff')
           if (t.dead) return
@@ -1341,7 +1345,7 @@ export class BattleScene extends Phaser.Scene {
       return
     }
     const K = KIT2.knight
-    const t = this.alive().find((m) => m.def.ai === 'boss') ?? this.front()[0] // boss / mini boss first
+    const t = this.bossTarget() ?? this.front()[0] // boss / mini boss first
     if (t) {
       const hits = (t.def.ai === 'boss' ? K.pierceBigHits : K.pierceHits) + this.st.j2PierceHits
       this.stayIn = true
@@ -1715,7 +1719,7 @@ export class BattleScene extends Phaser.Scene {
     const lv = this.st.s2Lv, star = this.st.s2Star > 0, B = this.buf
     this.floatText(HERO_X, GROUND - 160, `${k.icon} ${k.name}`, '#7fd7ff')
     const front = () => this.front()[0]
-    const bossFirst = () => this.alive().find((m) => m.def.ai === 'boss') ?? this.alive().sort((x, y) => y.hp - x.hp)[0]
+    const bossFirst = () => this.bossTarget() ?? this.alive().sort((x, y) => y.hp - x.hp)[0]
     switch (k.id) {
       case 'sw_guard': B.guard = S2N.guardTurns(star); this.ctrCharges = Math.max(this.ctrCharges, S2N.guardCounters(star)); this.floatText(HERO_X, GROUND - 100, '🛡️ ตั้งการ์ด', '#9fe3ff'); break
       case 'sw_blood': B.blood = S2N.bloodTurns; this.burst(HERO_X, GROUND - 40, 0xc0392b, 14, 160); break
@@ -1823,7 +1827,7 @@ export class BattleScene extends Phaser.Scene {
           this.st.crit -= this.st.arAimCrit
         } else {
           const shots = this.st.arVolley > 0 ? KIT.archerVolleyShots : KIT.archerAutoShots, mul = this.st.arVolley > 0 ? this.st.arVolley : KIT.archerAuto // talent ศรสามดอก
-          const lock = this.st.lockOn > 0 && this.lockTarget && !this.lockTarget.dead ? this.lockTarget : undefined // ★ ล็อกเป้า: ยิงคู่ยิงตัวที่ล็อก
+          const lock = this.st.lockOn > 0 && this.lockTarget && !this.lockTarget.dead && !this.maidenGuarded(this.lockTarget) ? this.lockTarget : undefined // ★ ล็อกเป้า: ยิงคู่ยิงตัวที่ล็อก
           for (let i = 0; i < shots; i++) { const t = this.alive(); if (!t.length) break; const m = lock && !lock.dead ? lock : t[Phaser.Math.Between(0, t.length - 1)]; await this.arrow(m, mul * pow, pow) }
         }
         break
@@ -1934,7 +1938,7 @@ export class BattleScene extends Phaser.Scene {
   private async archerPierce(hitPow: number) {
     this.dodgeCharges = Math.max(this.dodgeCharges, 1 + this.st.arUltDodge) // talent ถอยยาว
     this.floatText(HERO_X, GROUND - 100, '💨 ถอยหลบ!', '#c9c9d6')
-    const t = this.alive().find((m) => m.def.ai === 'boss') ?? this.alive().sort((x, y) => y.hp - x.hp)[0]
+    const t = this.bossTarget() ?? this.alive().sort((x, y) => y.hp - x.hp)[0]
     if (t) {
       this.tweens.add({ targets: this.heroSpr, x: HERO_X - 40, duration: 120, yoyo: true })
       this.ultFiring = true
@@ -2132,7 +2136,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Mage lightning ult: 6+ hits on one target (boss, else highest HP), 0.3–1.2x each; leftovers jump if it dies. */
   private async lightningStorm(pow: number, txt: string) {
-    const pick = () => this.alive().find((m) => m.def.ai === 'boss') ?? this.alive().sort((x, y) => y.hp - x.hp)[0]
+    const pick = () => this.bossTarget() ?? this.alive().sort((x, y) => y.hp - x.hp)[0]
     this.zapTurn.clear()
     let t = pick()
     const hits = KIT.mageLightHits + this.st.lightHits
