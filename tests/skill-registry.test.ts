@@ -4,15 +4,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { JOBS } from '../src/data/jobs'
 import { applyPatch, checkPatch, fieldFor, guardsFor, readPath } from '../src/data/patch'
-import { canRollCrit, CRIT_SLOTS, critRef, SKILL_CLASSES, SKILL_CRIT, SKILL_LAYOUT, skillTableFields, type SkillRef } from '../src/data/skill-registry'
+import { canRollCrit, CRIT_SLOTS, critRef, JOB2_IDS, job2Layout, SKILL_CLASSES, SKILL_CRIT, SKILL_LAYOUT, skillTableFields, type SkillRef } from '../src/data/skill-registry'
 import { SKILL2 } from '../src/data/skill2'
 import { S2N } from '../src/data/skill-math'
 import { fieldRow } from '../src/admin/model'
 
 const allRefs = (): { cls: string; ref: SkillRef }[] => SKILL_CLASSES.flatMap((cls) => {
   const l = SKILL_LAYOUT[cls]
-  return [...l.s1, ...l.ult, ...l.s2.flatMap((x) => x.refs), ...CRIT_SLOTS.map((s) => critRef(cls, s))].map((ref) => ({ cls, ref }))
-})
+  return [...l.s1, ...l.ult, ...(l.tree ?? []), ...l.s2.flatMap((x) => x.refs), ...CRIT_SLOTS.map((s) => critRef(cls, s))].map((ref) => ({ cls, ref }))
+}).concat(JOB2_IDS.flatMap((id) => { const l = job2Layout(id); return [...l.s3, ...l.ult, ...l.other].map((ref) => ({ cls: id, ref })) }))
 
 test('every registry ref is whitelisted, reads a number, and its default sits inside its own range', () => {
   for (const { cls, ref } of allRefs()) {
@@ -103,4 +103,18 @@ test('paths outside the registry are not tunable (job names, descriptions, unkno
   const r = checkPatch({ skills: { 'job.archer.auto.name': 1, 'job.archer.auto.desc': 1, 'skill2.nope.cost': 3, 'job.swordsman.auto.cost': 5, 'crit.cleric.s3': 0 } })
   assert.equal(r.count, 0)
   assert.equal(r.skipped.length, 5, 'all five are skipped as unknown')
+})
+
+test('v107 round 2: Cleric web + 2nd-job numbers reach the real data (Grand Cross, แสงแตก, Holy Cross cost)', async () => {
+  const { KIT, KIT2 } = await import('../src/data/skill-math')
+  const { JOB2 } = await import('../src/data/jobs2')
+  const before = [KIT2.crusader.gcPm, KIT2.crusader.gcBurn, KIT.clericTree.dawn.wis[2], KIT.clericTree.core.intPer[0], JOB2.crusader.skill3.cost, JOB2.crusader.ult.cd]
+  const r = applyPatch({ skills: { 'kit2.crusader.gcPm': 1.8, 'kit2.crusader.gcBurn': 0.5, 'job2.crusader.skill3.cost': 30, 'job2.crusader.ult.cd': 5 }, kit: { 'clericTree.dawn.wis.2': 0.2, 'clericTree.core.intPer.0': 9 } })
+  assert.equal(r.ok, true, JSON.stringify(r.errors))
+  assert.deepEqual([KIT2.crusader.gcPm, KIT2.crusader.gcBurn, KIT.clericTree.dawn.wis[2], KIT.clericTree.core.intPer[0], JOB2.crusader.skill3.cost, JOB2.crusader.ult.cd], [1.8, 0.5, 0.2, 9, 30, 5])
+  r.revert()
+  assert.deepEqual([KIT2.crusader.gcPm, KIT2.crusader.gcBurn, KIT.clericTree.dawn.wis[2], KIT.clericTree.core.intPer[0], JOB2.crusader.skill3.cost, JOB2.crusader.ult.cd], before)
+  const gc = job2Layout('crusader')
+  assert.ok(gc.ult.some((x) => x.path === 'kit2.crusader.gcBurn') && gc.s3.some((x) => x.path === 'kit2.crusader.crossMul'))
+  assert.ok(![...gc.s3, ...gc.ult, ...gc.other].some((x) => /crossCost|crossCd/.test(x.path))) // copied into JOB2: tuned there
 })

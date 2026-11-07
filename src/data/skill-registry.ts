@@ -4,9 +4,10 @@
 // Round 1: the 5 base classes (skill 1 / 2 / Ult). Round 2: 2nd-job classes + skill 3.
 // Import rule: type-only imports from ./tunables (tunables imports this file), values only from jobs / skill2 / skill-math.
 import { JOBS, MAGE_SPELL, SWORD_MANA } from './jobs'
+import { JOB2, type Job2Id } from './jobs2'
 import type { Skill2Id } from './skill2'
 import { SKILL2 } from './skill2'
-import { S2N, S2P } from './skill-math'
+import { KIT2, S2N, S2P } from './skill-math'
 import type { FieldDef } from './tunables'
 
 export const SKILL_CLASSES = ['swordsman', 'archer', 'mage', 'cleric', 'thief'] as const
@@ -37,6 +38,8 @@ export interface ClassLayout {
   /** The three Skill 2 choices of the class; each also gets its cost / cooldown refs (see skill2Refs). */
   s2: { id: Skill2Id; refs: SkillRef[] }[]
   ult: SkillRef[]
+  /** v107 round 2: skill-tree node numbers of the class web (shown as its own column). */
+  tree?: SkillRef[]
 }
 
 const num = (min: number, max: number): FieldDef => ({ kind: 'num', min, max })
@@ -93,6 +96,18 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
         sk('s2n.kyrieHits', 'Kyrie แตกหลังโดน (ครั้ง)', int(0, 20)), sk('s2n.gloriaLuk', 'Gloria LUK +', int(0, 200)), ...lin('kyrieHp', 'Kyrie บาเรีย % HP')),
       s2('cl_spear', ...lin('spearPlus', 'หอกแรงเพิ่ม'), kit('spearBase', 'ดาเมจหอกพื้นฐาน × M.ATK'), kit('spearMax', 'หอกสูงสุด (เล่ม)')),
     ],
+    tree: [ // v107: numbers the Cleric web nodes read at run time (kit `clericTree.*`)
+      kit('cleric.ultManaLv', '🙏 ราก: Mana Ult เพิ่มต่อ Lv (เหนือ Lv1)'), kit('clericUltAtkLv', '🌄 แสงรุ่งอรุณ: ทุบแรง × P.ATK ต่อ Lv เดิม (×5/3 = ต่อ Lv จริง)'),
+      kit('clericTree.dawn.share', '🌄 โบนัส: share ต่อ Lv เดิม (× STR+WIS+M.ATK)'), kit('clericTree.dawn.matk', '🌄 โบนัส: × M.ATK ในฐาน'),
+      kit('clericTree.dawn.heal', '💛 สมานแผล: ฮีลต่อ Lv เดิม'), kit('clericTree.dawn.weak', '💛 สมานแผล: มอนธรรมดา ×'),
+      kit('clericTree.dawn.wis.0', '☀️ แสงแตก Lv1: WIS = × ดาเมจ'), kit('clericTree.dawn.wis.1', '☀️ แสงแตก Lv2: WIS = × ดาเมจ'), kit('clericTree.dawn.wis.2', '☀️ แสงแตก Lv3: WIS = × ดาเมจ'),
+      kit('clericTree.dawn.wisTurns.0', '☀️ แสงแตก Lv1: เทิร์น'), kit('clericTree.dawn.wisTurns.1', '☀️ แสงแตก Lv2: เทิร์น'), kit('clericTree.dawn.wisTurns.2', '☀️ แสงแตก Lv3: เทิร์น'),
+      kit('clericTree.dawn.crit', '★ อรุณพิทักษ์: ดาเมจคริเพิ่ม'),
+      kit('clericTree.core.base', '🧘 จิตสงบ: STR/WIS ต่อ Lv เดิม'), kit('clericTree.core.regen', '🧘 จิตสงบ: ฟื้น Mana ต่อ Lv เดิม (หน่วย /3 ต่อเทิร์น)'),
+      kit('clericTree.core.intPer.0', '💪 ศรัทธาสู่กาย Lv1: ทุกกี่แต้ม'), kit('clericTree.core.intPer.1', '💪 ศรัทธาสู่กาย Lv2: ทุกกี่แต้ม'), kit('clericTree.core.intPer.2', '💪 ศรัทธาสู่กาย Lv3: ทุกกี่แต้ม'),
+      kit('clericTree.core.guard', '💠 มานาพิทักษ์: Mana จากดาเมจต่อ Lv เดิม'), kit('clericTree.core.wisAmp', '💠 มานาพิทักษ์: ขยายต่อ WIS'),
+      kit('clericTree.core.heal', '💠 มานาพิทักษ์: ใช้ Mana คืน HP'), kit('clericTree.core.shield', '💠 มานาพิทักษ์: โล่ต้นเวฟต่อ Lv เดิม × Max Mana'),
+    ],
     ult: [
       kit('cleric.ultMana', 'ค่า Mana'), sk('job.cleric.ult.cd', 'คูลดาวน์ (เทิร์น)', CD), kit('cleric.ultAtk', 'ทุบทุกตัว × P.ATK'),
       kit('cleric.ultLights', 'Holy Light (ลูก)'), kit('cleric.ultLight', 'Holy Light ต่อลูก × M.ATK'), kit('cleric.ultShield', 'โล่ % HP สูงสุด'), kit('cleric.ultShieldTurns', 'โล่นาน (เทิร์น)'), kit('cleric.purifyHeal', 'ไฟชำระฮีล × M.ATK'),
@@ -109,6 +124,45 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
   },
 }
 
+// ---------- v107 round 2: 2nd jobs (KIT2 + JOB2 skill 3 / Ult วิวัฒน์) ----------
+export const JOB2_IDS = Object.keys(JOB2) as Job2Id[]
+export interface Job2Layout { s3: SkillRef[]; ult: SkillRef[]; other: SkillRef[] }
+/** Hand-written Thai labels; any other KIT2 number shows its key. */
+const J2_LABEL: Record<string, string> = {
+  'crusader.guard': '🛡️ Auto Guard: บล็อก', 'crusader.guardVit': '🛡️ บล็อกเพิ่มต่อ VIT', 'crusader.guardCap': '🛡️ บล็อกสูงสุด', 'crusader.holyVs': 'ศรัทธา: แรงใส่อันเดด/ปีศาจ',
+  'crusader.crossHits': '✝️ จำนวนฮิต', 'crusader.crossMul': '✝️ ต่อฮิต × (P.ATK + Pm)', 'crusader.blindTurns': '🙈 ตาบอด (เทิร์น)', 'crusader.blindHit': '🙈 Hit มอนลด',
+  'crusader.gcPay': '✨ จ่าย HP % ปัจจุบัน', 'crusader.gcPm': '✨ กางเขน × พลังเวท', 'crusader.gcAtk': '✨ กางเขน × P.ATK', 'crusader.gcRefund': '✨ คืน HP % ของที่จ่าย',
+  'crusader.gcRefundAt': '✨ คืน HP เมื่อโดนกี่ตัวขึ้นไป', 'crusader.gcBurn': '🔥 โบนัส × (Mana ที่เผา + HP ที่จ่าย)', 'crusader.gcVamp': '🩸 ดูดเลือดสกิลเพิ่มตอนร่าย',
+  'crusader.martyrShield': '★ ผู้พลีชีพ: โล่ % HP', 'crusader.mastery.atkPct': 'ชำนาญอาวุธ: ATK %', 'crusader.mastery.def': 'ชำนาญอาวุธ: DEF',
+}
+/** Which column a KIT2 key goes to. Skill 3 Mana / cooldown are NOT here: jobs2.ts copies them at import, so they are tuned on JOB2 (job2.<id>.skill3.cost / cd). */
+const J2_COL: Partial<Record<Job2Id, { s3: RegExp; ult: RegExp }>> = { crusader: { s3: /^(cross|blind)/, ult: /^gc/ } }
+const INTISH = /(Turns|Hits|Max|Keep|At|Stacks|Every|Boxes|Knives|Count|Per(Swing|Combo))$/
+function j2Leaves(id: Job2Id): SkillOwnRef[] {
+  const out: SkillOwnRef[] = []
+  const walk = (o: Record<string, unknown>, pre: string) => {
+    for (const [k, v] of Object.entries(o)) {
+      const key = pre ? `${pre}.${k}` : k
+      if (typeof v === 'number') {
+        if (/(Cost|Cd)$/.test(k)) continue // copied into JOB2 at import (see above)
+        const hi = Math.max(10, Math.ceil(Math.abs(v) * 10))
+        out.push(sk(`kit2.${id}.${key}`, J2_LABEL[`${id}.${key}`] ?? key, INTISH.test(k) && Number.isInteger(v) ? int(0, hi) : num(0, hi)))
+      } else if (v && typeof v === 'object' && !Array.isArray(v)) walk(v as Record<string, unknown>, key)
+    }
+  }
+  walk(KIT2[id] as unknown as Record<string, unknown>, '')
+  return out
+}
+export function job2Layout(id: Job2Id): Job2Layout {
+  const col = J2_COL[id], leaves = j2Leaves(id), key = (r: SkillRef) => r.path.split('.').slice(2).join('.')
+  const s3 = leaves.filter((r) => col?.s3.test(key(r))), ult = leaves.filter((r) => col?.ult.test(key(r)))
+  return {
+    s3: [sk(`job2.${id}.skill3.cost`, 'ค่าร่าย', COST), sk(`job2.${id}.skill3.cd`, 'คูลดาวน์ (เทิร์น)', CD), ...s3],
+    ult: [sk(`job2.${id}.ult.cd`, 'คูลดาวน์ (เทิร์น)', CD), ...ult],
+    other: leaves.filter((r) => !s3.includes(r) && !ult.includes(r)),
+  }
+}
+
 /** The crit-switch ref of one slot (always shown first in its column). */
 export const critRef = (c: SkillClass, slot: CritSlot): SkillOwnRef => sk(`crit.${c}.${slot}`, 'คริได้ไหม (1 = ได้ · 0 = ไม่คริ)', int(0, 1))
 
@@ -119,8 +173,9 @@ export function skillTableFields(): [string, FieldDef][] {
   for (const c of SKILL_CLASSES) {
     const l = SKILL_LAYOUT[c]
     for (const slot of CRIT_SLOTS) add(critRef(c, slot))
-    l.s1.forEach(add); l.ult.forEach(add); l.s2.forEach((x) => x.refs.forEach(add))
+    l.s1.forEach(add); l.ult.forEach(add); l.s2.forEach((x) => x.refs.forEach(add)); l.tree?.forEach(add)
   }
+  for (const id of JOB2_IDS) { const l = job2Layout(id); [...l.s3, ...l.ult, ...l.other].forEach(add) }
   return [...out.entries()]
 }
 
@@ -128,7 +183,7 @@ let root: object | null = null
 /** The object the `skills` table patches in place: refs to the real consts, so writes reach the game's data. Built on first use (module cycles). */
 export function skillRoot(): object {
   return (root ??= {
-    job: JOBS, sword: SWORD_MANA, mage: MAGE_SPELL, s2p: S2P, s2n: S2N, crit: SKILL_CRIT,
+    job: JOBS, sword: SWORD_MANA, mage: MAGE_SPELL, s2p: S2P, s2n: S2N, crit: SKILL_CRIT, job2: JOB2, kit2: KIT2, // v107: 2nd jobs
     skill2: Object.fromEntries(SKILL2.map((s) => [s.id, s])), // keyed by id: a patch path never depends on array order
   })
 }

@@ -59,3 +59,12 @@
 1. ยืนยันก่อนว่าเกมอ่านค่านั้น **ตอนรัน** (ไม่ใช่ copy ตอน import)
 2. เพิ่ม `sk(path, label, def)` (หรือ `kit(path, label)` ถ้าอยู่ใน `kit` แล้ว) ใน `SKILL_LAYOUT` ของคลาส/ท่านั้น
 3. `npm test skill-registry` — เทสต์จะเช็กว่า path อยู่ใน whitelist, อ่านเป็นตัวเลข, default อยู่ในช่วง, และมีแถวในหน้า admin
+
+## v107 · รอบ 2 (Q 2026-11-07 "ทำ engine ให้ผมแก้ด้วย")
+- แท็บ ⚔️ สกิลอาชีพ มีแถว **อาชีพขั้น 2** ใต้แถวคลาส → เลือกแล้วเห็น 3 คอลัมน์: ทักษะ 3 | Ult วิวัฒน์ | signature + ตัวเลขอื่น
+  - ทุกอาชีพขั้น 2 (10 อาชีพ): ค่าร่าย / คูลดาวน์ทักษะ 3 (`skills job2.<id>.skill3.cost|cd`), คูลดาวน์ Ult (`job2.<id>.ult.cd`), ตัวเลข `KIT2.<id>` ทุกตัว (`skills kit2.<id>.*`)
+  - ช่วง: 0 ถึง max(10, 10 × default) · ชื่อไทยมีของ Crusader ก่อน อาชีพอื่นยังโชว์ชื่อ key
+  - ไม่โชว์ key ที่ลงท้าย `Cost` / `Cd` ใน KIT2 (jobs2.ts คัดลอกไป JOB2 ตอน import → แก้ที่ `job2.*` แทน)
+- นักบวช มีคอลัมน์ **🌳 Skill tree (node)**: Mana Ult ต่อ Lv ราก, 🌄 ทุบแรง/โบนัส/สมานแผล, ☀️ แสงแตก (WIS × ดาเมจ, เทิร์น ต่อ Lv), ★ อรุณพิทักษ์, 💠 แก่นศรัทธา ทั้งหมด (`kit clericTree.*`, `cleric.ultManaLv`)
+- ⚠️ **ต้อง deploy worker ใหม่ 1 ครั้ง** (`cd server && npm run deploy`) เพราะ server ตรวจ whitelist ด้วย tunables.ts ตัวเดียวกัน — ก่อน deploy ช่องใหม่จะบันทึก draft ไม่ผ่าน
+- ยังไม่ทำ: สวิตช์คริแยกของอาชีพขั้น 2 · ตัวเลข node ของคลาสอื่น (swordTree / archerTree / …) · ใยชั้น 2 (trees2) · ข้อความบนจอเกม
