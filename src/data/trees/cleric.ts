@@ -19,7 +19,7 @@ export const tree: ClassTree = {
     // v86 (Q 2026-11-06): ⛪ ฟื้นคืน replaced by 🌄 รุ่งอรุณ (same branch id, new node ids; old points refunded in save.ts)
     // v86 (Q 2026-11-06): free core column (not in ATTACH, like Mage แก่นเวท) for the Priest's Mana
     { id: 'cleric_core', job: 'cleric', name: 'แก่นศรัทธา', icon: '💠', blurb: 'Mana: ฟื้นตาม STR/WIS · INT เป็น STR · WIS เป็น VIT · โดนตีได้ Mana' },
-    { id: 'cleric_d', job: 'cleric', name: 'รุ่งอรุณ', icon: '🌄', blurb: 'Ult ทุบแถมดาเมจเวท STR + WIS + M.ATK · ฮีลจากแสง · บัฟ WIS · ★ คริแน่' },
+    { id: 'cleric_d', job: 'cleric', name: 'รุ่งอรุณ', icon: '🌄', blurb: 'Passive: ตีครบ 3 ฮิตแถมดาเมจเวท STR + WIS + M.ATK · ฮีลจากแสง · บัฟ WIS · ★ คริแน่' },
   ],
   nodes: [
     // A: Sanctuary
@@ -48,9 +48,9 @@ export const tree: ClassTree = {
       (lv) => ({ clManaGuard: K.guard * lv, clManaHeal: K.heal, clManaShield: K.shield * lv })),
     // D: 🌄 รุ่งอรุณ (v92, Q 2026-11-07): Ult smash + bonus MAGIC damage (STR + WIS + D.matk x M.ATK) on every monster it hits.
     // Same node ids as v86 (shipped a day earlier, same theme). Numbers per OLD level (max 3), stretched to 5.
-    // v104 (Q 2026-11-07): + the smash P.ATK that the root node used to give (stretched 3 -> 5: +20%/Lv, Lv5 +100%)
-    n('cleric_dn1', 'cleric_d', 1, '🌄', 'แสงรุ่งอรุณ', 3, (lv) => `Ult ทุบแรง +${pc(KIT.clericUltAtkLv * lv * 5 / 3)} P.ATK · แถมดาเมจเวท ${pc(D.share * lv)} ของ (STR + WIS + ${pc(D.matk)} M.ATK) ใส่ทุกตัวที่โดนทุบ`,
-      (lv) => ({ clDawn: D.share * lv, clUltAtk: KIT.clericUltAtkLv * lv * 5 / 3 })),
+    // v108 (Q 2026-11-07, Dawnbreaker-style passive): every D.every-th basic / combo hit adds the bonus to the monster hit (was: on the Ult smash)
+    n('cleric_dn1', 'cleric_d', 1, '🌄', 'แสงรุ่งอรุณ', 3, (lv) => `ตีธรรมดา/คอมโบครบ ${D.every} ฮิต → แถมดาเมจเวท ${pc(D.share * lv)} ของ (STR + WIS + ${pc(D.matk)} M.ATK) ใส่ตัวที่ตี`,
+      (lv) => ({ clDawn: D.share * lv })),
     n('cleric_dn2', 'cleric_d', 2, '💛', 'อรุณสมานแผล', 3, (lv) => `ฮีล ${pc(D.heal * lv)} ของดาเมจแสงรุ่งอรุณที่ตัวหน้า (มอนธรรมดา x${D.weak})`, (lv) => ({ clDawnHeal: D.heal * lv })),
     // v102 (Q 2026-11-07): was +dmg/lv; now the Dawn Light bonus hitting gives WIS = 25/30/35% of the bonus/target for 3/4/5 turns. Max 3, not stretched (tree.ts NO_STRETCH).
     n('cleric_dn3', 'cleric_d', 3, '☀️', 'แสงแตก', 3, (lv) => `แสงรุ่งอรุณโดนแล้ว ได้ WIS = ${pc(D.wis[i3(lv)])} ของดาเมจแสงรุ่งอรุณ/ตัว ${D.wisTurns[i3(lv)]} เทิร์น`,

@@ -305,7 +305,7 @@ export class BattleScene extends Phaser.Scene {
     this.frenzy = 0; this.frenzyAt = 0; this.s3Cd = 0; this.rampage = 0; this.charges = 0; this.allies = []; this.allyTxt.clear(); this.chargeTxt = undefined
     this.s2 = this.job.id === 'novice' ? undefined : skill2Picked(s.jobTree, this.job.id); this.s2Cd = 0
     this.buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, bless: 0, dawnWis: 0 }; this.s2Count = 0
-    this.dawnWisAmt = 0; this.dawnWisDelta = {} // v102 ☀️ แสงแตก
+    this.dawnWisAmt = 0; this.dawnWisDelta = {}; this.dawnCount = 0 // v102 ☀️ แสงแตก · v108 🌄 hit counter
     this.blessOn = false; this.blessDelta = undefined; this.kyrie = { hp: 0, hits: 0 } // v77 พรแสง
     if (this.s2?.id === 'cl_spear') this.st.spearMul += S2N.spearPlus(this.st.s2Lv) // หอกคม: +10%/lv of the 0.3x base
     this.res = this.job.resource === 'rage' ? 0 : this.resMax()
@@ -902,8 +902,8 @@ export class BattleScene extends Phaser.Scene {
   private boomUsed = false // Knight Spear Boomerang used this wave
   private firstSwing = false // Knight Charge Attack: first basic swing of the wave
   private forceCrit = false
-  // ----- v92 Cleric web 🌄 แสงรุ่งอรุณ (KIT.clericTree.dawn): the Ult smash adds bonus magic damage (STR + WIS + matk x M.ATK) -----
-  /** Bonus magic hit on every Ult smash target (x hitPow like the rest of the ult); ★ = sure crit + crit dmg; heals a share of the front hit. */
+  // ----- v92 Cleric web 🌄 แสงรุ่งอรุณ (KIT.clericTree.dawn): bonus magic damage (STR + WIS + matk x M.ATK) · v108: passive on every Nth basic / combo hit -----
+  /** Bonus magic hit on the targets (hitPow 1 for the passive); ★ = sure crit + crit dmg; heals a share of the first hit. */
   private dawnBonus(targets: Mon[], hitPow: number) {
     const D = KIT.clericTree.dawn, st = this.st, s = save()
     if (st.clDawn <= 0 || this.job.id !== 'cleric' || !targets.length) return
@@ -1344,7 +1344,6 @@ export class BattleScene extends Phaser.Scene {
             this.strike(m, C.gcPm * k + extra / Math.max(1, magicPower(this.st)), true, '#fff3a0')
             this.strike(m, (C.gcAtk + this.st.clUltAtk) * k * (1 + this.st.pskill), false, '#ffe08a')
           }
-          if (cast === 0) this.dawnBonus(all.filter((m) => !m.dead), h2) // 🌄 แสงรุ่งอรุณ (+ แสงแตก / สมานแผล / ★)
           if (paid > 0 && all.length >= C.gcRefundAt) { this.hp = Math.min(this.st.maxHp, this.hp + Math.round(paid * C.gcRefund)); this.floatText(HERO_X, GROUND - 160, `✨ คืน HP ${Math.round(paid * C.gcRefund)}`, '#6fd08c') }
           await this.wait(BATTLE.stepMs * 0.35)
         }
@@ -1711,7 +1710,14 @@ export class BattleScene extends Phaser.Scene {
     else if (kind === 'mage' && this.j2?.id === 'sage') await this.lunge(f, () => { this.strike(f, KIT2.sage.basicMul) }) // 📖 Sage: melee x P.ATK
     else if (kind === 'mage') await this.shoot(f, 0x9f7bff, () => { if (this.strike(f, MAGE_SPELL.basicMul, true, '#c9a8ff') > 0) this.gainRes(MAGE_CAST.boltMana) }) // weak free magic bolt (v78: + Mana on hit); real damage = Mana spells
     else if (kind === 'thief') await this.lunge(f, () => { this.strike(f, 0.6); this.strike(f, 0.6); this.doubleAttack(f, 0.6) })
-    else if (kind === 'cleric') await this.maceSmash(f, () => this.strike(f, clericBasic())) // v58 Q: melee mace/book smash, P.ATK (STR) only; spells carry M.ATK
+    else if (kind === 'cleric') {
+      await this.maceSmash(f, () => this.strike(f, clericBasic())) // v58 Q: melee mace/book smash, P.ATK (STR) only; spells carry M.ATK
+      if (this.st.clDawn > 0 && ++this.dawnCount >= KIT.clericTree.dawn.every) { // v108 🌄 รุ่งอรุณ passive (Dawnbreaker): every Nth basic / combo hit
+        this.dawnCount = 0
+        const t = f.dead ? this.front()[0] : f
+        if (t) this.withSrc('other', () => this.dawnBonus([t], 1))
+      }
+    }
     else await this.lunge(f, () => { const cl = BATTLE.cleave + this.st.cleaveAdd, fs = this.chargeMul(); if (live[1]) { this.strike(f, fs); this.strike(live[1], cl) } else this.strike(f, fs + (kind === 'swordsman' ? cl : 0)) }) // novice, swordsman: cleave (+talent ฟันกวาด) · swordsman alone vs 1 monster: the cleave lands on it too
     this.lsMul = 0
     if (this.j2?.id === 'monk') this.monkSwing(f)
@@ -1955,7 +1961,6 @@ export class BattleScene extends Phaser.Scene {
   private async clericUlt(live: Mon[], pow: number, hitPow: number) {
     const charging = this.alive().some((m) => m.charging)
     if (live[0]) await this.maceSmash(live[0], () => { live.forEach((m) => this.strike(m, clericUltSmash(this.st) * hitPow * (1 + this.st.pskill))); this.cameras.main.flash(120, 255, 240, 170) })
-    this.dawnBonus(live.filter((m) => !m.dead), hitPow) // v92 🌄 แสงรุ่งอรุณ: bonus magic hit on every smash target still standing
     for (let i = 0; i < clericUltLights(this.st); i++) { const t = this.alive(); if (!t.length) break; await this.holyLight(t[Phaser.Math.Between(0, t.length - 1)], CLERIC_KIT.ultLight * hitPow) }
     this.addShield(this.st.maxHp * CLERIC_KIT.ultShield * pow * (charging ? 1 + this.st.ultChargeShield : 1)) // talent: ใต้ปีกเทพ · lasts shieldTurns, capped
     await this.clericUltExtras()
@@ -3464,6 +3469,7 @@ export class BattleScene extends Phaser.Scene {
   }
   /** v102 ☀️ แสงแตก: WIS the buff adds right now (0 = off); derived stats move by exactly what heroStats() gives (like syncBless). */
   private dawnWisAmt = 0
+  private dawnCount = 0 // v108 🌄 basic / combo hits since the last Dawn Light
   private dawnWisDelta: Partial<Record<keyof Stats, number>> = {}
   private syncDawnWis(amt: number) {
     if (amt === this.dawnWisAmt) return
@@ -4231,7 +4237,7 @@ export class BattleScene extends Phaser.Scene {
     const X = this.hx
     this.debuffTxt?.setText([X.poison > 0 ? `☠️${X.poison}` : '', X.burn > 0 ? `🔥${X.burn}` : '', X.weaken > 0 ? `💔${X.weaken}` : '', X.armorBreak > 0 ? `🛡️💥${X.armorBreak}` : '', X.silence > 0 ? `🤐${X.silence}` : '', X.web > 0 ? `🕸️${X.web}` : '', X.slow > 0 ? `💙${X.slow}` : '', X.thorn > 0 ? `❄️${X.thorn}` : '', X.venomTurns > 0 ? `🕷️${X.venomTurns}` : ''].filter(Boolean).join(' ')).setY(this.job.resource ? 92 : 78)
     { const B = this.buf, d = this.debuffTxt, k2i = this.s2?.icon ?? '' // v77: hero buffs (the picked Skill 2's icon + turns left; พรแสง adds Kyrie hits / Gloria)
-      this.buffTxt?.setText([B.dawnWis > 0 ? `☀️${B.dawnWis}` : '', B.bless > 0 ? `${k2i}${B.bless}` : '', this.kyrie.hits > 0 ? `🛡️${this.kyrie.hits}` : '', B.bless > 0 && this.st.s2Star > 0 && this.s2?.id === 'cl_bless' ? '✨' : '',
+      this.buffTxt?.setText([this.st.clDawn > 0 && this.job.id === 'cleric' ? `🌄${this.dawnCount}/${KIT.clericTree.dawn.every}` : '', B.dawnWis > 0 ? `☀️${B.dawnWis}` : '', B.bless > 0 ? `${k2i}${B.bless}` : '', this.kyrie.hits > 0 ? `🛡️${this.kyrie.hits}` : '', B.bless > 0 && this.st.s2Star > 0 && this.s2?.id === 'cl_bless' ? '✨' : '',
         ...(['guard', 'blood', 'hawk', 'mshield', 'renew'] as const).map((k) => (B[k] > 0 ? `${k2i}${B[k]}` : ''))].filter(Boolean).join(' '))
         .setPosition(22 + (d && d.text ? d.width + 10 : 0), this.job.resource ? 92 : 78) }
 

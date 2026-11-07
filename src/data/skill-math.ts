@@ -42,7 +42,7 @@ export const KIT = {
   mageFire: 2, mageFireStacks: 3, mageIce: 1.6, mageIceChill: 3, mageLightHits: 6, mageLightLo: 0.3, mageLightHi: 1.2,
   clericHealBelow: 0.75, clericSmiteTargets: 2, clericJudge: 2.2, clericJudgeEvery: 3,
   // v58 Priest Ult web (Q 2026-11-04), linear per level: พรคุ้มครอง (v92 Q 2026-11-07) = ult smash 150% + 50%/Lv P.ATK, Lv5 = 400% · พรอุ่นไอ Lv5 = counter +12.5%, Holy Light 3 -> 8 · เกราะแสง Lv3 = 6% shield per spear volley
-  clericUltAtkLv: 0.2, // v104: smash P.ATK per 🌄 แสงรุ่งอรุณ Lv (was per root Lv 0.5)
+  clericUltAtkLv: 0.15, // v108 (Q: Ult back to v58): root พรคุ้มครอง smash +0.15x P.ATK per Lv = 150% x (1 + 10%/Lv) · v104 0.2 per 🌄 Lv · v92 0.5 per root Lv
   clericWarmCounterLv: 0.025, clericWarmLightLv: 1, clericSpearShieldLv: 0.02,
   spearBase: 0.3, spearMax: 8,
   thiefAuto: 1.6, thiefAutoPoison: 3, thiefUlt: 0.7, thiefUltHits: 4, thiefUltDodge: 2,
@@ -75,7 +75,7 @@ export const KIT = {
     // ศรัทธาสู่กาย (max 3, not stretched): every intPer[lv-1] INT = +1 STR, v102 also every intPer[lv-1] WIS = +1 VIT · มานาพิทักษ์: damage taken (shield absorb too)
     // -> guard/lv of it as Mana (x (1 + WIS x wisAmp)) · Mana spent -> heal of it as HP · wave start shield = shield/lv x Max Mana
     core: { base: 5, regen: 1 / 6, intPer: [7, 6, 5], guard: 0.05, wisAmp: 0.005, heal: 0.2, shield: 0.25 / 3 },
-    dawn: { matk: 0.1, share: 2 / 3, heal: 0.1, wis: [0.25, 0.3, 0.35], wisTurns: [3, 4, 5], crit: 0.5, weak: 0.6 },
+    dawn: { every: 3, matk: 0.1, share: 2 / 3, heal: 0.1, wis: [0.25, 0.3, 0.35], wisTurns: [3, 4, 5], crit: 0.5, weak: 0.6 }, // v108: passive, every Nth basic / combo hit (Dawnbreaker Luminosity)
     reviveHp: 0.5, reviveShield: 0.2, // ★ คืนชีพ: 1/run lethal hit -> back at 50% HP + 20% shield, debuffs cleared
   },
 }
@@ -216,12 +216,24 @@ export const s2Cooldown = (k: Skill2Def, _st: Stats) => Math.max(1, k.cd)
 /** Light spear multiplier x M.ATK (Skill 2 หอกคม adds on top at run start). */
 export const spearMul = (st: Stats, s2?: Skill2Def) => KIT.spearBase + st.spearMul + (s2?.id === 'cl_spear' ? S2N.spearPlus(st.s2Lv) : 0)
 /** v58 Priest: ult smash multiplier x P.ATK (before ultAmp / pskill), Holy Light count, basic smash x P.ATK. */
-export const clericUltSmash = (st: Stats) => CLERIC_KIT.ultAtk + st.clUltAtk // v104: 200% + 🌄 แสงรุ่งอรุณ 20%/Lv (was 150% + root 50%/Lv)
+export const clericUltSmash = (st: Stats) => CLERIC_KIT.ultAtk + st.clUltAtk // v108: v58 again, 150% + root 15%/Lv (Lv5 225%)
 /** v92 🌄 แสงรุ่งอรุณ: flat bonus magic damage per Ult smash target = (STR + WIS + matk x M.ATK) x node share (v102: แสงแตก no longer amps it). */
 export const dawnBonus = (st: Stats, str: number, wis: number) =>
   st.clDawn > 0 ? (str + wis + KIT.clericTree.dawn.matk * st.matk) * st.clDawn : 0
 /** v102 ☀️ แสงแตก: WIS the buff gives = share x the per-target bonus (x ult hitPow). The bonus is taken WITHOUT the buff's own WIS (no snowball). */
 export const dawnWisGain = (st: Stats, bonus: number) => (st.clDawnWis > 0 ? Math.round(bonus * st.clDawnWis) : 0)
+/** v108 🌄 รุ่งอรุณ passive detail rows (every Nth basic / combo hit). */
+export function dawnInfo(st: Stats, base: { str: number; wis: number }): InfoRow[] {
+  if (st.clDawn <= 0) return []
+  const D = KIT.clericTree.dawn, bonus = dawnBonus(st, base.str, base.wis)
+  const out: InfoRow[] = [
+    { label: 'ทำงานเมื่อ', value: `ตีธรรมดา / คอมโบ ครบ ${D.every} ฮิต (ฮิตที่ ${D.every})` },
+    { label: `🌄 ดาเมจเวทใส่ตัวที่ตี${st.clDawnUlt > 0 ? ' · คริแน่' : ''}`, value: `+${r(bonus)}` },
+  ]
+  if (st.clDawnHeal > 0) out.push({ label: '💛 ฮีลตัวเอง', value: `${pct(st.clDawnHeal)} ของดาเมจ (มอนธรรมดา x${D.weak})` })
+  if (st.clDawnWis > 0) out.push({ label: `☀️ แสงแตก: WIS ${st.clDawnWisTurns} เทิร์น`, value: `+${dawnWisGain(st, bonus)} WIS (${pct(st.clDawnWis)} ของ ${r(bonus)})` })
+  return out
+}
 /** The same bonus as a magic-hit multiplier (strike() scales mul by magic power). */
 export const dawnMul = (st: Stats, str: number, wis: number) => dawnBonus(st, str, wis) / Math.max(1, magicPower(st))
 export const clericUltLights = (st: Stats) => CLERIC_KIT.ultLights + st.clUltLights
@@ -298,30 +310,20 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
       break
     }
     case 'cleric':
-      if (job2 === 'crusader') { // v106: Grand Cross + the Cleric Ult-web buffs
+      if (job2 === 'crusader') { // v106: Grand Cross + the Cleric Ult-web buffs (v108: 🌄 is a basic-attack passive now, not here)
         const C = KIT2.crusader, k = hitPow * (1 + st.ult2Pow) * (1 + st.j2CrossAdd)
         out[0] = { label: 'คูลดาวน์', value: `${ultCooldown(job, st)} เทิร์น · ไม่ใช้ Mana (เผา Mana ที่เหลือทั้งหมด)` }
         out.push({ label: `จ่าย HP ${pct(C.gcPay * Math.max(0, 1 - st.j2PayCut))} ปัจจุบัน`, value: `โดน ${C.gcRefundAt}+ ตัว คืน ${pct(C.gcRefund)}${st.j2GcTwice > 0 ? ' · ยิง 2 ครั้ง (ครั้ง 2 ไม่จ่าย/ไม่เผา)' : ''}` })
         out.push({ label: `✝️ กางเขน/ตัว ${C.gcPm}x พลังเวท (เวท)`, value: hitText(st, C.gcPm * k, true) })
-        out.push({ label: `✝️ กางเขน/ตัว ${+(C.gcAtk + st.clUltAtk).toFixed(2)}x P.ATK (กาย${st.clUltAtk > 0 ? ' · 🌄 +' + pct(st.clUltAtk) : ''})`, value: hitText(st, (C.gcAtk + st.clUltAtk) * k * (1 + st.pskill), false) })
+        out.push({ label: `✝️ กางเขน/ตัว ${+(C.gcAtk + st.clUltAtk).toFixed(2)}x P.ATK (กาย${st.clUltAtk > 0 ? ' · 🙏 +' + pct(st.clUltAtk) : ''})`, value: hitText(st, (C.gcAtk + st.clUltAtk) * k * (1 + st.pskill), false) })
         out.push({ label: '🔥 โบนัส/ตัว (เวท)', value: `${C.gcBurn}x (Mana ที่เผา + HP ที่จ่าย) · เต็ม Mana ≈ +${r(C.gcBurn * st.maxRes * k)}` })
         out.push({ label: '🩸 ดูดเลือดสกิล ระหว่างร่าย', value: `+${pct(C.gcVamp)} (รวมไม่เกิน 40%)` })
-        if (st.clDawn > 0 && base) {
-          const bonus = dawnBonus(st, base.str, base.wis) * hitPow
-          out.push({ label: `🌄 แสงรุ่งอรุณ/ตัว (เวท${st.clDawnUlt > 0 ? ' · คริแน่' : ''})`, value: `+${r(bonus)}` })
-          if (st.clDawnWis > 0) out.push({ label: `☀️ แสงแตก: WIS ${st.clDawnWisTurns} เทิร์น`, value: `+${dawnWisGain(st, bonus)} WIS (${pct(st.clDawnWis)} ของ ${r(bonus)})` })
-        }
         out.push({ label: `โล่ ${CLERIC_KIT.ultShieldTurns} เทิร์น`, value: `${shield(st, st.maxHp * CLERIC_KIT.ultShield * (1 + st.ultPow) * (1 + st.ult2Pow))}` })
         if (st.clPurify > 0) out.push({ label: 'ไฟชำระ: ล้างดีบัฟ + ฮีล (M.ATK)', value: `${heal(st, st.matk * CLERIC_KIT.purifyHeal)} HP` })
         if (st.ultHoly > 0) out.push({ label: 'แสงลงทัณฑ์/ตัว', value: hitText(st, st.ultHoly, true) })
         break
       }
       out.push({ label: `ทุบทุกตัว ${pct(clericUltSmash(st))} P.ATK`, value: hitText(st, clericUltSmash(st) * hitPow * (1 + st.pskill), false) })
-      if (st.clDawn > 0 && base) {
-        const bonus = dawnBonus(st, base.str, base.wis) * hitPow
-        out.push({ label: `🌄 แสงรุ่งอรุณ/ตัว (เวท${st.clDawnUlt > 0 ? ' · คริแน่' : ''})`, value: `+${r(bonus)}` })
-        if (st.clDawnWis > 0) out.push({ label: `☀️ แสงแตก: WIS ${st.clDawnWisTurns} เทิร์น`, value: `+${dawnWisGain(st, bonus)} WIS (${pct(st.clDawnWis)} ของ ${r(bonus)})` }) // v102
-      }
       out.push({ label: `Holy Light ${clericUltLights(st)} ลูก ตัวสุ่ม (พลังเวท)`, value: hitText(st, CLERIC_KIT.ultLight * hitPow, true) })
       out.push({ label: `โล่ ${CLERIC_KIT.ultShieldTurns} เทิร์น`, value: `${shield(st, st.maxHp * CLERIC_KIT.ultShield)} (รวมไม่เกิน ${r(st.maxHp * CLERIC_KIT.shieldCap)})` })
       if (st.clPurify > 0) out.push({ label: 'ไฟชำระ: ล้างดีบัฟ + ฮีล (M.ATK)', value: `${heal(st, st.matk * CLERIC_KIT.purifyHeal)} HP` })

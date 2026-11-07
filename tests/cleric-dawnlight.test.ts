@@ -27,13 +27,13 @@ test('v93 full branch numbers: bonus share 200%, heal 30%, v102 แสงแต�
   assert.ok(Math.abs(lv1.clDawn - 0.4) < 1e-9) // Lv 1 of 5 = old 0.6 x 2/3 (v93)
 })
 
-test('v104 Ult smash = 200% + 🌄 20%/Lv P.ATK; root = Ult +12%/Lv; dawn bonus = (STR + WIS + 10% M.ATK) x share', () => {
-  const lv = (n: number) => clericUltSmash(heroStats(tree({ cleric_ultp: 5, ...(n ? { cleric_dn1: n } : {}) })))
-  assert.ok(Math.abs(lv(0) - 2) < 1e-9)
-  assert.ok(Math.abs(lv(1) - 2.2) < 1e-9)
-  assert.ok(Math.abs(lv(5) - 3) < 1e-9)
-  const root = heroStats(tree({ cleric_ultp: 5 }))
-  assert.ok(Math.abs(root.ultPow - 0.6) < 1e-9); assert.equal(root.clUltAtk, 0)
+test('v108 Ult back to v58: smash 150% x (1 + 10%/root Lv); 🌄 adds no smash; dawn bonus = (STR + WIS + 10% M.ATK) x share', () => {
+  const lv = (n: number) => clericUltSmash(heroStats(tree(n ? { cleric_ultp: n } : {})))
+  assert.ok(Math.abs(lv(0) - 1.5) < 1e-9)
+  assert.ok(Math.abs(lv(1) - 1.65) < 1e-9)
+  assert.ok(Math.abs(lv(5) - 2.25) < 1e-9)
+  const both = heroStats(tree({ cleric_ultp: 5, cleric_dn1: 5 }))
+  assert.equal(both.ultPow, 0); assert.ok(Math.abs(both.clUltAtk - 0.75) < 1e-9)
   const st = { ...heroStats(tree({ cleric_ultp: 1 })), matk: 100, clDawn: 1 }
   assert.equal(dawnBonus(st, 50, 50), 110) // Q's example
   assert.equal(dawnBonus({ ...st, clDawn: 0 }, 50, 50), 0)
@@ -56,7 +56,7 @@ test('v86 Cleric ult พรคุ้มครอง costs Mana (like Mage / Swor
   const { ultCost } = await import('../src/data/skill-math')
   assert.equal(ultCost(JOBS.cleric), CLERIC_KIT.ultMana)
   assert.ok(CLERIC_KIT.ultMana > 0)
-  assert.match(JOBS.cleric.ult.desc, /^Mana \d+–\d+ \(ตาม Lv Ult\):/)
+  assert.match(JOBS.cleric.ult.desc, /^Mana 30: ทุบใส่ทุกตัว 150% P\.ATK/) // v108: flat again (ultManaLv 0)
 })
 
 test('v106 Grand Cross / Tempest Bell cost no Mana (Grand Cross burns what is left instead)', async () => {
@@ -98,32 +98,35 @@ test('v102 ☀️ แสงแตก: max 3 (not stretched), WIS +25/30/35% for 
   migrateDawnBurst(s); assert.equal(s.skillPoints, 2) // once
 })
 
-test('v102 Cleric Ult Mana 30/35/40/45/50 by Ult node Lv; Grand Cross / Monk stay free', async () => {
+test('v108 Cleric Ult Mana flat 30 again (ultManaLv 0, tunable); Grand Cross / Monk stay free', async () => {
   const { JOBS } = await import('../src/data/jobs')
   const { ultCost } = await import('../src/data/skill-math')
   const { JOB2 } = await import('../src/data/jobs2')
-  assert.deepEqual([0, 1, 2, 3, 4, 5].map((lv) => ultCost(JOBS.cleric, heroStats(tree(lv ? { cleric_ultp: lv } : {})))), [30, 30, 35, 40, 45, 50])
+  assert.deepEqual([0, 1, 2, 3, 4, 5].map((lv) => ultCost(JOBS.cleric, heroStats(tree(lv ? { cleric_ultp: lv } : {})))), [30, 30, 30, 30, 30, 30])
   const st5 = heroStats(tree({ cleric_ultp: 5 }))
   assert.equal(ultCost({ ...JOBS.cleric, ult: { ...JOBS.cleric.ult, ...JOB2.crusader.ult } }, st5), 0)
   assert.equal(ultCost({ ...JOBS.cleric, ult: { ...JOBS.cleric.ult, ...JOB2.monk.ult } }, st5), 0)
   assert.equal(ultCost(JOBS.mage, st5), JOBS.mage.ult.cost)
 })
 
-test('v102 ☀️ แสงแตก WIS = share x Dawn Light bonus/target, shown in the Ult detail rows', async () => {
-  const { dawnWisGain, ultInfo } = await import('../src/data/skill-math')
+test('v108 🌄 passive detail rows: trigger every 3 hits, bonus, heal, ☀️ WIS = share x bonus; none in the Ult rows', async () => {
+  const { dawnWisGain, dawnInfo, ultInfo } = await import('../src/data/skill-math')
   const st = heroStats(tree({ cleric_ultp: 1, cleric_dn1: 5, cleric_dn2: 1, cleric_dn3: 3 }))
   assert.equal(dawnWisGain(st, 174), 61) // Q's example: 35% of 174
   assert.equal(dawnWisGain({ ...st, clDawnWis: 0 }, 174), 0)
-  const row = ultInfo('cleric', st, { str: 50, wis: 50 }).find((x) => x.label.startsWith('☀️'))
-  assert.match(row?.value ?? '', /^\+\d+ WIS \(35% ของ \d+\)$/)
+  const rows = dawnInfo(st, { str: 50, wis: 50 })
+  assert.match(rows[0].value, /ครบ 3 ฮิต/)
+  assert.match(rows.find((x) => x.label.startsWith('☀️'))?.value ?? '', /^\+\d+ WIS \(35% ของ \d+\)$/)
+  assert.ok(!ultInfo('cleric', st, { str: 50, wis: 50 }).some((x) => x.label.startsWith('🌄') || x.label.startsWith('☀️')))
+  assert.deepEqual(dawnInfo(heroStats(tree({ cleric_ultp: 1 })), { str: 50, wis: 50 }), [])
 })
 
-test('v106 Grand Cross detail: cross rows (🌄 P.ATK on the P.ATK cross), burn, vamp, Dawn Light; no Cleric smash / Holy Light', async () => {
+test('v106/v108 Grand Cross detail: cross rows (🙏 root P.ATK on the P.ATK cross), burn, vamp; no Cleric smash / Holy Light / Dawn Light', async () => {
   const { ultInfo, KIT2 } = await import('../src/data/skill-math')
   const st = heroStats(tree({ cleric_ultp: 5, cleric_dn1: 5 }))
   const gc = ultInfo('cleric', st, { str: 50, wis: 50 }, 'crusader').map((x) => x.label)
   assert.equal(gc.filter((x) => x.startsWith('✝️')).length, 2)
-  assert.ok(gc.some((x) => x.includes(`${KIT2.crusader.gcAtk + 1}x P.ATK`)))
-  assert.ok(gc.some((x) => x.startsWith('🔥')) && gc.some((x) => x.startsWith('🩸')) && gc.some((x) => x.startsWith('🌄')))
+  assert.ok(gc.some((x) => x.includes(`${KIT2.crusader.gcAtk + 0.75}x P.ATK`)))
+  assert.ok(gc.some((x) => x.startsWith('🔥')) && gc.some((x) => x.startsWith('🩸')) && !gc.some((x) => x.startsWith('🌄')))
   assert.ok(!gc.some((x) => x.startsWith('ทุบ') || x.startsWith('Holy Light')))
 })

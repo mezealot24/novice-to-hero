@@ -97,7 +97,7 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
       s2('cl_spear', ...lin('spearPlus', 'หอกแรงเพิ่ม'), kit('spearBase', 'ดาเมจหอกพื้นฐาน × M.ATK'), kit('spearMax', 'หอกสูงสุด (เล่ม)')),
     ],
     tree: [ // v107: numbers the Cleric web nodes read at run time (kit `clericTree.*`)
-      kit('cleric.ultManaLv', '🙏 ราก: Mana Ult เพิ่มต่อ Lv (เหนือ Lv1)'), kit('clericUltAtkLv', '🌄 แสงรุ่งอรุณ: ทุบแรง × P.ATK ต่อ Lv เดิม (×5/3 = ต่อ Lv จริง)'),
+      kit('cleric.ultManaLv', '🙏 ราก: Mana Ult เพิ่มต่อ Lv (เหนือ Lv1 · 0 = คงที่)'), kit('clericUltAtkLv', '🙏 ราก: Ult ทุบแรง × P.ATK ต่อ Lv'), kit('clericTree.dawn.every', '🌄 passive: ทุกกี่ฮิต (ตีธรรมดา/คอมโบ)'),
       kit('clericTree.dawn.share', '🌄 โบนัส: share ต่อ Lv เดิม (× STR+WIS+M.ATK)'), kit('clericTree.dawn.matk', '🌄 โบนัส: × M.ATK ในฐาน'),
       kit('clericTree.dawn.heal', '💛 สมานแผล: ฮีลต่อ Lv เดิม'), kit('clericTree.dawn.weak', '💛 สมานแผล: มอนธรรมดา ×'),
       kit('clericTree.dawn.wis.0', '☀️ แสงแตก Lv1: WIS = × ดาเมจ'), kit('clericTree.dawn.wis.1', '☀️ แสงแตก Lv2: WIS = × ดาเมจ'), kit('clericTree.dawn.wis.2', '☀️ แสงแตก Lv3: WIS = × ดาเมจ'),

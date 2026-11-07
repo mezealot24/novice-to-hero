@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { COLORS, COMBO, doubleAtkChance, DUNGEONS, type Stats } from '../data/game-data'
-import { autoInfo, magicPower, skill2Info, ultInfo, type InfoRow } from '../data/skill-math'
+import { autoInfo, dawnInfo, magicPower, skill2Info, ultInfo, type InfoRow } from '../data/skill-math'
 import { skill2ById } from '../data/skill2'
 import { CARD_RULES, cardIcon, cardName, EQUIP_CARDS, TIER_COLOR, type EquipCard } from '../data/cards'
 import { gradeStars, gradeCap } from '../data/craft'
@@ -584,6 +584,7 @@ export function nodeDetail(s: ReturnType<typeof save>, n: TreeNode): { rows: Det
   const picked = (tree: Record<string, number>) => skill2Picked(tree, job)
   const secs: Sec[] = [
     { name: `${JOBS[job].auto.icon} ทักษะ 1: ${JOBS[job].auto.name}`, info: (st) => autoInfo(job, st), all: line === 's1' },
+    ...(job === 'cleric' ? [{ name: '🌄 รุ่งอรุณ (passive · ตีธรรมดา/คอมโบ)', info: (st: Stats, tree: Record<string, number>) => { const x = dawnInfo(st, totalBase({ ...s, jobTree: tree })); return x.length ? x : null }, all: n.branch === 'cleric_d' }] : []),
     { name: s.job2 === 'crusader' ? `✨ Ult: Grand Cross` : `${JOBS[job].ult.icon} Ult: ${JOBS[job].ult.name}`, info: (st, tree) => ultInfo(job, st, totalBase({ ...s, jobTree: tree }), s.job2), all: line === 'ult' },
     { name: `${(s2 ?? picked(t))?.icon ?? '🔀'} ทักษะ 2: ${(s2 ?? picked(t))?.name ?? ''}`, all: !!s2,
       info: (st, tree) => { const k = s2 ?? picked(tree); return k && (tree[k.id] ?? 0) > 0 ? skill2Info(k, st) : null } },
