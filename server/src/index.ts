@@ -5,6 +5,7 @@ import { createAuth, origins, type Env } from './auth'
 import { checkSave, type BlobLike } from './sanity'
 import { SKU_PRICE } from './skus'
 import { configRoutes } from './config'
+import { telemetryRoutes } from './telemetry'
 
 export type App = { Bindings: Env; Variables: { userId: string; pool: Pool; admin: string } }
 const app = new Hono<App>()
@@ -31,6 +32,7 @@ async function requireUser(c: Context<App>, next: Next) {
   await next()
 }
 configRoutes(app) // GET /config/live (public) + /admin/* (ADMIN_EMAILS)
+telemetryRoutes(app) // POST /telemetry (public, anonymous, rate-limited per device id)
 
 app.use('/save', requireUser)
 app.use('/wallet', requireUser)

@@ -20,6 +20,7 @@ The game stays on GitHub Pages and talks to this API only when built with `VITE_
 | `GET /save` · `PUT /save {data, rev}` | cloud save, optimistic `rev` (409 = conflict) |
 | `GET /wallet` · `POST /wallet/spend {sku, opId}` | paid gems (server-priced, idempotent) |
 | `POST /webhook/store` | 501 until a Store receipt verifier exists |
+| `POST /telemetry {did, build, events[]}` | beta analytics: anonymous, allow-listed events (`session_start` / `run_end` / `level_up`), ≤20 per batch, 60/min per device id. Table `telemetry_event` (query in the Neon SQL editor) |
 | `GET /config/live` | live balance config (public, ETag); `/admin/*` = balance editor API for `ADMIN_EMAILS` (see `docs/design/live-tuning.md`) |
 
 ## Anti-cheat
