@@ -3,6 +3,7 @@ import { isBroken, itemById, type Item } from '../../data/meta'
 import { persist, save } from '../../save'
 import { button, costStrip, fit, go, holdButton, iconTabs, panel, tabs, toast, topBar, txt, UI, type Btn, type CostStrip, type HoldBtn, type IconTabs } from '../../ui'
 import { AnvilStage } from './AnvilStage'
+import type { CmpMode } from './CompareView'
 import { ItemRail, railBackdrop } from './ItemRail'
 import { RecipeView } from './RecipeView'
 import { StashView } from './stash'
@@ -31,6 +32,7 @@ export class ForgeScene extends Phaser.Scene {
   private itemId?: string
   private verb: Verb = 'refine'
   private railView = { mineOnly: true, page: 0 }
+  private cmpMode: CmpMode = 'next' // v115: compare table mode, sticky while the scene is open
   private busyUntil = 0
   private holdSet = new Set<symbol>() // one token per open hold, so a stale release can never unlock a newer hold
   private alive = true // false once SHUTDOWN started: the display list is already gone, so nothing may touch game objects
@@ -56,7 +58,7 @@ export class ForgeScene extends Phaser.Scene {
   create(data?: { item?: string }) {
     // Scene instances are reused by Phaser: reset everything that survives between visits.
     this.mode = 'anvil'; this.itemId = data?.item; // v101: back from the card tab keeps the same item on the anvil
-    this.verb = 'refine'; this.railView = { mineOnly: true, page: 0 }
+    this.verb = 'refine'; this.railView = { mineOnly: true, page: 0 }; this.cmpMode = 'next'
     this.busyUntil = 0; this.holdSet = new Set(); this.alive = true; this.optLocks = new Map()
     this.modeObjs = []; this.rail = undefined; this.stage = undefined; this.verbTabs = undefined; this.box = undefined; this.panel = undefined; this.strip = undefined; this.actBtn = undefined; this.holdBtn = undefined; this.holdMs = 0
     this.cameras.main.setBackgroundColor(UI.night)
@@ -145,7 +147,7 @@ export class ForgeScene extends Phaser.Scene {
     this.modeObjs.push(railBackdrop(this, RAIL_X, RAIL_Y, RAIL_W, RAIL_H))
     this.rail = new ItemRail(this, RAIL_X, RAIL_Y + 6, RAIL_W, (id) => { if (!this.isBusy()) this.pick(id) }, this.railView)
     this.modeObjs.push(this.rail.container)
-    this.stage = new AnvilStage(this, STAGE_X, STAGE_Y, () => { if (!this.isBusy()) go(this, 'character', { tab: 1, back: { key: 'forge', data: { item: this.itemId } } }) })
+    this.stage = new AnvilStage(this, STAGE_X, STAGE_Y, () => { if (!this.isBusy()) go(this, 'character', { tab: 1, back: { key: 'forge', data: { item: this.itemId } } }) }, this.cmpMode, (m) => { this.cmpMode = m })
     this.modeObjs.push(this.stage.container)
     const slots = Array.from({ length: SLOT_COUNT }, (_, i) => VERB_TAB[slotVerb(i, false)])
     this.verbTabs = iconTabs(this, VERB_X, VERB_Y, slots, (i) => { const it = this.item(); if (it) this.setVerb(slotVerb(i, isBroken(save(), it.id))) }, { w: 80, h: 52, start: -1, gate: () => !this.isBusy() })

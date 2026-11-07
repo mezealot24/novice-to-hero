@@ -3,18 +3,21 @@
 import Phaser from 'phaser'
 import { FONT_UI } from '../../data/game-data'
 import { gradeCap, GRADE } from '../../data/craft'
-import { gradeOf, isBroken, isTainted, refineOf, slotCount, socketed, type Item } from '../../data/meta'
+import { gradeOf, isBroken, isTainted, refineOf, slotCount, SLOTS, socketed, type Item } from '../../data/meta'
 import { isWorn, save } from '../../save'
 import { sfx } from '../../sfx'
-import { button, itemIcon, panel, UI, type Btn, type ItemIcon } from '../../ui'
+import { button, chip, itemIcon, panel, UI, type Btn, type Chip, type ItemIcon } from '../../ui'
 import { crack, floatNum, hitStop, punch } from '../../ui-fx'
 import { fit } from '../../ui'
-import { iconState, statSplit, taintNote } from './state'
+import { CompareView, type CmpMode } from './CompareView'
+import { iconState, taintNote } from './state'
 import type { Preview, StageFx } from './types'
 
 export const STAGE_W = 368, STAGE_H = 376
-const ICON_X = STAGE_W / 2, ICON_Y = 104 // the icon's resting spot (a shake moves it and puts it back here)
-const ICON = 104, CX = STAGE_W / 2, TEXT_W = STAGE_W - 32
+const ICON_X = STAGE_W / 2, ICON_Y = 80 // the icon's resting spot (a shake moves it and puts it back here)
+const ICON = 84, CX = STAGE_W / 2, TEXT_W = STAGE_W - 32
+// v115: icon / name moved up so the compare table gets the bottom third of the stage
+const NAME_Y = 188, SUB_Y = 214, CMP_Y = 236, CMP_H = STAGE_H - CMP_Y - 6
 
 /** v101: the anvil itself (spec 3.2 "ANVIL STAGE"): slab, waist and foot, drawn once under the icon. */
 function drawAnvil(g: Phaser.GameObjects.Graphics, y: number) {
@@ -32,34 +35,32 @@ export class AnvilStage implements StageFx {
   private nameT: Phaser.GameObjects.Text
   private subT: Phaser.GameObjects.Text
   private tagT: Phaser.GameObjects.Text
-  private goodT: Phaser.GameObjects.Text
-  private curseT: Phaser.GameObjects.Text
-  private prevBg: Phaser.GameObjects.Graphics
-  private prevT: Phaser.GameObjects.Text
+  private wornChip: Chip
+  private wornFrame: Phaser.GameObjects.Graphics
+  private cmp: CompareView
   private emptyT: Phaser.GameObjects.Text
   private cardBtn: Btn
   private it?: Item
   private preview: Preview | null = null
 
-  constructor(private scene: Phaser.Scene, private x: number, private y: number, onCards: () => void) {
+  constructor(private scene: Phaser.Scene, private x: number, private y: number, onCards: () => void, cmpMode: CmpMode = 'next', onCmpMode: (m: CmpMode) => void = () => {}) {
     const t = (px: number, py: number, size: number, color: string, bold: boolean, w: number) =>
       scene.add.text(px, py, '', { fontFamily: FONT_UI, fontSize: `${size}px`, fontStyle: bold ? 'bold' : 'normal', color, lineSpacing: 3, align: 'center', wordWrap: { width: w } }).setOrigin(0.5, 0)
     this.glow = scene.add.graphics()
     const anvil = scene.add.graphics()
     drawAnvil(anvil, ICON_Y + ICON / 2 + 6)
     this.icon = itemIcon(scene, ICON_X, ICON_Y, ICON, { id: '', slot: 'weapon', name: '', icon: '', price: 0, desc: '', mod: {} }, { grade: 1, refine: 0 })
-    this.nameT = t(CX, 228, 20, UI.text, true, TEXT_W)
-    this.subT = t(CX, 256, 13, UI.sub, false, TEXT_W)
-    this.tagT = scene.add.text(STAGE_W - 12, 12, '', { fontFamily: FONT_UI, fontSize: '12px', fontStyle: 'bold', color: '#c9a8ff', align: 'right' }).setOrigin(1, 0)
-    this.goodT = t(CX, 280, 13, '#9fe3a8', true, TEXT_W)
-    this.curseT = t(CX, 300, 12, '#ff7a7a', true, TEXT_W)
-    this.prevBg = scene.add.graphics()
-    this.prevT = t(CX, 0, 12, UI.gold, true, TEXT_W - 16)
+    this.nameT = t(CX, NAME_Y, 20, UI.text, true, TEXT_W)
+    this.subT = t(CX, SUB_Y, 13, UI.sub, false, TEXT_W)
+    this.wornFrame = scene.add.graphics()
+    this.wornChip = chip(scene, 0, 26, '', '')
+    this.tagT = scene.add.text(STAGE_W - 12, 46, '', { fontFamily: FONT_UI, fontSize: '12px', fontStyle: 'bold', color: '#c9a8ff', align: 'right' }).setOrigin(1, 0)
+    this.cmp = new CompareView(scene, 12, CMP_Y, STAGE_W - 24, CMP_H, cmpMode, onCmpMode)
     this.emptyT = t(CX, ICON_Y + 120, 15, UI.sub, false, TEXT_W)
     this.emptyT.setText('เลือกของจากรายการด้านซ้ายเพื่อวางบนทั่งค่ะ')
     // 🃏 shortcut (spec 3.4): cards are socketed on the equipment screen, not duplicated here
     this.cardBtn = button(scene, 62, 26, 100, 28, '', onCards, { size: 12, fill: 0x5a5f8a, color: UI.text })
-    this.root = scene.add.container(x, y, [panel(scene, 0, 0, STAGE_W, STAGE_H), this.glow, anvil, this.icon, this.nameT, this.subT, this.tagT, this.goodT, this.curseT, this.prevBg, this.prevT, this.emptyT, this.cardBtn])
+    this.root = scene.add.container(x, y, [panel(scene, 0, 0, STAGE_W, STAGE_H), this.wornFrame, this.glow, anvil, this.icon, this.nameT, this.subT, this.wornChip, this.tagT, this.cmp.container, this.emptyT, this.cardBtn])
   }
 
   get container() { return this.root }
@@ -70,9 +71,10 @@ export class AnvilStage implements StageFx {
   /** Repaint from the save (in place). */
   refresh() {
     const it = this.it, s = save()
-    for (const o of [this.glow, this.icon, this.nameT, this.subT, this.tagT, this.goodT, this.curseT, this.prevBg, this.prevT]) o.setVisible(!!it)
+    for (const o of [this.glow, this.icon, this.nameT, this.subT, this.tagT, this.wornChip, this.wornFrame]) o.setVisible(!!it)
     this.emptyT.setVisible(!it)
     this.cardBtn.setVisible(false)
+    this.cmp.show(it, this.preview, it && isTainted(s, it.id) ? taintNote(s, it) : '')
     if (!it) return
     const g = gradeOf(s, it.id), r = refineOf(s, it.id), broken = isBroken(s, it.id), tainted = isTainted(s, it.id)
     const slots = slotCount(it, g)
@@ -85,22 +87,15 @@ export class AnvilStage implements StageFx {
     this.icon.setItem(it, iconState(s, it))
     this.nameT.setText(`${it.name}${r ? ` +${r}` : ''}`).setColor(gc)
     fit(this.nameT, 26)
-    this.subT.setText([`★${g}/${gradeCap(it)} ${GRADE.names[g] ?? ''}`, isWorn(s, it.id) ? 'ใส่อยู่' : '', broken ? '💔 แตก (ไม่ให้ค่าพลังจนกว่าจะซ่อม)' : ''].filter(Boolean).join(' · '))
+    this.subT.setText([`★${g}/${gradeCap(it)} ${GRADE.names[g] ?? ''}`, broken ? '💔 แตก (ไม่ให้ค่าพลังจนกว่าจะซ่อม)' : ''].filter(Boolean).join(' · '))
+    // v115: worn or in the bag, said loud: a chip top-right + a green frame round the whole stage
+    const worn = isWorn(s, it.id), sl = SLOTS.find((q) => q.id === it.slot)
+    this.wornChip.set(worn ? '✅' : '🎒', worn ? `ใส่อยู่ · ${sl?.icon ?? ''} ${sl?.name ?? ''}` : 'ในกระเป๋า', worn ? 'gain' : 'ok')
+    this.wornChip.x = STAGE_W - 12 - this.wornChip.chipW
+    this.wornFrame.clear()
+    if (worn) this.wornFrame.lineStyle(3, 0x6fd08c, 0.9).strokeRoundedRect(1.5, 1.5, STAGE_W - 3, STAGE_H - 3, 14)
     fit(this.subT, 20)
     this.tagT.setText([it.unique ? '👑 ยูนีค' : '', tainted ? '🌑 ล็อก' : ''].filter(Boolean).join('\n'))
-    const sp = statSplit(s, it)
-    this.goodT.setText(sp.good || it.desc)
-    fit(this.goodT, 36)
-    this.curseT.setText(sp.curse ? `💀 ${sp.curse}` : '').setY(this.goodT.y + this.goodT.height + 4)
-    fit(this.curseT, 18)
-    const p = this.preview ?? (tainted ? { text: taintNote(s, it), color: '#c9a8ff' } : null)
-    this.prevT.setText(p?.text ?? '').setColor(p?.color ?? UI.gold)
-    fit(this.prevT, 36)
-    // the "what you get" box sits at the bottom of the stage, sized to its text
-    const ph = p?.text ? this.prevT.height + 14 : 0, py = STAGE_H - 12 - ph
-    this.prevT.setY(py + 7)
-    this.prevBg.clear()
-    if (ph) this.prevBg.fillStyle(0x14172b, 0.85).fillRoundedRect(12, py, STAGE_W - 24, ph, 10)
   }
 
   // ---------- fx (all tweens/timers belong to the scene and die with it; ui-fx restores timeScale on SHUTDOWN) ----------
