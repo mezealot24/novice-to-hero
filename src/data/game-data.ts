@@ -475,6 +475,7 @@ export interface BossPhase {
 }
 
 export interface MonsterDef {
+  hellish?: string // v114 tower Hell copy (data/hell.ts): its trait label; also marks the tint
   name: string
   tex: string
   hp: number

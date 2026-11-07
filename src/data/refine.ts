@@ -8,7 +8,7 @@ import type { SaveData } from '../save'
 import type { Stats } from './game-data'
 import type { JobId } from './jobs'
 import { matOf } from './materials'
-import { gradeCost, gradeCap, matDungeon, REFINE, refinable, refineFee, refineRate, type RefineLine } from './craft'
+import { gradeCost, gradeCap, REFINE, refineDungeon, rerollDungeon, refinable, refineFee, refineRate, type RefineLine } from './craft'
 import { BASE_NAME, gradeOf, isBroken, isTainted, itemStatLine, ITEMS, linesOf, refineOf, type BaseStat, type Item, type Slot } from './meta'
 import { CURSES, pickTaintKind, TAINT, TAINT_MAT, type CurseDef, type TaintKind } from './taint'
 
@@ -41,12 +41,12 @@ export const fodderFits = (need: FodderNeed) => FODDER.filter((f) => f.slot === 
 
 /** Cost of one try at +n. */
 export function refineCost(it: Item, n: number): ForgeCost {
-  const t = TIER[refineTier(n)], dg = matDungeon(it)
+  const t = TIER[refineTier(n)], dg = refineDungeon(it, refineTier(n))
   return { mats: { [matOf(dg, false)]: t.common, ...(t.boss ? { [matOf(dg, true)]: t.boss } : {}) }, zeny: refineFee(n), fodder: { slot: it.slot, min: fodderMin(it.slot, refineTier(n)) } }
 }
 /** Material repair: any fodder of the same slot + 2 common materials + half the fee of the item's current +.
  * Always cheaper than gems (worst case +9: 185z + cheapest fodder). */
-export const repairCost = (it: Item, r = 0): ForgeCost => ({ mats: { [matOf(matDungeon(it), false)]: 2 }, zeny: Math.round((refineFee(r) * REFINE.repairFee) / 5) * 5, fodder: { slot: it.slot, min: 0 } })
+export const repairCost = (it: Item, r = 0): ForgeCost => ({ mats: { [matOf(refineDungeon(it, refineTier(Math.max(1, r))), false)]: 2 }, zeny: Math.round((refineFee(r) * REFINE.repairFee) / 5) * 5, fodder: { slot: it.slot, min: 0 } })
 export const gemRepairCost: ForgeCost = { mats: {}, zeny: 0, gems: REFINE.repairGems }
 /** Zeny multiplier for the next roll on an item that was already rolled `rolls` times (+10% each, capped). */
 export const rerollMul = (rolls: number) => Math.min(REFINE.rerollMaxMul, 1 + REFINE.rerollStep * rolls)
@@ -58,7 +58,7 @@ export const lockGems = (locks: number) => REFINE.lockGems.slice(0, locks).reduc
  * gems = only for locked lines. */
 export function rerollCost(it: Item, lineCount: number, rolls = 0, locks = 0): ForgeCost {
   const n = Math.max(1, Math.min(lineCount, REFINE.rerollZeny.length))
-  const [common, boss] = REFINE.rerollMats[n - 1], dg = matDungeon(it)
+  const [common, boss] = REFINE.rerollMats[n - 1], dg = rerollDungeon(it, n)
   const base = REFINE.rerollZeny.slice(0, n).reduce((a, z) => a + z, 0)
   return {
     mats: { [matOf(dg, false)]: common, ...(boss ? { [matOf(dg, true)]: boss } : {}) },

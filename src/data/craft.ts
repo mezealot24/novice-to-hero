@@ -83,10 +83,22 @@ export function gradeCap(it: Item): number {
   return 3
 }
 /** Which dungeon's materials an item uses for grade-ups. */
-export const matDungeon = (it: Item) => it.craft?.dg ?? it.unique?.dg ?? (it.req && it.req !== 'job' ? it.req : 'd1')
+// v114 fix: `req: 'job2'` is not a dungeon id (it built the unobtainable m_job2 / b_job2). 2nd-job gear uses D5 mats, the dungeon that unlocks the 2nd job (JOB2_RULES.unlockClear).
+const REQ_DG: Partial<Record<NonNullable<Item['req']>, string>> = { job2: 'd5' }
+export const matDungeon = (it: Item) => it.craft?.dg ?? it.unique?.dg ?? (it.req && it.req !== 'job' ? REQ_DG[it.req] ?? it.req : 'd1')
+/** v114 (Q 2026-11-08): 2nd-job gear climbs the deep dungeons step by step, so it is not cheap on D5 mats alone.
+ * refine = by refine tier (+1-4 / +5-7 / +8-10), grade = by target ★, reroll = by line count (lines exist from +5). */
+export const JOB2_MATS = { refine: ['d5', 'd7', 'd9'], grade: { 2: 'd5', 3: 'd6', 4: 'd8', 5: 'd10' } as Record<number, string>, reroll: ['d7', 'd9'] }
+const isJob2 = (it: Item) => it.req === 'job2' && !it.craft && !it.unique
+/** Dungeon whose mats a refine of tier `tier` (0..2) uses. */
+export const refineDungeon = (it: Item, tier: number) => (isJob2(it) ? JOB2_MATS.refine[Math.max(0, Math.min(2, tier))] : matDungeon(it))
+/** Dungeon whose mats grade-up to ★g uses. */
+export const gradeDungeon = (it: Item, g: number) => (isJob2(it) ? JOB2_MATS.grade[g] ?? matDungeon(it) : matDungeon(it))
+/** Dungeon whose mats an option reroll over `lines` lines uses. */
+export const rerollDungeon = (it: Item, lines: number) => (isJob2(it) ? JOB2_MATS.reroll[lines >= 2 ? 1 : 0] : matDungeon(it))
 /** Materials + zeny to raise `it` from grade g-1 to g. */
 export function gradeCost(it: Item, g: number) {
-  const c = GRADE.cost[g], dg = matDungeon(it)
+  const c = GRADE.cost[g], dg = gradeDungeon(it, g)
   return { mats: { [matOf(dg, false)]: c.common, ...(c.boss ? { [matOf(dg, true)]: c.boss } : {}) } as Record<string, number>, zeny: c.zeny }
 }
 export function craftCost(it: Item) {
