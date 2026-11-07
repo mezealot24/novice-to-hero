@@ -1,5 +1,5 @@
 // 🔪 Rogue ใยชั้น 2 (design/second-jobs-v1.md §4). Node ids are save data: never rename.
-import { node as n, type ClassTree } from '../tree-types'
+import { node as n, rk, talent as t, type ClassTree } from '../tree-types'
 
 export const tree2: ClassTree = {
   branches: [
@@ -21,5 +21,19 @@ export const tree2: ClassTree = {
     n('rg_x3', 'rg_x', 3, '🧛', 'ดื่มเลือด', 3, (lv) => `ดูดเลือด +${lv}% (ตีธรรมดา + คอมโบ)`, (lv) => ({ lifesteal: 0.01 * lv })),
     n('rg_x4', 'rg_x', 4, '✨', 'คริเป็นมีด', 1, () => 'ตีธรรมดา/คอมโบคริ = มีดบิน +1 เล่ม', () => ({ j2KnifeCrit: 1 })),
   ],
-  talents: [],
+  talents: [
+    // v119 (Q 2026-11-08) ทาเลนต์ชั้น 2 · I stats · II Ult วิวัฒน์ · III ทักษะ 3 · IV ตัวตน
+    t('rg_t1_combo', 1, '🔁', 'มือเร็ว', 2, (r) => `โอกาสคอมโบ +${rk(r, 3, 5)}%`, (r) => ({ combo: rk(r, 0.03, 0.05) })),
+    t('rg_t1_crit', 1, '🎯', 'ตาเหยี่ยวมืด', 2, (r) => `คริ +${rk(r, 4, 7)}%`, (r) => ({ crit: rk(r, 0.04, 0.07) })),
+    t('rg_t1_flee', 1, '💨', 'ตัวเบา', 2, (r) => `FLEE +${rk(r, 5, 9)}`, (r) => ({ flee: rk(r, 5, 9) })),
+    t('rg_t2_ult', 2, '🌪️', 'พายุมีดคลั่ง', 2, (r) => `พายุมีดแรง +${rk(r, 15, 25)}%`, (r) => ({ ult2Pow: rk(r, 0.15, 0.25) })),
+    t('rg_t2_knife', 2, '🔪', 'ใบมีดลับคม', 2, (r) => `มีดบินแรง +${rk(r, 10, 18)}% P.ATK`, (r) => ({ j2KnifeMul: rk(r, 0.1, 0.18) })),
+    t('rg_t2_leech', 2, '🧛', 'เลือดคือเงิน', 2, (r) => `ดูดเลือด +${rk(r, 2, 4)}% (ตีธรรมดา + คอมโบ)`, (r) => ({ lifesteal: rk(r, 0.02, 0.04) })),
+    t('rg_t3_stab', 3, '🗡️', 'แทงข้างหลัง', 2, (r) => `Back Stab แรง +${rk(r, 15, 25)}%`, (r) => ({ s3Pow: rk(r, 0.15, 0.25) })),
+    t('rg_t3_gore', 3, '🩸', 'จุดตายลึก', 2, (r) => `ดาเมจคริ +${rk(r, 12, 20)}%`, (r) => ({ critMul: rk(r, 0.12, 0.2) })),
+    t('rg_t3_atk', 3, '⚔️', 'เหล็กกล้า', 2, (r) => `P.ATK +${rk(r, 5, 9)}`, (r) => ({ atk: rk(r, 5, 9) })),
+    t('rg_t4_combo', 4, '💢', 'แทงรัวไม่ยั้ง', 2, (r) => `ฮิตคอมโบแรง +${rk(r, 8, 14)}%`, (r) => ({ comboDmg: rk(r, 0.08, 0.14) })),
+    t('rg_t4_kill', 4, '🕳️', 'ปลิดแล้วหาย', 2, (r) => `ฆ่ามอน ฮีล ${rk(r, 2, 4)}% HP สูงสุด`, (r) => ({ killHeal: rk(r, 0.02, 0.04) })),
+    t('rg_t4_hit', 4, '🎯', 'ปาไม่พลาด', 2, (r) => `HIT +${rk(r, 6, 10)} · คริ +${rk(r, 2, 3)}%`, (r) => ({ hit: rk(r, 6, 10), crit: rk(r, 0.02, 0.03) })),
+  ],
 }

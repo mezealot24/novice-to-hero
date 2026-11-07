@@ -1,5 +1,5 @@
 // 🕴️ Mobster ใยชั้น 2 (design/second-jobs-v1.md §4). Node ids are save data: never rename.
-import { node as n, type ClassTree } from '../tree-types'
+import { node as n, rk, talent as t, type ClassTree } from '../tree-types'
 
 export const tree2: ClassTree = {
   branches: [
@@ -21,5 +21,19 @@ export const tree2: ClassTree = {
     n('mb_e3', 'mb_e', 3, '🔪', 'มีดเพชฌฆาต', 3, (lv) => `ดาเมจคริ +${lv * 10}%`, (lv) => ({ critMul: 0.1 * lv })),
     n('mb_e4', 'mb_e', 4, '🕴️', 'งานต่อไป', 1, () => 'Execute สำเร็จ = ได้เทิร์นพิเศษทันที (1 ครั้ง/เทิร์น)', () => ({ j2ExecTurn: 1 })),
   ],
-  talents: [],
+  talents: [
+    // v119 (Q 2026-11-08) ทาเลนต์ชั้น 2 · I stats · II Ult วิวัฒน์ · III ทักษะ 3 · IV ตัวตน
+    t('mb_t1_poison', 1, '🧪', 'สูตรพิเศษ', 2, (r) => `ดาเมจพิษ +${rk(r, 1, 2)}/stack`, (r) => ({ poisonDmg: rk(r, 1, 2) })),
+    t('mb_t1_crit', 1, '🎯', 'เล็งจุดอ่อน', 2, (r) => `คริ +${rk(r, 4, 7)}%`, (r) => ({ crit: rk(r, 0.04, 0.07) })),
+    t('mb_t1_hide', 1, '⛰️', 'ผิวหนา', 2, (r) => `P.DEF +${rk(r, 5, 9)} · ต้านทาน +${rk(r, 8, 14)}%`, (r) => ({ def: rk(r, 5, 9), tenacity: rk(r, 0.08, 0.14) })),
+    t('mb_t2_ult', 2, '💀', 'ทวงหนี้โหด', 2, (r) => `ทวงหนี้แรง +${rk(r, 15, 25)}%`, (r) => ({ ult2Pow: rk(r, 0.15, 0.25) })),
+    t('mb_t2_exec', 2, '⚰️', 'เส้นตายเลื่อน', 2, (r) => `เกณฑ์ Execute +${rk(r, 1, 2)}% HP`, (r) => ({ j2ExecAdd: rk(r, 0.01, 0.02) })),
+    t('mb_t2_venom', 2, '☠️', 'พิษกัดลึก', 2, (r) => `ตีมอนติดพิษ ดาเมจ +${rk(r, 6, 10)}%`, (r) => ({ vsPoison: rk(r, 0.06, 0.1) })),
+    t('mb_t3_cut', 3, '⛓️', 'ตัดเอ็นคม', 2, (r) => `ตัดเส้นเอ็นแรง +${rk(r, 15, 25)}%`, (r) => ({ s3Pow: rk(r, 0.15, 0.25) })),
+    t('mb_t3_turns', 3, '🪢', 'มัดนาน', 2, (r) => `ตัดเส้นเอ็น ดีบัฟนาน +${rk(r, 1, 2)} เทิร์น`, (r) => ({ j2DebuffTurns: rk(r, 1, 2) })),
+    t('mb_t3_cold', 3, '🧊', 'เลือดเย็น', 2, (r) => `ตีมอนติดช้า ดาเมจ +${rk(r, 6, 10)}%`, (r) => ({ vsChill: rk(r, 0.06, 0.1) })),
+    t('mb_t4_cap', 4, '🏺', 'โรงงานพิษ', 2, (r) => `พิษ stack สูงสุด +${rk(r, 3, 5)}`, (r) => ({ poisonCap: rk(r, 3, 5) })),
+    t('mb_t4_gore', 4, '🔪', 'มีดเก็บงาน', 2, (r) => `ดาเมจคริ +${rk(r, 12, 20)}%`, (r) => ({ critMul: rk(r, 0.12, 0.2) })),
+    t('mb_t4_kill', 4, '🕴️', 'เก็บกวาด', 2, (r) => `ฆ่ามอน ฮีล ${rk(r, 2, 4)}% HP สูงสุด`, (r) => ({ killHeal: rk(r, 0.02, 0.04) })),
+  ],
 }

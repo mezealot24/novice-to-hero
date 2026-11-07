@@ -1,5 +1,5 @@
 // 🌩️ Wizard ใยชั้น 2 (design/second-jobs-v1.md §5 คู่ A). Node ids are save data: never rename.
-import { node as n, type ClassTree } from '../tree-types'
+import { node as n, rk, talent as t, type ClassTree } from '../tree-types'
 
 export const tree2: ClassTree = {
   branches: [
@@ -21,5 +21,19 @@ export const tree2: ClassTree = {
     n('wz_i3', 'wz_i', 3, '💧', 'สมาธิ', 3, (lv) => `Mana สูงสุด +${lv * 10}`, (lv) => ({ maxRes: 10 * lv })),
     n('wz_i4', 'wz_i', 4, '🌀', 'Quagmire', 1, () => 'Mana ≥ 80% ตอนร่าย = ไม่ต้องชาร์จ ระเบิดทันที', () => ({ j2QuickCast: 1 })),
   ],
-  talents: [],
+  talents: [
+    // v119 (Q 2026-11-08) ทาเลนต์ชั้น 2 · I stats · II Ult วิวัฒน์ (เลือกธาตุ) · III ทักษะ 3 · IV ตัวตน
+    t('wz_t1_mana', 1, '💧', 'คลังมานา', 2, (r) => `Mana สูงสุด +${rk(r, 10, 18)}`, (r) => ({ maxRes: rk(r, 10, 18) })),
+    t('wz_t1_matk', 1, '🔮', 'พลังเวทแก่กล้า', 2, (r) => `M.ATK +${rk(r, 6, 10)}`, (r) => ({ matk: rk(r, 6, 10) })),
+    t('wz_t1_crit', 1, '🎯', 'เวทแม่นยำ', 2, (r) => `เวทคริ +${rk(r, 3, 5)}%`, (r) => ({ spellCrit: rk(r, 0.03, 0.05) })),
+    t('wz_t2_fire', 2, '☄️', 'ดาวตกหนัก', 2, (r) => `Meteor Storm แรง +${rk(r, 12, 20)}% ต่อลูก`, (r) => ({ j2MeteorMul: rk(r, 0.12, 0.2) })),
+    t('wz_t2_bolt', 2, '⚡', 'ฟ้าคำราม', 2, (r) => `Lord of Vermilion แรง +${rk(r, 12, 20)}% ต่อฮิต`, (r) => ({ j2LovMul: rk(r, 0.12, 0.2) })),
+    t('wz_t2_ice', 2, '🧊', 'ปราการน้ำแข็ง', 2, (r) => `บาเรียธาตุน้ำแข็ง +${rk(r, 0.2, 0.35)}x M.ATK`, (r) => ({ iceBarrier: rk(r, 0.2, 0.35) })),
+    t('wz_t3_gust', 3, '❄️', 'พายุหิมะ', 2, (r) => `Storm Gust แรง +${rk(r, 15, 25)}%`, (r) => ({ s3Pow: rk(r, 0.15, 0.25) })),
+    t('wz_t3_hit', 3, '🌨️', 'ลมเฉือน', 2, (r) => `Storm Gust แรง +${rk(r, 8, 14)}% ต่อฮิต`, (r) => ({ j2GustMul: rk(r, 0.08, 0.14) })),
+    t('wz_t3_ult', 3, '🌩️', 'มหาเวทเต็มพิกัด', 2, (r) => `มหาเวทธาตุแรง +${rk(r, 12, 20)}%`, (r) => ({ ult2Pow: rk(r, 0.12, 0.2) })),
+    t('wz_t4_mdef', 4, '🛡️', 'ผนึกต้านเวท', 2, (r) => `M.DEF +${rk(r, 4, 7)}%`, (r) => ({ mdef: rk(r, 0.04, 0.07) })),
+    t('wz_t4_hp', 4, '❤️', 'กายจอมเวท', 2, (r) => `HP สูงสุด +${rk(r, 40, 70)}`, (r) => ({ maxHp: rk(r, 40, 70) })),
+    t('wz_t4_burn', 4, '🔥', 'ไฟไม่ดับ', 2, (r) => `ไฟซ้อนจาก Ult +${rk(r, 1, 2)} stack`, (r) => ({ mgFireStack: rk(r, 1, 2) })),
+  ],
 }

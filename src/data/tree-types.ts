@@ -42,3 +42,6 @@ export const lvAt = (a: readonly number[], lv: number): number => {
   const lo = i > 0 ? a[i - 1] : 0
   return lo + (a[i] - lo) * (x - i)
 }
+
+/** v119 talent rank helper: rank 1 -> a, rank 2 -> b. */
+export const rk = (r: number, a: number, b: number) => (r >= 2 ? b : a)

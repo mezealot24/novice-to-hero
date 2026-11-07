@@ -1,5 +1,5 @@
 // 🔧 Innovator ใยชั้น 2 (design/second-jobs-v1.md §4). Node ids are save data: never rename.
-import { node as n, type ClassTree } from '../tree-types'
+import { node as n, rk, talent as t, type ClassTree } from '../tree-types'
 
 export const tree2: ClassTree = {
   branches: [
@@ -21,5 +21,19 @@ export const tree2: ClassTree = {
     n('in_r3', 'in_r', 3, '🛰️', 'เล็งอัตโนมัติ', 3, (lv) => `Hit +${lv * 5}`, (lv) => ({ hit: 5 * lv })),
     n('in_r4', 'in_r', 4, '🏭', 'ป้อมถาวร', 1, () => 'หุ่นจิ๋วอยู่ทั้งเวฟ · ต้นเวฟได้หุ่นจิ๋วฟรี 1 ตัว', () => ({ j2TurretWave: 1 })),
   ],
-  talents: [],
+  talents: [
+    // v119 (Q 2026-11-08) ทาเลนต์ชั้น 2 · I stats · II Ult วิวัฒน์ · III ทักษะ 3 · IV ตัวตน
+    t('in_t1_crit', 1, '🎯', 'มือแม่นช่าง', 2, (r) => `คริ +${rk(r, 3, 5)}%`, (r) => ({ crit: rk(r, 0.03, 0.05) })),
+    t('in_t1_res', 1, '🔋', 'แบตเสริม', 2, (r) => `ต้นเทิร์น Energy +${rk(r, 2, 3)}`, (r) => ({ arTurnRes: rk(r, 2, 3) })),
+    t('in_t1_hit', 1, '🛰️', 'กล้องเล็ง', 2, (r) => `HIT +${rk(r, 6, 10)}`, (r) => ({ hit: rk(r, 6, 10) })),
+    t('in_t2_ult', 2, '🛠️', 'ประดิษฐ์บ้าคลั่ง', 2, (r) => `สิ่งประดิษฐ์สุดเพี้ยนแรง +${rk(r, 15, 25)}%`, (r) => ({ ult2Pow: rk(r, 0.15, 0.25) })),
+    t('in_t2_luck', 2, '🍀', 'ดวงนักประดิษฐ์', 2, (r) => `ของหายาก ⭐ ออกบ่อยขึ้น +${rk(r, 15, 25)}%`, (r) => ({ j2BoxLuck: rk(r, 0.15, 0.25) })),
+    t('in_t2_box', 2, '🔩', 'น็อตเกรดดี', 2, (r) => `ของในกล่องแรง +${rk(r, 10, 18)}%`, (r) => ({ j2BoxMul: rk(r, 0.1, 0.18) })),
+    t('in_t3_box', 3, '🎲', 'กล่องจัดเต็ม', 2, (r) => `กล่องสุ่มประหลาดแรง +${rk(r, 15, 25)}%`, (r) => ({ s3Pow: rk(r, 0.15, 0.25) })),
+    t('in_t3_trap', 3, '💣', 'ดินปืนพิเศษ', 2, (r) => `กับดักแรง +${rk(r, 15, 25)}% P.ATK`, (r) => ({ j2TrapMul: rk(r, 0.15, 0.25) })),
+    t('in_t3_turret', 3, '🤖', 'หุ่นจิ๋วอัปเกรด', 2, (r) => `หุ่นจิ๋วยิงแรง +${rk(r, 12, 20)}% P.ATK`, (r) => ({ j2TurretMul: rk(r, 0.12, 0.2) })),
+    t('in_t4_turns', 4, '⏱️', 'ถ่านลิเธียม', 2, (r) => `หุ่นจิ๋วอยู่นาน +${rk(r, 1, 2)} เทิร์น`, (r) => ({ j2TurretTurns: rk(r, 1, 2) })),
+    t('in_t4_gore', 4, '💥', 'ระเบิดจุดอ่อน', 2, (r) => `ดาเมจคริ +${rk(r, 12, 20)}%`, (r) => ({ critMul: rk(r, 0.12, 0.2) })),
+    t('in_t4_flee', 4, '🎈', 'หลบแบบนักประดิษฐ์', 2, (r) => `FLEE +${rk(r, 5, 9)}`, (r) => ({ flee: rk(r, 5, 9) })),
+  ],
 }
