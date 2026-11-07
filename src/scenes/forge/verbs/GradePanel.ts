@@ -1,7 +1,7 @@
 // ⬆️ Grade-up: always succeeds once paid. Rules: upgradeGrade / gradeCheck / gradeCost (data/refine.ts, data/craft.ts).
 import type Phaser from 'phaser'
-import { forgeItem, GRADE, gradeCap, gradeCost } from '../../../data/craft'
-import { gradeOf, itemStatLine, linesOf, refineOf, slotCount, splitStatLine, type Item } from '../../../data/meta'
+import { GRADE, gradeCap, gradeCost } from '../../../data/craft'
+import { forged, gradeOf, itemStatLine, slotCount, type Item } from '../../../data/meta'
 import { canAffordAuto, upgradeGrade } from '../../../data/refine'
 import { persist, save } from '../../../save'
 import { toast, txt, UI } from '../../../ui'
@@ -54,8 +54,7 @@ export class GradePanel extends PanelBase implements VerbPanel {
     const n = this.next()
     if (!n) return null
     const s = save(), it = this.it
-    const sp = splitStatLine(forgeItem(it, n, refineOf(s, it.id), linesOf(s, it.id)))
-    return { text: `→ ★${n}: ${sp.good}${sp.curse ? ` · 💀 ${sp.curse}` : ''}`, color: GRADE.colors[n] }
+    return { label: `★${n}`, next: forged({ ...s, grade: { ...s.grade, [it.id]: n } }, it), color: GRADE.colors[n] } // forged(): a taint curse line stays on
   }
 
   act() {

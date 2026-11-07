@@ -131,12 +131,18 @@ function migrateGear(s: SaveData) {
   if (eq.acc2 !== 'none' && eq.acc2 === eq.acc) eq.acc2 = 'none' // one copy of each item: never worn twice
 }
 
+/** The slot wearing `itemId` would fill: its own kind; an accessory fills an empty side first, else the left one. Shop / forge compare use it too. */
+export function replaceSlot(eq: Record<EquipSlot, string>, itemId: string): EquipSlot {
+  const kind = itemById(itemId).slot
+  if (kind !== 'acc') return kind
+  return eq.acc === 'none' || eq.acc2 !== 'none' ? 'acc' : 'acc2'
+}
+
 /** Wear an item. Accessories: `slot` picks the side; with no side it fills an empty side first. The same
  * accessory can't be on both sides (one copy per id), so it moves over instead. */
 export function equip(s: SaveData, itemId: string, slot?: EquipSlot): boolean {
   const kind = itemById(itemId).slot
-  let at: EquipSlot = slot ?? kind
-  if (kind === 'acc' && !slot) at = s.equipped.acc === 'none' || s.equipped.acc2 !== 'none' ? 'acc' : 'acc2'
+  const at: EquipSlot = slot ?? replaceSlot(s.equipped, itemId)
   if (slotKind(at) !== kind) return false
   if (uniqueEquipBlocked(s, itemId, at)) return false // v88: at most UNIQUE.maxEquipped uniques at once
   if (kind === 'acc' && itemId !== 'none') {

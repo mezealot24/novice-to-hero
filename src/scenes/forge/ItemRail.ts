@@ -12,6 +12,7 @@ import { fit } from '../../ui'
 import { iconState, railItems } from './state'
 
 const ROW_H = 52, PER = 7, ROW_GAP = 4
+const WORN_FILL = 0x223a3c, WORN_LINE = 0x6fd08c
 interface Row { it: Item; bg: Phaser.GameObjects.Graphics; icon: ItemIcon; name: Phaser.GameObjects.Text; sub: Phaser.GameObjects.Text; box: Phaser.GameObjects.Container }
 
 export class ItemRail {
@@ -99,13 +100,15 @@ export class ItemRail {
   refresh() {
     const s = save()
     for (const r of this.rows) {
-      const on = r.it.id === this.selected, w = this.w
-      r.bg.clear().fillStyle(on ? UI.panelHi : UI.panel, 1).fillRoundedRect(-w / 2, -ROW_H / 2, w, ROW_H, 10)
-      r.bg.lineStyle(on ? 3 : 1.5, on ? 0xf2b84b : UI.line, 1).strokeRoundedRect(-w / 2, -ROW_H / 2, w, ROW_H, 10)
+      const on = r.it.id === this.selected, w = this.w, worn = isWorn(s, r.it.id)
+      // v115: worn rows read at a glance: green-tinted row + a green stripe on the left (+ the ✓ pill on the icon); selection keeps the gold frame
+      r.bg.clear().fillStyle(on ? UI.panelHi : worn ? WORN_FILL : UI.panel, 1).fillRoundedRect(-w / 2, -ROW_H / 2, w, ROW_H, 10)
+      if (worn) r.bg.fillStyle(WORN_LINE, 1).fillRoundedRect(-w / 2 + 3, -ROW_H / 2 + 7, 4, ROW_H - 14, 2)
+      r.bg.lineStyle(on ? 3 : 1.5, on ? 0xf2b84b : worn ? 0x3f7a5a : UI.line, 1).strokeRoundedRect(-w / 2, -ROW_H / 2, w, ROW_H, 10)
       r.icon.setItem(r.it, iconState(s, r.it))
       r.name.setText(r.it.name)
       fit(r.name, 18)
-      r.sub.setText(this.caption(s, r.it))
+      r.sub.setText(this.caption(s, r.it)).setColor(worn ? UI.green : UI.sub)
       fit(r.sub, 16)
     }
   }
@@ -113,7 +116,7 @@ export class ItemRail {
   private caption(s: SaveData, it: Item): string {
     const g = gradeOf(s, it.id), r = refineOf(s, it.id)
     const fails = s.refinePity?.[it.id] ?? 0 // 🔥N = N misses in a row stored on this item (the next refine is easier)
-    const bits = [gradeStars(g, gradeCap(it)), r ? `+${r}` : '', fails ? `🔥${fails}` : '', isWorn(s, it.id) ? 'ใส่อยู่' : '', isBroken(s, it.id) ? '💔 แตก' : '', isTainted(s, it.id) ? '🌑' : '']
+    const bits = [isWorn(s, it.id) ? '✅ ใส่อยู่' : '', gradeStars(g, gradeCap(it)), r ? `+${r}` : '', fails ? `🔥${fails}` : '', isBroken(s, it.id) ? '💔 แตก' : '', isTainted(s, it.id) ? '🌑' : '']
     return bits.filter(Boolean).join(' · ')
   }
 

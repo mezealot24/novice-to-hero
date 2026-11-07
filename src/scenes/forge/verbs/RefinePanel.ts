@@ -2,11 +2,11 @@
 // Shows the chance as a stacked meter: base + pity + a ghost "+10% if this one fails". A fail shows on the stage, no popup (Q 2026-11-07).
 import type Phaser from 'phaser'
 import { REFINE } from '../../../data/craft'
-import { linesOf, refineOf, type Item } from '../../../data/meta'
+import { forged, linesOf, refineOf, type Item } from '../../../data/meta'
 import { canAffordAuto, fodderToBuy, lineText, nextRate, rateParts, refineCost, totalZeny, tryRefine } from '../../../data/refine'
 import { persist, save } from '../../../save'
 import { confirm, fit, meter, toast, txt, UI, type Meter } from '../../../ui'
-import { pressLabel, statSplit } from '../state'
+import { pressLabel } from '../state'
 import { BOX_W, INNER_W, PAD, type ForgeCtx, type Preview, type VerbAction, type VerbPanel } from '../types'
 import { PanelBase } from './PanelBase'
 
@@ -76,12 +76,11 @@ export class RefinePanel extends PanelBase implements VerbPanel {
     return { label: pressLabel(`ตี +${n} (${Math.round(rate * 100)}%)`, s, cost), enabled: canAffordAuto(s, cost), fill: rate < 1 ? 0xff9f5a : undefined }
   }
 
-  /** "→ +5: after" (the stage already shows the current stats right above it). */
+  /** The item at +N (the stage diffs it against now). */
   preview(): Preview | null {
     const s = save(), it = this.it, r = refineOf(s, it.id)
     if (r >= REFINE.max) return null
-    const sp = statSplit({ ...s, refine: { ...s.refine, [it.id]: r + 1 } }, it)
-    return { text: `→ +${r + 1}: ${sp.good}${sp.curse ? ` · 💀 ${sp.curse}` : ''}`, color: '#f2d48a' }
+    return { label: `+${r + 1}`, next: forged({ ...s, refine: { ...s.refine, [it.id]: r + 1 } }, it), color: '#f2d48a' }
   }
 
   /** When the press buys fodder, one confirm lists everything it takes. Never charge silently (kept from the old screen). */

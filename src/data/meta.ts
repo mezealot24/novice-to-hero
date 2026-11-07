@@ -290,22 +290,30 @@ export function splitStatLine(it: { base?: Item['base']; mod: Partial<Stats>; pc
   return { good: line(good), curse: line(bad) }
 }
 export function itemStatLine(it: { base?: Item['base']; mod: Partial<Stats>; pct?: Item['pct'] }): string {
-  const parts: string[] = []
+  return statEntries(it).map((e) => e.text).join(' · ')
+}
+
+/** One stat of an item: `key` is unique across pct / base / mod, `v` the signed number, `fmt` formats a magnitude, `text` is the item-card piece. */
+export interface StatEntry { key: string; label: string; v: number; fmt: (n: number) => string; text: string }
+/** v115: the stat line as entries (the forge compare table diffs these). `group = false` never folds 7 equal base stats into "ทุกค่าสถานะ", so two items' keys line up. */
+export function statEntries(it: { base?: Item['base']; mod: Partial<Stats>; pct?: Item['pct'] }, group = true): StatEntry[] {
+  const out: StatEntry[] = []
   const p = it.pct ?? {}, sg = (n: number) => `${n > 0 ? '+' : '-'}${pc(Math.abs(n))}` // "% of max HP / ATK" (cards, refine lines)
-  if (p.maxHp) parts.push(`HP สูงสุด ${sg(p.maxHp)}`)
-  if (p.atk) parts.push(`P.ATK ${sg(p.atk)}`)
-  if (p.matk) parts.push(`M.ATK ${sg(p.matk)}`)
-  const b = it.base ?? {}
+  for (const [k, label] of [['maxHp', 'HP สูงสุด'], ['atk', 'P.ATK'], ['matk', 'M.ATK']] as const) {
+    const v = p[k]
+    if (v) out.push({ key: `pct.${k}`, label, v, fmt: pc, text: `${label} ${sg(v)}` })
+  }
+  const b = it.base ?? {}, num = (n: number) => `${n}`
   const keys = Object.keys(b) as BaseStat[]
-  if (keys.length === 7 && keys.every((k) => b[k] === b.str)) parts.push(`ทุกค่าสถานะ +${b.str}`)
-  else for (const k of keys) parts.push(`${BASE_NAME[k]} ${b[k]! > 0 ? '+' : ''}${b[k]}`)
+  if (group && keys.length === 7 && keys.every((k) => b[k] === b.str)) out.push({ key: 'base.all', label: 'ทุกค่าสถานะ', v: b.str!, fmt: num, text: `ทุกค่าสถานะ +${b.str}` })
+  else for (const k of keys) out.push({ key: `base.${k}`, label: BASE_NAME[k], v: b[k]!, fmt: num, text: `${BASE_NAME[k]} ${b[k]! > 0 ? '+' : ''}${b[k]}` })
   for (const k of Object.keys(it.mod) as (keyof Stats)[]) {
     const L = STAT_LABEL[k], v = it.mod[k]!
     if (!L) continue
-    const num = L[1](Math.abs(v))
-    parts.push(num ? `${L[0]} ${k === 'resRegenCut' ? '' : v > 0 ? '+' : '-'}${num}` : L[0])
+    const n = L[1](Math.abs(v))
+    out.push({ key: `mod.${k}`, label: L[0], v, fmt: L[1], text: n ? `${L[0]} ${k === 'resRegenCut' ? '' : v > 0 ? '+' : '-'}${n}` : L[0] })
   }
-  return parts.join(' · ')
+  return out
 }
 /** Card effect line, including the "% of max HP / ATK" part. */
 export const cardStatLine = (cd: EquipCard): string => itemStatLine(cd)

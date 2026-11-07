@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { COLORS, type Stats } from '../data/game-data'
 import { JOBS } from '../data/jobs'
 import { canWear, forgeTag, gradeOf, heroStats, refineOf, itemStatLine, itemUnlocked, ITEMS, REQ_TEXT, SELL_RATE, slotCount, SLOTS, wearText, type Item, type Slot } from '../data/meta'
-import { addFodder, equip, forgetForge, isWorn, persist, save, unsocketAll } from '../save'
+import { addFodder, equip, replaceSlot, forgetForge, isWorn, persist, save, unsocketAll } from '../save'
 import { isFodder } from '../data/refine'
 import { sfx } from '../sfx'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
@@ -89,7 +89,7 @@ export class ShopScene extends Phaser.Scene {
   private compare(it: Item): string {
     const s = save()
     const now = heroStats(s)
-    const next = heroStats({ ...s, equipped: { ...s.equipped, [shopSlot(s.equipped, it)]: it.id } })
+    const next = heroStats({ ...s, equipped: { ...s.equipped, [replaceSlot(s.equipped, it.id)]: it.id } })
     return compareLine(now, next)
   }
 
@@ -126,12 +126,6 @@ export class ShopScene extends Phaser.Scene {
     else toast(this, `ได้ ${it.name} แล้ว (ใส่ได้เมื่อเป็น ${wearText(it)})`)
     this.render()
   }
-}
-
-/** Which worn slot a new item would replace (accessories: an empty side first, else the left one). */
-function shopSlot(eq: Record<string, string>, it: Item): string {
-  if (it.slot !== 'acc') return it.slot
-  return eq.acc === 'none' || eq.acc2 !== 'none' ? 'acc' : 'acc2'
 }
 
 /** Short "HP +30 · คริ +5%" diff between two stat blocks (used by the shop and the bag). */
