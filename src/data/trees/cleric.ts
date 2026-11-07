@@ -51,8 +51,8 @@ export const tree: ClassTree = {
     n('cleric_dn1', 'cleric_d', 1, '🌄', 'แสงรุ่งอรุณ', 3, (lv) => `Ult ทุบแถมดาเมจเวท ${pc(D.share * lv)} ของ (STR + WIS + ${pc(D.matk)} M.ATK) ใส่ทุกตัวที่โดนทุบ`,
       (lv) => ({ clDawn: D.share * lv })),
     n('cleric_dn2', 'cleric_d', 2, '💛', 'อรุณสมานแผล', 3, (lv) => `ฮีล ${pc(D.heal * lv)} ของดาเมจแสงรุ่งอรุณที่ตัวหน้า (มอนธรรมดา x${D.weak})`, (lv) => ({ clDawnHeal: D.heal * lv })),
-    // v102 (Q 2026-11-07): was +dmg/lv; now the Dawn Light bonus hitting gives WIS +25/30/35% for 3/4/5 turns. Max 3, not stretched (tree.ts NO_STRETCH).
-    n('cleric_dn3', 'cleric_d', 3, '☀️', 'แสงแตก', 3, (lv) => `ดาเมจแสงรุ่งอรุณโดนแล้ว WIS +${pc(D.wis[i3(lv)])} ${D.wisTurns[i3(lv)]} เทิร์น`,
+    // v102 (Q 2026-11-07): was +dmg/lv; now the Dawn Light bonus hitting gives WIS = 25/30/35% of the bonus/target for 3/4/5 turns. Max 3, not stretched (tree.ts NO_STRETCH).
+    n('cleric_dn3', 'cleric_d', 3, '☀️', 'แสงแตก', 3, (lv) => `แสงรุ่งอรุณโดนแล้ว ได้ WIS = ${pc(D.wis[i3(lv)])} ของดาเมจแสงรุ่งอรุณ/ตัว ${D.wisTurns[i3(lv)]} เทิร์น`,
       (lv) => ({ clDawnWis: D.wis[i3(lv)], clDawnWisTurns: D.wisTurns[i3(lv)] })),
     n('cleric_dn4', 'cleric_d', 4, '🌅', 'อรุณพิทักษ์', 1, () => `แสงรุ่งอรุณคริแน่ · ดาเมจคริ +${pc(D.crit)}`, () => ({ clDawnUlt: 1, clDawnCrit: D.crit })),
   ],

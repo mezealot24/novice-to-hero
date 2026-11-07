@@ -87,7 +87,7 @@ test('v102 ☀️ แสงแตก: max 3 (not stretched), WIS +25/30/35% for 
   const n = nodesOf('cleric_d').find((x) => x.id === 'cleric_dn3')!
   assert.equal(n.max, 3)
   assert.deepEqual([1, 2, 3].map((lv) => n.mod(lv)), [{ clDawnWis: 0.25, clDawnWisTurns: 3 }, { clDawnWis: 0.3, clDawnWisTurns: 4 }, { clDawnWis: 0.35, clDawnWisTurns: 5 }])
-  assert.match(n.desc(2), /WIS \+30% 4 เทิร์น/)
+  assert.match(n.desc(2), /WIS = 30% ของดาเมจแสงรุ่งอรุณ\/ตัว 4 เทิร์น/)
   const s = newSave('t', 'human')
   s.job = 'cleric'; s.skillPoints = 0; s.jobTree = { cleric_ultp: 1, cleric_dn1: 1, cleric_dn2: 1, cleric_dn3: 5 }
   migrateDawnBurst(s)
@@ -103,4 +103,13 @@ test('v102 Cleric Ult Mana 30/35/40/45/50 by Ult node Lv; Crusader / Monk ults s
   const st5 = heroStats(tree({ cleric_ultp: 5 }))
   assert.equal(ultCost({ ...JOBS.cleric, ult: { ...JOBS.cleric.ult, ...JOB2.crusader.ult } }, st5), 0)
   assert.equal(ultCost(JOBS.mage, st5), JOBS.mage.ult.cost)
+})
+
+test('v102 ☀️ แสงแตก WIS = share x Dawn Light bonus/target, shown in the Ult detail rows', async () => {
+  const { dawnWisGain, ultInfo } = await import('../src/data/skill-math')
+  const st = heroStats(tree({ cleric_ultp: 1, cleric_dn1: 5, cleric_dn2: 1, cleric_dn3: 3 }))
+  assert.equal(dawnWisGain(st, 174), 61) // Q's example: 35% of 174
+  assert.equal(dawnWisGain({ ...st, clDawnWis: 0 }, 174), 0)
+  const row = ultInfo('cleric', st, { str: 50, wis: 50 }).find((x) => x.label.startsWith('☀️'))
+  assert.match(row?.value ?? '', /^\+\d+ WIS \(35% ของ \d+\)$/)
 })

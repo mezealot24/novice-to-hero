@@ -68,7 +68,7 @@ export const KIT = {
     // v93 (Q 2026-11-07): share 1/3 -> 2/3 per old lv (Lv5 = 200% of the base, was 100%): +16 per point instead of +8, Lv5 about +35% of the Ult smash.
     // v92 (Q 2026-11-07) แสงรุ่งอรุณ: the Ult smash adds bonus MAGIC damage (STR + WIS + matk x M.ATK) to each monster it hits, x share/lv
     // (full at old lv 3 = Lv5) · อรุณสมานแผล: heal/lv of the bonus dealt to the front monster (normal monsters x weak)
-    // · v102 แสงแตก (max 3, not stretched): the bonus hitting gives WIS +wis[lv-1] for wisTurns[lv-1] hero turns · ★ อรุณพิทักษ์: the bonus is a sure crit, crit dmg +crit. (v86 every-3-basics smash removed.)
+    // · v102 แสงแตก (max 3, not stretched): the bonus hitting gives WIS = wis[lv-1] x the bonus/target for wisTurns[lv-1] hero turns · ★ อรุณพิทักษ์: the bonus is a sure crit, crit dmg +crit. (v86 every-3-basics smash removed.)
     // v86 core column 💠 แก่นศรัทธา (Q 2026-11-06, Mana for the Priest). Per OLD level (max 3, stretched to 5) unless noted:
     // จิตสงบ: STR + WIS +base/lv · Mana regen +regen/lv (resRegen units, x3 per turn) per 10 points of the lower of STR / WIS
     // ศรัทธาสู่กาย (max 3, not stretched): every intPer[lv-1] INT = +1 STR, v102 also every intPer[lv-1] WIS = +1 VIT · มานาพิทักษ์: damage taken (shield absorb too)
@@ -219,6 +219,8 @@ export const clericUltSmash = (st: Stats) => CLERIC_KIT.ultAtk + st.clUltAtk // 
 /** v92 🌄 แสงรุ่งอรุณ: flat bonus magic damage per Ult smash target = (STR + WIS + matk x M.ATK) x node share (v102: แสงแตก no longer amps it). */
 export const dawnBonus = (st: Stats, str: number, wis: number) =>
   st.clDawn > 0 ? (str + wis + KIT.clericTree.dawn.matk * st.matk) * st.clDawn : 0
+/** v102 ☀️ แสงแตก: WIS the buff gives = share x the per-target bonus (x ult hitPow). The bonus is taken WITHOUT the buff's own WIS (no snowball). */
+export const dawnWisGain = (st: Stats, bonus: number) => (st.clDawnWis > 0 ? Math.round(bonus * st.clDawnWis) : 0)
 /** The same bonus as a magic-hit multiplier (strike() scales mul by magic power). */
 export const dawnMul = (st: Stats, str: number, wis: number) => dawnBonus(st, str, wis) / Math.max(1, magicPower(st))
 export const clericUltLights = (st: Stats) => CLERIC_KIT.ultLights + st.clUltLights
@@ -296,7 +298,11 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
     }
     case 'cleric':
       out.push({ label: `ทุบทุกตัว ${pct(clericUltSmash(st))} P.ATK`, value: hitText(st, clericUltSmash(st) * hitPow * (1 + st.pskill), false) })
-      if (st.clDawn > 0 && base) out.push({ label: `🌄 แสงรุ่งอรุณ/ตัว (เวท${st.clDawnUlt > 0 ? ' · คริแน่' : ''})`, value: `+${r(dawnBonus(st, base.str, base.wis) * hitPow)}` })
+      if (st.clDawn > 0 && base) {
+        const bonus = dawnBonus(st, base.str, base.wis) * hitPow
+        out.push({ label: `🌄 แสงรุ่งอรุณ/ตัว (เวท${st.clDawnUlt > 0 ? ' · คริแน่' : ''})`, value: `+${r(bonus)}` })
+        if (st.clDawnWis > 0) out.push({ label: `☀️ แสงแตก: WIS ${st.clDawnWisTurns} เทิร์น`, value: `+${dawnWisGain(st, bonus)} WIS (${pct(st.clDawnWis)} ของ ${r(bonus)})` }) // v102
+      }
       out.push({ label: `Holy Light ${clericUltLights(st)} ลูก ตัวสุ่ม (พลังเวท)`, value: hitText(st, CLERIC_KIT.ultLight * hitPow, true) })
       out.push({ label: `โล่ ${CLERIC_KIT.ultShieldTurns} เทิร์น`, value: `${shield(st, st.maxHp * CLERIC_KIT.ultShield)} (รวมไม่เกิน ${r(st.maxHp * CLERIC_KIT.shieldCap)})` })
       if (st.clPurify > 0) out.push({ label: 'ไฟชำระ: ล้างดีบัฟ + ฮีล (M.ATK)', value: `${heal(st, st.matk * CLERIC_KIT.purifyHeal)} HP` })
