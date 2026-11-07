@@ -4,8 +4,8 @@ import { RACES } from '../data/meta'
 import { hasSave, load } from '../save'
 import { JOBS } from '../data/jobs'
 import { setMuted } from '../sfx'
-import { backdrop, button, confirm, fullscreenButton, go, txt, UI } from '../ui'
-import { cloudEnabled, conflict, syncStart } from '../cloud'
+import { backdrop, button, confirm, fullscreenButton, go, toast, txt, UI } from '../ui'
+import { cloudEnabled, linkProvider, status, syncStart } from '../cloud'
 import { PREVIEW, PREVIEW_JOBS, previewHero } from '../preview-kit'
 
 // First screen: logo, a novice bouncing on the hill, Continue / New game.
@@ -36,7 +36,7 @@ export class TitleScene extends Phaser.Scene {
     } else {
       button(this, W / 2, by + 20, 320, 64, 'เริ่มเกม', () => go(this, 'create'), { size: 24 })
     }
-    if (!hasSave()) txt(this, W / 2, by + 74, 'เกมจะบันทึกอัตโนมัติในเครื่องนี้', 15, UI.sub).setOrigin(0.5)
+    if (!hasSave()) txt(this, W / 2, by + 74, cloudEnabled ? 'เกมจะบันทึกอัตโนมัติบน cloud' : 'เกมจะบันทึกอัตโนมัติในเครื่องนี้', 15, UI.sub).setOrigin(0.5)
 
     if (PREVIEW) { // playtest link only: start as a ready-made Lv 20 hero
       txt(this, W / 2, H - 116, '🧪 ลิงก์ทดลอง: ตัวทดสอบ Lv 20 (เกียร์คราฟต์ +5 · ดัน 1-4 ผ่านแล้ว · แต้มยังไม่ลง)', 14, UI.gold).setOrigin(0.5)
@@ -44,12 +44,15 @@ export class TitleScene extends Phaser.Scene {
     }
     if (cloudEnabled) {
       button(this, W - 110, H - 40, 190, 44, '☁️ บัญชี / เซฟออนไลน์', () => go(this, 'cloud', { from: 'title' }), { size: 15, fill: 0x2f6a8a, color: UI.text })
-      // pull the cloud save before the player continues; a real conflict goes to the account screen
+      // pull the cloud save before the player continues (the cloud always wins)
       void syncStart().then((r) => {
-        if (r === 'conflict' || conflict()) go(this, 'cloud', { from: 'title' })
-        else if (!this.scene.isActive('title')) return
-        else if (!hasSave() === !s) return
-        else this.scene.restart() // a cloud save arrived (or went away): redraw Continue / New game
+        if (!this.scene.isActive('title')) return
+        if (r === 'adopted' || !hasSave() !== !s) { this.scene.restart(); return } // the cloud save arrived: redraw Continue / New game
+        // still a guest: one obvious button so the save follows the player to every device
+        if (r === 'ok' && status.guest) button(this, W - 150, H - 98, 270, 48, '🔐 Login Google · เซฟข้ามเครื่อง', async () => {
+          const err = await linkProvider('google') // on success the browser leaves for Google
+          if (err) toast(this, `login ไม่ได้: ${err}`, UI.red)
+        }, { size: 15 })
       })
     }
     txt(this, 16, H - 28, 'v0.3 · M3 shell · ภาพชั่วคราว', 13, UI.sub)
