@@ -6,7 +6,7 @@ import { CARD_RULES, cardIcon, cardName, EQUIP_CARDS, TIER_COLOR, type EquipCard
 import { gradeStars, gradeCap } from '../data/craft'
 import { BASE_STATS, smashLv, canWear, forged, forgeTag, gradeOf, isBroken, refineOf, cardFits, CERT_SLOTS_AT, EQUIP_SLOTS, offhandLocked, slotKind, type EquipSlot, COSTUMES, gearBase, heroStats, cardStatLine, itemStatLine, splitStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, NOVICE_PASSIVES, NOVICE_RULES, noviceLeft, noviceSpent, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText, type BaseStat } from '../data/meta'
 import { canChangeJob, equip, persist, resetNovice, resetTree, resetTree2, save, socketCard, unsocketCard } from '../save'
-import { branches2Of, tree2Spent, BRANCHES, branchesOf, lockReason, skill2Picked, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
+import { branches2Of, tree2Spent, BRANCHES, branchesOf, lockReason, skill2Picked, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentRankText, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
 import { JOB_CHANGE, JOBS, type JobId } from '../data/jobs'
 import { JOB2, JOB2_RULES, PETS, type PetId } from '../data/jobs2'
 import { statLines } from '../data/statInfo'
@@ -533,7 +533,9 @@ export class CharacterScene extends Phaser.Scene {
         const rank = picked ? Math.min(cur!.rank, o.max) : 0
         b.add(panel(this, x, y + 20, cw, 76, picked ? 0x2a3b5a : open ? UI.panel : 0x1d2140, picked ? COLORS.gold : UI.line, 10))
         b.add(txt(this, x + 8, y + 24, `${o.icon} ${o.name}  ${rank}/${o.max}`, 13, open ? UI.text : UI.sub, true))
-        b.add(txt(this, x + 8, y + 43, o.desc(Math.max(1, Math.min(rank + (rank < o.max ? 1 : 0), o.max))), 11, open ? UI.green : UI.sub).setWordWrapWidth(cw - 16))
+        // v102 fix (all jobs): the text is the rank shown on the card (was the next rank's), + what the next rank changes
+        const tx = talentRankText(o, rank)
+        b.add(txt(this, x + 8, y + 43, tx.next ? `${tx.now}\n${tx.next}` : tx.now, tx.next ? 10 : 11, open ? UI.green : UI.sub).setWordWrapWidth(cw - 16))
         // switching inside a row refunds the old pick's ranks, so the cost is 1 TP either way
         const refund = picked ? 0 : cur?.rank ?? 0
         const can = open && rank < o.max && free + refund >= 1

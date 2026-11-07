@@ -236,3 +236,15 @@ save เก่า: แต้มใน `cleric_d1..d4` (ม่านพร / ฉ�
 
 - ข้อเสนอเดิมของ Q: regen 1–5% ต่อแต้ม (≈ +300% ที่ STR 60) แรงเกิน → เปลี่ยนเป็นต่อ 10 แต้ม · "level up → โล่" เปลี่ยนเป็นต้นเวฟ
 - web Cleric 9 คอลัมน์ (node แคบลง) · spendable 79 → 92
+
+## v102 · ศรัทธาสู่กาย WIS→VIT · แสงแตก เป็นบัฟ WIS · Ult Mana ตาม Lv (Q 2026-11-07)
+
+| อะไร | เดิม | ใหม่ |
+|---|---|---|
+| 💪 ศรัทธาสู่กาย (max 3) | INT ทุก 7/6/5 = STR +1 | + **WIS ทุก 7/6/5 = VIT +1** (นับ WIS หลังจิตสงบ, ไม่นับบัฟในไฟต์) · `clWisToVit` |
+| ☀️ แสงแตก | max 5 · ดาเมจแสงรุ่งอรุณ +20%/Lv เดิม | **max 3 (ไม่ stretch)** · โบนัสแสงรุ่งอรุณโดน → **WIS +25/30/35% 3/4/5 เทิร์น** (รีเฟรชทุกครั้ง ไม่ซ้อน) · `clDawnWis` / `clDawnWisTurns` · `clDawnAmp` ถูกลบ |
+| 🙏 Ult พรคุ้มครอง (nerf) | Mana 30 | **Mana 30/35/40/45/50** ตาม Lv node Ult (Lv 0–1 = 30) · `CLERIC_KIT.ultManaLv` · Crusader / Monk Ult ยังฟรี |
+
+- บัฟ WIS ใช้กลไกเดียวกับพรแสง (`tempBase` + delta ของ `heroStats`) → ฮีลแรง / โล่ / M.DEF / ฟื้น Mana / แสงรุ่งอรุณครั้งถัดไป ขึ้นตาม · HUD ☀️N
+- Save: แต้มแสงแตกที่เกิน 3 คืนเป็น skill point (`migrateDawnBurst`) · spendable 92 → 90
+- ⚠️ ยังไม่ผ่านบอท/ผู้เล่นจริง: ดู Mana Ult Lv5 = 50 เทียบ Max Mana Priest ช่วงต้นเกม (ฐาน 60) ว่ากด Ult ทันไหม

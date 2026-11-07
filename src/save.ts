@@ -108,6 +108,7 @@ export function load(): SaveData | null {
     migrateThiefWeb(s)
     migratePriestBless(s)
     migrateClericDawn(s)
+    migrateDawnBurst(s)
     migrateNodeStretch(s)
     migrateGear(s)
     migrateNovicePool(s)
@@ -209,6 +210,12 @@ export function migrateClericDawn(s: SaveData) {
   if (t) for (const id of GONE_NODES) if (t[id]) { s.skillPoints += t[id]; delete t[id] }
   const tal = s.jobTalents
   if (tal) for (const [row, p] of Object.entries(tal)) if (p?.id === 'cleric_t2_dawnlight') delete tal[row]
+}
+/** v102 ☀️ แสงแตก (Q 2026-11-07): new effect (WIS buff), max 5 -> 3. Points above 3 come back as skill points. Id unchanged. */
+export function migrateDawnBurst(s: SaveData) {
+  const t = s.jobTree
+  if (!t || (t.cleric_dn3 ?? 0) <= 3) return
+  s.skillPoints += t.cleric_dn3 - 3; t.cleric_dn3 = 3
 }
 /** v85 novice pool (Q 2026-11-06): ปฐมพยาบาล / ร่างกายแกร่ง used to cost Job Lv skill points. Those points come back
  *  as skill points; the levels stay and now count against the free 10-point novice pool (max 5+5 = 10, always fits). */

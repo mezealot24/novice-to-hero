@@ -369,11 +369,16 @@ export function totalBase(s: StatsInput): Record<BaseStat, number> {
   const out = { ...s.stats }
   const bonus = RACES[s.race].bonus, gear = gearBase(s)
   for (const k of Object.keys(out) as BaseStat[]) out[k] = Math.max(1, out[k] + (bonus[k] ?? 0) + gear[k])
-  if (s.job === 'cleric' && s.jobTree) { // v86 💠 แก่นศรัทธา: จิตสงบ + STR / WIS · ศรัทธาสู่กาย INT -> STR
-    let flat = 0, per = 0
-    for (const m of treeMods(s.jobTree, 'cleric')) { flat += m.clCoreBase ?? 0; if (m.clIntToStr) per = per ? Math.min(per, m.clIntToStr) : m.clIntToStr }
+  if (s.job === 'cleric' && s.jobTree) { // v86 💠 แก่นศรัทธา: จิตสงบ + STR / WIS · ศรัทธาสู่กาย INT -> STR (v102: + WIS -> VIT)
+    let flat = 0, per = 0, perW = 0
+    for (const m of treeMods(s.jobTree, 'cleric')) {
+      flat += m.clCoreBase ?? 0
+      if (m.clIntToStr) per = per ? Math.min(per, m.clIntToStr) : m.clIntToStr
+      if (m.clWisToVit) perW = perW ? Math.min(perW, m.clWisToVit) : m.clWisToVit
+    }
     out.str += Math.round(flat); out.wis += Math.round(flat)
     if (per > 0) out.str += Math.floor(out.int / per)
+    if (perW > 0) out.vit += Math.floor(out.wis / perW) // WIS after จิตสงบ
   }
   return out
 }

@@ -22,7 +22,7 @@ function spendable(nodes: TreeNode[]) {
 
 test('spendable points stay above the pool (forced ★ choice)', () => {
   assert.equal(spendable(swordNodes), 79)
-  assert.equal(spendable(clericNodes), 92) // v86: + 💠 แก่นศรัทธา core column (5 + 3 + 5)
+  assert.equal(spendable(clericNodes), 90) // v86: + 💠 แก่นศรัทธา core column (5 + 3 + 5) · v102: ☀️ แสงแตก 5 -> 3
   assert.equal(spendable(knightNodes), 79)
   assert.ok(spendable(swordNodes) >= SWORD_POOL)
   assert.ok(spendable(clericNodes) >= CLERIC_POOL)
@@ -92,7 +92,7 @@ test('each new node sets its field (default 0, grows with level, readable text)'
     swordsman_c1: ['swFlow'], swordsman_c2: ['swFlowMana'], swordsman_c3: ['swFlowCrit'], swordsman_c4: ['swFlowStar'],
     swordsman_d1: ['swBreak'], swordsman_d2: ['swBreakLeech'], swordsman_d3: ['swBreakSpread'], swordsman_d4: ['swShatter'],
     cleric_c1: ['clFaith'], cleric_c2: ['clFaithOver'], cleric_c3: ['clFaithHeal'], cleric_c4: ['clOverBurst'],
-    cleric_dn1: ['clDawn'], cleric_dn2: ['clDawnHeal'], cleric_dn3: ['clDawnAmp'], cleric_dn4: ['clDawnUlt', 'clDawnCrit'], // v92 🌄 รุ่งอรุณ
+    cleric_dn1: ['clDawn'], cleric_dn2: ['clDawnHeal'], cleric_dn3: ['clDawnWis', 'clDawnWisTurns'], cleric_dn4: ['clDawnUlt', 'clDawnCrit'], // v92 🌄 รุ่งอรุณ
     kn_o1: ['j2Banner'], kn_o2: ['j2Provoke'], kn_o3: ['j2BannerKill'], kn_o4: ['j2BannerAura', 'j2Guard'],
     kn_r1: ['j2Sweep'], kn_r2: ['j2SweepPush'], kn_r3: ['j2SweepGauge'], kn_r4: ['j2SweepStar'],
   }
@@ -111,7 +111,7 @@ test('each new node sets its field (default 0, grows with level, readable text)'
 })
 
 test('stretched levels: 3 -> 5, ★ stays 1', () => {
-  for (const id of ['swordsman_c1', 'swordsman_d3', 'cleric_c2', 'cleric_dn3', 'kn_o2', 'kn_r1']) {
+  for (const id of ['swordsman_c1', 'swordsman_d3', 'cleric_c2', 'kn_o2', 'kn_r1']) {
     const n = [...swordNodes, ...clericNodes, ...knightNodes].find((x) => x.id === id)!
     assert.equal(n.max, 5, id)
   }

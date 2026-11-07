@@ -304,7 +304,8 @@ export class BattleScene extends Phaser.Scene {
     { const wpn = itemById(s.equipped.weapon ?? ''); this.j2Weapon = !!this.j2?.mastery.ok(wpn); this.hasShield = !wpn.twoHand && !!s.equipped.offhand && s.equipped.offhand !== 'none_off'; this.dualKnife = this.hasShield && itemById(s.equipped.offhand ?? '').wtype === 'dagger' }
     this.frenzy = 0; this.frenzyAt = 0; this.s3Cd = 0; this.rampage = 0; this.charges = 0; this.allies = []; this.allyTxt.clear(); this.chargeTxt = undefined
     this.s2 = this.job.id === 'novice' ? undefined : skill2Picked(s.jobTree, this.job.id); this.s2Cd = 0
-    this.buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, bless: 0 }; this.s2Count = 0
+    this.buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, bless: 0, dawnWis: 0 }; this.s2Count = 0
+    this.dawnWisOn = false; this.dawnWisDelta = undefined // v102 ☀️ แสงแตก
     this.blessOn = false; this.blessDelta = undefined; this.kyrie = { hp: 0, hits: 0 } // v77 พรแสง
     if (this.s2?.id === 'cl_spear') this.st.spearMul += S2N.spearPlus(this.st.s2Lv) // หอกคม: +10%/lv of the 0.3x base
     this.res = this.job.resource === 'rage' ? 0 : this.resMax()
@@ -790,7 +791,7 @@ export class BattleScene extends Phaser.Scene {
   // ----- skill web v1: Skill 2 (data/skill2.ts, design/skill-web-v1.md) -----
   private s2?: Skill2Def
   private s2Cd = 0 // hero turns until Skill 2 can cast again
-  private buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, bless: 0 } // hero turns left on Skill 2 buffs
+  private buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, bless: 0, dawnWis: 0 } // hero turns left on Skill 2 buffs (+ v102 ☀️ แสงแตก WIS)
   private kyrie = { hp: 0, hits: 0 } // v77 พรแสง "+" Kyrie Eleison: barrier HP + hits left (gone with the blessing)
   private s2Count = 0 // casts this run (bot/debug)
   private book = { s1: false, s2: false, s3: false } // v86 manual mode: skills the player booked (the ult uses smashQueued)
@@ -801,7 +802,7 @@ export class BattleScene extends Phaser.Scene {
   private dodgeCharges = 0
   private ctrCharges = 0 // Swordsman talent ท่าสวนพร้อม: sure counters left
   /** Mana the ult costs (Mage, Swordsman); 0 for every other job. */
-  private ultCost() { return ultCost(this.job) }
+  private ultCost() { return ultCost(this.job, this.st) } // v102: + Cleric Ult node Lv Mana
   private resMax() { return this.job.resource === 'rage' ? RES_RULES.rageMax : this.job.resource === 'energy' ? RES_RULES.energyMax : this.st.maxRes }
   private ultTurns() {
     const t = this.job.id === 'novice' ? this.smashTurns() : ultCooldown(this.job, this.st) // gear smashCd cuts every job's ult
@@ -907,12 +908,17 @@ export class BattleScene extends Phaser.Scene {
     const D = KIT.clericTree.dawn, st = this.st, s = save()
     if (st.clDawn <= 0 || this.job.id !== 'cleric' || !targets.length) return
     const b = totalBase(s), bl = this.buf.bless > 0 ? blessBase(s) ?? {} : {} // พรแสง adds STR / WIS while it lasts
-    const mul = dawnMul(st, b.str + (bl.str ?? 0), b.wis + (bl.wis ?? 0)) * hitPow
+    const mul = dawnMul(st, b.str + (bl.str ?? 0), b.wis + (bl.wis ?? 0) + (this.dawnWisOn ? this.dawnWisAdd() : 0)) * hitPow
     const sure = st.clDawnUlt > 0, add = sure ? st.clDawnCrit : 0, wasCrit = this.forceCrit
     this.forceCrit = wasCrit || sure; st.critMul += add
     let front = 0
     try { targets.forEach((m, i) => { const d = this.strike(m, mul, true, '#ffd36e'); if (i === 0) front = d }) } finally { st.critMul -= add; this.forceCrit = wasCrit }
     this.burst(targets[0].spr.x, targets[0].spr.y - 30, 0xffd36e, 14, 170)
+    if (st.clDawnWis > 0 && st.clDawnWisTurns > 0 && this.hp > 0) { // v102 ☀️ แสงแตก: WIS buff, refreshed by every bonus hit
+      const fresh = !this.dawnWisOn
+      this.buf.dawnWis = Math.round(st.clDawnWisTurns); this.syncDawnWis()
+      if (fresh) this.floatText(HERO_X, GROUND - 170, `☀️ WIS +${this.dawnWisAdd()} (${this.buf.dawnWis} เทิร์น)`, '#ffd36e')
+    }
     if (front <= 0 || this.hp <= 0 || st.clDawnHeal <= 0) return
     const big = targets[0].def.ai === 'boss' || !!targets[0].def.mini
     const amt = front * st.clDawnHeal * (big ? 1 : D.weak)
@@ -1709,6 +1715,7 @@ export class BattleScene extends Phaser.Scene {
     if (B.renew > 0) { B.renew--; this.heal(this.st.matk * S2N.renewHeal(this.st.s2Lv)) } // Priest heals = x M.ATK
     for (const k of ['guard', 'blood', 'hawk', 'mshield'] as const) if (B[k] > 0) B[k]--
     if (B.bless > 0 && --B.bless === 0) this.syncBless()
+    if (B.dawnWis > 0 && --B.dawnWis === 0) this.syncDawnWis()
     const k = this.s2
     if (!k || this.hx.silence > 0 || !this.alive().length) return
     if (this.s2Cd > 0) { this.s2Cd--; return }
@@ -3433,6 +3440,26 @@ export class BattleScene extends Phaser.Scene {
     this.blessOn = on
     if (!on) { this.kyrie = { hp: 0, hits: 0 }; this.floatText(HERO_X, GROUND - 150, '🔆 พรแสงหมด', '#c9c9d6') }
   }
+  /** v102 ☀️ แสงแตก: WIS points the buff adds (share of the hero's WIS before in-fight buffs). */
+  private dawnWisAdd() { return Math.round(totalBase(save()).wis * this.st.clDawnWis) }
+  /** v102 ☀️ แสงแตก: while buf.dawnWis > 0 the hero gets +WIS; derived stats move by exactly what heroStats() gives (like syncBless). */
+  private dawnWisOn = false
+  private dawnWisDelta?: Partial<Record<keyof Stats, number>>
+  private syncDawnWis() {
+    const on = this.buf.dawnWis > 0
+    if (on === this.dawnWisOn) return
+    if (!this.dawnWisDelta) {
+      const s = save()
+      const a = heroStats(s) as unknown as Record<string, number>
+      const b = heroStats({ ...s, tempBase: { wis: this.dawnWisAdd() } }) as unknown as Record<string, number>
+      this.dawnWisDelta = Object.fromEntries(Object.keys(a).filter((k) => typeof a[k] === 'number' && a[k] !== b[k]).map((k) => [k, b[k] - a[k]])) as Partial<Record<keyof Stats, number>>
+    }
+    const st = this.st as unknown as Record<string, number>
+    for (const [k, d] of Object.entries(this.dawnWisDelta)) st[k] += (d as number) * (on ? 1 : -1)
+    this.hp = Math.max(1, Math.min(this.hp, this.st.maxHp))
+    this.dawnWisOn = on
+    if (!on) this.floatText(HERO_X, GROUND - 150, '☀️ แสงแตกหมด', '#c9c9d6')
+  }
   /** Remove the worst hero debuff (v77 พรแสง cleanse). */
   private cleanseOne() {
     const X = this.hx
@@ -4182,7 +4209,7 @@ export class BattleScene extends Phaser.Scene {
     const X = this.hx
     this.debuffTxt?.setText([X.poison > 0 ? `☠️${X.poison}` : '', X.burn > 0 ? `🔥${X.burn}` : '', X.weaken > 0 ? `💔${X.weaken}` : '', X.armorBreak > 0 ? `🛡️💥${X.armorBreak}` : '', X.silence > 0 ? `🤐${X.silence}` : '', X.web > 0 ? `🕸️${X.web}` : '', X.slow > 0 ? `💙${X.slow}` : '', X.thorn > 0 ? `❄️${X.thorn}` : '', X.venomTurns > 0 ? `🕷️${X.venomTurns}` : ''].filter(Boolean).join(' ')).setY(this.job.resource ? 92 : 78)
     { const B = this.buf, d = this.debuffTxt, k2i = this.s2?.icon ?? '' // v77: hero buffs (the picked Skill 2's icon + turns left; พรแสง adds Kyrie hits / Gloria)
-      this.buffTxt?.setText([B.bless > 0 ? `${k2i}${B.bless}` : '', this.kyrie.hits > 0 ? `🛡️${this.kyrie.hits}` : '', B.bless > 0 && this.st.s2Star > 0 && this.s2?.id === 'cl_bless' ? '✨' : '',
+      this.buffTxt?.setText([B.dawnWis > 0 ? `☀️${B.dawnWis}` : '', B.bless > 0 ? `${k2i}${B.bless}` : '', this.kyrie.hits > 0 ? `🛡️${this.kyrie.hits}` : '', B.bless > 0 && this.st.s2Star > 0 && this.s2?.id === 'cl_bless' ? '✨' : '',
         ...(['guard', 'blood', 'hawk', 'mshield', 'renew'] as const).map((k) => (B[k] > 0 ? `${k2i}${B[k]}` : ''))].filter(Boolean).join(' '))
         .setPosition(22 + (d && d.text ? d.width + 10 : 0), this.job.resource ? 92 : 78) }
 

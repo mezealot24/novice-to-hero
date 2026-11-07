@@ -68,13 +68,13 @@ export const KIT = {
     // v93 (Q 2026-11-07): share 1/3 -> 2/3 per old lv (Lv5 = 200% of the base, was 100%): +16 per point instead of +8, Lv5 about +35% of the Ult smash.
     // v92 (Q 2026-11-07) แสงรุ่งอรุณ: the Ult smash adds bonus MAGIC damage (STR + WIS + matk x M.ATK) to each monster it hits, x share/lv
     // (full at old lv 3 = Lv5) · อรุณสมานแผล: heal/lv of the bonus dealt to the front monster (normal monsters x weak)
-    // · แสงแตก: bonus +amp/lv · ★ อรุณพิทักษ์: the bonus is a sure crit, crit dmg +crit. (v86 every-3-basics smash removed.)
+    // · v102 แสงแตก (max 3, not stretched): the bonus hitting gives WIS +wis[lv-1] for wisTurns[lv-1] hero turns · ★ อรุณพิทักษ์: the bonus is a sure crit, crit dmg +crit. (v86 every-3-basics smash removed.)
     // v86 core column 💠 แก่นศรัทธา (Q 2026-11-06, Mana for the Priest). Per OLD level (max 3, stretched to 5) unless noted:
     // จิตสงบ: STR + WIS +base/lv · Mana regen +regen/lv (resRegen units, x3 per turn) per 10 points of the lower of STR / WIS
-    // ศรัทธาสู่กาย (max 3, not stretched): every intPer[lv-1] INT = +1 STR · มานาพิทักษ์: damage taken (shield absorb too)
+    // ศรัทธาสู่กาย (max 3, not stretched): every intPer[lv-1] INT = +1 STR, v102 also every intPer[lv-1] WIS = +1 VIT · มานาพิทักษ์: damage taken (shield absorb too)
     // -> guard/lv of it as Mana (x (1 + WIS x wisAmp)) · Mana spent -> heal of it as HP · wave start shield = shield/lv x Max Mana
     core: { base: 5, regen: 1 / 6, intPer: [7, 6, 5], guard: 0.05, wisAmp: 0.005, heal: 0.2, shield: 0.25 / 3 },
-    dawn: { matk: 0.1, share: 2 / 3, heal: 0.1, amp: 0.2, crit: 0.5, weak: 0.6 },
+    dawn: { matk: 0.1, share: 2 / 3, heal: 0.1, wis: [0.25, 0.3, 0.35], wisTurns: [3, 4, 5], crit: 0.5, weak: 0.6 },
     reviveHp: 0.5, reviveShield: 0.2, // ★ คืนชีพ: 1/run lethal hit -> back at 50% HP + 20% shield, debuffs cleared
   },
 }
@@ -204,8 +204,8 @@ export const S2N = {
 
 // ---------- costs / cooldowns ----------
 export const autoCost = (job: JobDef, st: Stats) => Math.max(10, job.auto.cost - st.autoCostCut)
-/** Mana the ult costs (Mage, Swordsman, Cleric since v86); 0 for every other job. */
-export const ultCost = (job: JobDef) => (job.resource === 'mana' ? job.ult.cost ?? 0 : 0)
+/** Mana the ult costs (Mage, Swordsman, Cleric since v86); 0 for every other job. v102: pass st for the base Cleric ult (+clUltMana by Ult node Lv). */
+export const ultCost = (job: JobDef, st?: Stats) => (job.resource === 'mana' ? (job.ult.cost ?? 0) + (job.id === 'cleric' && (job.ult.cost ?? 0) > 0 ? st?.clUltMana ?? 0 : 0) : 0)
 /** Ult cooldown in hero turns before relics (gear smashCd lowers it for every job). */
 export const ultCooldown = (job: JobDef, st: Stats) => {
   const cdCut = Math.round((PLAYER.smashCd - st.smashCd) / BATTLE.msPerTurn)
@@ -216,9 +216,9 @@ export const s2Cooldown = (k: Skill2Def, _st: Stats) => Math.max(1, k.cd)
 export const spearMul = (st: Stats, s2?: Skill2Def) => KIT.spearBase + st.spearMul + (s2?.id === 'cl_spear' ? S2N.spearPlus(st.s2Lv) : 0)
 /** v58 Priest: ult smash multiplier x P.ATK (before ultAmp / pskill), Holy Light count, basic smash x P.ATK. */
 export const clericUltSmash = (st: Stats) => CLERIC_KIT.ultAtk + st.clUltAtk // v92: additive, 150% + 50%/Lv
-/** v92 🌄 แสงรุ่งอรุณ: flat bonus magic damage per Ult smash target = (STR + WIS + matk x M.ATK) x node share x (1 + แสงแตก). */
+/** v92 🌄 แสงรุ่งอรุณ: flat bonus magic damage per Ult smash target = (STR + WIS + matk x M.ATK) x node share (v102: แสงแตก no longer amps it). */
 export const dawnBonus = (st: Stats, str: number, wis: number) =>
-  st.clDawn > 0 ? (str + wis + KIT.clericTree.dawn.matk * st.matk) * st.clDawn * (1 + st.clDawnAmp) : 0
+  st.clDawn > 0 ? (str + wis + KIT.clericTree.dawn.matk * st.matk) * st.clDawn : 0
 /** The same bonus as a magic-hit multiplier (strike() scales mul by magic power). */
 export const dawnMul = (st: Stats, str: number, wis: number) => dawnBonus(st, str, wis) / Math.max(1, magicPower(st))
 export const clericUltLights = (st: Stats) => CLERIC_KIT.ultLights + st.clUltLights
@@ -272,7 +272,7 @@ export function autoInfo(jobId: JobId, st: Stats): InfoRow[] {
 /** Ult with these stats. */
 export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: number }): InfoRow[] {
   const job = JOBS[jobId], pow = 1 + st.ultPow, hitPow = pow * (1 + st.ultAmp)
-  const out: InfoRow[] = [{ label: 'คูลดาวน์', value: `${ultCooldown(job, st)} เทิร์น${ultCost(job) ? ` · Mana ${ultCost(job)}` : ''}` }]
+  const out: InfoRow[] = [{ label: 'คูลดาวน์', value: `${ultCooldown(job, st)} เทิร์น${ultCost(job, st) ? ` · Mana ${ultCost(job, st)}` : ''}` }]
   switch (jobId) {
     case 'swordsman':
       out.push({ label: 'ดาเมจ/ตัว (ทุกตัว)', value: hitText(st, (SWORD_MANA.ultMul + st.ultMulAdd) * hitPow * (1 + st.pskill), false) })

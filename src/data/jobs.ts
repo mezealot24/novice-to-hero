@@ -45,7 +45,7 @@ export const SWORD_MANA = {
  *  Ult: ultAtk x P.ATK to every monster + ultLights Holy Light (ultLight x M.ATK each, random target) + shield ultShield of max HP that lasts ultShieldTurns hero turns.
  *  Q 09:50: every Priest heal = x M.ATK (heal, ฟื้นฟู, ไฟชำระ) then x (1 + ฮีลแรง from WIS); shields = x max HP, last shieldTurns hero turns, total capped at shieldCap of max HP.
  *  Per-level node numbers live in skill-math.ts KIT. */
-export const CLERIC_KIT = { heal: 0.7, smite: 1.4, basic: 1.1, ultAtk: 1.5, ultLights: 3, ultLight: 0.8, ultShield: 0.14, ultShieldTurns: 3, purifyHeal: 1, shieldTurns: 3, shieldCap: 0.5, ultMana: 30 } // ultMana: v86 Q 2026-11-06, the ult costs Mana like Mage / Swordsman
+export const CLERIC_KIT = { heal: 0.7, smite: 1.4, basic: 1.1, ultAtk: 1.5, ultLights: 3, ultLight: 0.8, ultShield: 0.14, ultShieldTurns: 3, purifyHeal: 1, shieldTurns: 3, shieldCap: 0.5, ultMana: 30, ultManaLv: 5 } // ultMana: v86 Q 2026-11-06, the ult costs Mana like Mage / Swordsman · v102 nerf: +ultManaLv per Ult node Lv above 1 (30/35/40/45/50)
 
 /** Spell vamp (Q 2026-11-04): skill lifesteal, its own stat. AoE skills heal 1/3; Skill 2 เลือดเดือด trades skill damage for it. */
 export const SPELL_VAMP = { aoe: 1 / 3, bloodCut: 0.3 }
@@ -78,7 +78,7 @@ export const JOBS: Record<JobId, JobDef> = {
     id: 'cleric', name: 'นักบวช', icon: '✨', tex: 'hero_cleric', blurb: 'นักบวชสายบู๊: ทุบด้วยกระบอง/คัมภีร์ (STR) ร่ายแสง (INT) ฮีลตัวเอง มีโล่', focus: 'STR · INT · WIS',
     resource: 'mana', attack: 'melee', tags: ['holy', 'guard'], mod: { maxHp: 10, mdef: 0.05 },
     auto: { name: 'ฮีล / แสงศักดิ์สิทธิ์', icon: '💖', cost: 25, desc: `Mana 25 (ร่ายเพิ่มจากการทุบทุกเทิร์น): HP ต่ำกว่า 75% ฮีล ${CLERIC_KIT.heal}x M.ATK ก่อนทุบ · ไม่งั้นทุบแล้วแสงตกจากฟ้าใส่ 2 ตัวหน้า ${CLERIC_KIT.smite}x M.ATK` },
-    ult: { name: 'พรคุ้มครอง', icon: '🙏', cd: 4, cost: CLERIC_KIT.ultMana, desc: `Mana ${CLERIC_KIT.ultMana}: ทุบใส่ทุกตัว ${Math.round(CLERIC_KIT.ultAtk * 100)}% P.ATK + Holy Light ${CLERIC_KIT.ultLights} ลูกใส่ตัวสุ่ม (${CLERIC_KIT.ultLight}x M.ATK) + โล่ ${Math.round(CLERIC_KIT.ultShield * 100)}% ของ HP สูงสุด ${CLERIC_KIT.ultShieldTurns} เทิร์น (โล่นักบวชรวมไม่เกิน ${Math.round(CLERIC_KIT.shieldCap * 100)}% HP)` },
+    ult: { name: 'พรคุ้มครอง', icon: '🙏', cd: 4, cost: CLERIC_KIT.ultMana, desc: `Mana ${CLERIC_KIT.ultMana}–${CLERIC_KIT.ultMana + 4 * CLERIC_KIT.ultManaLv} (ตาม Lv Ult): ทุบใส่ทุกตัว ${Math.round(CLERIC_KIT.ultAtk * 100)}% P.ATK + Holy Light ${CLERIC_KIT.ultLights} ลูกใส่ตัวสุ่ม (${CLERIC_KIT.ultLight}x M.ATK) + โล่ ${Math.round(CLERIC_KIT.ultShield * 100)}% ของ HP สูงสุด ${CLERIC_KIT.ultShieldTurns} เทิร์น (โล่นักบวชรวมไม่เกิน ${Math.round(CLERIC_KIT.shieldCap * 100)}% HP)` },
   },
   thief: {
     id: 'thief', name: 'โจร', icon: '🗡️', tex: 'hero_thief', blurb: 'เร็ว หลบเก่ง แทงสองที ติดพิษ · Double Strike: มีโอกาสตีเพิ่ม 1 ที · เงาบาง: มอนตีโดนอย่างน้อย 70% (อาชีพอื่น 80%)', focus: 'AGI · LUK',
