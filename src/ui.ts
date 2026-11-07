@@ -56,7 +56,7 @@ export function button(scene: Phaser.Scene, x: number, y: number, w: number, h: 
     g.fillStyle(f, 1).fillRoundedRect(-w / 2, -h / 2, w, h, 12)
     g.fillStyle(0xffffff, hover && enabled ? 0.18 : 0.08).fillRoundedRect(-w / 2 + 3, -h / 2 + 3, w - 6, h / 2 - 3, 9)
     g.lineStyle(2, o.stroke ?? 0x000000, 0.35).strokeRoundedRect(-w / 2, -h / 2, w, h, 12)
-    t.setAlpha(enabled ? 1 : 0.55)
+    t.setColor(enabled ? o.color ?? UI.ink : '#c3c6e4').setAlpha(enabled ? 1 : 0.9) // v101: dark ink on the grey disabled fill was unreadable ("ขาด 💧9")
   }
   draw()
   c.setSize(w, h).setInteractive({ useHandCursor: true })

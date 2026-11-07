@@ -60,3 +60,8 @@ export interface VerbPanel {
   /** Free everything the panel started (its own objects, timers, holds). The box itself is destroyed by the shell. */
   destroy(): void
 }
+
+/** The verb box in the right column (v101, 3-column layout of forge-ux-v1.md 3.2). Panels lay out inside 0..BOX_W, 0..BOX_H. */
+export const BOX_W = 340, BOX_H = 316
+/** Inner content: x from PAD to BOX_W - PAD. */
+export const PAD = 16, INNER_W = BOX_W - PAD * 2
