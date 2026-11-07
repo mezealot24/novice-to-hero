@@ -15,6 +15,7 @@ import { autoCost, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericB
 import { addCard, addMat, addXp, persist, save, ultMode } from '../save'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
 import { TAINT_MAT } from '../data/taint'
+import { pinnedReady } from '../data/cardforge'
 import { rollUniqueDrop, UNIQUE } from '../data/uniques'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
@@ -3877,6 +3878,8 @@ export class BattleScene extends Phaser.Scene {
     const lines = [...uniq, ...(mode?.lines ?? []), `+${this.zeny} zeny · +${this.runXp} EXP${s.gems > before ? ` · +${s.gems - before} เพชร` : ''}`]
     if (ups.base) lines.push(`🎉 Base Lv ${s.baseLevel}! ได้แต้มสถานะเพิ่ม`)
     if (ups.job) lines.push(`✨ Job Lv ${s.jobLevel}! ได้แต้มสกิลเพิ่ม`)
+    const pin = pinnedReady(s) // v99 📌 pinned forge recipe
+    if (pin) lines.push(`📌 ตี ${pin.icon} ${pin.name} ได้แล้ว! ไปที่ 🔨 โรงตีเหล็ก › 📜 สูตร`)
     if (this.runCards.length) { // grouped + capped: a long tower run can find dozens
       const n = new Map<string, number>()
       for (const id of this.runCards) n.set(id, (n.get(id) ?? 0) + 1)
@@ -3911,7 +3914,7 @@ export class BattleScene extends Phaser.Scene {
   /** Tower: bank this floor's loot, then climb on (true) or leave (false). */
   private async floorCleared(f: number): Promise<boolean> {
     this.towerFloor = f
-    if (this.run.modeId === 'tower' && recordTowerCheckpoint(save(), f, this.level, !!this.relic)) persist() // v87: level + relic of the first run to clear a checkpoint
+    if (this.run.modeId === 'tower' && recordTowerCheckpoint(save(), f, this.level, !!this.relic)) persist() // v87/v90: keeps the MAX level seen at this checkpoint across runs; relic is sticky (true once any run held one)
     const loot = towerFloorLoot(f, save().baseLevel, this.roomDef(this.room) ?? undefined)
     this.bank.zeny += loot.zeny
     for (const [id, n] of Object.entries(loot.mats)) this.bank.mats[id] = (this.bank.mats[id] ?? 0) + n

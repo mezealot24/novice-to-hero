@@ -6,6 +6,7 @@ import { talentMods, tree2Mods, treeMods, type TalentSave, type TreeSave } from 
 import { JOB2, type Job2Id, type WeaponType } from './jobs2'
 import { JOBS, type JobId } from './jobs'
 import { cardById, type EquipCard } from './cards'
+import { CARDFORGE_ITEMS } from './cardforge'
 import { CRAFT_ITEMS, forgeItem, GRADE, type CraftInfo, type RefineLine } from './craft'
 import { UNIQUE_ITEMS } from './uniques'
 import { applyCurse, type TaintRec } from './taint'
@@ -213,6 +214,8 @@ export const ITEMS: Item[] = [
   { id: 'o_mobknife', wtype: 'dagger', slot: 'offhand', name: 'มีดทวงหนี้', icon: '🩸', price: 1300, desc: 'อาชีพขั้น 2 · มีดมือรอง: พิษแรง stack สูง', base: { luk: 2, agi: 1 }, mod: { atk: 5, poisonDmg: 2, poisonCap: 3 }, jobs: TH, req: 'job2' },
   // ----- forge only (data/craft.ts) -----
   ...CRAFT_ITEMS,
+  // ----- Cardforge (data/cardforge.ts, v98): forge-only gear with a signature flag -----
+  ...CARDFORGE_ITEMS,
   // ----- boss drops (data/uniques.ts, v88) -----
   ...UNIQUE_ITEMS,
 ]
