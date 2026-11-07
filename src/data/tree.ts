@@ -38,7 +38,7 @@ export const INT_FIELDS: ReadonlySet<keyof Stats> = new Set<keyof Stats>([
   'poison', 'poisonCap', 'burnCap', 'autoBurn', 'lightHits', 'smiteTargets', 'clUltLights', 'doubleAtk', 'comboCount', 'mgFireStack',
   'waveDodge', 'ultDodge', 'ultHits', 'ultPoison', 'arWaveDodge', 'arUltDodge',
   'j2FrenzyMax', 'j2ChargeMax', 'j2DebuffTurns', 'j2BlindAdd', 'j2Traps', 'j2TurretTurns', 'j2EndowTurns', 'j2WolfBleed',
-  'j2PierceHits', 'j2HawkHits', 'j2AutoBolts', 'j2KnifeAdd', 'j2Meteors', 'j2LovHits',
+  'j2PierceHits', 'j2HawkHits', 'j2AutoBolts', 'j2KnifeAdd', 'j2Meteors', 'j2LovHits', 'j2HcVit',
 ])
 /** Non-★ nodes that keep their max (tier-4 ★, pow / pow2 / s2root / s2star kinds are never stretched either). Reason per id. */
 export const NO_STRETCH: Readonly<Record<string, string>> = {
@@ -143,6 +143,9 @@ for (const id of Object.keys(JOB2_TREES) as Job2Id[]) {
     web2Nodes.push({ id: `${id}_${line}p`, branch: `${id}_${line}`, tier: 0, icon: sk.icon, name: sk.name, max: TREE_RULES.powMax, kind: 'pow2',
       desc: (lv: number) => `${label} แรง +${Math.round(lv * TREE_RULES.powPer * 100)}%${id === 'crusader' && line === 'u2' ? ` · ${KIT2.crusader.gcPulses[Math.min(5, Math.round(lv))]} pulse` : ''}`,
       mod: (lv: number) => ({ [key]: TREE_RULES.powPer * lv, ...(id === 'crusader' && line === 'u2' ? { j2GcLv: lv } : {}) }) }) // v109: Grand Cross pulses by Lv
+    // v119: class nodes whose branch is this root's own column (`<job2>_s3` / `<job2>_u2`) hang under the root
+    let prev = `${id}_${line}p`
+    for (const x of c.nodes.filter((q) => q.branch === `${id}_${line}`).sort((p, q) => p.tier - q.tier)) { web2Nodes.push({ ...stretchNode(x), parent: prev }); prev = x.id }
   }
   for (const b of c.branches) {
     web2Branches.push({ ...b, line: 'job2' })
@@ -163,6 +166,21 @@ export function tree2Mods(t: TreeSave | undefined, j2: Job2Id | undefined): Part
   return out
 }
 export const TALENTS: TalentDef[] = CLASS_TREES.flatMap((c) => c.talents)
+// v119 (Q 2026-11-08): ทาเลนต์ชั้น 2 (data/trees2/<job2>.ts talents) — same rules as the base talents, read off Job2 Lv, own save (save.job2Talents)
+const TALENT2_JOB = new Map<string, Job2Id>((Object.keys(JOB2_TREES) as Job2Id[]).flatMap((j) => JOB2_TREES[j].talents.map((x) => [x.id, j] as [string, Job2Id])))
+export const TALENTS2: TalentDef[] = (Object.keys(JOB2_TREES) as Job2Id[]).flatMap((j) => JOB2_TREES[j].talents)
+export const talents2Of = (j2: Job2Id, row: number) => TALENTS2.filter((x) => x.row === row && TALENT2_JOB.get(x.id) === j2)
+/** Stats from the picked 2nd-job talents whose row is open at this Job2 Lv. */
+export function talent2Mods(t: TalentSave | undefined, j2: Job2Id | undefined, job2Level: number): Partial<Stats>[] {
+  if (!t || !j2) return []
+  const out: Partial<Stats>[] = []
+  TALENT_RULES.rowsAt.forEach((lv, i) => {
+    const p = talentPick(t, i + 1)
+    const def = p && TALENTS2.find((x) => x.id === p.id)
+    if (def && p && job2Level >= lv && TALENT2_JOB.get(def.id) === j2) out.push(def.mod(Math.min(p.rank, def.max)))
+  })
+  return out
+}
 
 export const branchesOf = (job: JobId) => BRANCHES.filter((b) => b.job === job)
 export const nodesOf = (branch: string) => ALL_NODES.filter((x) => x.branch === branch).sort((a, b) => a.tier - b.tier)

@@ -319,6 +319,7 @@ export class BattleScene extends Phaser.Scene {
     this.frenzy = 0; this.frenzyAt = 0; this.s3Cd = 0; this.rampage = 0; this.charges = 0; this.allies = []; this.allyTxt.clear(); this.chargeTxt = undefined
     this.s2 = this.job.id === 'novice' ? undefined : skill2Picked(s.jobTree, this.job.id); this.s2Cd = 0
     this.buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, bless: 0, dawnWis: 0 }; this.s2Count = 0
+    this.hcVit = { n: 0, turns: 0, amt: 0, delta: {} } // v119 💪 Holy Cross VIT stacks
     this.dawnWisAmt = 0; this.dawnWisDelta = {}; this.dawnCount = 0; this.gc = null // v102 ☀️ แสงแตก · v108 🌄 hit counter · v111 ✨ pulses
     this.blessOn = false; this.blessDelta = undefined; this.kyrie = { hp: 0, hits: 0 } // v77 พรแสง
     if (this.s2?.id === 'cl_spear') this.st.spearMul += S2N.spearPlus(this.st.s2Lv) // หอกคม: +10%/lv of the 0.3x base
@@ -1246,6 +1247,7 @@ export class BattleScene extends Phaser.Scene {
   /** ทักษะ 3: casts by itself (free extra action) at the start of the hero's turn when ready and paid for; Spear Boomerang answers a charge. */
   private async skill3Turn() {
     const j2 = this.j2!, K = KIT2.knight
+    if (this.hcVit.turns > 0 && --this.hcVit.turns === 0) { this.hcVit.n = 0; this.syncHcVit(0) } // v119 💪 Holy Cross VIT runs out
     if (this.st.j2Boomerang > 0 && !this.boomUsed) {
       const ch = this.alive().find((m) => m.charging)
       if (ch) {
@@ -1274,11 +1276,17 @@ export class BattleScene extends Phaser.Scene {
       if (j2.id === 'innovator') { await this.gadget(rollGadget(this.st, this.heroLuk), pow); return } // 🎲 กล่องสุ่มประหลาด
       if (j2.id === 'crusader') { // ✝️ Holy Cross: front monster, each hit P.ATK + Pm, then blind · Shield Boomerang
         const C = KIT2.crusader, t = live[0], k = C.crossMul * pow * (1 + this.st.j2CrossAdd)
+        let landed = 0
         if (t) await this.maceSmash(t, () => {
-          for (let i = 0; i < C.crossHits && !t.dead; i++) { this.strike(t, k * (1 + this.st.pskill), false, '#ffe08a'); this.strike(t, k, true, '#fff3a0') }
+          for (let i = 0; i < C.crossHits && !t.dead; i++) { landed += this.strike(t, k * (1 + this.st.pskill), false, '#ffe08a'); if (!t.dead) landed += this.strike(t, k, true, '#fff3a0') }
           if (!t.dead) { t.blind = Math.max(t.blind, C.blindTurns + this.st.j2BlindAdd); this.dotIcon(t); this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 30, '✝️ 🙈 ตาบอด', '#ffe08a') }
           this.cameras.main.flash(80, 255, 240, 170)
         })
+        if (landed > 0 && this.st.j2HcVit > 0 && this.hp > 0) { // v119 💪 กางเขนหล่อกาย: +VIT stack, lasts until hcVitGrace turns after the next ready cast
+          this.hcVit.n = Math.min(Math.round(this.st.j2HcVit), this.hcVit.n + 1); this.hcVit.turns = j2.skill3.cd + 1 + C.hcVitGrace
+          this.syncHcVit(this.hcVit.n * C.hcVit)
+          this.floatText(HERO_X, GROUND - 170, `💪 VIT +${this.hcVit.n * C.hcVit} (${this.hcVit.n}/${Math.round(this.st.j2HcVit)})`, '#ffe08a')
+        }
         const o = this.alive()
         if (this.st.j2ShieldBoom > 0 && this.hasShield && o.length) {
           const m = o[Phaser.Math.Between(0, o.length - 1)]
@@ -1982,7 +1990,7 @@ export class BattleScene extends Phaser.Scene {
   /** v111 ✨ Grand Cross pulses left (one fires on cast, then one at the start of each hero turn). k / extra are fixed at cast. */
   private gc: { left: number; n: number; k: number; extra: number } | null = null
   /** One Grand Cross pulse on every monster: gcPm x Pm (+ burn share, magic) and gcAtk x P.ATK + gcStr x STR (+ root share, physical).
-   *  ★ ซ้อน: hits twice, the 2nd without the burn share. Spell vamp +gcVamp on every pulse (asSkill heals, then clears it). */
+   *  ★ ซ้อน: hits twice, the 2nd without the burn share. v119: no spell vamp (the HP refund heals) · 🛡️ กางเขนคุ้มกาย shield per pulse. */
   private async gcPulse() {
     const g = this.gc
     if (!g || g.left <= 0 || !this.alive().length) return
@@ -1991,7 +1999,7 @@ export class BattleScene extends Phaser.Scene {
     const physMul = (C.gcAtk + this.st.clUltAtk / g.n) * g.k * (1 + this.st.pskill) + C.gcStr * (b.str + (bl.str ?? 0)) * g.k / atkAvg
     const last = g.left === 1
     g.left--
-    this.castVamp = C.gcVamp
+    if (this.st.j2GcShield > 0) this.addShield(this.st.maxHp * this.st.j2GcShield)
     for (let twice = 0; twice < (this.st.j2GcTwice > 0 ? 2 : 1) && this.alive().length; twice++) {
       this.cameras.main.flash(110, 255, 243, 160)
       for (const m of this.alive()) {
@@ -2726,7 +2734,7 @@ export class BattleScene extends Phaser.Scene {
     const sure =this.hx.web > 0 || (!magic && (src?.trueTurns ?? 0) > 0) // 🕸️ webbed: Can't Evade · 🎯 ตาเหยี่ยว: physical hits skip Flee + lucky dodge
     if (!sure && Math.random() < this.st.luckyDodge) return dodged('LUCKY!', '#6fd08c')
     if (!sure && Math.random() > hitChance(monHit, this.st.flee, 0.8 - this.st.fleeFloor)) return dodged('EVADE!', '#9fe3ff') // Thief เงาบาง lowers the floor
-    if (!magic && this.st.j2Guard > 0 && Math.random() < this.st.j2Guard * (this.hasShield ? 1 : KIT2.knight.guardShieldless)) { this.floatText(HERO_X, GROUND - 120, '🛡️ BLOCK!', '#9fe3ff'); sfx.hit(); this.onBlock(); return false } // Knight / Crusader Auto Guard
+    if (!magic && this.st.j2Guard > 0 && Math.random() < (this.st.j2Guard + (this.gc ? this.st.j2GcGuard : 0)) * (this.hasShield ? 1 : KIT2.knight.guardShieldless)) { this.floatText(HERO_X, GROUND - 120, '🛡️ BLOCK!', '#9fe3ff'); sfx.hit(); this.onBlock(); return false } // Knight / Crusader Auto Guard
     if (magic && this.j2?.id === 'sage') { // 🛡️ Sage Magic Rod
       if (this.st.j2RodBlock > 0 && !this.rodUsed) { this.rodUsed = true; this.gainRes(KIT2.sage.rodBlockMana); this.floatText(HERO_X, GROUND - 120, '🔮 Magic Rod! ดูดเวท', '#c9a8ff'); return false }
       if (this.st.j2MagicRod > 0) this.gainRes(this.st.j2MagicRod)
@@ -3005,6 +3013,7 @@ export class BattleScene extends Phaser.Scene {
   private takenMul() {
     const G = RELIC_RULES.glass
     return (1 - Math.min(this.pk.hardenCap, this.pk.harden * this.fightTurns)) * (this.relic === 'glass' && this.hp < this.st.maxHp * G.below ? 1 + G.taken : 1) * (this.rampage > 0 ? 1 + KIT2.berserker.ultTaken : 1) * (this.j2?.id === 'wizard' && this.casts.length ? 1 + KIT2.wizard.castTaken : 1) * (this.wardTurns > 0 ? 1 - this.st.clUltWard : 1) // v84 ม่านพร
+      * (this.gc && this.st.j2GcAngel > 0 ? 1 - Math.min(KIT2.crusader.angelCap, this.st.j2GcAngel * this.gc.left) : 1) // v119 🪽 Guardian Angel: fades with the pulses left
   }
   /** First drop under 30% HP this fight (lowHp cards), and 🌈 เงาปีศาจ under 50%. */
   private lowHpCheck() {
@@ -3515,6 +3524,26 @@ export class BattleScene extends Phaser.Scene {
     this.hp = Math.max(1, Math.min(this.hp, this.st.maxHp))
     this.blessOn = on
     if (!on) { this.kyrie = { hp: 0, hits: 0 }; this.floatText(HERO_X, GROUND - 150, '🔆 พรแสงหมด', '#c9c9d6') }
+  }
+  /** v119 💪 กางเขนหล่อกาย (Crusader): VIT stacks from Holy Cross; same delta trick as syncDawnWis. */
+  private hcVit: { n: number; turns: number; amt: number; delta: Partial<Record<keyof Stats, number>> } = { n: 0, turns: 0, amt: 0, delta: {} }
+  private syncHcVit(amt: number) {
+    const h = this.hcVit
+    if (amt === h.amt) return
+    const st = this.st as unknown as Record<string, number>
+    for (const [k, d] of Object.entries(h.delta)) st[k] -= d as number
+    h.delta = {}
+    if (amt > 0) {
+      const s = save()
+      const a = heroStats(s) as unknown as Record<string, number>
+      const b = heroStats({ ...s, tempBase: { vit: amt } }) as unknown as Record<string, number>
+      h.delta = Object.fromEntries(Object.keys(a).filter((k) => typeof a[k] === 'number' && a[k] !== b[k]).map((k) => [k, b[k] - a[k]])) as Partial<Record<keyof Stats, number>>
+      for (const [k, d] of Object.entries(h.delta)) st[k] += d as number
+    }
+    this.hp = Math.max(1, Math.min(this.hp, this.st.maxHp))
+    const was = h.amt
+    h.amt = amt
+    if (amt === 0 && was > 0) this.floatText(HERO_X, GROUND - 150, '💪 VIT กางเขนหมด', '#c9c9d6')
   }
   /** v102 ☀️ แสงแตก: WIS the buff adds right now (0 = off); derived stats move by exactly what heroStats() gives (like syncBless). */
   private dawnWisAmt = 0
@@ -4372,7 +4401,7 @@ export class BattleScene extends Phaser.Scene {
     // status chips (debuffs red, buffs gold) under the hero card
     const B = this.buf
     this.drawChips(statusChips(this.hx, {
-      gcLeft: this.gc?.left, dawn: this.st.clDawn > 0 && this.job.id === 'cleric' ? { n: this.dawnCount, every: KIT.clericTree.dawn.every } : undefined,
+      gcLeft: this.gc?.left, hcVit: this.hcVit.n, dawn: this.st.clDawn > 0 && this.job.id === 'cleric' ? { n: this.dawnCount, every: KIT.clericTree.dawn.every } : undefined,
       dawnWis: B.dawnWis, bless: B.bless, kyrieHits: this.kyrie.hits, gloria: this.st.s2Star > 0 && this.s2?.id === 'cl_bless',
       guard: B.guard, blood: B.blood, hawk: B.hawk, mshield: B.mshield, renew: B.renew, s2Icon: this.s2?.icon ?? '✨', s2Name: this.s2?.name ?? 'บัฟ',
     }))

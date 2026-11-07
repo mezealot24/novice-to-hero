@@ -1,5 +1,5 @@
 // 🪓 Berserker ใยชั้น 2 (design/second-jobs-v1.md §4). Node ids are save data: never rename.
-import { node as n, type ClassTree } from '../tree-types'
+import { node as n, rk, talent as t, type ClassTree } from '../tree-types'
 
 export const tree2: ClassTree = {
   branches: [
@@ -21,5 +21,19 @@ export const tree2: ClassTree = {
     n('bz_r3', 'bz_r', 3, '🧛', 'ไม่หยุด', 3, (lv) => `ดูดเลือด +${lv}% (ตีธรรมดา + คอมโบ)`, (lv) => ({ lifesteal: 0.01 * lv })),
     n('bz_r4', 'bz_r', 4, '👹', 'ไม่รู้สึกเจ็บ', 1, () => 'Rage เต็ม 100: ฟันเพิ่มทันที 1 รอบ (Rage เหลือ 0)', () => ({ j2RageTurn: 1 })),
   ],
-  talents: [],
+  talents: [
+    // v119 (Q 2026-11-08) ทาเลนต์ชั้น 2 · rows open at Job2 Lv 5/10/20/30 (TALENT_RULES) · I stats · II Ult วิวัฒน์ · III ทักษะ 3 · IV ตัวตน
+    t('bz_t1_rage', 1, '😡', 'เลือดเดือด', 2, (r) => `เริ่มเวฟด้วย Rage ${rk(r, 20, 35)}`, (r) => ({ startRage: rk(r, 20, 35) })),
+    t('bz_t1_crit', 1, '🎯', 'สัญชาตญาณฆ่า', 2, (r) => `คริ +${rk(r, 4, 7)}%`, (r) => ({ crit: rk(r, 0.04, 0.07) })),
+    t('bz_t1_hide', 1, '⛰️', 'หนังเหนียว', 2, (r) => `P.DEF +${rk(r, 5, 9)} · ต้านทาน +${rk(r, 8, 14)}%`, (r) => ({ def: rk(r, 5, 9), tenacity: rk(r, 0.08, 0.14) })),
+    t('bz_t2_ult', 2, '👹', 'คลั่งสุดขีด', 2, (r) => `บ้าระห่ำแรง +${rk(r, 15, 25)}%`, (r) => ({ ult2Pow: rk(r, 0.15, 0.25) })),
+    t('bz_t2_duel', 2, '👁️', 'จ้องตาย', 2, (r) => `เหลือมอนตัวเดียว หรือตีบอส: ดาเมจ +${rk(r, 8, 14)}%`, (r) => ({ j2Duel: rk(r, 0.08, 0.14) })),
+    t('bz_t2_low', 2, '🩹', 'ยิ่งเจ็บยิ่งแรง', 2, (r) => `ดาเมจ +${rk(r, 8, 14)}% x ส่วนที่ HP หายไป`, (r) => ({ j2LowHp: rk(r, 0.08, 0.14) })),
+    t('bz_t3_wave', 3, '🌊', 'คลื่นดาบคม', 2, (r) => `คลื่นดาบแรง +${rk(r, 15, 25)}%`, (r) => ({ s3Pow: rk(r, 0.15, 0.25) })),
+    t('bz_t3_rage', 3, '💢', 'โทสะไหลเวียน', 2, (r) => `ได้ Rage +${rk(r, 12, 20)}%`, (r) => ({ rageGain: rk(r, 0.12, 0.2) })),
+    t('bz_t3_gore', 3, '🩸', 'เลือดพุ่ง', 2, (r) => `ดาเมจคริ +${rk(r, 12, 20)}%`, (r) => ({ critMul: rk(r, 0.12, 0.2) })),
+    t('bz_t4_frenzy', 4, '🔥', 'คลั่งไม่หยุด', 2, (r) => `Frenzy สูงสุด +${rk(r, 1, 2)}`, (r) => ({ j2FrenzyMax: rk(r, 1, 2) })),
+    t('bz_t4_exec', 4, '☠️', 'ปลิดชีพ', 2, (r) => `บอส/มินิบอส HP ต่ำกว่า 30%: ดาเมจ +${rk(r, 20, 35)}%`, (r) => ({ j2DuelExec: rk(r, 0.2, 0.35) })),
+    t('bz_t4_leech', 4, '🧛', 'สูบเลือด', 2, (r) => `ดูดเลือด +${rk(r, 3, 5)}% (ตีธรรมดา + คอมโบ)`, (r) => ({ lifesteal: rk(r, 0.03, 0.05) })),
+  ],
 }

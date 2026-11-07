@@ -121,14 +121,14 @@ test('v108 🌄 passive detail rows: trigger every 3 hits, bonus, heal, ☀️ W
   assert.deepEqual(dawnInfo(heroStats(tree({ cleric_ultp: 1 })), { str: 50, wis: 50 }), [])
 })
 
-test('v106/v108 Grand Cross detail: cross rows (🙏 root P.ATK on the P.ATK cross), burn, vamp; no Cleric smash / Holy Light / Dawn Light', async () => {
+test('v106/v108 Grand Cross detail: cross rows (🙏 root P.ATK on the P.ATK cross), burn, no vamp (v119); no Cleric smash / Holy Light / Dawn Light', async () => {
   const { ultInfo, KIT2 } = await import('../src/data/skill-math')
   const st = heroStats(tree({ cleric_ultp: 5, cleric_dn1: 5 }))
   const gc = ultInfo('cleric', st, { str: 50, wis: 50 }, 'crusader').map((x) => x.label)
   assert.equal(gc.filter((x) => x.startsWith('✝️')).length, 1)
   assert.ok(gc.includes('💥 ดาเมจต่อครั้ง/ตัว') && gc.includes('💥 รวม/ตัว (ทุกครั้ง + เผา)')) // v116 summary rows
   assert.ok(gc.includes('· P.ATK (กาย · 🙏 ราก)') && gc.includes(`· ${KIT2.crusader.gcStr}x STR (กาย)`)) // v116: root P.ATK shown on the P.ATK row; STR its own row
-  assert.ok(gc.some((x) => x.startsWith('🔥')) && gc.some((x) => x.startsWith('🩸')) && !gc.some((x) => x.startsWith('🌄')))
+  assert.ok(gc.some((x) => x.startsWith('🔥')) && !gc.some((x) => x.startsWith('🩸 ดูดเลือด')) && !gc.some((x) => x.startsWith('🌄'))) // v119: Grand Cross spell vamp removed
   assert.ok(!gc.some((x) => x.startsWith('ทุบ') || x.startsWith('Holy Light')))
 })
 

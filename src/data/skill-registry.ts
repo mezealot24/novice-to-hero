@@ -132,7 +132,7 @@ const J2_LABEL: Record<string, string> = {
   'crusader.guard': '🛡️ Auto Guard: บล็อก', 'crusader.guardVit': '🛡️ บล็อกเพิ่มต่อ VIT', 'crusader.guardCap': '🛡️ บล็อกสูงสุด', 'crusader.guardOverMul': '🛡️ บล็อกเกิน Cap: โล่/ฮีลบล็อก × ต่อ 1', 'crusader.holyVs': 'ศรัทธา: แรงใส่อันเดด/ปีศาจ',
   'crusader.crossHits': '✝️ จำนวนฮิต', 'crusader.crossMul': '✝️ ต่อฮิต × (P.ATK + Pm)', 'crusader.blindTurns': '🙈 ตาบอด (เทิร์น)', 'crusader.blindHit': '🙈 Hit มอนลด',
   'crusader.gcPay': '✨ จ่าย HP % ปัจจุบัน', 'crusader.gcPm': '✨ ต่อ pulse × พลังเวท', 'crusader.gcAtk': '✨ ต่อ pulse × P.ATK', 'crusader.gcStr': '✨ ต่อ pulse × STR (flat)', 'crusader.gcPulses.0': '✨ pulse ที่ Lv0', 'crusader.gcPulses.1': '✨ pulse ที่ Lv1', 'crusader.gcPulses.2': '✨ pulse ที่ Lv2', 'crusader.gcPulses.3': '✨ pulse ที่ Lv3', 'crusader.gcPulses.4': '✨ pulse ที่ Lv4', 'crusader.gcPulses.5': '✨ pulse ที่ Lv5', 'crusader.gcRefund': '✨ คืน HP % ของที่จ่าย',
-  'crusader.gcRefundAt': '✨ คืน HP เมื่อโดนกี่ตัวขึ้นไป', 'crusader.gcBurn': '🔥 โบนัส × (Mana ที่เผา + HP ที่จ่าย)', 'crusader.gcVamp': '🩸 ดูดเลือดสกิลเพิ่มตอนร่าย',
+  'crusader.gcRefundAt': '✨ คืน HP เมื่อโดนกี่ตัวขึ้นไป', 'crusader.gcBurn': '🔥 โบนัส × (Mana ที่เผา + HP ที่จ่าย)', 'crusader.angelCap': '🪽 Guardian Angel ลดดาเมจสูงสุด', 'crusader.hcVit': '✝️ Holy Cross VIT ต่อ stack', 'crusader.hcVitGrace': '✝️ VIT อยู่ต่อหลังคูลดาวน์หมด (เทิร์น)',
   'crusader.martyrShield': '★ ผู้พลีชีพ: โล่ % HP', 'crusader.mastery.atkPct': 'ชำนาญอาวุธ: ATK %', 'crusader.mastery.def': 'ชำนาญอาวุธ: DEF',
 }
 /** Which column a KIT2 key goes to. Skill 3 Mana / cooldown are NOT here: jobs2.ts copies them at import, so they are tuned on JOB2 (job2.<id>.skill3.cost / cd). */

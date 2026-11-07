@@ -19,7 +19,7 @@ export interface StatusChip { icon: string; n: string; kind: ChipKind; name: str
 export interface HeroDebuffs { poison: number; burn: number; weaken: number; armorBreak: number; silence: number; web: number; slow: number; thorn: number; venomTurns: number }
 /** Hero buffs (Skill 2 buffs, Cleric Grand Cross / Dawn Light / Kyrie). */
 export interface HeroBuffs {
-  gcLeft?: number; dawn?: { n: number; every: number }; dawnWis: number; bless: number; kyrieHits: number; gloria: boolean
+  gcLeft?: number; hcVit?: number; dawn?: { n: number; every: number }; dawnWis: number; bless: number; kyrieHits: number; gloria: boolean
   guard: number; blood: number; hawk: number; mshield: number; renew: number
   s2Icon: string; s2Name: string
 }
@@ -35,6 +35,7 @@ export function statusChips(hx: HeroDebuffs, b: HeroBuffs): StatusChip[] {
   for (const [k, icon, name] of DEBUFFS) if (hx[k] > 0) out.push({ icon, n: String(hx[k]), kind: 'debuff', name })
   const buff = (on: boolean, icon: string, n: number | string, name: string) => { if (on) out.push({ icon, n: String(n), kind: 'buff', name }) }
   buff(b.gcLeft !== undefined, '✝️', b.gcLeft ?? 0, 'Grand Cross')
+  buff((b.hcVit ?? 0) > 0, '💪', b.hcVit ?? 0, 'VIT กางเขน (stack)')
   if (b.dawn) buff(true, '🌄', `${b.dawn.n}/${b.dawn.every}`, 'รุ่งอรุณ (ตีครบ = แสงรุ่งอรุณ)')
   buff(b.dawnWis > 0, '☀️', b.dawnWis, 'แสงแตก WIS')
   buff(b.bless > 0, b.s2Icon, b.bless, b.s2Name)

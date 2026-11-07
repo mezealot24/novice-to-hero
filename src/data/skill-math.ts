@@ -119,7 +119,8 @@ export const KIT2 = {
     guard: 0.1, guardVit: 0.002, guardCap: 0.4, guardOverMul: 2, // v116: each 1% over the cap = block shield / heal +2% · 🛡️ Auto Guard: block chance + per VIT point over the start (no off-hand = KIT2.knight.guardShieldless)
     holyVs: 0.25, holyFoes: ['skeleton', 'wisp', 'deathknight', 'hellknight', 'imp', 'necropriest', 'wraith', 'maiden', 'lich', 'bonepriest', 'mummy', 'dunewraith', 'pharaoh', 'gargoyle', ...PACKS.flatMap((p) => p.holyFoes)] as MonsterKind[], // ศรัทธา: undead / demons take +25%
     crossCost: 22, crossCd: 2, crossHits: 2, crossMul: 1, blindTurns: 2, blindHit: 0.2, // ✝️ Holy Cross: per hit P.ATK + Pm on the front monster · blind = its Hit -20%
-    gcPay: 0.2, gcPm: 0.5, gcAtk: 0.6, gcStr: 0.8, gcPulses: [2, 2, 2, 3, 4, 4], gcRefund: 0.5, gcRefundAt: 3, gcBurn: 1, gcVamp: 0.25, // v109 (Q): PER PULSE gcPm x Pm (magic) + gcAtk x P.ATK + gcStr x STR (physical), pulses by Ult วิวัฒน์ Lv 0..5; burn bonus + root P.ATK split over the pulses · // ✨ Grand Cross: pay 20% current HP · all monsters · 3+ hit = half the HP back · v106 (Q 2026-11-07): back to the v102 cross (no Mana cost, no Cleric ult) + burns ALL Mana left: bonus magic dmg/target = gcBurn x (Mana burnt + HP paid) · spellVamp +gcVamp while it casts · Cleric Ult-web node buffs apply (root Ult +12%/Lv, 🌄 P.ATK + Dawn Light, ไฟชำระ, talents)
+    gcPay: 0.2, gcPm: 0.5, gcAtk: 0.6, gcStr: 0.8, gcPulses: [2, 2, 2, 3, 4, 4], gcRefund: 0.5, gcRefundAt: 3, gcBurn: 1, // v119 (Q 2026-11-08): spell vamp removed (the HP refund already heals) · v109 (Q): PER PULSE gcPm x Pm (magic) + gcAtk x P.ATK + gcStr x STR (physical), pulses by Ult วิวัฒน์ Lv 0..5; burn bonus + root P.ATK split over the pulses · // ✨ Grand Cross: pay 20% current HP · all monsters · 3+ hit = half the HP back · v106 (Q 2026-11-07): back to the v102 cross (no Mana cost, no Cleric ult) + burns ALL Mana left: bonus magic dmg/target = gcBurn x (Mana burnt + HP paid) · Cleric Ult-web node buffs apply (root Ult +12%/Lv, 🌄 P.ATK + Dawn Light, ไฟชำระ, talents)
+    angelCap: 0.25, hcVit: 2, hcVitGrace: 2, // v119 (Q 2026-11-08): 🪽 Guardian Angel DR cap · ✝️ Holy Cross VIT per stack, turns it lasts after Holy Cross is ready again
     martyrShield: 0.2, // ★ ผู้พลีชีพ: shield share of max HP (Reflect Shield is capped by BATTLE.reflectCap)
     mastery: { atkPct: 0.05, def: 6 }, // mace / sword
   },
@@ -332,7 +333,9 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
         out.push({ label: `· P.ATK (กาย${st.clUltAtk > 0 ? ' · 🙏 ราก' : ''})`, value: hitText(st, atkPer * k * (1 + st.pskill), false) })
         out.push({ label: `· ${C.gcStr}x STR (กาย)`, value: `+${r(strFlat)}` })
         out.push({ label: '🔥 โบนัสเผา/ตัว (หลอดเต็ม)', value: `+${r(burn)} รวม` })
-        out.push({ label: '🩸 ดูดเลือดสกิล', value: `+${pct(C.gcVamp)}` })
+        if (st.j2GcAngel > 0) out.push({ label: '🪽 ลดดาเมจ/pulse ที่เหลือ', value: `${pct(st.j2GcAngel)} (สูงสุด ${pct(Math.min(C.angelCap, st.j2GcAngel * (n - 1)))})` })
+        if (st.j2GcShield > 0) out.push({ label: '🛡️ โล่ต่อ pulse', value: `${shield(st, st.maxHp * st.j2GcShield)}` })
+        if (st.j2GcGuard > 0) out.push({ label: '⛪ บล็อกระหว่าง Grand Cross', value: `+${pct(st.j2GcGuard)}` })
         out.push({ label: `โล่ ${CLERIC_KIT.ultShieldTurns} เทิร์น`, value: `${shield(st, st.maxHp * CLERIC_KIT.ultShield * (1 + st.ultPow) * (1 + st.ult2Pow))}` })
         if (st.clPurify > 0) out.push({ label: 'ไฟชำระ: ล้างดีบัฟ + ฮีล (M.ATK)', value: `${heal(st, st.matk * CLERIC_KIT.purifyHeal)} HP` })
         if (st.ultHoly > 0) out.push({ label: 'แสงลงทัณฑ์/ตัว', value: hitText(st, st.ultHoly, true) })

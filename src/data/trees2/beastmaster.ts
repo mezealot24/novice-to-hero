@@ -1,6 +1,6 @@
 // 🐺 Beastmaster ใยชั้น 2 (design/second-jobs-v1.md §4). Node ids are save data: never rename.
 // Each ★ evolves its branch's pet · 2 ★ = a second pet at KIT2.beastmaster.secondPow (battle: BattleScene.spawnPets).
-import { node as n, type ClassTree } from '../tree-types'
+import { node as n, rk, talent as t, type ClassTree } from '../tree-types'
 import { KIT2 } from '../skill-math'
 
 const T = KIT2.beastmaster.tree, pc = (x: number) => `${+(x * 100).toFixed(1)}%`
@@ -36,5 +36,19 @@ export const tree2: ClassTree = {
     n('bm_s3', 'bm_s', 3, '🐺', 'ขู่คำราม', 3, (lv) => `เริ่มเวฟ: เกจมอนทุกตัว −${T.roar * lv}`, (lv) => ({ j2Roar: T.roar * lv })),
     n('bm_s4', 'bm_s', 4, '🏹', 'พรานแห่งป่า', 1, () => 'ฮีโร่คริ → คู่หูตีซ้ำทันที (เทิร์นละครั้ง)', () => ({ j2CritPet: 1 })),
   ],
-  talents: [],
+  talents: [
+    // v119 (Q 2026-11-08) ทาเลนต์ชั้น 2 · I stats · II Ult วิวัฒน์ · III ทักษะ 3 · IV คู่หู (1 ทาเลนต์ต่อสัตว์)
+    t('bm_t1_pet', 1, '🐾', 'สายใยผูกพัน', 2, (r) => `สัตว์ทุกตัวแรง +${rk(r, 6, 10)}%`, (r) => ({ j2PetPow: rk(r, 0.06, 0.1) })),
+    t('bm_t1_hit', 1, '🎯', 'ตาพราน', 2, (r) => `HIT +${rk(r, 6, 10)}`, (r) => ({ hit: rk(r, 6, 10) })),
+    t('bm_t1_crit', 1, '🏹', 'ยิงจุดตาย', 2, (r) => `คริ +${rk(r, 3, 5)}%`, (r) => ({ crit: rk(r, 0.03, 0.05) })),
+    t('bm_t2_ult', 2, '🐾', 'ฝูงคลั่ง', 2, (r) => `ฝูงสัตว์ป่าแรง +${rk(r, 15, 25)}%`, (r) => ({ ult2Pow: rk(r, 0.15, 0.25) })),
+    t('bm_t2_lead', 2, '🎯', 'จ่าฝูง', 2, (r) => `ฮีโร่แรง +${rk(r, 3, 5)}% ต่อสัตว์ที่ยังอยู่`, (r) => ({ j2PackLead: rk(r, 0.03, 0.05) })),
+    t('bm_t2_heal', 2, '🩹', 'สัตว์เลียแผล', 2, (r) => `สัตว์ลงมือ 1 ครั้ง → ฮีล ${rk(r, 0.4, 0.7)}% HP สูงสุด`, (r) => ({ j2PetHeal: rk(r, 0.004, 0.007) })),
+    t('bm_t3_cmd', 3, '📯', 'สั่งลุยแรง', 2, (r) => `สั่งลุยแรง +${rk(r, 15, 25)}%`, (r) => ({ s3Pow: rk(r, 0.15, 0.25) })),
+    t('bm_t3_cut', 3, '🔋', 'คำสั่งประหยัด', 2, (r) => `สั่งลุยใช้ Energy −${rk(r, 4, 7)}`, (r) => ({ j2CmdCut: rk(r, 4, 7) })),
+    t('bm_t3_res', 3, '⚡', 'ล่าประสาน', 2, (r) => `สัตว์ลงมือ 1 ครั้ง → Energy +${rk(r, 1, 2)}`, (r) => ({ j2PetRes: rk(r, 1, 2) })),
+    t('bm_t4_hawk', 4, '🦅', 'เหยี่ยวพายุ', 2, (r) => `🦅 Blitz Beat โอกาส +${rk(r, 5, 8)}% · เหยี่ยวแรง +${rk(r, 10, 15)}%`, (r) => ({ j2HawkChance: rk(r, 0.05, 0.08), j2HawkMul: rk(r, 0.1, 0.15) })),
+    t('bm_t4_boar', 4, '🐗', 'หมูป่าเหล็ก', 2, (r) => `🐗 หมูป่า HP +${rk(r, 10, 18)}% ของ HP ฮีโร่ · พุ่งชนแรง +${rk(r, 15, 25)}%`, (r) => ({ j2BoarHp: rk(r, 0.1, 0.18), j2BoarMul: rk(r, 0.15, 0.25) })),
+    t('bm_t4_wolf', 4, '🐺', 'หมาป่าหิวโหย', 2, (r) => `🐺 กัดแรง +${rk(r, 12, 20)}% · เร็ว +${rk(r, 8, 12)}%`, (r) => ({ j2WolfMul: rk(r, 0.12, 0.2), j2WolfSpeed: rk(r, 0.08, 0.12) })),
+  ],
 }

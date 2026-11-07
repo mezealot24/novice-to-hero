@@ -4,7 +4,7 @@
 import { doubleAtkChance, type MonsterKind, type Stats } from '../data/game-data'
 import { BASE_JOBS, JOBS } from '../data/jobs'
 import { JOB2, type Job2Id } from '../data/jobs2'
-import { BRANCHES, BRANCHES2, nodesOf, talentsOf, type TreeBranch } from '../data/tree'
+import { BRANCHES, BRANCHES2, nodesOf, talents2Of, talentsOf, type TreeBranch } from '../data/tree'
 import { clampField, fieldRow } from './model'
 
 interface MapTo { field: string; label: string; conv?: (v: number) => number; approx?: string }
@@ -47,8 +47,12 @@ export function heroClasses(): HeroClass[] {
       srcs.push({ id: t.id, name: t.name, icon: t.icon, max: t.max, top: top(t.mod, t.max), group: `⭐ Talent แถว ${row}`, desc: t.desc, mod: t.mod })
     out.push({ id: job, name: `${JOBS[job].icon} ${JOBS[job].name}`, srcs: srcs.filter(mappable) })
   }
-  for (const j2 of Object.keys(JOB2) as Job2Id[])
-    out.push({ id: j2, name: `${JOB2[j2].icon} ${JOB2[j2].name} (สายสอง)`, srcs: BRANCHES2.filter((b) => b.job2 === j2).flatMap(fromBranch).filter(mappable) })
+  for (const j2 of Object.keys(JOB2) as Job2Id[]) {
+    const srcs = BRANCHES2.filter((b) => b.job2 === j2).flatMap(fromBranch)
+    for (const row of [1, 2, 3, 4]) for (const t of talents2Of(j2, row)) // v119 ทาเลนต์ชั้น 2
+      srcs.push({ id: t.id, name: t.name, icon: t.icon, max: t.max, top: top(t.mod, t.max), group: `⭐ Talent ชั้น 2 แถว ${row}`, desc: t.desc, mod: t.mod })
+    out.push({ id: j2, name: `${JOB2[j2].icon} ${JOB2[j2].name} (สายสอง)`, srcs: srcs.filter(mappable) })
+  }
   CLASSES = out.filter((c) => c.srcs.length)
   return CLASSES
 }

@@ -34,6 +34,7 @@ export interface SaveData {
   webRefund?: number // skill points refunded by that migration, shown once in town
   stretch?: 1 // v83: webs refunded once for the node-level stretch (data/tree.ts TREE_RULES.stretch)
   stretchRefund?: { skill: number; job2: number } // points that migration gave back, shown once in town
+  job2Talents?: Record<string, { id: string; rank: number }> // v119 ทาเลนต์ชั้น 2: same shape, Talent Points from Job2 Lv; cleared when the 2nd job changes
   jobTalents?: Record<string, { id: string; rank: number }> // talent row "1".."4" -> pick + rank; Talent Points are derived from Job Lv (data/tree.ts)
   stats: Record<BaseStat, number>
   zeny: number
@@ -344,6 +345,7 @@ export function changeJob2(id: Job2Id, gems = 0): boolean {
   if (!job2Ready(s) || JOB2[id].parent !== s.job || id === s.job2 || s.gems < gems) return false
   s.gems -= gems
   s.job2Points = (s.job2Points ?? 0) + resetTree2(s)
+  s.job2Talents = {} // v119: talents belong to the old 2nd job (TP are derived, nothing to refund)
   s.job2 = id
   s.job2Level ??= 1; s.job2Xp ??= 0
   persist()
@@ -366,7 +368,7 @@ export function repickJob(job: JobId): boolean {
   s.gems -= JOB_CHANGE.repickGems
   s.skillPoints += resetTree(s)
   s.jobTalents = {}
-  if (s.job2) { s.job2Points = (s.job2Points ?? 0) + resetTree2(s); s.job2 = undefined } // the new class picks its own 2nd job free (Job2 Lv kept)
+  if (s.job2) { s.job2Points = (s.job2Points ?? 0) + resetTree2(s); s.job2 = undefined; s.job2Talents = {} } // the new class picks its own 2nd job free (Job2 Lv kept)
   s.job = job
   s.jobSkills = { auto: 1, ult: 1 }
   persist()

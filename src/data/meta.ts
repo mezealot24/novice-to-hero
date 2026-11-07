@@ -2,7 +2,7 @@
 // Everything a run starts from is computed by heroStats(save). Balance knobs live here.
 import { COMBO, PLAYER, type Stats } from './game-data'
 import { KIT2, S2N } from './skill-math'
-import { talentMods, tree2Mods, treeMods, type TalentSave, type TreeSave } from './tree'
+import { talent2Mods, talentMods, tree2Mods, treeMods, type TalentSave, type TreeSave } from './tree'
 import { JOB2, type Job2Id, type WeaponType } from './jobs2'
 import { JOBS, type JobId } from './jobs'
 import { cardById, type EquipCard } from './cards'
@@ -352,7 +352,7 @@ export const SUPPORTER_PRICE = 300 // gems: badge + gold name, no stats
 export const FREE_GEMS = { firstClear: 50, clear: 5, levelUp: 10, daily: 20 }
 
 // ---------- combine everything into the hero's starting stats ----------
-export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; job2?: Job2Id; job2Tree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; sockets?: Record<string, string[]>; grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]>; taint?: Record<string, TaintRec>; tempBase?: Partial<Record<BaseStat, number>> }
+export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; job2?: Job2Id; job2Tree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; job2Talents?: TalentSave; job2Level?: number; sockets?: Record<string, string[]>; grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]>; taint?: Record<string, TaintRec>; tempBase?: Partial<Record<BaseStat, number>> }
 
 /** Items the hero actually gets stats from (gear for another job, or broken by a failed refine, stays on but does nothing). */
 export function wornItems(s: StatsInput): Item[] {
@@ -463,6 +463,7 @@ export function heroStats(s: StatsInput): Stats {
   if (j2) {
     add(j2.mod)
     for (const m of tree2Mods(s.job2Tree, j2.id)) add(m)
+    for (const m of talent2Mods(s.job2Talents, j2.id, s.job2Level ?? 1)) add(m) // v119 ทาเลนต์ชั้น 2
     const wpn = itemById(s.equipped.weapon ?? '')
     if (j2.mastery.ok(wpn)) { add(j2.mastery.mod); j2pct.atk += j2.mastery.pct?.atk ?? 0 } // weapon mastery
     j2pct.maxHp += (j2.pct?.maxHp ?? 0) + st.j2HpPct; j2pct.aspd += j2.pct?.aspd ?? 0

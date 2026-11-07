@@ -8,7 +8,7 @@ import { CARD_RULES, cardIcon, cardName, EQUIP_CARDS, TIER_COLOR, type EquipCard
 import { gradeStars, gradeCap } from '../data/craft'
 import { BASE_STATS, smashLv, canWear, forged, forgeTag, gradeOf, isBroken, refineOf, cardFits, CERT_SLOTS_AT, EQUIP_SLOTS, offhandLocked, slotKind, type EquipSlot, COSTUMES, gearBase, heroStats, cardStatLine, itemStatLine, splitStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, NOVICE_PASSIVES, NOVICE_RULES, noviceLeft, noviceSpent, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText, type BaseStat } from '../data/meta'
 import { canChangeJob, equip, persist, resetNovice, resetTree, resetTree2, save, socketCard, unsocketCard } from '../save'
-import { branches2Of, tree2Spent, BRANCHES, branchesOf, lockReason, skill2Picked, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentRankText, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
+import { branches2Of, talents2Of, tree2Spent, BRANCHES, branchesOf, lockReason, skill2Picked, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentRankText, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
 import { JOB_CHANGE, JOBS, type JobId } from '../data/jobs'
 import { JOB2, JOB2_RULES, PETS, type PetId } from '../data/jobs2'
 import { statLines } from '../data/statInfo'
@@ -35,6 +35,7 @@ export class CharacterScene extends Phaser.Scene {
   private showDetail = false // skill web: node detail modal open
   private modal?: Phaser.GameObjects.Container
   private web2 = false // skill tab: show ใยชั้น 2 (2nd job)
+  private talent2 = false // v119 talent tab: show ทาเลนต์ชั้น 2
   constructor() { super('character') }
 
   create(data: { tab?: number; back?: { key: string; data?: object } }) {
@@ -443,7 +444,8 @@ export class CharacterScene extends Phaser.Scene {
       const x = x0 + i * (cw + gap), br = brs[i]
       b.add(panel(this, x - 3, 150, cw + 6, 344, 0x1d2140, UI.line, 8))
       b.add(txt(this, x + 4, 155, `${br.icon} ${br.name}`, 11, UI.gold, true).setWordWrapWidth(cw))
-      c.forEach((n) => pos.set(n.id, { x, y: top + (n.kind ? 0 : n.tier - 1) * rh })) // roots and tier 1 share the top row
+      const under = c.some((n) => n.kind) ? 1 : 0 // v119: nodes under a root (Crusader Grand Cross / Holy Cross) start one row lower
+      c.forEach((n) => pos.set(n.id, { x, y: top + (n.kind ? 0 : n.tier - 1 + under) * rh })) // roots and tier 1 share the top row
       const pet = j2.id === 'beastmaster' ? BRANCH_PET[br.id] : undefined // 🐺 Beastmaster: pick the companion under its branch (free)
       if (pet) {
         const cur = (s.pet ?? 'hawk') === pet, evo = (t[`${br.id}4`] ?? 0) > 0, narrow = cw < 110 // v82: 7 columns -> icon-only label
@@ -550,18 +552,23 @@ export class CharacterScene extends Phaser.Scene {
       b.add(txt(this, 330, 166, `4 ชั้น เปิดที่ Job Lv ${TALENT_RULES.rowsAt.join(' / ')} · ชั้นละเลือก 1 จาก 3\nใช้แต้มทาเลนต์ (แยกจากแต้มสกิล) ได้ 1 แต้มทุก ${TALENT_RULES.pointEveryJobLv} Job Lv · รีเซ็ตฟรีในเมือง`, 14, UI.sub))
       return
     }
-    const t = (s.jobTalents ??= {})
-    const free = talentFree(t, s.jobLevel)
-    b.add(txt(this, 330, 114, `⭐ แต้มทาเลนต์เหลือ: ${free}`, 18, free > 0 ? UI.gold : UI.sub, true))
-    b.add(txt(this, 540, 118, `ได้ ${talentEarned(s.jobLevel)} จาก Job Lv ${s.jobLevel} · กดเลือก = ลง/อัปแรงก์`, 12, UI.sub))
+    // v119 (Q 2026-11-08): ทาเลนต์ชั้น 2 — same 4 rows, read off Job2 Lv, own picks (save.job2Talents)
+    const two = this.talent2 && !!s.job2, j2 = s.job2
+    const t = two ? (s.job2Talents ??= {}) : (s.jobTalents ??= {})
+    const jl = two ? s.job2Level ?? 1 : s.jobLevel, jlName = two ? 'Job2 Lv' : 'Job Lv'
+    const free = talentFree(t, jl)
+    b.add(txt(this, 330, 114, `⭐ แต้มทาเลนต์${two ? 'ชั้น 2' : ''}เหลือ: ${free}`, 18, free > 0 ? UI.gold : UI.sub, true))
+    b.add(txt(this, 560, 118, `ได้ ${talentEarned(jl)} จาก ${jlName} ${jl}`, 12, UI.sub))
+    if (j2) b.add(button(this, 760, 124, 112, 30, two ? '⭐ ชั้น 1' : `${JOB2[j2].icon} ชั้น 2`, () => { this.talent2 = !two; this.redraw() }, { size: 12, fill: 0x4a5a8a, color: UI.text }))
     b.add(button(this, 885, 124, 90, 30, 'รีเซ็ตฟรี', () => {
-      s.jobTalents = {}; persist(); toast(this, 'คืนแต้มทาเลนต์แล้ว'); this.redraw()
+      if (two) s.job2Talents = {}; else s.jobTalents = {}
+      persist(); toast(this, 'คืนแต้มทาเลนต์แล้ว'); this.redraw()
     }, { size: 13, fill: 0x5a5f8a, color: UI.text }).setEnabled(Object.keys(t).length > 0))
     TALENT_RULES.rowsAt.forEach((lv, i) => {
-      const row = i + 1, y = 144 + i * 104, open = s.jobLevel >= lv
-      const opts = talentsOf(s.job, row)
+      const row = i + 1, y = 144 + i * 104, open = jl >= lv
+      const opts = two && j2 ? talents2Of(j2, row) : talentsOf(s.job, row)
       const cur = talentPick(t, row)
-      b.add(txt(this, 330, y, `ชั้น ${row} · Job Lv ${lv}${open ? '' : ' 🔒'}`, 14, open ? UI.text : UI.sub, true))
+      b.add(txt(this, 330, y, `ชั้น ${row} · ${jlName} ${lv}${open ? '' : ' 🔒'}`, 14, open ? UI.text : UI.sub, true))
       if (!opts.length) { b.add(txt(this, 330, y + 26, 'กำลังออกแบบ (เร็วๆ นี้)', 12, UI.sub)); return }
       const cw = (600 - 2 * 10) / 3
       opts.slice(0, 3).forEach((o, k) => {
