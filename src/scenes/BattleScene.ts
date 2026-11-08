@@ -358,8 +358,8 @@ export class BattleScene extends Phaser.Scene {
       this.element = els[c]
       this.runElement = this.element
     }
-    if (this.run.mutators.length) { // daily: show the day's rules before the first wave
-      this.banner(`${this.run.corrupt ? `☠️ Corruption (รางวัล x${this.run.corrupt.reward.toFixed(2)})` : "🎲 กฎวันนี้"}: ${this.run.mutators.map((m) => `${m.icon} ${m.name}`).join(' · ')}`, this.run.mutators.map((m) => m.desc).join(' · '))
+    if (this.run.mutators.length) { // daily / bounty: show rules before the first wave
+      this.banner(`${this.run.corrupt ? `☠️ Corruption (รางวัล x${this.run.corrupt.reward.toFixed(2)})` : this.run.modeId === 'bounty' ? "🎯 ค่าหัวสัปดาห์นี้" : "🎲 กฎวันนี้"}: ${this.run.mutators.map((m) => `${m.icon} ${m.name}`).join(' · ')}`, this.run.mutators.map((m) => m.desc).join(' · '))
       await this.wait(1600)
       if (id !== this.runId) return
     }
@@ -2425,7 +2425,7 @@ export class BattleScene extends Phaser.Scene {
     const dg = (!this.dg.level && statNative(m.kind) && homeDungeon(m.kind)) || this.dg.id, got: [string, number][] = [] // v114: a D6+ monster in the tower drops its own dungeon's mats
     if (m.def.ai === 'boss' && !m.def.mini) {
       got.push([matOf(dg, true), MAT_RULES.boss.boss], [matOf(dg, false), MAT_RULES.boss.common])
-      if ((this.run.modeId === 'dungeon' || this.run.modeId === 'hard') && this.roomDef(this.room)?.boss && taintDrop(dg)) got.push([TAINT_MAT, taintDrop(dg) + (this.hell ? HELL_MODE.taintAdd : 0)]) // v89 ผลึกโลกันตร์: D6+ final boss only
+      if ((this.run.modeId === 'dungeon' || this.run.modeId === 'hard' || this.run.modeId === 'bounty') && this.roomDef(this.room)?.boss && taintDrop(dg)) got.push([TAINT_MAT, taintDrop(dg) + (this.hell ? HELL_MODE.taintAdd : 0)]) // v89 ผลึกโลกันตร์: D6+ final boss only
     }
     else if (m.def.ai === 'boss') got.push([matOf(dg, true), MAT_RULES.mini.boss])
     else if (Math.random() < MAT_RULES.normalRate * this.dropMul) got.push([matOf(dg, false), 1])
@@ -2438,7 +2438,7 @@ export class BattleScene extends Phaser.Scene {
   /** v88 unique item (design/unique-taint-tower-skip-v1.md §2): only the final boss of a dungeon / hard run can drop one.
    * A duplicate (already owned, or already dropped this run) pays that dungeon's boss materials instead. Never zeny. */
   private rollUnique(m: Mon) {
-    if ((this.run.modeId !== 'dungeon' && this.run.modeId !== 'hard') || m.revived || m.def.ai !== 'boss' || m.def.mini || !cardsOfMonster(m.kind).length || !this.roomDef(this.room)?.boss) return
+    if ((this.run.modeId !== 'dungeon' && this.run.modeId !== 'hard' && this.run.modeId !== 'bounty') || m.revived || m.def.ai !== 'boss' || m.def.mini || !cardsOfMonster(m.kind).length || !this.roomDef(this.room)?.boss) return
     const got = rollUniqueDrop(this.dg.id, this.hell ? 'hell' : this.hard, [...save().owned, ...this.runUniques])
     if (got.kind === 'none') return
     const it = itemById(got.id)
@@ -4267,7 +4267,7 @@ export class BattleScene extends Phaser.Scene {
     const secs = Math.round((this.time.now - this.startedAt) / 1000)
     const rewards = this.settle(true)
     this.panel([
-      { text: this.hell ? '😈 เคลียร์โหมดนรกแล้ว!' : this.hard ? '🔥 เคลียร์โหมดยากแล้ว!' : this.run.modeId === 'daily' ? '🎲 ผ่านท้าทายรายวัน!' : 'เคลียร์ดันแล้ว!', size: 44, color: '#f2b84b', bold: true },
+      { text: this.hell ? '😈 เคลียร์โหมดนรกแล้ว!' : this.hard ? '🔥 เคลียร์โหมดยากแล้ว!' : this.run.modeId === 'bounty' ? '🎯 พิชิตค่าหัวสัปดาห์นี้!' : this.run.modeId === 'daily' ? '🎲 ผ่านท้าทายรายวัน!' : 'เคลียร์ดันแล้ว!', size: 44, color: '#f2b84b', bold: true },
       { text: `ล้ม${this.dg.boss}ได้ใน ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} นาที · ${this.kills} ตัว · HP เหลือ ${this.hp}`, size: 19 },
       { text: rewards, size: 19, color: '#f2b84b' },
       { text: `build: ${this.buildText() || '-'} · Lv ${this.level}`, size: 16, color: '#a9a6c7' },

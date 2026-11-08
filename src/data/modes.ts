@@ -2,7 +2,8 @@
 // BattleScene only reads the RunConfig (rooms, scaling, mutators, events, HUD text); mode rules live here.
 import { DUNGEONS, HARD, hardMul, type DungeonDef, type MonsterKind, type RoomDef } from './game-data'
 import { MINI_POOL } from './relics'
-import { matOf } from './materials'
+import { matName, matOf } from './materials'
+import { TAINT_MAT } from './taint'
 import { foldMutators, rng, rollMutators, type FoldedMutators, type MutatorDef } from './mutators'
 import type { SaveData } from '../save'
 import { heroParts, matchScale, TOWER_POWER, towerDamp, type PowerParts } from './power'
@@ -11,7 +12,7 @@ import { foldCorruptions, rollCorruptions, type FoldedCorruption } from './corru
 import { DEEP_ANCHOR, statNative } from './mon-stats'
 import { hellChance } from './hell'
 
-export type ModeId = 'dungeon' | 'hard' | 'tower' | 'daily'
+export type ModeId = 'dungeon' | 'hard' | 'tower' | 'daily' | 'bounty'
 /** v87 tower checkpoint record: the in-run level (and whether a relic was held) the first time a run cleared that floor. */
 export interface TowerCp { lv: number; relic?: boolean }
 export interface ModeRecord { bestFloor?: number; clears: number; lastSeed?: number; lastDeepSeed?: number /* v118 🌌 deep daily */; cp?: Record<number, TowerCp> /* v87: tower checkpoints, keyed by floor (10, 20, ...) */ }
@@ -327,6 +328,67 @@ function dailyRun(s: SaveData, seed: number, deep = false): RunConfig {
   }
 }
 
+// ---------- 🎯 Weekly Boss Bounty ----------
+export const BOUNTY = {
+  unlock: 'd6',
+  pool: ['d6', 'd7', 'd8', 'd9', 'd10'],
+  gems: 50,
+  fortune: 50,
+  taintCrystals: 5,
+  bossMats: 3,
+  zeny: 5000,
+}
+export const bountyOk = (s: SaveData) => cleared(s, BOUNTY.unlock)
+
+/** Year + ISO week number, e.g. 202645 for week 45 of 2026 */
+export function weeklySeed(d = new Date()): number {
+  const target = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+  const dayNr = (target.getUTCDay() + 6) % 7 // Monday = 0, Sunday = 6
+  target.setUTCDate(target.getUTCDate() - dayNr + 3) // Nearest Thursday
+  const firstThursday = target.valueOf()
+  target.setUTCMonth(0, 1)
+  if (target.getUTCDay() !== 4) {
+    target.setUTCMonth(0, 1 + ((4 - target.getUTCDay()) + 7) % 7)
+  }
+  const week = 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000)
+  return target.getUTCFullYear() * 100 + week
+}
+
+export function bountyOf(seed: number, s?: SaveData) {
+  const rand = rng(seed)
+  const available = s ? DUNGEONS.filter((d) => d.level && cleared(s, d.id)).map((d) => d.id) : BOUNTY.pool
+  const pool = available.length > 0 ? available : BOUNTY.pool
+  const id = pool[Math.floor(rand() * pool.length)]
+  const dg = DUNGEONS.find((d) => d.id === id)!
+  const mutators = rollMutators(rand, 2)
+  return { dg, mutators }
+}
+
+function bountyRun(s: SaveData, seed: number): RunConfig {
+  const { dg, mutators } = bountyOf(seed, s), mut = foldMutators(mutators)
+  const waves = dg.rooms.filter((r) => !r.boss && !r.mini && r.spawn.length)
+  const mini = dg.rooms.find((r) => r.mini) ?? waves[1] ?? waves[0]
+  const boss = dg.rooms.find((r) => r.boss)!
+  const rooms: RunRoom[] = [
+    { ...waves[0], title: `🎯 ล่าค่าหัว · ${waves[0].title.replace(/^เวฟ \d+ · /, '')}`, src: dg.id },
+    { ...mini, title: `🎯 ล่าค่าหัว · ${mini.title.replace(/^เวฟ \d+ · /, '')}`, src: dg.id },
+    { ...boss, title: `👹 บอสเป้าหมาย · ${boss.title.replace(/^ห้องบอส · /, '')}`, src: dg.id },
+  ]
+  const pp = heroParts(s)
+  return {
+    modeId: 'bounty', seed, endless: false, affix: true, mutators, mut, tag: '🎯', tint: 0xffa07a,
+    roomAt: (i) => (rooms[i] ? { ...rooms[i], src: dg.id } : null),
+    themeAt: () => dg,
+    scale: () => null,
+    turnMul: () => mut.turnMul,
+    eventsAfter: (i, r) => (r.boss || i >= rooms.length - 1 ? 0 : 1),
+    relicAfter: () => true,
+    where: (i) => `🎯 ล่าค่าหัว สัปดาห์ ${String(seed).slice(4)} · ${dg.name} · ด่าน ${i + 1}/${rooms.length}`,
+    power: pp.power,
+    pp,
+  }
+}
+
 // ---------- the modes ----------
 const none: ModeReward = { gems: 0, fortune: 0, zeny: 0, mats: {}, lines: [] }
 
@@ -384,10 +446,47 @@ export const MODES: Record<ModeId, GameMode> = {
       return { ...none, mats: {}, gems: DAILY.gems, fortune: DAILY.fortune, lines: [`🎲 เคลียร์ท้าทายรายวัน! +${DAILY.gems} เพชร · 🍀 +${DAILY.fortune}`] }
     },
   },
+  bounty: {
+    id: 'bounty', name: 'ล่าค่าหัวประจำสัปดาห์', icon: '🎯',
+    desc: `บอส D6-D10 ติดกฎพิเศษ 2 อย่าง หมุนเวียนทุกสัปดาห์ (3 ห้องกระชับ)\nเคลียร์ครั้งแรกของสัปดาห์ 💎${BOUNTY.gems} · 🍀${BOUNTY.fortune} · ${matName(TAINT_MAT)} x${BOUNTY.taintCrystals}`,
+    unlock: (s) => (bountyOk(s) ? { ok: true, why: '' } : { ok: false, why: `ปลดล็อกหลังเคลียร์${dungeonName(BOUNTY.unlock)}` }),
+    record: (s) => {
+      const r = s.modes?.bounty, week = weeklySeed()
+      return `${r?.lastSeed === week ? '✅ สัปดาห์นี้พิชิตแล้ว' : 'สัปดาห์นี้ยังไม่พิชิต'} · รวม ${r?.clears ?? 0} ครั้ง`
+    },
+    buildRun: (s, a) => bountyRun(s, a.seed ?? weeklySeed()),
+    reward: (s, cfg, r) => {
+      const rec = modeRec(s, 'bounty')
+      if (!r.won) return { ...none, lines: [] }
+      const dg = cfg.themeAt(0)
+      const bossMat = matOf(dg.id, true)
+      if (rec.lastSeed === cfg.seed) {
+        return {
+          ...none,
+          mats: { [bossMat]: 1 },
+          lines: ['🎯 สัปดาห์นี้รับรางวัลค่าหัวพิเศษไปแล้ว (เล่นซ้ำได้วัตถุดิบบอสปกติ)'],
+        }
+      }
+      rec.lastSeed = cfg.seed
+      rec.clears++
+      return {
+        ...none,
+        gems: BOUNTY.gems,
+        fortune: BOUNTY.fortune,
+        zeny: BOUNTY.zeny,
+        mats: { [TAINT_MAT]: BOUNTY.taintCrystals, [bossMat]: BOUNTY.bossMats },
+        lines: [
+          `🎯 พิชิตค่าหัวสัปดาห์นี้! +${BOUNTY.gems} เพชร · 🍀 +${BOUNTY.fortune}`,
+          `🔻 ได้รับ ${matName(TAINT_MAT)} x${BOUNTY.taintCrystals} (สำหรับใส่คำสาป)`,
+          `📦 ได้รับวัตถุดิบบอส ${matName(bossMat)} x${BOUNTY.bossMats}`,
+        ],
+      }
+    },
+  },
 }
 
 /** dungeon / hard keep their old entry args ({ d, hard }); new modes pass { mode }. */
 export const modeOf = (a: ModeArgs): ModeId => a.mode ?? (a.hard ? 'hard' : 'dungeon')
 export const buildRun = (s: SaveData, a: ModeArgs) => MODES[modeOf(a)].buildRun(s, a)
 /** Modes listed in the 🎮 panel (dungeon / hard stay in the adventure list). */
-export const PANEL_MODES: ModeId[] = ['tower', 'daily']
+export const PANEL_MODES: ModeId[] = ['tower', 'daily', 'bounty']
