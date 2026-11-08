@@ -51,3 +51,16 @@ test('v98 salvage: pays the fee, returns mats + socketed cards, forgets forge st
   assert.deepEqual(s.refineGems, [`${sword.id}:7`]) // the +7 gems can't be earned twice
   for (const [id, n] of Object.entries(r.mats)) assert.equal(s.mats?.[id], n)
 })
+
+test('Q 2026-11-08 salvage: a Corrupted shop piece can be melted for 50% of grade-up mats + taint crystals', () => {
+  const sw = itemById('longsword')
+  assert.equal(salvageable(mk({ taint: { longsword: { kind: 'curse', curse: 'glass' } } }), sw).ok, true)
+  const s = mk({ grade: { longsword: 3 }, refine: {}, refineGems: [], taint: { longsword: { kind: 'none' } } })
+  const inv = investedMats(sw, 3, true)
+  assert.equal(inv.x_taint, 2)
+  const p = salvagePreview(s, sw)
+  for (const [id, n] of Object.entries(inv)) assert.equal(p.mats[id] ?? 0, Math.floor(n * 0.5))
+  assert.equal(p.mats.x_taint, 1)
+  assert.ok(salvage(s, sw))
+  assert.equal(s.owned.includes('longsword'), false)
+})
