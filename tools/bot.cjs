@@ -125,7 +125,7 @@ if (process.env.BROKEN) save.broken = Object.values(save.equipped)
     res.push(await p.evaluate(async ([first, RELIC, D, DUN, HARD, MODE, TOWER_MAX, SEED, TMO, START, PERK, EVENT, SMART, LAST, POLL]) => {
       const g = window.__nth, R = g.renderer
       R.preRender = () => {}; R.render = () => {}; R.postRender = () => {} // test only: skip drawing
-      if (first) { g.scene.getScenes(true).forEach((s) => s.scene.stop()); g.scene.start('battle', MODE ? { mode: MODE, ...(SEED ? { seed: SEED } : {}), ...(START ? { startFloor: START } : {}) } : { d: DUN, hard: !!HARD }) }
+      if (first) { g.scene.getScenes(true).forEach((s) => s.scene.stop()); g.scene.start('battle', MODE ? { mode: MODE, ...(SEED ? { seed: SEED } : {}), ...(START ? { startFloor: START } : {}) } : { d: DUN, hard: !!HARD, ...(HARD === 'hell' ? { hell: true } : {}) }) } // HARD=hell: 😈 hell mode (D6-D10)
       while (!window.__battle || !window.__battle.st) await new Promise((r) => setTimeout(r, 30))
       const B = window.__battle
       if (TMO === 1) return { power: B.run.power, o: Math.round(B.run.pp.offense), s: Math.round(B.run.pp.survival), st: Object.fromEntries(["maxHp","atk","minPct","crit","critMul","combo","aspd","doubleAtk","flee","luckyDodge","dodgeHeal","fleeFloor","def","pskill","s1Pow","ultPow","ultAmp","hit","regen"].map((k) => [k, +(+B.st[k]).toFixed(3)])) } // POWER=1: only print the Hero Power of this profile
@@ -151,7 +151,7 @@ if (process.env.BROKEN) save.broken = Object.values(save.equipped)
       }
       const bm = B.mons.find((m) => m.def.ai === 'boss')
       return { power: B.run.power, enrage: B.enrageCount ?? 0, procHits: B.procHits ?? null, perks: B.perkList ? B.perkList() : '', imm: B.immortal ?? null, floor: B.towerFloor, mode: B.run.modeId, where: B.run.where(B.room), muts: B.run.mutators.map((m) => m.id).join('+'), mats: Object.values(B.runMats || {}).reduce((a, n) => a + n, 0), maxHp: Math.round(B.st.maxHp), minHp: B.minHpPct, mini: B.miniKind, miniWon: B.miniWon, relic: B.relic, parry: B.parryCount, frz: B.freezeCount, tl: (B.turnsLog || []).join('/'), win: B.over && B.hp > 0 && !B.timedOut, room: B.room, hp: Math.round(B.hp), bossHp: bm ? Math.max(0, Math.round(bm.hp)) : null, breaks: B.breakCount ?? 0, revived: B.revivedCount ?? 0, ctr: B.counterCount ?? 0, combo: B.comboCount ?? 0, el: B.job.id === 'mage' ? B.element : '', s2: B.s2Count ?? 0, to: !!B.timedOut, dbf: B.debuffCount ?? 0, peak: B.peakTurns ?? 0, ms: Date.now() - t0 }
-    }, [r === 0, process.env.RELIC || '', D,  process.env.DUN ? +process.env.DUN : D >= 4 ? D - 1 : D, !!process.env.HARD, process.env.MODE || '', +(process.env.TOWER_MAX || 15), +(process.env.SEED || 0), +(process.env.POWER ? 1 : process.env.TMO || 120000), +(process.env.START || 0), process.env.PERK || '', process.env.EVENT || '', process.env.PICK === 'smart', process.env.PICK === 'last', LITE ? 40 : 15]))
+    }, [r === 0, process.env.RELIC || '', D,  process.env.DUN ? +process.env.DUN : D >= 4 ? D - 1 : D, process.env.HARD || '', process.env.MODE || '', +(process.env.TOWER_MAX || 15), +(process.env.SEED || 0), +(process.env.POWER ? 1 : process.env.TMO || 120000), +(process.env.START || 0), process.env.PERK || '', process.env.EVENT || '', process.env.PICK === 'smart', process.env.PICK === 'last', LITE ? 40 : 15]))
   }
   if (process.env.POWER) { console.log(JSON.stringify({ job, D, ...res[0] })); await b.close(); return }
   if (process.env.DEBUG) console.log(JSON.stringify(res))

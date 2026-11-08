@@ -5,6 +5,7 @@
 import type { Item } from './meta'
 import type { JobId } from './jobs'
 import { matOf } from './materials'
+import { HELL_MODE } from './hell'
 
 export const UNIQUE = {
   maxEquipped: 2, // worn at the same time (counted by slot, enforced in save.ts equip)
@@ -63,9 +64,10 @@ export type UniqueDrop =
 
 /** One final-boss kill of dungeon `dg`. `owned` = ids the player already has (plus any dropped earlier in this run).
  * A duplicate pays that dungeon's boss materials, NEVER zeny. `rnd` is injectable for tests. */
-export function rollUniqueDrop(dg: string, hard: boolean, owned: readonly string[], rnd: () => number = Math.random): UniqueDrop {
+/** hard = 🔥 hard, 'hell' = 😈 hell mode (hell.ts HELL_MODE.uniqueRate). */
+export function rollUniqueDrop(dg: string, hard: boolean | 'hell', owned: readonly string[], rnd: () => number = Math.random): UniqueDrop {
   const pool = UNIQUE_DROPS[dg]
-  if (!pool?.length || rnd() >= (hard ? UNIQUE.dropRateHard : UNIQUE.dropRate)) return { kind: 'none' }
+  if (!pool?.length || rnd() >= (hard === 'hell' ? HELL_MODE.uniqueRate : hard ? UNIQUE.dropRateHard : UNIQUE.dropRate)) return { kind: 'none' }
   const id = pool[Math.min(pool.length - 1, Math.floor(rnd() * pool.length))]
   return owned.includes(id) ? { kind: 'dupe', id, mats: { [matOf(dg, true)]: UNIQUE.dupeBoss } } : { kind: 'new', id }
 }

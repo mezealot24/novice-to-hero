@@ -22,7 +22,7 @@ import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } fr
 import { sfx, unlock } from '../sfx'
 import { HARD_POWER, matchScale, overpowerMul, TOWER_POWER } from '../data/power'
 import { deepAnchor, homeDungeon, legacyLevel, levelDropMul, restatAt, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, statNative, towerMonLv, withStats } from '../data/mon-stats'
-import { HELL, hellify } from '../data/hell'
+import { HELL, HELL_MODE, hellify } from '../data/hell'
 import { foldAffixes } from '../data/affixes'
 import { PACKS } from '../data/dungeons'
 import { buildRun, MODES, payTowerSkip, recordTowerCheckpoint, towerFloorLoot, towerSkipGems, type ModeArgs, type RunConfig, type RunRoom } from '../data/modes'
@@ -160,6 +160,7 @@ export class BattleScene extends Phaser.Scene {
   private dg: DungeonDef = DUNGEONS[0]
   /** Hard mode (v47): replay of a cleared dungeon, monsters scale with Base Lv (data/game-data.ts HARD). gap = levels above the dungeon's recLv. */
   hard = false
+  hell = false // 😈 hell mode (D6-D10): a hard run where every monster is a Hell copy (data/hell.ts HELL_MODE)
   hardGap = 0
   /** v59: hard-mode monster multiplier from Hero Power (HUD shows it), normal-dungeon drop share when over-geared. */
   hardK = { hp: 1, atk: 1 }
@@ -227,6 +228,7 @@ export class BattleScene extends Phaser.Scene {
     this.run = buildRun(save(), this.modeArgs)
     this.dg = this.run.themeAt(0)
     this.hard = this.run.modeId === 'hard'
+    this.hell = this.hard && !!this.run.hell
     this.mons = []; this.queueIcons = []; this.overlay = undefined; this.paused = false; this.over = false
     this.time.paused = false
   }
@@ -300,7 +302,7 @@ export class BattleScene extends Phaser.Scene {
       else { this.modeArgs.skipTo = undefined; this.modeArgs.startFloor = undefined; this.skipNote = '💎 เพชรไม่พอข้ามชั้น: เริ่มที่ชั้น 1' }
     }
     this.run = buildRun(s, this.modeArgs) // a retry rebuilds the run (new tower floors, same daily seed)
-    track({ e: 'run_start', mode: this.run.modeId, dungeon: this.run.themeAt(0).id }); ftue('run1_start')
+    track({ e: 'run_start', mode: this.run.hell ? 'hell' : this.run.modeId, dungeon: this.run.themeAt(0).id }); ftue('run1_start')
     this.retheme(this.run.themeAt(0))
     const mut = this.run.mut
     this.drained = 0; this.drainDelta = undefined
@@ -482,8 +484,9 @@ export class BattleScene extends Phaser.Scene {
   /** D6+ level dungeon: numbers from the monster's 7 stats at the room's level (data/mon-stats.ts). No Hero Power scaling;
    * 🔥 hard = +50% stat points on every tier, boss / mini affixes, and the run's corruption (affixes + stat boosts). */
   private statDef(base: MonsterDef): MonsterDef {
-    const lv = this.roomDef(this.room)?.lv ?? roomLevel(this.dg.level!, this.dg.rooms, this.room)
-    const out = statMonster(base, lv, { hard: this.hard, statMul: this.run.corrupt?.statMul })
+    const lv = (this.roomDef(this.room)?.lv ?? roomLevel(this.dg.level!, this.dg.rooms, this.room)) + (this.hell ? HELL_MODE.lv : 0) // 😈 hell: +10 Lv
+    let out = statMonster(base, lv, { hard: this.hard, statMul: this.run.corrupt?.statMul })
+    if (this.hell && !out.passive) out = hellify(out, Math.random()) // 😈 every monster is a Hell copy (one trait, HP / ATK / EXP up)
     const mut = this.run.mut
     if (mut.monHp !== 1) out.hp = Math.round(out.hp * mut.monHp)
     if (mut.monAtk !== 1) { out.dmg *= mut.monAtk; out.matk = (out.matk ?? out.dmg) * mut.monAtk }
@@ -634,7 +637,7 @@ export class BattleScene extends Phaser.Scene {
     const room = this.roomDef(this.room)
     this.turnLimit = room?.turnLimit ?? (room?.boss ? BATTLE.bossTurnLimit : BATTLE.turnLimit)
     this.turnLimit = Math.round(this.turnLimit * BATTLE.monBuff.turns[Math.max(0, Math.min(4, this.dg.tier - 1))])
-    if (this.hard) this.turnLimit = Math.round(this.turnLimit * HARD.turnMul)
+    if (this.hard) this.turnLimit = Math.round(this.turnLimit * HARD.turnMul * (this.hell ? HELL_MODE.turnMul : 1))
     if (room) this.turnLimit = Math.max(5, Math.round(this.turnLimit * this.run.turnMul(room))) // tower floors / daily ⏳ รีบเร่ง
     if (this.relic === 'iceage') this.castIceAge()
     if (this.relic === 'aegis') { // โล่อมตะ: shield at every fight start (tops up, never stacks)
@@ -2355,7 +2358,7 @@ export class BattleScene extends Phaser.Scene {
     const dg = (!this.dg.level && statNative(m.kind) && homeDungeon(m.kind)) || this.dg.id, got: [string, number][] = [] // v114: a D6+ monster in the tower drops its own dungeon's mats
     if (m.def.ai === 'boss' && !m.def.mini) {
       got.push([matOf(dg, true), MAT_RULES.boss.boss], [matOf(dg, false), MAT_RULES.boss.common])
-      if ((this.run.modeId === 'dungeon' || this.run.modeId === 'hard') && this.roomDef(this.room)?.boss && taintDrop(dg)) got.push([TAINT_MAT, taintDrop(dg)]) // v89 ผลึกโลกันตร์: D6+ final boss only
+      if ((this.run.modeId === 'dungeon' || this.run.modeId === 'hard') && this.roomDef(this.room)?.boss && taintDrop(dg)) got.push([TAINT_MAT, taintDrop(dg) + (this.hell ? HELL_MODE.taintAdd : 0)]) // v89 ผลึกโลกันตร์: D6+ final boss only
     }
     else if (m.def.ai === 'boss') got.push([matOf(dg, true), MAT_RULES.mini.boss])
     else if (Math.random() < MAT_RULES.normalRate * this.dropMul) got.push([matOf(dg, false), 1])
@@ -2369,7 +2372,7 @@ export class BattleScene extends Phaser.Scene {
    * A duplicate (already owned, or already dropped this run) pays that dungeon's boss materials instead. Never zeny. */
   private rollUnique(m: Mon) {
     if ((this.run.modeId !== 'dungeon' && this.run.modeId !== 'hard') || m.revived || m.def.ai !== 'boss' || m.def.mini || !cardsOfMonster(m.kind).length || !this.roomDef(this.room)?.boss) return
-    const got = rollUniqueDrop(this.dg.id, this.hard, [...save().owned, ...this.runUniques])
+    const got = rollUniqueDrop(this.dg.id, this.hell ? 'hell' : this.hard, [...save().owned, ...this.runUniques])
     if (got.kind === 'none') return
     const it = itemById(got.id)
     if (got.kind === 'new') this.runUniques.push(got.id)
@@ -4059,6 +4062,10 @@ export class BattleScene extends Phaser.Scene {
       for (const id of Object.keys(this.runMats)) this.runMats[id] = Math.ceil(this.runMats[id] * HARD.mats)
       const ck = this.run.corrupt?.reward ?? 1 // D6+ corruption: every penalty pays (data/corruptions.ts)
       if (ck !== 1) { this.zeny = Math.round(this.zeny * ck); this.runXp = Math.round(this.runXp * ck); for (const id of Object.keys(this.runMats)) this.runMats[id] = Math.ceil(this.runMats[id] * ck) }
+      if (this.hell) { // 😈 hell mode pays on top of hard
+        this.zeny = Math.round(this.zeny * HELL_MODE.reward); this.runXp = Math.round(this.runXp * HELL_MODE.reward)
+        for (const id of Object.keys(this.runMats)) this.runMats[id] = Math.ceil(this.runMats[id] * HELL_MODE.mats)
+      }
     }
     this.zeny = Math.round(this.zeny * this.run.mut.zenyMul * this.dropMul) // daily mutators · v59 over-geared normal dungeon
     const mode = MODES[this.run.modeId].reward(s, this.run, { won, left: this.leftTower, floor: this.towerFloor, from: Math.max(0, (this.modeArgs.startFloor ?? 1) - 1), bank: this.bank })
@@ -4068,7 +4075,7 @@ export class BattleScene extends Phaser.Scene {
     let gems = mode?.gems ?? 0
     if (mode?.fortune) s.fortune = Math.min(FORTUNE.max, (s.fortune ?? 0) + mode.fortune)
     if (won && !mode) {
-      const by = this.hard ? (s.hardClearsBy ??= {}) : (s.clearsBy ??= { d1: s.clears })
+      const by = this.hell ? (s.hellClearsBy ??= {}) : this.hard ? (s.hardClearsBy ??= {}) : (s.clearsBy ??= { d1: s.clears }) // 😈 own record: the first hell clear pays first-clear gems
       gems += (by[this.dg.id] ?? 0) === 0 ? FREE_GEMS.firstClear : FREE_GEMS.clear // first hard clear also pays the first-clear gems
       by[this.dg.id] = (by[this.dg.id] ?? 0) + 1
       s.clears++
@@ -4076,7 +4083,7 @@ export class BattleScene extends Phaser.Scene {
     const before = s.gems
     const lv0 = { base: s.baseLevel, job: s.jobLevel, job2: s.job2Level ?? 1, job3: s.job3Level ?? 1 }
     const ups = addXp(this.runXp)
-    track({ e: 'run_end', mode: this.run.modeId, dungeon: this.dg.id, won, room: this.room, zeny: this.zeny, xp: this.runXp })
+    track({ e: 'run_end', mode: this.hell ? 'hell' : this.run.modeId, dungeon: this.dg.id, won, room: this.room, zeny: this.zeny, xp: this.runXp })
     if (won) ftue('run1_win')
     if (won && this.run.modeId === 'dungeon' && this.dg.id === 'd1') ftue('d1_clear')
     if (s.baseLevel > lv0.base) track({ e: 'level_up', kind: 'base', level: s.baseLevel })
@@ -4122,7 +4129,7 @@ export class BattleScene extends Phaser.Scene {
   private deathRec(): DeathRec {
     const s = save(), st = this.st, pp = this.run.pp
     return {
-      at: new Date().toISOString(), mode: this.run.modeId + (this.hard ? ' hard' : ''), where: this.run.where(this.room), floor: this.roomDef(this.room)?.floor ?? 0,
+      at: new Date().toISOString(), mode: this.run.modeId + (this.hell ? ' hell' : this.hard ? ' hard' : ''), where: this.run.where(this.room), floor: this.roomDef(this.room)?.floor ?? 0,
       reason: this.timedOut ? 'timeout' : 'dead',
       hero: { job: this.job.id, job2: this.j2?.id, lv: this.level, baseLv: s.baseLevel, power: pp.power, offense: pp.offense, survival: pp.survival,
         maxHp: st.maxHp, def: st.def, mdef: st.mdef, guard: st.guard, flee: st.flee, luckyDodge: st.luckyDodge, autoGuard: st.j2Guard, critDR: st.critDR },
@@ -4182,7 +4189,7 @@ export class BattleScene extends Phaser.Scene {
     const secs = Math.round((this.time.now - this.startedAt) / 1000)
     const rewards = this.settle(true)
     this.panel([
-      { text: this.hard ? '🔥 เคลียร์โหมดยากแล้ว!' : this.run.modeId === 'daily' ? '🎲 ผ่านท้าทายรายวัน!' : 'เคลียร์ดันแล้ว!', size: 44, color: '#f2b84b', bold: true },
+      { text: this.hell ? '😈 เคลียร์โหมดนรกแล้ว!' : this.hard ? '🔥 เคลียร์โหมดยากแล้ว!' : this.run.modeId === 'daily' ? '🎲 ผ่านท้าทายรายวัน!' : 'เคลียร์ดันแล้ว!', size: 44, color: '#f2b84b', bold: true },
       { text: `ล้ม${this.dg.boss}ได้ใน ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} นาที · ${this.kills} ตัว · HP เหลือ ${this.hp}`, size: 19 },
       { text: rewards, size: 19, color: '#f2b84b' },
       { text: `build: ${this.buildText() || '-'} · Lv ${this.level}`, size: 16, color: '#a9a6c7' },

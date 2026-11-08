@@ -15,7 +15,7 @@ export type ModeId = 'dungeon' | 'hard' | 'tower' | 'daily'
 /** v87 tower checkpoint record: the in-run level (and whether a relic was held) the first time a run cleared that floor. */
 export interface TowerCp { lv: number; relic?: boolean }
 export interface ModeRecord { bestFloor?: number; clears: number; lastSeed?: number; lastDeepSeed?: number /* v118 🌌 deep daily */; cp?: Record<number, TowerCp> /* v87: tower checkpoints, keyed by floor (10, 20, ...) */ }
-export interface ModeArgs { mode?: ModeId; d?: number; hard?: boolean; seed?: number; deep?: boolean /* v118: 🌌 deep daily (D6-D10) */; startFloor?: number /* tower starts at this floor (set by startRun from skipTo; bot / test may pass it directly, no gems) */; skipTo?: number /* v87: tower checkpoint S picked in the hub: pay S gems at run start, first fight is floor S+1 */ }
+export interface ModeArgs { mode?: ModeId; d?: number; hard?: boolean; hell?: boolean /* 😈 hell mode (D6-D10, needs hard) */; seed?: number; deep?: boolean /* v118: 🌌 deep daily (D6-D10) */; startFloor?: number /* tower starts at this floor (set by startRun from skipTo; bot / test may pass it directly, no gems) */; skipTo?: number /* v87: tower checkpoint S picked in the hub: pay S gems at run start, first fight is floor S+1 */ }
 
 /** A room of a run: a dungeon room + where it sits in the tower + the dungeon its monsters scale from. */
 export interface RunRoom extends RoomDef {
@@ -44,6 +44,8 @@ export interface RunConfig {
   tint?: number
   /** v118: 🌌 deep daily run (D6-D10 pool, own reward record) */
   deepDaily?: boolean
+  /** 😈 hell mode: a hard D6+ run where every monster is a Hell copy (data/hell.ts HELL_MODE) */
+  hell?: boolean
   turnMul(room: RunRoom): number
   mutators: MutatorDef[]
   mut: FoldedMutators
@@ -94,13 +96,13 @@ export function levelScale(src: string, baseLv: number): MonScale {
 }
 
 /** Dungeon runs: the dungeon's own rooms, untouched. 🔥 hard on a level dungeon (D6+) also rolls its corruption from `seed`. */
-function dungeonRun(modeId: ModeId, dg: DungeonDef, hard: boolean, pp: PowerParts, seed = 0): RunConfig {
+function dungeonRun(modeId: ModeId, dg: DungeonDef, hard: boolean, pp: PowerParts, seed = 0, hell = false): RunConfig {
   const corrupt = hard && dg.level ? foldCorruptions(rollCorruptions(seed)) : undefined
   const mutators = corrupt?.mutators ?? [], mut = corrupt ? foldMutators(mutators) : NO_MUT
   const mi = dg.rooms.findIndex((r) => r.mini)
   const rooms = corrupt?.twinDuel && mi >= 0 ? [...dg.rooms.slice(0, mi + 1), { ...dg.rooms[mi], title: `${dg.rooms[mi].title} (รอบ 2)` }, ...dg.rooms.slice(mi + 1)] : dg.rooms
   return {
-    modeId, seed, power: pp.power, pp, endless: false, affix: false, mutators, mut, tag: hard ? 'hard' : '', corrupt,
+    modeId, seed, power: pp.power, pp, endless: false, affix: false, mutators, mut, tag: hell ? '😈' : hard ? 'hard' : '', corrupt, hell: hell && hard && !!dg.level,
     roomAt: (i) => rooms[i] ?? null,
     themeAt: () => dg,
     scale: () => null,
@@ -338,7 +340,7 @@ export const MODES: Record<ModeId, GameMode> = {
   hard: {
     id: 'hard', name: 'โหมดยาก', icon: '🔥', desc: 'ดันที่เคลียร์แล้ว มอนแกร่งตาม Hero Power',
     unlock: () => ({ ok: true, why: '' }), record: (s) => `เคลียร์ ${Object.values(s.hardClearsBy ?? {}).reduce((a, n) => a + n, 0)} ครั้ง`,
-    buildRun: (s, a) => dungeonRun('hard', DUNGEONS[a.d ?? 0] ?? DUNGEONS[0], true, heroParts(s), a.seed ?? Math.floor(Math.random() * 1e9)),
+    buildRun: (s, a) => dungeonRun('hard', DUNGEONS[a.d ?? 0] ?? DUNGEONS[0], true, heroParts(s), a.seed ?? Math.floor(Math.random() * 1e9), !!a.hell),
     reward: () => null,
   },
   tower: {

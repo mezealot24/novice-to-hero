@@ -58,6 +58,7 @@ export interface SaveData {
   bestRoom: number
   clearsBy?: Record<string, number> // per dungeon id (d1, d2, ...)
   hardClearsBy?: Record<string, number> // hard-mode clears per dungeon id (v47)
+  hellClearsBy?: Record<string, number> // 😈 hell-mode clears per dungeon id (D6-D10, data/hell.ts HELL_MODE)
   cards?: Record<string, number> // equipment cards in the bag (not slotted), by card id (data/cards.ts)
   sockets?: Record<string, string[]> // item id -> card ids slotted in it
   cardPity?: Record<string, number> // kills of that card's monster since its last drop
