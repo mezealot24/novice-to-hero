@@ -38,4 +38,4 @@ F45 death log (Crusader, HP 2,237): survival 22,670 = HP x2.9 (DEF / M.DEF) x2.5
 made tower ATK x48 over the D3 ref, so Hell อัศวินมรณะ hit 11,626 ATK (ดาบมรณะ 69k raw). Heals and CLASS_K don't stop a one-shot.
 Q: "ตัด class penalty ออก แล้วไป scale stat, scale monster แทน" -> the tower no longer reads Hero Power at all:
 `restatAt(base, kind, towerMonLv(f) + Hell 10, numbers=true)`, no `BATTLE.monBuff`, `RunConfig.scale` = HP share only.
-F45 ≈ Lv68 (D8), Hell Lv78 (D9). Hard mode still uses matchScale (CLASS_K included).
+F45 ≈ Lv68 (D8), Hell Lv78 (D9). Tower bosses (MVP) get `TOWER_LV.mvpPct` 2.5x the hero stat points at their Lv (dungeon bosses 1.5x). Hard mode still uses matchScale (CLASS_K included).

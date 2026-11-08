@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DUNGEONS, MONSTERS, type MonSkill, type MonsterDef, type MonsterKind } from '../src/data/game-data'
 import { HELL, hellify, HELL_TRAITS } from '../src/data/hell'
-import { deepAnchor, homeDungeon, legacyLevel, monTier, restatAt, scaleOf, skillAtLv, skillMul, statNative, towerMonLv, withStats } from '../src/data/mon-stats'
+import { deepAnchor, homeDungeon, legacyLevel, monPoints, monTier, restatAt, TOWER_LV, scaleOf, skillAtLv, skillMul, statNative, towerMonLv, withStats } from '../src/data/mon-stats'
 import { towerFloor, TOWER } from '../src/data/modes'
 
 const DEEP = DUNGEONS.filter((d) => d.level)
@@ -131,4 +131,15 @@ test('v122 tower: numbers come from the stats at the floor Lv (no Hero Power); r
   assert.equal(kept.dmg, home.dmg)
   assert.ok(lvd.dmg > home.dmg * 2 && lvd.hp > home.hp * 2, `Lv${lv} dmg ${lvd.dmg} hp ${lvd.hp}`)
   assert.equal(lvd.lv, lv)
+})
+
+test('v122 tower MVP: a boss rebuilt with numbers gets TOWER_LV.mvpPct of the hero points (normals / minis unchanged)', () => {
+  const lv = towerMonLv(45) + HELL.lv
+  const d = MONSTERS.deathknight, home = withStats(d, 'deathknight', legacyLevel('deathknight', d, { id: 'd3' }))
+  const mvp = restatAt(home, 'deathknight', lv, true), plain = withStats(d, 'deathknight', lv)
+  const pts = (b?: Record<string, number>) => Object.values(b ?? {}).reduce((a, n) => a + n - 1, 0)
+  assert.ok(Math.abs(pts(mvp.base) - monPoints(lv, 'boss', false, TOWER_LV.mvpPct)) <= 7, `mvp points ${pts(mvp.base)}`)
+  assert.ok(mvp.hp > plain.hp && mvp.dmg > plain.dmg)
+  const m = MONSTERS.duelist, mh = withStats(m, 'duelist', legacyLevel('duelist', m, { id: 'd3' }))
+  assert.equal(JSON.stringify(restatAt(mh, 'duelist', lv, true).base), JSON.stringify(withStats(m, 'duelist', lv).base), 'mini: no MVP bonus')
 })

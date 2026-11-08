@@ -42,8 +42,8 @@ export const monTier = (d: MonsterDef): MonTier => (d.mini ? 'mini' : d.ai === '
 export const allocOf = (d: MonsterDef): StatAlloc => (typeof d.statAlloc === 'string' ? ARCHETYPES[d.statAlloc] : d.statAlloc ?? ARCHETYPES.bruiser)
 
 /** Stat points of a monster at this level / tier. */
-export const monPoints = (lv: number, tier: MonTier, hard = false) =>
-  Math.round(MON_STAT.pointsPerLv * Math.max(0, lv - 1) * (MON_STAT.tierPct[tier] + (hard ? MON_STAT.hardAdd : 0)))
+export const monPoints = (lv: number, tier: MonTier, hard = false, tierPct?: number) =>
+  Math.round(MON_STAT.pointsPerLv * Math.max(0, lv - 1) * ((tierPct ?? MON_STAT.tierPct[tier]) + (hard ? MON_STAT.hardAdd : 0)))
 
 /** Base stats from points + weights. statMul (hard-mode corruption) multiplies the points one stat gets. */
 export function monBase(alloc: StatAlloc, points: number, statMul: StatAlloc = {}): Record<BaseStat, number> {
@@ -54,7 +54,7 @@ export function monBase(alloc: StatAlloc, points: number, statMul: StatAlloc = {
   return b
 }
 
-export interface StatMonOpts { hard?: boolean; statMul?: StatAlloc }
+export interface StatMonOpts { hard?: boolean; statMul?: StatAlloc; tierPct?: number /* v122 tower MVP: share of the hero's points, replaces MON_STAT.tierPct */ }
 
 /** What the 7 stats alone give a monster of this tier at this level (before its own bonuses / bodyMul). */
 interface Derived {
@@ -63,7 +63,7 @@ interface Derived {
 }
 /** pm = the monster's own pointsMul (v81): x its stat point budget, on top of the tier share. */
 function derive(alloc: StatAlloc, lv: number, tier: MonTier, o: StatMonOpts, pm = 1): Derived {
-  const b = monBase(alloc, Math.round(monPoints(lv, tier, o.hard) * pm), o.statMul)
+  const b = monBase(alloc, Math.round(monPoints(lv, tier, o.hard, o.tierPct) * pm), o.statMul)
   const st: Stats = { ...PLAYER }
   applyBase(st, b)
   const L = MON_STAT.levelBase
@@ -223,7 +223,7 @@ export function withStats(d: MonsterDef, kind: MonsterKind, lv: number, o: StatM
   const alloc = allocOf(d), tier = monTier(d)
   const pm = d.pointsMul ?? 1
   const s = derive(alloc, lv, tier, o, pm) // stat-only parts (and skill scaling) see hard-mode points
-  const now = o.hard ? derive(alloc, lv, tier, { statMul: o.statMul }, pm) : s // numbers: hard mode is hardDef's job
+  const now = o.hard ? derive(alloc, lv, tier, { statMul: o.statMul, tierPct: o.tierPct }, pm) : s // numbers: hard mode is hardDef's job
   const ref = refOf(kind, d, lv)
   const out: MonsterDef = { ...d, lv, base: s.b, ...statOnly(d, s) }
   const ratio = (a: number, b: number) => (b > 0 ? a / b : 1)
@@ -325,7 +325,8 @@ export function skillAtLv(sk: MonSkill, lv = sk.lv ?? 1): MonSkill {
 // counter, speed, M.DEF, lucky dodge, skill levels) used to stay at the monster's home level: a Hell D3 mini on floor 40 was Lv 12,
 // a D10 monster on floor 25 was Lv 90. Now every monster on a floor is rebuilt at that floor's tower Lv (Hell: + HELL.lv),
 // keeping the tower's HP / ATK. D1-D5 only move up from their home level; D6+ follow the tower Lv both ways.
-export const TOWER_LV = { perFloor: 1.5, skillEvery: 10 } // skill Lv +1 per `skillEvery` Lv above the monster's home Lv
+export const TOWER_LV = { perFloor: 1.5, skillEvery: 10, // skill Lv +1 per `skillEvery` Lv above the monster's home Lv
+  mvpPct: 2.5 } // v122 (Q 2026-11-08 "lv 77 stat point x 2.5 is mvp"): a tower boss gets 2.5x the hero's stat points at its Lv (dungeons: MON_STAT.tierPct.boss 1.5)
 export const towerMonLv = (floor: number) => Math.max(1, Math.round(TOWER_LV.perFloor * floor))
 const lvUp = (s: MonSkill, n: number): MonSkill => ({ ...s, lv: (s.lv ?? 1) + n, ...(s.pick ? { pick: s.pick.map((p) => lvUp(p, n)) } : {}) })
 /** v121 (Q 2026-11-08, F45 death log: Hell อัศวินมรณะ ดาบมรณะ 69k raw = x1.6 skill-Lv pow x1.2 stat scale on top of the tower ATK):
@@ -343,7 +344,8 @@ function freezePow(s: MonSkill, home: MonsterDef): MonSkill {
 export function restatAt(base: MonsterDef, kind: MonsterKind, lv: number, numbers = false): MonsterDef {
   const d = MONSTERS[kind], home = base.lv ?? 1, deep = statNative(kind)
   if (!d || lv === home || (!deep && (lv < home || !d.statAlloc))) return base
-  const at = deep ? statMonster(d, lv) : withStats(d, kind, lv)
+  const o: StatMonOpts = numbers && monTier(d) === 'boss' ? { tierPct: TOWER_LV.mvpPct } : {}
+  const at = deep ? statMonster(d, lv, o) : withStats(d, kind, lv, o)
   const out: MonsterDef = numbers ? { ...at } : { ...at, hp: base.hp, dmg: base.dmg }
   if (!numbers) { if (base.matk !== undefined) out.matk = base.matk; else delete out.matk }
   const n = Math.floor(Math.max(0, lv - home) / TOWER_LV.skillEvery)
