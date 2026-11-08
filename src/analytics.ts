@@ -4,9 +4,9 @@
 // (title screen only) and are dropped on "no". No SDK: small JSON batches go to PostHog's public capture API,
 // which keeps the single-file build small. Never send names, emails or save data here: ids + game numbers only.
 
-export type FtueStep = 'title' | 'create_open' | 'char_created' | 'hub_first' | 'run1_start' | 'run1_win' | 'd1_clear' | 'job1' | 'job2'
+export type FtueStep = 'title' | 'create_open' | 'char_created' | 'hub_first' | 'run1_start' | 'run1_win' | 'd1_clear' | 'job1' | 'job2' | 'job3'
 /** The step order of the first-time funnel (PostHog funnel = these `ftue` events in this order). */
-export const FTUE_STEPS: readonly FtueStep[] = ['title', 'create_open', 'char_created', 'hub_first', 'run1_start', 'run1_win', 'd1_clear', 'job1', 'job2']
+export const FTUE_STEPS: readonly FtueStep[] = ['title', 'create_open', 'char_created', 'hub_first', 'run1_start', 'run1_win', 'd1_clear', 'job1', 'job2', 'job3']
 
 export type PayKind = 'free_gem' | 'paid_gem' | 'iap'
 export type Ev =
@@ -15,7 +15,7 @@ export type Ev =
   | { e: 'ftue'; step: FtueStep }
   | { e: 'run_start'; mode: string; dungeon: string }
   | { e: 'run_end'; mode: string; dungeon: string; won: boolean; room: number; zeny: number; xp: number }
-  | { e: 'level_up'; kind: 'base' | 'job' | 'job2'; level: number }
+  | { e: 'level_up'; kind: 'base' | 'job' | 'job2' | 'job3'; level: number }
   | { e: 'job_change'; tier: 1 | 2; job: string; gems: number }
   | { e: 'shop_open'; shop: 'gem' }
   | { e: 'purchase'; stage: 'tap' | 'ok' | 'fail'; sku: string; price: number; pay: PayKind; reason?: string }

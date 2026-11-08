@@ -4,6 +4,7 @@ import { COMBO, PLAYER, type Stats } from './game-data'
 import { KIT2, S2N } from './skill-math'
 import { talent2Mods, talentMods, tree2Mods, treeMods, type TalentSave, type TreeSave } from './tree'
 import { JOB2, type Job2Id, type WeaponType } from './jobs2'
+import type { Job3Id } from './jobs3'
 import { JOB_CHANGE, JOBS, type JobId } from './jobs'
 import { cardById, type EquipCard } from './cards'
 import { CARDFORGE_ITEMS } from './cardforge'
@@ -370,7 +371,7 @@ export const SUPPORTER_PRICE = 300 // gems: badge + gold name, no stats
 export const FREE_GEMS = { firstClear: 50, clear: 5, levelUp: 10, daily: 20 }
 
 // ---------- combine everything into the hero's starting stats ----------
-export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; job2?: Job2Id; job2Tree?: TreeSave; jobTalents?: TalentSave; jobLevel?: number; job2Talents?: TalentSave; job2Level?: number; sockets?: Record<string, string[]>; grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]>; taint?: Record<string, TaintRec>; tempBase?: Partial<Record<BaseStat, number>> }
+export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; job2?: Job2Id; job2Tree?: TreeSave; job3?: Job3Id; job3Tree?: TreeSave; job3Level?: number; jobTalents?: TalentSave; jobLevel?: number; job2Talents?: TalentSave; job2Level?: number; sockets?: Record<string, string[]>; grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]>; taint?: Record<string, TaintRec>; tempBase?: Partial<Record<BaseStat, number>> }
 
 /** Items the hero actually gets stats from (gear for another job, or broken by a failed refine, stays on but does nothing). */
 export function wornItems(s: StatsInput): Item[] {

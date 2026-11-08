@@ -3,6 +3,7 @@
 import { JOB_CHANGE, type JobId } from './data/jobs'
 import { UNIQUE } from './data/uniques'
 import { JOB2, JOB2_RULES, type Job2Id, type PetId } from './data/jobs2'
+import { activeJob3, JOB3, JOB3_RULES, type Job3Id, type Job3Path, type Job3Variant } from './data/jobs3'
 import type { RefineLine } from './data/craft'
 import type { TaintRec } from './data/taint'
 import type { ModeRecord } from './data/modes'
@@ -29,6 +30,15 @@ export interface SaveData {
   job2Xp?: number
   job2Points?: number // free ใยชั้น 2 points (1 per Job2 Lv)
   job2Tree?: Record<string, number> // ใยชั้น 2 node -> level (data/tree.ts TREE2)
+  job3?: Job3Id // 3rd job "Awakening" on top of job2 (design/awakening-crusader-v1.md); parked (kept, off) when job2 changes
+  job3Level?: number // Job3 Lv 1..JOB3_RULES.maxJobLevel
+  job3Xp?: number
+  job3Points?: number // free ใยชั้น 3 points (1 per Job3 Lv)
+  job3Tree?: Record<string, number> // ใยชั้น 3 node -> level (P5)
+  job3Path?: Job3Path
+  job3Var?: Job3Variant
+  job3SwapAt?: string // yyyy-mm-dd of the last free path swap
+  job3Trial?: Partial<Record<Job3Id, 1>> // ⚔️ Master Trial won (P2)
   pet?: PetId // 🐺 Beastmaster companion (picked in town, free to change); undefined = hawk
   web?: 1 // save migrated to the skill web (v27)
   webRefund?: number // skill points refunded by that migration, shown once in town
@@ -282,7 +292,17 @@ export function addXp(n: number): { base: number; job: number } {
   const maxJob = s.job === 'novice' ? JOB_RULES.maxJobLevel : JOB_CHANGE.classMaxJobLevel
   n = Math.round(n * RACES[s.race].expMul)
   s.baseXp += n
-  if (s.job2) { // 2nd job: Job EXP goes to Job2 Lv (the base class is maxed)
+  const j3 = activeJob3(s)
+  if (j3) { // 3rd job: Job EXP goes to Job3 Lv (Job2 Lv is maxed to unlock it)
+    if ((s.job3Level ?? 1) < JOB3_RULES.maxJobLevel) s.job3Xp = (s.job3Xp ?? 0) + n
+    while ((s.job3Level ?? 1) < JOB3_RULES.maxJobLevel && (s.job3Xp ?? 0) >= JOB_RULES.jobXpNeed(s.job3Level ?? 1)) {
+      s.job3Xp! -= JOB_RULES.jobXpNeed(s.job3Level ?? 1)
+      s.job3Level = (s.job3Level ?? 1) + 1
+      s.job3Points = (s.job3Points ?? 0) + 1
+      jobUps++
+    }
+    if ((s.job3Level ?? 1) >= JOB3_RULES.maxJobLevel) s.job3Xp = 0
+  } else if (s.job2) { // 2nd job: Job EXP goes to Job2 Lv (the base class is maxed)
     const lv = s.job2Level ?? 1
     if (lv < JOB2_RULES.maxJobLevel) s.job2Xp = (s.job2Xp ?? 0) + n
     while ((s.job2Level ?? 1) < JOB2_RULES.maxJobLevel && (s.job2Xp ?? 0) >= JOB_RULES.jobXpNeed(s.job2Level ?? 1)) {
@@ -356,6 +376,65 @@ export function resetTree2(s: SaveData): number {
   const n = Object.values(s.job2Tree ?? {}).reduce((a, v) => a + v, 0)
   s.job2Tree = {}
   return n
+}
+
+// ---------- 3rd jobs "Awakening" (design/awakening-crusader-v1.md) ----------
+/** Job2 Lv 50 + ดัน 10 cleared + the Master Trial of that 3rd job won. */
+export const job3Ready = (s: SaveData, id: Job3Id) => !!s.job2 && JOB3[id].parent === s.job2
+  && (s.job2Level ?? 1) >= JOB3_RULES.unlockJob2Lv && (s.clearsBy?.[JOB3_RULES.unlockClear] ?? 0) > 0 && !!s.job3Trial?.[id]
+/** Why that 3rd job is still locked ('' = open). */
+export function job3Lock(s: SaveData, id: Job3Id): string {
+  const d = JOB3[id]
+  if (s.job2 !== d.parent) return `ต้องเป็น ${JOB2[d.parent].name}`
+  const need: string[] = []
+  if ((s.job2Level ?? 1) < JOB3_RULES.unlockJob2Lv) need.push(`Job2 Lv ${s.job2Level ?? 1}/${JOB3_RULES.unlockJob2Lv}`)
+  if (!((s.clearsBy?.[JOB3_RULES.unlockClear] ?? 0) > 0)) need.push('เคลียร์ดัน 10')
+  if (!s.job3Trial?.[id]) need.push('ชนะ Master Trial')
+  return need.join(' · ')
+}
+/** Awaken. First time: Job3 Lv 1, no points, pure path, variant A. Coming back to a parked one keeps everything. */
+export function changeJob3(id: Job3Id): boolean {
+  const s = save()
+  if (!job3Ready(s, id) || activeJob3(s) === id) return false
+  if (s.job3 && s.job3 !== id) { s.job3Points = (s.job3Points ?? 0) + resetTree3(s); s.job3Path = 'pure'; s.job3Var = 'a' } // another 3rd job: web points come back
+  s.job3 = id
+  s.job3Level ??= 1; s.job3Xp ??= 0; s.job3Points ??= 0; s.job3Tree ??= {}
+  s.job3Path ??= 'pure'; s.job3Var ??= 'a'
+  persist()
+  return true
+}
+/** Free ใยชั้น 3 reset: clears it and returns the points it held (not yet added back). */
+export function resetTree3(s: SaveData): number {
+  const n = Object.values(s.job3Tree ?? {}).reduce((a, v) => a + v, 0)
+  s.job3Tree = {}
+  return n
+}
+/** 💎 a path swap costs right now: 0 once every JOB3_RULES.freeSwapDays days, else pathSwapGems. */
+export function job3SwapCost(s: SaveData, day = today()): number {
+  if (!s.job3SwapAt) return 0
+  const days = (Date.parse(day) - Date.parse(s.job3SwapAt)) / 86_400_000
+  return days >= JOB3_RULES.freeSwapDays ? 0 : JOB3_RULES.pathSwapGems
+}
+/** Pure <-> hybrid. The web resets (points back) because each path opens different nodes. False = nothing spent. */
+export function setJob3Path(path: Job3Path, day = today()): boolean {
+  const s = save()
+  if (!activeJob3(s) || s.job3Path === path) return false
+  const cost = job3SwapCost(s, day)
+  if (s.gems < cost) return false
+  s.gems -= cost
+  if (cost === 0) s.job3SwapAt = day
+  s.job3Points = (s.job3Points ?? 0) + resetTree3(s)
+  s.job3Path = path
+  persist()
+  return true
+}
+/** Skill 3 variant (A / B): free, any time in town. */
+export function setJob3Variant(v: Job3Variant): boolean {
+  const s = save()
+  if (!activeJob3(s) || s.job3Var === v) return false
+  s.job3Var = v
+  persist()
+  return true
 }
 
 /** Class -> another base class for JOB_CHANGE.repickGems (Q 2026-11-04). Unlike changeJob, Job Lv + EXP stay:
