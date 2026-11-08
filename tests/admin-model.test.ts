@@ -5,6 +5,7 @@ import { hasFx, MONSTERS, type MonsterKind } from '../src/data/game-data'
 import { canonicalJson, checkPatch, guardsFor } from '../src/data/patch'
 import { TABLES, type Patch } from '../src/data/tunables'
 import { statNative } from '../src/data/mon-stats'
+import { castLv, skillLvBonus } from '../src/data/mon-skill-scale'
 import { borrowPlan, heroClasses } from '../src/admin/borrow'
 import { clampField, diffPatches, fieldLabel, fieldRow, allocFor, fields, monSections, monsterGroups, pctHint, previewMon, previewSkills, setIn } from '../src/admin/model'
 
@@ -181,4 +182,14 @@ test('v82: bodyMul / speedMul now work on D1-5 monsters (they were D6-only)', ()
   assert.ok(Math.abs(buff.hp - base.hp * 2) <= 1, `HP x2: ${base.hp} -> ${buff.hp}`)
   assert.ok(Math.abs(buff.dmg - base.dmg * 1.5) < 1e-6, 'ATK x1.5')
   assert.ok(Math.abs(buff.speed - base.speed * 2) < 1e-6, 'speed x2')
+})
+
+test('v124 previewSkills: cast Lv from the monster Lv + hero-style damage text', () => {
+  const dk = previewSkills('deathknight', {}).find((p) => p.kind === 'strike')!
+  assert.equal(dk.casts[0].lv, 1, 'D3 at home: no bonus')
+  assert.match(dk.casts[0].dmg ?? '', /^\d+% P\.ATK \(ตัวเดียว ×2\)$/)
+  const deep = (Object.keys(MONSTERS) as MonsterKind[]).find((k) => statNative(k) && (MONSTERS[k].skills ?? []).some((s) => s.kind === 'bolt'))!
+  const bolt = previewSkills(deep, {}).find((p) => p.kind === 'bolt')!
+  assert.ok(bolt.casts.every((c) => c.lv === castLv(1, skillLvBonus(deep, c.monLv, MONSTERS[deep])) || c.lv > 1), `${deep} cast Lv`)
+  assert.match(bolt.casts[0].dmg ?? '', /M\.ATK/)
 })
