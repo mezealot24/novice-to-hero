@@ -12,6 +12,7 @@ import { punch, spinText } from '../../../ui-fx'
 import { pressLabel } from '../state'
 import { BOX_H, BOX_W, INNER_W, PAD, type ForgeCtx, type Preview, type VerbAction, type VerbPanel } from '../types'
 import { PanelBase } from './PanelBase'
+import { track } from '../../../analytics'
 
 const ROW_Y = [112, 178, 244], SIZE = ['เล็ก', 'กลาง', 'ใหญ่'], GAP_MS = 120 // v101: each line is a 2-row card (label + lock / value) in the 340px column
 interface Row { card: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text; val: Phaser.GameObjects.Text; old: Phaser.GameObjects.Text; strike: Phaser.GameObjects.Graphics; lock: Btn; oldTimer?: Phaser.Time.TimerEvent }
@@ -115,6 +116,7 @@ export class OptionPanel extends PanelBase implements VerbPanel {
     const res = reroll(s, it, locked)
     if (!res) { toast(this.ctx.scene, 'วัตถุดิบ zeny หรือเพชรยังไม่พอค่ะ', UI.red); return }
     persist(); sfx.pop()
+    track({ e: 'gacha_roll', kind: 'option', lines: order.length, locked: locked.length, gems: lockGems(locked.length) })
     this.anim = new Set(order)
     this.fast = !!save().forgeFast // ⚡ fast mode: no spin, rows land at once
     this.release = this.ctx.hold() // the verb tabs and the action button stay shut until the last line lands

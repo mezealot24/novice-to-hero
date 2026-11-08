@@ -5,6 +5,7 @@ import { persist, save, today } from '../save'
 import { cloudEnabled, refreshWallet as syncWallet, spendPaid, status } from '../cloud'
 import { sfx } from '../sfx'
 import { button, confirm, gemIcon, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
+import { track } from '../analytics'
 
 // Trial top-up (no real payment) only in dev builds or when VITE_TRIAL_TOPUP=1: a production build must not hand out gems.
 const TRIAL_TOPUP = import.meta.env.DEV || import.meta.env.VITE_TRIAL_TOPUP === '1'
@@ -12,9 +13,11 @@ const TRIAL_TOPUP = import.meta.env.DEV || import.meta.env.VITE_TRIAL_TOPUP === 
 /** Pay a price: free gems first (client save), else paid gems through the server (it owns the price). */
 function pay(scene: Phaser.Scene, price: number, sku: string, grant: () => void) {
   const s = save()
-  if (s.gems >= price) { s.gems -= price; grant(); return }
+  if (s.gems >= price) { s.gems -= price; grant(); track({ e: 'purchase', stage: 'ok', sku, price, pay: 'free_gem' }); return }
+  track({ e: 'purchase', stage: 'tap', sku, price, pay: 'paid_gem' })
   void spendPaid(sku).then((err) => {
-    if (err) { toast(scene, err === 'insufficient' ? 'เพชรไม่พอค่ะ' : 'จ่ายไม่สำเร็จ ลองใหม่นะคะ', UI.red); return }
+    if (err) { track({ e: 'purchase', stage: 'fail', sku, price, pay: 'paid_gem', reason: err }); toast(scene, err === 'insufficient' ? 'เพชรไม่พอค่ะ' : 'จ่ายไม่สำเร็จ ลองใหม่นะคะ', UI.red); return }
+    track({ e: 'purchase', stage: 'ok', sku, price, pay: 'paid_gem' })
     grant()
   })
 }
@@ -32,6 +35,7 @@ export class GemShopScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(UI.night)
     this.cameras.main.fadeIn(160, 20, 23, 43)
     this.refreshWallet = topBar(this, '💎 ร้านเพชร', () => go(this, 'hub'))
+    track({ e: 'shop_open', shop: 'gem' })
     if (cloudEnabled) void syncWallet().then(() => { if (this.scene.isActive('gemshop')) this.render() })
 
     // the shop's promise, always visible

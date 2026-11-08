@@ -1,12 +1,13 @@
 import Phaser from 'phaser'
-import { FONT_NUM, H, W } from '../data/game-data'
+import { COLORS, FONT_NUM, H, W } from '../data/game-data'
 import { RACES } from '../data/meta'
 import { hasSave, load } from '../save'
 import { JOBS } from '../data/jobs'
 import { setMuted } from '../sfx'
-import { backdrop, button, confirm, fullscreenButton, go, toast, txt, UI } from '../ui'
+import { backdrop, button, confirm, fullscreenButton, go, panel, toast, txt, UI } from '../ui'
 import { cloudEnabled, linkProvider, status, syncStart } from '../cloud'
 import { PREVIEW, PREVIEW_JOBS, previewHero } from '../preview-kit'
+import { analyticsEnabled, consentState, ftue, setConsent } from '../analytics'
 
 // First screen: logo, a novice bouncing on the hill, Continue / New game.
 export class TitleScene extends Phaser.Scene {
@@ -57,5 +58,30 @@ export class TitleScene extends Phaser.Scene {
     }
     txt(this, 16, H - 28, 'v0.3 · M3 shell · ภาพชั่วคราว', 13, UI.sub)
     fullscreenButton(this, W - 30, 30)
+    if (analyticsEnabled) { // design/analytics-v1.md: ask once (PDPA), the answer can be changed here any time
+      ftue('title')
+      const st = consentState()
+      if (st === 'unknown') consentModal(this, () => this.scene.restart())
+      else button(this, 116, H - 62, 200, 34, st === 'yes' ? '📊 ส่งข้อมูลการเล่น: เปิด' : '📊 ส่งข้อมูลการเล่น: ปิด', () => consentModal(this, () => this.scene.restart()),
+        { size: 13, fill: 0x3a3f66, color: UI.sub })
+    }
   }
+}
+
+/** Opt-in for anonymous play data. Both answers are the same size: saying no must be as easy as yes. */
+function consentModal(scene: Phaser.Scene, done: () => void) {
+  const c = scene.add.container(0, 0).setDepth(40000)
+  c.add(scene.add.rectangle(W / 2, H / 2, W, H, UI.night, 0.8).setInteractive())
+  const pw = 600, ph = 300
+  c.add(panel(scene, W / 2 - pw / 2, H / 2 - ph / 2, pw, ph, UI.panelHi, COLORS.gold))
+  c.add(txt(scene, W / 2, H / 2 - ph / 2 + 24, '📊 ช่วยให้เกมดีขึ้นได้ไหมคะ?', 24, UI.gold, true).setOrigin(0.5, 0))
+  c.add(txt(scene, W / 2, H / 2 - ph / 2 + 68, [
+    'ขอส่งข้อมูลการเล่นแบบไม่ระบุตัวตน (หน้าที่เปิด ด่านที่เล่น เลเวล ปุ่มซื้อที่กด)',
+    'เพื่อปรับความยากและแก้จุดที่ผู้เล่นติดในช่วงทดสอบ',
+    'ไม่ส่งชื่อ อีเมล หรือข้อมูลส่วนตัว · เปลี่ยนใจได้ที่หน้านี้ตลอด',
+    'ถ้าอายุต่ำกว่า 10 ปี ให้ผู้ปกครองเป็นคนเลือกนะคะ',
+  ].join('\n'), 16, UI.text).setOrigin(0.5, 0).setAlign('center').setWordWrapWidth(pw - 40))
+  const pick = (yes: boolean) => { c.destroy(); setConsent(yes); done() }
+  c.add(button(scene, W / 2 - 130, H / 2 + ph / 2 - 44, 230, 52, 'ไม่ส่ง', () => pick(false), { fill: 0x5a5f8a, color: UI.text, size: 19 }))
+  c.add(button(scene, W / 2 + 130, H / 2 + ph / 2 - 44, 230, 52, 'ส่งได้เลย', () => pick(true), { size: 19 }))
 }

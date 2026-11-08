@@ -10,5 +10,5 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 4000,
     ...(mode === 'admin' ? { emptyOutDir: false, rollupOptions: { input: 'admin.html' } } : {}),
   },
-  define: { __PREVIEW__: JSON.stringify(!!process.env.PREVIEW) },
+  define: { __PREVIEW__: JSON.stringify(!!process.env.PREVIEW), __APP_VERSION__: JSON.stringify(`${process.env.npm_package_version ?? '0'}@${new Date().toISOString().slice(0, 16)}`) }, // __APP_VERSION__: which build an analytics event came from
 }))
