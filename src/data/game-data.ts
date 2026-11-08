@@ -1,6 +1,7 @@
 import type { Archetype, SkillScale, StatAlloc } from './mon-stats'
 import type { BaseStat } from './meta'
 import { PACKS, type D7Kind, type D7Mini, type D8Kind, type D8Mini, type D9Kind, type D9Mini, type D10Kind, type D10Mini } from './dungeons'
+import type { SkillFormula } from './mon-skill-scale'
 // ===== All tunable numbers live here, so balance changes never touch game logic. =====
 
 export const TILE = 48
@@ -459,6 +460,7 @@ export interface MonSkill {
   big?: boolean // legendary spell: big callout + screen flash
   scale?: SkillScale | false // v68: stat it scales with (default by kind, mon-stats SKILL_SCALE); false = flat
   lv?: number // v81 skill level (mon-stats skillAtLv, SKILL_SCALE.lv): 1 = as written; may pass the hero's max (RO style Lv 50)
+  f?: SkillFormula // v124 bolt / strike: multi-ratio damage per hit (mon-skill-scale.ts, LoL / Dota / RO style); no f = pow path
 }
 /** Boss phase: entered once when HP drops under `at` (share of max HP). Effects stack with later phases. */
 export interface BossPhase {

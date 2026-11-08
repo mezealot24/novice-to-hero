@@ -30,6 +30,7 @@ import { button, fullscreenButton, go, toast, type Btn } from '../ui'
 import { chipGrid, floatLane, HUD_THEME, stagePill, statusChips, type StatusChip } from '../battle/hud-layout'
 import { fitWidth, openPauseMenu, type PauseExtra } from '../battle/pause-menu'
 import { derivedRows } from '../data/stat-rows'
+import { castLv, casterOf, formulaDamage, skillLvBonus } from '../data/mon-skill-scale'
 import { CombatLog, deathText, recapLines, saveDeath, type DeathRec, type HitOut, type HitRec } from '../data/combat-log'
 
 // Side-scroll, turn-based (Capybara Go-like): the hero walks right, meets a group, and everyone
@@ -3383,7 +3384,7 @@ export class BattleScene extends Phaser.Scene {
       b.destroy()
       this.burst(HERO_X, GROUND - 50, c, sk.big ? 18 : 12, 180, true)
       if (sk.big) this.shake(120, 0.008)
-      const landed = this.hurtHero(this.monMatk(m) * BATTLE.monDmgMul * this.skPow(m, sk, 1.3) * this.monMul(m) * this.monCrit(m), true, 999, m, `✦ ${sk.name}`)
+      const landed = this.hurtHero(this.skillHit(m, sk, true) * this.monMul(m) * this.monCrit(m), true, 999, m, `✦ ${sk.name}`)
       if (landed && sk.fx && !fxDone) { fxDone = true; this.applyFx(sk.fx, m) } // the debuff rides on the first hit that lands
     }
   }
@@ -3398,7 +3399,7 @@ export class BattleScene extends Phaser.Scene {
       const cr = this.monCrit(m)
       const alone = sk.alone && !this.alive().some((x) => x !== m) ? sk.alone : 1
       if (alone > 1 && i === 0) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, `ไร้ศพข้างกาย! ×${alone}`, '#c9a8ff')
-      const landed = this.hurtHero(m.def.dmg * BATTLE.monDmgMul * this.skPow(m, sk, 1.3) * this.monMul(m) * cr * alone, !!sk.magic, sk.magic || cr > 1 ? 999 : m.def.hit ?? 15, m, `✦ ${sk.name}`)
+      const landed = this.hurtHero(this.skillHit(m, sk, false) * this.monMul(m) * cr * alone, !!sk.magic, sk.magic || cr > 1 ? 999 : m.def.hit ?? 15, m, `✦ ${sk.name}`)
       if (landed) { this.monLeech(m); if (sk.fx && !fxDone) { fxDone = true; this.applyFx(sk.fx, m) } }
     }
     if (sk.drain && this.hp > 0 && !m.dead) { // hunter ตะปบจุดตาย: drain the hero's blood as magic damage, heal by it
@@ -3816,13 +3817,18 @@ export class BattleScene extends Phaser.Scene {
 
   /** v68: a skill's pow x the caster's scaling stat (mon-stats skillMul; 1 for a monster without stats). */
   private skPow(m: Mon, sk: MonSkill, dflt: number) { return (sk.pow ?? dflt) * skillMul(m.def, scaleOf(sk)) }
+  /** v124: one bolt / strike hit before crit / alone / buffs: the skill's formula (MonSkill.f) if it has one, else ATK (bolt: M.ATK) x pow. */
+  private skillHit(m: Mon, sk: MonSkill, spell: boolean): number {
+    if (sk.f) return formulaDamage(sk.f, sk.lv ?? 1, casterOf(m.def), { maxHp: this.st.maxHp, hp: this.hp })
+    return (spell ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.skPow(m, sk, 1.3)
+  }
 
   /** A skill instead of an attack, on every `every`-th turn when it has a use. Returns true if one was used. */
   private async useSkill(m: Mon) {
     for (const raw of m.skills) {
       if (m.turns % raw.every) continue
       const picked = raw.pick ? raw.pick[Phaser.Math.Between(0, raw.pick.length - 1)] : raw // spell rotation
-      const sk = skillAtLv(picked, picked.lv ?? raw.lv ?? 1) // v81 skill level (RO style over-level ok)
+      const sk = skillAtLv(picked, castLv(picked.lv ?? raw.lv ?? 1, skillLvBonus(m.kind, m.def.lv ?? 1, m.def))) // v81 skill Lv (RO style over-level ok) · v124 + 1 per 10 monster Lv
       if (sk.big) { this.callout(`${m.def.name}: ${sk.name}!`, W / 2, 190, '#ff7ad0'); this.cameras.main.flash(220, 200, 80, 255); await this.wait(350) }
       const allies = this.alive()
       let done = false

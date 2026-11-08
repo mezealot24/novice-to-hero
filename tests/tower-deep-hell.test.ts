@@ -4,6 +4,7 @@ import { DUNGEONS, MONSTERS, type MonSkill, type MonsterDef, type MonsterKind } 
 import { HELL, hellify, HELL_TRAITS } from '../src/data/hell'
 import { deepAnchor, homeDungeon, legacyLevel, monPoints, monTier, restatAt, TOWER_LV, scaleOf, skillAtLv, skillMul, statNative, towerMonLv, withStats } from '../src/data/mon-stats'
 import { towerFloor, TOWER } from '../src/data/modes'
+import { castLv, skillLvBonus } from '../src/data/mon-skill-scale'
 
 const DEEP = DUNGEONS.filter((d) => d.level)
 const kindsOf = (rooms: ReturnType<typeof towerFloor>) => rooms.flatMap((r) => [...r.spawn.map(([k]) => k), ...(r.miniPool ?? [])])
@@ -74,7 +75,7 @@ test('floor 40+: every D1-D5 monster in the room is Hell (Q 2026-11-08)', () => 
   }
 })
 
-test('tower Lv: a D3 mini locked at its home Lv grows stats + skill Lv on deep floors, HP / ATK untouched', () => {
+test('tower Lv: a D3 mini locked at its home Lv grows stats on deep floors (skill Lv: v124 skillLvBonus), HP / ATK untouched', () => {
   const d = MONSTERS.duelist, home = withStats(d, 'duelist', legacyLevel('duelist', d, { id: 'd3' }))
   const lv = towerMonLv(40) + HELL.lv
   assert.ok(lv > (home.lv ?? 0))
@@ -83,7 +84,7 @@ test('tower Lv: a D3 mini locked at its home Lv grows stats + skill Lv on deep f
   assert.equal(up.hp, home.hp)
   assert.equal(up.dmg, home.dmg)
   assert.ok((up.flee ?? 0) > (home.flee ?? 0) && (up.hit ?? 0) > (home.hit ?? 0), 'flee / hit grow')
-  assert.ok((up.skills ?? []).every((s, i) => (s.lv ?? 1) > (home.skills?.[i]?.lv ?? 1)), 'skill Lv grows')
+  assert.ok(skillLvBonus('duelist', lv, d) > 0, 'skill Lv grows (cast time)')
   assert.equal(JSON.stringify(restatAt(home, 'duelist', 5)), JSON.stringify(home), 'D1-D5 never go below home Lv')
 })
 
@@ -124,11 +125,12 @@ test('v122 tower MVP: a boss rebuilt with numbers gets TOWER_LV.mvpPct of the he
   assert.equal(JSON.stringify(restatAt(mh, 'duelist', lv, true).base), JSON.stringify(withStats(m, 'duelist', lv).base), 'mini: no MVP bonus')
 })
 
-test('v123 monster skills level like hero skills: pow +10%/skill Lv from the tower Lv, on stat-based ATK', () => {
+test('v123/v124 tower: ดาบมรณะ Lv78 is cast at Lv7 = base pow x 1.6, with STR above the Lv ref on top', () => {
   const d = MONSTERS.deathknight, home = withStats(d, 'deathknight', legacyLevel('deathknight', d, { id: 'd3' }))
-  const up = restatAt(home, 'deathknight', towerMonLv(45) + HELL.lv, true)
+  const lv = towerMonLv(45) + HELL.lv, up = restatAt(home, 'deathknight', lv, true)
   const h = home.skills!.find((s) => s.kind === 'strike')!, u = up.skills!.find((s) => s.kind === 'strike')!
-  assert.equal(u.lv, (h.lv ?? 1) + 6)
-  assert.ok(Math.abs((skillAtLv(u).pow ?? 0) - (h.pow ?? 0) * 1.6) < 1e-9, 'Lv7 = base x (1 + 10% x 6)')
-  assert.ok(skillMul(up, scaleOf(u)) >= skillMul(home, scaleOf(h)), 'STR above the Lv ref adds on top')
+  const cast = skillAtLv(u, castLv(u.lv ?? 1, skillLvBonus('deathknight', lv, d)))
+  assert.equal(cast.lv, 7)
+  assert.ok(Math.abs((cast.pow ?? 0) - (h.pow ?? 0) * 1.6) < 1e-9)
+  assert.ok(skillMul(up, scaleOf(u)) >= skillMul(home, scaleOf(h)))
 })

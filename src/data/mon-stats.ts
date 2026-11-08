@@ -325,10 +325,9 @@ export function skillAtLv(sk: MonSkill, lv = sk.lv ?? 1): MonSkill {
 // counter, speed, M.DEF, lucky dodge, skill levels) used to stay at the monster's home level: a Hell D3 mini on floor 40 was Lv 12,
 // a D10 monster on floor 25 was Lv 90. Now every monster on a floor is rebuilt at that floor's tower Lv (Hell: + HELL.lv),
 // keeping the tower's HP / ATK. D1-D5 only move up from their home level; D6+ follow the tower Lv both ways.
-export const TOWER_LV = { perFloor: 1.5, skillEvery: 10, // skill Lv +1 per `skillEvery` Lv above the monster's home Lv
+export const TOWER_LV = { perFloor: 1.5,
   mvpPct: 2.5 } // v122 (Q 2026-11-08 "lv 77 stat point x 2.5 is mvp"): a tower boss gets 2.5x the hero's stat points at its Lv (dungeons: MON_STAT.tierPct.boss 1.5)
 export const towerMonLv = (floor: number) => Math.max(1, Math.round(TOWER_LV.perFloor * floor))
-const lvUp = (s: MonSkill, n: number): MonSkill => ({ ...s, lv: (s.lv ?? 1) + n, ...(s.pick ? { pick: s.pick.map((p) => lvUp(p, n)) } : {}) })
 /** `base` (already built at its home level) rebuilt at Lv `lv`: stats + skill levels move, HP / ATK / M.ATK stay
  *  unless `numbers` (v122 tower: HP / ATK / M.ATK come from the stats at `lv` too, like a D6+ level dungeon). */
 export function restatAt(base: MonsterDef, kind: MonsterKind, lv: number, numbers = false): MonsterDef {
@@ -338,12 +337,7 @@ export function restatAt(base: MonsterDef, kind: MonsterKind, lv: number, number
   const at = deep ? statMonster(d, lv, o) : withStats(d, kind, lv, o)
   const out: MonsterDef = numbers ? { ...at } : { ...at, hp: base.hp, dmg: base.dmg }
   if (!numbers) { if (base.matk !== undefined) out.matk = base.matk; else delete out.matk }
-  const n = Math.floor(Math.max(0, lv - home) / TOWER_LV.skillEvery)
-  // v123 (Q 2026-11-08 "skill มอนต้องมี level + scaling เหมือน skill hero"): skill Lv +1 per skillEvery Lv, pow +10%/Lv (skillAtLv).
-  // v121 froze pow here because tower ATK followed Hero Power (counted the hero twice); v122 made tower ATK stat-based, so pow grows again.
-  if (n > 0) {
-    if (out.skills) out.skills = out.skills.map((s) => lvUp(s, n))
-    if (out.phases) out.phases = out.phases.map((p) => (p.skills ? { ...p, skills: p.skills.map((s) => lvUp(s, n)) } : p))
-  }
+  // v124: skill Lv is no longer raised here. BattleScene casts every skill at its Lv + mon-skill-scale.skillLvBonus(monster Lv),
+  // in every mode (this Lv, anchored at the home Lv for D1-D5), so the tower gets the same +1 / 10 Lv it had (v116 / v123).
   return out
 }
