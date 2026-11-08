@@ -405,9 +405,12 @@ function previewBox(k: MonsterKind): Node[] {
 /** One line per skill as cast at its level: ✨ name Lv · every N · power · hits · effects (orange = differs from live). */
 function skillLines(k: MonsterKind): Node[] {
   const now = previewSkills(k, S.draft), was = previewSkills(k, livePatch())
+  // v124: cast Lv / damage at each preview Lv (first room -> last room): "Lv 5→6 · 154%→165% M.ATK"
+  const span = (xs: (string | number | undefined)[]) => { const u = [...new Set(xs.filter((x) => x !== undefined && x !== '').map(String))]; return u.join('→') }
   const txt = (p: SkillPreview) => [
-    `✨ ${p.name} Lv ${p.lv}`, `ทุก ${p.every} เทิร์น`, p.pow !== undefined ? `พลัง ${Number(p.pow.toFixed(3))}` : '',
-    p.hits && p.hits > 1 ? `${p.hits} ฮิต` : '', p.turns ? `${p.turns} เทิร์น` : '', p.fx,
+    `✨ ${p.name} Lv ${span(p.casts.map((c) => c.lv)) || p.lv}`, `ทุก ${p.every} เทิร์น`, span(p.casts.map((c) => c.dmg)),
+    p.pow !== undefined && !p.casts.some((c) => c.dmg) ? `พลัง ${Number(p.pow.toFixed(3))}` : '',
+    p.casts.some((c) => (c.hits ?? 1) > 1) ? `${span(p.casts.map((c) => c.hits ?? 1))} ฮิต` : '', p.turns ? `${p.turns} เทิร์น` : '', span(p.casts.map((c) => c.fx)),
   ].filter(Boolean).join(' · ')
   return now.map((p, i) => {
     const a = txt(p), b = was[i] ? txt(was[i]) : ''

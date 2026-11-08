@@ -1,7 +1,8 @@
 // admin.html: pure helpers (no DOM). Defaults are read from this build's untouched src/data (admin never applies a patch).
-import { BATTLE, DUNGEONS, MONSTERS, type MonSkill, type MonsterKind } from '../data/game-data'
+import { BATTLE, DUNGEONS, MONSTERS, type MonSkill, type MonsterDef, type MonsterKind } from '../data/game-data'
 import type { BaseStat } from '../data/meta'
-import { homeDungeon, legacyLevel, monBase, monPoints, monTier, roomLevel, skillAtLv, statMonster, statNative, withStats } from '../data/mon-stats'
+import { homeDungeon, legacyLevel, monBase, monPoints, monTier, roomLevel, scaleOf, skillAtLv, skillMul, statMonster, statNative, withStats } from '../data/mon-stats'
+import { castLv, describeFormula, skillLvBonus } from '../data/mon-skill-scale'
 import { applyPatch, guardsFor, listFields, type FieldRow } from '../data/patch'
 import { MINI_POOL } from '../data/relics'
 import { TABLES, type FieldDef, type Patch, type TableId } from '../data/tunables'
@@ -174,20 +175,35 @@ export function previewMon(k: MonsterKind, patch: Patch): MonPreview[] {
   } finally { r.revert() }
 }
 
-export interface SkillPreview { name: string; kind: string; lv: number; every: number; pow?: number; hits?: number; turns?: number; fx: string }
+/** v124: one preview level as the game casts it: monster Lv -> cast Lv (own Lv + 1 / 10 monster Lv), hero-style damage text. */
+export interface SkillCast { monLv: number; lv: number; dmg?: string; hits?: number; fx: string }
+export interface SkillPreview { name: string; kind: string; lv: number; every: number; pow?: number; hits?: number; turns?: number; fx: string; casts: SkillCast[] }
 const FX_ICON: Record<string, string> = { poison: '☠️', burn: '🔥', weaken: '💢', armorBreak: '🛡️', silence: '🤐', slow: '🐌', web: '🕸️', freeze: '❄️' }
 /** Each skill as the game casts it at its level (skillAtLv), with `patch` applied. Spell rotations list each pick. */
 export function previewSkills(k: MonsterKind, patch: Patch): SkillPreview[] {
   const r = applyPatch(patch, guardsFor(patch))
   try {
     const out: SkillPreview[] = []
-    for (const raw of MONSTERS[k].skills ?? []) for (const p of raw.pick ?? [raw]) {
-      const sk = skillAtLv(p, p.lv ?? raw.lv ?? 1)
-      const fx = Object.entries(sk.fx ?? {}).filter(([, v]) => v).map(([f, v]) => `${FX_ICON[f] ?? f}${v}`).join(' ')
-      out.push({ name: sk.name, kind: sk.kind, lv: sk.lv ?? 1, every: raw.every, pow: sk.pow, hits: sk.hits, turns: sk.turns, fx })
+    const d0 = MONSTERS[k], mons = previewLevels(k).map((lv) => (statNative(k) ? statMonster(d0, lv) : withStats(d0, k, lv)))
+    const fxOf = (sk: MonSkill) => Object.entries(sk.fx ?? {}).filter(([, v]) => v).map(([f, v]) => `${FX_ICON[f] ?? f}${v}`).join(' ')
+    for (const raw of d0.skills ?? []) for (const p of raw.pick ?? [raw]) {
+      const own = p.lv ?? raw.lv ?? 1, sk = skillAtLv(p, own)
+      const casts = mons.map((m): SkillCast => {
+        const c = skillAtLv(p, castLv(own, skillLvBonus(k, m.lv ?? 1, d0)))
+        return { monLv: m.lv ?? 1, lv: c.lv ?? 1, dmg: dmgText(c, m), hits: c.hits, fx: fxOf(c) }
+      })
+      out.push({ name: sk.name, kind: sk.kind, lv: sk.lv ?? 1, every: raw.every, pow: sk.pow, hits: sk.hits, turns: sk.turns, fx: fxOf(sk), casts })
     }
     return out
   } finally { r.revert() }
+}
+
+/** Hero-style damage of a bolt / strike hit: the formula text (MonSkill.f) or "% of P.ATK / M.ATK" (x0.55 x pow x stat scale). */
+function dmgText(sk: MonSkill, m: MonsterDef): string | undefined {
+  if (sk.kind !== 'bolt' && sk.kind !== 'strike') return undefined
+  if (sk.f) return describeFormula(sk.f, sk.lv ?? 1)
+  const pct = BATTLE.monDmgMul * (sk.pow ?? 1.3) * skillMul(m, scaleOf(sk)) * 100
+  return `${Math.round(pct)}% ${sk.kind === 'bolt' ? 'M.ATK' : 'P.ATK'}${sk.alone ? ` (ตัวเดียว ×${sk.alone})` : ''}`
 }
 
 // ---------- "🎯 พิมพ์ stat ที่อยากได้": target stats -> statAlloc weights + pointsMul ----------
