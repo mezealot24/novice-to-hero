@@ -3,15 +3,15 @@
 import type { Stats } from './game-data'
 import type { JobId } from './jobs'
 
-export type WebLine = 's1' | 's2' | 'ult' | 'core' | 'job2'
+export type WebLine = 's1' | 's2' | 'ult' | 'core' | 'job2' | 'job3'
 /** line: which column group of the skill web the branch sits in (set by data/tree.ts for class branches). */
-export interface TreeBranch { id: string; job: JobId; name: string; icon: string; blurb: string; line?: WebLine; job2?: string } // job2: ใยชั้น 2 branch (data/trees2/)
+export interface TreeBranch { id: string; job: JobId; name: string; icon: string; blurb: string; line?: WebLine; job2?: string; job3?: string } // job2: ใยชั้น 2 branch (data/trees2/) · job3: ใยชั้น 3 branch (data/trees3/)
 export interface TreeNode {
   id: string; branch: string; tier: 0 | 1 | 2 | 3 | 4; name: string; icon: string; max: number
   desc: (lv: number) => string; mod: (lv: number) => Partial<Stats>
   parent?: string // skill web: needs >= 1 point in this node first (filled in by data/tree.ts)
   parentLv?: number // ...or at least this many (Thief: ทักษะ 2 roots need D.Strike 5/5)
-  kind?: 'pow' | 's2root' | 's2plus' | 's2star' | 'pow2' // generated web nodes (data/tree.ts); undefined = class tree node
+  kind?: 'pow' | 's2root' | 's2plus' | 's2star' | 'pow2' | 'pow3' // generated web nodes (data/tree.ts); undefined = class tree node
   s2?: string // Skill 2 id for the s2* kinds
 }
 

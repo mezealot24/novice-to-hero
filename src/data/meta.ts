@@ -1,11 +1,11 @@
 // ===== Out-of-run (meta) game data: races, base stats, equipment, costumes, top-up packs. =====
 // Everything a run starts from is computed by heroStats(save). Balance knobs live here.
 import { COMBO, PLAYER, type Stats } from './game-data'
-import { KIT2, S2N } from './skill-math'
+import { KIT2, KIT3, S2N } from './skill-math'
 import { COUNTER_RULES } from './stack-math'
-import { talent2Mods, talentMods, tree2Mods, treeMods, type TalentSave, type TreeSave } from './tree'
+import { branchPts, talent2Mods, talentMods, tree2Mods, tree3Mods, treeMods, type TalentSave, type TreeSave } from './tree'
 import { JOB2, type Job2Id, type WeaponType } from './jobs2'
-import type { Job3Id } from './jobs3'
+import { activeJob3, type Job3Id, type Job3Path, type Job3Variant } from './jobs3'
 import { JOB_CHANGE, JOBS, type JobId } from './jobs'
 import { cardById, type EquipCard } from './cards'
 import { CARDFORGE_ITEMS } from './cardforge'
@@ -372,7 +372,7 @@ export const SUPPORTER_PRICE = 300 // gems: badge + gold name, no stats
 export const FREE_GEMS = { firstClear: 50, clear: 5, levelUp: 10, daily: 20 }
 
 // ---------- combine everything into the hero's starting stats ----------
-export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; job2?: Job2Id; job2Tree?: TreeSave; job3?: Job3Id; job3Tree?: TreeSave; job3Level?: number; jobTalents?: TalentSave; jobLevel?: number; job2Talents?: TalentSave; job2Level?: number; sockets?: Record<string, string[]>; grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]>; taint?: Record<string, TaintRec>; tempBase?: Partial<Record<BaseStat, number>> }
+export interface StatsInput { race: RaceId; stats: Record<BaseStat, number>; equipped: Partial<Record<EquipSlot, string>>; skills: Record<SkillId, number>; job?: JobId; jobTree?: TreeSave; job2?: Job2Id; job2Tree?: TreeSave; job3?: Job3Id; job3Tree?: TreeSave; job3Level?: number; job3Path?: Job3Path; job3Var?: Job3Variant; jobTalents?: TalentSave; jobLevel?: number; job2Talents?: TalentSave; job2Level?: number; sockets?: Record<string, string[]>; grade?: Record<string, number>; refine?: Record<string, number>; broken?: string[]; refineLines?: Record<string, RefineLine[]>; taint?: Record<string, TaintRec>; tempBase?: Partial<Record<BaseStat, number>> }
 
 /** Items the hero actually gets stats from (gear for another job, or broken by a failed refine, stays on but does nothing). */
 export function wornItems(s: StatsInput): Item[] {
@@ -503,6 +503,16 @@ export function heroStats(s: StatsInput): Stats {
     const wpn = itemById(s.equipped.weapon ?? '')
     if (j2.mastery.ok(wpn)) { add(j2.mastery.mod); j2pct.atk += j2.mastery.pct?.atk ?? 0 } // weapon mastery
     j2pct.maxHp += (j2.pct?.maxHp ?? 0) + st.j2HpPct; j2pct.aspd += j2.pct?.aspd ?? 0
+    if (activeJob3(s) === 'paladin') { // ⚜️ 3rd job (design/awakening-crusader-v1.md): ใยชั้น 3 + legacy reads of the Crusader web
+      const P = KIT3.paladin, t2 = s.job2Tree
+      st.j3On = 1
+      for (const m of tree3Mods(s.job3Tree, 'paladin', s.job3Path)) add(m)
+      st.j2CrossAdd += Math.min(P.leg.crossCap, st.j3LegCross * branchPts(t2, 'cr_c'))
+      st.j2Guard += Math.min(P.leg.guardCap, st.j3LegGuard * branchPts(t2, 'cr_s'))
+      j2pct.maxHp += Math.min(P.leg.hpCap, st.j3LegHp * branchPts(t2, 'cr_d'))
+      const V = s.job3Var === 'b' ? P.varB : P.varA
+      st.j3VarMul = Math.min(V.cap, V.per * branchPts(t2, V.branch))
+    }
   }
   const worn = wornItems(s)
   for (const it of worn) add(it.mod)
@@ -515,7 +525,8 @@ export function heroStats(s: StatsInput): Stats {
   if (st.j2DefAtk > 0) st.atk += st.def * st.j2DefAtk // Knight เกราะเป็นแรง
   if (j2?.id === 'crusader') { // Crusader Auto Guard: + per VIT point · v116 (Q 2026-11-08): what goes over the cap powers the block shield / heal instead of being lost
     const raw = st.j2Guard + KIT2.crusader.guardVit * Math.max(0, d('vit'))
-    st.j2Guard = Math.min(KIT2.crusader.guardCap, raw); st.j2GuardOver = Math.max(0, raw - KIT2.crusader.guardCap)
+    const cap = KIT2.crusader.guardCap + (st.j3On > 0 ? KIT3.paladin.capAdd : 0) // ⚜️ Paladin Prestige raises the cap
+    st.j2Guard = Math.min(cap, raw); st.j2GuardOver = Math.max(0, raw - cap)
   }
   for (const sk of SKILLS) if (sk.id !== 'smash' && (s.skills[sk.id] ?? 0) > 0) add(sk.mod(s.skills[sk.id]))
   if (job.id === 'novice') add(SKILLS.find((x) => x.id === 'smash')!.mod(smashLv(s.jobLevel ?? 1))) // v86: ทุบ = Job Lv

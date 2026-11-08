@@ -13,8 +13,11 @@ import { ALLIES, fillAllies, gadgetById, hawkMul, hurtAlly, liveAllies, makeAlly
 import type { Skill2Def } from '../data/skill2'
 import { canRollCrit, type CritSlot } from '../data/skill-registry'
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
+import { KIT3 } from '../data/skill-math'
+import { branchPts } from '../data/tree'
 import { autoCost, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, physBase, hitBase, KIT, KIT2, MAGE_CAST, magicPower, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
-import { addCard, addMat, addXp, persist, save, ultMode } from '../save'
+import { addCard, addMat, addXp, persist, save, trialWin, ultMode } from '../save'
+import { JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
 import { TAINT_MAT } from '../data/taint'
 import { pinnedReady } from '../data/cardforge'
@@ -622,6 +625,7 @@ export class BattleScene extends Phaser.Scene {
     this.fightTurns = 0; this.timedOut = false
     this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.rampage = 0
     this.martyrUsed = false; this.j2Hurt = false; this.clearAllies() // Crusader ★ ผู้พลีชีพ once per wave · allies last one wave
+    this.inspireUsed = false; this.inspire = 0; this.earthDone = false // ⚜️ Paladin: once per fight
     this.clearBookings() // v86: booked Skill 1-3 do not carry into the next wave (the ult booking does)
     this.zenyWave = 0; this.mirror = false; this.waveAllies() // Phase 4 Archer: pets / traps every wave
     this.casts = []; this.castFx(false); this.zenTurns = 0; this.endow = 0; this.rodUsed = false // Phase 5 Mage: a charge never carries into the next wave
@@ -689,6 +693,13 @@ export class BattleScene extends Phaser.Scene {
     if (this.job.id === 'cleric') this.tickShieldLayers()
     if (this.frenzy > 0 && this.fightTurns - this.frenzyAt > KIT2.berserker.frenzyKeep) { this.frenzy = 0; this.floatText(HERO_X, GROUND - 150, '🔥 Frenzy หมด', '#c9c9d6') }
     if (this.st.j2Es > 0 && !this.j2Hurt) this.addShield(this.st.maxHp * this.st.j2Es, true) // Monk Invoker Energy Shield (Meditate)
+    if (this.j3Bless > 0) this.j3Bless--
+    if (this.inspire > 0) this.inspire--
+    if (this.st.j3EarthDrive > 0 && !this.earthDone && this.alive().length) { // ⚜️ Earth Drive: opens the fight
+      this.earthDone = true
+      this.callout('🌋 Earth Drive!', W / 2, 170)
+      for (const m of this.alive()) { this.strike(m, this.st.j3EarthDrive * this.st.def / Math.max(1, this.st.atk)); if (!m.dead) { m.armorBrk = Math.max(m.armorBrk, 1); this.dotIcon(m) } }
+    }
     if (this.st.j2Dark > 0) this.addShield(this.st.maxHp * this.st.j2Dark, true) // Monk Chayula Darkness
     this.j2Hurt = false
     await this.heroAct()
@@ -888,6 +899,7 @@ export class BattleScene extends Phaser.Scene {
    *  Magic never misses and never crits. Returns damage dealt. */
   private strike(m: Mon, mul: number, magic = false, color?: string, pierce = 0): number {
     if (m.dead || this.hp <= 0) return 0
+    if (this.j3Bless > 0) mul *= 1 + this.st.j3AfterBless // ⚜️ พรหลังศึก
     const crit = this.forceCrit || (this.critAllowed() && Math.random() < (magic ? this.st.spellCrit : this.st.crit + (this.buf.hawk > 0 ? S2N.hawkCrit(this.st.s2Lv) : 0) + this.critAdd + (this.rampage > 0 ? KIT2.berserker.ultCrit : 0))) // magic crits only with spellCrit (talent/item/card) · Skill 2 ตาเหยี่ยว · 2nd job
     if (!magic && !crit && !this.sureHit && this.zenTurns <= 0 && Math.random() > hitChance(this.st.hit, m.def.flee ?? 5)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
     if (!magic && m.def.luckyDodge && Math.random() < m.def.luckyDodge) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, '🍀 หลบ!', '#a9a6c7'); return 0 } // D6+ stat monsters: LUK lucky dodge (even vs crits, like the hero's)
@@ -985,9 +997,42 @@ export class BattleScene extends Phaser.Scene {
     if (!this.chargeTxt?.active) this.chargeTxt = this.add.text(HERO_X, GROUND - 190, '', { fontSize: '14px' }).setOrigin(0.5).setDepth(9500)
     this.chargeTxt.setText('🔵'.repeat(this.charges))
   }
+  /** ⚜️ Paladin Holy Cross variant (design/awakening-crusader-v1.md §4.3). Returns hits landed (for กางเขนหล่อกาย). */
+  private async holyVariant(t: Mon, pow: number): Promise<number> {
+    const P = KIT3.paladin, C = KIT2.crusader, heir = this.st.j3Heir > 0, base = pow * (1 + this.st.j2CrossAdd) * (1 + this.st.j3VarMul)
+    const blind = (m: Mon, add = 0) => { if (!m.dead) { m.blind = Math.max(m.blind, C.blindTurns + this.st.j2BlindAdd + add); this.dotIcon(m) } }
+    let landed = 0
+    if (save().job3Var === 'b') { // ⚖️ Pressure: one heavy hit through DEF on the boss (or the front), + max HP share
+      const V = P.varB, m = this.bossTarget() ?? t, heirOn = heir && branchPts(save().job2Tree, V.branch) >= P.heirNeed
+      await this.maceSmash(m, () => {
+        landed += this.strike(m, V.atk * base * (1 + this.st.pskill) + V.hp * this.st.maxHp / Math.max(1, this.st.atk), false, '#ffe08a', 1)
+        for (const x of heirOn ? this.alive() : [m]) blind(x, V.blindAdd)
+        this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, heirOn ? '⚖️ Pressure! 🙈 ทุกตัว' : '⚖️ Pressure! 🙈', '#ffe08a')
+        this.cameras.main.flash(80, 255, 240, 170)
+      })
+      return landed
+    }
+    const V = P.varA, hits = V.hits + (heir && branchPts(save().job2Tree, V.branch) >= P.heirNeed ? 1 : 0) // 🔗 Shield Chain: the front, then bounces
+    const mul = (V.atk + V.def * this.st.def / Math.max(1, this.st.atk)) * base * (this.hasShield ? 1 : V.noShield)
+    let m: Mon | undefined = t
+    for (let i = 0; i < hits && m; i++) {
+      const target: Mon = m
+      await this.shoot(target, 0xd8d8e8, () => { landed += this.strike(target, mul * (1 + this.st.pskill), false, '#d8d8e8'); blind(target) })
+      const rest: Mon[] = this.alive().filter((x) => x !== target)
+      m = rest.length ? rest[Phaser.Math.Between(0, rest.length - 1)] : !target.dead ? target : undefined
+    }
+    this.floatText(HERO_X, GROUND - 150, `🔗 Shield Chain x${hits}`, '#d8d8e8')
+    return landed
+  }
   /** Crusader Auto Guard landed: ★ ป้อมศรัทธา shield + บล็อกฟื้นฟู heal. */
-  private onBlock() {
-    const over = 1 + this.st.j2GuardOver * KIT2.crusader.guardOverMul // v116: Auto Guard over the cap = bigger block shield / heal
+  private onBlock(src?: Mon) {
+    const P = KIT3.paladin, on3 = this.st.j3On > 0
+    const over = (1 + this.st.j2GuardOver * KIT2.crusader.guardOverMul) * (on3 ? 1 + P.blockAmp : 1) // v116: Auto Guard over the cap = bigger block shield / heal · ⚜️ Prestige x1.25
+    if (on3) { // ⚜️ Paladin: Faith · ★ Inspiration heal · Shield Press
+      this.addFaith(P.blockFaith)
+      if (this.inspire > 0) this.heal(this.st.maxHp * P.inspireHeal, true)
+      if (this.st.j3Press > 0 && src && !src.dead) this.strike(src, this.st.j3Press * this.st.def / Math.max(1, this.st.atk), false, '#d8d8e8')
+    }
     if (this.st.j2BlockShield > 0) this.addShield(this.st.maxHp * this.st.j2BlockShield * over, true)
     if (this.st.j2BlockHeal > 0) this.heal(this.st.maxHp * this.st.j2BlockHeal * over, true)
     if (this.st.j2BannerAura > 0) { // v84 Knight ★ ธงอมตะ
@@ -1284,7 +1329,8 @@ export class BattleScene extends Phaser.Scene {
       if (j2.id === 'crusader') { // ✝️ Holy Cross: front monster, each hit P.ATK + Pm, then blind · Shield Boomerang
         const C = KIT2.crusader, t = live[0], k = C.crossMul * pow * (1 + this.st.j2CrossAdd)
         let landed = 0
-        if (t) await this.maceSmash(t, () => {
+        if (t && this.st.j3On > 0) landed = await this.holyVariant(t, pow) // ⚜️ Paladin: Shield Chain / Pressure replace the cross
+        else if (t) await this.maceSmash(t, () => {
           for (let i = 0; i < C.crossHits && !t.dead; i++) { landed += this.strike(t, k * (1 + this.st.pskill), false, '#ffe08a'); if (!t.dead) landed += this.strike(t, k, true, '#fff3a0') }
           if (!t.dead) { t.blind = Math.max(t.blind, C.blindTurns + this.st.j2BlindAdd); this.dotIcon(t); this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 30, '✝️ 🙈 ตาบอด', '#ffe08a') }
           this.cameras.main.flash(80, 255, 240, 170)
@@ -1382,7 +1428,7 @@ export class BattleScene extends Phaser.Scene {
       const burnt = Math.floor(this.res)
       if (burnt > 0) { this.spendRes(burnt); this.floatText(HERO_X, GROUND - 130, `🔥 เผา Mana ${burnt}`, '#9fc3ff') } // v110: counts as Mana spent (💠 มานาพิทักษ์ heal)
       const n = gcPulses(this.st)
-      this.gc = { left: n, n, k, extra: C.gcBurn * (burnt + paid) * k / n } // a new cast replaces what is left of the old one
+      this.gc = { left: n, n, k, extra: C.gcBurn * (burnt + paid) * k / n, base: n - (this.st.j3On > 0 ? KIT3.paladin.gospelPulse + this.st.j3GospelField : 0) } // a new cast replaces what is left of the old one
       const hit = this.alive().length
       await this.gcPulse()
       if (paid > 0 && hit >= C.gcRefundAt) { this.hp = Math.min(this.st.maxHp, this.hp + Math.round(paid * C.gcRefund)); this.floatText(HERO_X, GROUND - 160, `✨ คืน HP ${Math.round(paid * C.gcRefund)}`, '#6fd08c') }
@@ -1759,6 +1805,7 @@ export class BattleScene extends Phaser.Scene {
     else await this.lunge(f, () => { const cl = BATTLE.cleave + this.st.cleaveAdd, fs = this.chargeMul(); if (live[1]) { this.strike(f, fs); this.strike(live[1], cl) } else this.strike(f, fs + (kind === 'swordsman' ? cl : 0)) }) // novice, swordsman: cleave (+talent ฟันกวาด) · swordsman alone vs 1 monster: the cleave lands on it too
     this.lsMul = 0
     if (this.j2?.id === 'monk') this.monkSwing(f)
+    else if (this.st.j2Chill > 0 && !f.dead && Math.random() < this.st.j2Chill) { f.chill = Math.max(f.chill, KIT2.monk.chillTurns); this.dotIcon(f) } // ⚜️ Hybrid borrows Monk ฝ่ามือธาตุ
     if (this.allies.length) this.alliesOnSwing()
     if (this.demonOn && !f.dead) this.addPoison(f, IMMORTAL_RULES.demonPoison) // 🌈 เงาปีศาจ
     this.src = prevSrc
@@ -1995,7 +2042,11 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** v111 ✨ Grand Cross pulses left (one fires on cast, then one at the start of each hero turn). k / extra are fixed at cast. */
-  private gc: { left: number; n: number; k: number; extra: number } | null = null
+  private gc: { left: number; n: number; k: number; extra: number; base: number } | null = null
+  private j3Bless = 0 // ⚜️ พรหลังศึก: hero turns of outgoing damage + j3AfterBless left
+  private inspire = 0 // ⚜️ ★ Inspiration: hero turns left · inspireUsed = once per fight
+  private inspireUsed = false
+  private earthDone = false // ⚜️ Earth Drive: once per fight, on the first hero turn
   /** One Grand Cross pulse on every monster: gcPm x Pm (+ burn share, magic) and gcAtk x P.ATK + gcStr x STR (+ root share, physical).
    *  ★ ซ้อน: hits twice, the 2nd without the burn share. v119: no spell vamp (the HP refund heals) · 🛡️ กางเขนคุ้มกาย shield per pulse. */
   private async gcPulse() {
@@ -2004,20 +2055,30 @@ export class BattleScene extends Phaser.Scene {
     const C = KIT2.crusader, b = totalBase(save()), bl = this.buf.bless > 0 ? blessBase(save()) ?? {} : {}
     const pb = physBase(this.st), atkAvg = Math.max(1, (pb.lo + pb.hi) / 2)
     const physMul = (C.gcAtk + this.st.clUltAtk / g.n) * g.k * (1 + this.st.pskill) + C.gcStr * (b.str + (bl.str ?? 0)) * g.k / atkAvg
-    const last = g.left === 1
+    const last = g.left === 1, idx = g.n - g.left
     g.left--
+    const k3 = idx >= g.base ? 1 + this.st.u3Pow : 1 // ⚜️ the pulses Gospel Cross adds take the ใยชั้น 3 root
+    const hits = this.alive().length
     if (this.st.j2GcShield > 0) this.addShield(this.st.maxHp * this.st.j2GcShield)
     for (let twice = 0; twice < (this.st.j2GcTwice > 0 ? 2 : 1) && this.alive().length; twice++) {
       this.cameras.main.flash(110, 255, 243, 160)
       for (const m of this.alive()) {
         const cross = this.add.text(m.spr.x, m.spr.y - m.spr.displayHeight / 2, '✝️', { fontSize: last ? '50px' : '40px' }).setOrigin(0.5).setDepth(9000)
         this.tweens.add({ targets: cross, scale: 1.6, alpha: 0, duration: 300, onComplete: () => cross.destroy() })
-        this.strike(m, C.gcPm * g.k + (twice === 0 ? g.extra / Math.max(1, magicPower(this.st)) : 0), true, '#fff3a0')
-        this.strike(m, physMul, false, '#ffe08a')
+        this.strike(m, (C.gcPm * g.k + (twice === 0 ? g.extra / Math.max(1, magicPower(this.st)) : 0)) * k3, true, '#fff3a0')
+        this.strike(m, physMul * k3, false, '#ffe08a')
       }
       await this.wait(BATTLE.stepMs * 0.25)
     }
-    if (g.left <= 0) this.gc = null
+    if (this.st.j3On > 0 && hits > 0) { // ⚜️ Gospel: Faith from a big pulse · แสงพระวรสาร heal
+      const P = KIT3.paladin
+      if (hits >= P.gospelAt) this.addFaith(P.blockFaith + this.st.j3GospelFaith)
+      if (this.st.j3GospelHeal > 0) this.heal(this.st.maxHp * this.st.j3GospelHeal * Math.min(P.gospelHealMax, hits), true)
+    }
+    if (g.left <= 0) {
+      this.gc = null
+      if (this.st.j3AfterBless > 0) { this.j3Bless = KIT3.paladin.afterTurns; this.floatText(HERO_X, GROUND - 150, `🌅 พรหลังศึก +${Math.round(this.st.j3AfterBless * 100)}%`, '#ffe08a') }
+    }
   }
 
   /** v58 Cleric ult พรคุ้มครอง: smash all (P.ATK) + 🌄 Dawn Light + Holy Light (M.ATK) + timed shield + Ult-web extras.
@@ -2764,7 +2825,7 @@ export class BattleScene extends Phaser.Scene {
     const sure =this.hx.web > 0 || (!magic && (src?.trueTurns ?? 0) > 0) // 🕸️ webbed: Can't Evade · 🎯 ตาเหยี่ยว: physical hits skip Flee + lucky dodge
     if (!sure && Math.random() < this.st.luckyDodge) return dodged('LUCKY!', '#6fd08c')
     if (!sure && Math.random() > hitChance(monHit, this.st.flee, 0.8 - this.st.fleeFloor)) return dodged('EVADE!', '#9fe3ff') // Thief เงาบาง lowers the floor
-    if (!magic && this.st.j2Guard > 0 && Math.random() < (this.st.j2Guard + (this.gc ? this.st.j2GcGuard : 0)) * (this.hasShield ? 1 : KIT2.knight.guardShieldless)) { this.hitOut = 'block'; this.floatText(HERO_X, GROUND - 120, '🛡️ BLOCK!', '#9fe3ff'); sfx.hit(); this.onBlock(); return false } // Knight / Crusader Auto Guard
+    if (!magic && this.st.j2Guard > 0 && Math.random() < (this.inspire > 0 ? KIT2.crusader.guardCap + KIT3.paladin.capAdd : this.st.j2Guard + (this.gc ? this.st.j2GcGuard : 0)) * (this.hasShield ? 1 : KIT2.knight.guardShieldless)) { this.hitOut = 'block'; this.floatText(HERO_X, GROUND - 120, '🛡️ BLOCK!', '#9fe3ff'); sfx.hit(); this.onBlock(src); return false } // Knight / Crusader Auto Guard
     if (magic && this.j2?.id === 'sage') { // 🛡️ Sage Magic Rod
       if (this.st.j2RodBlock > 0 && !this.rodUsed) { this.rodUsed = true; this.hitOut = 'rod'; this.gainRes(KIT2.sage.rodBlockMana); this.floatText(HERO_X, GROUND - 120, '🔮 Magic Rod! ดูดเวท', '#c9a8ff'); return false }
       if (this.st.j2MagicRod > 0) this.gainRes(this.st.j2MagicRod)
@@ -3050,9 +3111,14 @@ export class BattleScene extends Phaser.Scene {
     const G = RELIC_RULES.glass
     return (1 - Math.min(this.pk.hardenCap, this.pk.harden * this.fightTurns)) * (this.relic === 'glass' && this.hp < this.st.maxHp * G.below ? 1 + G.taken : 1) * (this.rampage > 0 ? 1 + KIT2.berserker.ultTaken : 1) * (this.j2?.id === 'wizard' && this.casts.length ? 1 + KIT2.wizard.castTaken : 1) * (this.wardTurns > 0 ? 1 - this.st.clUltWard : 1) // v84 ม่านพร
       * (this.gc && this.st.j2GcAngel > 0 ? 1 - Math.min(KIT2.crusader.angelCap, this.st.j2GcAngel * this.gc.left) : 1) // v119 🪽 Guardian Angel: fades with the pulses left
+      * (this.st.j3Banding > 0 ? 1 - this.st.j3Banding * Math.min(KIT3.paladin.bandingMax, this.alive().length) : 1) // ⚜️ Banding
   }
   /** First drop under 30% HP this fight (lowHp cards), and 🌈 เงาปีศาจ under 50%. */
   private lowHpCheck() {
+    if (this.st.j3Inspire > 0 && !this.inspireUsed && this.hp > 0 && this.hp < this.st.maxHp * KIT3.paladin.inspireAt) { // ⚜️ ★ Inspiration
+      this.inspireUsed = true; this.inspire = KIT3.paladin.inspireTurns
+      this.callout(`🦁 Inspiration! บล็อกเต็มเพดาน ${KIT3.paladin.inspireTurns} เทิร์น`, W / 2, 170)
+    }
     if (!this.lowHpDone && this.hp < this.st.maxHp * PROC_RULES.lowHpAt) { this.lowHpDone = true; this.procs('lowHp') }
     if (this.st.clEmergency > 0 && !this.clEmerUsed && this.hp < this.st.maxHp * KIT.clericTree.emergencyAt) { // v84 Priest ฉุกเฉิน (1 per wave)
       this.clEmerUsed = true; this.heal(this.st.maxHp * this.st.clEmergency)
@@ -4078,6 +4144,7 @@ export class BattleScene extends Phaser.Scene {
       by[this.dg.id] = (by[this.dg.id] ?? 0) + 1
       s.clears++
     }
+    const trial = won ? trialWin(s, this.dg.id, this.hard) : undefined // ⚔️ Master Trial (design/awakening-crusader-v1.md §3)
     const before = s.gems
     const lv0 = { base: s.baseLevel, job: s.jobLevel, job2: s.job2Level ?? 1, job3: s.job3Level ?? 1 }
     const ups = addXp(this.runXp)
@@ -4101,6 +4168,7 @@ export class BattleScene extends Phaser.Scene {
     const lines = [...uniq, ...(mode?.lines ?? []), `+${this.zeny} zeny · +${this.runXp} EXP${s.gems > before ? ` · +${s.gems - before} เพชร` : ''}`]
     if (ups.base) lines.push(`🎉 Base Lv ${s.baseLevel}! ได้แต้มสถานะเพิ่ม`)
     if (ups.job) lines.push(jobUpText(s, ups.job))
+    if (trial) lines.unshift(`⚔️ ผ่าน Master Trial! ตื่นรู้เป็น ${JOB3[trial].icon} ${JOB3[trial].name} ได้ที่ 🏠 เมือง › อาชีพ`)
     const pin = pinnedReady(s) // v99 📌 pinned forge recipe
     if (pin) lines.push(`📌 ตี ${pin.icon} ${pin.name} ได้แล้ว! ไปที่ 🔨 โรงตีเหล็ก › 📜 สูตร`)
     if (this.runCards.length) { // grouped + capped: a long tower run can find dozens

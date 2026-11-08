@@ -16,7 +16,7 @@ export type Ev =
   | { e: 'run_start'; mode: string; dungeon: string }
   | { e: 'run_end'; mode: string; dungeon: string; won: boolean; room: number; zeny: number; xp: number }
   | { e: 'level_up'; kind: 'base' | 'job' | 'job2' | 'job3'; level: number }
-  | { e: 'job_change'; tier: 1 | 2; job: string; gems: number }
+  | { e: 'job_change'; tier: 1 | 2 | 3; job: string; gems: number }
   | { e: 'shop_open'; shop: 'gem' }
   | { e: 'purchase'; stage: 'tap' | 'ok' | 'fail'; sku: string; price: number; pay: PayKind; reason?: string }
   | { e: 'gacha_roll'; kind: 'option'; lines: number; locked: number; gems: number }

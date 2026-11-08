@@ -4,7 +4,8 @@ import { levelDropMul, TOWER_LV, towerMonLv } from '../data/mon-stats'
 import { foldCorruptions, rollCorruptions } from '../data/corruptions'
 import { HARD_POWER, heroParts, heroPower, matchScale, overpowerMul, powerHint, recPower, TOWER_POWER } from '../data/power'
 import { COSTUMES, FREE_GEMS, isBroken, itemById, JOB_RULES, noviceLeft, RACES, STAT_RULES } from '../data/meta'
-import { canChangeJob, canChangeJob2, persist, save, today, ultMode, wipe } from '../save'
+import { canChangeJob, canChangeJob2, persist, save, today, ultMode, wipe, job3Ready } from '../save'
+import { activeJob3, job3Of } from '../data/jobs3'
 import { JOB_CHANGE, JOBS } from '../data/jobs'
 import { JOB2, JOB2_RULES, job2Of } from '../data/jobs2'
 import { DAILY, dailyOf, dailySeed, deepDailyOk, MODES, PANEL_MODES, TOWER, towerCatchUp, towerCheckpoints, towerSkipCheck, towerSkipGems } from '../data/modes'
@@ -51,11 +52,16 @@ export class HubScene extends Phaser.Scene {
     if (s.skillPoints > 0) notes.push(`มีแต้มสกิล ${s.skillPoints}`)
     if (noviceLeft(s.skills) > 0) notes.push(`มีแต้มโนวิส ${noviceLeft(s.skills)}`)
     if ((s.job2Points ?? 0) > 0) notes.push(`มีแต้มใยชั้น 2 ${s.job2Points}`)
+    if (activeJob3(s) && (s.job3Points ?? 0) > 0) notes.push(`มีแต้มใยชั้น 3 ${s.job3Points}`)
+    const awaken = s.job2 ? job3Of(s.job2) : undefined // ⚜️ 3rd job ready (Master Trial passed) but not taken yet
     if (canChangeJob(s)) {
       const jb = button(this, 214, 448, 300, 44, '🎓 เปลี่ยนอาชีพได้แล้ว!', () => go(this, 'job'), { size: 18 })
       this.tweens.add({ targets: jb, scale: 1.05, duration: 600, yoyo: true, repeat: -1 })
     } else if (canChangeJob2(s) && job2Of(s.job).length) { // 2nd job: Job Lv 40 + ดัน 5 (design/second-jobs-v1.md)
       const jb = button(this, 214, 448, 300, 44, '⭐ อาชีพขั้น 2 ได้แล้ว!', () => go(this, 'job', { job2: true }), { size: 18 })
+      this.tweens.add({ targets: jb, scale: 1.05, duration: 600, yoyo: true, repeat: -1 })
+    } else if (awaken && job3Ready(s, awaken.id) && !activeJob3(s)) {
+      const jb = button(this, 214, 448, 300, 44, `${awaken.icon} ตื่นรู้ได้แล้ว!`, () => go(this, 'job', { job3: true }), { size: 18 })
       this.tweens.add({ targets: jb, scale: 1.05, duration: 600, yoyo: true, repeat: -1 })
     } else if (s.job !== 'novice') { // v52: re-pick another class for gems
       if (notes.length) txt(this, 214, 432, `✨ ${notes.join(' · ')}`, 13, UI.gold).setOrigin(0.5)

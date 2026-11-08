@@ -25,6 +25,8 @@ import { tree2 as wizard } from './trees2/wizard'
 import { tree2 as sage } from './trees2/sage'
 import { tree2 as beastmaster } from './trees2/beastmaster'
 import { tree2 as innovator } from './trees2/innovator'
+import { JOB3, JOB3_RULES, type Job3Id, type Job3Path } from './jobs3'
+import { tree3 as paladin } from './trees3/paladin'
 
 // v83: s2PlusMax 3 -> 5 (Stats.s2Lv = Lv x s2PlusOld / s2PlusMax, so Lv 5 = the old Lv 3) · the ★ needs the "+" at s2StarNeed.
 // stretch: old max -> new max for class / ใยชั้น 2 nodes (stretchNode below); unlock rules + parentLv gates unchanged.
@@ -155,7 +157,53 @@ for (const id of Object.keys(JOB2_TREES) as Job2Id[]) {
 }
 export const BRANCHES2: TreeBranch[] = web2Branches
 export const TREE2: TreeNode[] = web2Nodes
-const ALL_NODES = [...webNodes, ...web2Nodes]
+
+// ===== ใยชั้น 3 (design/awakening-crusader-v1.md §4.4-§5): one per 3rd job, its own points (save.job3Points) =====
+// One "+power" root (Ult วิวัฒน์ 2) + 3 branches x 4 nodes. Hybrid path: own tier 1-2 + the sibling 2nd job's ใยชั้น 2 tier 1-2.
+const JOB3_TREES: Record<Job3Id, ClassTree> = { paladin }
+const web3Branches: TreeBranch[] = [], web3Nodes: TreeNode[] = []
+for (const id of Object.keys(JOB3_TREES) as Job3Id[]) {
+  const c = JOB3_TREES[id], J = JOB3[id], j2 = JOB2[J.parent]
+  web3Branches.push({ id: `${id}_u3`, job: j2.parent, job2: J.parent, job3: id, name: 'Ult วิวัฒน์ 2', icon: '✨', blurb: J.ultName, line: 'job3' })
+  web3Nodes.push({ id: `${id}_u3p`, branch: `${id}_u3`, tier: 0, icon: '✨', name: J.ultName, max: TREE_RULES.powMax, kind: 'pow3',
+    desc: (lv: number) => `pulse ที่ชั้น 3 เพิ่ม แรง +${Math.round(lv * TREE_RULES.powPer * 100)}%`, mod: (lv: number) => ({ u3Pow: TREE_RULES.powPer * lv }) })
+  for (const b of c.branches) {
+    web3Branches.push({ ...b, job3: id, line: 'job3' })
+    let prev: string | undefined
+    for (const x of c.nodes.filter((q) => q.branch === b.id).sort((p, q) => p.tier - q.tier)) { web3Nodes.push({ ...x, parent: prev }); prev = x.id }
+  }
+}
+export const BRANCHES3: TreeBranch[] = web3Branches
+export const TREE3: TreeNode[] = web3Nodes
+export const HYBRID_MAX_TIER = 2
+export const branches3Of = (j3: Job3Id) => BRANCHES3.filter((b) => b.job3 === j3)
+/** Hybrid: the sibling 2nd job's ใยชั้น 2 branches (not its two roots), tier 1-2 nodes only, learned with job3 points. */
+export const hybridBranchesOf = (j3: Job3Id) => BRANCHES2.filter((b) => b.job2 === JOB3[j3].sibling && !b.id.endsWith('_s3') && !b.id.endsWith('_u2'))
+/** Every node the ใยชั้น 3 screen can show for this path (own web + hybrid borrow). */
+export const web3Scope = (j3: Job3Id, path: Job3Path = 'pure'): TreeBranch[] => (path === 'hybrid' ? [...branches3Of(j3), ...hybridBranchesOf(j3)] : branches3Of(j3))
+/** Points a hero has in one branch of a web (legacy nodes read the ใยชั้น 2 branches). */
+export const branchPts = (t: TreeSave | undefined, branch: string) => (t ? branchSpent(t, branch) : 0)
+export const tree3Spent = (t: TreeSave, j3: Job3Id) => [...branches3Of(j3), ...hybridBranchesOf(j3)].reduce((a, b) => a + branchSpent(t, b.id), 0)
+/** Sum of every learned ใยชั้น 3 node's stats that the path allows (a node above the hybrid tier gives nothing on hybrid). */
+export function tree3Mods(t: TreeSave | undefined, j3: Job3Id | undefined, path: Job3Path = 'pure'): Partial<Stats>[] {
+  if (!t || !j3) return []
+  const out: Partial<Stats>[] = []
+  for (const b of web3Scope(j3, path)) for (const x of nodesOf(b.id)) {
+    if ((t[x.id] ?? 0) <= 0 || (path === 'hybrid' && x.tier > HYBRID_MAX_TIER)) continue
+    out.push(x.mod(Math.min(t[x.id], x.max)))
+  }
+  return out
+}
+/** Why a ใยชั้น 3 node can't take a point now ('' = it can). Same rules as the other webs + the path gate; ★ cap counts this web only. */
+export function lockReason3(t: TreeSave, job: JobId, node: TreeNode, j3: Job3Id, path: Job3Path = 'pure'): string {
+  const borrowed = !node.branch.startsWith(`${JOB3_PREFIX[j3]}_`) && node.kind !== 'pow3'
+  if (borrowed && path !== 'hybrid') return 'เฉพาะสาย Hybrid'
+  if (path === 'hybrid' && node.tier > HYBRID_MAX_TIER && (t[node.id] ?? 0) < node.max) return `สาย Hybrid เปิดได้ถึงชั้น ${HYBRID_MAX_TIER}`
+  return lockReason(t, job, node, undefined, web3Scope(j3, path))
+}
+const JOB3_PREFIX: Record<Job3Id, string> = { paladin: 'pa' }
+export const JOB3_POINTS_MAX = JOB3_RULES.maxJobLevel - 1
+const ALL_NODES = [...webNodes, ...web2Nodes, ...web3Nodes]
 export const branches2Of = (j2: Job2Id) => BRANCHES2.filter((b) => b.job2 === j2)
 export const tree2Spent = (t: TreeSave, j2: Job2Id) => branches2Of(j2).reduce((a, b) => a + branchSpent(t, b.id), 0)
 /** Sum of every learned ใยชั้น 2 node's stats. */
@@ -194,7 +242,7 @@ const capstonesTaken = (t: TreeSave, scope: TreeBranch[]) => ALL_NODES.filter((x
 export const skill2Picked = (t: TreeSave | undefined, job: JobId) => t ? skill2Of(job).find((k) => (t[k.id] ?? 0) > 0) : undefined
 
 /** Why a node can't take another point right now ('' = it can). */
-export function lockReason(t: TreeSave, job: JobId, node: TreeNode, j2?: Job2Id): string {
+export function lockReason(t: TreeSave, job: JobId, node: TreeNode, j2?: Job2Id, scope?: TreeBranch[]): string {
   const lv = t[node.id] ?? 0
   if (lv >= node.max) return 'เต็มแล้ว'
   if (node.parent && !(t[node.parent] ?? 0)) return `ลง "${nodeById(node.parent)?.name ?? ''}" ก่อน`
@@ -209,7 +257,7 @@ export function lockReason(t: TreeSave, job: JobId, node: TreeNode, j2?: Job2Id)
   const need = node.tier === 4 ? TREE_RULES.capstoneNeed : Math.max(0, node.tier - 1) * TREE_RULES.perTier
   const spent = branchSpent(t, node.branch) - lv
   if (spent < need) return `ลงสายนี้อีก ${need - spent} แต้ม`
-  const caps = node.tier === 4 ? capstonesTaken(t, j2 ? branches2Of(j2) : branchesOf(job)).filter((x) => x.id !== node.id) : []
+  const caps = node.tier === 4 ? capstonesTaken(t, scope ?? (j2 ? branches2Of(j2) : branchesOf(job))).filter((x) => x.id !== node.id) : []
   if (caps.length >= TREE_RULES.capstones) return `★ ได้ ${TREE_RULES.capstones} ดวง (${caps.map((x) => x.name).join(', ')})`
   return ''
 }

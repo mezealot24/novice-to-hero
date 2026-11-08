@@ -224,7 +224,19 @@ export const dawnBonus = (st: Stats, str: number, wis: number) =>
 /** v102 ☀️ แสงแตก: WIS the buff gives = share x the per-target bonus (x ult hitPow). The bonus is taken WITHOUT the buff's own WIS (no snowball). */
 export const dawnWisGain = (st: Stats, bonus: number) => (st.clDawnWis > 0 ? Math.round(bonus * st.clDawnWis) : 0)
 /** v109 Grand Cross pulses at this Ult วิวัฒน์ Lv. */
+/** ===== 3rd job Paladin (design/awakening-crusader-v1.md §4) — every Awakening number lives here (rule v57) ===== */
+export const KIT3 = {
+  paladin: {
+    capAdd: 0.1, blockAmp: 0.25, blockFaith: 1, // ⚜️ Prestige: Auto Guard cap 40% -> 50% · block shield / heal x1.25 · a block = Faith +1
+    gospelPulse: 1, gospelAt: 3, gospelFaith: 1, // ✨ Gospel Cross: +1 pulse · a pulse that hits >= 3 monsters = Faith +1
+    varA: { hits: 3, atk: 0.7, def: 0.4, noShield: 0.7, per: 0.02, cap: 0.2, branch: 'cr_s' }, // 🔗 Shield Chain: 3 hits bouncing · +2% per โล่ point
+    varB: { atk: 1.6, hp: 0.04, blindAdd: 1, per: 0.02, cap: 0.2, branch: 'cr_d' }, // ⚖️ Pressure: 1 hit, no DEF · +2% per อุทิศ point
+    leg: { crossCap: 0.15, guardCap: 0.06, hpCap: 0.09 }, heirNeed: 6, // legacy node caps (the per-point rates are on the nodes)
+    gospelHealMax: 5, afterTurns: 2, bandingMax: 5, inspireAt: 0.3, inspireTurns: 3, inspireHeal: 0.03,
+  },
+}
 export const gcPulses = (st: Stats) => KIT2.crusader.gcPulses[Math.max(0, Math.min(KIT2.crusader.gcPulses.length - 1, Math.round(st.j2GcLv)))]
+  + (st.j3On > 0 ? KIT3.paladin.gospelPulse + st.j3GospelField : 0) // ⚜️ Paladin Gospel Cross
 /** v108 🌄 รุ่งอรุณ passive detail rows (every Nth basic / combo hit). */
 export function dawnInfo(st: Stats, base: { str: number; wis: number }): InfoRow[] {
   if (st.clDawn <= 0) return []

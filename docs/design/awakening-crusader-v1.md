@@ -1,7 +1,7 @@
 # ⚜️ Awakening: Crusader → Paladin (อาชีพขั้น 3 นำร่อง) v1 — design draft
 
 > Q ยืนยัน 2026-11-08 10:40: "Awakening crusader ใช่" · ที่มา: รายงาน research "อาชีพคลาส 3 และดันเจียน D11" (2026-11-08)
-> สถานะ: **spec ล็อกแล้ว · P0 ✅ P1 ✅ (2026-11-08, Q สั่ง "เริ่ม p0-p1") · ยังเล่นไม่ได้ (รอ P2 Master Trial + P3 content)** · ตัวเลขทุกตัวเป็นค่าเริ่มสำหรับจูนด้วย bot + save จริงของ Q ค่ะ
+> สถานะ: **P0–P7 ✅ (2026-11-08, Q สั่ง "ทำ awakening ถึง p7") · เล่นได้หลัง merge · ตัวเลขรอ playtest ของ Q** · ตัวเลขทุกตัวเป็นค่าเริ่มสำหรับจูนด้วย bot + save จริงของ Q ค่ะ
 > อ้างอิงโค้ด: repo `f0ceb54` (v119) — `jobs2.ts`, `skill-math.ts KIT2.crusader`, `trees2/crusader.ts`, `trees/cleric.ts`, `tree.ts`, `power.ts`
 
 ## 0. สรุปสั้น (so what)
@@ -190,3 +190,32 @@
 - bot: `JOB3=paladin J3LV= J3P=pure|hybrid J3V=a|b J3T=` (ตั้ง Master Trial + ดัน 10 ให้เอง)
 - test: `tests/jobs3.test.ts` (5) · ทั้งชุด 218/218 ผ่าน
 - **ย้ายไปทำทีหลัง:** UI (JobScene ปุ่มตื่นรู้, แท็บ "ชั้น 3") → ทำพร้อม P2/P5 เพราะตอนนี้ยังไม่มีใครปลดล็อกได้ (ต้องชนะ Master Trial ก่อน)
+
+## 12. บันทึกผล P2–P7 (2026-11-08)
+
+| # | ทำแล้ว | ต่างจาก spec |
+|---|---|---|
+| P2 | ⚔️ Master Trial + ปุ่ม "⚜️ ตื่นรู้ได้แล้ว!" ใน Hub + หน้า JobScene `{ job3: true }` (ตื่นรู้ · เลือก variant · สลับ path) | **MVP: Trial = เคลียร์ดัน 10 🔥โหมดยาก ตอน Job2 Lv 50** (`trialWin()` ใน settle) แทนดวลเงา — ไม่ต้องเขียน AI มอนใหม่ · ดวลเงาเก็บไว้เป็น polish |
+| P3 | Prestige (เพดาน 50%, ผลบล็อก x1.25, บล็อก = ศรัทธา +1) · Gospel Cross (+1 pulse, pulse ที่โดน ≥ 3 ตัว = ศรัทธา) · root `paladin_u3p` คูณเฉพาะ pulse ที่ชั้น 3 เพิ่ม | root id = `paladin_u3p` (spec เขียน `crusader_u3p`) |
+| P4 | Holy Cross variant 🔗 Shield Chain / ⚖️ Pressure (`holyVariant()`) · legacy +2%/แต้มสายของตัวเอง (สูงสุด +20%) · สลับฟรี | ⚖️ Pressure เล็งบอสก่อน (ไม่มีบอสค่อยตัวหน้า) |
+| P5 | ใยชั้น 3 `src/data/trees3/paladin.ts` 12 โหนด + `TREE3` / `tree3Mods` / `lockReason3` / `branchPts` · แท็บ "ใยชั้น 3" ใน CharacterScene (ปุ่มจากใยชั้น 2) · รายละเอียดโหนดใช้ `job3Tree` | — |
+| P6 | Hybrid: เปิดใย Monk ชั้น 1–2 (`mk_c1/c2`, `mk_i1/i2`, `mk_d1/d2`) ด้วยแต้มชั้น 3 · audit hook: `j2Es` / `j2Dark` / `killHeal` / combo เป็น Stats flag อยู่แล้ว · `j2Chill` เดิมอยู่ใน `monkSwing` (Monk เท่านั้น) → เพิ่มทางให้สายอื่นติดช้าได้ | node Monk ถูก stretch (max 5) ตามกฎ v83 |
+| P7 | `JOB3_K.paladin = 1.1` | ค่าแรกจาก bot n=4 (ดูตาราง) · ต้องเทียบ playtest ของ Q |
+
+### P7 — bot (D10 🔥 HARD, Base 45, Job2 Lv 50, 4 รอบ/แถว, ใยชั้น 3 เต็ม 29 แต้มแบบ Pure)
+
+| build | Hero Power | ชนะ | หมายเหตุ |
+|---|---|---|---|
+| Crusader | 725 | 1/4 | ตายห้อง 1 สองรอบ |
+| Paladin 🔗 A | 754 | 1/4 | ไปได้ลึกกว่า (ห้อง 3–6) |
+| Paladin ⚖️ B | 754 | 2/4 | minHp 14% |
+
+- Stats เห็นแค่ ~+4% (HP จาก legacy) แต่ Paladin ชนะเท่า/มากกว่าทั้งที่มอน HARD แกร่งขึ้นตาม power → ของที่ Stats มองไม่เห็น (pulse, ศรัทธา, บล็อก, Press, Banding) มีจริง → K = 1.1 (รวม ≈ +15%) ยังต่ำกว่าเป้า +20% เล็กน้อย เผื่อ bot เล่นแย่กว่าคน
+- smoke test: Hybrid + ⚖️ B ที่ D6 ชนะ 2/2 · ทุกรอบ `errors: 0`
+- test: `tests/jobs3.test.ts` 9 ข้อ · ทั้งชุด 232/232 ผ่าน
+
+### ยังไม่ทำ / ควรทำต่อ
+- [ ] Q playtest: ตื่นรู้จริง → ดูว่า Gospel Cross "รู้สึกแรงขึ้น" ทันทีไหม (เป้า Lv 1 ≈ +8%)
+- [ ] ตัวเลข Gospel/Prestige ในหน้ารายละเอียด Ult (ตอนนี้แสดงแค่ข้อความโหนด)
+- [ ] ดวลเงา (Master Trial ตัวจริง) — polish หลัง beta
+- [ ] Awakening อาชีพอื่น ใช้ framework เดียวกัน (เพิ่ม `Job3Id` + `trees3/<id>.ts` + hook)

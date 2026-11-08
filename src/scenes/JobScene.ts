@@ -3,7 +3,8 @@ import { COLORS, H, W } from '../data/game-data'
 import { JOB_LINES, LINES } from '../data/perks'
 import { BASE_JOBS, JOB_CHANGE, JOBS, type JobId } from '../data/jobs'
 import { RESOURCES } from '../data/meta'
-import { canRepickJob, changeJob, changeJob2, repickJob, save } from '../save'
+import { canRepickJob, changeJob, changeJob2, changeJob3, job3Lock, job3SwapCost, repickJob, save, setJob3Path, setJob3Variant } from '../save'
+import { activeJob3, JOB3_RULES, job3Of, type Job3Variant } from '../data/jobs3'
 import { JOB2, JOB2_RULES, job2Of, type Job2Id } from '../data/jobs2'
 import { sfx } from '../sfx'
 import { backdrop, button, confirm, go, toast, txt, UI } from '../ui'
@@ -23,8 +24,9 @@ export class JobScene extends Phaser.Scene {
   private pick: JobId = 'swordsman'
   constructor() { super('job') }
 
-  create(data?: { job2?: boolean }) {
+  create(data?: { job2?: boolean; job3?: boolean }) {
     backdrop(this, false)
+    if (data?.job3) { this.create3(); return }
     if (data?.job2) { this.create2(); return }
     const s = save()
     const repick = canRepickJob(s)
@@ -125,6 +127,53 @@ export class JobScene extends Phaser.Scene {
         sfx.win(); go(this, 'hub')
       })
     }, { size: 20 })
+  }
+
+  // ---------- 3rd job "Awakening" (design/awakening-crusader-v1.md): unlock / awaken / path + variant ----------
+  private create3() {
+    const s = save(), d = s.job2 ? job3Of(s.job2) : undefined
+    button(this, 70, H - 36, 110, 42, '‹ กลับ', () => go(this, 'hub'), { fill: 0x5a5f8a, color: UI.text, size: 17 })
+    if (!d) { txt(this, W / 2, 300, 'อาชีพขั้น 2 นี้ยังไม่มีขั้น 3 (กำลังทำ เร็วๆ นี้ค่ะ)', 20, UI.text).setOrigin(0.5); return }
+    const on = activeJob3(s) === d.id, why = job3Lock(s, d.id)
+    txt(this, W / 2, 30, `${d.icon} ตื่นรู้: ${JOB2[d.parent].icon} ${JOB2[d.parent].name} → ${d.name}`, 28, UI.gold, true).setOrigin(0.5)
+    txt(this, W / 2, 62, 'ใยชั้น 1 + ใยชั้น 2 + Ult เดิมอยู่ครบ · ชั้น 3 เพิ่มของใหม่ซ้อนขึ้นไป · ไม่ใช้เพชร', 15, UI.sub).setOrigin(0.5)
+    const spr = this.add.image(200, 220, JOBS[s.job].tex).setScale(2.2).setTint(0xffe7a0) // A2: same sprite + gold aura (no new art)
+    this.tweens.add({ targets: spr, y: 212, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
+    txt(this, 330, 100, [
+      d.blurb,
+      `${d.signature.icon} ${d.signature.name}: ${d.signature.desc}`,
+      `✨ Ult วิวัฒน์ 2 ${d.ultName}: Grand Cross ยิงเพิ่ม 1 pulse · pulse ที่โดน ≥ 3 ตัวได้ศรัทธา`,
+      `Job3 Lv 1-${JOB3_RULES.maxJobLevel} · ใยชั้น 3 ได้ 1 แต้มต่อ Lv · เปลี่ยนสายขั้น 2 = ชั้น 3 พักไว้ ไม่หาย`,
+    ].join('\n'), 14, '#d8d4f0').setWordWrapWidth(600).setLineSpacing(6)
+    if (!on) {
+      txt(this, 330, 290, why ? `🔒 ยังขาด: ${why}` : '✅ พร้อมตื่นรู้แล้ว!', 16, why ? UI.sub : UI.green, true).setWordWrapWidth(600)
+      button(this, W - 130, H - 36, 220, 50, `${d.icon} ตื่นรู้!`, () => {
+        if (!changeJob3(d.id)) { toast(this, why || 'ยังตื่นรู้ไม่ได้', UI.sub); return }
+        track({ e: 'job_change', tier: 3, job: d.id, gems: 0 }); ftue('job3')
+        sfx.win(); go(this, 'hub')
+      }, { size: 20 }).setEnabled(!why)
+      return
+    }
+    // awakened: pick the Skill 3 variant (free) and the path (free once a week)
+    txt(this, 330, 270, `ทักษะ 3 Holy Cross แบบไหน (เปลี่ยนฟรี)`, 16, UI.gold, true)
+    ;(['a', 'b'] as Job3Variant[]).forEach((v, i) => {
+      const V = d.variants[v], cur = (s.job3Var ?? 'a') === v
+      button(this, 450 + i * 250, 312, 236, 40, `${cur ? '✅ ' : ''}${V.icon} ${V.name}`, () => { if (setJob3Variant(v)) { sfx.pop(); this.scene.restart({ job3: true }) } }, { size: 15, fill: cur ? COLORS.gold : 0x4a5a8a, color: cur ? UI.ink : UI.text })
+      txt(this, 336 + i * 250, 336, V.desc, 11, UI.sub).setWordWrapWidth(228)
+    })
+    const cost = job3SwapCost(s), path = s.job3Path ?? 'pure'
+    txt(this, 330, 400, `สาย (เปลี่ยน${cost ? ` 💎${cost}` : 'ฟรี'} · ฟรีสัปดาห์ละครั้ง · คืนแต้มใยชั้น 3)`, 16, UI.gold, true)
+    ;([['pure', '⚜️ Pure', 'ใยชั้น 3 ครบทุกชั้น + ★'], ['hybrid', `👊 Hybrid`, `ใยชั้น 3 ชั้น 1-2 + ใย ${JOB2[d.sibling].name} ชั้น 1-2`]] as const).forEach(([p, name, desc], i) => {
+      const cur = path === p
+      button(this, 450 + i * 250, 442, 236, 40, `${cur ? '✅ ' : ''}${name}`, () => {
+        if (cur) return
+        confirm(this, `เปลี่ยนเป็น ${name}?`, `${desc}\nคืนแต้มใยชั้น 3 ทั้งหมด${cost ? ` · จ่าย 💎${cost}` : ' · ครั้งนี้ฟรี'}`, 'เปลี่ยน', () => {
+          if (!setJob3Path(p)) { toast(this, `เพชรไม่พอ ต้องใช้ 💎${cost}`, UI.sub); return }
+          sfx.pop(); this.scene.restart({ job3: true })
+        })
+      }, { size: 15, fill: cur ? COLORS.gold : 0x4a5a8a, color: cur ? UI.ink : UI.text })
+      txt(this, 336 + i * 250, 466, desc, 11, UI.sub).setWordWrapWidth(228)
+    })
   }
 
   private detail() {
