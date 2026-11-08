@@ -34,9 +34,11 @@ Object.assign(JOB2_K, { wizard: 1.1, sage: 1 }) // Phase 5 Mage: first guess, no
 Object.assign(JOB2_K, { beastmaster: 1.15, innovator: 1.1 }) // Phase 4 Archer: first guess, no bot run yet (allies the Stats miss: pet hits / boar soaking hits · traps, gadgets, turret)
 // v82: Archer (archer_c/d) and Beastmaster (bm_k/s) webs got more spendable points (53 / 54 vs pool 48 / 49): archer CLASS_K and beastmaster JOB2_K may need lowering after playtest.
 // v84: Swordsman / Cleric (swordsman_c/d, cleric_c/d) and Knight (kn_o/kn_r) got 2 new branches each (79 / 79 / 79 spendable vs pool 48 / 48 / 49): no K change yet, recheck swordsman 0.8 / cleric 1.8 / knight 1 after playtest.
-/** 3rd jobs (design/awakening-crusader-v1.md §7): what the Stats miss on top of class K x JOB2_K. 1.0 until P7 calibrates it
- *  (target: Job3 Lv 30 with a full ใยชั้น 3 ≈ +20% Hero Power over the same 2nd job). */
-export const JOB3_K: Partial<Record<Job3Id, number>> = { paladin: 1 }
+/** 3rd jobs (design/awakening-crusader-v1.md §7): what the Stats miss on top of class K x JOB2_K (target: Job3 Lv 30, full ใยชั้น 3
+ *  ≈ +20% Hero Power over the same 2nd job). Paladin 1.1 (P7 2026-11-08): the Stats see only ~+4% (legacy HP) while Gospel pulses,
+ *  Faith, block amp, Shield Press / Banding are invisible; bot D10 🔥 n=4: Crusader 1/4, Paladin A 1/4 (deeper), B 2/4 at higher power.
+ *  First guess from a small bot sample: re-check against Q's playtest before touching it again (bot plays worse than people). */
+export const JOB3_K: Partial<Record<Job3Id, number>> = { paladin: 1.1 }
 /** 2nd jobs that change the class magic share: Sage hits in melee (P.ATK) + Auto Spell / Endow (Pm 70/30), about half magic. */
 const MAGIC_SHARE2: Partial<Record<Job2Id, number>> = { sage: 0.5 }
 

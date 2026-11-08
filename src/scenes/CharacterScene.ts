@@ -7,10 +7,11 @@ import { skill2ById } from '../data/skill2'
 import { CARD_RULES, cardIcon, cardName, EQUIP_CARDS, TIER_COLOR, type EquipCard } from '../data/cards'
 import { gradeStars, gradeCap } from '../data/craft'
 import { BASE_STATS, smashLv, canWear, forged, forgeTag, gradeOf, isBroken, refineOf, cardFits, CERT_SLOTS_AT, EQUIP_SLOTS, offhandLocked, slotKind, type EquipSlot, COSTUMES, gearBase, heroStats, jobBonusBase, cardStatLine, itemStatLine, splitStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, NOVICE_PASSIVES, NOVICE_RULES, noviceLeft, noviceSpent, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText, type BaseStat } from '../data/meta'
-import { canChangeJob, equip, persist, resetNovice, resetTree, resetTree2, save, socketCard, unsocketCard } from '../save'
-import { branches2Of, talents2Of, tree2Spent, BRANCHES, branchesOf, lockReason, skill2Picked, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentRankText, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
+import { canChangeJob, equip, persist, resetNovice, resetTree, resetTree2, resetTree3, save, socketCard, unsocketCard } from '../save'
+import { HYBRID_MAX_TIER, lockReason3, tree3Spent, web3Scope, branches2Of, talents2Of, tree2Spent, BRANCHES, branchesOf, lockReason, skill2Picked, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentRankText, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
 import { JOB_CHANGE, JOBS, type JobId } from '../data/jobs'
 import { JOB2, JOB2_RULES, PETS, type PetId } from '../data/jobs2'
+import { activeJob3, JOB3, JOB3_RULES, job3Of } from '../data/jobs3'
 import { statLines } from '../data/statInfo'
 import { UNIQUE } from '../data/uniques'
 import { heroPower } from '../data/power'
@@ -35,6 +36,7 @@ export class CharacterScene extends Phaser.Scene {
   private showDetail = false // skill web: node detail modal open
   private modal?: Phaser.GameObjects.Container
   private web2 = false // skill tab: show ใยชั้น 2 (2nd job)
+  private web3 = false // skill tab: show ใยชั้น 3 (3rd job, design/awakening-crusader-v1.md)
   private talent2 = false // v119 talent tab: show ทาเลนต์ชั้น 2
   constructor() { super('character') }
 
@@ -57,7 +59,7 @@ export class CharacterScene extends Phaser.Scene {
     if (this.tab === 0) this.equipTab()
     else if (this.tab === 1) this.cardTab()
     else if (this.tab === 2) this.statusTab()
-    else if (this.tab === 3) (save().job === 'novice' || this.skillBasic ? this.skillTab() : this.web2 && save().job2 ? this.web2Tab() : this.webTab())
+    else if (this.tab === 3) (save().job === 'novice' || this.skillBasic ? this.skillTab() : this.web3 && activeJob3(save()) ? this.web3Tab() : this.web2 && save().job2 ? this.web2Tab() : this.webTab())
     else this.talentTab()
   }
 
@@ -432,6 +434,8 @@ export class CharacterScene extends Phaser.Scene {
     b.add(txt(this, 330, 114, `${j2.icon} ${j2.name} · แต้มเหลือ ${pts}`, 15, pts ? UI.gold : UI.sub, true))
     b.add(txt(this, 330, 136, `Job2 Lv ${s.job2Level ?? 1}/${JOB2_RULES.maxJobLevel} · ${j2.signature.icon} ${j2.signature.name} ติดตัว · ★ ได้ 2 ดวง`, 11, UI.sub))
     b.add(button(this, 640, 124, 120, 30, '✨ ใยชั้น 1', () => { this.web2 = false; this.selNode = ''; this.render() }, { size: 12, fill: 0x5a5f8a, color: UI.text }))
+    const d3 = job3Of(j2.id)
+    if (d3) b.add(button(this, 640, 92, 120, 28, `${d3.icon} ใยชั้น 3`, () => { if (activeJob3(s)) { this.web3 = true; this.selNode = ''; this.render() } else go(this, 'job', { job3: true }) }, { size: 12, fill: activeJob3(s) ? COLORS.gold : 0x4a5a8a, color: activeJob3(s) ? UI.ink : UI.text }))
     b.add(button(this, 768, 124, 104, 30, `🔄 สาย 💎${JOB2_RULES.repickGems}`, () => go(this, 'job', { job2: true }), { size: 12, fill: 0x4a5a8a, color: UI.text }))
     b.add(button(this, 880, 124, 96, 30, 'รีเซ็ตฟรี', () => {
       const back = resetTree2(s)
@@ -479,8 +483,50 @@ export class CharacterScene extends Phaser.Scene {
     }, true)
   }
 
+  // ---------- tab 3c: ใยชั้น 3 (3rd job, data/trees3/, design/awakening-crusader-v1.md) ----------
+  private web3Tab() {
+    const s = save(), b = this.body!, j3 = activeJob3(s)!, d = JOB3[j3], t = (s.job3Tree ??= {}), pts = s.job3Points ?? 0, path = s.job3Path ?? 'pure'
+    b.add(txt(this, 330, 114, `${d.icon} ${d.name} · แต้มเหลือ ${pts}`, 15, pts ? UI.gold : UI.sub, true))
+    b.add(txt(this, 330, 136, `Job3 Lv ${s.job3Level ?? 1}/${JOB3_RULES.maxJobLevel} · ${path === 'hybrid' ? '👊 Hybrid' : '⚜️ Pure'} · ${d.variants[s.job3Var ?? 'a'].icon}`, 11, UI.sub))
+    b.add(button(this, 640, 124, 120, 30, `${JOB2[d.parent].icon} ใยชั้น 2`, () => { this.web3 = false; this.web2 = true; this.selNode = ''; this.render() }, { size: 12, fill: 0x5a5f8a, color: UI.text }))
+    b.add(button(this, 768, 124, 104, 30, '⚙️ สาย/แบบ', () => go(this, 'job', { job3: true }), { size: 12, fill: 0x4a5a8a, color: UI.text }))
+    b.add(button(this, 880, 124, 96, 30, 'รีเซ็ตฟรี', () => {
+      const back = resetTree3(s)
+      if (!back) return
+      s.job3Points = pts + back; persist(); toast(this, `คืน ${back} แต้มแล้ว`); this.redraw()
+    }, { size: 13, fill: 0x5a5f8a, color: UI.text }).setEnabled(tree3Spent(t, j3) > 0))
+    const brs = web3Scope(j3, path)
+    const cols = brs.map((br) => nodesOf(br.id).filter((n) => path !== 'hybrid' || n.tier <= HYBRID_MAX_TIER || n.kind))
+    const gap = 6, x0 = 330, cw = (620 - gap * (cols.length - 1)) / cols.length, nh = 50, top = 176, rh = 72
+    if (!this.selNode || !cols.some((c) => c.some((n) => n.id === this.selNode))) this.selNode = cols[0][0].id
+    const g = this.add.graphics(); b.add(g)
+    const pos = new Map<string, { x: number; y: number }>()
+    cols.forEach((c, i) => {
+      const x = x0 + i * (cw + gap), br = brs[i]
+      b.add(panel(this, x - 3, 150, cw + 6, 344, br.job3 ? 0x1d2140 : 0x231d36, UI.line, 8))
+      b.add(clipW(txt(this, x + 4, 155, `${br.icon} ${br.name}`, 11, br.job3 ? UI.gold : UI.sub, true), cw - 6))
+      c.forEach((n) => pos.set(n.id, { x, y: top + (n.kind ? 0 : n.tier - 1) * rh }))
+    })
+    for (const [id, p] of pos) { const n = nodeById(id)!, pp = n.parent ? pos.get(n.parent) : undefined; if (pp) g.lineStyle(3, (t[id] ?? 0) > 0 ? COLORS.gold : UI.line, 1).lineBetween(pp.x + cw / 2, pp.y + nh, p.x + cw / 2, p.y) }
+    for (const [id, p] of pos) {
+      const n = nodeById(id)!, lv = t[id] ?? 0, why = lockReason3(t, s.job, n, j3, path), open = !why || why === 'เต็มแล้ว', star = n.tier === 4, sel = id === this.selNode
+      b.add(panel(this, p.x, p.y, cw, nh, lv ? 0x2a3b5a : open ? UI.panel : 0x161a33, sel ? 0xffffff : star ? COLORS.gold : lv ? 0x7fd7ff : UI.line, 10))
+      b.add(txt(this, p.x + 6, p.y + 4, `${star ? '★' : ''}${n.icon}`, 17, UI.text))
+      b.add(txt(this, p.x + cw - 6, p.y + 6, `${lv}/${n.max}`, 11, lv ? UI.gold : UI.sub, true).setOrigin(1, 0))
+      b.add(clipW(txt(this, p.x + 6, p.y + 29, n.name, 12, open ? UI.text : UI.sub), cw - 12))
+      const z = this.add.zone(p.x, p.y, cw, nh).setOrigin(0).setInteractive({ useHandCursor: true })
+      z.on('pointerdown', () => { this.selNode = id; this.render() })
+      b.add(z)
+    }
+    const n = nodeById(this.selNode)!, lv = t[n.id] ?? 0, why = lockReason3(t, s.job, n, j3, path)
+    this.nodeFooter(n, lv, why, n.kind === 'pow3' ? 'Ult วิวัฒน์ 2' : n.tier === 4 ? '★ ปลายสาย' : n.branch.startsWith('pa_') ? '' : `ยืมจาก ${JOB2[d.sibling].name}`, n.kind === 'pow3' ? `✨ ${d.ultName}: Grand Cross ยิงเพิ่ม 1 pulse` : '', pts > 0 && !why, () => {
+      if ((s.job3Points ?? 0) <= 0 || lockReason3(t, s.job, n, j3, path)) return
+      t[n.id] = (t[n.id] ?? 0) + 1; s.job3Points = (s.job3Points ?? 0) - 1; persist(); this.redraw()
+    }, 3)
+  }
+
   /** Bottom strip of both skill webs: the picked node in 2 short lines + 📋 detail (opens the modal) + learn. */
-  private nodeFooter(n: TreeNode, lv: number, why: string | null | undefined, tag: string, rootDesc: string, can: boolean, learn: () => void, tier2: boolean) {
+  private nodeFooter(n: TreeNode, lv: number, why: string | null | undefined, tag: string, rootDesc: string, can: boolean, learn: () => void, tier2: boolean | 3) {
     const b = this.body!, locked = !!why && why !== 'เต็มแล้ว'
     b.add(panel(this, 330, 500, 620, 70, UI.panel, COLORS.gold, 10))
     b.add(clipW(txt(this, 342, 504, `${n.icon} ${n.name}  ${lv}/${n.max}${tag ? `  · ${tag}` : ''}`, 15, UI.gold, true), 440))
@@ -493,7 +539,7 @@ export class CharacterScene extends Phaser.Scene {
   }
 
   /** Node detail modal (tier-1 and tier-2 webs): full text now / next level + the real numbers (nodeDetail). Esc / ✕ / tap outside closes. */
-  private nodeModal(n: TreeNode, lv: number, why: string | null | undefined, tag: string, rootDesc: string, can: boolean, learn: () => void, tier2: boolean) {
+  private nodeModal(n: TreeNode, lv: number, why: string | null | undefined, tag: string, rootDesc: string, can: boolean, learn: () => void, tier2: boolean | 3) {
     const d = nodeDetail(save(), n, tier2)
     const close = () => { this.showDetail = false; this.render() }
     const c = this.add.container(0, 0).setDepth(30000) // above the top bar (20001)
@@ -503,7 +549,7 @@ export class CharacterScene extends Phaser.Scene {
     const x = 70, y = 40, w = W - 140, h = H - 80
     c.add([dim, panel(this, x, y, w, h, 0x141834, COLORS.gold, 14), this.add.zone(x, y, w, h).setOrigin(0).setInteractive()]) // the zone keeps taps inside from closing
     c.add(clipW(txt(this, x + 20, y + 14, `${n.icon} ${n.name}`, 22, UI.gold, true), w - 260))
-    c.add(txt(this, x + 20, y + 46, `Lv ${lv}/${n.max}${tag ? ` · ${tag}` : ''}${tier2 ? ' · ใยชั้น 2' : ''}`, 13, UI.sub, true))
+    c.add(txt(this, x + 20, y + 46, `Lv ${lv}/${n.max}${tag ? ` · ${tag}` : ''}${tier2 === 3 ? ' · ใยชั้น 3' : tier2 ? ' · ใยชั้น 2' : ''}`, 13, UI.sub, true))
     c.add(button(this, x + w - 34, y + 30, 44, 40, '✕', close, { size: 18, fill: 0x5a5f8a, color: UI.text }))
 
     // left: words
@@ -600,8 +646,8 @@ export class CharacterScene extends Phaser.Scene {
 
 type DetailRow = { label: string; now: string; next?: string; section?: boolean }
 /** Rows for the skill detail panel: the skill this node powers (all rows), other skills / stats that this level changes. */
-export function nodeDetail(s: ReturnType<typeof save>, n: TreeNode, tier2 = false): { rows: DetailRow[]; note: string } {
-  const key = tier2 ? 'job2Tree' : 'jobTree' // v113: the 2nd-job web had no detail (Q bug)
+export function nodeDetail(s: ReturnType<typeof save>, n: TreeNode, tier2: boolean | 3 = false): { rows: DetailRow[]; note: string } {
+  const key = tier2 === 3 ? 'job3Tree' : tier2 ? 'job2Tree' : 'jobTree' // v113: the 2nd-job web had no detail (Q bug)
   const t = s[key] ?? {}, lv = t[n.id] ?? 0, job = s.job
   const withTree = (tree: Record<string, number>) => ({ ...s, [key]: tree })
   const stOf = (tree: Record<string, number>) => heroStats(withTree(tree))

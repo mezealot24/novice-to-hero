@@ -15,11 +15,14 @@ export interface Job3Def {
   id: Job3Id; parent: Job2Id; name: string; icon: string; blurb: string; focus: string
   /** the sibling 2nd job whose ใยชั้น 2 tier 1-2 the hybrid path opens */
   sibling: Job2Id
-  variants: Record<Job3Variant, { name: string; icon: string }>
+  variants: Record<Job3Variant, { name: string; icon: string; desc: string }>
+  ultName: string; signature: { icon: string; name: string; desc: string }
 }
 
 export const JOB3_RULES = {
   unlockJob2Lv: 50, unlockClear: 'd10', maxJobLevel: 30,
+  // ⚔️ Master Trial MVP: clear ดัน 10 in 🔥 hard (Hero Power matched) with the 2nd job at Job2 Lv 50. The shadow duel of the doc = later polish.
+  trialDungeon: 'd10',
   pathSwapGems: 30, freeSwapDays: 7, // path swap: free once a week, after that 💎 (convenience only, design §2)
 }
 
@@ -28,7 +31,12 @@ export const JOB3: Record<Job3Id, Job3Def> = {
     id: 'paladin', parent: 'crusader', sibling: 'monk', name: 'Paladin', icon: '⚜️',
     blurb: 'Crusader ที่ตื่นรู้ · Grand Cross ยิงเพิ่ม · บล็อกแล้วได้ศรัทธา · แต้มในใยเดิมยิ่งเยอะยิ่งแรง',
     focus: 'แทงค์ศักดิ์สิทธิ์ · Grand Cross',
-    variants: { a: { name: 'Shield Chain', icon: '🔗' }, b: { name: 'Pressure', icon: '⚖️' } },
+    ultName: 'Gospel Cross',
+    signature: { icon: '⚜️', name: 'Prestige', desc: 'เพดาน Auto Guard 40% → 50% · ผลบล็อกจากใยชั้น 2 แรง +25% · บล็อกได้ = ศรัทธา +1' },
+    variants: {
+      a: { name: 'Shield Chain', icon: '🔗', desc: 'Holy Cross 3 ฮิตเด้งไปตัวอื่น (P.ATK + P.DEF) · ต้องมีโล่ · แรงขึ้นตามแต้มสาย 🛡️ โล่' },
+      b: { name: 'Pressure', icon: '⚖️', desc: 'Holy Cross 1 ฮิตหนักข้าม DEF (+4% HP สูงสุด) · ตาบอด +1 เทิร์น · แรงขึ้นตามแต้มสาย 🙏 อุทิศ' },
+    },
   },
 }
 export const JOB3_IDS = Object.keys(JOB3) as Job3Id[]
