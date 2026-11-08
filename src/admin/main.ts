@@ -459,7 +459,7 @@ function renderSkills(main: HTMLElement) {
   if (j2) { // v107 round 2: skill 3 / Ult วิวัฒน์ / signature + other KIT2 numbers
     const l = job2Layout(sel as Job2Id)
     main.append(pick, pick2, h('h2', {}, `${j2.icon} ${j2.name}`),
-      h('p', { class: 'hint' }, 'สวิตช์คริใช้ของคลาสแม่ · ตัวเลขในคำอธิบายบนจอเกมยังเป็นค่าเดิมจนกว่าจะ build ใหม่ แต่หน้ารายละเอียด Ult และค่าที่คำนวณจริงเปลี่ยนทันที'),
+      h('p', { class: 'hint' }, 'ความแรงคริใช้ของคลาสแม่ · ตัวเลขในคำอธิบายบนจอเกมยังเป็นค่าเดิมจนกว่าจะ build ใหม่ แต่หน้ารายละเอียด Ult และค่าที่คำนวณจริงเปลี่ยนทันที'),
       h('div', { class: 'skillcols' },
         skillBlock(`3 · ${j2.skill3.icon} ${j2.skill3.name}`, l.s3),
         skillBlock(`Ult วิวัฒน์ · ${j2.ult.icon} ${j2.ult.name}`, l.ult),
@@ -469,12 +469,12 @@ function renderSkills(main: HTMLElement) {
   const crit = (slot: (typeof CRIT_SLOTS)[number]) => critRef(c, slot)
   const cols: HTMLElement[] = [
     skillBlock(`1 · ${job.auto.icon} ${job.auto.name}`, [crit('s1'), ...L.s1]),
-    ...L.s2.map((x) => { const d = SKILL2.find((s) => s.id === x.id); return skillBlock(`2 · ${d?.icon ?? ''} ${d?.name ?? x.id}`, [crit('s2'), ...x.refs], 'ทักษะ 2 เลือกได้ 1 ใน 3 · สวิตช์คริใช้ร่วมกันทั้ง 3 ท่า') }),
+    ...L.s2.map((x) => { const d = SKILL2.find((s) => s.id === x.id); return skillBlock(`2 · ${d?.icon ?? ''} ${d?.name ?? x.id}`, [crit('s2'), ...x.refs], 'ทักษะ 2 เลือกได้ 1 ใน 3 · ความแรงคริใช้ร่วมกันทั้ง 3 ท่า') }),
     skillBlock(`Ult · ${job.ult.icon} ${job.ult.name}`, [crit('ult'), ...L.ult]),
     ...(L.tree ? [skillBlock('🌳 Skill tree (node)', L.tree, '"Lv เดิม" = ค่าต่อ Lv ก่อนยืด 3 → 5 (Lv จริง × 3/5)')] : []),
   ]
   main.append(pick, pick2, h('h2', {}, `${job.icon} ${job.name}`),
-    h('p', { class: 'hint' }, 'คริได้ไหม: 1 = ท่านี้คริได้ (ตอนนี้ทุกท่าเป็นแบบนี้) · 0 = ฮิตของท่านี้ไม่คริ · ไม่รวมคริตายตัว (เช่น ★ พันดาบ) และดาเมจ on-hit (สายฟ้า/ไฟ/น้ำแข็ง/หอก/แสง) · ใช้กับอาชีพขั้น 2 ของคลาสนี้ด้วย'),
+    h('p', { class: 'hint' }, 'ความแรงคริ: 1 = ท่านี้คริเต็ม (ตอนนี้ทุกท่าเป็นแบบนี้) · 0.5 = ยังคริ แต่โบนัสคริ (critMul − 1) เหลือครึ่งเดียว · 0 = ฮิตของท่านี้ไม่คริ · ไม่รวมคริตายตัว (เช่น ★ พันดาบ) และดาเมจ on-hit (สายฟ้า/ไฟ/น้ำแข็ง/หอก/แสง) · ใช้กับอาชีพขั้น 2 ของคลาสนี้ด้วย'),
     h('p', { class: 'hint' }, 'ตัวเลขในคำอธิบายสกิลบนจอเกมยังเป็นค่าเดิมจนกว่าจะ build ใหม่ — ค่าที่ใช้คำนวณจริงเปลี่ยนตามที่ตั้งทันที'),
     h('div', { class: 'skillcols' }, ...cols))
 }

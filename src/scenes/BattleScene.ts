@@ -11,7 +11,7 @@ import { JOB2, PET_IDS, type Job2Def, type PetId } from '../data/jobs2'
 import { skill2Picked } from '../data/tree'
 import { ALLIES, fillAllies, gadgetById, hawkMul, hurtAlly, liveAllies, makeAlly, rollGadget, tauntTarget, tickAllies, TRAP_IDS, useAlly, wolfMul, type Ally, type AllyCtx, type GadgetId } from '../battle/allies'
 import type { Skill2Def } from '../data/skill2'
-import { canRollCrit, type CritSlot } from '../data/skill-registry'
+import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/skill-registry'
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { KIT3 } from '../data/skill-math'
 import { branchPts } from '../data/tree'
@@ -1652,6 +1652,11 @@ export class BattleScene extends Phaser.Scene {
     if (this.skillSlot === null || ELEM_SRC.has(this.src)) return true
     return canRollCrit(this.job.id, this.skillSlot)
   }
+  /** Share of the crit bonus a skill hit keeps (admin: same `crit.<class>.<slot>` number; 1 = full). Sure crits and element procs always keep all of it. */
+  private critPow() {
+    if (this.skillSlot === null || this.forceCrit || ELEM_SRC.has(this.src)) return 1
+    return critPower(this.job.id, this.skillSlot)
+  }
   private skillCut() { return Math.min(0.9, this.st.skillDmgCut + (this.buf.blood > 0 ? SPELL_VAMP.bloodCut : 0) + (this.relic === 'bloodpact' ? RELIC_RULES.bloodpact.skillCut : 0)) }
   /** v106: one-cast spellVamp bonus (Grand Cross); asSkill() clears it after healing. */
   private castVamp = 0
@@ -2334,7 +2339,7 @@ export class BattleScene extends Phaser.Scene {
   private roll(mul = 1, magic = false, crit = Math.random() < (magic ? this.st.spellCrit : this.st.crit)) { // magic crit: spellCrit only, max M.ATK roll
     const hb = hitBase(this.st, magic) // data/skill-math.ts: the one place the hit base (and the coming 70/30 magic rule) lives
     const base = (crit ? hb.hi : Phaser.Math.FloatBetween(hb.lo, hb.hi)) * (this.berserking() ? 1.4 : 1) * this.atkMul()
-    return { dmg: Math.max(1, Math.round(base * mul * (crit ? this.st.critMul + (this.buf.hawk > 0 && this.st.s2Star ? S2N.hawkCritDmg : 0) + (this.zenTurns > 0 ? FOCUS_RULES.zenCritDmg : 0) : 1))), crit } // Skill 2 ★ เล็งจุดตาย · v78 Zen
+    return { dmg: Math.max(1, Math.round(base * mul * (crit ? scaleCritMul(this.st.critMul + (this.buf.hawk > 0 && this.st.s2Star ? S2N.hawkCritDmg : 0) + (this.zenTurns > 0 ? FOCUS_RULES.zenCritDmg : 0), this.critPow()) : 1))), crit } // Skill 2 ★ เล็งจุดตาย · v78 Zen
   }
 
   /** Monster P.DEF (stat spec v1 formula). Magic skips this. */
