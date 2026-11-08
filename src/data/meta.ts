@@ -359,6 +359,12 @@ export const GEM_PACKS = [
 export const GEM_TO_ZENY_TEST = true
 export const ZENY_PER_GEM = 50
 export const ZENY_PACKS = [10, 60, 300] // gems spent per pack
+// 🧪 TEST ONLY (2026-11-08): zeny -> free gems for the playtest. Lands in s.gems (free, client save), never in
+// server paid gems. Price per gem must stay > ZENY_PER_GEM so a gem -> zeny -> gem loop always loses (tests/exchange.test.ts).
+// Flip to false (or delete) before a real release, together with GEM_TO_ZENY_TEST.
+export const ZENY_TO_GEM_TEST = true
+export const ZENY_COST_PER_GEM = 100
+export const GEM_BUY_PACKS = [5, 20, 50] // gems bought per pack
 export const SUPPORTER_PRICE = 300 // gems: badge + gold name, no stats
 // free gem sources, so nothing in the gem shop is locked behind money
 export const FREE_GEMS = { firstClear: 50, clear: 5, levelUp: 10, daily: 20 }
