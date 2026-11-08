@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DUNGEONS, MONSTERS, type MonsterKind } from '../src/data/game-data'
+import { DUNGEONS, MONSTERS, type MonSkill, type MonsterDef, type MonsterKind } from '../src/data/game-data'
 import { HELL, hellify, HELL_TRAITS } from '../src/data/hell'
-import { deepAnchor, homeDungeon, legacyLevel, monTier, restatAt, statNative, towerMonLv, withStats } from '../src/data/mon-stats'
+import { deepAnchor, homeDungeon, legacyLevel, monTier, restatAt, scaleOf, skillAtLv, skillMul, statNative, towerMonLv, withStats } from '../src/data/mon-stats'
 import { towerFloor, TOWER } from '../src/data/modes'
 
 const DEEP = DUNGEONS.filter((d) => d.level)
@@ -103,4 +103,24 @@ test('Hell bosses / minis never roll ตานรก (the tower gives them a sha
   assert.ok([...bossTraits].some((t) => t?.includes('เปลวนรก')))
   assert.ok(![...wolfTraits].some((t) => t?.includes('เปลวนรก')))
   assert.equal(hellify(boss, HELL_TRAITS.filter((t) => t.bossOk).findIndex((t) => t.id === 'flame') / 3 + 0.01).onHit?.burn, 2)
+})
+
+test('v121 tower Lv: damage skills keep their home power (tower ATK already follows the hero); fx / hits still grow', () => {
+  const finalPow = (d: MonsterDef, s: MonSkill) => { const c = skillAtLv(s); return (c.pow ?? 1.3) * skillMul(d, scaleOf(c)) }
+  for (const kind of ['deathknight', 'duelist', 'hunter', 'lich', 'hydra'] as MonsterKind[]) {
+    const d = MONSTERS[kind], home = withStats(d, kind, legacyLevel(kind, d, { id: homeDungeon(kind)! }))
+    for (const lv of [towerMonLv(30), towerMonLv(45) + HELL.lv, 200]) {
+      const up = restatAt(home, kind, lv)
+      const hs = (home.skills ?? []).filter((s) => s.kind === 'strike' || s.kind === 'bolt'), us = (up.skills ?? []).filter((s) => s.kind === 'strike' || s.kind === 'bolt')
+      assert.ok(hs.length > 0, kind)
+      hs.forEach((s, i) => {
+        assert.ok(Math.abs(finalPow(up, us[i]) - finalPow(home, s)) < 1e-9, `${kind} Lv${lv} ${s.name}: ${finalPow(up, us[i])} vs home ${finalPow(home, s)}`)
+        assert.ok((us[i].lv ?? 1) >= (s.lv ?? 1), 'skill Lv still grows')
+      })
+    }
+  }
+  // Lv 200 = +18 skill Lv: strikes / bolts gain hits even with pow frozen
+  const dk = MONSTERS.deathknight, home = withStats(dk, 'deathknight', legacyLevel('deathknight', dk, { id: 'd3' }))
+  const sk = restatAt(home, 'deathknight', 200).skills!.find((s) => s.kind === 'strike')!
+  assert.ok((skillAtLv(sk).hits ?? 1) > 1)
 })

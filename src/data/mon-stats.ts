@@ -309,7 +309,7 @@ export function skillAtLv(sk: MonSkill, lv = sk.lv ?? 1): MonSkill {
   if (lv <= 1) return sk
   const L = SKILL_SCALE.lv, out: MonSkill = { ...sk, lv }
   const base = sk.pow ?? POW_DEFAULT[sk.kind]
-  if (base !== undefined) out.pow = SHARE_KINDS.has(sk.kind) ? Math.min(1, base * skillLvPow(lv)) : base * skillLvPow(lv)
+  if (base !== undefined && !sk.powFixed) out.pow = SHARE_KINDS.has(sk.kind) ? Math.min(1, base * skillLvPow(lv)) : base * skillLvPow(lv)
   if (sk.kind === 'bolt' || sk.kind === 'strike') out.hits = (sk.hits ?? 1) + lvStep(lv, L.hitsEvery)
   if (sk.kind === 'warcry') out.turns = (sk.turns ?? 3) + lvStep(lv, L.turnsEvery)
   if (sk.fx) {
@@ -328,6 +328,16 @@ export function skillAtLv(sk: MonSkill, lv = sk.lv ?? 1): MonSkill {
 export const TOWER_LV = { perFloor: 1.5, skillEvery: 10 } // skill Lv +1 per `skillEvery` Lv above the monster's home Lv
 export const towerMonLv = (floor: number) => Math.max(1, Math.round(TOWER_LV.perFloor * floor))
 const lvUp = (s: MonSkill, n: number): MonSkill => ({ ...s, lv: (s.lv ?? 1) + n, ...(s.pick ? { pick: s.pick.map((p) => lvUp(p, n)) } : {}) })
+/** v121 (Q 2026-11-08, F45 death log: Hell อัศวินมรณะ ดาบมรณะ 69k raw = x1.6 skill-Lv pow x1.2 stat scale on top of the tower ATK):
+ * a damage skill keeps the power it had at home (home-Lv pow x home stat scale). The tower's ATK / M.ATK already follow the hero
+ * (modes.towerScale), so growing pow with the tower Lv counted the hero twice. A higher Lv still adds hits / fx (skillAtLv). */
+const DMG_KINDS = new Set<MonSkillKind>(['bolt', 'strike'])
+function freezePow(s: MonSkill, home: MonsterDef): MonSkill {
+  const pick = s.pick ? { pick: s.pick.map((p) => freezePow(p, home)) } : {}
+  if (!DMG_KINDS.has(s.kind) || s.powFixed) return { ...s, ...pick }
+  const pow = (skillAtLv(s).pow ?? POW_DEFAULT[s.kind]!) * skillMul(home, scaleOf(s))
+  return { ...s, ...pick, pow, scale: false, powFixed: true }
+}
 /** `base` (already built at its home level) rebuilt at Lv `lv`: stats + skill levels move, HP / ATK / M.ATK stay. */
 export function restatAt(base: MonsterDef, kind: MonsterKind, lv: number): MonsterDef {
   const d = MONSTERS[kind], home = base.lv ?? 1, deep = statNative(kind)
@@ -337,9 +347,8 @@ export function restatAt(base: MonsterDef, kind: MonsterKind, lv: number): Monst
   if (base.matk !== undefined) out.matk = base.matk
   else delete out.matk
   const n = Math.floor(Math.max(0, lv - home) / TOWER_LV.skillEvery)
-  if (n > 0) {
-    if (out.skills) out.skills = out.skills.map((s) => lvUp(s, n))
-    if (out.phases) out.phases = out.phases.map((p) => (p.skills ? { ...p, skills: p.skills.map((s) => lvUp(s, n)) } : p))
-  }
+  const up = (s: MonSkill) => { const f = freezePow(s, base); return n > 0 ? lvUp(f, n) : f }
+  if (out.skills) out.skills = out.skills.map(up)
+  if (out.phases) out.phases = out.phases.map((p) => (p.skills ? { ...p, skills: p.skills.map(up) } : p))
   return out
 }
