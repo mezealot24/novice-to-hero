@@ -4,7 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { JOBS } from '../src/data/jobs'
 import { applyPatch, checkPatch, fieldFor, guardsFor, readPath } from '../src/data/patch'
-import { canRollCrit, CRIT_SLOTS, critRef, JOB2_IDS, job2Layout, SKILL_CLASSES, SKILL_CRIT, SKILL_LAYOUT, skillTableFields, type SkillRef } from '../src/data/skill-registry'
+import { canRollCrit, CRIT_SLOTS, critPower, critRef, scaleCritMul, JOB2_IDS, job2Layout, SKILL_CLASSES, SKILL_CRIT, SKILL_LAYOUT, skillTableFields, type SkillRef } from '../src/data/skill-registry'
 import { SKILL2 } from '../src/data/skill2'
 import { S2N } from '../src/data/skill-math'
 import { fieldRow } from '../src/admin/model'
@@ -94,9 +94,30 @@ test('crit switch: default on for every class slot, a patch turns one off, jobs 
   assert.equal(canRollCrit('mage', 'ult'), true)
   r.revert()
   assert.equal(canRollCrit('cleric', 'ult'), true)
-  // only 0 / 1 are accepted
+  // 0..1 only: 2 and -0.1 are refused
   assert.equal(checkPatch({ skills: { 'crit.cleric.ult': 2 } }).ok, false)
-  assert.equal(checkPatch({ skills: { 'crit.cleric.ult': 0.5 } }).ok, false)
+  assert.equal(checkPatch({ skills: { 'crit.cleric.ult': -0.1 } }).ok, false)
+})
+
+test('crit power: 0.5 keeps half the crit bonus, the switch still says "can crit", default and unknown jobs stay at 1', () => {
+  for (const cls of SKILL_CLASSES) for (const s of CRIT_SLOTS) assert.equal(critPower(cls, s), 1, `${cls}.${s} default`)
+  assert.equal(critPower('novice', 'ult'), 1)
+  const r = applyPatch({ skills: { 'crit.thief.ult': 0.5, 'crit.thief.s2': 0 } })
+  assert.equal(r.ok, true)
+  assert.equal(critPower('thief', 'ult'), 0.5)
+  assert.equal(canRollCrit('thief', 'ult'), true) // weak crit still rolls
+  assert.equal(canRollCrit('thief', 's2'), false) // 0 = never
+  assert.equal(critPower('thief', 's1'), 1)
+  r.revert()
+  assert.equal(critPower('thief', 'ult'), 1)
+  assert.equal(checkPatch({ skills: { 'crit.thief.ult': 0.5 } }).ok, true)
+})
+
+test('scaleCritMul: only the bonus above x1 is scaled', () => {
+  assert.equal(scaleCritMul(1.4, 1), 1.4) // default: unchanged (same as before)
+  assert.ok(Math.abs(scaleCritMul(1.4, 0.5) - 1.2) < 1e-9)
+  assert.equal(scaleCritMul(4, 0), 1) // power 0 = a crit is just a normal-size hit
+  assert.ok(Math.abs(scaleCritMul(4.2, 0.5) - 2.6) < 1e-9) // a stacked crit build: x4.2 -> x2.6
 })
 
 test('paths outside the registry are not tunable (job names, descriptions, unknown skill ids)', () => {

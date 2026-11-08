@@ -16,18 +16,26 @@ export type SkillClass = (typeof SKILL_CLASSES)[number]
 export const CRIT_SLOTS = ['s1', 's2', 'ult'] as const
 export type CritSlot = (typeof CRIT_SLOTS)[number]
 
-/** Per-skill crit switch: 1 = the skill's own hits may roll a crit (today's behaviour, every skill), 0 = they never roll one.
+/** Per-skill crit power (Q 2026-11-08): 1 = the skill's own hits crit as today (every skill), 0 = they never roll a crit,
+ *  in between (0.5) = they still roll the crit but only that share of the crit BONUS lands: x = 1 + (critMul - 1) * power.
  *  A sure crit (forceCrit: Swordsman ★ พันดาบ ...) and on-hit procs (zap / fire / ice / spear / light ...) are not governed by it.
- *  Tunable as skills `crit.<class>.<slot>`. */
+ *  Tunable as skills `crit.<class>.<slot>` (kept the old 0/1 switch's path: a published 0 or 1 means the same). */
 export const SKILL_CRIT: Record<SkillClass, Record<CritSlot, number>> = {
   swordsman: { s1: 1, s2: 1, ult: 1 }, archer: { s1: 1, s2: 1, ult: 1 }, mage: { s1: 1, s2: 1, ult: 1 },
   cleric: { s1: 1, s2: 1, ult: 1 }, thief: { s1: 1, s2: 1, ult: 1 },
 }
-/** false only when the admin switched this class's slot off. Jobs without an entry (novice, 2nd-job slots not covered yet) = allowed. */
+const critRow = (job: string) => (SKILL_CRIT as Partial<Record<string, Record<CritSlot, number>>>)[job]
+/** false only when the admin switched this class's slot off (power 0). Jobs without an entry (novice, 2nd-job slots not covered yet) = allowed. */
 export function canRollCrit(job: string, slot: CritSlot): boolean {
-  const row = (SKILL_CRIT as Partial<Record<string, Record<CritSlot, number>>>)[job]
-  return row?.[slot] !== 0
+  return critRow(job)?.[slot] !== 0
 }
+/** Share (0..1) of the crit bonus this class's slot keeps; 1 for jobs without an entry. */
+export function critPower(job: string, slot: CritSlot): number {
+  const v = critRow(job)?.[slot]
+  return typeof v === 'number' ? Math.min(1, Math.max(0, v)) : 1
+}
+/** The crit multiplier a skill hit really gets: only `power` of the bonus above x1 (power 1 = the full critMul). */
+export const scaleCritMul = (critMul: number, power: number): number => 1 + (critMul - 1) * power
 
 // ---------- field refs ----------
 export interface SkillRef { table: 'kit' | 'skills'; path: string; label: string }
@@ -165,8 +173,8 @@ export function job2Layout(id: Job2Id): Job2Layout {
   }
 }
 
-/** The crit-switch ref of one slot (always shown first in its column). */
-export const critRef = (c: SkillClass, slot: CritSlot): SkillOwnRef => sk(`crit.${c}.${slot}`, 'คริได้ไหม (1 = ได้ · 0 = ไม่คริ)', int(0, 1))
+/** The crit-power ref of one slot (always shown first in its column). */
+export const critRef = (c: SkillClass, slot: CritSlot): SkillOwnRef => sk(`crit.${c}.${slot}`, 'ความแรงคริ (1 = ปกติ · 0.5 = โบนัสคริเหลือครึ่ง · 0 = ไม่คริ)', num(0, 1))
 
 /** Every `skills` ref (incl. crit switches), de-duplicated by path: tunables.ts turns these into the table's whitelist. */
 export function skillTableFields(): [string, FieldDef][] {
