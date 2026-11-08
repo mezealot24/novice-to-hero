@@ -20,7 +20,7 @@ const FILTERS: { id: Filter; label: string }[] = [{ id: 'all', label: 'ทั้
 const PER = 6, ROW_H = 52
 const dgName = (id: string) => DUNGEONS.find((d) => d.id === id)?.name ?? id
 const dgBoss = (id: string) => DUNGEONS.find((d) => d.id === id)?.boss ?? ''
-const SALVAGE_WHY: Record<SalvageWhy, string> = { notOwned: 'ยังไม่มีชิ้นนี้', notCraft: 'ของร้านหลอมไม่ได้ (ขายได้)', unique: '👑 ยูนีคหลอมไม่ได้', worn: 'ใส่อยู่ ถอดก่อนนะคะ', broken: '💔 แตกอยู่ ซ่อมก่อนนะคะ' }
+const SALVAGE_WHY: Record<SalvageWhy, string> = { notOwned: 'ยังไม่มีชิ้นนี้', notCraft: 'ของร้านหลอมไม่ได้ (ขายได้ · ยกเว้นที่ติดคำสาป)', unique: '👑 ยูนีคหลอมไม่ได้', worn: 'ใส่อยู่ ถอดก่อนนะคะ', broken: '💔 แตกอยู่ ซ่อมก่อนนะคะ' }
 
 export class RecipeView {
   private root?: Phaser.GameObjects.Container
