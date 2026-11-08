@@ -6,7 +6,7 @@ import { autoInfo, dawnInfo, skill2Info, ultInfo, type InfoRow } from '../data/s
 import { skill2ById } from '../data/skill2'
 import { CARD_RULES, cardIcon, cardName, EQUIP_CARDS, TIER_COLOR, type EquipCard } from '../data/cards'
 import { gradeStars, gradeCap } from '../data/craft'
-import { BASE_STATS, smashLv, canWear, forged, forgeTag, gradeOf, isBroken, refineOf, cardFits, CERT_SLOTS_AT, EQUIP_SLOTS, offhandLocked, slotKind, type EquipSlot, COSTUMES, gearBase, heroStats, cardStatLine, itemStatLine, splitStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, NOVICE_PASSIVES, NOVICE_RULES, noviceLeft, noviceSpent, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText, type BaseStat } from '../data/meta'
+import { BASE_STATS, smashLv, canWear, forged, forgeTag, gradeOf, isBroken, refineOf, cardFits, CERT_SLOTS_AT, EQUIP_SLOTS, offhandLocked, slotKind, type EquipSlot, COSTUMES, gearBase, heroStats, jobBonusBase, cardStatLine, itemStatLine, splitStatLine, ITEMS, itemById, slotCount, socketed, JOB_RULES, NOVICE_PASSIVES, NOVICE_RULES, noviceLeft, noviceSpent, RACES, SKILLS, SLOTS, STAT_RULES, totalBase, wearText, type BaseStat } from '../data/meta'
 import { canChangeJob, equip, persist, resetNovice, resetTree, resetTree2, save, socketCard, unsocketCard } from '../save'
 import { branches2Of, talents2Of, tree2Spent, BRANCHES, branchesOf, lockReason, skill2Picked, nodeById, nodesOf, TALENT_RULES, talentEarned, talentFree, talentPick, talentRankText, talentsOf, TREE_RULES, treeSpent, type TreeNode } from '../data/tree'
 import { JOB_CHANGE, JOBS, type JobId } from '../data/jobs'
@@ -247,7 +247,7 @@ export class CharacterScene extends Phaser.Scene {
   // ---------- tab 3: base stats ----------
   private statusTab() {
     const s = save(), b = this.body!
-    const total = totalBase(s), gear = gearBase(s)
+    const total = totalBase(s), gear = gearBase(s), jobB = jobBonusBase(s)
     b.add(txt(this, 330, 112, `แต้มสถานะเหลือ: ${s.statPoints}`, 20, s.statPoints ? UI.gold : UI.sub, true))
     b.add(txt(this, 330, 138, `ได้ ${STAT_RULES.pointsPerLevel} แต้มทุก Base Lv · รีเซ็ตฟรีได้ตลอด`, 14, UI.sub))
     BASE_STATS.forEach((bs, i) => {
@@ -255,10 +255,14 @@ export class CharacterScene extends Phaser.Scene {
       b.add(panel(this, 330, y, 600, 50, UI.panel, UI.line, 10))
       b.add(txt(this, 344, y + 6, bs.name, 19, UI.gold, true))
       b.add(txt(this, 344, y + 30, bs.role, 12, UI.sub))
-      const raceB = total[bs.id] - s.stats[bs.id] - gear[bs.id], gearB = gear[bs.id]
+      const gearB = gear[bs.id], jobN = jobB[bs.id], raceB = total[bs.id] - s.stats[bs.id] - gearB - jobN
       b.add(txt(this, 404, y + 11, `${total[bs.id]}`, 22, UI.text, true))
-      if (raceB) b.add(txt(this, 436, y + 8, `${raceB > 0 ? '+' : ''}${raceB} เผ่า`, 10, raceB > 0 ? UI.green : UI.red))
-      if (gearB) b.add(txt(this, 436, y + 26, `+${gearB} ของ`, 10, '#7fd7ff'))
+      const tags: [string, string][] = [] // stacked +N labels: เผ่า / ของ / อาชีพ (📈 job bonus)
+      if (raceB) tags.push([`${raceB > 0 ? '+' : ''}${raceB} เผ่า`, raceB > 0 ? UI.green : UI.red])
+      if (gearB) tags.push([`+${gearB} ของ`, '#7fd7ff'])
+      if (jobN) tags.push([`+${jobN} อาชีพ`, UI.gold])
+      const step = tags.length > 2 ? 14 : 18
+      tags.forEach(([t, c], j) => b.add(txt(this, 436, y + (tags.length > 2 ? 4 : 8) + j * step, t, 10, c)))
       this.statDesc(b, bs.id, s.job, total[bs.id], 482, y + 4, 322, 44)
       const add = (n: number) => {
         n = Math.min(n, s.statPoints, STAT_RULES.max - s.stats[bs.id])

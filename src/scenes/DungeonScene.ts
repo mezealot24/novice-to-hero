@@ -3,7 +3,7 @@ import { COLORS, COLS, DUNGEON, FONT_NUM, FONT_UI, H, PERKS, perkDesc, ROWS, RUL
 import { Hero } from '../entities/Hero'
 import { Monster } from '../entities/Monster'
 import { sfx, unlock } from '../sfx'
-import { COSTUMES, FREE_GEMS, heroStats, RESOURCES } from '../data/meta'
+import { COSTUMES, FREE_GEMS, heroStats, jobUpText, RESOURCES } from '../data/meta'
 import { addXp, persist, save } from '../save'
 import { fullscreenButton, go } from '../ui'
 
@@ -489,7 +489,7 @@ export class DungeonScene extends Phaser.Scene {
     persist()
     lines.push(`+${this.zeny} zeny · +${this.runXp} EXP${s.gems > before ? ` · +${s.gems - before} เพชร` : ''}`)
     if (ups.base) lines.push(`🎉 Base Lv ${s.baseLevel}! ได้แต้มสถานะเพิ่ม`)
-    if (ups.job) lines.push(`✨ Job Lv ${s.jobLevel}! ได้แต้มสกิลเพิ่ม`)
+    if (ups.job) lines.push(jobUpText(s, ups.job))
     return lines.join('\n')
   }
 
