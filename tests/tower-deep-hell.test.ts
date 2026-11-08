@@ -1,9 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DUNGEONS, MONSTERS, type MonsterKind } from '../src/data/game-data'
+import { DUNGEONS, MONSTERS, type MonSkill, type MonsterDef, type MonsterKind } from '../src/data/game-data'
 import { HELL, hellify, HELL_TRAITS } from '../src/data/hell'
-import { deepAnchor, homeDungeon, legacyLevel, monTier, restatAt, statNative, towerMonLv, withStats } from '../src/data/mon-stats'
+import { deepAnchor, homeDungeon, legacyLevel, monPoints, monTier, restatAt, TOWER_LV, scaleOf, skillAtLv, skillMul, statNative, towerMonLv, withStats } from '../src/data/mon-stats'
 import { towerFloor, TOWER } from '../src/data/modes'
+import { castLv, skillLvBonus } from '../src/data/mon-skill-scale'
 
 const DEEP = DUNGEONS.filter((d) => d.level)
 const kindsOf = (rooms: ReturnType<typeof towerFloor>) => rooms.flatMap((r) => [...r.spawn.map(([k]) => k), ...(r.miniPool ?? [])])
@@ -74,7 +75,7 @@ test('floor 40+: every D1-D5 monster in the room is Hell (Q 2026-11-08)', () => 
   }
 })
 
-test('tower Lv: a D3 mini locked at its home Lv grows stats + skill Lv on deep floors, HP / ATK untouched', () => {
+test('tower Lv: a D3 mini locked at its home Lv grows stats on deep floors (skill Lv: v124 skillLvBonus), HP / ATK untouched', () => {
   const d = MONSTERS.duelist, home = withStats(d, 'duelist', legacyLevel('duelist', d, { id: 'd3' }))
   const lv = towerMonLv(40) + HELL.lv
   assert.ok(lv > (home.lv ?? 0))
@@ -83,7 +84,7 @@ test('tower Lv: a D3 mini locked at its home Lv grows stats + skill Lv on deep f
   assert.equal(up.hp, home.hp)
   assert.equal(up.dmg, home.dmg)
   assert.ok((up.flee ?? 0) > (home.flee ?? 0) && (up.hit ?? 0) > (home.hit ?? 0), 'flee / hit grow')
-  assert.ok((up.skills ?? []).every((s, i) => (s.lv ?? 1) > (home.skills?.[i]?.lv ?? 1)), 'skill Lv grows')
+  assert.ok(skillLvBonus('duelist', lv, d) > 0, 'skill Lv grows (cast time)')
   assert.equal(JSON.stringify(restatAt(home, 'duelist', 5)), JSON.stringify(home), 'D1-D5 never go below home Lv')
 })
 
@@ -103,4 +104,33 @@ test('Hell bosses / minis never roll ตานรก (the tower gives them a sha
   assert.ok([...bossTraits].some((t) => t?.includes('เปลวนรก')))
   assert.ok(![...wolfTraits].some((t) => t?.includes('เปลวนรก')))
   assert.equal(hellify(boss, HELL_TRAITS.filter((t) => t.bossOk).findIndex((t) => t.id === 'flame') / 3 + 0.01).onHit?.burn, 2)
+})
+
+test('v122 tower: numbers come from the stats at the floor Lv (no Hero Power); restatAt keeps them only when asked', () => {
+  const d = MONSTERS.deathknight, home = withStats(d, 'deathknight', legacyLevel('deathknight', d, { id: 'd3' }))
+  const lv = towerMonLv(45) + HELL.lv, kept = restatAt(home, 'deathknight', lv), lvd = restatAt(home, 'deathknight', lv, true)
+  assert.equal(kept.dmg, home.dmg)
+  assert.ok(lvd.dmg > home.dmg * 2 && lvd.hp > home.hp * 2, `Lv${lv} dmg ${lvd.dmg} hp ${lvd.hp}`)
+  assert.equal(lvd.lv, lv)
+})
+
+test('v122 tower MVP: a boss rebuilt with numbers gets TOWER_LV.mvpPct of the hero points (normals / minis unchanged)', () => {
+  const lv = towerMonLv(45) + HELL.lv
+  const d = MONSTERS.deathknight, home = withStats(d, 'deathknight', legacyLevel('deathknight', d, { id: 'd3' }))
+  const mvp = restatAt(home, 'deathknight', lv, true), plain = withStats(d, 'deathknight', lv)
+  const pts = (b?: Record<string, number>) => Object.values(b ?? {}).reduce((a, n) => a + n - 1, 0)
+  assert.ok(Math.abs(pts(mvp.base) - monPoints(lv, 'boss', false, TOWER_LV.mvpPct)) <= 7, `mvp points ${pts(mvp.base)}`)
+  assert.ok(mvp.hp > plain.hp && mvp.dmg > plain.dmg)
+  const m = MONSTERS.duelist, mh = withStats(m, 'duelist', legacyLevel('duelist', m, { id: 'd3' }))
+  assert.equal(JSON.stringify(restatAt(mh, 'duelist', lv, true).base), JSON.stringify(withStats(m, 'duelist', lv).base), 'mini: no MVP bonus')
+})
+
+test('v123/v124 tower: ดาบมรณะ Lv78 is cast at Lv7 = base pow x 1.6, with STR above the Lv ref on top', () => {
+  const d = MONSTERS.deathknight, home = withStats(d, 'deathknight', legacyLevel('deathknight', d, { id: 'd3' }))
+  const lv = towerMonLv(45) + HELL.lv, up = restatAt(home, 'deathknight', lv, true)
+  const h = home.skills!.find((s) => s.kind === 'strike')!, u = up.skills!.find((s) => s.kind === 'strike')!
+  const cast = skillAtLv(u, castLv(u.lv ?? 1, skillLvBonus('deathknight', lv, d)))
+  assert.equal(cast.lv, 7)
+  assert.ok(Math.abs((cast.pow ?? 0) - (h.pow ?? 0) * 1.6) < 1e-9)
+  assert.ok(skillMul(up, scaleOf(u)) >= skillMul(home, scaleOf(h)))
 })
