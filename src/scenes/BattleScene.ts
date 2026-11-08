@@ -31,6 +31,7 @@ import { chipGrid, floatLane, HUD_THEME, stagePill, statusChips, type StatusChip
 import { fitWidth, openPauseMenu, type PauseExtra } from '../battle/pause-menu'
 import { derivedRows } from '../data/stat-rows'
 import { CombatLog, deathText, recapLines, saveDeath, type DeathRec, type HitOut, type HitRec } from '../data/combat-log'
+import { ftue, track } from '../analytics'
 
 // Side-scroll, turn-based (Capybara Go-like): the hero walks right, meets a group, and everyone
 // takes turns by speed (AGI). The player's job: the build (1-of-3 cards) and when to fire Smash.
@@ -298,6 +299,7 @@ export class BattleScene extends Phaser.Scene {
       else { this.modeArgs.skipTo = undefined; this.modeArgs.startFloor = undefined; this.skipNote = '💎 เพชรไม่พอข้ามชั้น: เริ่มที่ชั้น 1' }
     }
     this.run = buildRun(s, this.modeArgs) // a retry rebuilds the run (new tower floors, same daily seed)
+    track({ e: 'run_start', mode: this.run.modeId, dungeon: this.run.themeAt(0).id }); ftue('run1_start')
     this.retheme(this.run.themeAt(0))
     const mut = this.run.mut
     this.drained = 0; this.drainDelta = undefined
@@ -4065,7 +4067,14 @@ export class BattleScene extends Phaser.Scene {
       s.clears++
     }
     const before = s.gems
+    const lv0 = { base: s.baseLevel, job: s.jobLevel, job2: s.job2Level ?? 1 }
     const ups = addXp(this.runXp)
+    track({ e: 'run_end', mode: this.run.modeId, dungeon: this.dg.id, won, room: this.room, zeny: this.zeny, xp: this.runXp })
+    if (won) ftue('run1_win')
+    if (won && this.run.modeId === 'dungeon' && this.dg.id === 'd1') ftue('d1_clear')
+    if (s.baseLevel > lv0.base) track({ e: 'level_up', kind: 'base', level: s.baseLevel })
+    if (s.jobLevel > lv0.job) track({ e: 'level_up', kind: 'job', level: s.jobLevel })
+    if ((s.job2Level ?? 1) > lv0.job2) track({ e: 'level_up', kind: 'job2', level: s.job2Level ?? 1 })
     s.gems += gems + this.runGems
     for (const id of this.runCards) addCard(s, id)
     for (const [id, n] of Object.entries(this.runMats)) addMat(s, id, n)

@@ -7,6 +7,7 @@ import { canRepickJob, changeJob, changeJob2, repickJob, save } from '../save'
 import { JOB2, JOB2_RULES, job2Of, type Job2Id } from '../data/jobs2'
 import { sfx } from '../sfx'
 import { backdrop, button, confirm, go, toast, txt, UI } from '../ui'
+import { ftue, track } from '../analytics'
 
 const REPICK_BODY = `ใช้ 💎${JOB_CHANGE.repickGems} เปลี่ยนเป็นอาชีพอื่น\nคืนแต้มใยสกิลทั้งหมด · ล้างทาเลนต์ (ลงใหม่ได้ฟรี)\nเก็บไว้: Base Lv, Job Lv, สถานะ, ของ, การ์ด, zeny`
 
@@ -73,7 +74,7 @@ export class JobScene extends Phaser.Scene {
         return
       }
       confirm(this, `เป็น${j.name}?`, `${j.blurb}\nเปลี่ยนเป็นอาชีพอื่นทีหลังได้ด้วย 💎${JOB_CHANGE.repickGems}`, 'ตกลง', () => {
-        changeJob(this.pick); sfx.win(); go(this, 'hub')
+        changeJob(this.pick); track({ e: 'job_change', tier: 1, job: this.pick, gems: 0 }); ftue('job1'); sfx.win(); go(this, 'hub')
       })
     }, { size: 20 })
   }
@@ -120,6 +121,7 @@ export class JobScene extends Phaser.Scene {
       if (j.id === s.job2) return
       confirm(this, `เป็น${j.icon} ${j.name}?`, repick ? `จ่าย 💎${cost} · คืนแต้มใยชั้น 2 ทั้งหมด` : `${j.blurb}\nเปลี่ยนสายทีหลังได้ด้วย 💎${JOB2_RULES.repickGems}`, repick ? `จ่าย 💎${cost}` : 'ตกลง', () => {
         if (!changeJob2(j.id, cost)) { toast(this, cost ? `เพชรไม่พอ ต้องใช้ 💎${cost}` : 'ยังเปลี่ยนไม่ได้', UI.sub); return }
+        track({ e: 'job_change', tier: 2, job: j.id, gems: cost }); ftue('job2')
         sfx.win(); go(this, 'hub')
       })
     }, { size: 20 })

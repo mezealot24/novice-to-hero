@@ -23,6 +23,8 @@ jobs:
       - run: npm run build
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }} # cloud save API (server/); empty = cloud off
+          VITE_POSTHOG_KEY: ${{ vars.VITE_POSTHOG_KEY }} # analytics project key (public, write-only); empty = analytics off (docs/design/analytics-v1.md)
+          VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }} # empty = https://us.i.posthog.com
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

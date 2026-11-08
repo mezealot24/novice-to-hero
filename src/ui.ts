@@ -8,6 +8,7 @@ import { SLOTS, type Item } from './data/meta'
 import { fodderToBuy, pickFodder, zenyShort, type ForgeCost, type Wallet } from './data/refine'
 import { save } from './save'
 import { sfx, unlock } from './sfx'
+import { track } from './analytics'
 
 export const UI = {
   night: 0x14172b,
@@ -179,6 +180,7 @@ export function toggleFullscreen(scene: Phaser.Scene) {
 
 /** Fade to another scene. */
 export function go(scene: Phaser.Scene, key: string, data?: object) {
+  track({ e: 'screen', name: key })
   scene.input.enabled = false
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { scene.input.enabled = true })
   scene.cameras.main.fadeOut(160, 20, 23, 43)

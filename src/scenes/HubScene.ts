@@ -12,6 +12,7 @@ import { cloudEnabled } from '../cloud'
 import { setMuted } from '../sfx'
 import { askRepick } from './JobScene'
 import { backdrop, button, confirm, fullscreenButton, go, panel, toast, topBar, txt, UI } from '../ui'
+import { ftue } from '../analytics'
 
 // Town / main menu. Everything branches from here and every run comes back here.
 export class HubScene extends Phaser.Scene {
@@ -153,6 +154,7 @@ export class HubScene extends Phaser.Scene {
     tile(5, '🎮', 'โหมด', 'หอคอย · ท้าทายรายวัน', 0x7a3a6a, () => this.modes())
     tile(4, '⚙️', 'ตั้งค่า', s.muted ? 'เสียง: ปิด' : 'เสียง: เปิด', 0x4a4e6e, () => this.settings())
 
+    ftue('hub_first')
     if (data?.fresh) this.time.delayedCall(250, () => toast(this, `ยินดีต้อนรับ ${s.name}! ลองกด "ออกผจญภัย" ได้เลย`))
     if (s.webRefund) { // v27 skill web migration notice (once)
       const n = s.webRefund

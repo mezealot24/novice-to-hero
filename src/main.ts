@@ -13,6 +13,8 @@ import { BattleScene } from './scenes/BattleScene'
 import { JobScene } from './scenes/JobScene'
 import { CloudScene } from './scenes/CloudScene'
 import { liveInfo, loadLiveConfig } from './live-config'
+import { initAnalytics, setAnalyticsContext, type Props } from './analytics'
+import { load } from './save'
 import { deathText, loadDeaths } from './data/combat-log'
 
 class BootScene extends Phaser.Scene {
@@ -32,6 +34,11 @@ async function boot() {
   // live balance patch must land before any scene reads src/data; it can never block boot (own timeout, errors swallowed)
   await Promise.all([fonts, loadLiveConfig().catch(() => liveInfo)])
   ;(window as unknown as { __nth_cfg: typeof liveInfo }).__nth_cfg = liveInfo
+  setAnalyticsContext((): Props => { // game numbers only (never the name): lets every event be cut by progress
+    const s = load()
+    return s ? { base_lv: s.baseLevel, job: s.job, job_lv: s.jobLevel, job2: s.job2 ?? null, clears: s.clears, cfg: liveInfo.releaseId ?? null } : { cfg: liveInfo.releaseId ?? null }
+  })
+  initAnalytics()
 
   const game = new Phaser.Game({
     type: Phaser.AUTO,

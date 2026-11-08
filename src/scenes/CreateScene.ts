@@ -3,6 +3,7 @@ import { COLORS, H, W } from '../data/game-data'
 import { RACES, type RaceId } from '../data/meta'
 import { newSave, setSave, wipe } from '../save'
 import { backdrop, button, go, panel, txt, UI } from '../ui'
+import { ftue } from '../analytics'
 
 const NAMES = ['ข้าวปั้น', 'ปลาทู', 'หมูกรอบ', 'บัวลอย', 'ทองหยิบ', 'มะม่วง', 'ขนมครก', 'ลูกชิ้น', 'ส้มตำ', 'ไข่เจียว', 'โรตี', 'ข้าวเหนียว', 'ทับทิม', 'เฉาก๊วย']
 
@@ -14,6 +15,7 @@ export class CreateScene extends Phaser.Scene {
 
   create() {
     backdrop(this, false)
+    ftue('create_open')
     this.race = 'human'
     this.name = Phaser.Utils.Array.GetRandom(NAMES)
     txt(this, W / 2, 34, 'สร้างตัวละคร', 30, UI.gold, true).setOrigin(0.5)
@@ -58,6 +60,7 @@ export class CreateScene extends Phaser.Scene {
     button(this, W / 2, 508, 300, 60, 'เริ่มผจญภัย!', () => {
       wipe()
       setSave(newSave(this.name, this.race))
+      ftue('char_created')
       go(this, 'hub', { fresh: true })
     }, { size: 24 })
     button(this, 70, H - 40, 110, 42, '‹ กลับ', () => go(this, 'title'), { fill: 0x5a5f8a, color: UI.text, size: 17 })
