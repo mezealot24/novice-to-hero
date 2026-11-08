@@ -4074,7 +4074,7 @@ export class BattleScene extends Phaser.Scene {
       s.clears++
     }
     const before = s.gems
-    const lv0 = { base: s.baseLevel, job: s.jobLevel, job2: s.job2Level ?? 1 }
+    const lv0 = { base: s.baseLevel, job: s.jobLevel, job2: s.job2Level ?? 1, job3: s.job3Level ?? 1 }
     const ups = addXp(this.runXp)
     track({ e: 'run_end', mode: this.run.modeId, dungeon: this.dg.id, won, room: this.room, zeny: this.zeny, xp: this.runXp })
     if (won) ftue('run1_win')
@@ -4082,6 +4082,7 @@ export class BattleScene extends Phaser.Scene {
     if (s.baseLevel > lv0.base) track({ e: 'level_up', kind: 'base', level: s.baseLevel })
     if (s.jobLevel > lv0.job) track({ e: 'level_up', kind: 'job', level: s.jobLevel })
     if ((s.job2Level ?? 1) > lv0.job2) track({ e: 'level_up', kind: 'job2', level: s.job2Level ?? 1 })
+    if ((s.job3Level ?? 1) > lv0.job3) track({ e: 'level_up', kind: 'job3', level: s.job3Level ?? 1 })
     s.gems += gems + this.runGems
     for (const id of this.runCards) addCard(s, id)
     for (const [id, n] of Object.entries(this.runMats)) addMat(s, id, n)

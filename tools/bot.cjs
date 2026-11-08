@@ -101,6 +101,13 @@ if (process.env.JOB2) {
   if (o && o !== '0') { save.owned.push(o); save.equipped.offhand = o }
   if (process.env.PET) save.pet = process.env.PET
 }
+// 3rd job (design/awakening-crusader-v1.md): JOB3=paladin (needs JOB2 = its parent) · J3LV=n (default 30) · J3P=pure|hybrid · J3V=a|b · J3T='{"node":lv}'
+// sets the Master Trial win + ดัน 10 clear so the save is a legal Awakening
+if (process.env.JOB3) {
+  Object.assign(save, { job3: process.env.JOB3, job3Level: +(process.env.J3LV || 30), job3Xp: 0, job3Points: 0, job3Tree: process.env.J3T ? JSON.parse(process.env.J3T) : {},
+    job3Path: process.env.J3P || 'pure', job3Var: process.env.J3V || 'a', job3Trial: { [process.env.JOB3]: 1 }, job2Level: 50 })
+  save.clearsBy = { ...save.clearsBy, d10: Math.max(1, save.clearsBy.d10 || 0) }
+}
 if (process.env.REFINE) save.refine = Object.fromEntries(Object.values(save.equipped).map((id) => [id, +process.env.REFINE]))
 if (process.env.GRADES) save.grade = JSON.parse(process.env.GRADES) // per-item grade '{"<item id>":5}' (after the 2nd-job weapon swap, so it counts)
 if (process.env.BROKEN) save.broken = Object.values(save.equipped)
