@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { COLORS, DUNGEONS, H, HARD, W } from '../data/game-data'
-import { levelDropMul } from '../data/mon-stats'
+import { levelDropMul, TOWER_LV, towerMonLv } from '../data/mon-stats'
 import { foldCorruptions, rollCorruptions } from '../data/corruptions'
 import { HARD_POWER, heroParts, heroPower, matchScale, overpowerMul, powerHint, recPower, TOWER_POWER } from '../data/power'
 import { COSTUMES, FREE_GEMS, isBroken, itemById, JOB_RULES, noviceLeft, RACES, STAT_RULES } from '../data/meta'
@@ -179,7 +179,7 @@ export class HubScene extends Phaser.Scene {
       c.add(txt(this, W / 2 - 360, y + 12, `${m.icon} ${m.name}`, 22, u.ok ? UI.text : UI.sub, true))
       c.add(txt(this, W / 2 + 200, y + 18, u.ok ? m.record(s) : `🔒 ${u.why}`, 14, u.ok ? UI.gold : '#ff9a9a').setOrigin(1, 0))
       let body = m.desc
-      if (id === 'tower') body = `${m.desc}\n⚡ พลังเรา ${heroPower(s)} · ชั้น 1 มอนราว ${Math.round(TOWER_POWER.start * 100)}% แล้วโตทบต้นทุกชั้น · สู้นานเกิน ${TOWER_POWER.enrageWave} เทิร์น (บอส ${TOWER_POWER.enrageBoss}) มอนคลั่ง`
+      if (id === 'tower') body = `${m.desc}\n⚡ พลังเรา ${heroPower(s)} · มอน Lv ≈ ${TOWER_LV.perFloor} × ชั้น (ชั้น 40 ≈ Lv ${towerMonLv(40)}) · สู้นานเกิน ${TOWER_POWER.enrageWave} เทิร์น (บอส ${TOWER_POWER.enrageBoss}) มอนคลั่ง`
       if (id === 'daily') {
         const seed = dailySeed(), d = dailyOf(seed)
         body = `วันนี้: ${d.dg.name} · ${d.mutators.map((x) => `${x.icon} ${x.name} (${x.desc})`).join(' · ')}\n${m.desc}`

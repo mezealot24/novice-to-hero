@@ -495,7 +495,7 @@ export class BattleScene extends Phaser.Scene {
     const d = MONSTERS[kind], src = this.dg
     const base = statNative(kind) ? deepAnchor(kind) /* v114: a D6+ monster in the tower (no level dungeon here) */ : withStats(d, kind, legacyLevel(kind, d, src), { hard: this.hard, statMul: this.run.corrupt?.statMul })
     const lv = this.towerLv(kind)
-    return lv ? restatAt(base, kind, lv) : base // v116: tower Lv by floor (stats + skill Lv; HP / ATK stay the tower's)
+    return lv ? restatAt(base, kind, lv, true) : base // v116 tower Lv by floor · v122: HP / ATK / M.ATK from the stats at that Lv too (no Hero Power)
   }
   /** v116: Lv a monster of `kind` takes on this tower floor (0 = not a tower floor). Hell copies get HELL.lv more. */
   private towerLv(kind: MonsterKind): number {
@@ -512,6 +512,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** v56 global monster buff by dungeon tier (BATTLE.monBuff): HP, ATK and M.ATK. */
   private buffDef(def: MonsterDef): MonsterDef {
+    if (this.run.modeId === 'tower') return def // v122: tower numbers come from the stats at the floor Lv, like D6+ (statDef has no buff either)
     const t = Math.max(0, Math.min(4, this.dg.tier - 1)), hp = BATTLE.monBuff.hp[t], dmg = BATTLE.monBuff.dmg[t]
     return { ...def, hp: Math.round(def.hp * hp), dmg: def.dmg * dmg, ...(def.matk ? { matk: def.matk * dmg } : {}) }
   }

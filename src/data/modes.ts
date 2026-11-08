@@ -270,8 +270,10 @@ function towerRun(s: SaveData, start = 1): RunConfig {
     roomAt,
     themeAt: (i) => towerTheme(roomAt(i).floor ?? 1),
     scale: (r, kind) => {
-      const k = towerScale(pp, (kind && r.srcOf?.[kind]) ?? r.src ?? 'd2', r.floor ?? 1, lv), share = (kind && r.hpOf?.[kind]) ?? ((r.boss || r.mini) && !r.mixed ? TOWER_POWER.bossHp : 1) // solo bosses / gauntlet minis: lighter, they were the walls
-      return { ...k, hp: share * k.hp }
+      // v122 (Q 2026-11-08 "ตัด class penalty ออก แล้วไป scale stat, scale monster แทน"): no Hero Power here any more. HP / ATK / Hit
+      // come from each monster's stats at the floor's tower Lv (BattleScene.legacyStats -> restatAt numbers), like D6+ level dungeons.
+      const share = (kind && r.hpOf?.[kind]) ?? ((r.boss || r.mini) && !r.mixed ? TOWER_POWER.bossHp : 1) // solo bosses / gauntlet minis: lighter, they were the walls
+      return { hp: share, atk: 1, hit: 0, speed: 1 }
     },
     affixesAt: (r) => affixesAt(order, r.floor ?? 1),
     enrageAfter: (r) => (r.boss || r.mini ? TOWER_POWER.enrageBoss : TOWER_POWER.enrageWave),

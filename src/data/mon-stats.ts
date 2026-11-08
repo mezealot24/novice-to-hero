@@ -338,14 +338,14 @@ function freezePow(s: MonSkill, home: MonsterDef): MonSkill {
   const pow = (skillAtLv(s).pow ?? POW_DEFAULT[s.kind]!) * skillMul(home, scaleOf(s))
   return { ...s, ...pick, pow, scale: false, powFixed: true }
 }
-/** `base` (already built at its home level) rebuilt at Lv `lv`: stats + skill levels move, HP / ATK / M.ATK stay. */
-export function restatAt(base: MonsterDef, kind: MonsterKind, lv: number): MonsterDef {
+/** `base` (already built at its home level) rebuilt at Lv `lv`: stats + skill levels move, HP / ATK / M.ATK stay
+ *  unless `numbers` (v122 tower: HP / ATK / M.ATK come from the stats at `lv` too, like a D6+ level dungeon). */
+export function restatAt(base: MonsterDef, kind: MonsterKind, lv: number, numbers = false): MonsterDef {
   const d = MONSTERS[kind], home = base.lv ?? 1, deep = statNative(kind)
   if (!d || lv === home || (!deep && (lv < home || !d.statAlloc))) return base
   const at = deep ? statMonster(d, lv) : withStats(d, kind, lv)
-  const out: MonsterDef = { ...at, hp: base.hp, dmg: base.dmg }
-  if (base.matk !== undefined) out.matk = base.matk
-  else delete out.matk
+  const out: MonsterDef = numbers ? { ...at } : { ...at, hp: base.hp, dmg: base.dmg }
+  if (!numbers) { if (base.matk !== undefined) out.matk = base.matk; else delete out.matk }
   const n = Math.floor(Math.max(0, lv - home) / TOWER_LV.skillEvery)
   const up = (s: MonSkill) => { const f = freezePow(s, base); return n > 0 ? lvUp(f, n) : f }
   if (out.skills) out.skills = out.skills.map(up)

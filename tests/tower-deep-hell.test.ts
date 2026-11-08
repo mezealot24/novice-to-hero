@@ -124,3 +124,11 @@ test('v121 tower Lv: damage skills keep their home power (tower ATK already foll
   const sk = restatAt(home, 'deathknight', 200).skills!.find((s) => s.kind === 'strike')!
   assert.ok((skillAtLv(sk).hits ?? 1) > 1)
 })
+
+test('v122 tower: numbers come from the stats at the floor Lv (no Hero Power); restatAt keeps them only when asked', () => {
+  const d = MONSTERS.deathknight, home = withStats(d, 'deathknight', legacyLevel('deathknight', d, { id: 'd3' }))
+  const lv = towerMonLv(45) + HELL.lv, kept = restatAt(home, 'deathknight', lv), lvd = restatAt(home, 'deathknight', lv, true)
+  assert.equal(kept.dmg, home.dmg)
+  assert.ok(lvd.dmg > home.dmg * 2 && lvd.hp > home.hp * 2, `Lv${lv} dmg ${lvd.dmg} hp ${lvd.hp}`)
+  assert.equal(lvd.lv, lv)
+})
