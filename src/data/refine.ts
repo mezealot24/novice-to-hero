@@ -8,7 +8,7 @@ import type { SaveData } from '../save'
 import type { Stats } from './game-data'
 import type { JobId } from './jobs'
 import { matOf } from './materials'
-import { gradeCost, gradeCap, REFINE, refineDungeon, rerollDungeon, refinable, refineFee, refineRate, type RefineLine } from './craft'
+import { gradeCost, gradeCap, REFINE, refineDungeon, rerollDungeon, refinable, refineFee, refineFeeMul, refineRate, type RefineLine } from './craft'
 import { BASE_NAME, gradeOf, isBroken, isTainted, itemStatLine, ITEMS, linesOf, refineOf, type BaseStat, type Item, type Slot } from './meta'
 import { CURSES, pickTaintKind, TAINT, TAINT_MAT, type CurseDef, type TaintKind } from './taint'
 
@@ -42,7 +42,7 @@ export const fodderFits = (need: FodderNeed) => FODDER.filter((f) => f.slot === 
 /** Cost of one try at +n. */
 export function refineCost(it: Item, n: number): ForgeCost {
   const t = TIER[refineTier(n)], dg = refineDungeon(it, refineTier(n))
-  return { mats: { [matOf(dg, false)]: t.common, ...(t.boss ? { [matOf(dg, true)]: t.boss } : {}) }, zeny: refineFee(n), fodder: { slot: it.slot, min: fodderMin(it.slot, refineTier(n)) } }
+  return { mats: { [matOf(dg, false)]: t.common, ...(t.boss ? { [matOf(dg, true)]: t.boss } : {}) }, zeny: refineFee(n) * refineFeeMul(it), fodder: { slot: it.slot, min: fodderMin(it.slot, refineTier(n)) } }
 }
 /** Material repair: any fodder of the same slot + 2 common materials + half the fee of the item's current +.
  * Always cheaper than gems (worst case +9: 185z + cheapest fodder). */

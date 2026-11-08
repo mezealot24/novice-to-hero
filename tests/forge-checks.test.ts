@@ -58,3 +58,12 @@ test('inline option gacha: the strip price comes from nextRerollCost (gems only 
   assert.equal(nextRerollCost(s, sword, [0, 1]).gems, REFINE.lockGems[0] + REFINE.lockGems[1])
   assert.equal(maxLocks(3), 2) // the panel disables the 3rd toggle: the last line can never be locked
 })
+
+test('refine fee: 2nd-job weapons pay x10 per try, everything else unchanged (Q 2026-11-08)', async () => {
+  const { refineCost } = await import('../src/data/refine')
+  const { refineFee } = await import('../src/data/craft')
+  const j2 = ITEMS.find((x) => x.slot === 'weapon' && x.req === 'job2')!
+  const basic = ITEMS.find((x) => x.id === 'longsword')!
+  assert.equal(refineCost(j2, 5).zeny, refineFee(5) * 10)
+  assert.equal(refineCost(basic, 5).zeny, refineFee(5))
+})
