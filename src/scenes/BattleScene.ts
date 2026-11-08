@@ -26,10 +26,11 @@ import { HELL, hellify } from '../data/hell'
 import { foldAffixes } from '../data/affixes'
 import { PACKS } from '../data/dungeons'
 import { buildRun, MODES, payTowerSkip, recordTowerCheckpoint, towerFloorLoot, towerSkipGems, type ModeArgs, type RunConfig, type RunRoom } from '../data/modes'
-import { button, fullscreenButton, go, type Btn } from '../ui'
+import { button, fullscreenButton, go, toast, type Btn } from '../ui'
 import { chipGrid, floatLane, HUD_THEME, stagePill, statusChips, type StatusChip } from '../battle/hud-layout'
 import { fitWidth, openPauseMenu, type PauseExtra } from '../battle/pause-menu'
 import { derivedRows } from '../data/stat-rows'
+import { CombatLog, deathText, recapLines, saveDeath, type DeathRec, type HitOut, type HitRec } from '../data/combat-log'
 
 // Side-scroll, turn-based (Capybara Go-like): the hero walks right, meets a group, and everyone
 // takes turns by speed (AGI). The player's job: the build (1-of-3 cards) and when to fire Smash.
@@ -303,6 +304,7 @@ export class BattleScene extends Phaser.Scene {
     this.st = heroStats(mut.lukMul !== 1 ? { ...s, stats: { ...s.stats, luk: Math.round(s.stats.luk * mut.lukMul) } } : s) // mutator ดวงพุ่ง
     this.st.maxHp = Math.round(this.st.maxHp * mut.heroMul.maxHp); this.st.atk *= mut.heroMul.atk; this.st.matk *= mut.heroMul.matk
     this.towerFloor = 0; this.bank = { zeny: 0, mats: {} }; this.leftTower = false
+    this.clog.reset() // v120 combat log: one run
     this.hardGap = this.hard && !this.dg.level ? hardGap(this.dg.id, s.baseLevel) : 0
     if (this.hard && !this.dg.level) { const m = matchScale(this.run.pp, this.dg.id); this.hardK = { hp: m.hp * HARD_POWER.target, atk: m.atk * HARD_POWER.target } }
     else this.hardK = this.hard ? { hp: HARD_POWER.target, atk: HARD_POWER.target } : { hp: 1, atk: 1 } // D6+ fixed level: reward = HARD.reward x corruption
@@ -591,7 +593,7 @@ export class BattleScene extends Phaser.Scene {
   private razor(m: Mon) {
     if (!m.def.razor || this.hp <= 0 || m.dead) return
     const n = this.hp * m.def.razor
-    if (n >= 1 && this.hurtHero(n, true, 999, m)) this.floatText(HERO_X + 30, GROUND - 150, '🩸 Blood Razor', '#ff7a9a')
+    if (n >= 1 && this.hurtHero(n, true, 999, m, '🩸 Blood Razor')) this.floatText(HERO_X + 30, GROUND - 150, '🩸 Blood Razor', '#ff7a9a')
   }
 
   /** Preview the next N turns for the queue strip (pure simulation on copies). */
@@ -1371,7 +1373,7 @@ export class BattleScene extends Phaser.Scene {
       // Cleric Ult-web buffs: root P.ATK (split over the pulses) · ใต้ปีกเทพ shield · ไฟชำระ / talents · ★ ซ้อน: every pulse hits twice (the 2nd without the burn bonus)
       const C = KIT2.crusader, k = h2 * (1 + this.st.j2CrossAdd), charging = this.alive().some((m) => m.charging)
       const paid = Math.min(this.hp - 1, Math.floor(this.hp * C.gcPay * Math.max(0, 1 - this.st.j2PayCut)))
-      if (paid > 0) { this.hp -= paid; this.damageNumber(HERO_X, GROUND - 70, paid, false, '#ff9a9a') }
+      if (paid > 0) { const hp0 = this.hp; this.hp -= paid; this.logLoss('✨ Grand Cross จ่าย HP', hp0); this.damageNumber(HERO_X, GROUND - 70, paid, false, '#ff9a9a') }
       const burnt = Math.floor(this.res)
       if (burnt > 0) { this.spendRes(burnt); this.floatText(HERO_X, GROUND - 130, `🔥 เผา Mana ${burnt}`, '#9fc3ff') } // v110: counts as Mana spent (💠 มานาพิทักษ์ heal)
       const n = gcPulses(this.st)
@@ -2396,7 +2398,7 @@ export class BattleScene extends Phaser.Scene {
       this.burst(m.spr.x, m.spr.y - 20, 0xffb347, 22, 300)
       this.shake(180, 0.012)
       sfx.slam()
-      this.hurtHero(m.def.dmg * BATTLE.monDmgMul * m.def.deathBlast, true, m.def.hit ?? 15)
+      this.hurtHero(m.def.dmg * BATTLE.monDmgMul * m.def.deathBlast, true, m.def.hit ?? 15, undefined, `💥 ระเบิดตาย (${m.def.name})`)
     }
     if (this.aff.split > 0 && !m.clone && !m.summoned && m.def.ai !== 'boss' && this.hp > 0) { // tower affix แยกร่าง
       const sl = this.freeSlots().find((x) => x !== m.slot) ?? this.freeSlots()[0]
@@ -2448,7 +2450,7 @@ export class BattleScene extends Phaser.Scene {
     if (m.vengCd) m.vengCd--
     if (m.vengTurns && !m.dead) {
       const V = BATTLE.vengeance
-      if (m.shield > 0 && this.hp > 0 && this.hurtHero(this.st.maxHp * V.dotPct + this.monMatk(m) * V.dotMatk, true, 999)) this.floatText(HERO_X, GROUND - 150, '🖤 ความแค้นกัดกิน', '#c9a8ff')
+      if (m.shield > 0 && this.hp > 0 && this.hurtHero(this.st.maxHp * V.dotPct + this.monMatk(m) * V.dotMatk, true, 999, undefined, `🖤 ความแค้นกัดกิน (${m.def.name})`)) this.floatText(HERO_X, GROUND - 150, '🖤 ความแค้นกัดกิน', '#c9a8ff')
       if (--m.vengTurns === 0) { m.shield = 0; m.vengCd = V.cd; this.dotIcon(m) }
     }
     // damage over time first
@@ -2518,7 +2520,7 @@ export class BattleScene extends Phaser.Scene {
     for (let i = 0; i < shots && this.hp > 0 && !m.dead; i++) {
       if (this.riposte(m)) continue
       const cr = this.monCrit(m)
-      const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m)
+      const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m, shots > 1 ? `โจมตี ${i + 1}/${shots}` : 'โจมตี')
       if (landed) { this.monLeech(m); this.razor(m); if (m.onHit) this.applyFx(m.onHit, m); if (this.procs('hurt', m) > 0) await this.wait(90); await this.tryCounter(m) }
     }
     if (m.def.combo) { // v49 monster combo: chain extra hits like the hero (same cap)
@@ -2529,7 +2531,7 @@ export class BattleScene extends Phaser.Scene {
         this.tweens.add({ targets: m.spr, x: m.spr.x - 14, duration: 70, yoyo: true })
         await this.wait(160)
         const cr = this.monCrit(m)
-        const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * BATTLE.monComboMul * (1 - this.st.comboDR) * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m)
+        const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * BATTLE.monComboMul * (1 - this.st.comboDR) * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m, 'คอมโบ')
         if (landed) { this.monLeech(m); this.razor(m) }
       }
     }
@@ -2605,7 +2607,7 @@ export class BattleScene extends Phaser.Scene {
     const home = m.spr.x
     await this.slamMotion(m)
     if (this.riposte(m)) { await this.wait(300); if (!m.dead) await this.tween({ targets: [m.spr, m.shadow], x: home, duration: 260 }); m.spr.setAngle(0); return }
-    const hit = this.hurtHero(((m.def.slamMagic ? this.monMatk(m) + (m.def.venom ? m.def.venom.dex * this.matkScale(m) : 0) : m.def.dmg) + 8) * BATTLE.monDmgMul * (m.def.slamMul ?? 1.6) * skillMul(m.def, slamScaleOf(m.def)) * this.monMul(m), !!m.def.slamMagic, 999, m) // slam can't be fled, only lucky-dodged / shielded
+    const hit = this.hurtHero(((m.def.slamMagic ? this.monMatk(m) + (m.def.venom ? m.def.venom.dex * this.matkScale(m) : 0) : m.def.dmg) + 8) * BATTLE.monDmgMul * (m.def.slamMul ?? 1.6) * skillMul(m.def, slamScaleOf(m.def)) * this.monMul(m), !!m.def.slamMagic, 999, m, `⚠️ ${m.def.slamName ?? 'ท่าชาร์จ'}`) // slam can't be fled, only lucky-dodged / shielded
     if (m.stored > 0) await this.soulStrike(m)
     if (hit) {
       this.monLeech(m, m.def.mini === 'hunter' || m.def.mini === 'drainer' ? 1 : undefined) // the big drain heals all of it
@@ -2703,15 +2705,38 @@ export class BattleScene extends Phaser.Scene {
       const b = this.add.image(m.spr.x - 20, m.spr.y - 60 - i * 8, 'dot').setTint(0xc9a8ff).setScale(1.8).setDepth(9000)
       await this.tween({ targets: b, x: HERO_X, y: GROUND - 50, duration: 110 })
       b.destroy()
-      this.hurtHero(total / BATTLE.soulBolts, true, 999, m)
+      this.hurtHero(total / BATTLE.soulBolts, true, 999, m, '🔮 โซลสไตรค์')
     }
   }
 
-  /** Returns false when the hit was dodged. */
+  /** v120 combat log: every hit on the hero goes through here (hurtHeroCore does the work), `tag` = what hit (log only). */
+  private hurtHero(dmg: number, magic: boolean, monHit: number, src?: Mon, tag = 'โจมตี'): boolean {
+    const hp0 = this.hp, crit = this.monCritHit
+    this.monCritHit = false; this.hitOut = 'hit'; this.hitLost = 0
+    const landed = this.hurtHeroCore(dmg, magic, monHit, src)
+    const out: HitOut = landed && this.hitOut === 'hit' && this.hitLost === 0 && this.lastHurt > 0 ? 'shield' : this.hitOut
+    this.logHit({ who: src?.def.name ?? '', kind: src?.kind, tag, magic, crit, out, raw: dmg, taken: this.lastHurt, shield: Math.max(0, this.lastHurt - this.hitLost), hp: this.hitLost, hp0,
+      mon: src ? { lv: src.def.lv, dmg: src.def.dmg, matk: src.def.matk, mul: this.monMul(src), hell: src.def.hellish, affix: src.affix } : undefined })
+    return landed
+  }
+  private clog = new CombatLog()
+  private hitOut: HitOut = 'hit'
+  private hitLost = 0
+  private monCritHit = false
+  private logHit(h: Omit<HitRec, 'turn' | 'floor' | 'maxHp'>) {
+    this.clog.push({ ...h, turn: this.fightTurns, floor: this.roomDef(this.room)?.floor ?? 0, maxHp: this.st.maxHp })
+  }
+  /** Damage that skips hurtHero (DoT ticks, events, HP costs): logged with no source. */
+  private logLoss(tag: string, hp0: number, magic = true) {
+    const lost = Math.max(0, hp0 - this.hp)
+    if (lost > 0) this.logHit({ who: '', tag, magic, crit: false, out: 'hit', raw: lost, taken: lost, shield: 0, hp: lost, hp0 })
+  }
+
   /** Order (stat spec v1): lucky dodge -> hit/flee -> DEF. Returns false when the hit didn't land. */
-  private hurtHero(dmg: number, magic: boolean, monHit: number, src?: Mon): boolean {
+  private hurtHeroCore(dmg: number, magic: boolean, monHit: number, src?: Mon): boolean {
     this.lastHurt = 0
     const dodged = (label: string, color: string) => {
+      this.hitOut = label === 'LUCKY!' ? 'lucky' : label === 'EVADE!' ? 'evade' : 'dodge'
       this.evadeJuice(label, color)
       if (src && !src.dead && src.def.trueSight && !(src.trueTurns ?? 0) && (src.evaded = (src.evaded ?? 0) + 1) >= src.def.trueSight.after) { // anti-AGI: it reads the hero's footwork
         src.evaded = 0; src.trueTurns = src.def.trueSight.turns + 1; this.dotIcon(src)
@@ -2729,14 +2754,14 @@ export class BattleScene extends Phaser.Scene {
       return false
     }
     if (this.dodgeCharges > 0) { this.dodgeCharges--; return dodged('เงาพริ้ว!', '#c9c9d6') }
-    if (src && this.allies.length && this.allyTaunt(dmg)) return false // Ally taunt (Monk Tempest Bell) takes the attack
+    if (src && this.allies.length && this.allyTaunt(dmg)) { this.hitOut = 'taunt'; return false } // Ally taunt (Monk Tempest Bell) takes the attack
     if (src && src.blind > 0) monHit *= 1 - KIT2.crusader.blindHit // Crusader Holy Cross 🙈
     const sure =this.hx.web > 0 || (!magic && (src?.trueTurns ?? 0) > 0) // 🕸️ webbed: Can't Evade · 🎯 ตาเหยี่ยว: physical hits skip Flee + lucky dodge
     if (!sure && Math.random() < this.st.luckyDodge) return dodged('LUCKY!', '#6fd08c')
     if (!sure && Math.random() > hitChance(monHit, this.st.flee, 0.8 - this.st.fleeFloor)) return dodged('EVADE!', '#9fe3ff') // Thief เงาบาง lowers the floor
-    if (!magic && this.st.j2Guard > 0 && Math.random() < (this.st.j2Guard + (this.gc ? this.st.j2GcGuard : 0)) * (this.hasShield ? 1 : KIT2.knight.guardShieldless)) { this.floatText(HERO_X, GROUND - 120, '🛡️ BLOCK!', '#9fe3ff'); sfx.hit(); this.onBlock(); return false } // Knight / Crusader Auto Guard
+    if (!magic && this.st.j2Guard > 0 && Math.random() < (this.st.j2Guard + (this.gc ? this.st.j2GcGuard : 0)) * (this.hasShield ? 1 : KIT2.knight.guardShieldless)) { this.hitOut = 'block'; this.floatText(HERO_X, GROUND - 120, '🛡️ BLOCK!', '#9fe3ff'); sfx.hit(); this.onBlock(); return false } // Knight / Crusader Auto Guard
     if (magic && this.j2?.id === 'sage') { // 🛡️ Sage Magic Rod
-      if (this.st.j2RodBlock > 0 && !this.rodUsed) { this.rodUsed = true; this.gainRes(KIT2.sage.rodBlockMana); this.floatText(HERO_X, GROUND - 120, '🔮 Magic Rod! ดูดเวท', '#c9a8ff'); return false }
+      if (this.st.j2RodBlock > 0 && !this.rodUsed) { this.rodUsed = true; this.hitOut = 'rod'; this.gainRes(KIT2.sage.rodBlockMana); this.floatText(HERO_X, GROUND - 120, '🔮 Magic Rod! ดูดเวท', '#c9a8ff'); return false }
       if (this.st.j2MagicRod > 0) this.gainRes(this.st.j2MagicRod)
     }
     const ab = this.hx.armorBreak > 0 ? BATTLE.armorBreakMul : 1 // เกราะแตก: P.DEF / M.DEF count half
@@ -2744,7 +2769,7 @@ export class BattleScene extends Phaser.Scene {
     let n = Math.max(1, Math.ceil(raw * (1 - this.st.guard) * (this.buf.guard > 0 ? 1 - S2N.guardCut(this.st.s2Lv) : 1) * this.takenMul())) // Skill 2 ตั้งการ์ด · พร v2
     if (src && this.st.j2Provoke > 0 && src.hp < src.def.hp * KIT2.knight.tree.provokeAt) n = Math.max(1, Math.ceil(n * (1 - this.st.j2Provoke))) // v84 Knight ข่มขวัญ
     if (this.mirror && src && !src.dead) { // Innovator 🔁 กระจก: the hit bounces back, capped like every reflect (BATTLE.reflectCap)
-      this.mirror = false; this.floatText(HERO_X, GROUND - 120, '🔁 สะท้อน!', '#c9e0ff')
+      this.mirror = false; this.hitOut = 'mirror'; this.floatText(HERO_X, GROUND - 120, '🔁 สะท้อน!', '#c9e0ff')
       this.damageMon(src, Math.max(1, Math.round(Math.min(n * KIT2.innovator.mirrorCap, this.st.maxHp * BATTLE.reflectCap))), false, '#c9e0ff', true)
       return false
     }
@@ -2788,7 +2813,9 @@ export class BattleScene extends Phaser.Scene {
       this.callout('🕊️ ผู้พลีชีพ! ยังไม่ล้ม', HERO_X + 120, GROUND - 150)
     }
     this.castBreak(n) // v78: only a hit that got past every shield (v85: and big enough)
+    const hpBefore = this.hp
     this.hp = Math.max(this.hpFloor, this.hp - n)
+    this.hitLost = hpBefore - this.hp
     if (this.flow > 0 && n >= this.st.maxHp * KIT.swordTree.flowBreak) { this.flow = 0; this.floatText(HERO_X, GROUND - 165, '💢 เสียจังหวะ', '#c9c9d6') } // v84 ไหลลื่น
     if (this.hp > 0) this.lowHpCheck()
     if (this.st.mgEmergency > 0 && !this.emergencyUsed && this.hp > 0 && this.hp < this.st.maxHp * 0.3) { // mage talent มานาฉุกเฉิน
@@ -3173,7 +3200,7 @@ export class BattleScene extends Phaser.Scene {
       hurt: (share) => {
         const n = Math.min(this.hp - 1, Math.round(this.st.maxHp * share))
         if (n <= 0) return
-        this.hp -= n; sfx.hurt()
+        const hp0 = this.hp; this.hp -= n; this.logLoss('🎲 อีเวนต์', hp0); sfx.hurt()
         this.minHpPct = Math.min(this.minHpPct, this.hp / this.st.maxHp)
         this.damageNumber(HERO_X, GROUND - 70, n, false, '#ff7a7a')
       },
@@ -3340,6 +3367,7 @@ export class BattleScene extends Phaser.Scene {
   private monCrit(m: Mon) {
     if (!m.def.crit || Math.random() >= m.def.crit) return 1
     this.floatText(HERO_X + 30, GROUND - 150, '💥 CRITICAL!', '#ff5a4e')
+    this.monCritHit = true
     return Math.max(1, BATTLE.monCritMul * (1 - this.st.critDR)) // hero Crit DR (LUK / gear): a crit never hits softer than a normal hit
   }
 
@@ -3354,7 +3382,7 @@ export class BattleScene extends Phaser.Scene {
       b.destroy()
       this.burst(HERO_X, GROUND - 50, c, sk.big ? 18 : 12, 180, true)
       if (sk.big) this.shake(120, 0.008)
-      const landed = this.hurtHero(this.monMatk(m) * BATTLE.monDmgMul * this.skPow(m, sk, 1.3) * this.monMul(m) * this.monCrit(m), true, 999, m)
+      const landed = this.hurtHero(this.monMatk(m) * BATTLE.monDmgMul * this.skPow(m, sk, 1.3) * this.monMul(m) * this.monCrit(m), true, 999, m, `✦ ${sk.name}`)
       if (landed && sk.fx && !fxDone) { fxDone = true; this.applyFx(sk.fx, m) } // the debuff rides on the first hit that lands
     }
   }
@@ -3369,12 +3397,12 @@ export class BattleScene extends Phaser.Scene {
       const cr = this.monCrit(m)
       const alone = sk.alone && !this.alive().some((x) => x !== m) ? sk.alone : 1
       if (alone > 1 && i === 0) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, `ไร้ศพข้างกาย! ×${alone}`, '#c9a8ff')
-      const landed = this.hurtHero(m.def.dmg * BATTLE.monDmgMul * this.skPow(m, sk, 1.3) * this.monMul(m) * cr * alone, !!sk.magic, sk.magic || cr > 1 ? 999 : m.def.hit ?? 15, m)
+      const landed = this.hurtHero(m.def.dmg * BATTLE.monDmgMul * this.skPow(m, sk, 1.3) * this.monMul(m) * cr * alone, !!sk.magic, sk.magic || cr > 1 ? 999 : m.def.hit ?? 15, m, `✦ ${sk.name}`)
       if (landed) { this.monLeech(m); if (sk.fx && !fxDone) { fxDone = true; this.applyFx(sk.fx, m) } }
     }
     if (sk.drain && this.hp > 0 && !m.dead) { // hunter ตะปบจุดตาย: drain the hero's blood as magic damage, heal by it
       const before = this.hp
-      if (this.hurtHero(this.hp * sk.drain, true, 999, m)) { this.healMon(m, Math.max(0, before - this.hp)); this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '🩸 ดูดเลือด!', '#ff7a9a') }
+      if (this.hurtHero(this.hp * sk.drain, true, 999, m, `🩸 ${sk.name} (ดูดเลือด)`)) { this.healMon(m, Math.max(0, before - this.hp)); this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '🩸 ดูดเลือด!', '#ff7a9a') }
     }
     await this.tween({ targets: [m.spr, m.shadow], x: home, duration: BATTLE.stepMs * 0.3, ease: 'Quad.easeOut' })
   }
@@ -3386,7 +3414,7 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: m.spr, x: m.spr.x - 24, duration: 90, yoyo: true })
     await this.wait(150)
     const cr = this.monCrit(m)
-    const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * BATTLE.monCounterMul * (1 - this.st.counterDR) * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m)
+    const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * BATTLE.monCounterMul * (1 - this.st.counterDR) * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m, 'สวนกลับ')
     if (landed) this.monLeech(m)
   }
 
@@ -3621,7 +3649,7 @@ export class BattleScene extends Phaser.Scene {
       this.tweens.add({ targets: m.spr, x: m.spr.x + 6, duration: 30, yoyo: true })
       this.burst(HERO_X + Phaser.Math.Between(-10, 30), GROUND - Phaser.Math.Between(30, 90), 0xffc070, 3, 60)
       const cr = this.monCrit(m)
-      this.hurtHero(m.def.dmg * BATTLE.monDmgMul * (1 + Phaser.Math.FloatBetween(B.bonusMin, B.bonusMax)) * this.monMul(m) * cr, false, cr > 1 ? 999 : m.def.hit ?? 15, m)
+      this.hurtHero(m.def.dmg * BATTLE.monDmgMul * (1 + Phaser.Math.FloatBetween(B.bonusMin, B.bonusMax)) * this.monMul(m) * cr, false, cr > 1 ? 999 : m.def.hit ?? 15, m, '⏳ Bullet Time')
       await this.wait(70)
     }
     await this.wait(250)
@@ -3736,7 +3764,9 @@ export class BattleScene extends Phaser.Scene {
   private dotHurt(dmg: number, icon: string, color: string) {
     let n = Math.max(1, Math.ceil(dmg))
     if (this.shield > 0) { const a = Math.min(Math.ceil(this.shield), n); this.shield = Math.max(0, this.shield - a); n -= a; if (n <= 0) return }
+    const hp0 = this.hp
     this.hp = Math.max(this.hpFloor, this.hp - n) // v85: a poison / burn tick never breaks a chant
+    this.logLoss(`${icon} DoT`, hp0) // v120 combat log (before a revive can lift HP back)
     if (this.hp > 0) this.lowHpCheck()
     this.minHpPct = Math.min(this.minHpPct, this.hp / this.st.maxHp)
     this.damageNumber(HERO_X, GROUND - 70, n, false, color)
@@ -4071,15 +4101,37 @@ export class BattleScene extends Phaser.Scene {
     return (ev ? ev + '  ' : '') + r + im + (leg ? `🟠${leg} ` : '') + [...n].map(([l, k]) => `${LINES[l].icon}${k}`).join(' ')
   }
 
+  /** v120: the run's last hits + what scaled them, saved for later reading (death recap, 📋 copy, `nthDeaths()` in the console). */
+  private deathRec(): DeathRec {
+    const s = save(), st = this.st, pp = this.run.pp
+    return {
+      at: new Date().toISOString(), mode: this.run.modeId + (this.hard ? ' hard' : ''), where: this.run.where(this.room), floor: this.roomDef(this.room)?.floor ?? 0,
+      reason: this.timedOut ? 'timeout' : 'dead',
+      hero: { job: this.job.id, job2: this.j2?.id, lv: this.level, baseLv: s.baseLevel, power: pp.power, offense: pp.offense, survival: pp.survival,
+        maxHp: st.maxHp, def: st.def, mdef: st.mdef, guard: st.guard, flee: st.flee, luckyDodge: st.luckyDodge, autoGuard: st.j2Guard, critDR: st.critDR },
+      affixes: this.aff.defs.map((a) => `${a.icon}${a.name}`), fightTurns: this.fightTurns, enrage: this.enrageCount, hits: [...this.clog.hits],
+    }
+  }
+  private copyDeathLog(d: DeathRec) {
+    const text = deathText(d)
+    console.info(text)
+    const ok = () => toast(this, '📋 คัดลอก combat log แล้ว'), fail = () => toast(this, '📋 คัดลอกไม่ได้ · เปิด console พิมพ์ nthDeaths()', '#ff9a9a')
+    try { void navigator.clipboard.writeText(text).then(ok, fail) } catch { fail() }
+  }
+
   private showGameOver() {
     const rewards = this.settle(false)
+    const d = this.deathRec()
+    saveDeath(d)
+    const recap = this.timedOut ? [] : recapLines(d)
     this.panel([
       { text: this.timedOut ? 'หมดเวลา!' : 'ล้มแล้ว...', size: 44, color: '#ff7a7a', bold: true },
       ...(this.timedOut ? [{ text: `เกิน ${this.turnLimit} เทิร์นในการสู้ครั้งนี้ · ลองเพิ่มดาเมจ (ATK, คริ, พรสายโจมตี) ดูนะคะ`, size: 16, color: '#ffb0b0' }] : []),
       { text: `${this.run.where(this.room)} · ล้มมอนไป ${this.kills} ตัว`, size: 19 },
+      ...(recap.length ? [{ text: `☠️ ${recap.length} hit สุดท้าย:\n${recap.join('\n')}`, size: 14, color: '#ffb3a8' }] : []),
       { text: rewards, size: 19, color: '#f2b84b' },
       { text: 'ของที่เก็บมาไม่หาย! ลองซื้ออาวุธหรือลงแต้มสถานะที่เมือง แล้วมาใหม่นะ', size: 16, color: '#a9a6c7' },
-    ], 'ลองอีกครั้ง', () => { void this.startRun() }, { label: 'กลับเมือง', onGo: () => go(this, 'hub') })
+    ], 'ลองอีกครั้ง', () => { void this.startRun() }, { label: 'กลับเมือง', onGo: () => go(this, 'hub') }, { label: '📋 log', onGo: () => this.copyDeathLog(d) })
   }
 
   /** Tower: bank this floor's loot, then climb on (true) or leave (false). */
@@ -4120,7 +4172,7 @@ export class BattleScene extends Phaser.Scene {
     ], 'ลุยอีกรอบ', () => { void this.startRun() }, { label: 'กลับเมือง', onGo: () => go(this, 'hub') })
   }
 
-  private panel(lines: { text: string; size: number; color?: string; bold?: boolean }[], label: string, onGo: () => void, alt: { label: string; onGo: () => void }) {
+  private panel(lines: { text: string; size: number; color?: string; bold?: boolean }[], label: string, onGo: () => void, alt: { label: string; onGo: () => void }, extra?: { label: string; onGo: () => void }) {
     this.overlay?.destroy()
     const c = this.add.container(W / 2, H / 2).setDepth(30000)
     c.add(this.add.rectangle(0, 0, W, H, COLORS.night, 0.82).setInteractive())
@@ -4141,6 +4193,7 @@ export class BattleScene extends Phaser.Scene {
         break
       }
     }
+    if (extra) c.add(button(this, W / 2 - 70, -H / 2 + 36, 120, 44, extra.label, () => extra.onGo(), { size: 16, fill: 0x2a2e50, color: '#f6eedc' })) // v120 top-right, never pushes the layout
     this.overlay = c
   }
 
