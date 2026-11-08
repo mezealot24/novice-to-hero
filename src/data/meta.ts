@@ -2,6 +2,7 @@
 // Everything a run starts from is computed by heroStats(save). Balance knobs live here.
 import { COMBO, PLAYER, type Stats } from './game-data'
 import { KIT2, S2N } from './skill-math'
+import { COUNTER_RULES } from './stack-math'
 import { talent2Mods, talentMods, tree2Mods, treeMods, type TalentSave, type TreeSave } from './tree'
 import { JOB2, type Job2Id, type WeaponType } from './jobs2'
 import type { Job3Id } from './jobs3'
@@ -524,7 +525,7 @@ export function heroStats(s: StatsInput): Stats {
   st.mdef = Math.min(0.75, st.mdef)
   st.tenacity = Math.min(0.75, st.tenacity)
   st.luckyDodge = Math.min(0.25, st.luckyDodge)
-  st.counter = Math.min(COMBO.rateCap, st.counter) // counter rework: may pass 100% vs Ignore Counter (was 60%)
+  st.counter = Math.min(COMBO.rateCap, Math.max(COUNTER_RULES.min, st.counter)) // every class counters at least COUNTER_RULES.min (run picks multiply it) · counter rework: may pass 100% vs Ignore Counter (was 60%)
   st.combo = Math.min(COMBO.rateCap, st.combo)
   { const f = baseDefence(b) // hero combo / counter / crit defence (Q 2026-11-04)
     st.ignoreCombo = Math.min(COMBO.defCap, st.ignoreCombo + f.ignoreCombo); st.ignoreCounter = Math.min(COMBO.defCap, st.ignoreCounter + f.ignoreCounter)
