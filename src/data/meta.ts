@@ -4,7 +4,7 @@ import { COMBO, PLAYER, type Stats } from './game-data'
 import { KIT2, S2N } from './skill-math'
 import { talent2Mods, talentMods, tree2Mods, treeMods, type TalentSave, type TreeSave } from './tree'
 import { JOB2, type Job2Id, type WeaponType } from './jobs2'
-import { JOBS, type JobId } from './jobs'
+import { JOB_CHANGE, JOBS, type JobId } from './jobs'
 import { cardById, type EquipCard } from './cards'
 import { CARDFORGE_ITEMS } from './cardforge'
 import { CRAFT_ITEMS, forgeItem, GRADE, type CraftInfo, type RefineLine } from './craft'
@@ -47,6 +47,18 @@ export const STAT_RULES = {
   xpBase: 25, xpStep: 15, // live-tunable (data/tunables.ts progression)
   baseXpNeed: (lv: number): number => STAT_RULES.xpBase + STAT_RULES.xpStep * (lv - 1), // account EXP to go from lv to lv+1
   maxBaseLevel: 99,
+}
+
+/** 📈 Job bonus stat (Q 2026-11-08, design/job-bonus-stat-v1.md): +1 to each listed stat every `every` Job Lv.
+ *  Derived from levels only (no save field). The base class bonus stays after the 2nd job (they stack). No bonus for Job3. */
+export const JOB_BONUS = { every: 10 }
+export const JOB_BONUS_STATS: Record<JobId, readonly BaseStat[]> = {
+  novice: [], swordsman: ['str', 'vit'], archer: ['dex', 'agi'], mage: ['int', 'wis'], cleric: ['int', 'wis'], thief: ['agi', 'str'],
+}
+export const JOB2_BONUS_STATS: Record<Job2Id, readonly BaseStat[]> = {
+  berserker: ['str', 'vit', 'agi'], knight: ['str', 'vit', 'dex'], rogue: ['agi', 'str', 'dex'], mobster: ['str', 'luk', 'agi'],
+  crusader: ['str', 'vit', 'int'], monk: ['str', 'agi', 'vit'], wizard: ['int', 'wis', 'dex'], sage: ['int', 'wis', 'vit'],
+  beastmaster: ['dex', 'vit', 'luk'], innovator: ['dex', 'int', 'agi'],
 }
 
 // ---------- job + skills (Novice only for now; job change = M3) ----------
@@ -376,11 +388,27 @@ export function gearBase(s: StatsInput): Record<BaseStat, number> {
   for (const it of [...wornItems(s), ...wornCards(s)]) for (const k of Object.keys(it.base ?? {}) as BaseStat[]) out[k] += it.base![k]!
   return out
 }
-/** Spent points + race + gear: what every derived stat is computed from. */
+/** 📈 Base stats from Job Lv (shown as "+N อาชีพ" on the status tab). */
+export function jobBonusBase(s: Pick<StatsInput, 'job' | 'jobLevel' | 'job2' | 'job2Level'>): Record<BaseStat, number> {
+  const out = { str: 0, vit: 0, wis: 0, dex: 0, int: 0, luk: 0, agi: 0 }
+  const add = (keys: readonly BaseStat[], lv: number) => { const n = Math.floor(lv / JOB_BONUS.every); for (const k of keys) out[k] += n }
+  if (s.job && s.job !== 'novice') add(JOB_BONUS_STATS[s.job], Math.min(s.jobLevel ?? 1, JOB_CHANGE.classMaxJobLevel))
+  if (s.job2) add(JOB2_BONUS_STATS[s.job2], s.job2Level ?? 1)
+  return out
+}
+/** Level-up line for the result screen: the Job Lv that counts (Job2 Lv once there is a 2nd job) + any job bonus just gained. */
+export function jobUpText(s: Pick<StatsInput, 'job' | 'jobLevel' | 'job2' | 'job2Level'>, ups: number): string {
+  const lv = s.job2 ? s.job2Level ?? 1 : s.jobLevel ?? 1
+  const keys = s.job2 ? JOB2_BONUS_STATS[s.job2] : s.job && s.job !== 'novice' ? JOB_BONUS_STATS[s.job] : []
+  const n = Math.floor(lv / JOB_BONUS.every) - Math.floor(Math.max(0, lv - ups) / JOB_BONUS.every)
+  const bonus = n > 0 && keys.length ? ` · 📈 ${keys.map((k) => k.toUpperCase()).join(' ')} +${n}` : ''
+  return `✨ ${s.job2 ? 'Job2' : 'Job'} Lv ${lv}! ได้แต้มสกิลเพิ่ม${bonus}`
+}
+/** Spent points + race + gear + job bonus: what every derived stat is computed from. */
 export function totalBase(s: StatsInput): Record<BaseStat, number> {
   const out = { ...s.stats }
-  const bonus = RACES[s.race].bonus, gear = gearBase(s)
-  for (const k of Object.keys(out) as BaseStat[]) out[k] = Math.max(1, out[k] + (bonus[k] ?? 0) + gear[k])
+  const bonus = RACES[s.race].bonus, gear = gearBase(s), jb = jobBonusBase(s)
+  for (const k of Object.keys(out) as BaseStat[]) out[k] = Math.max(1, out[k] + (bonus[k] ?? 0) + gear[k] + jb[k])
   if (s.job === 'cleric' && s.jobTree) { // v86 💠 แก่นศรัทธา: จิตสงบ + STR / WIS · ศรัทธาสู่กาย INT -> STR (v102: + WIS -> VIT)
     let flat = 0, per = 0, perW = 0
     for (const m of treeMods(s.jobTree, 'cleric')) {

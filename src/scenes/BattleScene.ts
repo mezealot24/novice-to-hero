@@ -3,7 +3,7 @@ import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUN
 import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, PERKS_V2, OFFER_RULES, OUTSIDE_CAP, overflowShare, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type OutsideKey, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
 import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
-import { blessBase, COSTUMES, FREE_GEMS, heroStats, itemById, PER_POINT, RESOURCES, splitStatLine, totalBase, type BaseStat } from '../data/meta'
+import { blessBase, COSTUMES, FREE_GEMS, heroStats, jobUpText, itemById, PER_POINT, RESOURCES, splitStatLine, totalBase, type BaseStat } from '../data/meta'
 import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster, EQUIP_CARDS } from '../data/cards'
 import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, type JobDef } from '../data/jobs'
 import { JOB2, PET_IDS, type Job2Def, type PetId } from '../data/jobs2'
@@ -4094,7 +4094,7 @@ export class BattleScene extends Phaser.Scene {
     ]
     const lines = [...uniq, ...(mode?.lines ?? []), `+${this.zeny} zeny · +${this.runXp} EXP${s.gems > before ? ` · +${s.gems - before} เพชร` : ''}`]
     if (ups.base) lines.push(`🎉 Base Lv ${s.baseLevel}! ได้แต้มสถานะเพิ่ม`)
-    if (ups.job) lines.push(`✨ Job Lv ${s.jobLevel}! ได้แต้มสกิลเพิ่ม`)
+    if (ups.job) lines.push(jobUpText(s, ups.job))
     const pin = pinnedReady(s) // v99 📌 pinned forge recipe
     if (pin) lines.push(`📌 ตี ${pin.icon} ${pin.name} ได้แล้ว! ไปที่ 🔨 โรงตีเหล็ก › 📜 สูตร`)
     if (this.runCards.length) { // grouped + capped: a long tower run can find dozens
