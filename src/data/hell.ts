@@ -37,3 +37,17 @@ export function hellify(d: MonsterDef, rand: number): MonsterDef {
   t.apply(out)
   return out
 }
+
+// ===== 😈 Hell mode on D6-D10 (Q 2026-11-08 "เพิ่ม D6-D10 hell mode") =====
+// The tier above 🔥 hard on a level dungeon: the same hard run (+50% stat points, boss affixes, corruption) with every monster a
+// Hell copy (hellify: one trait, HP x1.3, ATK x1.15, EXP x1.5) at HELL_MODE.lv levels above its room. Opens per dungeon after a
+// 🔥 hard clear of it. Pays more (zeny / EXP / mats, unique chance, +1 ผลึกโลกันตร์). No 💎 entry, no gem skip.
+export const HELL_MODE = {
+  lv: 10, // room Lv + this (same gap as tower Hell copies)
+  reward: 1.5, mats: 1.5, // on top of the hard-mode reward
+  uniqueRate: 0.2, // final-boss unique chance (hard 10%)
+  taintAdd: 1, // + ผลึกโลกันตร์ from the final boss
+  turnMul: 1.15, // a bit more time: Hell monsters are tankier
+}
+/** Hell mode is open on a level dungeon (D6+) once it has a 🔥 hard clear. */
+export const hellOpen = (s: { hardClearsBy?: Record<string, number> }, dg: { id: string; level?: unknown }) => !!dg.level && ((s.hardClearsBy ?? {})[dg.id] ?? 0) > 0
