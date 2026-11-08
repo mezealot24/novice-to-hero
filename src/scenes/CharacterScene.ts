@@ -455,6 +455,7 @@ export class CharacterScene extends Phaser.Scene {
     b.add(txt(this, 330, 136, `Job2 Lv ${s.job2Level ?? 1}/${JOB2_RULES.maxJobLevel} · ${j2.signature.icon} ${j2.signature.name} ติดตัว · ★ ได้ 2 ดวง`, 11, UI.sub))
     b.add(button(this, 640, 124, 120, 30, '✨ ใยชั้น 1', () => { this.web2 = false; this.selNode = ''; this.render() }, { size: 12, fill: 0x5a5f8a, color: UI.text }))
     const d3 = job3Of(j2.id)
+    if (!d3) b.add(button(this, 640, 92, 120, 28, '🔒 ขั้น 3 เร็วๆ นี้', () => toast(this, `อาชีพขั้น 3 ของ ${j2.name} กำลังทำค่ะ (มีแล้ว: ⚜️ Paladin · 🐉 Lord Knight)`, UI.sub), { size: 12, fill: 0x3a3f66, color: UI.sub }))
     if (d3) b.add(button(this, 640, 92, 120, 28, `${d3.icon} ใยชั้น 3`, () => { if (activeJob3(s)) { this.web3 = true; this.selNode = ''; this.render() } else go(this, 'job', { job3: true }) }, { size: 12, fill: activeJob3(s) ? COLORS.gold : 0x4a5a8a, color: activeJob3(s) ? UI.ink : UI.text }))
     b.add(button(this, 768, 124, 104, 30, `🔄 สาย 💎${JOB2_RULES.repickGems}`, () => go(this, 'job', { job2: true }), { size: 12, fill: 0x4a5a8a, color: UI.text }))
     b.add(button(this, 880, 124, 96, 30, 'รีเซ็ตฟรี', () => {
@@ -507,7 +508,7 @@ export class CharacterScene extends Phaser.Scene {
   private web3Tab() {
     const s = save(), b = this.body!, j3 = activeJob3(s)!, d = JOB3[j3], t = (s.job3Tree ??= {}), pts = s.job3Points ?? 0, path = s.job3Path ?? 'pure'
     b.add(txt(this, 330, 114, `${d.icon} ${d.name} · แต้มเหลือ ${pts}`, 15, pts ? UI.gold : UI.sub, true))
-    b.add(txt(this, 330, 136, `Job3 Lv ${s.job3Level ?? 1}/${JOB3_RULES.maxJobLevel} · ${path === 'hybrid' ? '👊 Hybrid' : '⚜️ Pure'} · ${d.variants[s.job3Var ?? 'a'].icon}`, 11, UI.sub))
+    b.add(txt(this, 330, 136, `Job3 Lv ${s.job3Level ?? 1}/${JOB3_RULES.maxJobLevel} · ${path === 'hybrid' ? '👊 Hybrid' : `${d.icon} Pure`} · ${d.variants[s.job3Var ?? 'a'].icon}`, 11, UI.sub))
     b.add(button(this, 640, 124, 120, 30, `${JOB2[d.parent].icon} ใยชั้น 2`, () => { this.web3 = false; this.web2 = true; this.selNode = ''; this.render() }, { size: 12, fill: 0x5a5f8a, color: UI.text }))
     b.add(button(this, 768, 124, 104, 30, '⚙️ สาย/แบบ', () => go(this, 'job', { job3: true }), { size: 12, fill: 0x4a5a8a, color: UI.text }))
     b.add(button(this, 880, 124, 96, 30, 'รีเซ็ตฟรี', () => {
@@ -539,7 +540,7 @@ export class CharacterScene extends Phaser.Scene {
       b.add(z)
     }
     const n = nodeById(this.selNode)!, lv = t[n.id] ?? 0, why = lockReason3(t, s.job, n, j3, path)
-    this.nodeFooter(n, lv, why, n.kind === 'pow3' ? 'Ult วิวัฒน์ 2' : n.tier === 4 ? '★ ปลายสาย' : n.branch.startsWith('pa_') ? '' : `ยืมจาก ${JOB2[d.sibling].name}`, n.kind === 'pow3' ? `✨ ${d.ultName}: Grand Cross ยิงเพิ่ม 1 pulse` : '', pts > 0 && !why, () => {
+    this.nodeFooter(n, lv, why, n.kind === 'pow3' ? 'Ult วิวัฒน์ 2' : n.tier === 4 ? '★ ปลายสาย' : n.branch.startsWith('pa_') ? '' : `ยืมจาก ${JOB2[d.sibling].name}`, n.kind === 'pow3' ? `✨ ${d.ultName}: ${d.ultDesc}` : '', pts > 0 && !why, () => {
       if ((s.job3Points ?? 0) <= 0 || lockReason3(t, s.job, n, j3, path)) return
       t[n.id] = (t[n.id] ?? 0) + 1; s.job3Points = (s.job3Points ?? 0) - 1; persist(); this.redraw()
     }, 3)

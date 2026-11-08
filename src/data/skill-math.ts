@@ -231,9 +231,19 @@ export const KIT3 = {
     gospelPulse: 1, gospelAt: 3, gospelFaith: 1, // ✨ Gospel Cross: +1 pulse · a pulse that hits >= 3 monsters = Faith +1
     varA: { hits: 3, atk: 0.7, def: 0.4, noShield: 0.7, per: 0.02, cap: 0.2, branch: 'cr_s' }, // 🔗 Shield Chain: 3 hits bouncing · +2% per โล่ point
     varB: { atk: 1.6, hp: 0.04, blindAdd: 1, per: 0.02, cap: 0.2, branch: 'cr_d' }, // ⚖️ Pressure: 1 hit, no DEF · +2% per อุทิศ point
-    leg: { crossCap: 0.15, guardCap: 0.06, hpCap: 0.09 }, heirNeed: 6, // legacy node caps (the per-point rates are on the nodes)
-    gospelHealMax: 5, afterTurns: 2, bandingMax: 5, inspireAt: 0.3, inspireTurns: 3, inspireHeal: 0.03,
+    leg: { crossCap: 0.15, guardCap: 0.06, hpCap: 0.09, cross: 'cr_c', guard: 'cr_s', hp: 'cr_d' }, heirNeed: 6, // legacy: caps + the Crusader branch each node reads
+    gospelHealMax: 5,
   },
+  // 🐉 Lord Knight (Knight Awakening, design/awakening-lordknight-v1.md)
+  lordknight: {
+    hpDmgAdd: 0.015, hpPct: 0.05, // 🐉 Aura Blade: spear skills + max HP share (on top of ถึกเป็นแรง) · HP +5%
+    extraHits: 2, // ✨ Hundred Spear: Pierce +2 hits (the root + ทวนดูดเลือด act on these)
+    varA: { mul: 0.8, hp: 0.03, burn: 2, burnAtk: 0.3, per: 0.02, cap: 0.2, branch: 'kn_r' }, // 🐉 Dragon Breath: fire on all · +2% per กวาดทวน point
+    varB: { mul: 2.2, hp: 0.03, pierce: 0.5, per: 0.02, cap: 0.2, branch: 'kn_p' }, // 💥 Joint Beat: one heavy hit, DEF -50% · +2% per หอกทะลวง point
+    leg: { crossCap: 0.15, guardCap: 0.06, hpCap: 0.09, cross: 'kn_p', guard: 'kn_g', hp: 'kn_c' }, heirNeed: 6,
+  },
+  /** shared by every 3rd job */
+  common: { afterTurns: 2, bandingMax: 5, inspireAt: 0.3, inspireTurns: 3, inspireHeal: 0.03, inspireGuard: 0.5 },
 }
 export const gcPulses = (st: Stats) => KIT2.crusader.gcPulses[Math.max(0, Math.min(KIT2.crusader.gcPulses.length - 1, Math.round(st.j2GcLv)))]
   + (st.j3On > 0 ? KIT3.paladin.gospelPulse + st.j3GospelField : 0) // ⚜️ Paladin Gospel Cross

@@ -7,7 +7,7 @@
 // unlock also needs the Master Trial win (P2), so no real save can reach a 3rd job until then.
 import type { Job2Id } from './jobs2'
 
-export type Job3Id = 'paladin' // pilot: Crusader -> Paladin. More are added one 2nd job at a time.
+export type Job3Id = 'paladin' | 'lordknight' // Crusader -> Paladin (pilot) · Knight -> Lord Knight. One 2nd job at a time.
 export type Job3Path = 'pure' | 'hybrid' // pure: own ใยชั้น 3 to the top · hybrid: tier 1-2 of it + tier 1-2 of the sibling 2nd job's web
 export type Job3Variant = 'a' | 'b' // which Skill 3 variant is on (picked in town, free)
 
@@ -16,7 +16,7 @@ export interface Job3Def {
   /** the sibling 2nd job whose ใยชั้น 2 tier 1-2 the hybrid path opens */
   sibling: Job2Id
   variants: Record<Job3Variant, { name: string; icon: string; desc: string }>
-  ultName: string; signature: { icon: string; name: string; desc: string }
+  ultName: string; ultDesc: string; rootDesc: string; signature: { icon: string; name: string; desc: string }
 }
 
 export const JOB3_RULES = {
@@ -31,11 +31,22 @@ export const JOB3: Record<Job3Id, Job3Def> = {
     id: 'paladin', parent: 'crusader', sibling: 'monk', name: 'Paladin', icon: '⚜️',
     blurb: 'Crusader ที่ตื่นรู้ · Grand Cross ยิงเพิ่ม · บล็อกแล้วได้ศรัทธา · แต้มในใยเดิมยิ่งเยอะยิ่งแรง',
     focus: 'แทงค์ศักดิ์สิทธิ์ · Grand Cross',
-    ultName: 'Gospel Cross',
+    ultName: 'Gospel Cross', ultDesc: 'Grand Cross ยิงเพิ่ม 1 pulse · pulse ที่โดน ≥ 3 ตัวได้ศรัทธา', rootDesc: 'pulse ที่ชั้น 3 เพิ่ม',
     signature: { icon: '⚜️', name: 'Prestige', desc: 'เพดาน Auto Guard 40% → 50% · ผลบล็อกจากใยชั้น 2 แรง +25% · บล็อกได้ = ศรัทธา +1' },
     variants: {
       a: { name: 'Shield Chain', icon: '🔗', desc: 'Holy Cross 3 ฮิตเด้งไปตัวอื่น (P.ATK + P.DEF) · ต้องมีโล่ · แรงขึ้นตามแต้มสาย 🛡️ โล่' },
       b: { name: 'Pressure', icon: '⚖️', desc: 'Holy Cross 1 ฮิตหนักข้าม DEF (+4% HP สูงสุด) · ตาบอด +1 เทิร์น · แรงขึ้นตามแต้มสาย 🙏 อุทิศ' },
+    },
+  },
+  lordknight: {
+    id: 'lordknight', parent: 'knight', sibling: 'berserker', name: 'Lord Knight', icon: '🐉',
+    blurb: 'Knight ที่ตื่นรู้ · Pierce แทงเพิ่ม 2 ฮิต · สกิลหอกบวก HP แรงขึ้น · แต้มในใยเดิมยิ่งเยอะยิ่งแรง',
+    focus: 'หอกถึก · Hundred Spear',
+    ultName: 'Hundred Spear', ultDesc: 'Pierce แทงเพิ่ม 2 ฮิต (ต่อจาก Bowling Bash เดิม)', rootDesc: 'ฮิตที่ชั้น 3 เพิ่ม',
+    signature: { icon: '🐉', name: 'Aura Blade', desc: 'สกิลหอกบวกดาเมจ HP สูงสุดอีก +1.5% · HP สูงสุด +5%' },
+    variants: {
+      a: { name: 'Dragon Breath', icon: '🐉', desc: 'Brandish Spear เป็นไฟมังกรใส่ทุกตัว + ติดไฟ 2 เทิร์น · แรงขึ้นตามแต้มสาย 🌀 กวาดทวน' },
+      b: { name: 'Joint Beat', icon: '💥', desc: 'Brandish Spear เป็นแทงหนัก 1 ตัว (บอสก่อน) ข้าม DEF 50% · แรงขึ้นตามแต้มสาย 🗡️ หอกทะลวง' },
     },
   },
 }
