@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats } from '../data/game-data'
+import { counterRate, shieldGain } from '../data/stack-math'
 import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, PERKS_V2, OFFER_RULES, OUTSIDE_CAP, overflowShare, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type OutsideKey, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
 import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
@@ -2260,7 +2261,7 @@ export class BattleScene extends Phaser.Scene {
 
   private addShield(n: number, quiet = false) {
     if (this.job.id === 'cleric') this.syncShieldLayers() // book older shield before the new layer
-    this.shield += Math.round(n * (1 + this.st.shieldAmp))
+    this.shield += shieldGain(this.shield, Math.round(n * (1 + this.st.shieldAmp)), Math.round(this.st.maxHp * BATTLE.shieldCap)) // Q 2026-11-08: cap + diminishing for every job (Priest's own 50% cap follows)
     if (this.job.id === 'cleric') this.syncShieldLayers() // new layer (shieldTurns) + 50% max HP cap
     if (!quiet) this.floatText(HERO_X, GROUND - 100, `🛡️ โล่ ${Math.round(this.shield)}`, '#9fe3ff')
   }
@@ -2889,10 +2890,14 @@ export class BattleScene extends Phaser.Scene {
     for (const k of Object.keys(mod) as (keyof Stats)[]) {
       const v = mod[k]!
       if (k === 'maxHp') { this.st.maxHp += v; this.hp += v; continue }
+      if (k === 'pickHpPct') { const d = Math.round(this.st.maxHp * v); this.st.maxHp += d; this.hp += d; continue } // run pick: % of the current value, applied now
+      if (k === 'pickAtkPct') { this.st.atk = Math.round(this.st.atk * (1 + v)); continue }
+      if (k === 'pickMatkPct') { this.st.matk = Math.round(this.st.matk * (1 + v)); continue }
       if (k === 'fireEvery') { this.st.fireEvery = this.st.fireEvery === 0 ? Math.max(1, v) : Math.max(1, this.st.fireEvery + v); continue }
       this.st[k] += v
       if (k === 'crit') this.st.spellCrit += v // card/relic crit also counts for magic (Q rule)
       if (k === 'lifesteal') this.st.lifesteal = Math.min(0.4, this.st.lifesteal) // Q: lifesteal cap 40%
+      if (k === 'mdef') this.st.mdef = Math.min(0.75, this.st.mdef) // same cap as heroStats (meta.ts): run picks used to pass it
     }
     this.st.smashCost = Math.max(6, this.st.smashCost)
   }
@@ -3020,7 +3025,7 @@ export class BattleScene extends Phaser.Scene {
   private comboChance() { return (this.st.combo + (this.relic === 'wolf' ? RELIC_RULES.wolf.combo : 0)) * (this.relic === 'wizard' ? RELIC_RULES.wizard.chanceMul : 1) }
   /** พร v2 number in a run: card + gear lines / monster cards, capped (perks.ts OUTSIDE_CAP). */
   private px(k: OutsideKey) { return Math.min(OUTSIDE_CAP[k], this.pk[k] + this.st[k]) }
-  private counterChance() { return this.st.counter * (this.relic === 'wizard' ? RELIC_RULES.wizard.chanceMul : 1) }
+  private counterChance() { return counterRate(this.st.counter, this.st.counterPct, COMBO.rateCap) * (this.relic === 'wizard' ? RELIC_RULES.wizard.chanceMul : 1) }
 
   /** Damage multiplier by source tag: masteries, style-switch mythics, card mods, glass, demon form, open-strong ult. */
   private srcMul(m: Mon, dot: boolean) {

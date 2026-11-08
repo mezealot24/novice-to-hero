@@ -99,6 +99,7 @@ const BATTLE_FIELDS: [string, FieldDef][] = [
   ['monDmgMul', num(0, 10)],
   ['monBuff.hp|dmg|turns.*', num(0.1, 10)],
   ['cleave|counterMul|reviveHp|parryMul|regenPerTurn|resPerTurn', num(0, 10)],
+  ['shieldCap', num(0.1, 5)], // hero shield cap (share of max HP, stack-math shieldGain)
   ['slamEvery|parryEvery|comboMax', int(1, 20)],
   ['slamStun', int(0, 100)],
   ['msPerTurn', int(100, 10_000)],
