@@ -3,7 +3,7 @@
 import { JOB_CHANGE, type JobId } from './data/jobs'
 import { UNIQUE } from './data/uniques'
 import { JOB2, JOB2_RULES, type Job2Id, type PetId } from './data/jobs2'
-import { activeJob3, JOB3, JOB3_RULES, type Job3Id, type Job3Path, type Job3Variant } from './data/jobs3'
+import { activeJob3, JOB3, JOB3_RULES, job3Of, type Job3Id, type Job3Path, type Job3Variant } from './data/jobs3'
 import type { RefineLine } from './data/craft'
 import type { TaintRec } from './data/taint'
 import type { ModeRecord } from './data/modes'
@@ -58,6 +58,7 @@ export interface SaveData {
   bestRoom: number
   clearsBy?: Record<string, number> // per dungeon id (d1, d2, ...)
   hardClearsBy?: Record<string, number> // hard-mode clears per dungeon id (v47)
+  hellClearsBy?: Record<string, number> // 😈 hell-mode clears per dungeon id (D6-D10, data/hell.ts HELL_MODE)
   cards?: Record<string, number> // equipment cards in the bag (not slotted), by card id (data/cards.ts)
   sockets?: Record<string, string[]> // item id -> card ids slotted in it
   cardPity?: Record<string, number> // kills of that card's monster since its last drop
@@ -389,8 +390,16 @@ export function job3Lock(s: SaveData, id: Job3Id): string {
   const need: string[] = []
   if ((s.job2Level ?? 1) < JOB3_RULES.unlockJob2Lv) need.push(`Job2 Lv ${s.job2Level ?? 1}/${JOB3_RULES.unlockJob2Lv}`)
   if (!((s.clearsBy?.[JOB3_RULES.unlockClear] ?? 0) > 0)) need.push('เคลียร์ดัน 10')
-  if (!s.job3Trial?.[id]) need.push('ชนะ Master Trial')
+  if (!s.job3Trial?.[id]) need.push('ผ่าน Master Trial (เคลียร์ดัน 10 🔥โหมดยาก ตอน Job2 Lv 50)')
   return need.join(' · ')
+}
+/** ⚔️ Master Trial: a 🔥 hard ดัน 10 win at Job2 Lv 50 passes the trial of that 2nd job's Awakening. Returns it the first time. */
+export function trialWin(s: SaveData, dungeon: string, hard: boolean): Job3Id | undefined {
+  if (!hard || dungeon !== JOB3_RULES.trialDungeon || !s.job2 || (s.job2Level ?? 1) < JOB3_RULES.unlockJob2Lv) return undefined
+  const d = job3Of(s.job2)
+  if (!d || s.job3Trial?.[d.id]) return undefined
+  ;(s.job3Trial ??= {})[d.id] = 1
+  return d.id
 }
 /** Awaken. First time: Job3 Lv 1, no points, pure path, variant A. Coming back to a parked one keeps everything. */
 export function changeJob3(id: Job3Id): boolean {
