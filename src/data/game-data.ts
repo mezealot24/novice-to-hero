@@ -459,7 +459,6 @@ export interface MonSkill {
   big?: boolean // legendary spell: big callout + screen flash
   scale?: SkillScale | false // v68: stat it scales with (default by kind, mon-stats SKILL_SCALE); false = flat
   lv?: number // v81 skill level (mon-stats skillAtLv, SKILL_SCALE.lv): 1 = as written; may pass the hero's max (RO style Lv 50)
-  powFixed?: boolean // v121 tower: pow is final (home Lv pow x home stat scale), a higher Lv only adds hits / fx / turns (mon-stats restatAt)
 }
 /** Boss phase: entered once when HP drops under `at` (share of max HP). Effects stack with later phases. */
 export interface BossPhase {

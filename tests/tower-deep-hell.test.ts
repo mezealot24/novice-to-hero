@@ -105,26 +105,6 @@ test('Hell bosses / minis never roll ตานรก (the tower gives them a sha
   assert.equal(hellify(boss, HELL_TRAITS.filter((t) => t.bossOk).findIndex((t) => t.id === 'flame') / 3 + 0.01).onHit?.burn, 2)
 })
 
-test('v121 tower Lv: damage skills keep their home power (tower ATK already follows the hero); fx / hits still grow', () => {
-  const finalPow = (d: MonsterDef, s: MonSkill) => { const c = skillAtLv(s); return (c.pow ?? 1.3) * skillMul(d, scaleOf(c)) }
-  for (const kind of ['deathknight', 'duelist', 'hunter', 'lich', 'hydra'] as MonsterKind[]) {
-    const d = MONSTERS[kind], home = withStats(d, kind, legacyLevel(kind, d, { id: homeDungeon(kind)! }))
-    for (const lv of [towerMonLv(30), towerMonLv(45) + HELL.lv, 200]) {
-      const up = restatAt(home, kind, lv)
-      const hs = (home.skills ?? []).filter((s) => s.kind === 'strike' || s.kind === 'bolt'), us = (up.skills ?? []).filter((s) => s.kind === 'strike' || s.kind === 'bolt')
-      assert.ok(hs.length > 0, kind)
-      hs.forEach((s, i) => {
-        assert.ok(Math.abs(finalPow(up, us[i]) - finalPow(home, s)) < 1e-9, `${kind} Lv${lv} ${s.name}: ${finalPow(up, us[i])} vs home ${finalPow(home, s)}`)
-        assert.ok((us[i].lv ?? 1) >= (s.lv ?? 1), 'skill Lv still grows')
-      })
-    }
-  }
-  // Lv 200 = +18 skill Lv: strikes / bolts gain hits even with pow frozen
-  const dk = MONSTERS.deathknight, home = withStats(dk, 'deathknight', legacyLevel('deathknight', dk, { id: 'd3' }))
-  const sk = restatAt(home, 'deathknight', 200).skills!.find((s) => s.kind === 'strike')!
-  assert.ok((skillAtLv(sk).hits ?? 1) > 1)
-})
-
 test('v122 tower: numbers come from the stats at the floor Lv (no Hero Power); restatAt keeps them only when asked', () => {
   const d = MONSTERS.deathknight, home = withStats(d, 'deathknight', legacyLevel('deathknight', d, { id: 'd3' }))
   const lv = towerMonLv(45) + HELL.lv, kept = restatAt(home, 'deathknight', lv), lvd = restatAt(home, 'deathknight', lv, true)
@@ -142,4 +122,13 @@ test('v122 tower MVP: a boss rebuilt with numbers gets TOWER_LV.mvpPct of the he
   assert.ok(mvp.hp > plain.hp && mvp.dmg > plain.dmg)
   const m = MONSTERS.duelist, mh = withStats(m, 'duelist', legacyLevel('duelist', m, { id: 'd3' }))
   assert.equal(JSON.stringify(restatAt(mh, 'duelist', lv, true).base), JSON.stringify(withStats(m, 'duelist', lv).base), 'mini: no MVP bonus')
+})
+
+test('v123 monster skills level like hero skills: pow +10%/skill Lv from the tower Lv, on stat-based ATK', () => {
+  const d = MONSTERS.deathknight, home = withStats(d, 'deathknight', legacyLevel('deathknight', d, { id: 'd3' }))
+  const up = restatAt(home, 'deathknight', towerMonLv(45) + HELL.lv, true)
+  const h = home.skills!.find((s) => s.kind === 'strike')!, u = up.skills!.find((s) => s.kind === 'strike')!
+  assert.equal(u.lv, (h.lv ?? 1) + 6)
+  assert.ok(Math.abs((skillAtLv(u).pow ?? 0) - (h.pow ?? 0) * 1.6) < 1e-9, 'Lv7 = base x (1 + 10% x 6)')
+  assert.ok(skillMul(up, scaleOf(u)) >= skillMul(home, scaleOf(h)), 'STR above the Lv ref adds on top')
 })
