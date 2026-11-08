@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { COLORS } from '../data/game-data'
-import { COSTUMES, FREE_GEMS, GEM_PACKS, GEM_TO_ZENY_TEST, SUPPORTER_PRICE, ZENY_PACKS, ZENY_PER_GEM } from '../data/meta'
+import { COSTUMES, FREE_GEMS, GEM_BUY_PACKS, GEM_PACKS, GEM_TO_ZENY_TEST, SUPPORTER_PRICE, ZENY_COST_PER_GEM, ZENY_PACKS, ZENY_PER_GEM, ZENY_TO_GEM_TEST } from '../data/meta'
+import { gemsToZeny, zenyCostOf, zenyToGems } from '../data/exchange'
 import { persist, save, today } from '../save'
 import { cloudEnabled, refreshWallet as syncWallet, spendPaid, status } from '../cloud'
 import { sfx } from '../sfx'
@@ -21,6 +22,7 @@ function pay(scene: Phaser.Scene, price: number, sku: string, grant: () => void)
     grant()
   })
 }
+const EXCHANGE_TEST = GEM_TO_ZENY_TEST || ZENY_TO_GEM_TEST
 const canAfford = (price: number) => save().gems >= price || (cloudEnabled && status.paidGems >= price)
 
 // Gem shop + top-up. MOCK: no payment is ever taken. Gems buy looks only (costumes, supporter badge),
@@ -56,10 +58,10 @@ export class GemShopScene extends Phaser.Scene {
       '🧪 โหมดทดลอง: ปุ่มเติมเงิน',
       'ไม่ตัดเงินจริง กดแล้วได้เพชร',
       'เลย ไว้ทดสอบระบบค่ะ',
-      ...(GEM_TO_ZENY_TEST ? ['🧪 แลก Zeny: เฉพาะช่วงทดสอบ'] : []),
+      ...(EXCHANGE_TEST ? ['🧪 แลก Zeny ⇄ เพชร: ช่วงทดสอบ'] : []),
     ].join('\n'), 15, UI.text).setLineSpacing(6)
 
-    const labels = ['💎 เติมเพชร', '👗 ชุดแต่งกาย', '🌟 ผู้สนับสนุน', ...(GEM_TO_ZENY_TEST ? ['🧪 แลก Zeny'] : [])]
+    const labels = ['💎 เติมเพชร', '👗 ชุดแต่งกาย', '🌟 ผู้สนับสนุน', ...(EXCHANGE_TEST ? ['🧪 แลกเปลี่ยน'] : [])]
     tabs(this, 294, 92, labels, labels.length > 3 ? 152 : 204, (i) => { this.tab = i; this.render() })
   }
 
@@ -69,7 +71,7 @@ export class GemShopScene extends Phaser.Scene {
     if (this.tab === 0) this.topUp()
     else if (this.tab === 1) this.costumes()
     else if (this.tab === 2) this.supporter()
-    else this.zenyExchange()
+    else this.exchange()
   }
 
   private topUp() {
@@ -137,26 +139,41 @@ export class GemShopScene extends Phaser.Scene {
     }, { size: 18 }).setEnabled(!s.supporter))
   }
 
-  /** 🧪 TEST ONLY: spend gems for zeny during the playtest (meta.ts GEM_TO_ZENY_TEST). */
-  private zenyExchange() {
+  /** 🧪 TEST ONLY: gem <-> zeny during the playtest (meta.ts GEM_TO_ZENY_TEST / ZENY_TO_GEM_TEST). Free gems only. */
+  private exchange() {
     const s = save(), b = this.body!
-    b.add(panel(this, 294, 128, 640, 44, 0x4a2a3a, 0xff7a7a))
-    b.add(txt(this, 614, 150, `🧪 ทดสอบเท่านั้น · 1 เพชร = ${ZENY_PER_GEM} zeny · จะเอาออกก่อนเปิดจริงค่ะ`, 15, UI.text, true).setOrigin(0.5))
-    ZENY_PACKS.forEach((g, i) => {
-      const x = 294 + i * 216, y = 186, w = 204, h = 220, z = g * ZENY_PER_GEM
+    b.add(panel(this, 294, 128, 640, 36, 0x4a2a3a, 0xff7a7a))
+    b.add(txt(this, 614, 146, '🧪 ทดสอบเท่านั้น · จะเอาออกก่อนเปิดจริงค่ะ', 15, UI.text, true).setOrigin(0.5))
+    const done = (msg: string, color: string) => { persist(); sfx.coin(); this.refreshWallet(); toast(this, msg, color); this.render() }
+    const card = (i: number, y: number, icon: string, amount: string, unit: string, color: string, cost: string, ok: boolean, onClick: () => void) => {
+      const x = 294 + i * 216, w = 204, h = 150
       b.add(panel(this, x, y, w, h, UI.panel, UI.line))
-      b.add(txt(this, x + w / 2, y + 22, '💰', 40).setOrigin(0.5, 0))
-      b.add(txt(this, x + w / 2, y + 82, `${z.toLocaleString()}`, 30, UI.gold, true).setOrigin(0.5, 0))
-      b.add(txt(this, x + w / 2, y + 122, 'zeny', 16, UI.sub).setOrigin(0.5, 0))
-      b.add(button(this, x + w / 2, y + h - 34, w - 30, 44, `💎 ${g}`, () => {
-        if (s.gems < g) { toast(this, 'เพชรไม่พอค่ะ (เติมเพชรทดลองได้ที่แท็บแรก)', UI.red); return }
-        confirm(this, `แลก ${z.toLocaleString()} zeny?`, `ใช้ ${g} เพชร (เหลือ ${s.gems - g})\n🧪 ระบบนี้มีแค่ช่วงทดสอบนะคะ`, 'แลกเลย', () => {
-          if (s.gems < g) return
-          s.gems -= g; s.zeny += z; persist(); sfx.coin(); this.refreshWallet()
-          toast(this, `+${z.toLocaleString()} zeny (ทดสอบ)`, UI.gold); this.render()
-        })
-      }, { size: 18 }).setEnabled(s.gems >= g))
-    })
-    b.add(txt(this, 294, 426, `มีเพชร ${s.gems} · ไม่พอก็กดเติมเพชรทดลองที่แท็บ 💎 ได้ ไม่ตัดเงินจริงค่ะ`, 14, UI.sub).setWordWrapWidth(640))
+      b.add(txt(this, x + w / 2, y + 10, icon, 28).setOrigin(0.5, 0))
+      b.add(txt(this, x + w / 2, y + 48, amount, 26, color, true).setOrigin(0.5, 0))
+      b.add(txt(this, x + w / 2, y + 80, unit, 14, UI.sub).setOrigin(0.5, 0))
+      b.add(button(this, x + w / 2, y + h - 26, w - 30, 38, cost, onClick, { size: 16 }).setEnabled(ok))
+    }
+    if (GEM_TO_ZENY_TEST) {
+      b.add(txt(this, 294, 172, `💎 → 💰  1 เพชร = ${ZENY_PER_GEM} zeny`, 15, UI.gold, true))
+      ZENY_PACKS.forEach((g, i) => {
+        const z = g * ZENY_PER_GEM
+        card(i, 194, '💰', z.toLocaleString(), 'zeny', UI.gold, `💎 ${g}`, s.gems >= g, () =>
+          confirm(this, `แลก ${z.toLocaleString()} zeny?`, `ใช้ ${g} เพชร (เหลือ ${s.gems - g})\n🧪 ระบบนี้มีแค่ช่วงทดสอบนะคะ`, 'แลกเลย', () => {
+            if (gemsToZeny(s, g)) done(`+${z.toLocaleString()} zeny (ทดสอบ)`, UI.gold)
+          }))
+      })
+    }
+    if (ZENY_TO_GEM_TEST) {
+      const y0 = GEM_TO_ZENY_TEST ? 352 : 172
+      b.add(txt(this, 294, y0, `💰 → 💎  ${ZENY_COST_PER_GEM} zeny = 1 เพชร (เพชรฟรี ใช้ได้ทุกอย่างในร้าน)`, 15, UI.gem, true))
+      GEM_BUY_PACKS.forEach((g, i) => {
+        const z = zenyCostOf(g)
+        card(i, y0 + 22, '💎', `${g}`, 'เพชร', UI.gem, `💰 ${z.toLocaleString()}`, s.zeny >= z, () =>
+          confirm(this, `แลก ${g} เพชร?`, `ใช้ ${z.toLocaleString()} zeny (เหลือ ${(s.zeny - z).toLocaleString()})\n🧪 ระบบนี้มีแค่ช่วงทดสอบนะคะ`, 'แลกเลย', () => {
+            if (zenyToGems(s, g)) done(`+${g} เพชร (ทดสอบ)`, UI.gem)
+          }))
+      })
+    }
+    b.add(txt(this, 294, 534, `มี 💎 ${s.gems} · 💰 ${s.zeny.toLocaleString()} · แลกไปกลับจะขาดทุนเสมอ (กันปั๊ม) ค่ะ`, 13, UI.sub).setWordWrapWidth(640))
   }
 }
