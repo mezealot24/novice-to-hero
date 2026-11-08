@@ -4,7 +4,7 @@
 import Phaser from 'phaser'
 import { REFINE, type RefineLine } from '../../../data/craft'
 import { isBroken, isTainted, linesOf, refineOf, type Item } from '../../../data/meta'
-import { canAfford, lineIdx, lineText, lockGems, maxLocks, nextRerollCost, reroll, rerollMul, rollLine, rollsOf } from '../../../data/refine'
+import { canAfford, classOf, lineIdx, lineText, lockGems, maxLocks, nextRerollCost, reroll, rerollMul, rollLine, rollsOf } from '../../../data/refine'
 import { persist, save } from '../../../save'
 import { sfx } from '../../../sfx'
 import { button, fit, panel, toast, txt, UI, type Btn } from '../../../ui'
@@ -144,7 +144,7 @@ export class OptionPanel extends PanelBase implements VerbPanel {
     }
     if (this.fast) { land(); return }
     // scramble with random WHOLE lines (pure: no save write), so the spin doesn't reveal the stat name before it lands
-    this.curSkip = spinText(this.ctx.scene, row.val, fin, { ms: 450, scramble: () => lineText(rollLine(this.it, i, s.job)), onDone: land })
+    this.curSkip = spinText(this.ctx.scene, row.val, fin, { ms: 450, scramble: () => lineText(rollLine(this.it, i, s.job, Math.random, classOf(s))), onDone: land })
   }
 
   /** The value that was just replaced: dimmed and struck through for about 1.5 s, right after the new value (inside the card's right half). */

@@ -6,7 +6,7 @@ import { cardById, cardName } from '../../data/cards'
 import { bagCards, canCardforge, cardforge, cardforgeCost, isCardforge } from '../../data/cardforge'
 import { CRAFT_ITEMS, craftCost, forgeItem, GRADE, gradeStars } from '../../data/craft'
 import { matById } from '../../data/materials'
-import { canWear, gradeOf, ITEMS, itemStatLine, refineOf, wearText, type Item } from '../../data/meta'
+import { canWearAs, gradeOf, ITEMS, itemStatLine, refineOf, wearText, type Item } from '../../data/meta'
 import { salvage, salvageable, salvagePreview, type SalvageWhy } from '../../data/salvage'
 import { canPay, equip, pay, persist, save } from '../../save'
 import { sfx } from '../../sfx'
@@ -88,7 +88,7 @@ export class RecipeView {
     const shown = open || salv
     root.add(itemIcon(sc, 288 + 70, 187, 96, shown ? it : { ...it, icon: '❓', name: '???' }, { grade: salv ? gradeOf(s, it.id) : 1, refine: salv ? refineOf(s, it.id) : 0 }))
     root.add(fit(txt(sc, 288 + 128, 122, shown ? `${it.name}${cf ? '  🃏' : ''}` : '??? (ยังไม่ปลดสูตร)', 20, shown ? UI.text : UI.sub, true).setWordWrapWidth(500), 28))
-    root.add(txt(sc, 288 + 128, 150, `${c ? `ของ${dgName(c.dg)}` : 'ของร้าน (ติดคำสาป)'} · ${wearText(it)}${canWear(it, s.job) ? '' : ' (ไม่ใช่อาชีพนี้)'}`, 12, canWear(it, s.job) ? UI.sub : UI.red))
+    root.add(txt(sc, 288 + 128, 150, `${c ? `ของ${dgName(c.dg)}` : 'ของร้าน (ติดคำสาป)'} · ${wearText(it)}${canWearAs(it, s) ? '' : ' (ไม่ใช่อาชีพนี้)'}`, 12, canWearAs(it, s) ? UI.sub : UI.red))
     if (shown) {
       const worn = forgeItem(it, salv ? gradeOf(s, it.id) : 1, salv ? refineOf(s, it.id) : 0)
       root.add(fit(txt(sc, 288 + 128, 170, `${itemStatLine(worn)} · 🃏 ช่องการ์ด ${it.slots ?? 1}`, 13, '#9fe3a8', true).setWordWrapWidth(510), 34))
@@ -137,7 +137,7 @@ export class RecipeView {
     persist(); sfx.coin()
     this.host.wallet()
     this.host.say(`ตี ${it.name} สำเร็จ! อัปขั้น/ตีบวกต่อที่ ⚒️ ทั่งได้เลย`)
-    if (canWear(it, s.job)) confirm(this.scene, `ตีสำเร็จ! ${it.icon} ${it.name}`, 'ใส่เลยไหมคะ?', 'ใส่เลย', () => { equip(s, it.id); persist(); this.host.changed() }, 'ไว้ก่อน')
+    if (canWearAs(it, s)) confirm(this.scene, `ตีสำเร็จ! ${it.icon} ${it.name}`, 'ใส่เลยไหมคะ?', 'ใส่เลย', () => { equip(s, it.id); persist(); this.host.changed() }, 'ไว้ก่อน')
     else toast(this.scene, `ได้ ${it.name} แล้ว (ใส่ได้เมื่อเป็น ${wearText(it)})`)
     this.host.changed()
   }

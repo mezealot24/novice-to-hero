@@ -7,7 +7,7 @@ import { activeJob3, JOB3, JOB3_RULES, job3Of, type Job3Id, type Job3Path, type 
 import type { RefineLine } from './data/craft'
 import type { TaintRec } from './data/taint'
 import type { ModeRecord } from './data/modes'
-import { FREE_GEMS, JOB_RULES, NOVICE_PASSIVES, NOVICE_RULES, noviceSpent, RACES, STAT_RULES, type BaseStat, type RaceId, type SkillId, EMPTY_ITEM, type EquipSlot, itemById, slotKind } from './data/meta'
+import { FREE_GEMS, JOB_RULES, NOVICE_PASSIVES, NOVICE_RULES, noviceSpent, RACES, STAT_RULES, type BaseStat, type RaceId, type SkillId, BARE_ITEM, type EquipSlot, itemById, offhandLocked, slotKind } from './data/meta'
 
 export interface SaveData {
   v: 1
@@ -133,14 +133,15 @@ export function load(): SaveData | null {
 }
 
 /** Saves from before the 6-slot equipment screen only had weapon / armor / acc: add the new empty slots.
- * Additive only (nothing is removed), so it is safe to run on every load. Card sockets are keyed by item
- * id, so they need no change. */
+ * Never deletes an item (sockets are keyed by item id, so cards need no change), so it is safe to run on every load.
+ * A 2-handed weapon takes both hands: an off-hand piece left over from before goes back to the bag (still owned). */
 function migrateGear(s: SaveData) {
   const eq = (s.equipped ??= { weapon: 'knife', armor: 'cloth', acc: 'none', head: 'none_head', offhand: 'none_off', acc2: 'none' })
   eq.head ??= 'none_head'; eq.offhand ??= 'none_off'; eq.acc2 ??= 'none'
   eq.acc ??= 'none'
   for (const id of ['none', 'none_head', 'none_off']) if (!s.owned.includes(id)) s.owned.push(id)
   if (eq.acc2 !== 'none' && eq.acc2 === eq.acc) eq.acc2 = 'none' // one copy of each item: never worn twice
+  if (offhandLocked(s)) eq.offhand = BARE_ITEM.offhand
 }
 
 /** The slot wearing `itemId` would fill: its own kind; an accessory fills an empty side first, else the left one. Shop / forge compare use it too. */
@@ -150,18 +151,30 @@ export function replaceSlot(eq: Record<EquipSlot, string>, itemId: string): Equi
   return eq.acc === 'none' || eq.acc2 !== 'none' ? 'acc' : 'acc2'
 }
 
-/** Wear an item. Accessories: `slot` picks the side; with no side it fills an empty side first. The same
- * accessory can't be on both sides (one copy per id), so it moves over instead. */
-export function equip(s: SaveData, itemId: string, slot?: EquipSlot): boolean {
+/** Why `itemId` can't be worn at `slot` right now (null = it can): wrong slot kind, too many uniques, or a 2-handed weapon holds the off-hand. */
+export type EquipBlock = 'slot' | 'unique' | 'twohand'
+export function equipBlock(s: SaveData, itemId: string, slot?: EquipSlot): EquipBlock | null {
   const kind = itemById(itemId).slot
   const at: EquipSlot = slot ?? replaceSlot(s.equipped, itemId)
-  if (slotKind(at) !== kind) return false
-  if (uniqueEquipBlocked(s, itemId, at)) return false // v88: at most UNIQUE.maxEquipped uniques at once
-  if (kind === 'acc' && itemId !== 'none') {
+  if (slotKind(at) !== kind) return 'slot'
+  if (at === 'offhand' && itemId !== BARE_ITEM.offhand && offhandLocked(s)) return 'twohand' // 2H weapon = both hands: change weapon first
+  if (uniqueEquipBlocked(s, itemId, at)) return 'unique' // v88: at most UNIQUE.maxEquipped uniques at once
+  return null
+}
+
+/** Wear an item. Accessories: `slot` picks the side; with no side it fills an empty side first. The same
+ * accessory can't be on both sides (one copy per id), so it moves over instead.
+ * A 2-handed weapon replaces the off-hand piece (back to the bag, still owned, cards stay in it); while one is worn the off-hand takes nothing. */
+export function equip(s: SaveData, itemId: string, slot?: EquipSlot): boolean {
+  if (equipBlock(s, itemId, slot)) return false
+  const it = itemById(itemId)
+  const at: EquipSlot = slot ?? replaceSlot(s.equipped, itemId)
+  if (it.slot === 'acc' && itemId !== 'none') {
     const other: EquipSlot = at === 'acc' ? 'acc2' : 'acc'
     if (s.equipped[other] === itemId) s.equipped[other] = 'none'
   }
   s.equipped[at] = itemId
+  if (at === 'weapon' && it.twoHand) s.equipped.offhand = BARE_ITEM.offhand
   return true
 }
 /** v88: would wearing `itemId` at `at` put more than UNIQUE.maxEquipped uniques on? Counts the other slots only (the one being
@@ -173,10 +186,16 @@ export function uniqueEquipBlocked(s: SaveData, itemId: string, at: EquipSlot): 
 }
 /** Is this item worn in any slot? */
 export const isWorn = (s: SaveData, itemId: string) => Object.values(s.equipped).includes(itemId)
-/** Take an item off (back to the empty item of that slot; weapon/armor have none, so they stay). */
-export function unequip(s: SaveData, slot: EquipSlot) {
-  const empty = EMPTY_ITEM[slotKind(slot)]
-  if (empty) s.equipped[slot] = empty
+/** Is there something to take off at `slot`? (the empty item / the weapon + armor starter piece counts as nothing) */
+export const canUnequip = (s: SaveData, slot: EquipSlot) => s.equipped[slot] !== BARE_ITEM[slotKind(slot)]
+/** Take an item off: the slot goes back to its empty item (weapon / armor: the starter knife / cloth). The item stays owned, cards stay in it.
+ * Returns false when there was nothing to take off. */
+export function unequip(s: SaveData, slot: EquipSlot): boolean {
+  if (!canUnequip(s, slot)) return false
+  const bare = BARE_ITEM[slotKind(slot)]
+  if (!s.owned.includes(bare)) s.owned.push(bare) // the starter piece is free: never leave a slot pointing at something not owned
+  s.equipped[slot] = bare
+  return true
 }
 
 /** The current save; scenes after the title can rely on it existing. */

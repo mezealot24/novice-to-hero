@@ -7,6 +7,8 @@
 import type { SaveData } from '../save'
 import type { Stats } from './game-data'
 import type { JobId } from './jobs'
+import type { Job2Id } from './jobs2'
+import { activeJob3, type Job3Id } from './jobs3'
 import { matOf } from './materials'
 import { gradeCost, gradeCap, REFINE, refineDungeon, rerollDungeon, refinable, refineFee, refineFeeMul, refineRate, type RefineLine } from './craft'
 import { BASE_NAME, gradeOf, isBroken, isTainted, itemStatLine, ITEMS, linesOf, refineOf, type BaseStat, type Item, type Slot } from './meta'
@@ -117,7 +119,10 @@ function buyMissing(s: Wallet, c: ForgeCost): Item | null | false {
 
 // ---------- random bonus lines (3.5.1) ----------
 type Kind = 'atk' | 'def' | 'any'
-interface LineDef { stat: string; vals: [number, number, number]; kind: Kind; w: number; off?: JobId[]; slots?: Slot[] }
+interface LineDef { stat: string; vals: [number, number, number]; kind: Kind; w: number; off?: JobId[]; slots?: Slot[]; j2?: Job2Id[]; j3?: Job3Id[] /* class-only line (v125): rolls only for a hero of that 2nd / 3rd job */ }
+/** The hero's 2nd job and ACTIVE 3rd job: which class-only lines may roll. */
+export interface HeroClass { job2?: Job2Id; job3?: Job3Id }
+export const classOf = (s: { job2?: Job2Id; job3?: Job3Id }): HeroClass => ({ job2: s.job2, job3: activeJob3(s) })
 // Who gets nothing from a stat (checked against BattleScene / heroStats, 2026-11-03):
 const NO_MANA: JobId[] = ['archer', 'thief', 'novice'] // Energy jobs + Novice (Swordsman runs on Mana since v28)
 const NO_MAGIC: JobId[] = ['swordsman', 'archer', 'thief', 'novice'] // M.ATK / spell crit
@@ -162,12 +167,35 @@ export const LINE_POOL: LineDef[] = [
   { stat: 'spearShield', vals: [0.03, 0.05, 0.07], kind: 'def', w: 0.3, slots: ['armor', 'offhand'], off: ['swordsman', 'archer', 'mage', 'thief', 'novice'] }, // holy spears: Priest
   { stat: 'resTurn', vals: [0.3, 0.5, 0.8], kind: 'def', w: 0.5, slots: ['acc'], off: ['novice'] },
 ]
+/** v125 (Q 2026-11-08 "option เวลาสุ่ม / อัพขั้น เฉพาะคลาสนั้นๆ"): class-only lines. A hero of that 2nd / 3rd job rolls them next to the normal pool
+ * on ANY gear (refine +5 / +7 / +10 and the option gacha). The values are about half / one / one and a half levels of the matching ใยชั้น node.
+ * Each class's lines share CLASS_LINE_W of weight, so a class with 4 lines is not luckier than one with 2 (the normal pool weighs ~30). */
+export const CLASS_LINE_W = 3
+type Vals = [number, number, number]
+const CLASS_LINES: { j2?: Job2Id; j3?: Job3Id; lines: [stat: string, vals: Vals][] }[] = [
+  { j2: 'berserker', lines: [['j2Duel', [0.04, 0.06, 0.1]], ['j2LowHp', [0.04, 0.07, 0.1]]] },
+  { j2: 'knight', lines: [['j2HpDmg', [0.005, 0.01, 0.015]], ['j2Provoke', [0.03, 0.05, 0.08]], ['j2Banner', [0.02, 0.03, 0.05]]] },
+  { j2: 'rogue', lines: [['j2KnifeMul', [0.05, 0.1, 0.15]]] },
+  { j2: 'mobster', lines: [['j2ExecAdd', [0.005, 0.01, 0.015]], ['j2DebuffTurns', [1, 1, 2]]] },
+  { j2: 'crusader', lines: [['j2CrossAdd', [0.05, 0.1, 0.15]], ['j2BlockHeal', [0.01, 0.02, 0.03]], ['j2PayCut', [0.05, 0.1, 0.15]], ['j2Reflect', [0.03, 0.05, 0.08]]] },
+  { j2: 'monk', lines: [['j2ThunderPer', [0.05, 0.1, 0.15]], ['j2Es', [0.015, 0.03, 0.045]], ['j2Dark', [0.01, 0.02, 0.03]]] },
+  { j2: 'wizard', lines: [['j2MeteorMul', [0.05, 0.1, 0.15]], ['j2LovMul', [0.05, 0.1, 0.15]], ['j2GustMul', [0.05, 0.1, 0.15]]] },
+  { j2: 'sage', lines: [['j2AutoChance', [0.03, 0.05, 0.08]], ['j2EndowAmp', [0.03, 0.05, 0.08]], ['j2MagicRod', [2, 3, 5]]] },
+  { j2: 'beastmaster', lines: [['j2PetPow', [0.04, 0.06, 0.1]], ['j2PetHeal', [0.003, 0.005, 0.008]]] },
+  { j2: 'innovator', lines: [['j2TrapMul', [0.1, 0.2, 0.3]], ['j2TurretMul', [0.08, 0.15, 0.22]], ['j2BoxLuck', [0.1, 0.2, 0.3]]] },
+  { j3: 'paladin', lines: [['j3Press', [0.15, 0.3, 0.45]], ['j3Banding', [0.01, 0.02, 0.03]], ['j3GospelHeal', [0.005, 0.01, 0.015]], ['j3AfterBless', [0.03, 0.05, 0.08]]] },
+]
+export const CLASS_LINE_POOL: LineDef[] = CLASS_LINES.flatMap((c) => c.lines.map(([stat, vals]): LineDef => ({
+  stat, vals, kind: 'any', w: CLASS_LINE_W / c.lines.length, ...(c.j2 ? { j2: [c.j2] } : {}), ...(c.j3 ? { j3: [c.j3] } : {}),
+})))
+/** Is a pool row open for this hero? (class-only rows need the matching 2nd / 3rd job) */
+const classOpen = (d: LineDef, cls?: HeroClass) => (!d.j2 || (!!cls?.job2 && d.j2.includes(cls.job2))) && (!d.j3 || (!!cls?.job3 && d.j3.includes(cls.job3)))
 /** Base stats a job gets nothing from (x0.25 when the "base stat" row picks one). */
 // STR: P.ATK for melee non-Thief + pskill · INT: M.ATK + Max Mana (Swordsman uses Mana) · LUK: crit, lucky dodge, drops for all
 const BASE_OFF: Record<BaseStat, JobId[]> = { str: ['mage', 'archer', 'thief'], vit: [], wis: [], dex: ['mage'], int: ['archer', 'thief', 'novice'], luk: [], agi: [] }
 const BASES: BaseStat[] = ['str', 'vit', 'wis', 'dex', 'int', 'luk', 'agi']
 /** Whole-number stats (gold x1.5 rounds); everything else keeps 3 decimals (resRegen 1 -> 1.5, not 2). */
-const INT_STATS = new Set<string>([...BASES, 'def', 'hit', 'flee', 'maxRes'])
+const INT_STATS = new Set<string>([...BASES, 'def', 'hit', 'flee', 'maxRes', 'j2DebuffTurns', 'j2MagicRod', 'j2ChargeMax', 'j2FrenzyMax', 'j2KnifeAdd'])
 const slotBias = (slot: Slot, kind: Kind) => (slot === 'weapon' ? (kind === 'atk' ? 2 : 1) : slot === 'acc' ? 1 : kind === 'def' ? 2 : 1)
 const jobBias = (off: JobId[] | undefined, job: JobId) => (off?.includes(job) ? 0.25 : 1)
 
@@ -178,8 +206,9 @@ function pickWeighted<T>(xs: T[], w: (x: T) => number, rnd: () => number): T {
   return xs[xs.length - 1]
 }
 /** Roll one line for `it` (idx 0 / 1 / 2 = small / mid / big), weighted by slot and by the job refining it. */
-export function rollLine(it: Item, idx: number, job: JobId, rnd: () => number = Math.random): RefineLine {
-  const def = pickWeighted(LINE_POOL, (d) => (d.slots && !d.slots.includes(it.slot) ? 0 : d.w * slotBias(it.slot, d.kind) * jobBias(d.off, job)), rnd)
+export function rollLine(it: Item, idx: number, job: JobId, rnd: () => number = Math.random, cls?: HeroClass): RefineLine {
+  const pool = cls && (cls.job2 || cls.job3) ? [...LINE_POOL, ...CLASS_LINE_POOL] : LINE_POOL // class-only rows join only for a hero with a 2nd / 3rd job
+  const def = pickWeighted(pool, (d) => (!classOpen(d, cls) || (d.slots && !d.slots.includes(it.slot)) ? 0 : d.w * slotBias(it.slot, d.kind) * jobBias(d.off, job)), rnd)
   const stat = def.stat === 'base' ? pickWeighted(BASES, (b) => jobBias(BASE_OFF[b], job), rnd) : def.stat
   const gold = rnd() < REFINE.goldRate
   const v = def.vals[idx]
@@ -240,7 +269,7 @@ export function tryRefine(s: SaveData, it: Item, rnd: () => number = Math.random
   const idx = REFINE.lineAt.indexOf(n), lines = linesOf(s, it.id)
   if (idx >= 0 && !lines[idx]) {
     const arr = ((s.refineLines ??= {})[it.id] ??= [])
-    arr[idx] = out.line = rollLine(it, idx, s.job, rnd)
+    arr[idx] = out.line = rollLine(it, idx, s.job, rnd, classOf(s))
   }
   const gems = REFINE.gemsAt[n], key = `${it.id}:${n}`
   if (gems && !(s.refineGems ??= []).includes(key)) { s.refineGems.push(key); s.gems += gems; out.gems = gems }
@@ -273,7 +302,7 @@ export function reroll(s: SaveData, it: Item, locked: number[] = [], rnd: () => 
   if (!have.length || lock.some((i) => !have.includes(i)) || lock.length > maxLocks(have.length)) return null
   if (spend(s, nextRerollCost(s, it, lock)) === false) return null
   const arr = s.refineLines![it.id]
-  for (const i of have) if (!lock.includes(i)) arr[i] = rollLine(it, i, s.job, rnd)
+  for (const i of have) if (!lock.includes(i)) arr[i] = rollLine(it, i, s.job, rnd, classOf(s))
   ;(s.rerollCount ??= {})[it.id] = rollsOf(s, it.id) + 1
   return arr.slice()
 }
@@ -331,7 +360,7 @@ export function tryTaint(s: SaveData, it: Item, rnd: () => number = Math.random)
   if (kind === 'gold') {
     const arr = ((s.refineLines ??= {})[it.id] ??= []), have = lineIdx(s, it.id)
     if (have.length) { for (const i of have) arr[i] = goldify(arr[i]); out = { ok: true, kind, gold: have.map((i) => arr[i]) } }
-    else { arr[0] = goldify(rollLine(it, 0, s.job, rnd)); out = { ok: true, kind, gold: [arr[0]], fallback: true } }
+    else { arr[0] = goldify(rollLine(it, 0, s.job, rnd, classOf(s))); out = { ok: true, kind, gold: [arr[0]], fallback: true } }
   } else if (kind === 'curse') {
     const c = CURSES[Math.min(CURSES.length - 1, Math.floor(rnd() * CURSES.length))]
     rec.curse = c.id

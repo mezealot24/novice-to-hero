@@ -1,8 +1,8 @@
 import Phaser from 'phaser'
 import { COLORS, type Stats } from '../data/game-data'
 import { JOBS } from '../data/jobs'
-import { canWear, forgeTag, gradeOf, heroStats, refineOf, itemStatLine, itemUnlocked, ITEMS, REQ_TEXT, SELL_RATE, slotCount, SLOTS, wearText, type Item, type Slot } from '../data/meta'
-import { addFodder, equip, replaceSlot, forgetForge, isWorn, persist, save, unsocketAll } from '../save'
+import { canWearAs, forgeTag, gradeOf, heroStats, refineOf, itemStatLine, itemUnlocked, ITEMS, REQ_TEXT, SELL_RATE, slotCount, SLOTS, wearText, type Item, type Slot } from '../data/meta'
+import { addFodder, equip, equipBlock, replaceSlot, forgetForge, isWorn, persist, save, unsocketAll } from '../save'
 import { isFodder } from '../data/refine'
 import { sfx } from '../sfx'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
@@ -28,7 +28,7 @@ export class ShopScene extends Phaser.Scene {
   private list(): Item[] {
     const s = save()
     const lockRank = (it: Item) => (itemUnlocked(it, s) ? 0 : 1)
-    return ITEMS.filter((it) => it.slot === this.slot && it.price > 0 && (!this.mineOnly || canWear(it, s.job)))
+    return ITEMS.filter((it) => it.slot === this.slot && it.price > 0 && (!this.mineOnly || canWearAs(it, s)))
       .sort((a, b) => lockRank(a) - lockRank(b) || Number(!!a.jobs) - Number(!!b.jobs) || a.price - b.price)
   }
 
@@ -48,7 +48,7 @@ export class ShopScene extends Phaser.Scene {
     items.forEach((it, i) => {
       const x = 24 + (i % 3) * (cw + 12), y = 152 + Math.floor(i / 3) * (ch + 12)
       const owned = s.owned.includes(it.id), worn = isWorn(s, it.id)
-      const open = itemUnlocked(it, s), wear = canWear(it, s.job)
+      const open = itemUnlocked(it, s), wear = canWearAs(it, s)
       b.add(panel(this, x, y, cw, ch, open ? UI.panel : 0x1d2140, owned ? COLORS.gold : UI.line))
       b.add(txt(this, x + 14, y + 10, it.icon, 30).setAlpha(open ? 1 : 0.5))
       b.add(txt(this, x + 60, y + 10, it.name, 18, UI.text, true))
@@ -72,7 +72,7 @@ export class ShopScene extends Phaser.Scene {
           b.add(txt(this, mid, by, '✓ ใส่อยู่ (ถอดก่อนถึงจะขายได้)', 13, UI.green).setOrigin(0.5))
         } else {
           const bw = fw ? 96 : 120, gap = fw ? 52 : 70
-          b.add(button(this, mid - gap, by, bw, 36, wear ? 'ใส่เลย' : 'อาชีพนี้ใส่ไม่ได้', () => { equip(s, it.id); persist(); this.render() }, { size: wear ? 15 : 12 }).setEnabled(wear))
+          b.add(button(this, mid - gap, by, bw, 36, wear ? 'ใส่เลย' : 'อาชีพนี้ใส่ไม่ได้', () => this.wear(it), { size: wear ? 15 : 12 }).setEnabled(wear))
           const sell = Math.floor(it.price * SELL_RATE)
           const lost = [gradeOf(s, it.id) > 1 ? `ขั้น ★${gradeOf(s, it.id)}` : '', refineOf(s, it.id) ? `ตีบวก +${refineOf(s, it.id)} และค่าพิเศษ` : ''].filter(Boolean).join(' · ')
           b.add(button(this, mid + gap, by, bw, 36, `ขาย +${sell}`, () =>
@@ -110,6 +110,13 @@ export class ShopScene extends Phaser.Scene {
     this.render()
   }
 
+  /** Wear a shop item. A 2-handed weapon sends the off-hand piece back to the bag; an off-hand piece can't go on while one is worn. */
+  private wear(it: Item) {
+    const s = save()
+    if (equipBlock(s, it.id) === 'twohand') { toast(this, 'ถืออาวุธ 2 มืออยู่ ใส่มือรองไม่ได้ค่ะ เปลี่ยนเป็นอาวุธ 1 มือก่อนนะคะ', UI.red); return }
+    equip(s, it.id); persist(); this.render()
+  }
+
   private buy(it: Item) {
     const s = save()
     if (s.zeny < it.price) { toast(this, 'zeny ไม่พอค่ะ ไปลุยดันก่อนนะ', UI.red); return }
@@ -122,7 +129,7 @@ export class ShopScene extends Phaser.Scene {
     s.zeny -= it.price
     s.owned.push(it.id)
     persist(); sfx.coin(); this.refreshWallet()
-    if (canWear(it, s.job)) confirm(this, `ได้ ${it.icon} ${it.name}!`, 'ใส่เลยไหมคะ?', 'ใส่เลย', () => { equip(s, it.id); persist(); this.render() }, 'ไว้ก่อน')
+    if (canWearAs(it, s)) confirm(this, `ได้ ${it.icon} ${it.name}!`, 'ใส่เลยไหมคะ?', 'ใส่เลย', () => this.wear(it), 'ไว้ก่อน')
     else toast(this, `ได้ ${it.name} แล้ว (ใส่ได้เมื่อเป็น ${wearText(it)})`)
     this.render()
   }
