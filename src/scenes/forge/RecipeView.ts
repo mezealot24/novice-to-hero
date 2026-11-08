@@ -31,15 +31,15 @@ export class RecipeView {
 
   /** The list for the current filter. Fixed order (dungeon, then catalogue), never by affordability, so rows don't jump. */
   private list(): Item[] {
-    const s = save(), dgIx = (it: Item) => DUNGEONS.findIndex((d) => d.id === it.craft!.dg)
+    const s = save(), dgIx = (it: Item) => (it.craft ? DUNGEONS.findIndex((d) => d.id === it.craft!.dg) : DUNGEONS.length) // Corrupted shop gear (no recipe) sorts last
     const all = [...CRAFT_ITEMS, ...CARDFORGE_ITEMS].sort((a, b) => dgIx(a) - dgIx(b))
     if (this.filter === 'classic') return all.filter((it) => !isCardforge(it))
     if (this.filter === 'cf') return all.filter(isCardforge)
-    if (this.filter === 'salvage') return ITEMS.filter((it) => it.craft && s.owned.includes(it.id)).sort((a, b) => dgIx(a) - dgIx(b))
+    if (this.filter === 'salvage') return ITEMS.filter((it) => (it.craft || s.taint?.[it.id]) && s.owned.includes(it.id)).sort((a, b) => dgIx(a) - dgIx(b))
     return all
   }
 
-  private unlocked = (it: Item) => (save().clearsBy?.[it.craft!.dg] ?? 0) > 0
+  private unlocked = (it: Item) => !it.craft || (save().clearsBy?.[it.craft.dg] ?? 0) > 0
 
   /** Short state under a row's name. */
   private caption(it: Item): string {
@@ -77,25 +77,25 @@ export class RecipeView {
     root.add(txt(sc, 16 + 128, 540, `${this.page + 1}/${pages}`, 14, UI.text, true).setOrigin(0.5))
     root.add(button(sc, 16 + 196, 540, 44, 30, '▶', () => { this.page++; this.rebuild() }, { size: 14 }).setEnabled(this.page < pages - 1))
     const it = list.find((x) => x.id === this.sel)
-    if (!it) { root.add(txt(sc, 616, 300, this.filter === 'salvage' ? 'ยังไม่มีของตีเองให้หลอมค่ะ' : 'ไม่มีสูตร', 16, UI.sub).setOrigin(0.5)); return }
+    if (!it) { root.add(txt(sc, 616, 300, this.filter === 'salvage' ? 'ยังไม่มีของตีเอง หรือของร้านที่ติดคำสาปให้หลอมค่ะ' : 'ไม่มีสูตร', 16, UI.sub).setOrigin(0.5)); return }
     this.stage(root, it, s)
   }
 
   // ---------- right side ----------
   private stage(root: Phaser.GameObjects.Container, it: Item, s: ReturnType<typeof save>) {
-    const sc = this.scene, open = this.unlocked(it), salv = this.filter === 'salvage', cf = isCardforge(it), c = it.craft!
+    const sc = this.scene, open = this.unlocked(it), salv = this.filter === 'salvage', cf = isCardforge(it), c = it.craft
     root.add(panel(sc, 288, 112, 656, 150))
     const shown = open || salv
     root.add(itemIcon(sc, 288 + 70, 187, 96, shown ? it : { ...it, icon: '❓', name: '???' }, { grade: salv ? gradeOf(s, it.id) : 1, refine: salv ? refineOf(s, it.id) : 0 }))
     root.add(fit(txt(sc, 288 + 128, 122, shown ? `${it.name}${cf ? '  🃏' : ''}` : '??? (ยังไม่ปลดสูตร)', 20, shown ? UI.text : UI.sub, true).setWordWrapWidth(500), 28))
-    root.add(txt(sc, 288 + 128, 150, `ของ${dgName(c.dg)} · ${wearText(it)}${canWear(it, s.job) ? '' : ' (ไม่ใช่อาชีพนี้)'}`, 12, canWear(it, s.job) ? UI.sub : UI.red))
+    root.add(txt(sc, 288 + 128, 150, `${c ? `ของ${dgName(c.dg)}` : 'ของร้าน (ติดคำสาป)'} · ${wearText(it)}${canWear(it, s.job) ? '' : ' (ไม่ใช่อาชีพนี้)'}`, 12, canWear(it, s.job) ? UI.sub : UI.red))
     if (shown) {
       const worn = forgeItem(it, salv ? gradeOf(s, it.id) : 1, salv ? refineOf(s, it.id) : 0)
       root.add(fit(txt(sc, 288 + 128, 170, `${itemStatLine(worn)} · 🃏 ช่องการ์ด ${it.slots ?? 1}`, 13, '#9fe3a8', true).setWordWrapWidth(510), 34))
       if (cf) root.add(fit(txt(sc, 288 + 128, 206, it.desc, 12, UI.gold, true).setWordWrapWidth(510), 34))
       else root.add(fit(txt(sc, 288 + 128, 206, it.desc, 12, UI.sub).setWordWrapWidth(510), 18))
-      root.add(txt(sc, 288 + 128, 232, `★3 ปลด: ${itemStatLine({ mod: c.bonus[0] })}  ·  ★5 ปลด: ${itemStatLine({ mod: c.bonus[1] })}`, 11, GRADE.colors[3]).setWordWrapWidth(520))
-    } else root.add(txt(sc, 288 + 128, 176, `🔒 ล้ม${dgBoss(c.dg)}ก่อนถึงจะตีได้\nวัตถุดิบ: ??? · ค่าตี: ???`, 14, UI.sub))
+      if (c) root.add(txt(sc, 288 + 128, 232, `★3 ปลด: ${itemStatLine({ mod: c.bonus[0] })}  ·  ★5 ปลด: ${itemStatLine({ mod: c.bonus[1] })}`, 11, GRADE.colors[3]).setWordWrapWidth(520))
+    } else root.add(txt(sc, 288 + 128, 176, `🔒 ล้ม${dgBoss(c!.dg)}ก่อนถึงจะตีได้\nวัตถุดิบ: ??? · ค่าตี: ???`, 14, UI.sub))
     root.add(panel(sc, 288, 272, 656, 190, UI.panel, UI.line))
     if (salv) this.salvageInfo(root, it, s)
     else this.craftInfo(root, it, s, open, cf)
@@ -155,7 +155,7 @@ export class RecipeView {
     const feeChip = chip(sc, 304, 376, '💰', `ค่าธรรมเนียม ${p.fee}z`, s.zeny >= p.fee ? 'ok' : 'short', 300)
     root.add(feeChip)
     if (p.cards.length) root.add(txt(sc, 304, 400, `🃏 การ์ดที่เสียบอยู่ ${p.cards.length} ใบ จะกลับเข้ากระเป๋า`, 12, UI.green))
-    if (s.taint?.[it.id]) root.add(txt(sc, 304, 420, '🌑 ของ Corrupt ได้คืนแค่ครึ่งหนึ่งของปกติ', 12, '#c9a8ff'))
+    if (s.taint?.[it.id]) root.add(txt(sc, 304, 420, it.craft ? '🌑 ของ Corrupt ได้คืนแค่ครึ่งหนึ่งของปกติ' : '🌑 ของร้านที่ติดคำสาป: ได้คืนครึ่งหนึ่งของที่ใช้ไป (เลื่อนเกรด + ผลึกโลกันตร์)', 12, '#c9a8ff'))
     const hb = holdButton(sc, 794, 522, 280, 48, s.zeny >= p.fee ? '♻️ กดค้างเพื่อหลอม' : `ขาด ${p.fee - s.zeny}z`, 800, () => this.doSalvage(it), { size: 17, fill: 0x2f7d4f })
     hb.setEnabled(s.zeny >= p.fee)
     root.add(hb)
