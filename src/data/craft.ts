@@ -179,7 +179,7 @@ export const REFINE = {
   feeGrowth: 1.4,
   repairFee: 0.5, // material repair also costs this share of the fee for the item's current +
   // Option gacha (Q 2026-11-06, zeny sink): one roll rerolls EVERY unlocked line at once and the new lines stay (no keep-old).
-  rerollZeny: [200, 400, 800], // zeny per line the item has (+5 / +7 / +10 line), summed: 200 / 600 / 1400
+  rerollZeny: [1000, 1000, 1000], // zeny per line the item has, summed: 1000 / 2000 / 3000 (Q 2026-11-08: flat 1000 per line)
   rerollMats: [[4, 0], [6, 1], [8, 2]] as [number, number][], // [common, boss] of the item's biggest line only
   rerollStep: 0.1, // zeny +10% for every roll already made on this item...
   rerollMaxMul: 3, // ...up to x3 (kept until the item leaves the bag)
@@ -187,6 +187,9 @@ export const REFINE = {
 }
 /** Zeny fee for one try at +n. */
 export const refineFee = (n: number) => (n <= 0 ? 0 : Math.round((REFINE.feeBase * REFINE.feeGrowth ** (n - 1)) / 5) * 5)
+/** Zeny multiplier on the refine fee (Q 2026-11-08): 2nd-job (class 2) weapons cost x10 per try. */
+export const REFINE_J2_WEAPON_MUL = 10
+export const refineFeeMul = (it: Item) => (it.slot === 'weapon' && it.req === 'job2' ? REFINE_J2_WEAPON_MUL : 1)
 /** Starter gear and the empty slots can't be refined; crafted gear (price 0) can. */
 export const refinable = (it: Item) => it.price > 0 || !!it.craft || !!it.unique
 /** Chance to reach +n after `pity` fails in a row. */

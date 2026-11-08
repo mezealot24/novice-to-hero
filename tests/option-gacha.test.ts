@@ -15,12 +15,12 @@ function mk(n: number, zeny = 1e6, gems = 1000) {
 const seq = (...xs: number[]) => { let i = 0; return () => xs[i++ % xs.length] }
 
 test('v84 option gacha: zeny = per-line prices summed, +10% per roll, capped at x3', () => {
-  assert.equal(rerollCost(it, 1).zeny, 200)
-  assert.equal(rerollCost(it, 2).zeny, 600)
-  assert.equal(rerollCost(it, 3).zeny, 1400)
-  assert.equal(rerollCost(it, 3, 5).zeny, 2100)
+  assert.equal(rerollCost(it, 1).zeny, 1000)
+  assert.equal(rerollCost(it, 2).zeny, 2000)
+  assert.equal(rerollCost(it, 3).zeny, 3000)
+  assert.equal(rerollCost(it, 3, 5).zeny, 4500)
   assert.equal(rerollMul(100), REFINE.rerollMaxMul)
-  assert.equal(rerollCost(it, 3, 100).zeny, 4200)
+  assert.equal(rerollCost(it, 3, 100).zeny, 9000)
   assert.equal(rerollCost(it, 3).gems, undefined) // rolling never costs gems
 })
 
@@ -29,7 +29,7 @@ test('v84 option gacha: locks cost gems only, never all lines', () => {
   assert.deepEqual([lockGems(0), lockGems(1), lockGems(2)], [0, 10, 40])
   const c = rerollCost(it, 3, 0, 2)
   assert.equal(c.gems, 40)
-  assert.equal(c.zeny, 1400) // locking does not change the zeny price
+  assert.equal(c.zeny, 3000) // locking does not change the zeny price
 })
 
 test('v84 option gacha: a roll replaces every unlocked line at once and keeps locked ones', () => {
@@ -39,9 +39,9 @@ test('v84 option gacha: a roll replaces every unlocked line at once and keeps lo
   assert.ok(out)
   assert.equal(s.refineLines[it.id][1], keep)
   assert.equal(s.gems, 1000 - 10)
-  assert.equal(s.zeny, 1e6 - 1400)
+  assert.equal(s.zeny, 1e6 - 3000)
   assert.equal(s.rerollCount![it.id], 1)
-  assert.equal(nextRerollCost(s as never, it).zeny, 1540) // 1400 x 1.1
+  assert.equal(nextRerollCost(s as never, it).zeny, 3300) // 3000 x 1.1
 })
 
 test('v84 option gacha: refuses bad locks and short wallets without spending', () => {
