@@ -13,6 +13,7 @@ import { BattleScene } from './scenes/BattleScene'
 import { JobScene } from './scenes/JobScene'
 import { CloudScene } from './scenes/CloudScene'
 import { liveInfo, loadLiveConfig } from './live-config'
+import { deathText, loadDeaths } from './data/combat-log'
 
 class BootScene extends Phaser.Scene {
   constructor() { super('boot') }
@@ -45,5 +46,7 @@ async function boot() {
   })
   // handle for automated playtests
   ;(window as unknown as { __nth: Phaser.Game }).__nth = game
+  // v120 combat log: `nthDeaths()` prints the last deaths (newest first), `nthDeaths(0)` only the newest
+  ;(window as unknown as { nthDeaths: (i?: number) => string }).nthDeaths = (i) => { const all = loadDeaths(), pick = i === undefined ? all : all.slice(i, i + 1); const t = pick.map(deathText).join('\n\n') || 'ยังไม่มี death log'; console.info(t); return t }
 }
 void boot()
