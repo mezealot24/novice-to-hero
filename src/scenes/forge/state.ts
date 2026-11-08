@@ -1,7 +1,7 @@
 // Pure helpers shared by the rail, the stage and the verb panels (no Phaser objects here). Rules live in src/data/*.
 import { gradeCost, REFINE } from '../../data/craft'
 import { matById } from '../../data/materials'
-import { canWear, EMPTY_ITEM, forged, gradeOf, isBroken, isTainted, itemStatLine, ITEMS, linesOf, refineOf, SLOTS, splitStatLine, statEntries, type Item, type StatEntry } from '../../data/meta'
+import { canWearAs, EMPTY_ITEM, forged, gradeOf, isBroken, isTainted, itemStatLine, ITEMS, linesOf, refineOf, SLOTS, splitStatLine, statEntries, type Item, type StatEntry } from '../../data/meta'
 import { canAffordAuto, costGap, fodderToBuy, gradeCheck, lineText, refineCheck, refineCost, taintCheck, totalZeny, type ForgeCost, type TaintResult } from '../../data/refine'
 import { curseById } from '../../data/taint'
 import { isWorn, replaceSlot, type SaveData } from '../../save'
@@ -21,7 +21,7 @@ export function iconState(s: SaveData, it: Item): ItemIconState {
  * so a row never jumps under the player's finger. */
 export function railItems(s: SaveData, mineOnly: boolean): Item[] {
   const slotIx = (it: Item) => SLOTS.findIndex((q) => q.id === it.slot)
-  return ITEMS.filter((it) => s.owned.includes(it.id) && (refineCheck(s, it) !== 'cant' || gradeCheck(s, it) !== 'cant') && (!mineOnly || canWear(it, s.job)))
+  return ITEMS.filter((it) => s.owned.includes(it.id) && (refineCheck(s, it) !== 'cant' || gradeCheck(s, it) !== 'cant') && (!mineOnly || canWearAs(it, s)))
     .map((it, i) => ({ it, i }))
     .sort((a, b) => (isWorn(s, a.it.id) ? 0 : 1) - (isWorn(s, b.it.id) ? 0 : 1) || slotIx(a.it) - slotIx(b.it) || a.i - b.i)
     .map((x) => x.it)

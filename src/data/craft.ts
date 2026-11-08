@@ -75,8 +75,8 @@ export const CRAFT_ITEMS: Item[] = [
     craft: { dg: 'd5', common: 16, boss: 4, zeny: 2500, bonus: [{ ultAmp: 0.15 }, { smashCd: -1500 }] } },
   // ----- 2nd Jobs Crafted Gear (d5 บัลลังก์อเวจี) -----
   { id: 'c_berserkcleaver', wtype: 'twohand', slot: 'weapon', name: 'ขวานสังหารโลหิตคลั่ง', icon: '🪓', price: 0, twoHand: true, slots: 2,
-    desc: 'ของคราฟอาชีพขั้น 2 · อาวุธ 2 มือ (เบอร์เซิร์กเกอร์): Frenzy สูงสุด +2 · คริแรง · ดาเมจสกิลกายภาพ +15%',
-    base: { str: 8, agi: 3 }, mod: { atk: 28, crit: 0.08, aspd: -0.05, pskill: 0.15, j2FrenzyMax: 2 }, jobs: SW, req: 'job2',
+    desc: 'ของคราฟอาชีพขั้น 2 · อาวุธ 2 มือ แทนมือรอง (เบอร์เซิร์กเกอร์): Frenzy สูงสุด +2 · คริแรง · ดาเมจสกิลกายภาพ +15% · ได้ค่าพลังของโล่มาด้วย',
+    base: { str: 8, agi: 3, vit: 3 }, mod: { atk: 28, crit: 0.08, aspd: -0.05, pskill: 0.15, j2FrenzyMax: 2, maxHp: 80, def: 12 }, jobs: SW, req: 'job2',
     craft: { dg: 'd5', common: 18, boss: 4, zeny: 2500, bonus: [{ critMul: 0.2 }, { lifesteal: 0.04, j2Duel: 0.1 }] } },
   { id: 'c_dragonspear', wtype: 'spear', slot: 'weapon', name: 'หอกทะลวงมังกร', icon: '🔱', price: 0, slots: 2,
     desc: 'ของคราฟอาชีพขั้น 2 · หอก (อัศวิน): ถึกเป็นแรง เพิ่มดาเมจสกิลหอกตาม Max HP · เจาะเกราะและแม่นยำ',
@@ -125,7 +125,7 @@ export function gradeCap(it: Item): number {
 }
 /** Which dungeon's materials an item uses for grade-ups. */
 // v114 fix: `req: 'job2'` is not a dungeon id (it built the unobtainable m_job2 / b_job2). 2nd-job gear uses D5 mats, the dungeon that unlocks the 2nd job (JOB2_RULES.unlockClear).
-const REQ_DG: Partial<Record<NonNullable<Item['req']>, string>> = { job2: 'd5' }
+const REQ_DG: Partial<Record<NonNullable<Item['req']>, string>> = { job2: 'd5', job3: 'd10' } // job3 = JOB3_RULES.unlockClear
 export const matDungeon = (it: Item) => it.craft?.dg ?? it.unique?.dg ?? (it.req && it.req !== 'job' ? REQ_DG[it.req] ?? it.req : 'd1')
 /** v114 (Q 2026-11-08): 2nd-job gear climbs the deep dungeons step by step, so it is not cheap on D5 mats alone.
  * refine = by refine tier (+1-4 / +5-7 / +8-10), grade = by target ★, reroll = by line count (lines exist from +5). */
@@ -136,7 +136,7 @@ export const JOB2_MATS: StepMats = { refine: ['d5', 'd7', 'd9'], grade: { 2: 'd5
 export const JOB_MATS: StepMats = { refine: ['d1', 'd3', 'd5'], grade: { 2: 'd1', 3: 'd3', 4: 'd5' }, reroll: ['d3', 'd5'] }
 const stepMats = (it: Item): StepMats | null => {
   if (it.craft || it.unique) return null
-  if (it.req === 'job2') return JOB2_MATS
+  if (it.req === 'job2' || it.req === 'job3') return JOB2_MATS
   if (it.req === 'job' || (it.jobs && !it.req)) return JOB_MATS
   return null
 }
