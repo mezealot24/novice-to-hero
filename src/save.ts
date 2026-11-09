@@ -401,7 +401,10 @@ export function resetTree2(s: SaveData): number {
 // ---------- 3rd jobs "Awakening" (design/awakening-crusader-v1.md) ----------
 /** Job2 Lv 50 + ดัน 10 cleared + the Master Trial of that 3rd job won. */
 export const job3Ready = (s: SaveData, id: Job3Id) => !!s.job2 && JOB3[id].parent === s.job2
-  && (s.job2Level ?? 1) >= JOB3_RULES.unlockJob2Lv && (s.clearsBy?.[JOB3_RULES.unlockClear] ?? 0) > 0 && !!s.job3Trial?.[id]
+  && (s.job2Level ?? 1) >= JOB3_RULES.unlockJob2Lv && (s.clearsBy?.[JOB3_RULES.unlockClear] ?? 0) > 0 && trialPassed(s, id)
+/** ⚔️ Master Trial passed: won after the update (job3Trial) or a 🔥 hard / 😈 hell ดัน 10 clear already on the save (Q 2026-11-08: count old clears). */
+export const trialPassed = (s: SaveData, id: Job3Id) => !!s.job3Trial?.[id]
+  || ((s.hardClearsBy ?? {})[JOB3_RULES.trialDungeon] ?? 0) > 0 || ((s.hellClearsBy ?? {})[JOB3_RULES.trialDungeon] ?? 0) > 0
 /** Why that 3rd job is still locked ('' = open). */
 export function job3Lock(s: SaveData, id: Job3Id): string {
   const d = JOB3[id]
@@ -409,7 +412,7 @@ export function job3Lock(s: SaveData, id: Job3Id): string {
   const need: string[] = []
   if ((s.job2Level ?? 1) < JOB3_RULES.unlockJob2Lv) need.push(`Job2 Lv ${s.job2Level ?? 1}/${JOB3_RULES.unlockJob2Lv}`)
   if (!((s.clearsBy?.[JOB3_RULES.unlockClear] ?? 0) > 0)) need.push('เคลียร์ดัน 10')
-  if (!s.job3Trial?.[id]) need.push('ผ่าน Master Trial (เคลียร์ดัน 10 🔥โหมดยาก ตอน Job2 Lv 50)')
+  if (!trialPassed(s, id)) need.push('ผ่าน Master Trial (เคลียร์ดัน 10 🔥โหมดยาก ตอน Job2 Lv 50)')
   return need.join(' · ')
 }
 /** ⚔️ Master Trial: a 🔥 hard ดัน 10 win at Job2 Lv 50 passes the trial of that 2nd job's Awakening. Returns it the first time. */

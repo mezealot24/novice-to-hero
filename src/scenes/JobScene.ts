@@ -142,7 +142,7 @@ export class JobScene extends Phaser.Scene {
     txt(this, 330, 100, [
       d.blurb,
       `${d.signature.icon} ${d.signature.name}: ${d.signature.desc}`,
-      `✨ Ult วิวัฒน์ 2 ${d.ultName}: Grand Cross ยิงเพิ่ม 1 pulse · pulse ที่โดน ≥ 3 ตัวได้ศรัทธา`,
+      `✨ Ult วิวัฒน์ 2 ${d.ultName}: ${d.ultDesc}`,
       `Job3 Lv 1-${JOB3_RULES.maxJobLevel} · ใยชั้น 3 ได้ 1 แต้มต่อ Lv · เปลี่ยนสายขั้น 2 = ชั้น 3 พักไว้ ไม่หาย`,
     ].join('\n'), 14, '#d8d4f0').setWordWrapWidth(600).setLineSpacing(6)
     if (!on) {
@@ -155,7 +155,7 @@ export class JobScene extends Phaser.Scene {
       return
     }
     // awakened: pick the Skill 3 variant (free) and the path (free once a week)
-    txt(this, 330, 270, `ทักษะ 3 Holy Cross แบบไหน (เปลี่ยนฟรี)`, 16, UI.gold, true)
+    txt(this, 330, 270, `ทักษะ 3 ${JOB2[d.parent].skill3.name} แบบไหน (เปลี่ยนฟรี)`, 16, UI.gold, true)
     ;(['a', 'b'] as Job3Variant[]).forEach((v, i) => {
       const V = d.variants[v], cur = (s.job3Var ?? 'a') === v
       button(this, 450 + i * 250, 312, 236, 40, `${cur ? '✅ ' : ''}${V.icon} ${V.name}`, () => { if (setJob3Variant(v)) { sfx.pop(); this.scene.restart({ job3: true }) } }, { size: 15, fill: cur ? COLORS.gold : 0x4a5a8a, color: cur ? UI.ink : UI.text })
@@ -163,7 +163,7 @@ export class JobScene extends Phaser.Scene {
     })
     const cost = job3SwapCost(s), path = s.job3Path ?? 'pure'
     txt(this, 330, 400, `สาย (เปลี่ยน${cost ? ` 💎${cost}` : 'ฟรี'} · ฟรีสัปดาห์ละครั้ง · คืนแต้มใยชั้น 3)`, 16, UI.gold, true)
-    ;([['pure', '⚜️ Pure', 'ใยชั้น 3 ครบทุกชั้น + ★'], ['hybrid', `👊 Hybrid`, `ใยชั้น 3 ชั้น 1-2 + ใย ${JOB2[d.sibling].name} ชั้น 1-2`]] as const).forEach(([p, name, desc], i) => {
+    ;([['pure', `${d.icon} Pure`, 'ใยชั้น 3 ครบทุกชั้น + ★'], ['hybrid', `👊 Hybrid`, `ใยชั้น 3 ชั้น 1-2 + ใย ${JOB2[d.sibling].name} ชั้น 1-2`]] as const).forEach(([p, name, desc], i) => {
       const cur = path === p
       button(this, 450 + i * 250, 442, 236, 40, `${cur ? '✅ ' : ''}${name}`, () => {
         if (cur) return

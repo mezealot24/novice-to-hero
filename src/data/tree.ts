@@ -27,6 +27,7 @@ import { tree2 as beastmaster } from './trees2/beastmaster'
 import { tree2 as innovator } from './trees2/innovator'
 import { JOB3, JOB3_RULES, type Job3Id, type Job3Path } from './jobs3'
 import { tree3 as paladin } from './trees3/paladin'
+import { tree3 as lordknight } from './trees3/lordknight'
 
 // v83: s2PlusMax 3 -> 5 (Stats.s2Lv = Lv x s2PlusOld / s2PlusMax, so Lv 5 = the old Lv 3) · the ★ needs the "+" at s2StarNeed.
 // stretch: old max -> new max for class / ใยชั้น 2 nodes (stretchNode below); unlock rules + parentLv gates unchanged.
@@ -160,13 +161,13 @@ export const TREE2: TreeNode[] = web2Nodes
 
 // ===== ใยชั้น 3 (design/awakening-crusader-v1.md §4.4-§5): one per 3rd job, its own points (save.job3Points) =====
 // One "+power" root (Ult วิวัฒน์ 2) + 3 branches x 4 nodes. Hybrid path: own tier 1-2 + the sibling 2nd job's ใยชั้น 2 tier 1-2.
-const JOB3_TREES: Record<Job3Id, ClassTree> = { paladin }
+const JOB3_TREES: Record<Job3Id, ClassTree> = { paladin, lordknight }
 const web3Branches: TreeBranch[] = [], web3Nodes: TreeNode[] = []
 for (const id of Object.keys(JOB3_TREES) as Job3Id[]) {
   const c = JOB3_TREES[id], J = JOB3[id], j2 = JOB2[J.parent]
   web3Branches.push({ id: `${id}_u3`, job: j2.parent, job2: J.parent, job3: id, name: 'Ult วิวัฒน์ 2', icon: '✨', blurb: J.ultName, line: 'job3' })
   web3Nodes.push({ id: `${id}_u3p`, branch: `${id}_u3`, tier: 0, icon: '✨', name: J.ultName, max: TREE_RULES.powMax, kind: 'pow3',
-    desc: (lv: number) => `pulse ที่ชั้น 3 เพิ่ม แรง +${Math.round(lv * TREE_RULES.powPer * 100)}%`, mod: (lv: number) => ({ u3Pow: TREE_RULES.powPer * lv }) })
+    desc: (lv: number) => `${J.rootDesc} แรง +${Math.round(lv * TREE_RULES.powPer * 100)}%`, mod: (lv: number) => ({ u3Pow: TREE_RULES.powPer * lv }) })
   for (const b of c.branches) {
     web3Branches.push({ ...b, job3: id, line: 'job3' })
     let prev: string | undefined
@@ -196,12 +197,13 @@ export function tree3Mods(t: TreeSave | undefined, j3: Job3Id | undefined, path:
 }
 /** Why a ใยชั้น 3 node can't take a point now ('' = it can). Same rules as the other webs + the path gate; ★ cap counts this web only. */
 export function lockReason3(t: TreeSave, job: JobId, node: TreeNode, j3: Job3Id, path: Job3Path = 'pure'): string {
+  if (!web3Scope(j3, 'hybrid').some((b) => b.id === node.branch)) return 'ไม่ใช่ใยของอาชีพนี้'
   const borrowed = !node.branch.startsWith(`${JOB3_PREFIX[j3]}_`) && node.kind !== 'pow3'
   if (borrowed && path !== 'hybrid') return 'เฉพาะสาย Hybrid'
   if (path === 'hybrid' && node.tier > HYBRID_MAX_TIER && (t[node.id] ?? 0) < node.max) return `สาย Hybrid เปิดได้ถึงชั้น ${HYBRID_MAX_TIER}`
   return lockReason(t, job, node, undefined, web3Scope(j3, path))
 }
-const JOB3_PREFIX: Record<Job3Id, string> = { paladin: 'pa' }
+const JOB3_PREFIX: Record<Job3Id, string> = { paladin: 'pa', lordknight: 'lk' }
 export const JOB3_POINTS_MAX = JOB3_RULES.maxJobLevel - 1
 const ALL_NODES = [...webNodes, ...web2Nodes, ...web3Nodes]
 export const branches2Of = (j2: Job2Id) => BRANCHES2.filter((b) => b.job2 === j2)

@@ -528,13 +528,16 @@ export function heroStats(s: StatsInput): Stats {
     const wpn = itemById(s.equipped.weapon ?? '')
     if (j2.mastery.ok(wpn)) { add(j2.mastery.mod); j2pct.atk += j2.mastery.pct?.atk ?? 0 } // weapon mastery
     j2pct.maxHp += (j2.pct?.maxHp ?? 0) + st.j2HpPct; j2pct.aspd += j2.pct?.aspd ?? 0
-    if (activeJob3(s) === 'paladin') { // ⚜️ 3rd job (design/awakening-crusader-v1.md): ใยชั้น 3 + legacy reads of the Crusader web
-      const P = KIT3.paladin, t2 = s.job2Tree
-      st.j3On = 1
-      for (const m of tree3Mods(s.job3Tree, 'paladin', s.job3Path)) add(m)
-      st.j2CrossAdd += Math.min(P.leg.crossCap, st.j3LegCross * branchPts(t2, 'cr_c'))
-      st.j2Guard += Math.min(P.leg.guardCap, st.j3LegGuard * branchPts(t2, 'cr_s'))
-      j2pct.maxHp += Math.min(P.leg.hpCap, st.j3LegHp * branchPts(t2, 'cr_d'))
+    const j3 = activeJob3(s)
+    if (j3) { // 3rd job (design/awakening-*.md): ใยชั้น 3 + legacy reads of the 2nd-job web
+      const P = KIT3[j3], t2 = s.job2Tree
+      if (j3 === 'paladin') st.j3On = 1 // ⚜️ Prestige + Gospel Cross
+      if (j3 === 'lordknight') { st.j3Lk = 1; st.j2HpDmg += KIT3.lordknight.hpDmgAdd; j2pct.maxHp += KIT3.lordknight.hpPct } // 🐉 Aura Blade + Hundred Spear
+      for (const m of tree3Mods(s.job3Tree, j3, s.job3Path)) add(m)
+      const leg = Math.min(P.leg.crossCap, st.j3LegCross * branchPts(t2, P.leg.cross))
+      if (j3 === 'paladin') st.j2CrossAdd += leg; else st.ult2Pow += leg // the class's signature move
+      st.j2Guard += Math.min(P.leg.guardCap, st.j3LegGuard * branchPts(t2, P.leg.guard))
+      j2pct.maxHp += Math.min(P.leg.hpCap, st.j3LegHp * branchPts(t2, P.leg.hp))
       const V = s.job3Var === 'b' ? P.varB : P.varA
       st.j3VarMul = Math.min(V.cap, V.per * branchPts(t2, V.branch))
     }

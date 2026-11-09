@@ -1000,6 +1000,25 @@ export class BattleScene extends Phaser.Scene {
     if (!this.chargeTxt?.active) this.chargeTxt = this.add.text(HERO_X, GROUND - 190, '', { fontSize: '14px' }).setOrigin(0.5).setDepth(9500)
     this.chargeTxt.setText('🔵'.repeat(this.charges))
   }
+  /** 🐉 Lord Knight Brandish Spear variant (design/awakening-lordknight-v1.md): 🐉 Dragon Breath (all + burn) / 💥 Joint Beat (one, DEF -50%). */
+  private async lkVariant(live: Mon[], pow: number) {
+    const P = KIT3.lordknight, s = save(), heir = this.st.j3Heir > 0, base = pow * (1 + this.st.pskill) * (1 + this.st.j3VarMul)
+    if (s.job3Var === 'b') {
+      const V = P.varB, t = this.bossTarget() ?? live[0], hits = 1 + (heir && branchPts(s.job2Tree, V.branch) >= P.heirNeed ? 1 : 0)
+      for (let i = 0; i < hits && !t.dead; i++) await this.lunge(t, () => this.strike(t, V.mul * base + V.hp * this.st.maxHp / Math.max(1, this.st.atk), false, '#ff9a6a', V.pierce))
+      this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 30, `💥 Joint Beat${hits > 1 ? ' x2' : ''}`, '#ff9a6a')
+      return
+    }
+    const V = P.varA, brk = heir && branchPts(s.job2Tree, V.branch) >= P.heirNeed
+    await this.lunge(live[0], () => {
+      this.cameras.main.flash(90, 255, 140, 60)
+      for (const m of this.alive()) {
+        this.strike(m, V.mul * base + V.hp * this.st.maxHp / Math.max(1, this.st.atk), false, '#ff8c42')
+        if (!m.dead) { m.burn = Math.max(m.burn, Math.round(this.st.atk * V.burnAtk)); m.burnTurns = Math.max(m.burnTurns, V.burn); if (brk) m.armorBrk = Math.max(m.armorBrk, 1); this.dotIcon(m) }
+      }
+    })
+    this.callout(brk ? '🐉 Dragon Breath! 🔥 + เกราะแตก' : '🐉 Dragon Breath! 🔥', W / 2, 170)
+  }
   /** ⚜️ Paladin Holy Cross variant (design/awakening-crusader-v1.md §4.3). Returns hits landed (for กางเขนหล่อกาย). */
   private async holyVariant(t: Mon, pow: number): Promise<number> {
     const P = KIT3.paladin, C = KIT2.crusader, heir = this.st.j3Heir > 0, base = pow * (1 + this.st.j2CrossAdd) * (1 + this.st.j3VarMul)
@@ -1031,11 +1050,9 @@ export class BattleScene extends Phaser.Scene {
   private onBlock(src?: Mon) {
     const P = KIT3.paladin, on3 = this.st.j3On > 0
     const over = (1 + this.st.j2GuardOver * KIT2.crusader.guardOverMul) * (on3 ? 1 + P.blockAmp : 1) // v116: Auto Guard over the cap = bigger block shield / heal · ⚜️ Prestige x1.25
-    if (on3) { // ⚜️ Paladin: Faith · ★ Inspiration heal · Shield Press
-      this.addFaith(P.blockFaith)
-      if (this.inspire > 0) this.heal(this.st.maxHp * P.inspireHeal, true)
-      if (this.st.j3Press > 0 && src && !src.dead) this.strike(src, this.st.j3Press * this.st.def / Math.max(1, this.st.atk), false, '#d8d8e8')
-    }
+    if (on3) this.addFaith(P.blockFaith) // ⚜️ Paladin: a block = Faith
+    if (this.inspire > 0) this.heal(this.st.maxHp * KIT3.common.inspireHeal, true) // 3rd job ★ Inspiration / Parrying
+    if (this.st.j3Press > 0 && src && !src.dead) this.strike(src, this.st.j3Press * this.st.def / Math.max(1, this.st.atk), false, '#d8d8e8') // Shield Press
     if (this.st.j2BlockShield > 0) this.addShield(this.st.maxHp * this.st.j2BlockShield * over, true)
     if (this.st.j2BlockHeal > 0) this.heal(this.st.maxHp * this.st.j2BlockHeal * over, true)
     if (this.st.j2BannerAura > 0) { // v84 Knight ★ ธงอมตะ
@@ -1373,7 +1390,8 @@ export class BattleScene extends Phaser.Scene {
         this.cameras.main.flash(80, 160, 210, 255)
         await this.lunge(live[0], () => live.forEach((m, i) => this.strike(m, (i === 0 ? B.waveFront : B.waveBack) * pow * w * (1 + this.st.pskill), false, '#9fe3ff')))
         this.critAdd = 0
-      } else {
+      } else if (this.st.j3Lk > 0) await this.lkVariant(live, pow) // 🐉 Lord Knight: Dragon Breath / Joint Beat replace Brandish
+      else {
         await this.lunge(live[0], () => live.slice(0, K.brandTargets).forEach((m, i) => { this.strike(m, K.brandMul * pow * (1 + this.st.pskill) + this.hpMul()); if (i === 0 && !m.dead) m.gauge -= K.brandPush }))
       }
     }, 'skill')
@@ -1452,9 +1470,15 @@ export class BattleScene extends Phaser.Scene {
     const t = this.bossTarget() ?? this.front()[0] // boss / mini boss first
     if (t) {
       const hits = (t.def.ai === 'boss' ? K.pierceBigHits : K.pierceHits) + this.st.j2PierceHits
+      const extra = this.st.j3Lk > 0 ? KIT3.lordknight.extraHits + this.st.j3GospelField : 0 // 🐉 Hundred Spear
       this.stayIn = true
-      for (let i = 0; i < hits && !t.dead; i++) await this.lunge(t, () => this.strike(t, (K.pierceMul + this.st.ultMulAdd) * h2 * (1 + this.st.pskill) * (t.charging ? 1 + this.st.ultVsCharge : 1) + this.hpMul(), false, '#f2d24b', this.st.j2Spiral))
+      for (let i = 0; i < hits + extra && !t.dead; i++) await this.lunge(t, () => {
+        const k3 = i >= hits ? 1 + this.st.u3Pow : 1 // ใยชั้น 3 root powers the added hits
+        const n = this.strike(t, ((K.pierceMul + this.st.ultMulAdd) * h2 * (1 + this.st.pskill) * (t.charging ? 1 + this.st.ultVsCharge : 1) + this.hpMul()) * k3, false, i >= hits ? '#ff9a6a' : '#f2d24b', this.st.j2Spiral)
+        if (i >= hits && n > 0 && this.st.j3GospelHeal > 0) this.heal(this.st.maxHp * this.st.j3GospelHeal, true) // ทวนดูดเลือด
+      })
       this.stayIn = false
+      if (extra && this.st.j3AfterBless > 0) { this.j3Bless = KIT3.common.afterTurns; this.floatText(HERO_X, GROUND - 150, `🌅 พรหลังศึก +${Math.round(this.st.j3AfterBless * 100)}%`, '#ffe08a') }
       const next = this.front().find((m) => m !== t)
       if (next) { this.strike(next, K.bashMul * h2 * (1 + this.st.pskill) + this.hpMul()); this.tweens.add({ targets: [next.spr, next.shadow], x: next.spr.x + 60, duration: 160, yoyo: true }) }
       await this.goHome()
@@ -2085,7 +2109,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (g.left <= 0) {
       this.gc = null
-      if (this.st.j3AfterBless > 0) { this.j3Bless = KIT3.paladin.afterTurns; this.floatText(HERO_X, GROUND - 150, `🌅 พรหลังศึก +${Math.round(this.st.j3AfterBless * 100)}%`, '#ffe08a') }
+      if (this.st.j3AfterBless > 0) { this.j3Bless = KIT3.common.afterTurns; this.floatText(HERO_X, GROUND - 150, `🌅 พรหลังศึก +${Math.round(this.st.j3AfterBless * 100)}%`, '#ffe08a') }
     }
   }
 
@@ -2833,7 +2857,7 @@ export class BattleScene extends Phaser.Scene {
     const sure =this.hx.web > 0 || (!magic && (src?.trueTurns ?? 0) > 0) // 🕸️ webbed: Can't Evade · 🎯 ตาเหยี่ยว: physical hits skip Flee + lucky dodge
     if (!sure && Math.random() < this.st.luckyDodge) return dodged('LUCKY!', '#6fd08c')
     if (!sure && Math.random() > hitChance(monHit, this.st.flee, 0.8 - this.st.fleeFloor)) return dodged('EVADE!', '#9fe3ff') // Thief เงาบาง lowers the floor
-    if (!magic && this.st.j2Guard > 0 && Math.random() < (this.inspire > 0 ? KIT2.crusader.guardCap + KIT3.paladin.capAdd : this.st.j2Guard + (this.gc ? this.st.j2GcGuard : 0)) * (this.hasShield ? 1 : KIT2.knight.guardShieldless)) { this.hitOut = 'block'; this.floatText(HERO_X, GROUND - 120, '🛡️ BLOCK!', '#9fe3ff'); sfx.hit(); this.onBlock(src); return false } // Knight / Crusader Auto Guard
+    if (!magic && this.st.j2Guard > 0 && Math.random() < (this.inspire > 0 ? KIT3.common.inspireGuard : this.st.j2Guard + (this.gc ? this.st.j2GcGuard : 0)) * (this.hasShield ? 1 : KIT2.knight.guardShieldless)) { this.hitOut = 'block'; this.floatText(HERO_X, GROUND - 120, '🛡️ BLOCK!', '#9fe3ff'); sfx.hit(); this.onBlock(src); return false } // Knight / Crusader Auto Guard
     if (magic && this.j2?.id === 'sage') { // 🛡️ Sage Magic Rod
       if (this.st.j2RodBlock > 0 && !this.rodUsed) { this.rodUsed = true; this.hitOut = 'rod'; this.gainRes(KIT2.sage.rodBlockMana); this.floatText(HERO_X, GROUND - 120, '🔮 Magic Rod! ดูดเวท', '#c9a8ff'); return false }
       if (this.st.j2MagicRod > 0) this.gainRes(this.st.j2MagicRod)
@@ -3119,13 +3143,13 @@ export class BattleScene extends Phaser.Scene {
     const G = RELIC_RULES.glass
     return (1 - Math.min(this.pk.hardenCap, this.pk.harden * this.fightTurns)) * (this.relic === 'glass' && this.hp < this.st.maxHp * G.below ? 1 + G.taken : 1) * (this.rampage > 0 ? 1 + KIT2.berserker.ultTaken : 1) * (this.j2?.id === 'wizard' && this.casts.length ? 1 + KIT2.wizard.castTaken : 1) * (this.wardTurns > 0 ? 1 - this.st.clUltWard : 1) // v84 ม่านพร
       * (this.gc && this.st.j2GcAngel > 0 ? 1 - Math.min(KIT2.crusader.angelCap, this.st.j2GcAngel * this.gc.left) : 1) // v119 🪽 Guardian Angel: fades with the pulses left
-      * (this.st.j3Banding > 0 ? 1 - this.st.j3Banding * Math.min(KIT3.paladin.bandingMax, this.alive().length) : 1) // ⚜️ Banding
+      * (this.st.j3Banding > 0 ? 1 - this.st.j3Banding * Math.min(KIT3.common.bandingMax, this.alive().length) : 1) // ⚜️ Banding
   }
   /** First drop under 30% HP this fight (lowHp cards), and 🌈 เงาปีศาจ under 50%. */
   private lowHpCheck() {
-    if (this.st.j3Inspire > 0 && !this.inspireUsed && this.hp > 0 && this.hp < this.st.maxHp * KIT3.paladin.inspireAt) { // ⚜️ ★ Inspiration
-      this.inspireUsed = true; this.inspire = KIT3.paladin.inspireTurns
-      this.callout(`🦁 Inspiration! บล็อกเต็มเพดาน ${KIT3.paladin.inspireTurns} เทิร์น`, W / 2, 170)
+    if (this.st.j3Inspire > 0 && !this.inspireUsed && this.hp > 0 && this.hp < this.st.maxHp * KIT3.common.inspireAt) { // ⚜️ ★ Inspiration
+      this.inspireUsed = true; this.inspire = KIT3.common.inspireTurns
+      this.callout(`${this.st.j3Lk > 0 ? '⚔️ Parrying!' : '🦁 Inspiration!'} บล็อก ${KIT3.common.inspireGuard * 100}% ${KIT3.common.inspireTurns} เทิร์น`, W / 2, 170)
     }
     if (!this.lowHpDone && this.hp < this.st.maxHp * PROC_RULES.lowHpAt) { this.lowHpDone = true; this.procs('lowHp') }
     if (this.st.clEmergency > 0 && !this.clEmerUsed && this.hp < this.st.maxHp * KIT.clericTree.emergencyAt) { // v84 Priest ฉุกเฉิน (1 per wave)
