@@ -3,6 +3,7 @@ import { COLORS, FONT_NUM, H, W } from '../data/game-data'
 import { RACES } from '../data/meta'
 import { hasSave, load } from '../save'
 import { JOBS } from '../data/jobs'
+import { fitHeroScale, heroCostumeTint, heroTex } from '../gfx/hero-visual'
 import { setMuted } from '../sfx'
 import { backdrop, button, confirm, fullscreenButton, go, panel, toast, txt, UI } from '../ui'
 import { cloudEnabled, linkProvider, status, syncStart } from '../cloud'
@@ -23,7 +24,10 @@ export class TitleScene extends Phaser.Scene {
     txt(this, W / 2, 182, 'จากโนวิสตัวจิ๋ว สู่ฮีโร่ของเมือง', 20, UI.sub).setOrigin(0.5)
 
     // little scene: novice + jellop
-    const hero = this.add.image(W / 2 - 40, H - 150, JOBS[s?.job ?? 'novice'].tex).setScale(2.4)
+    const hero = this.add.image(W / 2 - 40, H - 150, heroTex(s ?? { job: 'novice' }))
+    hero.setScale(fitHeroScale(hero.width, hero.height, 2.4, 128))
+    if (hero.height > 54) hero.setY(H - 132)
+    if (s) hero.setTint(heroCostumeTint(s.costume))
     this.tweens.add({ targets: hero, y: hero.y - 10, duration: 420, yoyo: true, repeat: -1, ease: 'Quad.easeOut' })
     const j = this.add.image(W / 2 + 70, H - 140, 'jellop').setScale(1.8)
     this.tweens.add({ targets: j, scaleY: 1.5, scaleX: 2.05, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })

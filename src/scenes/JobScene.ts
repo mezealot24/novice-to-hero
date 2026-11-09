@@ -8,6 +8,7 @@ import { activeJob3, JOB3_RULES, job3Of, type Job3Variant } from '../data/jobs3'
 import { JOB2, JOB2_RULES, job2Of, type Job2Id } from '../data/jobs2'
 import { sfx } from '../sfx'
 import { backdrop, button, confirm, go, toast, txt, UI } from '../ui'
+import { fitHeroScale, heroTex } from '../gfx/hero-visual'
 import { ftue, track } from '../analytics'
 
 const REPICK_BODY = `ใช้ 💎${JOB_CHANGE.repickGems} เปลี่ยนเป็นอาชีพอื่น\nคืนแต้มใยสกิลทั้งหมด · ล้างทาเลนต์ (ลงใหม่ได้ฟรี)\nเก็บไว้: Base Lv, Job Lv, สถานะ, ของ, การ์ด, zeny`
@@ -101,7 +102,8 @@ export class JobScene extends Phaser.Scene {
     list.forEach((j, i) => {
       const x = x0 + i * (cw + gap), cur = j.id === s.job2
       frames.push({ id: j.id, g: this.add.graphics(), x })
-      const spr = this.add.image(x - 140, 150, base.tex).setScale(1.8)
+      const spr = this.add.image(x - 140, 150, heroTex({ job: s.job, job2: j.id }))
+      spr.setScale(fitHeroScale(spr.width, spr.height, 1.8, 108))
       this.tweens.add({ targets: spr, y: 144, duration: 520 + i * 80, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
       txt(this, x - 80, 118, `${j.icon} ${j.name}${cur ? ' (ตอนนี้)' : ''}`, 22, UI.text, true)
       txt(this, x - 80, 150, j.focus, 14, UI.gold, true)
@@ -137,7 +139,8 @@ export class JobScene extends Phaser.Scene {
     const on = activeJob3(s) === d.id, why = job3Lock(s, d.id)
     txt(this, W / 2, 30, `${d.icon} ตื่นรู้: ${JOB2[d.parent].icon} ${JOB2[d.parent].name} → ${d.name}`, 28, UI.gold, true).setOrigin(0.5)
     txt(this, W / 2, 62, 'ใยชั้น 1 + ใยชั้น 2 + Ult เดิมอยู่ครบ · ชั้น 3 เพิ่มของใหม่ซ้อนขึ้นไป · ไม่ใช้เพชร', 15, UI.sub).setOrigin(0.5)
-    const spr = this.add.image(200, 220, JOBS[s.job].tex).setScale(2.2).setTint(0xffe7a0) // A2: same sprite + gold aura (no new art)
+    const spr = this.add.image(200, 220, heroTex(s)).setTint(0xffe7a0) // P0: mounted Knight + gold tint for LK until P1 adds hero_lordknight
+    spr.setScale(fitHeroScale(spr.width, spr.height, 2.2, 136))
     this.tweens.add({ targets: spr, y: 212, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
     txt(this, 330, 100, [
       d.blurb,

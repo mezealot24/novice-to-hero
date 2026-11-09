@@ -17,6 +17,7 @@ import { UNIQUE } from '../data/uniques'
 import { heroPower } from '../data/power'
 import { askRepick } from './JobScene'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
+import { fitHeroScale, heroCostumeTint, heroTex } from '../gfx/hero-visual'
 
 const BRANCH_PET: Record<string, PetId> = { bm_h: 'hawk', bm_b: 'boar', bm_w: 'wolf' } // Beastmaster ใยชั้น 2 branch -> its pet
 
@@ -91,8 +92,8 @@ export class CharacterScene extends Phaser.Scene {
       })
       return
     }
-    const costume = COSTUMES.find((x) => x.id === s.costume) ?? COSTUMES[0]
-    c.add(this.add.image(165, 150, JOBS[s.job].tex).setScale(2.5).setTint(costume.tint))
+    const spr = this.add.image(165, 150, heroTex(s)).setTint(heroCostumeTint(s.costume))
+    c.add(spr.setScale(fitHeroScale(spr.width, spr.height, 2.5, 132)))
     c.add(txt(this, 165, 216, `${s.supporter ? '🌟 ' : ''}${s.name}`, 22, s.supporter ? UI.gold : UI.text, true).setOrigin(0.5))
     c.add(txt(this, 165, 244, `${RACES[s.race].icon} ${RACES[s.race].name} · ${s.job2 ? `${JOB2[s.job2].icon} ${JOB2[s.job2].name}` : `${JOBS[s.job].icon} ${JOBS[s.job].name}`}`, 15, UI.sub).setOrigin(0.5))
     c.add(txt(this, 165, 268, `Base Lv ${s.baseLevel} · ${s.job2 ? `Job2 Lv ${s.job2Level ?? 1}/${JOB2_RULES.maxJobLevel}` : `Job Lv ${s.jobLevel}/${s.job === 'novice' ? JOB_RULES.maxJobLevel : JOB_CHANGE.classMaxJobLevel}`}`, 14, UI.text).setOrigin(0.5))
@@ -110,7 +111,8 @@ export class CharacterScene extends Phaser.Scene {
     const costume = COSTUMES.find((c) => c.id === s.costume) ?? COSTUMES[0]
     // hero in the middle
     b.add(panel(this, 528, 112, 220, 196, 0x23284a, UI.line, 14))
-    b.add(this.add.image(638, 186, JOBS[s.job].tex).setScale(3).setTint(costume.tint))
+    const eqSpr = this.add.image(638, 186, heroTex(s)).setTint(costume.tint)
+    b.add(eqSpr.setScale(fitHeroScale(eqSpr.width, eqSpr.height, 3, 154)))
     const onC = this.slot === 'costume'
     b.add(button(this, 638, 284, 200, 30, `👗 ${costume.name}`, () => { this.slot = 'costume'; this.bagPage = 0; this.render() }, { size: 13, fill: onC ? COLORS.gold : 0x5a5f8a, color: onC ? UI.ink : UI.text }))
     EQUIP_SLOTS.forEach((sl, i) => {

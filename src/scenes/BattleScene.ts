@@ -4,7 +4,7 @@ import { counterRate, shieldGain } from '../data/stack-math'
 import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, PERKS_V2, OFFER_RULES, OUTSIDE_CAP, overflowShare, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type OutsideKey, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
 import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
-import { blessBase, COSTUMES, FREE_GEMS, heroStats, jobUpText, itemById, PER_POINT, RESOURCES, splitStatLine, totalBase, type BaseStat } from '../data/meta'
+import { blessBase, FREE_GEMS, heroStats, jobUpText, itemById, PER_POINT, RESOURCES, splitStatLine, totalBase, type BaseStat } from '../data/meta'
 import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster, EQUIP_CARDS } from '../data/cards'
 import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, type JobDef } from '../data/jobs'
 import { JOB2, PET_IDS, type Job2Def, type PetId } from '../data/jobs2'
@@ -37,6 +37,9 @@ import { derivedRows } from '../data/stat-rows'
 import { castLv, casterOf, formulaDamage, skillLvBonus } from '../data/mon-skill-scale'
 import { CombatLog, deathText, recapLines, saveDeath, type DeathRec, type HitOut, type HitRec } from '../data/combat-log'
 import { ftue, track } from '../analytics'
+import { HeroRig } from '../battle/hero-rig'
+import { fitHeroScale, heroCostumeTint, heroRigSpec, heroTex, type HeroRigSpec } from '../gfx/hero-visual'
+import { blockShieldFx, bowlingBashFx, brandishSweepFx, chargeOpenerFx, comboSlashFx, guardianUltFx, pierceHitFx, skill2AuraFx, spearBoomerangFx, whirlwindFx } from '../battle/sword-vfx'
 
 // Side-scroll, turn-based (Capybara Go-like): the hero walks right, meets a group, and everyone
 // takes turns by speed (AGI). The player's job: the build (1-of-3 cards) and when to fire Smash.
@@ -111,7 +114,9 @@ export class BattleScene extends Phaser.Scene {
   private hp = 0
   private smashCdLeft = 0 // hero turns until Smash is ready (Novice: cooldown, no resource)
   private heroGauge = 0
-  private heroSpr!: Phaser.GameObjects.Image
+  private heroRig!: HeroRig
+  private rigSpec: HeroRigSpec = heroRigSpec({ job: 'novice' })
+  private get heroSpr(): Phaser.GameObjects.Container { return this.heroRig.root }
   private perks: { def: PerkDef; lv: number }[] = [] // พร v2 cards this run (lv 2 = "+")
   private hits = 0
   // run
@@ -246,7 +251,7 @@ export class BattleScene extends Phaser.Scene {
 
   create() {
     this.makeBackdrop()
-    this.heroSpr = this.add.image(HERO_X, GROUND, 'novice').setOrigin(0.5, 1).setScale(2).setDepth(GROUND)
+    this.heroRig = new HeroRig(this, HERO_X, GROUND, this.rigSpec, 0xffffff)
     this.add.image(HERO_X, GROUND + 2, 'shadow').setScale(1, 1.2).setDepth(GROUND - 1)
     this.buildHud()
     this.cameras.main.fadeIn(200, 20, 23, 43)
@@ -343,7 +348,9 @@ export class BattleScene extends Phaser.Scene {
     if (this.s2?.id === 'cl_spear') this.st.spearMul += S2N.spearPlus(this.st.s2Lv) // หอกคม: +10%/lv of the 0.3x base
     this.res = this.job.resource === 'rage' ? 0 : this.resMax()
     this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0
-    this.heroSpr.setTexture(this.job.tex).setTint((COSTUMES.find((c) => c.id === s.costume) ?? COSTUMES[0]).tint).setAngle(0).setAlpha(1)
+    this.rigSpec = heroRigSpec(s)
+    this.heroRig.setAppearance(this.rigSpec, heroCostumeTint(s.costume))
+    this.heroRig.resetPose(HERO_X, GROUND)
     this.perks = []; this.hits = 0; this.procHits = {}; this.pk = newPerkStats(); this.masteries = []; this.src = 'other'; this.immortal = null; this.eggN = 0; this.eggDef = 0
     this.level = 1; this.xp = 0; this.zeny = 0; this.kills = 0; this.runXp = 0; this.runGems = 0; this.runCards = []; this.runMats = {}; this.runUniques = []; this.runDupeMats = {}; this.pendingLevels = 0
     this.cardLuck = 1 + Math.min(PER_POINT.luk.dropCap, PER_POINT.luk.dropPct * totalBase(s).luk)
@@ -416,10 +423,11 @@ export class BattleScene extends Phaser.Scene {
 
   /** Hero walks: the world scrolls past. */
   private async walk(ms: number) {
-    const bob = this.tweens.add({ targets: this.heroSpr, y: GROUND - 8, duration: 160, yoyo: true, repeat: -1 })
+    this.heroRig.startWalk()
     const ev = this.time.addEvent({ delay: 16, loop: true, callback: () => this.scroll(4) })
     await this.wait(ms)
-    ev.remove(); bob.stop(); this.heroSpr.y = GROUND
+    ev.remove()
+    this.heroRig.stopWalk()
   }
 
   private async spawnRoom(i: number) {
@@ -1069,6 +1077,8 @@ export class BattleScene extends Phaser.Scene {
   }
   /** Crusader Auto Guard landed: ★ ป้อมศรัทธา shield + บล็อกฟื้นฟู heal. */
   private onBlock(src?: Mon) {
+    this.heroRig.playBlock()
+    blockShieldFx(this, HERO_X, GROUND)
     const P = KIT3.paladin, on3 = this.st.j3On > 0
     const over = (1 + this.st.j2GuardOver * KIT2.crusader.guardOverMul) * (on3 ? 1 + P.blockAmp : 1) // v116: Auto Guard over the cap = bigger block shield / heal · ⚜️ Prestige x1.25
     if (on3) this.addFaith(P.blockFaith) // ⚜️ Paladin: a block = Faith
@@ -1346,7 +1356,11 @@ export class BattleScene extends Phaser.Scene {
       if (ch) {
         this.boomUsed = true
         await this.skillName({ name: 'Spear Boomerang', icon: '↩️' })
-        await this.shoot(ch, 0xd8d8e8, () => { this.withSrc('skill', () => this.strike(ch, K.boomerang + this.hpMul())); if (!ch.dead) { ch.charging = false; ch.spr.clearTint(); this.floatText(ch.spr.x, ch.spr.y - ch.spr.displayHeight - 24, '❌ ขัดชาร์จ!', '#9fe3ff') } })
+        this.heroRig.playStrike(1, true)
+        await spearBoomerangFx(this, HERO_X, GROUND, { x: ch.spr.x, y: ch.spr.y }, () => {
+          this.withSrc('skill', () => this.strike(ch, K.boomerang + this.hpMul()))
+          if (!ch.dead) { ch.charging = false; ch.spr.clearTint(); this.floatText(ch.spr.x, ch.spr.y - ch.spr.displayHeight - 24, '❌ ขัดชาร์จ!', '#9fe3ff') }
+        })
         if (!this.alive().length) return
       }
     }
@@ -1412,8 +1426,12 @@ export class BattleScene extends Phaser.Scene {
         await this.lunge(live[0], () => live.forEach((m, i) => this.strike(m, (i === 0 ? B.waveFront : B.waveBack) * pow * w * (1 + this.st.pskill), false, '#9fe3ff')))
         this.critAdd = 0
       } else if (this.st.j3Lk > 0) await this.lkVariant(live, pow) // 🐉 Lord Knight: Dragon Breath / Joint Beat replace Brandish
-      else {
-        await this.lunge(live[0], () => live.slice(0, K.brandTargets).forEach((m, i) => { this.strike(m, K.brandMul * pow * (1 + this.st.pskill) + this.hpMul()); if (i === 0 && !m.dead) m.gauge -= K.brandPush }))
+      else if (live[0]) {
+        const tgts = live.slice(0, K.brandTargets)
+        await this.lunge(live[0], () => {
+          brandishSweepFx(this, live[0].spr.x + 25, GROUND, tgts.map((m) => m.spr), 0xf2d24b, true)
+          tgts.forEach((m, i) => { this.strike(m, K.brandMul * pow * (1 + this.st.pskill) + this.hpMul()); if (i === 0 && !m.dead) m.gauge -= K.brandPush })
+        }, false, true)
       }
     }, 'skill')
   }
@@ -1495,13 +1513,19 @@ export class BattleScene extends Phaser.Scene {
       this.stayIn = true
       for (let i = 0; i < hits + extra && !t.dead; i++) await this.lunge(t, () => {
         const k3 = i >= hits ? 1 + this.st.u3Pow : 1 // ใยชั้น 3 root powers the added hits
+        pierceHitFx(this, t.spr.x, GROUND, i, i >= hits)
         const n = this.strike(t, ((K.pierceMul + this.st.ultMulAdd) * h2 * (1 + this.st.pskill) * (t.charging ? 1 + this.st.ultVsCharge : 1) + this.hpMul()) * k3, false, i >= hits ? '#ff9a6a' : '#f2d24b', this.st.j2Spiral)
         if (i >= hits && n > 0 && this.st.j3GospelHeal > 0) this.heal(this.st.maxHp * this.st.j3GospelHeal, true) // ทวนดูดเลือด
-      })
+      }, true, true)
       this.stayIn = false
       if (extra && this.st.j3AfterBless > 0) { this.j3Bless = KIT3.common.afterTurns; this.floatText(HERO_X, GROUND - 150, `🌅 พรหลังศึก +${Math.round(this.st.j3AfterBless * 100)}%`, '#ffe08a') }
       const next = this.front().find((m) => m !== t)
-      if (next) { this.strike(next, K.bashMul * h2 * (1 + this.st.pskill) + this.hpMul()); this.tweens.add({ targets: [next.spr, next.shadow], x: next.spr.x + 60, duration: 160, yoyo: true }) }
+      if (next) {
+        bowlingBashFx(this, t.spr.x, next.spr.x, GROUND)
+        this.strike(next, K.bashMul * h2 * (1 + this.st.pskill) + this.hpMul())
+        this.tweens.add({ targets: [next.spr, next.shadow], x: next.spr.x + 60, duration: 160, yoyo: true })
+      }
+      this.hitStop(65)
       await this.goHome()
       this.shake(140, 0.01)
     }
@@ -1736,13 +1760,15 @@ export class BattleScene extends Phaser.Scene {
   /** While true, melee hits stay at the monster (combo chain, Thief ult) and the hero walks home once at the end via goHome(). */
   private stayIn = false
 
-  private async lunge(m: Mon, fn: () => void) {
+  private async lunge(m: Mon, fn: () => void, thrust = false, quietFx = false) {
     const step = BATTLE.stepMs, tx = m.spr.x - 70
+    this.heroRig.playWindup(thrust)
     if (Math.abs(this.heroSpr.x - tx) < 6) { // already in front of it: short pull-back jab instead of a full dash
       await this.tween({ targets: this.heroSpr, x: tx - 14, duration: step * 0.1, ease: 'Quad.easeOut' })
       await this.tween({ targets: this.heroSpr, x: tx, duration: step * 0.1, ease: 'Quad.easeIn' })
     } else await this.tween({ targets: this.heroSpr, x: tx, duration: step * 0.35, ease: 'Quad.easeIn' })
-    this.slashFx(m.spr.x - 20, GROUND - 40)
+    this.heroRig.playStrike(Math.max(1, this.comboLevel), thrust)
+    if (!quietFx) this.heroSlashFx(m.spr.x - 20, GROUND - 40, thrust)
     sfx.swing()
     fn()
     this.shake(60, 0.004)
@@ -1855,7 +1881,11 @@ export class BattleScene extends Phaser.Scene {
         if (t) this.withSrc('other', () => this.dawnBonus([t], 1))
       }
     }
-    else await this.lunge(f, () => { const cl = BATTLE.cleave + this.st.cleaveAdd, fs = this.chargeMul(); if (live[1]) { this.strike(f, fs); this.strike(live[1], cl) } else this.strike(f, fs + (kind === 'swordsman' ? cl : 0)) }) // novice, swordsman: cleave (+talent ฟันกวาด) · swordsman alone vs 1 monster: the cleave lands on it too
+    else {
+      const knightCharge = this.j2?.id === 'knight' && this.firstSwing
+      if (knightCharge) chargeOpenerFx(this, HERO_X, f.spr.x, GROUND, this.st.j2ChargeFirst > 0)
+      await this.lunge(f, () => { const cl = BATTLE.cleave + this.st.cleaveAdd, fs = this.chargeMul(); if (live[1]) { this.strike(f, fs); this.strike(live[1], cl) } else this.strike(f, fs + (kind === 'swordsman' ? cl : 0)) }, this.j2?.id === 'knight') // novice, swordsman: cleave (+talent ฟันกวาด) · swordsman alone vs 1 monster: the cleave lands on it too
+    }
     this.lsMul = 0
     if (this.j2?.id === 'monk') this.monkSwing(f)
     else if (this.st.j2Chill > 0 && !f.dead && Math.random() < this.st.j2Chill) { f.chill = Math.max(f.chill, KIT2.monk.chillTurns); this.dotIcon(f) } // ⚜️ Hybrid borrows Monk ฝ่ามือธาตุ
@@ -1871,6 +1901,7 @@ export class BattleScene extends Phaser.Scene {
     const B = this.buf
     if (B.renew > 0) { B.renew--; this.heal(this.st.matk * S2N.renewHeal(this.st.s2Lv)) } // Priest heals = x M.ATK
     for (const k of ['guard', 'blood', 'hawk', 'mshield'] as const) if (B[k] > 0) B[k]--
+    this.heroRig.setGuardAura(B.guard > 0)
     if (B.bless > 0 && --B.bless === 0) this.syncBless()
     if (B.dawnWis > 0 && --B.dawnWis === 0) this.syncDawnWis(0)
     const k = this.s2
@@ -1896,11 +1927,12 @@ export class BattleScene extends Phaser.Scene {
     const front = () => this.front()[0]
     const bossFirst = () => this.bossTarget() ?? this.alive().sort((x, y) => y.hp - x.hp)[0]
     switch (k.id) {
-      case 'sw_guard': B.guard = S2N.guardTurns(star); this.ctrCharges = Math.max(this.ctrCharges, S2N.guardCounters(star)); this.floatText(HERO_X, GROUND - 100, '🛡️ ตั้งการ์ด', '#9fe3ff'); break
-      case 'sw_blood': B.blood = S2N.bloodTurns; this.burst(HERO_X, GROUND - 40, 0xc0392b, 14, 160); break
+      case 'sw_guard': B.guard = S2N.guardTurns(star); this.ctrCharges = Math.max(this.ctrCharges, S2N.guardCounters(star)); this.heroRig.setGuardAura(true); skill2AuraFx(this, 'sw_guard', HERO_X, GROUND); this.floatText(HERO_X, GROUND - 100, '🛡️ ตั้งการ์ด', '#9fe3ff'); break
+      case 'sw_blood': B.blood = S2N.bloodTurns; skill2AuraFx(this, 'sw_blood', HERO_X, GROUND); break
       case 'sw_taunt':
         for (const m of this.alive()) { m.weakTurns = S2N.tauntTurns(star); m.weakPct = S2N.tauntWeak(lv); this.dotIcon(m) }
         if (star) this.gainRage(15)
+        skill2AuraFx(this, 'sw_taunt', HERO_X, GROUND, this.alive().map((m) => m.spr))
         this.cameras.main.shake(80, 0.004)
         break
       case 'ar_rain':
@@ -1988,7 +2020,29 @@ export class BattleScene extends Phaser.Scene {
         this.critAdd += crit; this.forceCrit = storm
         if (storm) this.callout('⚔️ พันดาบ!', W / 2, 170)
         try {
-          await this.lunge(live[0], () => { for (let i = 0; i < (storm ? T.stormHits : 1); i++) live.forEach((m) => { this.strike(m, SWORD_MANA.autoMul * pow * (1 + this.st.pskill) * k + this.hpMul()) }) }) // Knight: + max HP share
+          if (live[0]) {
+            const hitOne = () => live.forEach((m) => { this.strike(m, SWORD_MANA.autoMul * pow * (1 + this.st.pskill) * k + this.hpMul()) }) // Knight: + max HP share
+            if (storm) {
+              const prevStay = this.stayIn
+              this.stayIn = true
+              try {
+                const wx = live[0].spr.x - 10
+                await this.lunge(live[0], () => { whirlwindFx(this, wx, GROUND - 40, true, 0xffd34d); hitOne() }, false, true)
+                for (let i = 1; i < T.stormHits; i++) {
+                  await this.wait(48)
+                  if (!this.alive().length || this.hp <= 0) break
+                  this.heroRig.playStrike(i + 1, false)
+                  comboSlashFx(this, wx, GROUND - 40, i + 1, this.rigSpec.slashPalette)
+                  whirlwindFx(this, wx, GROUND - 40, true, i % 2 === 0 ? 0xffd34d : 0x7fd7ff)
+                  sfx.swing()
+                  hitOne()
+                }
+              } finally { this.stayIn = prevStay }
+              if (!this.stayIn) await this.goHome()
+            } else {
+              await this.lunge(live[0], () => { whirlwindFx(this, live[0].spr.x - 10, GROUND - 40, false); hitOne() }, false, true)
+            }
+          }
         } finally { this.critAdd -= crit; this.forceCrit = false }
         if (this.flow > 0 && this.st.swFlowMana > 0) this.resGain(this.flow * this.st.swFlowMana)
         if (storm) this.flow = 0
@@ -2067,7 +2121,13 @@ export class BattleScene extends Phaser.Scene {
     if (this.j2) { await this.ult2(live, pow, hitPow); return }
     switch (this.job.id) {
       case 'swordsman':
-        await this.lunge(live[0], () => live.forEach((m) => this.strike(m, (SWORD_MANA.ultMul + this.st.ultMulAdd) * hitPow * (1 + this.st.pskill) * (m.charging ? 1 + this.st.ultVsCharge : 1)))) // talents: ปราการ / ฟันทลาย
+        if (live[0]) await this.lunge(live[0], () => {
+          live.forEach((m) => this.strike(m, (SWORD_MANA.ultMul + this.st.ultMulAdd) * hitPow * (1 + this.st.pskill) * (m.charging ? 1 + this.st.ultVsCharge : 1)))
+          guardianUltFx(this, HERO_X, GROUND, live[0].spr.x - 10, {
+            armorBreak: this.st.swBreak > 0 && this.alive().length > 0,
+            shatteredTargets: this.st.swShatter > 0 ? this.alive().filter((m) => m.charging).map((m) => ({ x: m.spr.x, y: m.spr.y })) : [],
+          })
+        }, false, true) // talents: ปราการ / ฟันทลาย
         this.addShield(this.st.maxHp * Math.max(0, SWORD_MANA.ultShield + this.st.ultShieldAdd) * pow)
         if (this.st.ultCounters > 0) this.ctrCharges = this.st.ultCounters // talent: ท่าสวนพร้อม
         this.cameras.main.flash(120, 140, 170, 220)
@@ -2254,7 +2314,7 @@ export class BattleScene extends Phaser.Scene {
     this.hp = Math.round(this.st.maxHp * T.reviveHp)
     this.hx = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0, web: 0, slow: 0, thorn: 0, venom: 0, venomTurns: 0 }; this.syncWeb()
     this.addShield(this.st.maxHp * T.reviveShield, true)
-    this.heroSpr.setAngle(0).setAlpha(1)
+    this.heroRig.resetPose()
     this.cameras.main.flash(300, 255, 243, 170)
     this.burst(HERO_X, GROUND - 40, 0xfff3a0, 32, 280, true)
     this.callout('✨ คืนชีพ! แสงศักดิ์สิทธิ์ดึงกลับมา', W / 2, 200, '#fff3a0')
@@ -2268,13 +2328,14 @@ export class BattleScene extends Phaser.Scene {
     this.floatText(HERO_X, GROUND - 130, '🌀 กวาดทวน', '#f2b84b')
     let kills = 0
     await this.lunge(live[0], () => this.withSrc('skill', () => {
+      brandishSweepFx(this, live[0].spr.x + 25, GROUND, live.map((m) => m.spr), 0xf2b84b, false)
       for (const m of live) {
         this.strike(m, st.j2Sweep * (1 + st.pskill) + this.hpMul())
         if (m.dead) { kills++; continue }
         if (st.j2SweepPush > 0) m.gauge -= st.j2SweepPush
         if (st.j2SweepStar > 0) { m.armorBrk = Math.max(m.armorBrk, T.sweepBreak); this.dotIcon(m); if (Math.random() < T.sweepStun) this.stunMon(m) }
       }
-    }))
+    }), false, true)
     if (kills > 0 && st.j2SweepGauge > 0) { this.heroGauge = Math.min(100, this.heroGauge + st.j2SweepGauge * kills); this.floatText(HERO_X, GROUND - 160, '⚡ ทวนเร็ว', '#f2b84b') }
   }
 
@@ -2680,11 +2741,13 @@ export class BattleScene extends Phaser.Scene {
     if (this.job.attack !== 'melee') { await this.shoot(m, magic ? 0x9f7bff : 0xf6eedc, hit); return }
     // melee: wind back, dash in with an afterimage, knock the attacker back and chase it a little, then walk home
     const step = BATTLE.stepMs
+    this.heroRig.playWindup(this.rigSpec.isKnightLine)
     await this.tween({ targets: this.heroSpr, x: HERO_X - 18, duration: step * 0.1, ease: 'Quad.easeOut' })
-    this.afterimage(0xffd27a)
+    this.afterimage(this.rigSpec.afterimageTint)
     sfx.dash()
     await this.tween({ targets: this.heroSpr, x: m.spr.x - 40, duration: step * 0.14, ease: 'Quad.easeIn' })
-    this.slashFx(m.spr.x - 10, GROUND - 40)
+    this.heroRig.playStrike(2, this.rigSpec.isKnightLine)
+    this.heroSlashFx(m.spr.x - 10, GROUND - 40, this.rigSpec.isKnightLine)
     sfx.swing()
     hit()
     this.shake(70, 0.005)
@@ -2699,9 +2762,16 @@ export class BattleScene extends Phaser.Scene {
     this.time.delayedCall(200, () => { // let the evade sidestep (90 ms yoyo) finish first
       if (m.dead || this.hp <= 0) return
       this.afterimage(0xc9c9d6)
+      this.heroRig.playWindup(this.rigSpec.isKnightLine)
       sfx.dash()
       this.tweens.add({ targets: this.heroSpr, x: m.spr.x - 40, duration: step * 0.14, ease: 'Quad.easeIn', onComplete: () => {
-        if (!m.dead) { this.slashFx(m.spr.x - 10, GROUND - 40); sfx.swing(); this.withSrc('counter', () => this.strike(m, BATTLE.counterMul)); this.shake(60, 0.004) }
+        if (!m.dead) {
+          this.heroRig.playStrike(2, this.rigSpec.isKnightLine)
+          this.heroSlashFx(m.spr.x - 10, GROUND - 40, this.rigSpec.isKnightLine)
+          sfx.swing()
+          this.withSrc('counter', () => this.strike(m, BATTLE.counterMul))
+          this.shake(60, 0.004)
+        }
         this.tweens.add({ targets: this.heroSpr, x: HERO_X, duration: step * 0.3, ease: 'Quad.easeOut' })
       } })
     })
@@ -2709,9 +2779,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Fading copy of the hero (dash / evade trail). */
   private afterimage(tint: number, dx = 0) {
-    const g = this.add.image(this.heroSpr.x, this.heroSpr.y, this.heroSpr.texture.key).setOrigin(0.5, 1).setScale(this.heroSpr.scaleX, this.heroSpr.scaleY)
-      .setFlipX(this.heroSpr.flipX).setTintFill(tint).setAlpha(0.55).setDepth(this.heroSpr.depth - 1)
-    this.tweens.add({ targets: g, x: g.x + dx, alpha: 0, duration: 260, onComplete: () => g.destroy() })
+    this.heroRig.spawnAfterimage(tint, dx)
   }
 
   /** Out of turns: the monsters win this fight (the run ends like a knock-out). */
@@ -2719,6 +2787,7 @@ export class BattleScene extends Phaser.Scene {
     this.timedOut = true
     this.callout('⌛ หมดเวลา! มอนหนีไปได้...', W / 2, 150)
     sfx.die()
+    this.heroRig.setKnockedOut(true)
     this.tweens.add({ targets: this.heroSpr, angle: -90, alpha: 0.6, duration: 400 })
     await this.wait(900)
   }
@@ -2955,10 +3024,9 @@ export class BattleScene extends Phaser.Scene {
       return true
     }
     sfx.hurt()
-    this.heroSpr.setTintFill(0xff6060)
-    this.time.delayedCall(90, () => this.heroSpr.setTint((COSTUMES.find((c) => c.id === save().costume) ?? COSTUMES[0]).tint))
+    this.heroRig.flashFill(0xff6060, 90)
     this.tweens.add({ targets: this.heroSpr, x: HERO_X - 14, duration: 70, yoyo: true })
-    if (this.hp <= 0) { sfx.die(); this.tweens.add({ targets: this.heroSpr, angle: -90, alpha: 0.6, duration: 400 }) }
+    if (this.hp <= 0) { sfx.die(); this.heroRig.setKnockedOut(true); this.tweens.add({ targets: this.heroSpr, angle: -90, alpha: 0.6, duration: 400 }) }
     return true
   }
 
@@ -3465,7 +3533,7 @@ export class BattleScene extends Phaser.Scene {
     }
     this.hpFloor = 0
     this.hx = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0, web: 0, slow: 0, thorn: 0, venom: 0, venomTurns: 0 }; this.syncWeb()
-    if (this.heroSpr.angle !== 0) { this.heroSpr.setAngle(0).setAlpha(1) }
+    if (this.heroSpr.angle !== 0) { this.heroRig.resetPose() }
     const share = Math.min(1, 1 - Math.max(0, m.hp) / hp)
     const left = mine()
     if (!left.length) { await this.wait(400); return { won: true, share: 1 } }
@@ -3885,7 +3953,7 @@ export class BattleScene extends Phaser.Scene {
         const lost = v * (1 - this.st.tenacity)
         this.heroGauge = Math.max(-150, this.heroGauge - lost)
         this.floatText(HERO_X, GROUND - 150, '❄️ แข็ง! เสียเทิร์น', '#9fe3ff')
-        this.heroSpr.setTint(0x9fe3ff); this.time.delayedCall(500, () => this.heroSpr.setTint((COSTUMES.find((c) => c.id === save().costume) ?? COSTUMES[0]).tint))
+        this.heroRig.flashTint(0x9fe3ff, 500)
       } else X[k] = Math.max(X[k], v)
       if (k !== 'freeze' && src) this.floatText(HERO_X + 30, GROUND - 150, `${FX_ICON[k]} ${({ poison: 'พิษ', burn: 'ไฟลุก', weaken: 'อ่อนแรง', armorBreak: 'เกราะแตก', silence: 'ใบ้', web: 'โดนใยมัด! หลบไม่ได้ AGI -50%', slow: 'Frozen Heart! ATK Speed -50%' } as Record<string, string>)[k]}`, '#ffb0e0')
     }
@@ -3942,7 +4010,7 @@ export class BattleScene extends Phaser.Scene {
       this.callout('🍃 ขนนกฟีนิกซ์! ลุกขึ้นอีกครั้ง', HERO_X + 120, GROUND - 150)
       return
     }
-    sfx.die(); this.tweens.add({ targets: this.heroSpr, angle: -90, alpha: 0.6, duration: 400 })
+    sfx.die(); this.heroRig.setKnockedOut(true); this.tweens.add({ targets: this.heroSpr, angle: -90, alpha: 0.6, duration: 400 })
   }
 
   /** Free formation slots for adds (bosses stand in the back, so only the two front slots then). */
@@ -4573,11 +4641,11 @@ export class BattleScene extends Phaser.Scene {
     g.lineStyle(1, T.edge, T.edgeA).strokeRoundedRect(10, 8, 290, 64, T.r)
     g.fillStyle(T.tileHi, 1).fillCircle(36, 34, 22).lineStyle(2, T.gold, 0.9).strokeCircle(36, 34, 22)
     g.fillStyle(T.gold, 1).fillRoundedRect(16, 55, 40, 16, 8)
-    const tex = this.job.tex
-    if (this.portrait && this.portrait.texture.key !== tex && this.textures.exists(tex)) {
-      const fr = this.portrait.setTexture(tex).frame
+    const curSave = save(), curHeroTex = heroTex(curSave), curTint = heroCostumeTint(curSave.costume)
+    if (this.portrait && this.portrait.texture.key !== curHeroTex && this.textures.exists(curHeroTex)) {
+      const fr = this.portrait.setTexture(curHeroTex).frame
       this.portrait.setScale(Math.min(34 / fr.width, 34 / fr.height))
-      this.portrait.setTint((COSTUMES.find((c) => c.id === save().costume) ?? COSTUMES[0]).tint)
+      this.portrait.setTint(curTint)
     }
     this.hudTxt.lv.setText(`Lv${this.level}`)
     const hpPct = Math.max(0, Math.min(1, this.hp / this.st.maxHp))
@@ -4641,10 +4709,11 @@ export class BattleScene extends Phaser.Scene {
     this.queueIcons.forEach((ic, i) => {
       const a = q[i]
       if (a === undefined) { ic.setVisible(false); return }
-      ic.setVisible(true).setPosition(qx + i * 46, qy).setTexture(a ? a.def.tex : this.job.tex).clearTint()
-      const s = a ? (a.def.ai === 'boss' ? 0.36 : 0.75) : 0.75
-      ic.setScale(i === 0 ? s * 1.25 : s).setFlipX(!!a && FACES_RIGHT.includes(a.kind))
-      if (!a) ic.setTint((COSTUMES.find((c) => c.id === save().costume) ?? COSTUMES[0]).tint)
+      ic.setVisible(true).setPosition(qx + i * 46, qy).setTexture(a ? a.def.tex : curHeroTex).clearTint()
+      const s = a ? (a.def.ai === 'boss' ? 0.36 : 0.75) : fitHeroScale(ic.width, ic.height, 0.75, 38)
+      const lead = !a ? fitHeroScale(ic.width, ic.height, 0.75 * 1.25, 40) : s * 1.25
+      ic.setScale(i === 0 ? lead : s).setFlipX(!!a && FACES_RIGHT.includes(a.kind))
+      if (!a) ic.setTint(curTint)
       if (i === 0) g.lineStyle(2, COLORS.gold).strokeRoundedRect(qx - 21, qy - 21, 42, 42, 8)
     })
 
@@ -4662,6 +4731,15 @@ export class BattleScene extends Phaser.Scene {
   private slashFx(x: number, y: number) {
     const s = this.add.image(x, y, 'slash').setDepth(9000).setScale(0.7)
     this.tweens.add({ targets: s, scale: 1, alpha: 0, duration: 180, onComplete: () => s.destroy() })
+  }
+
+  private heroSlashFx(x: number, y: number, thrust = false) {
+    if (this.job.id === 'swordsman') {
+      if (thrust) pierceHitFx(this, x + 20, GROUND, this.hits % 5, false)
+      else comboSlashFx(this, x, y, Math.max(1, this.comboLevel), this.rigSpec.slashPalette)
+      return
+    }
+    this.slashFx(x, y)
   }
 
   // ---------- hit feel (game-feel skill): small = evade · combo grows · medium = counter · large = crit ----------
@@ -4696,8 +4774,6 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: t, y: y - 30, alpha: 0, delay: 520, duration: 360, onComplete: () => t.destroy() })
   }
 
-  private heroTint() { this.heroSpr.setTint((COSTUMES.find((c) => c.id === save().costume) ?? COSTUMES[0]).tint) }
-
   private comboSum = { on: false, per: new Map<Mon, { dmg: number, x: number, y: number }>() }
 
   /** RO double-attack style: after a combo chain, the summed damage pops big and yellow above the last target and hangs ~1.3 s. */
@@ -4715,8 +4791,7 @@ export class BattleScene extends Phaser.Scene {
     this.popWord(HERO_X + 40, GROUND - 140, 'COUNTER!', '#ff9f43', 26)
     sfx.clang()
     this.burst(HERO_X + 36, GROUND - 50, 0xffd27a, 14, 260, true)
-    this.heroSpr.setTintFill(0xffffff)
-    this.time.delayedCall(90, () => this.heroTint())
+    this.heroRig.flashFill(0xffffff, 90)
     this.hitStop(60)
   }
 

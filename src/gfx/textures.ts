@@ -79,6 +79,112 @@ export function makeTextures(scene: Phaser.Scene) {
     g.fillStyle(0xe58f8f, 0.7).fillCircle(27, 20, 2) // cheek
   })
 
+  // --- Swordsman line: modular parts (HeroRig in BattleScene) + composite textures (UI / portraits)
+  const drawSwordsmanBody = (g: G) => {
+    g.fillStyle(0x2b2238).fillRoundedRect(15, 41, 7, 10, 2).fillRoundedRect(26, 41, 7, 10, 2) // boots
+    g.fillStyle(0x9eb8e2).fillRoundedRect(13, 26, 22, 18, 6) // bright tunic for clean costume tinting
+    g.fillStyle(0xd2e3ff).fillTriangle(17, 27, 31, 27, 24, 36) // chest highlight
+    g.fillStyle(0x4a5578).fillRect(13, 36, 22, 3) // belt
+    g.fillStyle(0xf2b84b).fillRect(22, 35, 4, 5) // buckle
+    g.fillStyle(0xd6e1f4).fillRoundedRect(10, 25, 9, 6, 3).fillRoundedRect(29, 25, 9, 6, 3) // pauldrons
+    g.fillStyle(0x7a8bb0).fillRect(10, 30, 8, 1.5).fillRect(30, 30, 8, 1.5)
+    g.fillStyle(0xf3c9a0).fillCircle(24, 19, 11) // head
+    g.fillStyle(0x6b3f22).fillEllipse(22, 11, 24, 12).fillTriangle(12, 12, 18, 8, 13, 22) // hair
+    g.fillStyle(0x4a78c8).fillRect(13, 11, 22, 4).fillTriangle(13, 12, 4, 10, 11, 15).fillTriangle(13, 14, 6, 19, 12, 17) // headband + tail
+    g.fillStyle(0x2b2238).fillCircle(28, 20, 1.8).fillCircle(21, 20, 1.8) // eyes
+    g.fillStyle(0x2b2238).fillRect(19, 16, 4, 1.2).fillRect(26, 16, 4, 1.2) // determined brows
+    g.fillStyle(0xe58f8f, 0.7).fillCircle(31, 24, 2) // cheek
+  }
+  const drawSword = (g: G, ox: number, oy: number) => {
+    g.fillStyle(0xf2b84b).fillRect(ox + 5, oy + 34, 4, 3).fillRect(ox + 2, oy + 27, 11, 3) // pommel + crossguard
+    g.fillStyle(0x6b4b2a).fillRect(ox + 5.5, oy + 29, 3, 6) // grip
+    g.fillStyle(0xe8f0ff).fillRect(ox + 4, oy + 4, 6, 23).fillTriangle(ox + 4, oy + 4, ox + 10, oy + 4, ox + 7, oy) // blade
+    g.fillStyle(0x9fb2d4).fillRect(ox + 4, oy + 4, 2.2, 23) // fuller shadow
+  }
+  const drawBuckler = (g: G, ox: number, oy: number) => {
+    g.fillStyle(0xd8e2f4).fillRoundedRect(ox, oy, 16, 20, 6)
+    g.fillStyle(0x4a5f8c).fillRoundedRect(ox + 2, oy + 2, 12, 16, 4)
+    g.fillStyle(0xf2b84b).fillCircle(ox + 8, oy + 10, 3)
+  }
+  const drawPeco = (g: G, ox: number, oy: number) => {
+    g.fillStyle(0xd97b2a).fillRect(ox + 23, oy + 34, 4, 12).fillRect(ox + 36, oy + 34, 4, 12) // legs
+    g.fillStyle(0xf2b84b).fillTriangle(ox + 22, oy + 47, ox + 26, oy + 44, ox + 30, oy + 47) // left claw
+      .fillTriangle(ox + 35, oy + 47, ox + 39, oy + 44, ox + 44, oy + 47) // right claw
+    g.fillStyle(0xc97b24).fillTriangle(ox + 15, oy + 26, ox + 2, oy + 15, ox + 7, oy + 24) // tail upper
+      .fillTriangle(ox + 15, oy + 29, ox + 1, oy + 22, ox + 8, oy + 30) // tail mid
+    g.fillStyle(0xfff2cf).fillTriangle(ox + 9, oy + 20, ox + 2, oy + 15, ox + 6, oy + 21) // cream tail tip
+    g.fillStyle(0xe8a838).fillEllipse(ox + 31, oy + 29, 36, 20) // plump body
+    g.fillStyle(0xfff2cf).fillEllipse(ox + 32, oy + 33, 26, 11) // belly fluff
+    g.fillStyle(0x8d3a2a).fillRoundedRect(ox + 20, oy + 18, 19, 7, 3) // saddle leather
+    g.fillStyle(0xf2b84b).fillRect(ox + 20, oy + 23, 19, 2) // gold trim
+    g.fillStyle(0xd48e28).fillRoundedRect(ox + 23, oy + 22, 18, 11, 5) // folded wing
+    g.fillStyle(0xf5c85c).fillTriangle(ox + 25, oy + 25, ox + 38, oy + 24, ox + 31, oy + 30)
+    g.fillStyle(0xf0b844).fillTriangle(ox + 39, oy + 25, ox + 47, oy + 12, ox + 55, oy + 15)
+      .fillTriangle(ox + 39, oy + 25, ox + 47, oy + 29, ox + 55, oy + 15) // neck
+    g.fillStyle(0xf5c85c).fillCircle(ox + 52, oy + 13, 8) // head
+    g.fillStyle(0xe55934).fillTriangle(ox + 49, oy + 7, ox + 46, oy + 1, ox + 52, oy + 5)
+      .fillTriangle(ox + 52, oy + 6, ox + 52, oy + 0, ox + 56, oy + 6) // crest
+    g.fillStyle(0xf2b84b).fillTriangle(ox + 58, oy + 10, ox + 67, oy + 14, ox + 58, oy + 16) // upper beak
+    g.fillStyle(0xd97b2a).fillTriangle(ox + 58, oy + 15, ox + 64, oy + 16, ox + 58, oy + 18) // lower beak
+    g.fillStyle(0x1b1f3a).fillCircle(ox + 55, oy + 12, 1.9)
+    g.fillStyle(0xffffff).fillCircle(ox + 55.6, oy + 11.4, 0.7)
+  }
+  const drawKnightBody = (g: G, ox: number, oy: number) => {
+    g.fillStyle(0x4a5578).fillRoundedRect(ox + 16, oy + 33, 8, 11, 2).fillRoundedRect(ox + 25, oy + 33, 8, 10, 2) // stirrup legs
+    g.fillStyle(0xc8d4ea).fillRoundedRect(ox + 17, oy + 35, 6, 8, 2) // steel greave
+    g.fillStyle(0xe2eaf8).fillRoundedRect(ox + 12, oy + 18, 24, 19, 6) // bright plate torso for costume tinting
+    g.fillStyle(0xffffff, 0.7).fillTriangle(ox + 16, oy + 20, ox + 32, oy + 20, ox + 24, oy + 30) // breastplate sheen
+    g.fillStyle(0x4a6aa8).fillRect(ox + 12, oy + 31, 24, 3) // royal waist sash
+    g.fillStyle(0xf2b84b).fillRect(ox + 22, oy + 30, 5, 5) // gold clasp
+    g.fillStyle(0xd8e2f4).fillRoundedRect(ox + 8, oy + 17, 11, 8, 3).fillRoundedRect(ox + 29, oy + 17, 11, 8, 3) // knight pauldrons
+    g.fillStyle(0xf2b84b).fillRect(ox + 8, oy + 17, 11, 2).fillRect(ox + 29, oy + 17, 11, 2)
+    g.fillStyle(0xd94a4a).fillTriangle(ox + 22, oy + 5, ox + 6, oy + 2, ox + 16, oy + 11) // helmet plume
+      .fillTriangle(ox + 20, oy + 7, ox + 10, oy + 9, ox + 18, oy + 13)
+    g.fillStyle(0xd8e2f4).fillCircle(ox + 24, oy + 13, 10) // helmet dome
+    g.fillStyle(0xf3c9a0).fillRect(ox + 18, oy + 12, 13, 8) // open visor face
+    g.fillStyle(0xf2b84b).fillRect(ox + 15, oy + 8, 18, 3) // gold brow guard
+    g.fillStyle(0x1b1f3a).fillCircle(ox + 22, oy + 15, 1.6).fillCircle(ox + 28, oy + 15, 1.6) // eyes
+  }
+  const drawKiteShield = (g: G, ox: number, oy: number) => {
+    g.fillStyle(0xe6edf8).fillRoundedRect(ox, oy, 20, 17, 4).fillTriangle(ox, oy + 14, ox + 20, oy + 14, ox + 10, oy + 26)
+    g.fillStyle(0x4a6aa8).fillRoundedRect(ox + 2, oy + 2, 16, 13, 3).fillTriangle(ox + 2, oy + 13, ox + 18, oy + 13, ox + 10, oy + 23)
+    g.fillStyle(0xf2b84b).fillRect(ox + 9, oy + 5, 2, 14).fillRect(ox + 5, oy + 9, 10, 2) // cross crest
+  }
+  const drawLance = (g: G, ox: number, oy: number, halberd = false) => {
+    if (halberd) {
+      g.fillStyle(0x4a3520).fillRect(ox, oy + 10, 38, 3)
+      g.fillStyle(0xd94a4a).fillTriangle(ox + 32, oy + 13, ox + 24, oy + 21, ox + 36, oy + 16) // red tassel
+      g.fillStyle(0xc9d6eb).fillTriangle(ox + 34, oy + 3, ox + 46, oy + 10, ox + 32, oy + 11) // halberd axe upper
+      g.fillStyle(0xf0f4ff).fillTriangle(ox + 37, oy + 8, ox + 55, oy + 11.5, ox + 37, oy + 15) // spearhead
+      g.fillStyle(0x9fb2d4).fillTriangle(ox + 37, oy + 11.5, ox + 55, oy + 11.5, ox + 37, oy + 15)
+      return
+    }
+    g.fillStyle(0x6b4b2a).fillRect(ox, oy + 8, 24, 3) // shaft
+    g.fillStyle(0xf2b84b).fillTriangle(ox + 18, oy + 4, ox + 26, oy + 9.5, ox + 18, oy + 15) // vamplate guard
+    g.fillStyle(0xeef4ff).fillTriangle(ox + 25, oy + 5, ox + 49, oy + 9.5, ox + 25, oy + 14) // lance tip
+    g.fillStyle(0x9fb2d4).fillTriangle(ox + 25, oy + 9.5, ox + 49, oy + 9.5, ox + 25, oy + 14) // underside bevel
+  }
+
+  make(scene, 'body_swordsman', 48, 52, drawSwordsmanBody)
+  make(scene, 'wpn_sword', 28, 38, (g) => drawSword(g, 0, 0))
+  make(scene, 'shd_buckler', 18, 22, (g) => drawBuckler(g, 1, 1))
+  make(scene, 'hero_swordsman', 48, 52, (g) => {
+    drawSwordsmanBody(g)
+    drawSword(g, 28, 2)
+  })
+
+  make(scene, 'mount_peco', 68, 48, (g) => drawPeco(g, 0, 0))
+  make(scene, 'body_knight', 48, 46, (g) => drawKnightBody(g, 0, 0))
+  make(scene, 'wpn_lance', 50, 18, (g) => drawLance(g, 0, 0, false))
+  make(scene, 'wpn_halberd', 56, 22, (g) => drawLance(g, 0, 0, true))
+  make(scene, 'shd_kite', 20, 26, (g) => drawKiteShield(g, 0, 0))
+  make(scene, 'hero_knight', 68, 64, (g) => {
+    drawPeco(g, 0, 16)
+    drawKnightBody(g, 6, 1)
+    drawKiteShield(g, 26, 23)
+    drawLance(g, 19, 24, false)
+  })
+
   // --- base classes: same little body, new outfit + weapon (original designs)
   const body = (g: G, tunic: number, trim: number) => {
     g.translateCanvas(4, 6) // room for hats / weapons above and right of the 40x48 body
@@ -90,11 +196,6 @@ export function makeTextures(scene: Phaser.Scene) {
     g.fillStyle(0xe58f8f, 0.7).fillCircle(27, 20, 2)
   }
   const hair = (g: G, c = 0x6b3f22) => g.fillStyle(c).fillEllipse(18, 7, 24, 12).fillTriangle(8, 8, 14, 4, 9, 18)
-  make(scene, 'hero_swordsman', 48, 52, (g) => {
-    body(g, 0x8fa3c9, 0x4a5578); hair(g)
-    g.fillStyle(0xb8c4dc).fillRect(9, 22, 22, 5) // pauldron
-    g.fillStyle(0xdfe6f2).fillRect(31, 8, 4, 22); g.fillStyle(0x8d7244).fillRect(28, 28, 10, 3).fillRect(32, 30, 2, 6) // sword
-  })
   make(scene, 'hero_archer', 48, 52, (g) => {
     body(g, 0x6aa86a, 0x3d6e3d); hair(g, 0x9a6a32)
     g.fillStyle(0x3d6e3d).fillTriangle(6, 8, 30, 4, 22, -2) // feather cap
@@ -553,11 +654,43 @@ export function makeTextures(scene: Phaser.Scene) {
     g.fillStyle(0xfff0b8).fillRect(5, 4, 2, 6)
   })
 
-  // --- slash arc: a crescent pointing right, rotated at runtime
+  // --- slash arc & Swordsman / Knight VFX textures (tintable at runtime)
   make(scene, 'slash', 120, 120, (g) => {
     g.lineStyle(10, 0xffffff, 0.9)
     g.beginPath(); g.arc(60, 60, 44, -1.05, 1.05); g.strokePath()
     g.lineStyle(4, 0xfff0b8, 0.9)
     g.beginPath(); g.arc(60, 60, 54, -0.8, 0.8); g.strokePath()
+  })
+  make(scene, 'aura_gold', 68, 22, (g) => {
+    g.fillStyle(0xffffff, 0.16).fillEllipse(34, 11, 62, 16)
+    g.lineStyle(2, 0xffffff, 0.75).strokeEllipse(34, 11, 60, 14)
+    g.lineStyle(1.5, 0xffffff, 0.45).strokeEllipse(34, 11, 44, 10)
+  })
+  make(scene, 'vfx_spear', 48, 14, (g) => {
+    g.fillStyle(0x8d7244).fillRect(0, 5.5, 28, 3)
+    g.fillStyle(0xf2b84b).fillTriangle(24, 2, 31, 7, 24, 12)
+    g.fillStyle(0xffffff).fillTriangle(30, 3, 48, 7, 30, 11)
+  })
+  make(scene, 'vfx_crescent', 140, 140, (g) => {
+    g.lineStyle(14, 0xffffff, 0.92).beginPath(); g.arc(62, 70, 52, -1.25, 1.25); g.strokePath()
+    g.lineStyle(6, 0xffffff, 0.55).beginPath(); g.arc(54, 70, 60, -1.0, 1.0); g.strokePath()
+    g.lineStyle(3, 0xffffff, 0.95).beginPath(); g.arc(68, 70, 44, -0.95, 0.95); g.strokePath()
+  })
+  make(scene, 'vfx_thrust', 96, 28, (g) => {
+    g.fillStyle(0xffffff, 0.45).fillTriangle(6, 8, 94, 14, 6, 20)
+    g.fillStyle(0xffffff, 0.92).fillTriangle(18, 11, 96, 14, 18, 17)
+    g.lineStyle(2, 0xffffff, 0.8).strokeEllipse(14, 14, 12, 22).strokeEllipse(34, 14, 8, 16)
+  })
+  make(scene, 'vfx_hex', 64, 64, (g) => {
+    const pts = Array.from({ length: 6 }, (_, i) => {
+      const a = (i * Math.PI) / 3 - Math.PI / 6
+      return new Phaser.Math.Vector2(32 + Math.cos(a) * 26, 32 + Math.sin(a) * 26)
+    })
+    g.fillStyle(0xffffff, 0.22).fillPoints(pts, true)
+    g.lineStyle(3, 0xffffff, 0.9).strokePoints(pts, true)
+  })
+  make(scene, 'vfx_feather', 12, 6, (g) => {
+    g.fillStyle(0xffffff).fillEllipse(6, 3, 11, 4.5)
+    g.lineStyle(1, 0xd97b2a, 0.85).lineBetween(1, 3, 11, 3)
   })
 }

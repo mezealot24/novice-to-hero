@@ -3,7 +3,7 @@ import { COLORS, DUNGEONS, H, HARD, W } from '../data/game-data'
 import { levelDropMul, TOWER_LV, towerMonLv } from '../data/mon-stats'
 import { foldCorruptions, rollCorruptions } from '../data/corruptions'
 import { HARD_POWER, heroParts, heroPower, matchScale, overpowerMul, powerHint, recPower, TOWER_POWER } from '../data/power'
-import { COSTUMES, FREE_GEMS, isBroken, itemById, JOB_RULES, noviceLeft, RACES, STAT_RULES } from '../data/meta'
+import { FREE_GEMS, isBroken, itemById, JOB_RULES, noviceLeft, RACES, STAT_RULES } from '../data/meta'
 import { canChangeJob, canChangeJob2, persist, save, today, ultMode, wipe, job3Ready } from '../save'
 import { activeJob3, job3Of } from '../data/jobs3'
 import { JOB_CHANGE, JOBS } from '../data/jobs'
@@ -13,6 +13,7 @@ import { cloudEnabled } from '../cloud'
 import { setMuted } from '../sfx'
 import { askRepick } from './JobScene'
 import { backdrop, button, confirm, fullscreenButton, go, panel, toast, topBar, txt, UI } from '../ui'
+import { fitHeroScale, heroCostumeTint, heroTex } from '../gfx/hero-visual'
 import { ftue } from '../analytics'
 import { HELL, HELL_MODE, hellOpen } from '../data/hell'
 
@@ -30,8 +31,8 @@ export class HubScene extends Phaser.Scene {
 
     // ---- character card (left) ----
     panel(this, 24, 76, 380, 476)
-    const costume = COSTUMES.find((c) => c.id === s.costume) ?? COSTUMES[0]
-    const hero = this.add.image(214, 210, JOBS[s.job].tex).setScale(3.2).setTint(costume.tint)
+    const hero = this.add.image(214, 210, heroTex(s)).setTint(heroCostumeTint(s.costume))
+    hero.setScale(fitHeroScale(hero.width, hero.height, 3.2, 180))
     this.add.image(214, 282, 'shadow').setScale(1.4, 1.6).setDepth(-1)
     this.tweens.add({ targets: hero, y: 200, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
     const nameColor = s.supporter ? UI.gold : UI.text
