@@ -211,6 +211,13 @@ export class BattleScene extends Phaser.Scene {
   flags: RunFlags = newFlags()
   private hpFloor = 0
   private starsOn = false
+  /** Berserker ★ ไม่รู้สึกเจ็บ: เทิร์นที่เหลือใน Ignore Pain (3→0) · 0 = ไม่ active */
+  private ignorePainTurns = 0
+  /** Berserker ★ ไม่รู้สึกเจ็บ: damage สะสมระหว่าง Ignore Pain → ใช้คำนวณ Regen Dmg */
+  private ignorePainDmg = 0
+  private ignorePainUsed = false
+  private ignorePainRegenTurns = 0
+  private ignorePainRegenPerTurn = 0
   private sayN = 0
   private fortuneTxt?: Phaser.GameObjects.Text
 
@@ -347,7 +354,7 @@ export class BattleScene extends Phaser.Scene {
     this.flow = 0; this.faith = 0; this.wardTurns = 0; this.holyRevived = false // v84 webs: momentum / Faith / ม่านพร / ★ คืนชีพ (1 per run)
     this.minHpPct = 1; this.relic = null; this.miniKind = null; this.miniWon = false; this.parryCount = 0; this.freezeCount = 0; this.harvest = 0; this.enemyAttacks = 0
     this.hx = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0, web: 0, slow: 0, thorn: 0, venom: 0, venomTurns: 0 }; this.webOn = false; this.webDelta = undefined; this.debuffCount = 0; this.resistCount = 0
-    this.flags = newFlags(); this.hpFloor = 0; this.starsOn = false
+    this.flags = newFlags(); this.hpFloor = 0; this.starsOn = false; this.ignorePainTurns = 0; this.ignorePainDmg = 0; this.ignorePainUsed = false; this.ignorePainRegenTurns = 0; this.ignorePainRegenPerTurn = 0
     if (Object.keys(mut.hero).length) this.applyMod(mut.hero)
     this.runElement = null
     if (this.job.id === 'mage') {
@@ -638,7 +645,7 @@ export class BattleScene extends Phaser.Scene {
       const want = Math.round(this.st.maxHp * this.st.j2Banner * (1 + this.st.shieldAmp))
       if (this.shield < want) { this.shield = want; this.floatText(HERO_X, GROUND - 100, `🚩 ปักธง: โล่ ${want}`, '#9fe3ff') }
     }
-    this.lowHpDone = false; this.demonOn = false; this.demonDone = false; this.comboAtkN = 0; this.fightUlts = 0; this.lowRegen = { turns: 0, amt: 0 }
+    this.lowHpDone = false; this.demonOn = false; this.demonDone = false; this.comboAtkN = 0; this.fightUlts = 0; this.lowRegen = { turns: 0, amt: 0 }; this.ignorePainTurns = 0; this.ignorePainDmg = 0; this.ignorePainUsed = false; this.ignorePainRegenTurns = 0; this.ignorePainRegenPerTurn = 0
     const room = this.roomDef(this.room)
     this.turnLimit = room?.turnLimit ?? (room?.boss ? BATTLE.bossTurnLimit : BATTLE.turnLimit)
     this.turnLimit = Math.round(this.turnLimit * BATTLE.monBuff.turns[Math.max(0, Math.min(4, this.dg.tier - 1))])
@@ -713,8 +720,15 @@ export class BattleScene extends Phaser.Scene {
     this.allies = liveAllies(this.allies)
     if (this.rampage > 0) this.rampage--
     if (this.endow > 0 && !this.st.j2EndowWave) this.endow-- // Sage Endow (★ อาวุธธาตุ: whole wave)
-    if (this.st.j2RageTurn > 0 && this.job.resource === 'rage' && this.res >= RES_RULES.rageMax && this.alive().length && this.hp > 0) { // Berserker ★ ไม่รู้สึกเจ็บ
-      this.res = 0; this.callout('👹 ไม่รู้สึกเจ็บ! ฟันอีกรอบ', W / 2, 170); await this.basicAttack()
+    if (this.ignorePainTurns > 0) {
+      this.ignorePainTurns--
+      if (this.ignorePainTurns === 0) {
+        this.ignorePainRegenTurns = KIT2.berserker.ignorePainRegenTurns
+        this.ignorePainRegenPerTurn = Math.round(this.ignorePainDmg * KIT2.berserker.ignorePainRegenPct)
+        this.callout(`🩸 ไม่รู้สึกเจ็บสิ้นสุด! ฟื้น HP ${this.ignorePainRegenPerTurn}/เทิร์น`, W / 2, 170, '#6fd08c')
+      } else {
+        this.floatText(HERO_X + 20, GROUND - 140, `👹 ไม่รู้สึกเจ็บ (${this.ignorePainTurns})`, '#ff4444')
+      }
     }
     if (this.job.id === 'cleric') this.syncShieldLayers()
     if (X.burn > 0) X.burn--
@@ -789,6 +803,13 @@ export class BattleScene extends Phaser.Scene {
     this.execTurnUsed = false; this.critPetUsed = false
     if (this.st.regen > 0) this.heal(this.st.maxHp * this.st.regen * BATTLE.regenPerTurn / 100, true)
     if (this.lowRegen.turns > 0) { this.lowRegen.turns--; this.heal(this.st.maxHp * this.lowRegen.amt) } // ฟื้นยามคับขัน
+    if (this.ignorePainRegenTurns > 0) { // Berserker ★ ไม่รู้สึกเจ็บ: Regen Damage ที่ทำได้ 30% x 2 เทิร์น
+      this.ignorePainRegenTurns--
+      if (this.ignorePainRegenPerTurn > 0) {
+        this.heal(this.ignorePainRegenPerTurn)
+        this.floatText(HERO_X, GROUND - 120, `🩸 ฟื้นตัว +${this.ignorePainRegenPerTurn}`, '#6fd08c')
+      }
+    }
     const rt = this.px('resTurn'); if (rt > 0) { const left = this.resGain(rt); if (left > 0 && this.pk.prayHeal > 0) this.heal(this.st.maxHp * this.pk.prayHeal * left, true) } // ภาวนา (v78: the share that didn't fit / Novice -> heal)
     if (this.zenTurns > 0) this.zenTurns--
     if (this.smashCdLeft > 0) this.smashCdLeft--
@@ -2413,6 +2434,7 @@ export class BattleScene extends Phaser.Scene {
       if (dmg <= 0) return
     }
     m.hp -= dmg
+    if (this.ignorePainTurns > 0 && !dot) this.ignorePainDmg += dmg
     this.damageNumber(m.spr.x, m.spr.y - m.spr.displayHeight, dmg, crit, color)
     if (this.comboSum.on && !dot) { const e = this.comboSum.per.get(m) ?? { dmg: 0, x: 0, y: 0 }; e.dmg += dmg; e.x = m.spr.x; e.y = m.spr.y - m.spr.displayHeight; this.comboSum.per.set(m, e) }
     if (crit && !dot) this.critJuice(m)
@@ -2941,6 +2963,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private heal(n: number, quiet = false) {
+    if (this.ignorePainTurns > 0) return // Berserker ★ ไม่รู้สึกเจ็บ: ดูดเลือดหรือฮีลไม่มีผลใดๆ ขณะอยู่ในสถานะนี้
     const before = this.hp
     if (this.hx.burn > 0) n *= 1 - BATTLE.burnHealCut // burning: healing on the hero is cut
     n *= this.run.mut.healMul * this.aff.healMul // daily mutator แผลเรื้อรัง · tower affix แผลลึก
@@ -3574,8 +3597,10 @@ export class BattleScene extends Phaser.Scene {
     if (this.shield > 0) { const a = Math.min(Math.ceil(this.shield), n); this.shield = Math.max(0, this.shield - a); n -= a; if (n <= 0) { this.floatText(HERO_X, GROUND - 110, '🛡️ กันไว้', '#9fe3ff'); return 0 } }
     this.castBreak(n)
     const before = this.hp
-    this.hp = lethal ? this.hp - n : Math.max(this.hpFloor, 1, this.hp - n)
-    if (lethal && this.hp <= 0 && this.hpFloor > 0) this.hp = this.hpFloor
+    // Berserker ★ ไม่รู้สึกเจ็บ: HP ค้างที่ 1 ตลอดสถานะ (ไม่ตก)
+    const floor = this.ignorePainTurns > 0 ? 1 : this.hpFloor
+    this.hp = lethal ? this.hp - n : Math.max(floor, 1, this.hp - n)
+    if (lethal && this.hp <= 0 && floor > 0) this.hp = floor
     const lost = Math.max(0, before - Math.max(0, this.hp))
     this.minHpPct = Math.min(this.minHpPct, Math.max(0, this.hp) / this.st.maxHp)
     this.damageNumber(HERO_X, GROUND - 70, lost, crit, '#ffffff')
@@ -3872,7 +3897,9 @@ export class BattleScene extends Phaser.Scene {
     let n = Math.max(1, Math.ceil(dmg))
     if (this.shield > 0) { const a = Math.min(Math.ceil(this.shield), n); this.shield = Math.max(0, this.shield - a); n -= a; if (n <= 0) return }
     const hp0 = this.hp
-    this.hp = Math.max(this.hpFloor, this.hp - n) // v85: a poison / burn tick never breaks a chant
+    // Berserker ★ ไม่รู้สึกเจ็บ: DoT ก็ไม่ตก HP < 1
+    const floor = this.ignorePainTurns > 0 ? 1 : this.hpFloor
+    this.hp = Math.max(floor, this.hp - n) // v85: a poison / burn tick never breaks a chant
     this.logLoss(`${icon} DoT`, hp0) // v120 combat log (before a revive can lift HP back)
     if (this.hp > 0) this.lowHpCheck()
     this.minHpPct = Math.min(this.minHpPct, this.hp / this.st.maxHp)
@@ -3896,7 +3923,19 @@ export class BattleScene extends Phaser.Scene {
 
   /** Shared knock-out check for damage that skips hurtHero (Phoenix revive still works). */
   private knockedOut() {
+    if (this.ignorePainTurns > 0) { this.hp = 1; return }
     if (this.hp > 0 || this.holyRevive()) return
+    // Berserker ★ ไม่รู้สึกเจ็บ: โดนดาเมจถึงตาย → เลือดค้างที่ 1 HP ไม่ตาย 3 เทิร์น
+    if (this.st.j2IgnorePain > 0 && !this.ignorePainUsed && this.job.resource === 'rage') {
+      this.ignorePainUsed = true
+      this.hp = 1
+      this.ignorePainTurns = KIT2.berserker.ignorePainTurns
+      this.ignorePainDmg = 0
+      this.ignorePainRegenTurns = 0
+      this.ignorePainRegenPerTurn = 0
+      this.callout('👹 ไม่รู้สึกเจ็บ! อมตะ 3 เทิร์น', HERO_X + 120, GROUND - 150, '#ff4444')
+      return
+    }
     if (this.st.revive > 0) {
       this.st.revive--; this.revivedCount++
       this.hp = Math.round(this.st.maxHp * Math.max(BATTLE.reviveHp, this.st.reviveHp))

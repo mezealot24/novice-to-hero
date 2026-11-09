@@ -48,3 +48,14 @@ test('Grand Cross no longer carries its own spell vamp', () => {
   assert.equal('gcVamp' in KIT2.crusader, false)
   assert.ok(!JOB2.crusader.ult.desc.includes('ดูดเลือด'))
 })
+
+test('Berserker: ★ ไม่รู้สึกเจ็บ grants j2IgnorePain and config matches 3 turns / 2 turns 30%', () => {
+  const node = nodeById('bz_r4')
+  assert.ok(node, 'bz_r4 exists')
+  assert.equal(node.mod(1).j2IgnorePain, 1)
+  assert.ok(node.desc(1).includes('3 เทิร์น'))
+  assert.ok(node.desc(1).includes('30%/เทิร์น'))
+  assert.equal(KIT2.berserker.ignorePainTurns, 3)
+  assert.equal(KIT2.berserker.ignorePainRegenTurns, 2)
+  assert.equal(KIT2.berserker.ignorePainRegenPct, 0.3)
+})

@@ -88,6 +88,7 @@ export const KIT2 = {
     ultMul: 1.2, ultTurns: 3, ultCrit: 0.3, ultTaken: 0.2, // 👹 บ้าระห่ำ: swing all, then N turns of double swings + crit, taking more damage
     mastery: { atkPct: 0.08, crit: 0.03 }, // 2-hand weapon
     stormCost: 35, // ฟันพายุ in Rage (Rage refills fast: at 20 it fired every turn, bot D6 fresh Berserker 0/8 -> 6/8)
+    ignorePainTurns: 3, ignorePainRegenTurns: 2, ignorePainRegenPct: 0.3, // ★ ไม่รู้สึกเจ็บ: 3 turns immortal at 1 HP, then 2 turns regen 30% of dmg dealt
   },
   knight: {
     hpPct: 0.1, aspdPct: 0.05, hpDmg: 0.03, // 🐦 ขี่เปโก + ถึกเป็นแรง (spear skills add max HP share)
