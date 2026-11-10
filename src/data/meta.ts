@@ -11,6 +11,7 @@ import { cardById, type EquipCard } from './cards'
 import { CARDFORGE_ITEMS } from './cardforge'
 import { CRAFT_ITEMS, forgeItem, GRADE, type CraftInfo, type RefineLine } from './craft'
 import { UNIQUE_ITEMS } from './uniques'
+import { UNIQUE3_ITEMS } from './uniques3'
 import { CLASS_GEAR } from './class-gear'
 import { applyCurse, type TaintRec } from './taint'
 
@@ -45,7 +46,7 @@ export const RESOURCES = {
 } as const
 export const STAT_RULES = {
   start: 1, // every stat starts here (before race bonus)
-  max: 99,
+  max: 999, // Uncapped/soft-cap friendly: allows players to invest freely beyond legacy 99
   pointsPerLevel: 3,
   xpBase: 25, xpStep: 15, // live-tunable (data/tunables.ts progression)
   baseXpNeed: (lv: number): number => STAT_RULES.xpBase + STAT_RULES.xpStep * (lv - 1), // account EXP to go from lv to lv+1
@@ -240,6 +241,8 @@ export const ITEMS: Item[] = [
   ...CARDFORGE_ITEMS,
   // ----- boss drops (data/uniques.ts, v88) -----
   ...UNIQUE_ITEMS,
+  // ----- 3rd job Awakening uniques (data/uniques3.ts) -----
+  ...UNIQUE3_ITEMS,
   // ----- 2nd / 3rd job headgear + accessories (data/class-gear.ts, v125): forge recipes with class-only grade bonuses -----
   ...CLASS_GEAR,
 ]
@@ -307,6 +310,7 @@ const STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => string]>> 
   vsBurn: ['ตีศัตรูติดไฟ', pc], vsChill: ['ตีศัตรูที่เย็นอยู่', pc], vsPoison: ['ตีศัตรูติดพิษ', pc], chillWeak: ['ศัตรูเย็นตีเบาลง', pc],
   spearShield: ['โอกาสหอกแสงให้โล่', pc], counterDmg: ['ดาเมจสวนกลับ', pc], basicDmg: ['ตีปกติแรง', pc], resTurn: ['Mana/Energy/Rage ต่อเทิร์น', (n) => `${n}`],
   smashCd: ['คูลดาวน์ท่าไม้ตาย', (n) => `${Math.round(n / 1500)} เทิร์น`], berserk: ['HP<30%: ATK +40% ดูดเลือด x2', () => ''], overhealShield: ['ฮีลเกินเต็มกลายเป็นโล่', () => ''], ctrAoe: ['สวนกลับโดนมอนทุกตัว 0.5x', () => ''],
+  dodgeStrike: ['หลบได้แล้วตีสวนกลับ', () => ''], killHeal: ['ฆ่ามอน→ฟื้น HP', pc], fireSpread: ['มอนตาย→ไฟลุกลาม', () => ''], poisonSpread: ['มอนตาย→พิษลุกลาม', () => ''],
 }
 /** Labels of the 2nd / 3rd job flags that gear and refine lines can carry (v125). Values are the same numbers the ใยชั้น 2 / 3 nodes give per level. */
 const CLASS_STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => string]>> = {
@@ -319,7 +323,9 @@ const CLASS_STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => stri
   j2AutoChance: ['Auto Spell', pc], j2EndowAmp: ['Endow แรง', pc], j2MagicRod: ['ดูดเวท → Mana', (n) => `${n}`],
   j2PetPow: ['สัตว์เลี้ยงแรง', pc], j2PetHeal: ['สัตว์ลงมือ → ฮีล', pc], j2HawkMul: ['เหยี่ยวแรง', pc], j2WolfMul: ['หมาป่าแรง', pc],
   j2TrapMul: ['กับดักแรง', pc], j2TurretMul: ['ป้อมปืนแรง', pc], j2BoxLuck: ['ของหายากในกล่องสุ่ม', pc], j2BoxMul: ['ของประหลาดแรง', pc],
-  j3Press: ['Shield Press (x P.DEF)', (n) => `${n}x`], j3Banding: ['ดาเมจเข้าลด/มอนที่ยังอยู่', pc], j3GospelHeal: ['พระวรสารฮีล/ฮิต', pc], j3AfterBless: ['พรหลัง Grand Cross', pc],
+  j2Spiral: ['Ult ทะลุ DEF', pc], j2Charge: ['ชาร์จเปิดเวฟ', pc],
+  j3Press: ['Shield Press (x P.DEF)', (n) => `${n}x`], j3Banding: ['ดาเมจเข้าลด/มอนที่ยังอยู่', pc], j3GospelHeal: ['พระวรสาร/ทวน ฮีล/ฮิต', pc], j3AfterBless: ['พรหลัง Ult', pc],
+  j3GospelField: ['Ult ฮิตเพิ่ม', (n) => `+${n} ฮิต`], j3EarthDrive: ['Earth Drive / Ignition Break', (n) => `${n}x`], j3Inspire: ['Inspiration / Parrying', (n) => `${n}`],
 }
 export const BASE_NAME: Record<BaseStat, string> = { str: 'STR', vit: 'VIT', wis: 'WIS', dex: 'DEX', int: 'INT', luk: 'LUK', agi: 'AGI' }
 /** "STR +3 · P.ATK +8 · ดูดเลือด +6%" */

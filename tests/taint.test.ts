@@ -183,3 +183,29 @@ test('v89 taint: ผลึกโลกันตร์ drops from the final boss 
   assert.equal(taintDrop('d6'), MAT_RULES.taintBoss)
   assert.equal(taintDrop('d10'), MAT_RULES.taintBoss)
 })
+
+test('corrupt v2: expanded keystones grant real battle signatures', () => {
+  assert.equal(CURSES.length, 14, '6 upgraded classics + 8 new corrupted keystones')
+
+  // Check phoenix (revive)
+  const phoenixCurse = CURSES.find((c) => c.id === 'phoenix')!
+  assert.ok(phoenixCurse)
+  assert.equal(phoenixCurse.mod.revive, 1)
+
+  // Check berserk
+  const berserkCurse = CURSES.find((c) => c.id === 'berserk')!
+  assert.ok(berserkCurse)
+  assert.equal(berserkCurse.mod.berserk, 1)
+
+  // Check thorn aoe
+  const thornCurse = CURSES.find((c) => c.id === 'thorn')!
+  assert.equal(thornCurse.mod.ctrAoe, 1)
+
+  // Test applyCurse on worn item and verify heroStats reflection
+  const s = mk([], 0)
+  s.taint = { [sword.id]: { kind: 'curse', curse: 'phoenix' } }
+  s.equipped.weapon = sword.id
+  const st = heroStats(s)
+  assert.equal(st.revive, 1, 'revive signature reflected in heroStats')
+  assert.ok(st.maxHp >= 100, 'HP boost reflected')
+})

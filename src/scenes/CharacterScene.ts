@@ -71,36 +71,68 @@ export class CharacterScene extends Phaser.Scene {
     this.preview?.destroy()
     const s = save(), c = this.add.container(0, 0)
     this.preview = c
-    c.add(panel(this, 16, 70, 298, 490))
+    c.add(panel(this, 16, 70, 298, 490, UI.panel, UI.line, 14))
     const st = heroStats(s)
     const rows: [string, string][] = [['⚡ Hero Power', `${heroPower(s)}`], ...derivedRows(st)] // v59: the number monsters scale to
     if (this.tab === 0) {
       // equipment screen (RO style): hero sits between the gear slots, so this side is a stats panel
-      c.add(txt(this, 165, 82, `${s.supporter ? '🌟 ' : ''}${s.name}`, 18, s.supporter ? UI.gold : UI.text, true).setOrigin(0.5, 0))
-      c.add(txt(this, 165, 106, `${s.job2 ? `${JOB2[s.job2].icon} ${JOB2[s.job2].name}` : `${JOBS[s.job].icon} ${JOBS[s.job].name}`} · Base Lv ${s.baseLevel} · ${s.job2 ? `Job2 Lv ${s.job2Level ?? 1}` : `Job Lv ${s.jobLevel}`}`, 12, UI.sub).setOrigin(0.5, 0))
+      c.add(panel(this, 26, 78, 278, 44, UI.panelHi, UI.goldDark, 10))
+      c.add(txt(this, 165, 84, `${s.supporter ? '🌟 ' : ''}${s.name}`, 18, s.supporter ? UI.gold : UI.text, true).setOrigin(0.5, 0))
+      c.add(txt(this, 165, 104, `${s.job2 ? `${JOB2[s.job2].icon} ${JOB2[s.job2].name}` : `${JOBS[s.job].icon} ${JOBS[s.job].name}`} · Base Lv ${s.baseLevel} · ${s.job2 ? `Job2 Lv ${s.job2Level ?? 1}` : `Job Lv ${s.jobLevel}`}`, 11, UI.sub).setOrigin(0.5, 0))
       const tot = totalBase(s)
       BASE_STATS.forEach((bs, i) => {
         const x = 26 + (i % 2) * 144, y = 128 + Math.floor(i / 2) * 26
-        c.add(panel(this, x, y, 136, 22, 0x2a2f55, UI.line, 8))
+        c.add(panel(this, x, y, 136, 22, 0x161a2e, UI.line, 6))
         c.add(txt(this, x + 8, y + 3, bs.name, 12, UI.gold, true))
         c.add(txt(this, x + 128, y + 3, `${tot[bs.id]}`, 12, UI.text, true).setOrigin(1, 0))
       })
+      // RPG Stat Table with alternating row tints
       rows.forEach(([k, v], i) => {
         const y = 236 + i * 20
+        if (i % 2 === 0) {
+          const bg = this.add.graphics()
+          bg.fillStyle(0xffffff, 0.02).fillRoundedRect(24, y - 2, 282, 18, 4)
+          c.add(bg)
+        }
         c.add(txt(this, 30, y, k, 12, i === 0 ? UI.gold : UI.sub, i === 0))
         c.add(txt(this, 300, y, v, 12, i === 0 ? UI.gold : UI.text, true).setOrigin(1, 0))
       })
       return
     }
-    const spr = this.add.image(165, 150, heroTex(s)).setTint(heroCostumeTint(s.costume))
+
+    // Hero Avatar Podium / Frame
+    const pod = this.add.graphics()
+    // Soft glow under feet
+    pod.fillStyle(0x000000, 0.4).fillEllipse(165, 192, 130, 36)
+    pod.fillStyle(0x353b60, 0.3).fillEllipse(165, 190, 110, 26)
+    // Decorative frame ring
+    pod.lineStyle(1.5, UI.goldDark, 0.5).strokeCircle(165, 145, 60)
+    c.add(pod)
+
+    const spr = this.add.image(165, 145, heroTex(s)).setTint(heroCostumeTint(s.costume))
     c.add(spr.setScale(fitHeroScale(spr.width, spr.height, 2.5, 132)))
-    c.add(txt(this, 165, 216, `${s.supporter ? '🌟 ' : ''}${s.name}`, 22, s.supporter ? UI.gold : UI.text, true).setOrigin(0.5))
-    c.add(txt(this, 165, 244, `${RACES[s.race].icon} ${RACES[s.race].name} · ${s.job2 ? `${JOB2[s.job2].icon} ${JOB2[s.job2].name}` : `${JOBS[s.job].icon} ${JOBS[s.job].name}`}`, 15, UI.sub).setOrigin(0.5))
-    c.add(txt(this, 165, 268, `Base Lv ${s.baseLevel} · ${s.job2 ? `Job2 Lv ${s.job2Level ?? 1}/${JOB2_RULES.maxJobLevel}` : `Job Lv ${s.jobLevel}/${s.job === 'novice' ? JOB_RULES.maxJobLevel : JOB_CHANGE.classMaxJobLevel}`}`, 14, UI.text).setOrigin(0.5))
+
+    // Hero title banner card
+    c.add(panel(this, 26, 206, 278, 68, UI.panelHi, UI.goldDark, 10))
+    c.add(txt(this, 165, 214, `${s.supporter ? '🌟 ' : ''}${s.name}`, 20, s.supporter ? UI.gold : UI.text, true).setOrigin(0.5))
+    c.add(txt(this, 165, 238, `${RACES[s.race].icon} ${RACES[s.race].name} · ${s.job2 ? `${JOB2[s.job2].icon} ${JOB2[s.job2].name}` : `${JOBS[s.job].icon} ${JOBS[s.job].name}`}`, 13, UI.sub).setOrigin(0.5))
+    c.add(txt(this, 165, 258, `Base Lv ${s.baseLevel} · ${s.job2 ? `Job2 Lv ${s.job2Level ?? 1}/${JOB2_RULES.maxJobLevel}` : `Job Lv ${s.jobLevel}/${s.job === 'novice' ? JOB_RULES.maxJobLevel : JOB_CHANGE.classMaxJobLevel}`}`, 12, UI.gold).setOrigin(0.5))
+
+    // Stats box with grouped rows
+    const statBox = this.add.graphics()
+    statBox.fillStyle(0x131728, 0.85).fillRoundedRect(24, 280, 282, 270, 8)
+    statBox.lineStyle(1.5, UI.line, 0.8).strokeRoundedRect(24, 280, 282, 270, 8)
+    c.add(statBox)
+
     rows.forEach(([k, v], i) => {
-      const y = 288 + i * 16.2
-      c.add(txt(this, 30, y, k, 12, i === 0 ? UI.gold : UI.sub, i === 0))
-      c.add(txt(this, 300, y, v, 12, i === 0 ? UI.gold : UI.text, true).setOrigin(1, 0))
+      const y = 286 + i * 16.5
+      if (i % 2 === 1) {
+        const rowBg = this.add.graphics()
+        rowBg.fillStyle(0xffffff, 0.025).fillRect(26, y - 2, 278, 16)
+        c.add(rowBg)
+      }
+      c.add(txt(this, 30, y, k, 11, i === 0 ? UI.gold : UI.sub, i === 0))
+      c.add(txt(this, 300, y, v, 11, i === 0 ? UI.gold : UI.text, true).setOrigin(1, 0))
     })
   }
 
@@ -374,6 +406,82 @@ export class CharacterScene extends Phaser.Scene {
     } else b.add(txt(this, 330, y0 + 126, 'ปลดล็อกเมื่อล้มบอสดันแรก (ราชาเจลล็อป) · มี 5 อาชีพ: นักดาบ นักธนู จอมเวท นักบวช โจร', 13, UI.sub).setWordWrapWidth(600))
   }
 
+  /** Procedural RPG Skill Node Card: displays socket frame, rarity glow, level badge, and icon. */
+  private drawSkillNode(c: Phaser.GameObjects.Container, x: number, y: number, w: number, h: number, n: TreeNode, lv: number, open: boolean, star: boolean, sel: boolean, onClick: () => void) {
+    const isMax = lv >= n.max
+    const g = this.add.graphics()
+
+    // 1. Drop shadow
+    g.fillStyle(0x000000, 0.45).fillRoundedRect(x + 1, y + 2, w, h, 10)
+
+    // 2. Node socket background
+    const bgFill = sel ? 0x2d3658 : (isMax ? 0x1f3448 : (lv ? 0x202b48 : (open ? 0x1a1e35 : 0x121422)))
+    g.fillStyle(bgFill, 1).fillRoundedRect(x, y, w, h, 10)
+
+    // 3. Subtle inner gradient gloss
+    if (open) {
+      g.fillStyle(0xffffff, sel ? 0.12 : (isMax ? 0.08 : 0.04)).fillRoundedRect(x + 2, y + 2, w - 4, Math.floor(h / 2), 8)
+    }
+
+    // 4. Outer border / Frame
+    let strokeColor = UI.line
+    let strokeW = 1.5
+    if (sel) {
+      strokeColor = 0xfff0aa
+      strokeW = 3
+    } else if (isMax) {
+      strokeColor = COLORS.gold
+      strokeW = 2.2
+    } else if (star) {
+      strokeColor = 0xffb347
+      strokeW = 2
+    } else if (lv > 0) {
+      strokeColor = 0x6bb7f2
+      strokeW = 2
+    } else if (!open) {
+      strokeColor = 0x22263b
+      strokeW = 1
+    }
+    g.lineStyle(strokeW, strokeColor, 1).strokeRoundedRect(x, y, w, h, 10)
+
+    // Inner rim if selected or maxed
+    if (sel || isMax) {
+      g.lineStyle(1, 0xffe277, 0.4).strokeRoundedRect(x + 2, y + 2, w - 4, h - 4, 8)
+    }
+    c.add(g)
+
+    // Left skill icon with recessed circle socket
+    const iconSocket = this.add.graphics()
+    const scX = x + 16, scY = y + 16
+    iconSocket.fillStyle(0x0c0e1a, 0.7).fillCircle(scX, scY, 11)
+    iconSocket.lineStyle(1, strokeColor, 0.6).strokeCircle(scX, scY, 11)
+    c.add(iconSocket)
+
+    c.add(txt(this, scX, scY, n.icon, 13).setOrigin(0.5).setAlpha(open ? 1 : 0.4))
+
+    // Right-top level badge
+    const badgeW = 32, badgeH = 15, bx = x + w - badgeW - 4, by = y + 4
+    const badgeG = this.add.graphics()
+    badgeG.fillStyle(isMax ? 0x7c5415 : (lv > 0 ? 0x163456 : 0x0f1220), 0.95).fillRoundedRect(bx, by, badgeW, badgeH, 6)
+    badgeG.lineStyle(1, isMax ? COLORS.gold : (lv > 0 ? 0x4a8cd4 : 0x2e3553), 1).strokeRoundedRect(bx, by, badgeW, badgeH, 6)
+    c.add(badgeG)
+    c.add(txt(this, bx + badgeW / 2, by + badgeH / 2 - 1, `${lv}/${n.max}`, 9, isMax ? '#fff0ba' : (lv > 0 ? '#bfe3ff' : UI.sub), true).setOrigin(0.5))
+
+    // Star marker if capstone
+    if (star) {
+      c.add(txt(this, x + 30, y + 5, '★', 10, '#ffd15c', true))
+    }
+
+    // Node name
+    const nameColor = !open ? '#5d6382' : (sel ? '#ffffff' : (isMax ? '#ffe994' : UI.text))
+    c.add(clipW(txt(this, x + 6, y + 31, n.name, 11, nameColor, isMax || sel), w - 12))
+
+    // Interaction zone
+    const z = this.add.zone(x, y, w, h).setOrigin(0).setInteractive({ useHandCursor: true })
+    z.on('pointerdown', onClick)
+    c.add(z)
+  }
+
   // ---------- tab 3: skill web (data/tree.ts + data/skill2.ts, design/skill-web-v1.md) ----------
   private webTab() {
     const s = save(), b = this.body!
@@ -418,29 +526,32 @@ export class CharacterScene extends Phaser.Scene {
     const cx = (i: number) => x0 + i * (cw + gap)
     for (const g of groups) {
       const gx = cx(g.from), gw = cx(g.to) + cw - gx
-      b.add(panel(this, gx - 3, 150, gw + 6, 344, 0x1d2140, UI.line, 8))
-      b.add(txt(this, gx + 4, 155, g.name, 11, UI.gold, true).setWordWrapWidth(gw))
+      // RPG Category Ribbon Panel
+      b.add(panel(this, gx - 3, 148, gw + 6, 346, 0x16192e, UI.line, 8))
+      const hG = this.add.graphics()
+      hG.fillStyle(0x232948, 0.9).fillRoundedRect(gx - 2, 149, gw + 4, 24, 6)
+      hG.lineStyle(1, UI.lineHi, 0.6).strokeRoundedRect(gx - 2, 149, gw + 4, 24, 6)
+      b.add(hG)
+      b.add(txt(this, gx + 4, 154, g.name, 11, UI.gold, true).setWordWrapWidth(gw))
     }
     if (!this.selNode || !nodeById(this.selNode) || !cols.some((c) => c.cells.some((q) => q.n.id === this.selNode))) this.selNode = cols[0].cells[0].n.id
     const pos = new Map<string, { x: number; y: number }>()
     cols.forEach((c, i) => c.cells.forEach((q) => pos.set(q.n.id, { x: cx(i), y: top + q.row * rh })))
-    // edges first (parent bottom -> child top)
+    // edges first (parent bottom -> child top) with energy trail feel
     const g = this.add.graphics(); b.add(g)
     for (const [id, p] of pos) {
       const n = nodeById(id)!, pp = n.parent ? pos.get(n.parent) : undefined
       if (!pp) continue
-      g.lineStyle(3, (t[id] ?? 0) > 0 ? COLORS.gold : UI.line, 1).lineBetween(pp.x + nw / 2, pp.y + nh, p.x + nw / 2, p.y)
+      const active = (t[id] ?? 0) > 0
+      g.lineStyle(active ? 3 : 2, active ? COLORS.gold : 0x2e3558, 1).lineBetween(pp.x + nw / 2, pp.y + nh, p.x + nw / 2, p.y)
+      if (active) {
+        g.lineStyle(1, 0xfff6c7, 0.8).lineBetween(pp.x + nw / 2, pp.y + nh, p.x + nw / 2, p.y)
+      }
     }
     for (const [id, p] of pos) {
       const n = nodeById(id)!, lv = t[id] ?? 0, why = lockReason(t, s.job, n), open = !why || why === 'เต็มแล้ว'
       const star = n.tier === 4 || n.kind === 's2star', sel = id === this.selNode
-      b.add(panel(this, p.x, p.y, nw, nh, lv ? 0x2a3b5a : open ? UI.panel : 0x161a33, sel ? 0xffffff : star ? COLORS.gold : lv ? 0x7fd7ff : UI.line, 10))
-      b.add(txt(this, p.x + 6, p.y + 4, `${star ? '★' : ''}${n.icon}`, 17, UI.text))
-      b.add(txt(this, p.x + nw - 6, p.y + 6, `${lv}/${n.max}`, 11, lv ? UI.gold : UI.sub, true).setOrigin(1, 0))
-      b.add(clipW(txt(this, p.x + 6, p.y + 29, n.name, 12, open ? UI.text : UI.sub), nw - 12))
-      const z = this.add.zone(p.x, p.y, nw, nh).setOrigin(0).setInteractive({ useHandCursor: true })
-      z.on('pointerdown', () => { this.selNode = id; this.render() })
-      b.add(z)
+      this.drawSkillNode(b, p.x, p.y, nw, nh, n, lv, open, star, sel, () => { this.selNode = id; this.render() })
     }
     // detail of the selected node
     const n = nodeById(this.selNode)!, lv = t[n.id] ?? 0, why = lockReason(t, s.job, n)
@@ -473,8 +584,12 @@ export class CharacterScene extends Phaser.Scene {
     const pos = new Map<string, { x: number; y: number }>()
     cols.forEach((c, i) => {
       const x = x0 + i * (cw + gap), br = brs[i]
-      b.add(panel(this, x - 3, 150, cw + 6, 344, 0x1d2140, UI.line, 8))
-      b.add(txt(this, x + 4, 155, `${br.icon} ${br.name}`, 11, UI.gold, true).setWordWrapWidth(cw))
+      b.add(panel(this, x - 3, 148, cw + 6, 346, 0x16192e, UI.line, 8))
+      const hG = this.add.graphics()
+      hG.fillStyle(0x232948, 0.9).fillRoundedRect(x - 2, 149, cw + 4, 24, 6)
+      hG.lineStyle(1, UI.lineHi, 0.6).strokeRoundedRect(x - 2, 149, cw + 4, 24, 6)
+      b.add(hG)
+      b.add(txt(this, x + 4, 154, `${br.icon} ${br.name}`, 11, UI.gold, true).setWordWrapWidth(cw))
       const under = c.some((n) => n.kind) ? 1 : 0 // v119: nodes under a root (Crusader Grand Cross / Holy Cross) start one row lower
       c.forEach((n) => pos.set(n.id, { x, y: top + (n.kind ? 0 : n.tier - 1 + under) * rh })) // roots and tier 1 share the top row
       const pet = j2.id === 'beastmaster' ? BRANCH_PET[br.id] : undefined // 🐺 Beastmaster: pick the companion under its branch (free)
@@ -487,16 +602,17 @@ export class CharacterScene extends Phaser.Scene {
         }, { size: 12, fill: cur ? COLORS.gold : 0x4a5a8a, color: cur ? UI.ink : UI.text }))
       }
     })
-    for (const [id, p] of pos) { const n = nodeById(id)!, pp = n.parent ? pos.get(n.parent) : undefined; if (pp) g.lineStyle(3, (t[id] ?? 0) > 0 ? COLORS.gold : UI.line, 1).lineBetween(pp.x + cw / 2, pp.y + nh, p.x + cw / 2, p.y) }
+    for (const [id, p] of pos) {
+      const n = nodeById(id)!, pp = n.parent ? pos.get(n.parent) : undefined
+      if (pp) {
+        const active = (t[id] ?? 0) > 0
+        g.lineStyle(active ? 3 : 2, active ? COLORS.gold : 0x2e3558, 1).lineBetween(pp.x + cw / 2, pp.y + nh, p.x + cw / 2, p.y)
+        if (active) g.lineStyle(1, 0xfff6c7, 0.8).lineBetween(pp.x + cw / 2, pp.y + nh, p.x + cw / 2, p.y)
+      }
+    }
     for (const [id, p] of pos) {
       const n = nodeById(id)!, lv = t[id] ?? 0, why = lockReason(t, s.job, n, j2.id), open = !why || why === 'เต็มแล้ว', star = n.tier === 4, sel = id === this.selNode
-      b.add(panel(this, p.x, p.y, cw, nh, lv ? 0x2a3b5a : open ? UI.panel : 0x161a33, sel ? 0xffffff : star ? COLORS.gold : lv ? 0x7fd7ff : UI.line, 10))
-      b.add(txt(this, p.x + 6, p.y + 4, `${star ? '★' : ''}${n.icon}`, 17, UI.text))
-      b.add(txt(this, p.x + cw - 6, p.y + 6, `${lv}/${n.max}`, 11, lv ? UI.gold : UI.sub, true).setOrigin(1, 0))
-      b.add(clipW(txt(this, p.x + 6, p.y + 29, n.name, 12, open ? UI.text : UI.sub), cw - 12))
-      const z = this.add.zone(p.x, p.y, cw, nh).setOrigin(0).setInteractive({ useHandCursor: true })
-      z.on('pointerdown', () => { this.selNode = id; this.render() })
-      b.add(z)
+      this.drawSkillNode(b, p.x, p.y, cw, nh, n, lv, open, star, sel, () => { this.selNode = id; this.render() })
     }
     const n = nodeById(this.selNode)!, lv = t[n.id] ?? 0, why = lockReason(t, s.job, n, j2.id)
     const s3 = n.branch.endsWith('_s3'), root = n.kind === 'pow2' ? (s3 ? j2.skill3 : j2.ult) : undefined
@@ -526,20 +642,25 @@ export class CharacterScene extends Phaser.Scene {
     const pos = new Map<string, { x: number; y: number }>()
     cols.forEach((c, i) => {
       const x = x0 + i * (cw + gap), br = brs[i]
-      b.add(panel(this, x - 3, 150, cw + 6, 344, br.job3 ? 0x1d2140 : 0x231d36, UI.line, 8))
-      b.add(clipW(txt(this, x + 4, 155, `${br.icon} ${br.name}`, 11, br.job3 ? UI.gold : UI.sub, true), cw - 6))
+      b.add(panel(this, x - 3, 148, cw + 6, 346, br.job3 ? 0x16192e : 0x1f172c, UI.line, 8))
+      const hG = this.add.graphics()
+      hG.fillStyle(0x232948, 0.9).fillRoundedRect(x - 2, 149, cw + 4, 24, 6)
+      hG.lineStyle(1, UI.lineHi, 0.6).strokeRoundedRect(x - 2, 149, cw + 4, 24, 6)
+      b.add(hG)
+      b.add(clipW(txt(this, x + 4, 154, `${br.icon} ${br.name}`, 11, br.job3 ? UI.gold : UI.sub, true), cw - 6))
       c.forEach((n) => pos.set(n.id, { x, y: top + (n.kind ? 0 : n.tier - 1) * rh }))
     })
-    for (const [id, p] of pos) { const n = nodeById(id)!, pp = n.parent ? pos.get(n.parent) : undefined; if (pp) g.lineStyle(3, (t[id] ?? 0) > 0 ? COLORS.gold : UI.line, 1).lineBetween(pp.x + cw / 2, pp.y + nh, p.x + cw / 2, p.y) }
+    for (const [id, p] of pos) {
+      const n = nodeById(id)!, pp = n.parent ? pos.get(n.parent) : undefined
+      if (pp) {
+        const active = (t[id] ?? 0) > 0
+        g.lineStyle(active ? 3 : 2, active ? COLORS.gold : 0x2e3558, 1).lineBetween(pp.x + cw / 2, pp.y + nh, p.x + cw / 2, p.y)
+        if (active) g.lineStyle(1, 0xfff6c7, 0.8).lineBetween(pp.x + cw / 2, pp.y + nh, p.x + cw / 2, p.y)
+      }
+    }
     for (const [id, p] of pos) {
       const n = nodeById(id)!, lv = t[id] ?? 0, why = lockReason3(t, s.job, n, j3, path), open = !why || why === 'เต็มแล้ว', star = n.tier === 4, sel = id === this.selNode
-      b.add(panel(this, p.x, p.y, cw, nh, lv ? 0x2a3b5a : open ? UI.panel : 0x161a33, sel ? 0xffffff : star ? COLORS.gold : lv ? 0x7fd7ff : UI.line, 10))
-      b.add(txt(this, p.x + 6, p.y + 4, `${star ? '★' : ''}${n.icon}`, 17, UI.text))
-      b.add(txt(this, p.x + cw - 6, p.y + 6, `${lv}/${n.max}`, 11, lv ? UI.gold : UI.sub, true).setOrigin(1, 0))
-      b.add(clipW(txt(this, p.x + 6, p.y + 29, n.name, 12, open ? UI.text : UI.sub), cw - 12))
-      const z = this.add.zone(p.x, p.y, cw, nh).setOrigin(0).setInteractive({ useHandCursor: true })
-      z.on('pointerdown', () => { this.selNode = id; this.render() })
-      b.add(z)
+      this.drawSkillNode(b, p.x, p.y, cw, nh, n, lv, open, star, sel, () => { this.selNode = id; this.render() })
     }
     const n = nodeById(this.selNode)!, lv = t[n.id] ?? 0, why = lockReason3(t, s.job, n, j3, path)
     this.nodeFooter(n, lv, why, n.kind === 'pow3' ? 'Ult วิวัฒน์ 2' : n.tier === 4 ? '★ ปลายสาย' : n.branch.startsWith('pa_') ? '' : `ยืมจาก ${JOB2[d.sibling].name}`, n.kind === 'pow3' ? `✨ ${d.ultName}: ${d.ultDesc}` : '', pts > 0 && !why, () => {
@@ -551,13 +672,19 @@ export class CharacterScene extends Phaser.Scene {
   /** Bottom strip of both skill webs: the picked node in 2 short lines + 📋 detail (opens the modal) + learn. */
   private nodeFooter(n: TreeNode, lv: number, why: string | null | undefined, tag: string, rootDesc: string, can: boolean, learn: () => void, tier2: boolean | 3) {
     const b = this.body!, locked = !!why && why !== 'เต็มแล้ว'
-    b.add(panel(this, 330, 500, 620, 70, UI.panel, COLORS.gold, 10))
-    b.add(clipW(txt(this, 342, 504, `${n.icon} ${n.name}  ${lv}/${n.max}${tag ? `  · ${tag}` : ''}`, 15, UI.gold, true), 440))
+    // Action Drawer Box with RPG ornate styling
+    b.add(panel(this, 330, 498, 620, 72, UI.panelHi, UI.goldDark, 10))
+    // Subtle inner glowing border
+    const g = this.add.graphics()
+    g.lineStyle(1, 0xffd15c, 0.3).strokeRoundedRect(332, 500, 616, 68, 8)
+    b.add(g)
+
+    b.add(clipW(txt(this, 344, 503, `${n.icon} ${n.name}  ${lv}/${n.max}${tag ? `  · ${tag}` : ''}`, 15, UI.gold, true), 440))
     const now = lv ? `ตอนนี้: ${n.desc(lv)}` : `Lv 1: ${n.desc(1)}`
-    b.add(clipW(txt(this, 342, 527, now, 12, lv ? UI.text : UI.green), 440))
-    b.add(clipW(txt(this, 342, 547, locked ? `🔒 ${why}` : lv && lv < n.max ? `ถัดไป: ${n.desc(lv + 1)}` : lv >= n.max ? '✅ เต็มแล้ว' : rootDesc || 'แตะ 📋 เพื่อดูตัวเลขจริง', 12, locked ? '#ffb0b0' : UI.green), 440))
-    b.add(button(this, 822, 535, 104, 40, '📋 รายละเอียด', () => { this.showDetail = true; this.render() }, { size: 13, fill: 0x5a5f8a, color: UI.text }))
-    b.add(button(this, 912, 535, 60, 40, lv ? '+1' : 'เรียน', learn, { size: 15 }).setEnabled(can))
+    b.add(clipW(txt(this, 344, 526, now, 12, lv ? UI.text : UI.green), 440))
+    b.add(clipW(txt(this, 344, 546, locked ? `🔒 ${why}` : lv && lv < n.max ? `ถัดไป: ${n.desc(lv + 1)}` : lv >= n.max ? '✅ เต็มแล้ว' : rootDesc || 'แตะ 📋 เพื่อดูตัวเลขจริง', 12, locked ? '#ffb0b0' : UI.green), 440))
+    b.add(button(this, 822, 534, 104, 38, '📋 รายละเอียด', () => { this.showDetail = true; this.render() }, { size: 13, fill: 0x474c72, color: UI.text }))
+    b.add(button(this, 912, 534, 60, 38, lv ? '+1' : 'เรียน', learn, { size: 15 }).setEnabled(can))
     if (this.showDetail) this.nodeModal(n, lv, why, tag, rootDesc, can, learn, tier2)
   }
 

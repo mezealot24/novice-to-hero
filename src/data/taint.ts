@@ -28,12 +28,23 @@ export function pickTaintKind(r: number): TaintKind {
 /** A curse line: a strong bonus AND a downside, added on top of the item as worn (not scaled by grade / refine). */
 export interface CurseDef { id: string; name: string; icon: string; mod: Partial<Stats>; pct?: NonNullable<Item['pct']> }
 export const CURSES: CurseDef[] = [
-  { id: 'glass', name: 'แก้วร้าว', icon: '💎', mod: { critMul: 0.4 }, pct: { maxHp: -0.15 } },
-  { id: 'thirst', name: 'กระหายเลือด', icon: '🩸', mod: { lifesteal: 0.06, healAmp: -0.3 } },
-  { id: 'fury', name: 'คลั่ง', icon: '💢', mod: { def: -5 }, pct: { atk: 0.15 } },
-  { id: 'haste', name: 'ไวเกินตัว', icon: '⚡', mod: { aspd: 0.24 }, pct: { maxHp: -0.1 } }, // 0.24 = +15% of the 1.6 base
-  { id: 'thorn', name: 'หนามคม', icon: '🌵', mod: { counter: 0.12, flee: -8 } },
-  { id: 'arcane', name: 'เวทต้องห้าม', icon: '🔮', mod: { mdef: -0.08 }, pct: { matk: 0.15 } },
+  // ----- Classic Curses (Upgraded with high-impact stats) -----
+  { id: 'glass', name: 'แก้วร้าว', icon: '💎', mod: { critMul: 0.4, crit: 0.06 }, pct: { maxHp: -0.15 } },
+  { id: 'thirst', name: 'กระหายเลือด', icon: '🩸', mod: { lifesteal: 0.12, spellVamp: 0.08, healAmp: -0.25 } },
+  { id: 'fury', name: 'คลั่ง', icon: '💢', mod: { def: -6, pskill: 0.10 }, pct: { atk: 0.25 } },
+  { id: 'haste', name: 'ไวเกินตัว', icon: '⚡', mod: { aspd: 0.35, combo: 0.08 }, pct: { maxHp: -0.08 } },
+  { id: 'thorn', name: 'หนามคม', icon: '🌵', mod: { counter: 0.20, ctrAoe: 1, flee: -6 } },
+  { id: 'arcane', name: 'เวทต้องห้าม', icon: '🔮', mod: { mdef: -0.06, maxRes: 30 }, pct: { matk: 0.25 } },
+
+  // ----- Corrupted Keystones (Game-changing signatures) -----
+  { id: 'phoenix', name: 'เพลิงอมตะ', icon: '🐦‍🔥', mod: { revive: 1, maxHp: 100, maxRes: -15 } },
+  { id: 'berserk', name: 'โลหิตบ้าคลั่ง', icon: '🪓', mod: { berserk: 1, atk: 20, def: -8 } },
+  { id: 'aegis', name: 'ปราการศักดิ์สิทธิ์', icon: '🛡️', mod: { overhealShield: 1, waveShield: 0.08, flee: -10 } },
+  { id: 'mirage', name: 'เงาลวงตา', icon: '🥷', mod: { dodgeStrike: 1, luckyDodge: 0.08, flee: 15, def: -6 } },
+  { id: 'vampire', name: 'เขี้ยวสูบวิญญาณ', icon: '🧛', mod: { killHeal: 0.06, lifesteal: 0.08, healAmp: -0.25 } },
+  { id: 'titan', name: 'ไททันบรรพกาล', icon: '🗿', mod: { tenacity: 0.20, aspd: -0.20 }, pct: { maxHp: 0.25 } },
+  { id: 'inferno', name: 'อเวจีลุกลาม', icon: '🔥', mod: { fireSpread: 1, burnDps: 4, mdef: -0.05 } },
+  { id: 'venom', name: 'พิษมรณะแพร่พันธุ์', icon: '☠️', mod: { poisonSpread: 1, poisonDmg: 3, healAmp: -0.15 } },
 ]
 export const curseById = (id: string | undefined) => CURSES.find((c) => c.id === id)
 

@@ -17,11 +17,12 @@ import { KIT3 } from '../data/skill-math'
 import { branchPts } from '../data/tree'
 import { autoCost, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, physBase, hitBase, KIT, KIT2, MAGE_CAST, magicPower, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, trialWin, ultMode } from '../save'
-import { JOB3 } from '../data/jobs3'
+import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
 import { TAINT_MAT } from '../data/taint'
 import { pinnedReady } from '../data/cardforge'
 import { rollUniqueDrop, UNIQUE } from '../data/uniques'
+import { rollUnique3Drop } from '../data/uniques3'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
 import { HARD_POWER, matchScale, overpowerMul, TOWER_POWER } from '../data/power'
@@ -2461,6 +2462,10 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: ring, width: 900, height: 120, alpha: 0, duration: 380, onComplete: () => ring.destroy() })
     this.burst(HERO_X + 140, GROUND, COLORS.gold, 26, 360)
     for (const m of this.alive()) {
+      if (Math.random() > hitChance(this.st.hit, m.def.flee ?? 5)) {
+        this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7')
+        continue
+      }
       const r = this.roll(this.st.smashMul * (1 + this.st.pskill))
       this.damageMon(m, r.crit ? r.dmg : this.armor(m, r.dmg, this.st.ultPierce), true) // v78 บดกระดูก pierce
       if (!m.dead) { m.gauge = Math.max(0, m.gauge - 40); this.tweens.add({ targets: m.spr, x: m.spr.x + 30, duration: 90, yoyo: true }) }
@@ -2546,7 +2551,11 @@ export class BattleScene extends Phaser.Scene {
    * A duplicate (already owned, or already dropped this run) pays that dungeon's boss materials instead. Never zeny. */
   private rollUnique(m: Mon) {
     if ((this.run.modeId !== 'dungeon' && this.run.modeId !== 'hard' && this.run.modeId !== 'bounty') || m.revived || m.def.ai !== 'boss' || m.def.mini || !cardsOfMonster(m.kind).length || !this.roomDef(this.room)?.boss) return
-    const got = rollUniqueDrop(this.dg.id, this.hell ? 'hell' : this.hard, [...save().owned, ...this.runUniques])
+    const s = save(), j3 = activeJob3(s)
+    let got = (this.dg.id === 'd10' && j3) ? rollUnique3Drop(j3, this.hell ? 'hell' : this.hard, [...s.owned, ...this.runUniques]) : { kind: 'none' as const }
+    if (got.kind === 'none') {
+      got = rollUniqueDrop(this.dg.id, this.hell ? 'hell' : this.hard, [...s.owned, ...this.runUniques])
+    }
     if (got.kind === 'none') return
     const it = itemById(got.id)
     if (got.kind === 'new') this.runUniques.push(got.id)

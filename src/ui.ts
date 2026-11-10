@@ -11,15 +11,21 @@ import { sfx, unlock } from './sfx'
 import { track } from './analytics'
 
 export const UI = {
-  night: 0x14172b,
-  panel: 0x232845,
-  panelHi: 0x2f3560,
-  line: 0x454c80,
+  night: 0x121424,       // Deep fantasy night sky
+  panel: 0x1c213a,       // Slate navy panel face
+  panelHi: 0x272d4e,     // Raised panel / active card
+  panelInner: 0x131728,  // Inset recessed slot
+  line: 0x3d476e,        // Bevel outer shadow line
+  lineHi: 0x5a689b,      // Bevel outer light highlight line
+  goldRim: 0x8f6a2b,     // Gold border dark edge
+  goldLight: 0xf6cb65,   // Gold border bright highlight
+  goldGlow: 0xffdf88,    // Gem/Gold specular spark
   cream: 0xf4e6c8,
-  ink: '#2b2238',
-  text: '#f6eedc',
-  sub: '#a9a6c7',
+  ink: '#1e1926',
+  text: '#fbf5e8',       // Slightly warmer RPG parchment white
+  sub: '#a0a3c4',
   gold: '#f2b84b',
+  goldDark: 0xc48c28,
   gem: '#7fd7ff',
   green: '#6fd08c',
   red: '#ff7a7a',
@@ -29,45 +35,101 @@ export function txt(scene: Phaser.Scene, x: number, y: number, s: string, size =
   return scene.add.text(x, y, s, { fontFamily: FONT_UI, fontSize: `${size}px`, fontStyle: bold ? 'bold' : 'normal', color, lineSpacing: 4 })
 }
 export function num(scene: Phaser.Scene, x: number, y: number, s: string, size = 18, color = UI.text) {
-  return scene.add.text(x, y, s, { fontFamily: FONT_NUM, fontSize: `${size}px`, color, stroke: '#14172b', strokeThickness: 3 })
+  return scene.add.text(x, y, s, { fontFamily: FONT_NUM, fontSize: `${size}px`, color, stroke: '#121424', strokeThickness: 3 })
 }
 
-/** Rounded panel. Returns the graphics so callers can depth/sort it. */
-export function panel(scene: Phaser.Scene, x: number, y: number, w: number, h: number, fill = UI.panel, stroke = UI.line, r = 14) {
+/** Draw decorative corner rivets/studs for RPG metal/wooden frame feel. */
+function drawRivet(g: Phaser.GameObjects.Graphics, cx: number, cy: number, r = 3, gold = false) {
+  // Rivet shadow
+  g.fillStyle(0x000000, 0.5).fillCircle(cx + 0.8, cy + 0.8, r)
+  // Rivet metallic base
+  g.fillStyle(gold ? 0x9e7025 : 0x2e3550, 1).fillCircle(cx, cy, r)
+  // Top-left highlight
+  g.fillStyle(gold ? 0xfde395 : 0x7c8dbd, 0.9).fillCircle(cx - 0.7, cy - 0.7, r * 0.5)
+}
+
+/** Rounded RPG Framed Panel. Features double-bevel metallic borders and corner rivets. */
+export function panel(scene: Phaser.Scene, x: number, y: number, w: number, h: number, fill = UI.panel, stroke = UI.line, r = 12) {
   const g = scene.add.graphics()
-  g.fillStyle(fill, 0.96).fillRoundedRect(x, y, w, h, r)
-  g.lineStyle(2, stroke, 1).strokeRoundedRect(x, y, w, h, r)
+  // 1. Soft drop shadow behind panel
+  g.fillStyle(0x000000, 0.45).fillRoundedRect(x + 2, y + 3, w, h, r)
+  // 2. Base dark rim for bevel depth
+  g.fillStyle(0x0e101c, 0.95).fillRoundedRect(x, y, w, h, r)
+  // 3. Panel inner body (slight inset)
+  g.fillStyle(fill, 0.98).fillRoundedRect(x + 1.5, y + 1.5, w - 3, h - 3, Math.max(4, r - 2))
+  // 4. Subtle top inner highlight
+  g.fillStyle(0xffffff, 0.04).fillRoundedRect(x + 3, y + 3, w - 6, Math.min(24, (h - 6) / 2), Math.max(3, r - 3))
+  // 5. Outer beveled frame
+  const isGold = stroke === COLORS.gold || stroke === UI.goldDark || stroke === 0xf2b84b
+  g.lineStyle(1.5, stroke, 0.9).strokeRoundedRect(x + 1, y + 1, w - 2, h - 2, r)
+  // Inner hairline for crisp metallic feel
+  g.lineStyle(1, isGold ? 0x5a3e14 : 0x161828, 0.6).strokeRoundedRect(x + 3, y + 3, w - 6, h - 6, Math.max(3, r - 3))
+
+  // Corner metallic rivets on sizable panels
+  if (w >= 70 && h >= 50) {
+    const pad = Math.min(10, Math.max(6, Math.round(r * 0.7)))
+    drawRivet(g, x + pad, y + pad, 2.5, isGold)
+    drawRivet(g, x + w - pad, y + pad, 2.5, isGold)
+    drawRivet(g, x + pad, y + h - pad, 2.5, isGold)
+    drawRivet(g, x + w - pad, y + h - pad, 2.5, isGold)
+  }
   return g
 }
 
 export interface Btn extends Phaser.GameObjects.Container { setLabel(s: string): Btn; setEnabled(on: boolean): Btn; setFill(c: number): Btn }
 
-/** Centered button. Fires on pointerup (so drags off it cancel). */
+/** Tactile 3D RPG button with embossed bevel, specular sheen, and physical click depress. */
 export function button(scene: Phaser.Scene, x: number, y: number, w: number, h: number, label: string, onClick: () => void,
   o: { fill?: number; color?: string; size?: number; stroke?: number } = {}): Btn {
   let fill = o.fill ?? COLORS.gold
   const g = scene.add.graphics()
-  const t = scene.add.text(0, 0, label, { fontFamily: FONT_UI, fontSize: `${o.size ?? 20}px`, fontStyle: 'bold', color: o.color ?? UI.ink, align: 'center', lineSpacing: 2 }).setOrigin(0.5)
+  const t = scene.add.text(0, -1, label, { fontFamily: FONT_UI, fontSize: `${o.size ?? 20}px`, fontStyle: 'bold', color: o.color ?? UI.ink, align: 'center', lineSpacing: 2 }).setOrigin(0.5)
   const c = scene.add.container(x, y, [g, t]) as Btn
-  let enabled = true, hover = false, armed = false // armed: the press STARTED on this button while it was enabled (a tap that began elsewhere, e.g. a tap-to-skip, must not fire it)
+  let enabled = true, hover = false, armed = false, pressed = false
+
   const draw = () => {
-    const f = enabled ? fill : 0x4a4e6e
     g.clear()
-    g.fillStyle(0x000000, 0.3).fillRoundedRect(-w / 2, -h / 2 + 4, w, h, 12)
-    g.fillStyle(f, 1).fillRoundedRect(-w / 2, -h / 2, w, h, 12)
-    g.fillStyle(0xffffff, hover && enabled ? 0.18 : 0.08).fillRoundedRect(-w / 2 + 3, -h / 2 + 3, w - 6, h / 2 - 3, 9)
-    g.lineStyle(2, o.stroke ?? 0x000000, 0.35).strokeRoundedRect(-w / 2, -h / 2, w, h, 12)
-    t.setColor(enabled ? o.color ?? UI.ink : '#c3c6e4').setAlpha(enabled ? 1 : 0.9) // v101: dark ink on the grey disabled fill was unreadable ("ขาด 💧9")
+    const isGold = fill === COLORS.gold || fill === 0xf2b84b || fill === 0xffd36b
+    const f = enabled ? fill : 0x3d415b
+    const py = pressed && enabled ? 2 : 0
+    t.setY(-1 + py)
+
+    // 1. Deep 3D bottom drop shadow & bevel lip
+    g.fillStyle(0x000000, 0.45).fillRoundedRect(-w / 2, -h / 2 + 5, w, h - 2, 10)
+    // 2. Dark bottom bevel edge (tactile button thickness)
+    const lipColor = isGold ? 0x946419 : (f === 0x5a5f8a ? 0x333754 : 0x22263b)
+    g.fillStyle(enabled ? lipColor : 0x252738, 1).fillRoundedRect(-w / 2, -h / 2 + 3 + py, w, h - 3, 10)
+    // 3. Main button face
+    g.fillStyle(f, 1).fillRoundedRect(-w / 2, -h / 2 + py, w, h - 4, 10)
+
+    // 4. Specular gloss highlight (top half)
+    if (enabled) {
+      g.fillStyle(0xffffff, hover ? 0.24 : 0.12).fillRoundedRect(-w / 2 + 2, -h / 2 + 1 + py, w - 4, Math.floor((h - 6) / 2), 8)
+    }
+
+    // 5. Border stroke with gold or metallic highlight
+    const strokeCol = !enabled ? 0x2a2c40 : (hover ? (isGold ? 0xffea9f : 0x8a97cf) : (isGold ? 0x6e4810 : 0x2a2f4c))
+    g.lineStyle(1.5, strokeCol, 0.9).strokeRoundedRect(-w / 2, -h / 2 + py, w, h - 4, 10)
+
+    t.setColor(enabled ? (o.color ?? (isGold ? UI.ink : UI.text)) : '#7e83a8').setAlpha(enabled ? 1 : 0.8)
   }
   draw()
+
   c.setSize(w, h).setInteractive({ useHandCursor: true })
   c.on('pointerover', () => { hover = true; draw() })
-  c.on('pointerout', () => { hover = false; armed = false; c.setScale(1); draw() })
-  c.on('pointerdown', () => { if (enabled) { armed = true; c.setScale(0.96) } })
+  c.on('pointerout', () => { hover = false; armed = false; pressed = false; draw() })
+  c.on('pointerdown', () => {
+    if (enabled) {
+      armed = true
+      pressed = true
+      draw()
+    }
+  })
   c.on('pointerup', () => {
-    c.setScale(1)
+    pressed = false
     const fire = armed
     armed = false
+    draw()
     if (!enabled || !fire) return
     unlock(); sfx.pop()
     onClick()
@@ -109,34 +171,75 @@ export function gemIcon(scene: Phaser.Scene, x: number, y: number, s = 9) {
 /** Top bar used by every menu scene: back button, title, zeny + gems. Returns a refresh() for the wallet. */
 export function topBar(scene: Phaser.Scene, title: string, onBack?: () => void) {
   const g = scene.add.graphics().setDepth(20000)
-  g.fillStyle(UI.night, 0.92).fillRect(0, 0, W, 56)
-  g.lineStyle(2, UI.line, 1).lineBetween(0, 56, W, 56)
-  if (onBack) button(scene, 58, 28, 96, 40, '‹ กลับ', onBack, { fill: 0x5a5f8a, color: UI.text, size: 17 }).setDepth(20001)
-  txt(scene, onBack ? 122 : 20, 28, title, 22, UI.text, true).setOrigin(0, 0.5).setDepth(20001)
-  // wallet, right aligned: [coin zeny] [gem gems]
-  const zeny = num(scene, 0, 28, '', 20, UI.gold).setOrigin(1, 0.5).setDepth(20001)
-  const coin = scene.add.image(0, 28, 'coin').setScale(1.3).setDepth(20001)
-  const gems = num(scene, W - 18, 28, '', 20, UI.gem).setOrigin(1, 0.5).setDepth(20001)
-  const gem = gemIcon(scene, 0, 28).setDepth(20001)
+  // 1. Dark header banner with gradient-like layering
+  g.fillStyle(UI.night, 0.98).fillRect(0, 0, W, 58)
+  g.fillStyle(0x1a1e36, 0.6).fillRect(0, 0, W, 28)
+  // Bottom gold-metallic trim line
+  g.fillStyle(0x0e101c, 0.9).fillRect(0, 56, W, 3)
+  g.lineStyle(1.5, UI.goldDark, 0.9).lineBetween(0, 56, W, 56)
+  g.lineStyle(1, 0x4a557d, 0.5).lineBetween(0, 58, W, 58)
+
+  if (onBack) button(scene, 58, 29, 96, 38, '‹ กลับ', onBack, { fill: 0x474c72, color: UI.text, size: 16 }).setDepth(20001)
+
+  // Title with subtle shadow & glow
+  scene.add.text(onBack ? 122 : 22, 31, title, { fontFamily: FONT_UI, fontSize: '22px', fontStyle: 'bold', color: '#0c0e18' }).setOrigin(0, 0.5).setDepth(20001)
+  txt(scene, onBack ? 122 : 20, 29, title, 22, UI.gold, true).setOrigin(0, 0.5).setDepth(20002)
+
+  // Currency pills (Zeny & Gems) with ornate recessed badge frames
+  const pillG = scene.add.graphics().setDepth(20001)
+  const zeny = num(scene, 0, 29, '', 19, UI.gold).setOrigin(1, 0.5).setDepth(20003)
+  const coin = scene.add.image(0, 29, 'coin').setScale(1.25).setDepth(20003)
+  const gems = num(scene, W - 22, 29, '', 19, UI.gem).setOrigin(1, 0.5).setDepth(20003)
+  const gem = gemIcon(scene, 0, 29, 8.5).setDepth(20003)
+
   const refresh = () => {
     const s = save()
     gems.setText(`${s.gems}`)
-    gem.x = gems.x - gems.width - 14
-    zeny.setText(`${s.zeny}`).setX(gem.x - 26)
-    coin.x = zeny.x - zeny.width - 14
+    gem.x = gems.x - gems.width - 13
+    zeny.setText(`${s.zeny}`).setX(gem.x - 34)
+    coin.x = zeny.x - zeny.width - 13
+
+    // Draw luxury currency badge background
+    pillG.clear()
+    // Gems badge
+    const gw = gems.width + 36, gx = W - 14 - gw
+    pillG.fillStyle(0x0e101d, 0.85).fillRoundedRect(gx, 12, gw, 34, 17)
+    pillG.lineStyle(1.5, 0x3d476e, 0.9).strokeRoundedRect(gx, 12, gw, 34, 17)
+
+    // Zeny badge
+    const zw = zeny.width + 36, zx = gem.x - 24 - zw
+    pillG.fillStyle(0x0e101d, 0.85).fillRoundedRect(zx, 12, zw, 34, 17)
+    pillG.lineStyle(1.5, 0x3d476e, 0.9).strokeRoundedRect(zx, 12, zw, 34, 17)
   }
   refresh()
   return refresh
 }
 
-/** Simple tab strip. Calls onPick(i) immediately for `start`. */
+/** Fantasy RPG Tab Strip: folder-style raised tabs with gold rim on active tab. */
 export function tabs(scene: Phaser.Scene, x: number, y: number, labels: string[], w: number, onPick: (i: number) => void, start = 0) {
   const btns: Btn[] = []
+  let active = start
+
   const pick = (i: number) => {
-    btns.forEach((b, j) => b.setAlpha(j === i ? 1 : 0.55))
+    active = i
+    btns.forEach((b, j) => {
+      const on = j === active
+      b.setFill(on ? COLORS.gold : 0x2e3553)
+      b.setAlpha(on ? 1 : 0.82)
+      b.setDepth(on ? 100 : 10)
+    })
     onPick(i)
   }
-  labels.forEach((l, i) => btns.push(button(scene, x + i * (w + 8) + w / 2, y, w, 40, l, () => pick(i), { size: 17 })))
+
+  labels.forEach((l, i) => {
+    const on = i === active
+    const b = button(scene, x + i * (w + 6) + w / 2, y, w, 40, l, () => pick(i), {
+      size: 16,
+      fill: on ? COLORS.gold : 0x2e3553,
+      color: on ? UI.ink : UI.text
+    })
+    btns.push(b)
+  })
   pick(start)
   return btns
 }

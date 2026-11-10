@@ -14,8 +14,8 @@ import { PanelBase } from './PanelBase'
 const HOLD_MS = 1200
 const KIND: Record<TaintKind, { label: string; color: number }> = {
   none: { label: '😐 ไม่เกิดอะไร (แต่ของถูกล็อก)', color: 0x8a8fb8 },
-  gold: { label: '✨ ค่าพิเศษเป็นทอง', color: 0xf2b84b },
-  curse: { label: '💀 ได้บรรทัดคำสาป (แรง + ข้อเสีย)', color: 0xc08cff },
+  gold: { label: '✨ ค่าพิเศษทุกแถวเป็นทอง', color: 0xf2b84b },
+  curse: { label: '💀 คำสาปมหาพลัง (ซิกเนเจอร์พิเศษ + บัฟมหาศาล)', color: 0xc08cff },
   brick: { label: '💥 พัง เสียค่าพิเศษ 1 บรรทัด / บวก −1', color: 0xff7a7a },
 }
 
@@ -63,7 +63,7 @@ export class TaintPanel extends PanelBase implements VerbPanel {
       ? '💔 ซ่อมของให้เสร็จก่อนค่อยลุ้นคำสาปค่ะ'
       : `หลัง Corrupt ของชิ้นนี้ถูกล็อก: ตีบวก · อัปขั้น · สุ่มค่าพิเศษ ไม่ได้อีก (ซ่อมได้)${isWorn(s, it.id) ? ' · ⚠ ของชิ้นนี้ใส่อยู่' : ''}`)
     fit(this.warn, 58)
-    this.foot.setY(250).setColor(UI.sub).setText(`ราคา ${TAINT.zeny}z + 🔻 ผลึกโลกันตร์ x${TAINT.crystals} (เท่ากันทุกชิ้น) · 💡 ทำหลังสุด หลัง +10 / ★ สูงสุด`)
+    this.foot.setY(250).setColor(UI.sub).setText(`ราคา ${TAINT.zeny}z + 🔻 ผลึกโลกันตร์ x${TAINT.crystals} · 💀 ลุ้นซิกเนเจอร์: คืนชีพ · สวนกลับทุกตัว · คลั่ง · โล่ · ดูดเลือด`)
     fit(this.foot, 56)
   }
 
