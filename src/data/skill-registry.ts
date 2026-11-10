@@ -135,16 +135,125 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
 // ---------- v107 round 2: 2nd jobs (KIT2 + JOB2 skill 3 / Ult วิวัฒน์) ----------
 export const JOB2_IDS = Object.keys(JOB2) as Job2Id[]
 export interface Job2Layout { s3: SkillRef[]; ult: SkillRef[]; other: SkillRef[] }
-/** Hand-written Thai labels; any other KIT2 number shows its key. */
+/** Hand-written Thai labels for every 2nd-job KIT2 number. */
 const J2_LABEL: Record<string, string> = {
+  // 🪓 Berserker
+  'berserker.frenzyMax': '🔥 Frenzy สูงสุด (stack)', 'berserker.frenzyAspd': '🔥 ความเร็วเพิ่มต่อ 1 Frenzy',
+  'berserker.frenzyCritDmg': '🔥 ดาเมจคริเพิ่มต่อ 1 Frenzy', 'berserker.frenzyKeep': '🔥 เทิร์นไม่คริก่อน stack หาย',
+  'berserker.waveFront': '🌊 คลื่นดาบ: ดาเมจตัวหน้า × P.ATK', 'berserker.waveBack': '🌊 คลื่นดาบ: ดาเมจตัวหลัง × P.ATK',
+  'berserker.waveCrit': '🌊 คลื่นดาบ: โอกาสคริเพิ่ม', 'berserker.waveOffWeapon': '🌊 ตัวคูณเมื่อไม่ได้ถืออาวุธ 2 มือ',
+  'berserker.ultMul': '👹 บ้าระห่ำ: ฟันทุกตัว × P.ATK', 'berserker.ultTurns': '👹 บ้าระห่ำ: นาน (เทิร์น)',
+  'berserker.ultCrit': '👹 บ้าระห่ำ: โอกาสคริเพิ่ม', 'berserker.ultTaken': '👹 บ้าระห่ำ: โดนตีแรงขึ้นระหว่างคลั่ง',
+  'berserker.mastery.atkPct': 'ชำนาญอาวุธ 2 มือ: P.ATK +%', 'berserker.mastery.crit': 'ชำนาญอาวุธ 2 มือ: คริ +',
+  'berserker.ignorePainTurns': '★ ไม่รู้สึกเจ็บ: อมตะ 1 HP (เทิร์น)', 'berserker.ignorePainRegenTurns': '★ ไม่รู้สึกเจ็บ: ฟื้นตัวหลังจบ (เทิร์น)',
+  'berserker.ignorePainRegenPct': '★ ไม่รู้สึกเจ็บ: ฟื้นจากดาเมจที่ทำ (%)',
+  // 🐴 Knight
+  'knight.hpPct': '🐦 ขี่เปโก: HP สูงสุด +%', 'knight.aspdPct': '🐦 ขี่เปโก: ความเร็ว +%',
+  'knight.hpDmg': '🔱 ถึกเป็นแรง: บวก % Max HP เข้าสกิลหอก', 'knight.brandMul': '🌀 Brandish: ดาเมจกวาด × P.ATK',
+  'knight.brandTargets': '🌀 Brandish: จำนวนเป้าหน้าสุด', 'knight.brandPush': '🌀 Brandish: ผลักเกจมอนตัวหน้า',
+  'knight.pierceHits': '🎯 Pierce: จำนวนฮิต (มอนปกติ)', 'knight.pierceBigHits': '🎯 Pierce: จำนวนฮิต (บอส/มินิ)',
+  'knight.pierceMul': '🎯 Pierce: ดาเมจต่อฮิต × P.ATK', 'knight.bashMul': '🎯 Bowling Bash: กระแทกตัวถัดไป ×',
+  'knight.boomerang': '↩️ Spear Boomerang: ดาเมจ × P.ATK', 'knight.chargeFirst': '🚀 ★ ทะยาน: ตัวคูณฟันแรก',
+  'knight.guardShieldless': '🛡️ Auto Guard เมื่อไม่ถือโล่ (ตัวคูณ)',
+  'knight.mastery.atkPct': 'ชำนาญหอก: P.ATK +%', 'knight.mastery.hit': 'ชำนาญหอก: Hit +',
+  'knight.tree.banner': '🚩 ปักธง: โล่ต้นเวฟ (% HP ต่อ Lv เดิม)', 'knight.tree.provokeAt': '😤 ข่มขวัญ: ทำงานเมื่อ HP มอนต่ำกว่า',
+  'knight.tree.provoke': '😤 ข่มขวัญ: มอนตีเบาลง (ต่อ Lv เดิม)', 'knight.tree.bannerKill': '🎖️ ธงชัย: โล่เมื่อฆ่า (% HP ต่อ Lv เดิม)',
+  'knight.tree.auraHeal': '🏳️ ★ ธงอมตะ: ฮีล % HP เมื่อบล็อก', 'knight.tree.auraRes': '🏳️ ★ ธงอมตะ: ฟื้น Mana/Rage เมื่อบล็อก',
+  'knight.tree.auraGuard': '🏳️ ★ ธงอมตะ: โอกาสบล็อกเพิ่ม', 'knight.tree.sweepEvery': '🌀 ทวนวน: ออกอัตโนมัติทุก N เทิร์น',
+  'knight.tree.sweep': '🌀 ทวนวน: ดาเมจ × P.ATK (ต่อ Lv เดิม)', 'knight.tree.sweepPush': '💨 เหวี่ยง: ผลักเกจมอน (ต่อ Lv เดิม)',
+  'knight.tree.sweepGauge': '⚡ ทวนเร็ว: เติมเกจฮีโร่ต่อตัวที่ตาย', 'knight.tree.sweepBreak': '🌪️ ★ พายุทวน: เกราะแตก (เทิร์น)',
+  'knight.tree.sweepStun': '🌪️ ★ พายุทวน: โอกาสมึน / ผลักเกจ',
+  // 🔪 Rogue
+  'rogue.knifeMul': '🔪 มีดบิน: ดาเมจต่อเล่ม × P.ATK', 'rogue.knifePerCombo': '🔪 มีดบิน: จำนวนมีดต่อฮิตคอมโบ',
+  'rogue.dualKnife': '🔪 มีดมือรอง: มีดบินเพิ่ม (เล่ม)', 'rogue.stabMul': '🗡️ Back Stab: ดาเมจ × P.ATK (คริแน่)',
+  'rogue.ultKnives': '🌪️ พายุมีด: จำนวนมีดบินที่โปรย', 'rogue.ultKnifeMul': '🌪️ พายุมีด: ดาเมจต่อเล่ม × P.ATK',
+  'rogue.mastery.atkPct': 'ชำนาญมีด: P.ATK +%', 'rogue.mastery.crit': 'ชำนาญมีด: คริ +',
+  // 🕴️ Mobster
+  'mobster.execBase': '📒 สมุดหนี้: เกณฑ์ Execute พื้นฐาน (% HP)', 'mobster.execPer': '📒 สมุดหนี้: เกณฑ์เพิ่มต่อ 1 หนี้',
+  'mobster.bossExecMul': '📒 สมุดหนี้: ตัวคูณใส่บอส/มินิแทน Execute', 'mobster.cutTurns': '⛓️ ตัดเส้นเอ็น: ช้า + เกราะแตก (เทิร์น)',
+  'mobster.cutMul': '⛓️ ตัดเส้นเอ็น: ดาเมจ × P.ATK', 'mobster.armorBrk': '⛓️ เกราะแตก: ลด DEF มอน (%)',
+  'mobster.ultSlash': '💀 ทวงหนี้: ฟันทุกตัว × P.ATK', 'mobster.burstTurns': '💀 ทวงหนี้: คิดระเบิดพิษกี่เทิร์น',
+  'mobster.burstMul': '💀 ทวงหนี้: ตัวคูณระเบิดพิษ', 'mobster.ultCdRefund': '💀 ทวงหนี้: คืนคูลดาวน์เมื่อ Execute (เทิร์น)',
+  'mobster.mastery.atkPct': 'ชำนาญมีด: P.ATK +%', 'mobster.mastery.poisonDmg': 'ชำนาญมีด: พิษแรง +ต่อ stack',
+  // ✝️ Crusader
   'crusader.guard': '🛡️ Auto Guard: บล็อก', 'crusader.guardVit': '🛡️ บล็อกเพิ่มต่อ VIT', 'crusader.guardCap': '🛡️ บล็อกสูงสุด', 'crusader.guardOverMul': '🛡️ บล็อกเกิน Cap: โล่/ฮีลบล็อก × ต่อ 1', 'crusader.holyVs': 'ศรัทธา: แรงใส่อันเดด/ปีศาจ',
   'crusader.crossHits': '✝️ จำนวนฮิต', 'crusader.crossMul': '✝️ ต่อฮิต × (P.ATK + Pm)', 'crusader.blindTurns': '🙈 ตาบอด (เทิร์น)', 'crusader.blindHit': '🙈 Hit มอนลด',
   'crusader.gcPay': '✨ จ่าย HP % ปัจจุบัน', 'crusader.gcPm': '✨ ต่อ pulse × พลังเวท', 'crusader.gcAtk': '✨ ต่อ pulse × P.ATK', 'crusader.gcStr': '✨ ต่อ pulse × STR (flat)', 'crusader.gcPulses.0': '✨ pulse ที่ Lv0', 'crusader.gcPulses.1': '✨ pulse ที่ Lv1', 'crusader.gcPulses.2': '✨ pulse ที่ Lv2', 'crusader.gcPulses.3': '✨ pulse ที่ Lv3', 'crusader.gcPulses.4': '✨ pulse ที่ Lv4', 'crusader.gcPulses.5': '✨ pulse ที่ Lv5', 'crusader.gcRefund': '✨ คืน HP % ของที่จ่าย',
   'crusader.gcRefundAt': '✨ คืน HP เมื่อโดนกี่ตัวขึ้นไป', 'crusader.gcBurn': '🔥 โบนัส × (Mana ที่เผา + HP ที่จ่าย)', 'crusader.angelCap': '🪽 Guardian Angel ลดดาเมจสูงสุด', 'crusader.hcVit': '✝️ Holy Cross VIT ต่อ stack', 'crusader.hcVitGrace': '✝️ VIT อยู่ต่อหลังคูลดาวน์หมด (เทิร์น)',
   'crusader.martyrShield': '★ ผู้พลีชีพ: โล่ % HP', 'crusader.mastery.atkPct': 'ชำนาญอาวุธ: ATK %', 'crusader.mastery.def': 'ชำนาญอาวุธ: DEF',
+  // 👊 Monk
+  'monk.combo': '👊 หมัดกระแส: โอกาสคอมโบเพิ่ม', 'monk.chargeMax': '🔵 ลูกพลังสูงสุด (ลูก)',
+  'monk.chargePerSwing': '🔵 ลูกพลังต่อการตีธรรมดา', 'monk.chargePerCombo': '🔵 ลูกพลังต่อฮิตคอมโบ',
+  'monk.thunderMin': '⚡ Falling Thunder: ลูกพลังขั้นต่ำ', 'monk.thunderPm': '⚡ ดาเมจพื้นฐาน × พลังเวท',
+  'monk.thunderPer': '⚡ แรงเพิ่มต่อ 1 ลูกพลัง', 'monk.bellHp': '🔔 Tempest Bell: เลือด (% Max HP ฮีโร่)',
+  'monk.bellTaunt': '🔔 โอกาสระฆังรับตีแทนฮีโร่', 'monk.bellTurns': '🔔 ระฆังอยู่นาน (เทิร์น)',
+  'monk.bellRing': '🔔 สั่นทุกฮิต: ดาเมจทุกตัว × พลังเวท', 'monk.bellBoom': '🔔 ระเบิดเมื่อระฆังแตก × พลังเวท',
+  'monk.instillMul': '🌩️ ★ Instill: สายฟ้า × พลังเวท', 'monk.chillTurns': '❄️ ฝ่ามือธาตุ: ติดช้านาน (เทิร์น)',
+  'monk.noLightMul': '🖤 ★ ไร้แสง: ฮีลเกินเป็นโล่มืด ×', 'monk.darkCap': '🌑 เพดานโล่มืด (% Max HP)',
+  'monk.mastery.atkPct': 'ชำนาญสนับมือ/พลอง: P.ATK +%', 'monk.mastery.combo': 'ชำนาญสนับมือ/พลอง: คอมโบ +',
+  // 🌩️ Wizard
+  'wizard.castTaken': '🔮 ร่ายใหญ่: โดนตีแรงขึ้นระหว่างชาร์จ', 'wizard.quickMana': '🌀 ★ Quagmire: Mana ≥ % นี้ร่ายทันที',
+  'wizard.gustHits': '❄️ Storm Gust: จำนวนฮิต (ฮิต 3 แช่แข็ง)', 'wizard.gustMul': '❄️ Storm Gust: ดาเมจต่อฮิต × พลังเวท',
+  'wizard.gustChill': '❄️ Storm Gust: ช้าบอส/มินิ (เทิร์น)', 'wizard.gustPush': '❄️ Storm Gust: ผลักเกจบอส/มินิ',
+  'wizard.meteors': '☄️ Meteor Storm: จำนวนอุกกาบาต', 'wizard.meteorMul': '☄️ Meteor Storm: ดาเมจต่อลูก × พลังเวท',
+  'wizard.meteorBurn': '☄️ Meteor Storm: เผาซ้อน (stack)', 'wizard.lovHits': '⚡ LoV: จำนวนฮิตทุกตัว',
+  'wizard.lovMul': '⚡ LoV: ดาเมจต่อฮิต × พลังเวท', 'wizard.lovStun': '⚡ LoV: โอกาสมึนต่อฮิต',
+  'wizard.lovPush': '⚡ LoV: ผลักเกจบอส/มินิ', 'wizard.iceBarrier': '❄️ บาเรียน้ำแข็งเพิ่ม × M.ATK',
+  'wizard.mastery.matk': 'ชำนาญไม้เท้า: M.ATK +', 'wizard.mastery.spellCrit': 'ชำนาญไม้เท้า: เวทคริ +',
+  // 📖 Sage
+  'sage.basicMul': '📖 ตีธรรมดาประชิด × P.ATK', 'sage.autoChance': '📖 Auto Spell: โอกาสพื้นฐาน',
+  'sage.autoInt': '📖 Auto Spell: โอกาสเพิ่มต่อ 1 INT', 'sage.autoCap': '📖 Auto Spell: เพดานโอกาสสูงสุด',
+  'sage.autoMul': '📖 Auto Spell: ดาเมจ Bolt × พลังเวท', 'sage.endowTurns': '🗡️ Endow: นาน (เทิร์น)',
+  'sage.endowAmp': '🗡️ Endow: เพิ่มแรงตีธรรมดา/Auto Spell', 'sage.ultAtk': '🚫 Spell Breaker: ฟาด × P.ATK',
+  'sage.ultPm': '🚫 Spell Breaker: ฟาด × พลังเวท', 'sage.ultMana': '🚫 Dispell: ขโมย Mana เมื่อร่าย',
+  'sage.rodBlockMana': '🌀 ★ Magic Rod: Mana ที่ได้เมื่อกันเวทแรก',
+  'sage.mastery.atkPct': 'ชำนาญหนังสือ/ไม้เท้า: P.ATK +%', 'sage.mastery.matk': 'ชำนาญหนังสือ/ไม้เท้า: M.ATK +',
+  // 🐺 Beastmaster
+  'beastmaster.secondPow': '🐾 ★ วิวัฒน์ 2 สาย: พลังสัตว์ตัวที่ 2 ×', 'beastmaster.hawkChance': '🦅 Blitz Beat: โอกาสพื้นฐาน',
+  'beastmaster.hawkLuk': '🦅 Blitz Beat: โอกาสเพิ่มต่อ 1 LUK', 'beastmaster.hawkCap': '🦅 Blitz Beat: เพดานโอกาสสูงสุด',
+  'beastmaster.hawkMul': '🦅 เหยี่ยว: ดาเมจต่อเป้า × P.ATK', 'beastmaster.hawkHits': '🦅 เหยี่ยว: จำนวนเป้าขั้นต่ำ',
+  'beastmaster.hawkHitsMax': '🦅 เหยี่ยว: จำนวนเป้าสูงสุด', 'beastmaster.hawkEvoMul': '✨ เหยี่ยวทอง: ดาเมจเพิ่ม ×',
+  'beastmaster.hawkEvoHits': '✨ เหยี่ยวทอง: จำนวนเป้าเพิ่ม', 'beastmaster.boarHp': '🐗 หมูป่า: HP (% Max HP ฮีโร่)',
+  'beastmaster.boarTaunt': '🐗 หมูป่า: โอกาสรับตีแทนฮีโร่', 'beastmaster.boarEvery': '🐗 หมูป่า: พุ่งชนมึนทุก N เทิร์น',
+  'beastmaster.boarMul': '🐗 หมูป่า: ดาเมจพุ่งชน × P.ATK', 'beastmaster.boarPush': '🐗 หมูป่า: ผลักเกจบอส/มินิ (ทุกสกิลชน)',
+  'beastmaster.boarEvoHp': '🐗 หมูป่าเกราะ: HP เพิ่ม (% Max HP)', 'beastmaster.boarEvoEvery': '🐗 หมูป่าเกราะ: พุ่งชนทุก N เทิร์น',
+  'beastmaster.wolfSpeed': '🐺 หมาป่า: ความเร็ว × ความเร็วฮีโร่', 'beastmaster.wolfMul': '🐺 หมาป่า: ดาเมจกัด × P.ATK',
+  'beastmaster.wolfBleed': '🐺 หมาป่า: เลือดไหล (poison stack)', 'beastmaster.wolfEvoMul': '👑 ราชาหมาป่า: ดาเมจเพิ่ม ×',
+  'beastmaster.wolfEvoSpeed': '👑 ราชาหมาป่า: ความเร็วเพิ่ม ×', 'beastmaster.cmdHawkHits': '📯 สั่งลุยเหยี่ยว: จำนวนครั้งที่ฟาด',
+  'beastmaster.cmdBoarShield': '📯 สั่งลุยหมูป่า: โล่ให้ฮีโร่ (% HP)', 'beastmaster.cmdPack': '📯 สั่งลุยหมาป่า: จำนวนฝูงที่เรียก',
+  'beastmaster.cmdPackTurns': '📯 สั่งลุยหมาป่า: ฝูงอยู่นาน (เทิร์น)', 'beastmaster.cmdPackPow': '📯 สั่งลุยหมาป่า: พลังตัวในฝูง ×',
+  'beastmaster.ultHawk': '🐾 Stampede เหยี่ยว: ฟาดทุกตัว ×', 'beastmaster.ultBoar': '🐾 Stampede หมูป่า: ชนทุกตัว + ผลัก ×',
+  'beastmaster.ultWolf': '🐾 Stampede หมาป่า: กัดตัวหน้า ×',
+  'beastmaster.mastery.atkPct': 'ชำนาญธนู: P.ATK +%', 'beastmaster.mastery.hit': 'ชำนาญธนู: Hit +',
+  'beastmaster.tree.petPow': '🐾 ใจเดียวกัน: สัตว์แรง + (ต่อ Lv เดิม)', 'beastmaster.tree.petRes': '🔋 ประสานล่า: Energy ต่อครั้งสัตว์ตี',
+  'beastmaster.tree.cmdCut': '📯 คำสั่งไว: ลดค่า Energy สั่งลุย', 'beastmaster.tree.pack3Pow': '🦁 ★ ฝูงพันธมิตร: พลัง 2 ตัวเสริม ×',
+  'beastmaster.tree.packLead': '🎯 ผู้นำฝูง: ฮีโร่แรง +ต่อสัตว์ที่อยู่', 'beastmaster.tree.petHeal': '🩹 เลียแผล: ฮีล % HP ต่อสัตว์ลงมือ',
+  'beastmaster.tree.roar': '🐺 ขู่คำราม: ลดเกจมอนต้นเวฟ',
+  // 🔧 Innovator
+  'innovator.traps': '🧰 กล่องเครื่องมือ: กับดักต้นเวฟ (อัน)', 'innovator.mineMul': '💣 Land Mine: ดาเมจ × P.ATK',
+  'innovator.snarePush': '🕳️ Ankle Snare: ผลักเกจบอส/มินิ', 'innovator.freezeMul': '❄️ Freezing Trap: ดาเมจ × P.ATK',
+  'innovator.freezeChill': '❄️ Freezing Trap: ติดช้านาน (เทิร์น)', 'innovator.rareLuk': '🍀 กล่องสุ่ม: น้ำหนักของหายากต่อ LUK',
+  'innovator.rareLukCap': '🍀 กล่องสุ่ม: เพดานโบนัส LUK ของหายาก', 'innovator.chickenSoaks': '🐔 ไก่ยาง: รับตีแทนได้กี่ครั้ง',
+  'innovator.rocketMul': '🚀 จรวดขวด: ดาเมจตัวหน้า × P.ATK', 'innovator.turretMul': '🤖 หุ่นจิ๋ว: ยิง × P.ATK',
+  'innovator.turretTurns': '🤖 หุ่นจิ๋ว: อยู่นาน (เทิร์น)', 'innovator.magnetZeny': '🧲 แม่เหล็ก: Zeny เวฟนี้เพิ่ม (%)',
+  'innovator.mirrorCap': '🔁 กระจก: สะท้อนฮิตถัดไป (% ดาเมจ)', 'innovator.colaMul': '🥤 โคล่าระเบิด: ดาเมจทุกตัว × P.ATK',
+  'innovator.colaChill': '🥤 โคล่าระเบิด: ติดช้านาน (เทิร์น)', 'innovator.wetTurns': '☁️ เมฆฝน: เปียกนาน (เทิร์น)',
+  'innovator.wetAmp': '☁️ เมฆฝน: มอนโดนฮีโร่ตีแรงขึ้น (%)', 'innovator.ultBoxes': '🛠️ สิ่งประดิษฐ์สุดเพี้ยน: สุ่มกล่อง (ครั้ง)',
+  'innovator.mastery.atkPct': 'ชำนาญธนู: P.ATK +%', 'innovator.mastery.crit': 'ชำนาญธนู: คริ +',
 }
 /** Which column a KIT2 key goes to. Skill 3 Mana / cooldown are NOT here: jobs2.ts copies them at import, so they are tuned on JOB2 (job2.<id>.skill3.cost / cd). */
-const J2_COL: Partial<Record<Job2Id, { s3: RegExp; ult: RegExp }>> = { crusader: { s3: /^(cross|blind)/, ult: /^gc/ } }
+const J2_COL: Partial<Record<Job2Id, { s3: RegExp; ult: RegExp }>> = {
+  berserker: { s3: /^wave/, ult: /^ult/ },
+  knight: { s3: /^brand/, ult: /^(pierce|bash)/ },
+  rogue: { s3: /^stab/, ult: /^ult/ },
+  mobster: { s3: /^(cut|armorBrk)/, ult: /^(ult|burst)/ },
+  crusader: { s3: /^(cross|blind)/, ult: /^gc/ },
+  monk: { s3: /^thunder/, ult: /^bell/ },
+  wizard: { s3: /^gust/, ult: /^(meteor|lov|iceBarrier)/ },
+  sage: { s3: /^endow/, ult: /^ult/ },
+  beastmaster: { s3: /^cmd/, ult: /^ult/ },
+  innovator: { s3: /^(rare|chicken|rocket|turret|magnet|mirror|cola|wet)/, ult: /^ult/ },
+}
 const INTISH = /(Turns|Hits|Max|Keep|At|Stacks|Every|Boxes|Knives|Count|Per(Swing|Combo))$/
 function j2Leaves(id: Job2Id): SkillOwnRef[] {
   const out: SkillOwnRef[] = []

@@ -161,17 +161,29 @@ export function previewLevels(k: MonsterKind): number[] {
   return lo === hi ? [lo] : [lo, hi]
 }
 
+function computeMonPreview(k: MonsterKind): MonPreview[] {
+  return previewLevels(k).map((lv) => {
+    const m = statNative(k) ? statMonster(MONSTERS[k], lv) : withStats(MONSTERS[k], k, lv)
+    return {
+      lv, hp: m.hp, dmg: m.dmg, matk: m.matk ?? m.dmg, def: m.def ?? 0, mdef: m.mdef ?? 0, hit: m.hit ?? 15, flee: m.flee ?? 5,
+      crit: m.crit ?? 0, combo: m.combo ?? 0, counter: m.counter ?? 0, speed: m.speed ?? BATTLE.monSpeed[k] ?? 10, base: { ...m.base },
+    }
+  })
+}
+
 /** Run the game's own stat formulas (statMonster / withStats) with `patch` applied, then put the build defaults back. */
 export function previewMon(k: MonsterKind, patch: Patch): MonPreview[] {
   const r = applyPatch(patch, guardsFor(patch))
+  try { return computeMonPreview(k) } finally { r.revert() }
+}
+
+/** Batch preview for many monsters under a single patch apply/revert (fast table rendering). */
+export function previewManyMons(kinds: MonsterKind[], patch: Patch): Map<MonsterKind, MonPreview[]> {
+  const out = new Map<MonsterKind, MonPreview[]>()
+  const r = applyPatch(patch, guardsFor(patch))
   try {
-    return previewLevels(k).map((lv) => {
-      const m = statNative(k) ? statMonster(MONSTERS[k], lv) : withStats(MONSTERS[k], k, lv)
-      return {
-        lv, hp: m.hp, dmg: m.dmg, matk: m.matk ?? m.dmg, def: m.def ?? 0, mdef: m.mdef ?? 0, hit: m.hit ?? 15, flee: m.flee ?? 5,
-        crit: m.crit ?? 0, combo: m.combo ?? 0, counter: m.counter ?? 0, speed: m.speed ?? BATTLE.monSpeed[k] ?? 10, base: { ...m.base },
-      }
-    })
+    for (const k of kinds) out.set(k, computeMonPreview(k))
+    return out
   } finally { r.revert() }
 }
 
