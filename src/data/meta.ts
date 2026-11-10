@@ -191,6 +191,7 @@ export const ITEMS: Item[] = [
   { id: 'a_runerobe', slot: 'armor', name: 'เสื้อคลุมรูน', icon: '🌀', price: 750, desc: 'ตัวหนาขึ้น กันเวท Mana เยอะ', base: { int: 3 }, mod: { maxHp: 55, maxRes: 20, mdef: 0.06 }, jobs: MG, req: 'job' },
   { id: 'a_lightvestment', slot: 'armor', name: 'อาภรณ์แสง', icon: '🕊️', price: 700, desc: 'ได้โล่ทุกเวฟ ฮีลแรงขึ้น', base: { wis: 2, vit: 2 }, mod: { maxHp: 50, healAmp: 0.1, waveShield: 0.05 }, jobs: CL, req: 'job' },
   { id: 'a_nightsuit', slot: 'armor', name: 'ชุดจอมโจรราตรี', icon: '🌒', price: 700, desc: 'หลบเก่ง หลบแล้วฟื้น HP', base: { luk: 3 }, mod: { maxHp: 30, flee: 8, luckyDodge: 0.03, dodgeHeal: 0.02 }, jobs: TH, req: 'job' },
+  { id: 'a_monkgi', slot: 'armor', name: 'ชุดฝึกมังค์ปราณพิสุทธิ์', icon: '🥋', price: 1300, desc: 'อาชีพขั้น 2 · เกราะมังค์: สมาธิมั่นคง กันเวท เพิ่มแรงหมัดตาม M.DEF และ HP', base: { wis: 3, vit: 3, str: 2 }, mod: { maxHp: 90, def: 12, mdef: 0.05, j2MdefDmg: 0.25, j2HpPunch: 0.005 }, jobs: CL, j2: ['monk'], req: 'job2' },
   // ----- accessories: everyone (pick the one stat your build needs) -----
   { id: 'none', slot: 'acc', name: 'ว่าง', icon: '▫️', price: 0, desc: 'ยังไม่ใส่อะไร', mod: {} },
   { id: 'clover', slot: 'acc', name: 'แหวนใบโคลเวอร์', icon: '🍀', price: 150, desc: 'ดวงดี', base: { luk: 1 }, mod: { crit: 0.06, dropChance: 0.03 } },
@@ -207,6 +208,7 @@ export const ITEMS: Item[] = [
   // ----- Dungeon 4-5 prep: resist the new debuffs (design/dungeon-4-5-brutal.md) -----
   { id: 'r_amulet', slot: 'acc', name: 'เครื่องรางล้างพิษ', icon: '🧿', price: 1600, desc: 'ของดัน 3: กันสถานะผิดปกติ (เตรียมลุยบึงพิษ)', base: { vit: 2, wis: 2 }, mod: { debuffRes: 0.35, maxHp: 40, mdef: 0.04 }, req: 'd3' },
   { id: 'r_hydraheart', slot: 'acc', name: 'หัวใจไฮดรา', icon: '💚', price: 2600, desc: 'ของดัน 4: ทุกค่าสถานะ +3 · ฟื้น HP ทุกเทิร์น · กันสถานะผิดปกติ', base: { str: 3, vit: 3, wis: 3, dex: 3, int: 3, luk: 3, agi: 3 }, mod: { regen: 0.5, debuffRes: 0.25 }, req: 'd4' },
+  { id: 'r_monkrosary', slot: 'acc', name: 'ประคำโพธิสัตว์คุ้มภัย', icon: '📿', price: 1250, desc: 'อาชีพขั้น 2 · ประดับมังค์: สะสมแรงฮึดไวขึ้น ระฆังทองแข็งแกร่ง เสริมหมัดแค้น', base: { wis: 3, vit: 2, str: 2 }, mod: { maxHp: 60, mdef: 0.04, j2BellMdef: 0.2, j2GritRate: 0.15 }, jobs: CL, j2: ['monk'], req: 'job2' },
   // ----- headgear (equipment screen v1, design/equipment-screen-v1.md): lighter than armor -----
   { id: 'none_head', slot: 'head', name: 'ว่าง', icon: '▫️', price: 0, desc: 'ยังไม่ใส่หมวก', mod: {} },
   { id: 'h_bandana', slot: 'head', name: 'ผ้าโพกหัว', icon: '🎀', price: 120, desc: 'หมวกแรกของนักผจญภัย', mod: { maxHp: 15, def: 2 } },
@@ -218,6 +220,7 @@ export const ITEMS: Item[] = [
   { id: 'h_halo', slot: 'head', name: 'รัศมีศักดิ์สิทธิ์', icon: '😇', price: 520, desc: 'ฮีลแรงขึ้น กันเวท', base: { wis: 2 }, mod: { healAmp: 0.06, mdef: 0.04 }, jobs: CL, req: 'job' },
   { id: 'h_hood', slot: 'head', name: 'ฮู้ดเงา', icon: '🗡️', price: 520, desc: 'หลบเก่ง หลบโชคดี', base: { agi: 2 }, mod: { flee: 5, luckyDodge: 0.02 }, jobs: TH, req: 'job' },
   { id: 'h_crown', slot: 'head', name: 'มงกุฎวีรชน', icon: '👑', price: 1500, desc: 'ของดัน 3: ทุกค่าสถานะ +2', base: { str: 2, vit: 2, wis: 2, dex: 2, int: 2, luk: 2, agi: 2 }, mod: { maxHp: 30 }, req: 'd3' },
+  { id: 'h_monkband', slot: 'head', name: 'ผ้าโพกศีรษะมังค์อัสนี', icon: '🧘', price: 1200, desc: 'อาชีพขั้น 2 · หมวกมังค์: คอมโบรัว ลูกพลังจุใจ เพิ่มสายฟ้าอัสนี', base: { wis: 3, agi: 3 }, mod: { maxHp: 40, combo: 0.05, comboDmg: 0.08, j2ChargeMax: 1, j2ThunderAtk: 0.15 }, jobs: CL, j2: ['monk'], req: 'job2' },
   // ----- off-hand: every class has its own kind (shield / quiver / orb / parrying dagger) -----
   { id: 'none_off', slot: 'offhand', name: 'ว่าง', icon: '▫️', price: 0, desc: 'มือรองว่าง', mod: {} },
   { id: 'o_buckler', slot: 'offhand', name: 'บัคเลอร์ไม้', icon: '🌲', price: 180, desc: 'โล่เบา ใช้ได้ทุกอาชีพ', mod: { maxHp: 15, def: 4 } },
@@ -323,7 +326,7 @@ const CLASS_STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => stri
   j2KnifeMul: ['มีดบินแรง', pc], j2KnifeAdd: ['มีดบินเพิ่ม', (n) => `${n} เล่ม`], j2ExecAdd: ['เกณฑ์ Execute', pc], j2DebuffTurns: ['ดีบัฟนานขึ้น', (n) => `${n} เทิร์น`],
   j2CrossAdd: ['กางเขนแรง', pc], j2PayCut: ['Grand Cross จ่าย HP น้อยลง', pc], j2BlockHeal: ['บล็อกแล้วฮีล', pc], j2BlockShield: ['บล็อกแล้วได้โล่', pc], j2Reflect: ['สะท้อนกายภาพ', pc],
   j2ThunderPer: ['สายฟ้า/ลูกพลัง', pc], j2Es: ['โล่ตอนไม่โดนตี', pc], j2Dark: ['Darkness โล่ทุกเทิร์น', pc], j2ChargeMax: ['ลูกพลังสูงสุด', (n) => `${n} ลูก`],
-  j2ComboRamp: ['คอมโบไต่ระดับ/ฮิต', pc], j2MdefDmg: ['M.DEF → แรงหมัดกาย', (n) => `×${n.toFixed(1)}`], j2HpPunch: ['หมัด +HP สูงสุด', pc], j2GritRate: ['สะสมโทสะ Grit', pc], j2ThunderAtk: ['Falling Thunder +P.ATK', pc], j2BellMdef: ['ระฆัง/อสุรา +M.DEF', pc], j2AsuraMdef: ['อสุรา +M.DEF×HP', pc], j2AsuraPow: ['อาชูร่าสไตรก์แรง', pc],
+  j2ComboRamp: ['คอมโบไต่ระดับ/ฮิต', pc], j2MdefDmg: ['M.DEF → แรงหมัดกาย', (n) => `×${n.toFixed(1)}`], j2HpPunch: ['หมัด +HP สูงสุด', pc], j2GritRate: ['สะสมแรงฮึด', pc], j2ThunderAtk: ['Falling Thunder +P.ATK', pc], j2BellMdef: ['ระฆัง/อสุรา +M.DEF', pc], j2AsuraMdef: ['อสุรา +M.DEF×HP', pc], j2AsuraPow: ['อาชูร่าสไตรก์แรง', pc],
   j2MeteorMul: ['อุกกาบาตแรง', pc], j2LovMul: ['Lord of Vermilion แรง', pc], j2GustMul: ['Storm Gust แรง', pc],
   j2AutoChance: ['Auto Spell', pc], j2AutoBolts: ['Auto Spell +ลูก', (n) => `${n} ลูก`], j2EndowAmp: ['Endow แรง', pc], j2MagicRod: ['ดูดเวท → Mana', (n) => `${n}`],
   j2PetPow: ['สัตว์เลี้ยงแรง', pc], j2PetHeal: ['สัตว์ลงมือ → ฮีล', pc], j2HawkMul: ['เหยี่ยวแรง', pc], j2WolfMul: ['หมาป่าแรง', pc],
@@ -470,6 +473,7 @@ export function totalBase(s: StatsInput): Record<BaseStat, number> {
 /** 7 base stats -> derived stats: the part every body with stat points shares. The hero AND the D6+ stat monsters
  * (data/mon-stats.ts, Q 2026-11-04) both call this, so Flee / Hit / crit / combo / M.DEF follow one set of formulas. */
 export function applyBase(st: Stats, b: Record<BaseStat, number>, atkStat: BaseStat = 'str') {
+  st.wis = b.wis
   const d = (k: BaseStat) => b[k] - STAT_RULES.start
   const P = PER_POINT
   st.atk += P.str.atk * d(atkStat); st.pskill += P.str.pskill * b.str

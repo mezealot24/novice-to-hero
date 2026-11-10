@@ -42,7 +42,7 @@ export function statusChips(hx: HeroDebuffs, b: HeroBuffs): StatusChip[] {
   buff(b.bless > 0, b.s2Icon, b.bless, b.s2Name)
   buff(b.kyrieHits > 0, '🛡️', b.kyrieHits, 'Kyrie Eleison (ครั้ง)')
   buff(b.bless > 0 && b.gloria, '✨', '', 'Gloria')
-  if (b.grit && b.grit.amt > 0) buff(true, b.grit.ready ? '🔥' : '🥊', `${Math.round(b.grit.amt)}`, `โทสะ Grit (${Math.round(b.grit.amt)}/${Math.round(b.grit.cap)})${b.grit.ready ? ' · พร้อมปล่อย!' : ''}`)
+  if (b.grit && b.grit.amt > 0) buff(true, b.grit.ready ? '🔥' : '🥊', `${Math.round(b.grit.amt)}`, `แรงฮึด (${Math.round(b.grit.amt)}/${Math.round(b.grit.cap)})${b.grit.ready ? ' · พร้อมปล่อย!' : ''}`)
   for (const k of ['guard', 'blood', 'hawk', 'mshield', 'renew'] as const) buff(b[k] > 0, b.s2Icon, b[k], b.s2Name)
   return out
 }

@@ -84,12 +84,12 @@ export const JOB2: Record<Job2Id, Job2Def> = {
   },
   monk: {
     id: 'monk', parent: 'cleric', name: 'มังค์', icon: '👊', focus: 'STR · VIT · WIS · AGI',
-    blurb: 'สายหมัดคอมโบแบบ RO · สะสม 🔵 ปล่อยสายฟ้า/ท่าปิดฉาก · ปั้น M.DEF+HP เป็นหมัดแค้น Sett · หรือเปิด 💥 อาชูร่าสไตรก์ (แรงสุดขีด แล้วง่อยแดก)',
+    blurb: 'สายหมัดคอมโบแบบ RO · สะสม 🔵 ปล่อยสายฟ้า/ท่าปิดฉาก · ปั้น M.DEF+HP เป็นหมัดแค้น & หมัดพิพากษา · หรือเปิด 💥 อาชูร่าสไตรก์ (แรงสุดขีด แล้วง่อยแดก)',
     mod: { combo: O.combo },
     mastery: { weapon: 'สนับมือ / ไม้พลอง', ok: (it) => it.wtype === 'fist' || it.wtype === 'staff', mod: { combo: O.mastery.combo }, pct: { atk: O.mastery.atkPct } },
     signature: { name: 'หมัดกระแส', icon: '👊', desc: `ตีธรรมดา +${O.chargePerSwing} และทุกฮิตคอมโบ +${O.chargePerCombo} 🔵 ลูกพลัง (สูงสุด ${O.chargeMax}) · คอมโบ +${pc(O.combo)}` },
     skill3: { name: 'Falling Thunder', icon: '⚡', cost: O.thunderCost, cd: O.thunderCd, desc: `คูลดาวน์ ${O.thunderCd} · ต้องมีลูกพลัง ≥ ${O.thunderMin}: ใช้หมด → สายฟ้าทุกตัว ${O.thunderPm}x Pm +${pc(O.thunderPer)} ต่อลูก (+P.ATK จากโนด)` },
-    ult: { name: 'Tempest Bell', icon: '🔔', cd: 4, cost: 0, desc: `วางระฆัง ${O.bellTurns} เทิร์น (HP ${pc(O.bellHp)} ของฮีโร่ ดึงมอนตี ${pc(O.bellTaunt)}) · ★ อาชูร่าสไตรก์: เปลี่ยนเป็นหมัดอสุราเผา 🔵+Mana ทั้งหมด` },
+    ult: { name: 'Tempest Bell', icon: '🔔', cd: 4, cost: 0, desc: `วางระฆัง ${O.bellTurns} เทิร์น (HP ${pc(O.bellHp)} (+WIS) ของฮีโร่ ดึงมอนตี ${pc(O.bellTaunt)}) · ★ อาชูร่าสไตรก์: เปลี่ยนเป็นหมัดอสุราเผา 🔵+Mana ทั้งหมด` },
   },
   // ----- Phase 5 Mage -----
   wizard: {

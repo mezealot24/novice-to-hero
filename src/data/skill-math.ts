@@ -130,9 +130,9 @@ export const KIT2 = {
     thunderCost: 0, thunderCd: 2, thunderMin: 2, thunderPm: 0.8, thunderPer: 0.4, // ⚡ Falling Thunder: all charges, all monsters 0.8x Pm x (1 + 40% per charge)
     comboThunderHits: 3, comboThunderMul: 0.6, // ⚡ ฟ้าฟาดคอมโบ: >=3-hit chain + >=2 charges -> free AoE lightning
     comboFinishMul: 1.4, comboFinishPerHit: 0.35, comboFinishBreakTurns: 2, comboFinishStunChance: 0.35, comboFinishPush: 15, comboFinishCdCut: 1, // 💥 ★ พายุหมัดปิดฉาก
-    bellHp: 0.15, bellTaunt: 0.5, bellTurns: 3, bellRing: 0.5, bellBoom: 2, // 🔔 Tempest Bell (Ally 'object'): hero swing rings AoE 0.5x Pm · broken = 2x Pm burst
-    haymakerAt: 0.25, haymakerCap: 0.5, haymakerShield: 0.6, haymakerGritMul: 0.9, haymakerMdefHp: 0.14, // 🥊 Sett Grit / หมัดแค้น (base)
-    haymakerStarAt: 0.15, haymakerStarCap: 0.75, haymakerStarShield: 1, haymakerStarGritMul: 1.25, haymakerStarMdefHp: 0.24, haymakerSplash: 0.65, haymakerPush: 20, haymakerDr: 0.1, // 🥊 ★ หมัดพิพากษา (Sett)
+    bellHp: 0.3, bellWis: 0.008, bellTaunt: 0.5, bellTurns: 3, bellRing: 0.5, bellBoom: 2, // 🔔 Tempest Bell (Ally 'object'): hero swing rings AoE 0.5x Pm · broken = 2x Pm burst · HP scales with WIS
+    haymakerAt: 0.25, haymakerCap: 0.5, haymakerShield: 0.6, haymakerGritMul: 0.9, haymakerMdefHp: 0.14, // 🥊 หมัดแค้น (base)
+    haymakerStarAt: 0.15, haymakerStarCap: 0.75, haymakerStarShield: 1, haymakerStarGritMul: 1.25, haymakerStarMdefHp: 0.24, haymakerSplash: 0.65, haymakerPush: 20, haymakerDr: 0.1, // 🥊 ★ หมัดพิพากษา
     asuraMinAt: 3, asuraAtk: 3.5, asuraPerCharge: 0.6, asuraMana: 2.2, asuraMdefHp: 0.16, asuraExhaustTurns: 3, asuraSlow: 0.4, asuraWeak: 0.35, // 💥 ★ อาชูร่าสไตรก์ + 😵 ง่อยแดก
     instillMul: 0.5, chillTurns: 2, noLightMul: 1.5, darkCap: 0.5, // ★ Instill bolt · ฝ่ามือธาตุ chill · ★ ไร้แสง overheal -> Darkness shield (cap of max HP)
     mastery: { atkPct: 0.05, combo: 0.03 }, // fist / staff
@@ -255,7 +255,7 @@ export const gcPulses = (st: Stats) => KIT2.crusader.gcPulses[Math.max(0, Math.m
   + (st.j3On > 0 ? KIT3.paladin.gospelPulse + st.j3GospelField : 0) // ⚜️ Paladin Gospel Cross
 /** 🔔 Monk กังวานเหล็ก: Tempest Bell & Asura M.DEF bonus multiplier. */
 export const bellMdefMul = (st: Stats) => 1 + st.mdef * st.j2BellMdef
-/** 🥊 Monk Sett-style Grit / Haymaker calculations (rawShield avoids double shieldAmp inside BattleScene.addShield). */
+/** 🥊 Monk หมัดแค้น / หมัดพิพากษา calculations (rawShield avoids double shieldAmp inside BattleScene.addShield). */
 export function haymakerCalc(st: Stats, grit: number) {
   const O = KIT2.monk, star = st.j2HaymakerStar > 0
   const cap = Math.round(st.maxHp * (star ? O.haymakerStarCap : O.haymakerCap))

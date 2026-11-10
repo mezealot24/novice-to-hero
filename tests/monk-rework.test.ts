@@ -33,18 +33,18 @@ const baseMonk = (job2Tree: Record<string, number> = {}, extra: Record<string, u
 const noDebuff: HeroDebuffs = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0, web: 0, slow: 0, thorn: 0, venomTurns: 0 }
 const noBuff: HeroBuffs = { dawnWis: 0, bless: 0, kyrieHits: 0, gloria: false, guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, s2Icon: '🙏', s2Name: 'พรแสง' }
 
-test('Monk skill tree has 5 rework branches + 2 root branches, unique node ids/names, NO_STRETCH mk_s2, and 12 talents', () => {
+test('Monk skill tree has 3 rework branches + 2 root branches (5 columns), unique node ids/names, NO_STRETCH mk_s2, and 12 talents', () => {
   const br = branches2Of('monk')
   assert.deepEqual(
     br.map((b) => b.id),
-    ['monk_s3', 'monk_u2', 'mk_c', 'mk_h', 'mk_a', 'mk_i', 'mk_d'],
+    ['monk_s3', 'monk_u2', 'mk_c', 'mk_h', 'mk_a'],
   )
   const nodes = br.flatMap((b) => nodesOf(b.id))
   const ids = nodes.map((n) => n.id)
   const names = nodes.map((n) => n.name)
   assert.equal(new Set(ids).size, ids.length, 'no duplicate Monk node ids')
   assert.equal(new Set(names).size, names.length, 'no duplicate Monk node names')
-  assert.equal(nodes.filter((n) => n.tier === 4).length, 5, '5 ★ capstones')
+  assert.equal(nodes.filter((n) => n.tier === 4).length, 3, '3 ★ capstones')
   assert.equal(nodeById('mk_s2')?.max, 1)
   assert.ok('mk_s2' in NO_STRETCH)
   assert.equal(JOB2.monk.ult.cost, 0)
@@ -113,10 +113,13 @@ test('M.DEF & Max HP scaling + กังวานเหล็ก Tempest Bell', 
   const bellPlain = makeAlly(ALLIES.tempestBell, { ...tank, j2BellMdef: 0 })
   const bellScaled = makeAlly(ALLIES.tempestBell, tank)
   assert.ok(bellScaled.maxHp > bellPlain.maxHp)
+  // Tempest Bell scales with WIS
+  const bellHighWis = makeAlly(ALLIES.tempestBell, { ...tank, wis: (tank.wis ?? 60) + 50 })
+  assert.ok(bellHighWis.maxHp > bellScaled.maxHp, 'higher WIS increases Tempest Bell HP')
   assert.equal(TREE2.filter((n) => n.id === 'mk_u1').length, 1)
 })
 
-test('Sett-style Haymaker calculations (base vs ★ capstone)', () => {
+test('หมัดแค้น & หมัดพิพากษา calculations (base vs ★ capstone)', () => {
   const st = baseMonk({ mk_h1: 5, mk_h2: 5, mk_h3: 5 })
   const star = baseMonk({ mk_h1: 5, mk_h2: 5, mk_h3: 5, mk_h4: 1 })
   const grit = Math.round(st.maxHp * 0.3)
@@ -139,7 +142,7 @@ test('Sett-style Haymaker calculations (base vs ★ capstone)', () => {
   assert.equal(b.splashTrueDmg, Math.max(1, Math.round(b.centerTrueDmg * KIT2.monk.haymakerSplash)))
 })
 
-test('Asura Strike damage scaling, ultInfo switch, and HUD statusChips for 😵 ง่อยแดก + 🥊 Grit', () => {
+test('Asura Strike damage scaling, ultInfo switch, and HUD statusChips for 😵 ง่อยแดก + 🥊 แรงฮึด', () => {
   const bellSt = baseMonk({ monk_u2p: 1, mk_u1: 5 })
   const bellRows = ultInfo('cleric', bellSt, { str: 40, wis: 60 }, 'monk')
   assert.ok(bellRows.some((r) => r.label.includes('HP ระฆัง')))
@@ -187,3 +190,23 @@ test('Asura Strike damage scaling, ultInfo switch, and HUD statusChips for 😵 
   assert.equal(readyChips[0]?.icon, '🔥')
   assert.match(readyChips[0]?.name ?? '', /พร้อมปล่อย/)
 })
+
+test('Monk shop gear (armor, head, acc) can be worn by Monk and gives expected stats', () => {
+  const st = heroStats({
+    race: 'human',
+    stats: { str: 40, vit: 50, wis: 60, dex: 25, int: 20, luk: 20, agi: 45 },
+    equipped: { armor: 'a_monkgi', head: 'h_monkband', acc: 'r_monkrosary' },
+    skills: {},
+    job: 'cleric',
+    jobLevel: 40,
+    job2: 'monk',
+    job2Level: 50,
+  } as never)
+  assert.ok(st.j2MdefDmg > 0)
+  assert.ok(st.j2HpPunch > 0)
+  assert.ok(st.j2ThunderAtk > 0)
+  assert.equal(st.j2ChargeMax, 1)
+  assert.ok(st.j2BellMdef > 0)
+  assert.ok(st.j2GritRate > 0)
+})
+

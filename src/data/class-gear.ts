@@ -66,13 +66,13 @@ export const CLASS_GEAR: Item[] = [
     craft: { ...D5, bonus: [{ j2Reflect: 0.05 }, { j2BlockShield: 0.03, j2BlockHeal: 0.01 }] } },
   // 👊 Monk: charges, thunder, shield
   { id: 'c_mk_band', slot: 'head', name: 'ผ้าคาดหัวสายฟ้า', icon: '🧘', price: 0, slots: 1, jobs: CL, j2: ['monk'], req: 'job2',
-    desc: 'ของคราฟมังค์ · หมวก: คอมโบ สายฟ้าแรงต่อลูกพลัง',
-    base: { wis: 4, agi: 3 }, mod: { maxHp: 40, matk: 8, combo: 0.04, j2ThunderPer: 0.08 },
-    craft: { ...D5, bonus: [{ j2Es: 0.02 }, { j2ThunderPer: 0.1, j2Dark: 0.01 }] } },
+    desc: 'ของคราฟมังค์ · หมวก: คอมโบ สายฟ้าแรงต่อลูกพลัง โล่สมาธิและฝ่ามือเยือกแข็ง',
+    base: { wis: 4, agi: 3 }, mod: { maxHp: 50, matk: 8, combo: 0.05, j2ThunderPer: 0.08, j2Chill: 0.1 },
+    craft: { ...D5, bonus: [{ j2Es: 0.03 }, { j2ThunderPer: 0.1, j2Chill: 0.12 }] } },
   { id: 'c_mk_beads', slot: 'acc', name: 'ลูกประคำพลังกระแส', icon: '🔵', price: 0, slots: 1, jobs: CL, j2: ['monk'], req: 'job2',
-    desc: 'ของคราฟมังค์ · เครื่องประดับ: โล่ตอนไม่โดนตี คอมโบรัว',
-    base: { wis: 3, str: 3, agi: 2 }, mod: { atk: 8, combo: 0.05, j2Es: 0.02, j2Dark: 0.01 },
-    craft: { ...D5, bonus: [{ j2ChargeMax: 1 }, { j2ThunderPer: 0.12, combo: 0.04 }] } },
+    desc: 'ของคราฟมังค์ · เครื่องประดับ: โล่สมาธิ โล่มืด และสายฟ้า Instill',
+    base: { wis: 3, str: 3, agi: 2 }, mod: { atk: 8, combo: 0.05, j2Es: 0.02, j2Dark: 0.02 },
+    craft: { ...D5, bonus: [{ j2ChargeMax: 1, j2Instill: 1 }, { j2NoLight: 1, combo: 0.05 }] } },
 
   // ===== 🔮 Mage =====
   // 🌩️ Wizard: big spells

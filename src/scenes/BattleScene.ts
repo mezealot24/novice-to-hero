@@ -1045,7 +1045,7 @@ export class BattleScene extends Phaser.Scene {
     if (!this.chargeTxt?.active) this.chargeTxt = this.add.text(HERO_X, GROUND - 190, '', { fontSize: '14px' }).setOrigin(0.5).setDepth(9500)
     this.chargeTxt.setText('🔵'.repeat(this.charges))
   }
-  /** Monk หมัดแค้น (Sett Haymaker): turn-start burst releasing stored Grit + M.DEF×HP as Shield + True Damage. */
+  /** Monk หมัดแค้น / หมัดพิพากษา: turn-start burst releasing stored rage + M.DEF×HP as Shield + True Damage. */
   private async releaseHaymaker() {
     const hm = haymakerCalc(this.st, this.monkGrit)
     if (hm.triggerAt <= 0 || this.monkGrit < hm.triggerAt) return
@@ -1053,8 +1053,8 @@ export class BattleScene extends Phaser.Scene {
     const t = this.bossTarget() ?? this.front()[0]
     if (!t) return
     this.addShield(hm.rawShield, true)
-    this.floatText(HERO_X, GROUND - 125, `🥊 โล่โทสะ +${hm.shield}`, '#9fe3ff')
-    this.callout(hm.star ? '🔥 หมัดพิพากษา SETT!' : '🥊 หมัดแค้น Haymaker!', W / 2, 165, '#ff9a3c')
+    this.floatText(HERO_X, GROUND - 125, `🥊 โล่แรงฮึด +${hm.shield}`, '#9fe3ff')
+    this.callout(hm.star ? '🔥 หมัดพิพากษา!' : '🥊 หมัดแค้น!', W / 2, 165, '#ff9a3c')
     this.stayIn = false
     await this.lunge(t, () => {
       this.cameras.main.flash(hm.star ? 140 : 90, 255, 160, 60)
@@ -3078,7 +3078,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.j2GritRate > 0 && n > 0) {
       const { cap } = haymakerCalc(this.st, this.monkGrit)
       const add = Math.min(Math.max(0, cap - this.monkGrit), n * this.st.j2GritRate)
-      if (add > 0) { this.monkGrit += add; this.floatText(HERO_X - 20, GROUND - 155, `🥊 โทสะ +${Math.round(add)}`, '#ff9a3c') }
+      if (add > 0) { this.monkGrit += add; this.floatText(HERO_X - 20, GROUND - 155, `🥊 แรงฮึด +${Math.round(add)}`, '#ff9a3c') }
     }
     if (this.st.clManaGuard > 0 && this.job.resource === 'mana') this.gainRes(n * this.st.clManaGuard * (1 + this.heroWis * KIT.clericTree.core.wisAmp)) // v86 💠 มานาพิทักษ์ (before shields)
     if (!magic && this.st.j2Reflect > 0 && src && !src.dead) this.damageMon(src, Math.max(1, Math.round(Math.min(n * this.st.j2Reflect, this.st.maxHp * BATTLE.reflectCap))), false, '#c9e0ff', true) // Crusader Reflect Shield

@@ -56,6 +56,7 @@ export interface Stats {
   ignoreCombo: number; ignoreCounter: number; comboDR: number; counterDR: number; critDR: number
   dodgeHeal: number // share of max HP healed whenever a monster attack is dodged (Thief gear)
   waveShield: number // shield worth this share of max HP at the start of every wave (Swordsman / Cleric gear)
+  wis: number // hero's total WIS (used for Tempest Bell scaling, etc.)
   // ----- skill tree hooks (data/tree.ts; 0 = off). Flags are 0/1. -----
   thorns: number // share of damage a shield absorbs that is reflected to the attacker
   rageGain: number // +share of Rage gained
@@ -256,7 +257,7 @@ export interface Stats {
   j2Instill: number // Monk ★ Instill flag: full charges = every swing adds a lightning bolt
   j2Dark: number // Monk Chayula Darkness: shield of this share of max HP every hero turn
   j2NoLight: number // Monk ★ ไร้แสง flag: overheal becomes Darkness shield x KIT2.monk.noLightMul
-  // ----- Monk rework: Combo / M.DEF-HP Haymaker (Sett) / Asura Strike -----
+  // ----- Monk rework: Combo / M.DEF-HP Haymaker / Asura Strike -----
   j2ComboRamp: number // Monk คอมโบ: + damage share per combo step (comboLevel >= 2 -> +this * (comboLevel - 1))
   j2ComboFinish: number // Monk ★ พายุหมัดปิดฉาก flag: spend 1 charge on >=2-hit chain for heavy finisher + armor break + CD cut
   j2ThunderAtk: number // Monk หมัดอัสนี (Falling Thunder root): + share of P.ATK added to Falling Thunder / Combo Thunder
@@ -264,8 +265,8 @@ export interface Stats {
   j2BellMdef: number // Monk กังวานเหล็ก (Ult root): Tempest Bell & Asura M.DEF scaling bonus
   j2MdefDmg: number // Monk ปราณเหล็กใน: physical hits x (1 + mdef x this)
   j2HpPunch: number // Monk หมัดเลือดนักสู้: physical hits add this share of max HP
-  j2GritRate: number // Monk สะสมโทสะ: store this share of incoming post-DEF damage into Grit (pre-shield)
-  j2HaymakerStar: number // Monk ★ หมัดพิพากษา Sett flag: higher Grit cap, lower threshold, full Grit shield, AoE True Damage + gauge push + DR
+  j2GritRate: number // Monk สะสมแรงฮึด: store this share of incoming post-DEF damage into stored rage (pre-shield)
+  j2HaymakerStar: number // Monk ★ หมัดพิพากษา flag: higher rage cap, lower threshold, full rage shield, AoE True Damage + gauge push + DR
   j2AsuraMdef: number // Monk เจาะเกราะปราณ: + M.DEF x max HP scaling bonus for Asura Strike
   j2AsuraPow: number // Monk ตั้งจิตอสุรา: + Asura Strike final damage multiplier
   j2Asura: number // Monk ★ อาชูร่าสไตรก์ flag: Ult becomes Asura Strike (min 3 charges, burns all charges + Mana -> huge burst + exhaust)
@@ -355,7 +356,7 @@ export interface Stats {
 }
 
 export const PLAYER: Stats = {
-  maxHp: 140, atk: 13, minPct: 0.5, matk: 10, pskill: 0, def: 0, mdef: 0, tenacity: 0, healAmp: 0, shieldAmp: 0,
+  maxHp: 140, atk: 13, minPct: 0.5, matk: 10, pskill: 0, def: 0, mdef: 0, tenacity: 0, healAmp: 0, shieldAmp: 0, wis: 0,
   hit: 10, flee: 5, luckyDodge: 0, legendChance: 0.06, eventChance: 0.1, dropChance: 0.04, maxRes: 60, resRegen: 3,
   aspd: 1.6, range: 110, crit: 0, critMul: 1.4, /* Q: crit only from items, skill tree, talents (+ in-run cards) */ speed: 190,
   guard: 0, lifesteal: 0, regen: 0, fireEvery: 0, boltMul: 2, burnDps: 0, poison: 0, poisonDmg: 2,
