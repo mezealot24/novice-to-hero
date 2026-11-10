@@ -810,7 +810,7 @@ export function nodeDetail(s: ReturnType<typeof save>, n: TreeNode, tier2: boole
   const secs: Sec[] = [
     { name: `${JOBS[job].auto.icon} ทักษะ 1: ${JOBS[job].auto.name}`, info: (st) => autoInfo(job, st), all: line === 's1' },
     ...(job === 'cleric' ? [{ name: '🌄 รุ่งอรุณ (passive · ตีธรรมดา/คอมโบ)', info: (st: Stats, tree: Record<string, number>) => { const x = dawnInfo(st, totalBase(withTree(tree))); return x.length ? x : null }, all: n.branch === 'cleric_d' }] : []),
-    { name: s.job2 === 'crusader' ? `✨ Ult: Grand Cross` : `${JOBS[job].ult.icon} Ult: ${JOBS[job].ult.name}`, info: (st, tree) => ultInfo(job, st, totalBase(withTree(tree)), s.job2), all: line === 'ult' || (tier2 && n.branch.endsWith('_u2')) },
+    { name: s.job2 === 'crusader' ? '✨ Ult: Grand Cross' : s.job2 === 'monk' ? (stNow.j2Asura > 0 ? '💥 Ult: อาชูร่าสไตรก์' : stNext && stNext.j2Asura > 0 ? '🔔 → 💥 Ult: อาชูร่าสไตรก์' : '🔔 Ult: Tempest Bell') : `${JOBS[job].ult.icon} Ult: ${JOBS[job].ult.name}`, info: (st, tree) => ultInfo(job, st, totalBase(withTree(tree)), s.job2), all: line === 'ult' || (tier2 && n.branch.endsWith('_u2')) },
     { name: `${(s2 ?? picked(t))?.icon ?? '🔀'} ทักษะ 2: ${(s2 ?? picked(t))?.name ?? ''}`, all: !!s2,
       info: (st, tree) => { const k = s2 ?? picked(tree); return k && (tree[k.id] ?? 0) > 0 ? skill2Info(k, st) : null } },
   ]

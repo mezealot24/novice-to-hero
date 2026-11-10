@@ -52,6 +52,7 @@ export const NO_STRETCH: Readonly<Record<string, string>> = {
   sg_a3: 'Auto Spell +1 bolt: a whole count',
   cleric_core2: 'v86 INT per +1 STR steps 7 / 6 / 5: whole steps',
   cleric_dn3: 'v102 แสงแตก WIS buff 25/30/35% for 3/4/5 turns: Q set max 3',
+  mk_s2: 'Combo Thunder: on/off flag',
 }
 /** Text of a level between two old levels: long decimals -> 1 dp (or whole numbers on INT_FIELDS nodes), trailing .0 dropped.
  *  Numbers already written with 1-2 decimals (toFixed(2) multipliers) stay as written. */

@@ -256,6 +256,19 @@ export interface Stats {
   j2Instill: number // Monk ★ Instill flag: full charges = every swing adds a lightning bolt
   j2Dark: number // Monk Chayula Darkness: shield of this share of max HP every hero turn
   j2NoLight: number // Monk ★ ไร้แสง flag: overheal becomes Darkness shield x KIT2.monk.noLightMul
+  // ----- Monk rework: Combo / M.DEF-HP Haymaker (Sett) / Asura Strike -----
+  j2ComboRamp: number // Monk คอมโบ: + damage share per combo step (comboLevel >= 2 -> +this * (comboLevel - 1))
+  j2ComboFinish: number // Monk ★ พายุหมัดปิดฉาก flag: spend 1 charge on >=2-hit chain for heavy finisher + armor break + CD cut
+  j2ThunderAtk: number // Monk หมัดอัสนี (Falling Thunder root): + share of P.ATK added to Falling Thunder / Combo Thunder
+  j2ComboThunder: number // Monk ฟ้าฟาดคอมโบ flag: >=3-hit chain + >=2 charges triggers free mini Falling Thunder
+  j2BellMdef: number // Monk กังวานเหล็ก (Ult root): Tempest Bell & Asura M.DEF scaling bonus
+  j2MdefDmg: number // Monk ปราณเหล็กใน: physical hits x (1 + mdef x this)
+  j2HpPunch: number // Monk หมัดเลือดนักสู้: physical hits add this share of max HP
+  j2GritRate: number // Monk สะสมโทสะ: store this share of incoming post-DEF damage into Grit (pre-shield)
+  j2HaymakerStar: number // Monk ★ หมัดพิพากษา Sett flag: higher Grit cap, lower threshold, full Grit shield, AoE True Damage + gauge push + DR
+  j2AsuraMdef: number // Monk เจาะเกราะปราณ: + M.DEF x max HP scaling bonus for Asura Strike
+  j2AsuraPow: number // Monk ตั้งจิตอสุรา: + Asura Strike final damage multiplier
+  j2Asura: number // Monk ★ อาชูร่าสไตรก์ flag: Ult becomes Asura Strike (min 3 charges, burns all charges + Mana -> huge burst + exhaust)
   // ----- Phase 5 Mage: Wizard / Sage -----
   j2MeteorMul: number // Wizard: + Meteor Storm damage per meteor
   j2Meteors: number // Wizard ★: + meteors
@@ -353,6 +366,7 @@ export const PLAYER: Stats = {
   swFlow: 0, swFlowMana: 0, swFlowCrit: 0, swFlowStar: 0, swBreak: 0, swBreakLeech: 0, swBreakSpread: 0, swShatter: 0, // v84 Swordsman web
   clFaith: 0, clFaithOver: 0, clFaithHeal: 0, clOverBurst: 0, clUltWard: 0, clEmergency: 0, clUltMend: 0, clRevive: 0, // v84 Priest web
   j2Banner: 0, j2Provoke: 0, j2BannerKill: 0, j2BannerAura: 0, j2Sweep: 0, j2SweepPush: 0, j2SweepGauge: 0, j2SweepStar: 0, // v84 Knight ใยชั้น 2
+  j2ComboRamp: 0, j2ComboFinish: 0, j2ThunderAtk: 0, j2ComboThunder: 0, j2BellMdef: 0, j2MdefDmg: 0, j2HpPunch: 0, j2GritRate: 0, j2HaymakerStar: 0, j2AsuraMdef: 0, j2AsuraPow: 0, j2Asura: 0, // Monk rework
 }
 
 export const RULES = {

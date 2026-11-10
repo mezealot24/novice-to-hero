@@ -16,11 +16,11 @@ export type ChipKind = 'debuff' | 'buff'
 export interface StatusChip { icon: string; n: string; kind: ChipKind; name: string }
 
 /** Hero debuffs (BattleScene.hx). Counts are hero turns, poison / burn are stacks. */
-export interface HeroDebuffs { poison: number; burn: number; weaken: number; armorBreak: number; silence: number; web: number; slow: number; thorn: number; venomTurns: number }
-/** Hero buffs (Skill 2 buffs, Cleric Grand Cross / Dawn Light / Kyrie). */
+export interface HeroDebuffs { poison: number; burn: number; weaken: number; armorBreak: number; silence: number; web: number; slow: number; thorn: number; venomTurns: number; asuraExhaust?: number }
+/** Hero buffs (Skill 2 buffs, Cleric Grand Cross / Dawn Light / Kyrie, Monk Grit). */
 export interface HeroBuffs {
   gcLeft?: number; hcVit?: number; dawn?: { n: number; every: number }; dawnWis: number; bless: number; kyrieHits: number; gloria: boolean
-  guard: number; blood: number; hawk: number; mshield: number; renew: number
+  guard: number; blood: number; hawk: number; mshield: number; renew: number; grit?: { amt: number; cap: number; ready: boolean }
   s2Icon: string; s2Name: string
 }
 
@@ -32,7 +32,8 @@ const DEBUFFS: [keyof HeroDebuffs, string, string][] = [
 /** Debuffs first (red frame), then buffs (gold frame); only the ones that are on. */
 export function statusChips(hx: HeroDebuffs, b: HeroBuffs): StatusChip[] {
   const out: StatusChip[] = []
-  for (const [k, icon, name] of DEBUFFS) if (hx[k] > 0) out.push({ icon, n: String(hx[k]), kind: 'debuff', name })
+  for (const [k, icon, name] of DEBUFFS) if ((hx[k] ?? 0) > 0) out.push({ icon, n: String(hx[k]), kind: 'debuff', name })
+  if ((hx.asuraExhaust ?? 0) > 0) out.push({ icon: '😵', n: String(hx.asuraExhaust), kind: 'debuff', name: 'ง่อยแดก (0 Mana/🔵 · ช้า · ล็อกสกิล)' })
   const buff = (on: boolean, icon: string, n: number | string, name: string) => { if (on) out.push({ icon, n: String(n), kind: 'buff', name }) }
   buff(b.gcLeft !== undefined, '✝️', b.gcLeft ?? 0, 'Grand Cross')
   buff((b.hcVit ?? 0) > 0, '💪', b.hcVit ?? 0, 'VIT กางเขน (stack)')
@@ -41,6 +42,7 @@ export function statusChips(hx: HeroDebuffs, b: HeroBuffs): StatusChip[] {
   buff(b.bless > 0, b.s2Icon, b.bless, b.s2Name)
   buff(b.kyrieHits > 0, '🛡️', b.kyrieHits, 'Kyrie Eleison (ครั้ง)')
   buff(b.bless > 0 && b.gloria, '✨', '', 'Gloria')
+  if (b.grit && b.grit.amt > 0) buff(true, b.grit.ready ? '🔥' : '🥊', `${Math.round(b.grit.amt)}`, `โทสะ Grit (${Math.round(b.grit.amt)}/${Math.round(b.grit.cap)})${b.grit.ready ? ' · พร้อมปล่อย!' : ''}`)
   for (const k of ['guard', 'blood', 'hawk', 'mshield', 'renew'] as const) buff(b[k] > 0, b.s2Icon, b[k], b.s2Name)
   return out
 }

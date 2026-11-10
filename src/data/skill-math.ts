@@ -126,9 +126,14 @@ export const KIT2 = {
     mastery: { atkPct: 0.05, def: 6 }, // mace / sword
   },
   monk: {
-    combo: 0.1, chargeMax: 5, chargePerSwing: 1, chargePerCombo: 1, // 👊 หมัดกระแส: power charges from every swing + every combo hit (doc: combo hits only; Priest combo rate is low)
+    combo: 0.1, chargeMax: 5, chargePerSwing: 1, chargePerCombo: 1, // 👊 หมัดกระแส: power charges from every swing + every combo hit
     thunderCost: 0, thunderCd: 2, thunderMin: 2, thunderPm: 0.8, thunderPer: 0.4, // ⚡ Falling Thunder: all charges, all monsters 0.8x Pm x (1 + 40% per charge)
+    comboThunderHits: 3, comboThunderMul: 0.6, // ⚡ ฟ้าฟาดคอมโบ: >=3-hit chain + >=2 charges -> free AoE lightning
+    comboFinishMul: 1.4, comboFinishPerHit: 0.35, comboFinishBreakTurns: 2, comboFinishStunChance: 0.35, comboFinishPush: 15, comboFinishCdCut: 1, // 💥 ★ พายุหมัดปิดฉาก
     bellHp: 0.15, bellTaunt: 0.5, bellTurns: 3, bellRing: 0.5, bellBoom: 2, // 🔔 Tempest Bell (Ally 'object'): hero swing rings AoE 0.5x Pm · broken = 2x Pm burst
+    haymakerAt: 0.25, haymakerCap: 0.5, haymakerShield: 0.6, haymakerGritMul: 0.9, haymakerMdefHp: 0.14, // 🥊 Sett Grit / หมัดแค้น (base)
+    haymakerStarAt: 0.15, haymakerStarCap: 0.75, haymakerStarShield: 1, haymakerStarGritMul: 1.25, haymakerStarMdefHp: 0.24, haymakerSplash: 0.65, haymakerPush: 20, haymakerDr: 0.1, // 🥊 ★ หมัดพิพากษา (Sett)
+    asuraMinAt: 3, asuraAtk: 3.5, asuraPerCharge: 0.6, asuraMana: 2.2, asuraMdefHp: 0.16, asuraExhaustTurns: 3, asuraSlow: 0.4, asuraWeak: 0.35, // 💥 ★ อาชูร่าสไตรก์ + 😵 ง่อยแดก
     instillMul: 0.5, chillTurns: 2, noLightMul: 1.5, darkCap: 0.5, // ★ Instill bolt · ฝ่ามือธาตุ chill · ★ ไร้แสง overheal -> Darkness shield (cap of max HP)
     mastery: { atkPct: 0.05, combo: 0.03 }, // fist / staff
   },
@@ -248,6 +253,30 @@ export const KIT3 = {
 }
 export const gcPulses = (st: Stats) => KIT2.crusader.gcPulses[Math.max(0, Math.min(KIT2.crusader.gcPulses.length - 1, Math.round(st.j2GcLv)))]
   + (st.j3On > 0 ? KIT3.paladin.gospelPulse + st.j3GospelField : 0) // ⚜️ Paladin Gospel Cross
+/** 🔔 Monk กังวานเหล็ก: Tempest Bell & Asura M.DEF bonus multiplier. */
+export const bellMdefMul = (st: Stats) => 1 + st.mdef * st.j2BellMdef
+/** 🥊 Monk Sett-style Grit / Haymaker calculations (rawShield avoids double shieldAmp inside BattleScene.addShield). */
+export function haymakerCalc(st: Stats, grit: number) {
+  const O = KIT2.monk, star = st.j2HaymakerStar > 0
+  const cap = Math.round(st.maxHp * (star ? O.haymakerStarCap : O.haymakerCap))
+  const triggerAt = Math.round(st.maxHp * (star ? O.haymakerStarAt : O.haymakerAt))
+  const rawShield = Math.round(grit * (star ? O.haymakerStarShield : O.haymakerShield))
+  const shield = Math.round(rawShield * (1 + st.shieldAmp))
+  const centerTrueDmg = Math.max(1, Math.round(
+    grit * (star ? O.haymakerStarGritMul : O.haymakerGritMul)
+    + st.mdef * st.maxHp * (star ? O.haymakerStarMdefHp : O.haymakerMdefHp),
+  ))
+  const splashTrueDmg = star ? Math.max(1, Math.round(centerTrueDmg * O.haymakerSplash)) : 0
+  return { cap, triggerAt, rawShield, shield, centerTrueDmg, splashTrueDmg, star }
+}
+/** 💥 Monk Asura Strike burst damage (Sure-Hit, ignores 100% DEF/M.DEF). */
+export function asuraDamage(st: Stats, charges: number, burntMana: number, hitPow2 = 1) {
+  const O = KIT2.monk
+  const atkPart = st.atk * (O.asuraAtk + O.asuraPerCharge * charges) * (1 + st.pskill)
+  const manaPart = O.asuraMana * burntMana
+  const mdefHpPart = st.mdef * st.maxHp * (O.asuraMdefHp + st.j2AsuraMdef) * bellMdefMul(st)
+  return Math.max(1, Math.round((atkPart + manaPart + mdefHpPart) * hitPow2 * (1 + st.j2AsuraPow)))
+}
 /** v108 🌄 รุ่งอรุณ passive detail rows (every Nth basic / combo hit). */
 export function dawnInfo(st: Stats, base: { str: number; wis: number }): InfoRow[] {
   if (st.clDawn <= 0) return []
@@ -362,6 +391,24 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
         out.push({ label: `โล่ ${CLERIC_KIT.ultShieldTurns} เทิร์น`, value: `${shield(st, st.maxHp * CLERIC_KIT.ultShield * (1 + st.ultPow) * (1 + st.ult2Pow))}` })
         if (st.clPurify > 0) out.push({ label: 'ไฟชำระ: ล้างดีบัฟ + ฮีล (M.ATK)', value: `${heal(st, st.matk * CLERIC_KIT.purifyHeal)} HP` })
         if (st.ultHoly > 0) out.push({ label: 'แสงลงทัณฑ์/ตัว', value: hitText(st, st.ultHoly, true) })
+        break
+      }
+      if (job2 === 'monk') {
+        const O = KIT2.monk, h2 = hitPow * (1 + st.ult2Pow)
+        if (st.j2Asura > 0) {
+          out[0] = { label: `คูลดาวน์ · ต้องมี 🔵 ${O.asuraMinAt}+`, value: `${ultCooldown(job, st)} เทิร์น · เผา 🔵+Mana` }
+          out.push({ label: `💥 อาชูร่า (${O.asuraMinAt} 🔵 + Mana เต็ม)`, value: `${asuraDamage(st, O.asuraMinAt, st.maxRes, h2)}` })
+          out.push({ label: `💥 อาชูร่า (${O.chargeMax + st.j2ChargeMax} 🔵 + Mana เต็ม)`, value: `${asuraDamage(st, O.chargeMax + st.j2ChargeMax, st.maxRes, h2)}` })
+          out.push({ label: '🛡️ ทะลุ DEF / M.DEF', value: '100% (ไม่พลาด)' })
+          out.push({ label: '😵 ง่อยแดกหลังใช้', value: `${O.asuraExhaustTurns} เทิร์น (0 Mana/🔵 · ช้า ${pct(O.asuraSlow)})` })
+        } else {
+          const bk = h2 * bellMdefMul(st)
+          out[0] = { label: 'คูลดาวน์ (ไม่ใช้ Mana)', value: `${ultCooldown(job, st)} เทิร์น` }
+          out.push({ label: `🔔 HP ระฆัง (ดึงตี ${pct(O.bellTaunt)})`, value: `${r(st.maxHp * O.bellHp * bellMdefMul(st))} · ${O.bellTurns} เทิร์น` })
+          out.push({ label: '🔔 สั่นทุกฮิต (ทุกตัว)', value: hitText(st, O.bellRing * bk, true) })
+          out.push({ label: '💥 ระเบิดเมื่อแตก (ทุกตัว)', value: hitText(st, O.bellBoom * bk, true) })
+          if (st.j2BellMdef > 0) out.push({ label: '🔔 กังวานเหล็ก (M.DEF)', value: `×${bellMdefMul(st).toFixed(2)}` })
+        }
         break
       }
       out.push({ label: `ทุบทุกตัว ${pct(clericUltSmash(st))} P.ATK`, value: hitText(st, clericUltSmash(st) * hitPow * (1 + st.pskill), false) })

@@ -323,6 +323,7 @@ const CLASS_STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => stri
   j2KnifeMul: ['มีดบินแรง', pc], j2KnifeAdd: ['มีดบินเพิ่ม', (n) => `${n} เล่ม`], j2ExecAdd: ['เกณฑ์ Execute', pc], j2DebuffTurns: ['ดีบัฟนานขึ้น', (n) => `${n} เทิร์น`],
   j2CrossAdd: ['กางเขนแรง', pc], j2PayCut: ['Grand Cross จ่าย HP น้อยลง', pc], j2BlockHeal: ['บล็อกแล้วฮีล', pc], j2BlockShield: ['บล็อกแล้วได้โล่', pc], j2Reflect: ['สะท้อนกายภาพ', pc],
   j2ThunderPer: ['สายฟ้า/ลูกพลัง', pc], j2Es: ['โล่ตอนไม่โดนตี', pc], j2Dark: ['Darkness โล่ทุกเทิร์น', pc], j2ChargeMax: ['ลูกพลังสูงสุด', (n) => `${n} ลูก`],
+  j2ComboRamp: ['คอมโบไต่ระดับ/ฮิต', pc], j2MdefDmg: ['M.DEF → แรงหมัดกาย', (n) => `×${n.toFixed(1)}`], j2HpPunch: ['หมัด +HP สูงสุด', pc], j2GritRate: ['สะสมโทสะ Grit', pc], j2ThunderAtk: ['Falling Thunder +P.ATK', pc], j2BellMdef: ['ระฆัง/อสุรา +M.DEF', pc], j2AsuraMdef: ['อสุรา +M.DEF×HP', pc], j2AsuraPow: ['อาชูร่าสไตรก์แรง', pc],
   j2MeteorMul: ['อุกกาบาตแรง', pc], j2LovMul: ['Lord of Vermilion แรง', pc], j2GustMul: ['Storm Gust แรง', pc],
   j2AutoChance: ['Auto Spell', pc], j2AutoBolts: ['Auto Spell +ลูก', (n) => `${n} ลูก`], j2EndowAmp: ['Endow แรง', pc], j2MagicRod: ['ดูดเวท → Mana', (n) => `${n}`],
   j2PetPow: ['สัตว์เลี้ยงแรง', pc], j2PetHeal: ['สัตว์ลงมือ → ฮีล', pc], j2HawkMul: ['เหยี่ยวแรง', pc], j2WolfMul: ['หมาป่าแรง', pc],
@@ -537,7 +538,7 @@ export function heroStats(s: StatsInput): Stats {
     for (const m of talent2Mods(s.job2Talents, j2.id, s.job2Level ?? 1)) add(m) // v119 ทาเลนต์ชั้น 2
     const wpn = itemById(s.equipped.weapon ?? '')
     if (j2.mastery.ok(wpn)) { add(j2.mastery.mod); j2pct.atk += j2.mastery.pct?.atk ?? 0 } // weapon mastery
-    j2pct.maxHp += (j2.pct?.maxHp ?? 0) + st.j2HpPct; j2pct.aspd += j2.pct?.aspd ?? 0
+    j2pct.maxHp += j2.pct?.maxHp ?? 0; j2pct.aspd += j2.pct?.aspd ?? 0
     const j3 = activeJob3(s)
     if (j3) { // 3rd job (design/awakening-*.md): ใยชั้น 3 + legacy reads of the 2nd-job web
       const P = KIT3[j3], t2 = s.job2Tree
@@ -551,6 +552,7 @@ export function heroStats(s: StatsInput): Stats {
       const V = s.job3Var === 'b' ? P.varB : P.varA
       st.j3VarMul = Math.min(V.cap, V.per * branchPts(t2, V.branch))
     }
+    j2pct.maxHp += st.j2HpPct // after 3rd-job/Hybrid tree so borrowed j2HpPct nodes (e.g. mk_h2) apply to maxHp
   }
   const worn = wornItems(s)
   for (const it of worn) add(it.mod)

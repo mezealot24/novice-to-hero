@@ -83,13 +83,13 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     ult: { name: 'Grand Cross', icon: '✨', cd: 4, cost: 0, desc: `จ่าย ${pc(C.gcPay)} HP + เผา Mana ที่เหลือ → แสงกางเขนใส่ทุกตัว ${C.gcPulses.join('/')} ครั้งตาม Lv (ตอนกด แล้วต้นเทิร์นละครั้ง) · เผามากยิ่งแรง · โดน ${C.gcRefundAt}+ ตัว คืน HP ${pc(C.gcRefund)}` },
   },
   monk: {
-    id: 'monk', parent: 'cleric', name: 'มังค์', icon: '👊', focus: 'STR · AGI · WIS',
-    blurb: 'สายหมัดแบบ PoE2 · ตี/คอมโบสะสม 🔵 ลูกพลัง แล้วปล่อย Falling Thunder · Tempest Bell ดึงมอนตี · ฮีลเท่าที่ใยชั้น 1 มี',
+    id: 'monk', parent: 'cleric', name: 'มังค์', icon: '👊', focus: 'STR · VIT · WIS · AGI',
+    blurb: 'สายหมัดคอมโบแบบ RO · สะสม 🔵 ปล่อยสายฟ้า/ท่าปิดฉาก · ปั้น M.DEF+HP เป็นหมัดแค้น Sett · หรือเปิด 💥 อาชูร่าสไตรก์ (แรงสุดขีด แล้วง่อยแดก)',
     mod: { combo: O.combo },
     mastery: { weapon: 'สนับมือ / ไม้พลอง', ok: (it) => it.wtype === 'fist' || it.wtype === 'staff', mod: { combo: O.mastery.combo }, pct: { atk: O.mastery.atkPct } },
     signature: { name: 'หมัดกระแส', icon: '👊', desc: `ตีธรรมดา +${O.chargePerSwing} และทุกฮิตคอมโบ +${O.chargePerCombo} 🔵 ลูกพลัง (สูงสุด ${O.chargeMax}) · คอมโบ +${pc(O.combo)}` },
-    skill3: { name: 'Falling Thunder', icon: '⚡', cost: O.thunderCost, cd: O.thunderCd, desc: `คูลดาวน์ ${O.thunderCd} · ต้องมีลูกพลัง ≥ ${O.thunderMin}: ใช้หมด → สายฟ้าทุกตัว ${O.thunderPm}x Pm +${pc(O.thunderPer)} ต่อลูก` },
-    ult: { name: 'Tempest Bell', icon: '🔔', cd: 4, cost: 0, desc: `วางระฆัง ${O.bellTurns} เทิร์น (HP ${pc(O.bellHp)} ของฮีโร่ ดึงมอนตี ${pc(O.bellTaunt)}) · ฮีโร่ตีธรรมดา/คอมโบ = ระฆังสั่น ${O.bellRing}x Pm ทุกตัว · ระฆังแตก = ระเบิด ${O.bellBoom}x Pm` },
+    skill3: { name: 'Falling Thunder', icon: '⚡', cost: O.thunderCost, cd: O.thunderCd, desc: `คูลดาวน์ ${O.thunderCd} · ต้องมีลูกพลัง ≥ ${O.thunderMin}: ใช้หมด → สายฟ้าทุกตัว ${O.thunderPm}x Pm +${pc(O.thunderPer)} ต่อลูก (+P.ATK จากโนด)` },
+    ult: { name: 'Tempest Bell', icon: '🔔', cd: 4, cost: 0, desc: `วางระฆัง ${O.bellTurns} เทิร์น (HP ${pc(O.bellHp)} ของฮีโร่ ดึงมอนตี ${pc(O.bellTaunt)}) · ★ อาชูร่าสไตรก์: เปลี่ยนเป็นหมัดอสุราเผา 🔵+Mana ทั้งหมด` },
   },
   // ----- Phase 5 Mage -----
   wizard: {

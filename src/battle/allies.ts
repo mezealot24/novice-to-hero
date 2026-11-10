@@ -3,7 +3,7 @@
 // Phase 3 MVP: hp / taunt / turns + an act on a trigger. Phase 4: own-turn gauge (speed), 'heroTurn' / 'monsterAct' triggers,
 // one-shot uses (traps), soak counts (rubber chicken). Power reads hero Stats (no pet levels) x ally.pow. Allies reset every wave.
 import type { Stats } from '../data/game-data'
-import { KIT2 } from '../data/skill-math'
+import { bellMdefMul, KIT2 } from '../data/skill-math'
 
 export type AllyKind = 'pet' | 'turret' | 'trap' | 'object' | 'summon'
 /** ownTurn: own gauge in the turn queue (speed x hero speed) · heroBasic: every hero basic / combo swing · heroTurn: end of each hero turn · monsterAct: a monster starts its action (traps) */
@@ -81,9 +81,9 @@ export const wolfMul = (st: Stats) => BM.wolfMul + st.j2WolfMul + (st.j2WolfEvo 
 export const hawkChance = (st: Stats, luk: number) => Math.min(BM.hawkCap, BM.hawkChance + BM.hawkLuk * luk + st.j2HawkChance)
 export const ALLIES = {
   // 👊 Monk Tempest Bell: soaks hits, rings on every hero swing, bursts when broken
-  tempestBell: { id: 'tempestBell', name: 'Tempest Bell', icon: '🔔', kind: 'object', trigger: 'heroBasic', hp: (st) => st.maxHp * MK.bellHp, taunt: MK.bellTaunt, turns: MK.bellTurns,
-    act: (c) => c.hitAll(MK.bellRing * c.ally.pow, true, '#bfe6ff'),
-    onBreak: (c) => { c.say('🔔 ระฆังแตก!', '#ffe08a'); c.hitAll(MK.bellBoom * c.ally.pow, true, '#ffe08a') } },
+  tempestBell: { id: 'tempestBell', name: 'Tempest Bell', icon: '🔔', kind: 'object', trigger: 'heroBasic', hp: (st) => st.maxHp * MK.bellHp * bellMdefMul(st), taunt: MK.bellTaunt, turns: MK.bellTurns,
+    act: (c) => c.hitAll(MK.bellRing * c.ally.pow * bellMdefMul(c.st), true, '#bfe6ff'),
+    onBreak: (c) => { c.say('🔔 ระฆังแตก!', '#ffe08a'); c.hitAll(MK.bellBoom * c.ally.pow * bellMdefMul(c.st), true, '#ffe08a') } },
   // ----- Phase 4 🐺 Beastmaster pets (spawn every wave, x ally.pow: 2nd pet = KIT2.beastmaster.secondPow) · ★ evolutions read Stats flags -----
   hawk: { id: 'hawk', name: 'เหยี่ยว', icon: '🦅', kind: 'pet', trigger: 'heroBasic', // RO Blitz Beat: no HP, can't be hit
     act: (c) => {
