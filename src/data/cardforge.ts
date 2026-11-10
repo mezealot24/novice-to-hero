@@ -4,6 +4,8 @@
 // Item ids are save data: never rename or remove one. Only TYPE imports from meta (meta imports this file).
 import type { Stats } from './game-data'
 import { CRAFT_ITEMS, craftCost, type CraftInfo } from './craft'
+import { CLASS_GEAR } from './class-gear'
+import { CLASS_CRAFT_ITEMS } from './class-craft'
 import type { Item } from './meta'
 import type { SaveData } from '../save'
 
@@ -54,8 +56,10 @@ export function canCardforge(s: SaveData, it: Item): { ok: boolean; why?: 'locke
 
 /** v99 📌: the pinned recipe, if it can be built right now (so the run result can say so). Undefined when nothing is pinned, locked, owned or short. */
 export function pinnedReady(s: SaveData): Item | undefined {
-  const it = s.forgePin ? [...CRAFT_ITEMS, ...CARDFORGE_ITEMS].find((x) => x.id === s.forgePin) : undefined
+  const it = s.forgePin ? [...CRAFT_ITEMS, ...CLASS_GEAR, ...CLASS_CRAFT_ITEMS, ...CARDFORGE_ITEMS].find((x) => x.id === s.forgePin) : undefined
   if (!it?.craft || s.owned.includes(it.id) || !((s.clearsBy?.[it.craft.dg] ?? 0) > 0)) return undefined
+  if (it.req === 'job2' && !s.job2) return undefined
+  if (it.req === 'job3' && (!s.job2 || !s.job3)) return undefined
   if (it.craft.cards) return canCardforge(s, it).ok ? it : undefined
   const c = craftCost(it)
   return s.zeny >= c.zeny && Object.entries(c.mats).every(([id, n]) => (s.mats?.[id] ?? 0) >= n) ? it : undefined

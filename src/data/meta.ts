@@ -13,6 +13,7 @@ import { CRAFT_ITEMS, forgeItem, GRADE, type CraftInfo, type RefineLine } from '
 import { UNIQUE_ITEMS } from './uniques'
 import { UNIQUE3_ITEMS } from './uniques3'
 import { CLASS_GEAR } from './class-gear'
+import { CLASS_CRAFT_ITEMS } from './class-craft'
 import { applyCurse, type TaintRec } from './taint'
 
 // ---------- base stats (Q's spec, 2026-11-02): 7 stats, points from Base Level ----------
@@ -245,6 +246,8 @@ export const ITEMS: Item[] = [
   ...UNIQUE3_ITEMS,
   // ----- 2nd / 3rd job headgear + accessories (data/class-gear.ts, v125): forge recipes with class-only grade bonuses -----
   ...CLASS_GEAR,
+  // ----- Class-specific D6-D10 crafted gear (data/class-craft.ts) -----
+  ...CLASS_CRAFT_ITEMS,
 ]
 export const itemById = (id: string) => ITEMS.find((i) => i.id === id) ?? ITEMS[0]
 /** Can this job wear it? (no `jobs` list = everyone) */
@@ -311,16 +314,17 @@ const STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => string]>> 
   spearShield: ['โอกาสหอกแสงให้โล่', pc], counterDmg: ['ดาเมจสวนกลับ', pc], basicDmg: ['ตีปกติแรง', pc], resTurn: ['Mana/Energy/Rage ต่อเทิร์น', (n) => `${n}`],
   smashCd: ['คูลดาวน์ท่าไม้ตาย', (n) => `${Math.round(n / 1500)} เทิร์น`], berserk: ['HP<30%: ATK +40% ดูดเลือด x2', () => ''], overhealShield: ['ฮีลเกินเต็มกลายเป็นโล่', () => ''], ctrAoe: ['สวนกลับโดนมอนทุกตัว 0.5x', () => ''],
   dodgeStrike: ['หลบได้แล้วตีสวนกลับ', () => ''], killHeal: ['ฆ่ามอน→ฟื้น HP', pc], fireSpread: ['มอนตาย→ไฟลุกลาม', () => ''], poisonSpread: ['มอนตาย→พิษลุกลาม', () => ''],
+  chillSlow: ['ชะลอมอนที่เย็นอยู่', pc], iceBarrier: ['บาเรียเวทน้ำแข็ง', pc], chillPlus: ['เย็นนานขึ้น', (n) => `${n} เทิร์น`], brittle: ['มอนที่เย็นโดนแรงขึ้น', pc],
 }
 /** Labels of the 2nd / 3rd job flags that gear and refine lines can carry (v125). Values are the same numbers the ใยชั้น 2 / 3 nodes give per level. */
 const CLASS_STAT_LABEL: Partial<Record<keyof Stats, [string, (n: number) => string]>> = {
   j2Guard: ['บล็อก (Auto Guard)', pc], j2FrenzyMax: ['Frenzy สูงสุด', (n) => `${n} stack`], j2Duel: ['ดวล (เหลือตัวเดียว/บอส)', pc], j2LowHp: ['คลั่ง (HP ยิ่งหายยิ่งแรง)', pc],
-  j2HpDmg: ['สกิลหอก + HP สูงสุด', pc], j2Provoke: ['ข่มขวัญ (มอนเลือดน้อยตีเบา)', pc], j2Banner: ['ปักธง: โล่ต้นเวฟ', pc], j2BannerKill: ['ธงชัย: ฆ่าได้โล่', pc],
+  j2HpDmg: ['สกิลหอก + HP สูงสุด', pc], j2Provoke: ['ข่มขวัญ (มอนเลือดน้อยตีเบา)', pc], j2Banner: ['ปักธง: โล่ต้นเวฟ', pc], j2BannerKill: ['ธงชัย: ฆ่าได้โล่', pc], j2PierceHits: ['Pierce แทงเพิ่ม', (n) => `${n} ฮิต`],
   j2KnifeMul: ['มีดบินแรง', pc], j2KnifeAdd: ['มีดบินเพิ่ม', (n) => `${n} เล่ม`], j2ExecAdd: ['เกณฑ์ Execute', pc], j2DebuffTurns: ['ดีบัฟนานขึ้น', (n) => `${n} เทิร์น`],
   j2CrossAdd: ['กางเขนแรง', pc], j2PayCut: ['Grand Cross จ่าย HP น้อยลง', pc], j2BlockHeal: ['บล็อกแล้วฮีล', pc], j2BlockShield: ['บล็อกแล้วได้โล่', pc], j2Reflect: ['สะท้อนกายภาพ', pc],
   j2ThunderPer: ['สายฟ้า/ลูกพลัง', pc], j2Es: ['โล่ตอนไม่โดนตี', pc], j2Dark: ['Darkness โล่ทุกเทิร์น', pc], j2ChargeMax: ['ลูกพลังสูงสุด', (n) => `${n} ลูก`],
   j2MeteorMul: ['อุกกาบาตแรง', pc], j2LovMul: ['Lord of Vermilion แรง', pc], j2GustMul: ['Storm Gust แรง', pc],
-  j2AutoChance: ['Auto Spell', pc], j2EndowAmp: ['Endow แรง', pc], j2MagicRod: ['ดูดเวท → Mana', (n) => `${n}`],
+  j2AutoChance: ['Auto Spell', pc], j2AutoBolts: ['Auto Spell +ลูก', (n) => `${n} ลูก`], j2EndowAmp: ['Endow แรง', pc], j2MagicRod: ['ดูดเวท → Mana', (n) => `${n}`],
   j2PetPow: ['สัตว์เลี้ยงแรง', pc], j2PetHeal: ['สัตว์ลงมือ → ฮีล', pc], j2HawkMul: ['เหยี่ยวแรง', pc], j2WolfMul: ['หมาป่าแรง', pc],
   j2TrapMul: ['กับดักแรง', pc], j2TurretMul: ['ป้อมปืนแรง', pc], j2BoxLuck: ['ของหายากในกล่องสุ่ม', pc], j2BoxMul: ['ของประหลาดแรง', pc],
   j2Spiral: ['Ult ทะลุ DEF', pc], j2Charge: ['ชาร์จเปิดเวฟ', pc],

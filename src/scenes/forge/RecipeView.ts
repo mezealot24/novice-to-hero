@@ -5,8 +5,10 @@ import { DUNGEONS } from '../../data/game-data'
 import { cardById, cardName } from '../../data/cards'
 import { bagCards, canCardforge, cardforge, cardforgeCost, isCardforge } from '../../data/cardforge'
 import { CRAFT_ITEMS, craftCost, forgeItem, GRADE, gradeStars } from '../../data/craft'
+import { CLASS_GEAR } from '../../data/class-gear'
+import { CLASS_CRAFT_ITEMS } from '../../data/class-craft'
 import { matById } from '../../data/materials'
-import { canWearAs, gradeOf, ITEMS, itemStatLine, refineOf, wearText, type Item } from '../../data/meta'
+import { canWearAs, gradeOf, ITEMS, itemStatLine, itemUnlocked, refineOf, REQ_TEXT, wearText, type Item } from '../../data/meta'
 import { salvage, salvageable, salvagePreview, type SalvageWhy } from '../../data/salvage'
 import { canPay, equip, pay, persist, save } from '../../save'
 import { sfx } from '../../sfx'
@@ -15,8 +17,8 @@ import { CARDFORGE_ITEMS } from '../../data/cardforge'
 import { matSource } from './stash'
 
 export interface ViewHost { wallet(): void; say(text: string): void; changed(): void }
-type Filter = 'all' | 'classic' | 'cf' | 'salvage'
-const FILTERS: { id: Filter; label: string }[] = [{ id: 'all', label: 'ทั้งหมด' }, { id: 'classic', label: '🔨ดัน' }, { id: 'cf', label: '🃏ผนึก' }, { id: 'salvage', label: '♻️หลอม' }]
+type Filter = 'all' | 'mine' | 'classic' | 'cf' | 'salvage'
+const FILTERS: { id: Filter; label: string }[] = [{ id: 'all', label: 'ทั้งหมด' }, { id: 'mine', label: '🎯สายเรา' }, { id: 'classic', label: '🔨ดัน' }, { id: 'cf', label: '🃏ผนึก' }, { id: 'salvage', label: '♻️หลอม' }]
 const PER = 6, ROW_H = 52
 const dgName = (id: string) => DUNGEONS.find((d) => d.id === id)?.name ?? id
 const dgBoss = (id: string) => DUNGEONS.find((d) => d.id === id)?.boss ?? ''
@@ -32,20 +34,27 @@ export class RecipeView {
   /** The list for the current filter. Fixed order (dungeon, then catalogue), never by affordability, so rows don't jump. */
   private list(): Item[] {
     const s = save(), dgIx = (it: Item) => (it.craft ? DUNGEONS.findIndex((d) => d.id === it.craft!.dg) : DUNGEONS.length) // Corrupted shop gear (no recipe) sorts last
-    const all = [...CRAFT_ITEMS, ...CARDFORGE_ITEMS].sort((a, b) => dgIx(a) - dgIx(b))
+    const all = [...CRAFT_ITEMS, ...CLASS_GEAR, ...CLASS_CRAFT_ITEMS, ...CARDFORGE_ITEMS].sort((a, b) => dgIx(a) - dgIx(b))
+    if (this.filter === 'mine') return all.filter((it) => canWearAs(it, s))
     if (this.filter === 'classic') return all.filter((it) => !isCardforge(it))
     if (this.filter === 'cf') return all.filter(isCardforge)
     if (this.filter === 'salvage') return ITEMS.filter((it) => (it.craft || s.taint?.[it.id]) && s.owned.includes(it.id)).sort((a, b) => dgIx(a) - dgIx(b))
     return all
   }
 
-  private unlocked = (it: Item) => !it.craft || (save().clearsBy?.[it.craft.dg] ?? 0) > 0
+  private unlocked = (it: Item) => {
+    const s = save()
+    return (!it.craft || (s.clearsBy?.[it.craft.dg] ?? 0) > 0) && itemUnlocked(it, s)
+  }
 
   /** Short state under a row's name. */
   private caption(it: Item): string {
     const s = save()
     if (this.filter === 'salvage') { const ok = salvageable(s, it); return ok.ok ? `คืน ${Object.values(salvagePreview(s, it).mats).reduce((a, b) => a + b, 0)} ชิ้น · ค่าธรรมเนียม ${salvagePreview(s, it).fee}z` : SALVAGE_WHY[ok.why] }
-    if (!this.unlocked(it)) return `🔒 ล้มบอสดัน ${it.craft!.dg.slice(1)} ก่อน`
+    if (!this.unlocked(it)) {
+      if (it.craft && !((s.clearsBy?.[it.craft.dg] ?? 0) > 0)) return `🔒 ล้มบอสดัน ${it.craft.dg.slice(1)} ก่อน`
+      return `🔒 ${it.req ? REQ_TEXT[it.req] : 'ยังไม่ปลดล็อก'}`
+    }
     if (s.owned.includes(it.id)) return '✓ มีแล้ว'
     if (isCardforge(it)) { const c = canCardforge(s, it); return c.ok ? '✓ พร้อม' : `🃏 ${Object.entries(it.craft!.cards!).reduce((a, [id, n]) => a + Math.min(n, bagCards(s, id)), 0)}/${Object.values(it.craft!.cards!).reduce((a, b) => a + b, 0)}` }
     return Object.entries(craftCost(it).mats).every(([id, n]) => (s.mats?.[id] ?? 0) >= n) && s.zeny >= it.craft!.zeny ? '✓ พร้อม' : 'ขายังไม่ครบ'
@@ -61,7 +70,7 @@ export class RecipeView {
     this.page = Math.max(0, Math.min(this.page, pages - 1))
     if (!this.sel || !list.some((it) => it.id === this.sel)) this.sel = list[this.page * PER]?.id ?? list[0]?.id
     root.add(panel(sc, 16, 112, 256, 450, 0x1d2140, UI.line, 12))
-    FILTERS.forEach((f, i) => root.add(button(sc, 16 + 31 + i * 65, 128, 61, 28, f.label, () => { this.filter = f.id; this.page = 0; this.sel = undefined; this.rebuild() }, { size: 12, fill: this.filter === f.id ? 0xf2b84b : 0x5a5f8a, color: this.filter === f.id ? UI.ink : UI.text })))
+    FILTERS.forEach((f, i) => root.add(button(sc, 16 + 30 + i * 49, 128, 46, 28, f.label, () => { this.filter = f.id; this.page = 0; this.sel = undefined; this.rebuild() }, { size: 11, fill: this.filter === f.id ? 0xf2b84b : 0x5a5f8a, color: this.filter === f.id ? UI.ink : UI.text })))
     list.slice(this.page * PER, this.page * PER + PER).forEach((it, i) => {
       const w = 244, cy = 162 + i * (ROW_H + 4) + ROW_H / 2, on = it.id === this.sel, hide = !this.unlocked(it) && this.filter !== 'salvage'
       const g = sc.add.graphics()
@@ -89,13 +98,14 @@ export class RecipeView {
     root.add(itemIcon(sc, 288 + 70, 187, 96, shown ? it : { ...it, icon: '❓', name: '???' }, { grade: salv ? gradeOf(s, it.id) : 1, refine: salv ? refineOf(s, it.id) : 0 }))
     root.add(fit(txt(sc, 288 + 128, 122, shown ? `${it.name}${cf ? '  🃏' : ''}` : '??? (ยังไม่ปลดสูตร)', 20, shown ? UI.text : UI.sub, true).setWordWrapWidth(500), 28))
     root.add(txt(sc, 288 + 128, 150, `${c ? `ของ${dgName(c.dg)}` : 'ของร้าน (ติดคำสาป)'} · ${wearText(it)}${canWearAs(it, s) ? '' : ' (ไม่ใช่อาชีพนี้)'}`, 12, canWearAs(it, s) ? UI.sub : UI.red))
+    const lockMsg = c && !((s.clearsBy?.[c.dg] ?? 0) > 0) ? `ล้ม${dgBoss(c.dg)}ก่อนถึงจะตีได้` : (it.req ? REQ_TEXT[it.req] : 'ยังไม่ปลดล็อก')
     if (shown) {
       const worn = forgeItem(it, salv ? gradeOf(s, it.id) : 1, salv ? refineOf(s, it.id) : 0)
       root.add(fit(txt(sc, 288 + 128, 170, `${itemStatLine(worn)} · 🃏 ช่องการ์ด ${it.slots ?? 1}`, 13, '#9fe3a8', true).setWordWrapWidth(510), 34))
       if (cf) root.add(fit(txt(sc, 288 + 128, 206, it.desc, 12, UI.gold, true).setWordWrapWidth(510), 34))
       else root.add(fit(txt(sc, 288 + 128, 206, it.desc, 12, UI.sub).setWordWrapWidth(510), 18))
       if (c) root.add(txt(sc, 288 + 128, 232, `★3 ปลด: ${itemStatLine({ mod: c.bonus[0] })}  ·  ★5 ปลด: ${itemStatLine({ mod: c.bonus[1] })}`, 11, GRADE.colors[3]).setWordWrapWidth(520))
-    } else root.add(txt(sc, 288 + 128, 176, `🔒 ล้ม${dgBoss(c!.dg)}ก่อนถึงจะตีได้\nวัตถุดิบ: ??? · ค่าตี: ???`, 14, UI.sub))
+    } else root.add(txt(sc, 288 + 128, 176, `🔒 ${lockMsg}\nวัตถุดิบ: ??? · ค่าตี: ???`, 14, UI.sub))
     root.add(panel(sc, 288, 272, 656, 190, UI.panel, UI.line))
     if (salv) this.salvageInfo(root, it, s)
     else this.craftInfo(root, it, s, open, cf)
@@ -105,7 +115,12 @@ export class RecipeView {
     const sc = this.scene, c = it.craft!, owned = s.owned.includes(it.id)
     const strip = costStrip(sc, 304, 482, 360)
     root.add(strip)
-    if (!open) { root.add(txt(sc, 304, 288, `สูตรนี้ปลดเมื่อชนะ ${dgBoss(c.dg)} ครั้งแรก\nวัตถุดิบ: ??? · ค่าตี: ???`, 14, UI.sub)); this.host.say('สูตรที่ยังไม่ปลดเป็นเงาไว้ก่อนนะ ล้มบอสของดันนั้นก่อน'); return }
+    if (!open) {
+      const lockWhy = !((s.clearsBy?.[c.dg] ?? 0) > 0) ? `สูตรนี้ปลดเมื่อชนะ ${dgBoss(c.dg)} ครั้งแรก` : `สูตรนี้${it.req ? REQ_TEXT[it.req] : 'ยังไม่ปลดล็อก'}`
+      root.add(txt(sc, 304, 288, `${lockWhy}\nวัตถุดิบ: ??? · ค่าตี: ???`, 14, UI.sub))
+      this.host.say('สูตรที่ยังไม่ปลดเป็นเงาไว้ก่อนนะ ปลดเงื่อนไขก่อนเลย')
+      return
+    }
     const cost = cf ? cardforgeCost(it) : craftCost(it)
     strip.setCost(cost, s)
     // the lines that explain what is short and where it comes from
