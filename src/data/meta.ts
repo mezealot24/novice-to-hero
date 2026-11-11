@@ -1,6 +1,6 @@
 // ===== Out-of-run (meta) game data: races, base stats, equipment, costumes, top-up packs. =====
 // Everything a run starts from is computed by heroStats(save). Balance knobs live here.
-import { COMBO, PLAYER, type Stats } from "./game-data";
+import { COMBO, PLAYER, softCapDiminish, type Stats } from "./game-data";
 import { KIT2, KIT3, S2N } from "./skill-math";
 import { COUNTER_RULES } from "./stack-math";
 import {
@@ -937,6 +937,19 @@ export const ITEMS: Item[] = [
 		jobs: TH,
 		req: "job",
 	},
+	{
+		id: "a_monkgi",
+		slot: "armor",
+		name: "ชุดฝึกมังค์ปราณพิสุทธิ์",
+		icon: "🥋",
+		price: 1300,
+		desc: "อาชีพขั้น 2 · เกราะมังค์: สมาธิมั่นคง กันเวท เพิ่มแรงหมัดตาม M.DEF และ HP",
+		base: { wis: 3, vit: 3, str: 2 },
+		mod: { maxHp: 90, def: 12, mdef: 0.05, j2MdefDmg: 0.25, j2HpPunch: 0.005 },
+		jobs: CL,
+		j2: ["monk"],
+		req: "job2",
+	},
 	// ----- accessories: everyone (pick the one stat your build needs) -----
 	{
 		id: "none",
@@ -1081,6 +1094,24 @@ export const ITEMS: Item[] = [
 		mod: { regen: 0.5, debuffRes: 0.25 },
 		req: "d4",
 	},
+	{
+		id: "r_monkrosary",
+		slot: "acc",
+		name: "ประคำโพธิสัตว์คุ้มภัย",
+		icon: "📿",
+		price: 1250,
+		desc: "อาชีพขั้น 2 · ประดับมังค์: สะสมแรงฮึดไวขึ้น ระฆังทองแข็งแกร่ง เสริมหมัดแค้น",
+		base: { wis: 3, vit: 2, str: 2 },
+		mod: {
+			maxHp: 60,
+			mdef: 0.04,
+			j2BellMdef: 0.2,
+			j2GritRate: 0.15,
+		},
+		jobs: CL,
+		j2: ["monk"],
+		req: "job2",
+	},
 	// ----- headgear (equipment screen v1, design/equipment-screen-v1.md): lighter than armor -----
 	{
 		id: "none_head",
@@ -1190,6 +1221,25 @@ export const ITEMS: Item[] = [
 		base: { str: 2, vit: 2, wis: 2, dex: 2, int: 2, luk: 2, agi: 2 },
 		mod: { maxHp: 30 },
 		req: "d3",
+	},
+	{
+		id: "h_monkband",
+		slot: "head",
+		name: "ผ้าโพกศีรษะมังค์อัสนี",
+		icon: "🧘",
+		price: 1200,
+		desc: "อาชีพขั้น 2 · หมวกมังค์: คอมโบรัว ลูกพลังจุใจ เพิ่มสายฟ้าอัสนี",
+		base: { wis: 3, agi: 3 },
+		mod: {
+			maxHp: 40,
+			combo: 0.05,
+			comboDmg: 0.08,
+			j2ChargeMax: 1,
+			j2ThunderAtk: 0.15,
+		},
+		jobs: CL,
+		j2: ["monk"],
+		req: "job2",
 	},
 	// ----- off-hand: every class has its own kind (shield / quiver / orb / parrying dagger) -----
 	{
@@ -2159,8 +2209,8 @@ export function heroStats(s: StatsInput): Stats {
 	st.smashCd = Math.max(2500, st.smashCd);
 	st.aspd = Math.max(0.6, st.aspd);
 	st.minPct = Math.min(0.95, st.minPct);
-	st.mdef = Math.min(0.75, st.mdef);
-	st.tenacity = Math.min(0.75, st.tenacity);
+	st.mdef = softCapDiminish(st.mdef);
+	st.tenacity = softCapDiminish(st.tenacity);
 	st.luckyDodge = Math.min(0.25, st.luckyDodge);
 	st.counter = Math.min(COMBO.rateCap, Math.max(COUNTER_RULES.min, st.counter)); // every class counters at least COUNTER_RULES.min (run picks multiply it) · counter rework: may pass 100% vs Ignore Counter (was 60%)
 	st.combo = Math.min(COMBO.rateCap, st.combo);

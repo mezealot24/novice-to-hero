@@ -849,6 +849,18 @@ export const COMBO = {
   // hero side: stat x/(x+defK) (AGI Ignore Combo, DEX Ignore Counter, VIT Combo+Counter DR, LUK Crit DR) + gear; caps
   defK: 400, defCap: 0.3, critDRCap: 0.5,
 }
+
+/** Diminishing returns above soft cap: smoothly scales up to hard cap using x/(x+K). */
+export const RESIST_RULES = {
+  softCap: 0.70,
+  hardCap: 0.85,
+  k: 0.15,
+}
+export const softCapDiminish = (v: number, soft = RESIST_RULES.softCap, hard = RESIST_RULES.hardCap, k = RESIST_RULES.k) => {
+  if (v <= soft) return Math.max(0, v)
+  const x = v - soft
+  return Math.min(hard, soft + (hard - soft) * (x / (x + k)))
+}
 /** Expected extra hits per basic attack for a combo rate and chain length (rolls stop on the first miss). */
 export const comboExtra = (rate: number, count: number) => { const p = Math.max(0, Math.min(1, rate)); let e = 0, q = 1; for (let i = 0; i < count; i++) { q *= p; e += q } return e }
 

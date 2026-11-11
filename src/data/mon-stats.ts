@@ -9,7 +9,7 @@
 //   + Level Base per Lv (what gear gives a hero of that level) · x HP body by tier (fights last as long as D4-5 bosses)
 //
 // Tuning lives in MON_STAT only.
-import { BATTLE, DUNGEONS, MONSTERS, PLAYER, type HitFx, type MonSkill, type MonSkillKind, type MonsterDef, type MonsterKind, type Stats } from './game-data'
+import { BATTLE, DUNGEONS, MONSTERS, PLAYER, RESIST_RULES, softCapDiminish, type HitFx, type MonSkill, type MonSkillKind, type MonsterDef, type MonsterKind, type Stats } from './game-data'
 import { applyBase, baseDefence, STAT_RULES, type BaseStat } from './meta'
 
 export type Archetype = 'bruiser' | 'skirmisher' | 'assassin' | 'caster' | 'tank' | 'support'
@@ -35,7 +35,7 @@ export const MON_STAT = {
   /** HP x this by tier (after Level Base): stat HP alone would make a boss die in a few hits. */
   body: { normal: 1, mini: 5, boss: 8 } as Record<MonTier, number>,
   /** Monster caps (same as the hero's where the hero has one). */
-  mdefCap: 0.75, luckyCap: 0.25, rateCap: 1.5,
+  mdefCap: RESIST_RULES.hardCap, luckyCap: 0.25, rateCap: 1.5,
 }
 
 export const monTier = (d: MonsterDef): MonTier => (d.mini ? 'mini' : d.ai === 'boss' ? 'boss' : 'normal')
@@ -80,9 +80,9 @@ const cap = (x: number, c: number) => Math.min(c, x)
 function statOnly(d: MonsterDef, x: Derived): Pick<MonsterDef, 'mdef' | 'luckyDodge' | 'tenacity' | 'statDef'> {
   const f = baseDefence(x.b)
   return {
-    mdef: cap(x.st.mdef + (d.mdef ?? 0), MON_STAT.mdefCap),
+    mdef: softCapDiminish(x.st.mdef + (d.mdef ?? 0)),
     luckyDodge: cap(x.st.luckyDodge, MON_STAT.luckyCap),
-    tenacity: cap(x.st.tenacity, 0.75),
+    tenacity: softCapDiminish(x.st.tenacity),
     statDef: { ignoreCombo: f.ignoreCombo, ignoreCounter: f.ignoreCounter, comboDR: f.comboDR, counterDR: f.counterDR, critDR: f.critDR },
   }
 }

@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats } from '../data/game-data'
+import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, softCapDiminish, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats } from '../data/game-data'
 import { counterRate, shieldGain } from '../data/stack-math'
 import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, PERKS_V2, OFFER_RULES, OUTSIDE_CAP, overflowShare, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type OutsideKey, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
 import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
@@ -3271,7 +3271,8 @@ export class BattleScene extends Phaser.Scene {
       this.st[k] += v
       if (k === 'crit') this.st.spellCrit += v // card/relic crit also counts for magic (Q rule)
       if (k === 'lifesteal') this.st.lifesteal = Math.min(0.4, this.st.lifesteal) // Q: lifesteal cap 40%
-      if (k === 'mdef') this.st.mdef = Math.min(0.75, this.st.mdef) // same cap as heroStats (meta.ts): run picks used to pass it
+      if (k === 'mdef') this.st.mdef = softCapDiminish(this.st.mdef) // soft-cap diminish up to hardCap
+      if (k === 'tenacity') this.st.tenacity = softCapDiminish(this.st.tenacity)
     }
     this.st.smashCost = Math.max(6, this.st.smashCost)
   }
@@ -3904,7 +3905,8 @@ export class BattleScene extends Phaser.Scene {
   private venomStrike(m: Mon) {
     const V = m.def.venom!
     if (this.hp <= 0) return
-    if (this.relic === 'purify' || Math.random() < this.st.debuffRes) { this.resistCount++; this.floatText(HERO_X - 40, GROUND - 160, '🕷️ ต้านทาน!', '#9fe3ff'); return }
+    const resistChance = Math.max(this.st.tenacity, this.st.debuffRes)
+    if (this.relic === 'purify' || Math.random() < resistChance) { this.resistCount++; this.floatText(HERO_X - 40, GROUND - 160, '🕷️ ต้านทาน!', '#9fe3ff'); return }
     this.debuffCount++
     this.hx.venom = V.dmg * this.matkScale(m) * this.monMul(m); this.hx.venomTurns = V.turns
     this.floatText(HERO_X + 30, GROUND - 150, `🕷️ พิษทวีคูณ ${V.turns} เทิร์น`, '#9be35a')
@@ -4137,7 +4139,8 @@ export class BattleScene extends Phaser.Scene {
       const v = fx[k]!
       if (!v) continue
       if (this.st.poise > 0 && (k === 'freeze' || k === 'silence')) { this.floatText(HERO_X - 40, GROUND - 160, `🧘 ${FX_ICON[k]} กันได้`, '#ff6b7a'); continue } // v78 Poise
-      if (this.relic === 'purify' || Math.random() < this.st.debuffRes) { this.resistCount++; this.floatText(HERO_X - 40, GROUND - 160, `${FX_ICON[k]} ต้านทาน!`, '#9fe3ff'); continue }
+      const resistChance = Math.max(this.st.tenacity, this.st.debuffRes)
+      if (this.relic === 'purify' || Math.random() < resistChance) { this.resistCount++; this.floatText(HERO_X - 40, GROUND - 160, `${FX_ICON[k]} ต้านทาน!`, '#9fe3ff'); continue }
       this.debuffCount++
       if (k === 'poison') X.poison = Math.min(BATTLE.poisonCap, X.poison + v)
       else if (k === 'freeze') {
