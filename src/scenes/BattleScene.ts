@@ -40,6 +40,7 @@ import { CombatLog, deathText, recapLines, saveDeath, type DeathRec, type HitOut
 import { ftue, track } from '../analytics'
 import { HeroRig } from '../battle/hero-rig'
 import { fitHeroScale, heroCostumeTint, heroRigSpec, heroTex, type HeroRigSpec } from '../gfx/hero-visual'
+import { CLERIC_PFX, playPfx, preloadPfx } from '../gfx/pixelfx'
 import { blockShieldFx, bowlingBashFx, brandishSweepFx, chargeOpenerFx, comboSlashFx, guardianUltFx, pierceHitFx, skill2AuraFx, spearBoomerangFx, whirlwindFx } from '../battle/sword-vfx'
 
 // Side-scroll, turn-based (Capybara Go-like): the hero walks right, meets a group, and everyone
@@ -335,6 +336,7 @@ export class BattleScene extends Phaser.Scene {
     this.hp = this.st.maxHp; this.smashCdLeft = 0; this.heroGauge = 0; this.zapCount = 0; this.emergencyUsed = false; this.firstOffer = true
     this.job = JOBS[s.job ?? 'novice']
     this.j2 = s.job2 && JOB2[s.job2]?.parent === this.job.id ? JOB2[s.job2] : undefined // 2nd job (design/second-jobs-v1.md)
+    if (this.job.id === 'cleric') preloadPfx(this, CLERIC_PFX) // bake the pixelfx sheets now, not on the first cast
     if (this.j2) this.job = { ...this.job, resource: this.j2.resource ?? this.job.resource, auto: { ...this.job.auto, cost: this.j2.autoCost ?? this.job.auto.cost }, ult: { ...this.job.ult, ...this.j2.ult, ...(this.j2.id === 'monk' && this.st.j2Asura > 0 ? { icon: '💥', name: 'อาชูร่าสไตรก์' } : {}) } } // Berserker: Rage · Ult วิวัฒน์ · Monk ★ Asura Strike
     if (this.j2?.id === 'sage') this.job = { ...this.job, attack: 'melee' } // 📖 Sage: melee basic + counters (P.ATK)
     this.sageInt = totalBase(s).int; this.heroDex = totalBase(s).dex; this.heroWis = totalBase(s).wis; this.casts = []; this.steady = false; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
@@ -1013,7 +1015,7 @@ export class BattleScene extends Phaser.Scene {
     this.forceCrit = wasCrit || sure; st.critMul += add
     let front = 0
     try { targets.forEach((m, i) => { const d = this.strike(m, mul, true, '#ffd36e'); if (i === 0) front = d }) } finally { st.critMul -= add; this.forceCrit = wasCrit }
-    this.burst(targets[0].spr.x, targets[0].spr.y - 30, 0xffd36e, 14, 170)
+    playPfx(this, 'critGold', targets[0].spr.x - 10, GROUND, { scale: 1.3, speed: 1.2 }) // 🌄 dawn: a gold crit flare
     if (st.clDawnWis > 0 && st.clDawnWisTurns > 0 && this.hp > 0) { // v102 ☀️ แสงแตก: WIS buff, refreshed by every bonus hit
       this.buf.dawnWis = Math.round(st.clDawnWisTurns); this.syncDawnWis(wisGain)
       this.floatText(HERO_X, GROUND - 170, `☀️ WIS +${wisGain} (${this.buf.dawnWis} เทิร์น)`, '#ffd36e')
@@ -1059,7 +1061,7 @@ export class BattleScene extends Phaser.Scene {
     await this.lunge(t, () => {
       this.cameras.main.flash(hm.star ? 140 : 90, 255, 160, 60)
       this.shake(hm.star ? 220 : 140, hm.star ? 0.014 : 0.009)
-      this.burst(t.spr.x, t.spr.y - 30, 0xff9a3c, hm.star ? 22 : 14, 240)
+      playPfx(this, hm.star ? 'slam' : 'critOrange', t.spr.x - 10, GROUND, { scale: hm.star ? 1.2 : 1.3, speed: 1.5 })
       this.withSrc('other', () => this.damageMon(t, hm.centerTrueDmg, hm.star, '#ffb84d', true))
       if (hm.star) {
         if (!t.dead && t.def.ai === 'boss') t.gauge -= KIT2.monk.haymakerPush
@@ -1457,7 +1459,7 @@ export class BattleScene extends Phaser.Scene {
         this.addCharges(-n)
         this.cameras.main.flash(90, 191, 230, 255)
         const mul = (O.thunderPm * (1 + (O.thunderPer + this.st.j2ThunderPer) * n) + this.thunderAtkAdd()) * pow
-        for (const m of this.alive()) { this.burst(m.spr.x, m.spr.y - 30, 0xbfe6ff, 8, 160); this.strike(m, mul, true, '#bfe6ff') }
+        for (const m of this.alive()) { playPfx(this, 'zap', m.spr.x, m.spr.y - m.spr.displayHeight * 0.45, { scale: 1.4, speed: 1.3 }); this.strike(m, mul, true, '#bfe6ff') }
         this.floatText(HERO_X, GROUND - 170, `⚡ x${n}`, '#bfe6ff')
         await this.wait(BATTLE.stepMs * 0.3)
       } else if (j2.id === 'rogue') { // 🗡️ Back Stab: sure crit on the highest-HP monster
@@ -1563,7 +1565,8 @@ export class BattleScene extends Phaser.Scene {
             this.cameras.main.flash(220, 255, 220, 140)
             this.shake(260, 0.018)
             this.hitStop(95)
-            this.burst(t.spr.x, t.spr.y - 30, 0xffd24a, 28, 280)
+            playPfx(this, 'slam', t.spr.x - 10, GROUND, { scale: 1.6, speed: 1.3 }) // 💥 Asura: the floor gives
+            playPfx(this, 'critOrange', t.spr.x - 10, GROUND, { scale: 1.6, speed: 1.2 })
             this.withSrc('ult', () => this.damageMon(t, dmg, true, '#ff6b4a', true))
           })
           this.callout(`💥 อาชูร่าสไตรก์! (${spentCharges}🔵 + ${burntMana} Mana)`, W / 2, 165, '#ff9a3c')
@@ -1858,9 +1861,7 @@ export class BattleScene extends Phaser.Scene {
     await this.tween({ targets: this.heroSpr, y: y0 - 22, angle: -12, duration: step * 0.1, ease: 'Quad.easeOut' })
     await this.tween({ targets: this.heroSpr, y: y0, angle: 8, duration: step * 0.08, ease: 'Quad.easeIn' })
     this.heroSpr.setAngle(0)
-    const ring = this.add.circle(m.spr.x - 10, GROUND - 6, 10, 0xf6e27a, 0).setStrokeStyle(3, 0xf6e27a).setDepth(9000)
-    this.tweens.add({ targets: ring, scale: 3.2, alpha: 0, duration: 260, onComplete: () => ring.destroy() })
-    this.slashFx(m.spr.x - 20, GROUND - 30)
+    playPfx(this, 'blunt', m.spr.x - 16, GROUND, { scale: 1.5, speed: 1.4 }) // pixelfx: a heavy mace thud
     sfx.swing()
     fn()
     this.shake(80, 0.006)
@@ -1868,11 +1869,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** v58 Priest ult: a beam of Holy Light falls on one monster (magic, M.ATK). */
-  private async holyLight(m: Mon, mul: number, color = 0xfff3a0) {
-    const beam = this.add.rectangle(m.spr.x, GROUND - 160, 26, 320, color, 0.85).setDepth(9000)
-    this.tweens.add({ targets: beam, scaleX: 0.2, alpha: 0, duration: 260, onComplete: () => beam.destroy() })
+  private async holyLight(m: Mon, mul: number) {
+    playPfx(this, 'smite', m.spr.x, GROUND, { scale: 1.5, speed: 1.6 }) // pixelfx: a bolt of light drops like a hammer
     const d = this.strike(m, mul, true, '#fff3a0')
-    this.burst(m.spr.x, m.spr.y - 20, color, 8, 160)
     await this.wait(BATTLE.stepMs * 0.12)
     return d
   }
@@ -2168,13 +2167,13 @@ export class BattleScene extends Phaser.Scene {
         await this.mageFire(pow, this.j2?.id === 'wizard' ? MAGE_SPELL.autoMul : MAGE_CAST.fireMul) // v85: instant for every Mage (Mage / Sage MAGE_CAST.fireMul · Wizard MAGE_SPELL.autoMul)
         break
       case 'cleric':
-        if (this.hp < this.st.maxHp * (KIT.clericHealBelow - this.st.healAt)) { this.skillHeal(this.st.matk * CLERIC_KIT.heal * pow); this.burst(HERO_X, GROUND - 40, 0x6fd08c, 18, 160) }
+        if (this.hp < this.st.maxHp * (KIT.clericHealBelow - this.st.healAt)) { this.skillHeal(this.st.matk * CLERIC_KIT.heal * pow); playPfx(this, 'healRing', HERO_X, GROUND, { scale: 1, speed: 1.6 }) }
         else if (this.st.judge > 0 && ++this.smiteCount % KIT.clericJudgeEvery === 0) { // tree ★B: วันพิพากษา
-          this.callout('⚖️ พิพากษา!', W / 2, 170); this.burst(700, GROUND - 30, 0xf6e27a, 30, 320)
+          this.callout('⚖️ พิพากษา!', W / 2, 170); live.forEach((m) => playPfx(this, 'pillar', m.spr.x, GROUND, { scale: 1.2, speed: 2 }))
           for (const m of live) { const d = this.strike(m, KIT.clericJudge * pow * (1 + this.st.smiteMul), true, '#f6e27a'); if (!m.dead) m.marked = 2; if (this.st.smiteVamp > 0) this.heal(d * this.st.smiteVamp, true) }
         } else for (const m of live.slice(0, KIT.clericSmiteTargets + this.st.smiteTargets)) { // v59 Q: light falls from the sky after the smash (no more ranged orb)
           if (m.dead) continue
-          const d = await this.holyLight(m, CLERIC_KIT.smite * pow * (1 + this.st.smiteMul), 0xf6e27a)
+          const d = await this.holyLight(m, CLERIC_KIT.smite * pow * (1 + this.st.smiteMul))
           if (this.st.smiteVamp > 0) this.heal(d * this.st.smiteVamp, true)
         }
         this.addFaith(KIT.clericTree.faithCast) // v84 สวดภาวนา
@@ -2280,6 +2279,7 @@ export class BattleScene extends Phaser.Scene {
     for (let twice = 0; twice < (this.st.j2GcTwice > 0 ? 2 : 1) && this.alive().length; twice++) {
       this.cameras.main.flash(110, 255, 243, 160)
       for (const m of this.alive()) {
+        playPfx(this, last ? 'pillar' : 'smite', m.spr.x, GROUND, { scale: last ? 1.3 : 1.2, speed: 2 }) // ✨ Grand Cross: light on every pulse, the last one a pillar
         const cross = this.add.text(m.spr.x, m.spr.y - m.spr.displayHeight / 2, '✝️', { fontSize: last ? '50px' : '40px' }).setOrigin(0.5).setDepth(9000)
         this.tweens.add({ targets: cross, scale: 1.6, alpha: 0, duration: 300, onComplete: () => cross.destroy() })
         this.strike(m, (C.gcPm * g.k + (twice === 0 ? g.extra / Math.max(1, magicPower(this.st)) : 0)) * k3, true, '#fff3a0')
@@ -2397,7 +2397,7 @@ export class BattleScene extends Phaser.Scene {
     this.faith = 0
     this.callout('🙏 ศรัทธาระเบิด!', W / 2, 170, '#fff3a0')
     this.cameras.main.flash(120, 255, 243, 170)
-    this.withSrc('light', () => { for (const m of this.alive()) { this.strike(m, this.st.clFaith * (1 + this.st.s1Pow), true, '#fff3a0'); this.burst(m.spr.x, m.spr.y - 30, 0xfff3a0, 8, 160) } })
+    this.withSrc('light', () => { for (const m of this.alive()) { this.strike(m, this.st.clFaith * (1 + this.st.s1Pow), true, '#fff3a0'); playPfx(this, 'pillar', m.spr.x, GROUND, { scale: 1.2, speed: 2 }) } })
     if (this.st.clFaithHeal > 0) this.heal(this.st.maxHp * this.st.clFaithHeal * n)
     await this.wait(BATTLE.stepMs * 0.3)
   }
@@ -2420,7 +2420,8 @@ export class BattleScene extends Phaser.Scene {
     this.addShield(this.st.maxHp * T.reviveShield, true)
     this.heroRig.resetPose()
     this.cameras.main.flash(300, 255, 243, 170)
-    this.burst(HERO_X, GROUND - 40, 0xfff3a0, 32, 280, true)
+    playPfx(this, 'feathers', HERO_X, GROUND - 50, { scale: 1.5, speed: 1.3 }) // ✨ wings of light scatter
+    playPfx(this, 'healRing', HERO_X, GROUND, { scale: 1.2, speed: 1.4 })
     this.callout('✨ คืนชีพ! แสงศักดิ์สิทธิ์ดึงกลับมา', W / 2, 200, '#fff3a0')
     sfx.win()
     return true
