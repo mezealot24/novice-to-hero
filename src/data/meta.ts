@@ -3,41 +3,19 @@
 import { COMBO, PLAYER, softCapDiminish, type Stats } from "./game-data";
 import { KIT2, KIT3, S2N } from "./skill-math";
 import { COUNTER_RULES } from "./stack-math";
-import {
-	branchPts,
-	crossTierBonus,
-	talent2Mods,
-	talentMods,
-	tree2Mods,
-	tree3Mods,
-	treeMods,
-	type TalentSave,
-	type TreeSave,
-} from "./tree";
+import { branchPts, crossTierBonus, talent2Mods, talentMods, tree2Mods, tree3Mods, treeMods, type TalentSave, type TreeSave } from "./tree";
 import { JOB2, type Job2Id, type WeaponType } from "./jobs2";
-import {
-	activeJob3,
-	JOB3,
-	type Job3Id,
-	type Job3Path,
-	type Job3Variant,
-} from "./jobs3";
-import { JOB_CHANGE, JOBS, type JobId } from "./jobs";
+import { JOB3, activeJob3, type Job3Id, type Job3Path, type Job3Variant } from "./jobs3";
+import { JOBS, JOB_CHANGE, type JobId } from "./jobs";
 import { cardById, type EquipCard } from "./cards";
 import { CARDFORGE_ITEMS } from "./cardforge";
-import {
-	CRAFT_ITEMS,
-	forgeItem,
-	GRADE,
-	type CraftInfo,
-	type RefineLine,
-} from "./craft";
+import { CRAFT_ITEMS, GRADE, forgeItem, type CraftInfo, type RefineLine } from "./craft";
 import { UNIQUE_ITEMS } from "./uniques";
 import { UNIQUE3_ITEMS } from "./uniques3";
 import { CLASS_GEAR } from "./class-gear";
 import { CLASS_CRAFT_ITEMS } from "./class-craft";
 import { applyCurse, type TaintRec } from "./taint";
-
+export * from "./meta/economy";
 // ---------- base stats (Q's spec, 2026-11-02): 7 stats, points from Base Level ----------
 export type BaseStat = "str" | "vit" | "wis" | "dex" | "int" | "luk" | "agi";
 // Stat spec v1 (design/stat-system-v1.md, approved by Q 2026-11-02). Flat values grow per point;
@@ -1832,44 +1810,6 @@ export const wearText = (it: Item) =>
 			: it.jobs
 				? it.jobs.map((j) => `${JOBS[j].icon}${JOBS[j].name}`).join(" ")
 				: "ทุกอาชีพ";
-export const SELL_RATE = 0.5;
-
-// ---------- costumes (gems): looks only, zero stats ----------
-export interface Costume {
-	id: string;
-	name: string;
-	tint: number;
-	price: number;
-}
-export const COSTUMES: Costume[] = [
-	{ id: "default", name: "ชุดโนวิส", tint: 0xffffff, price: 0 },
-	{ id: "sakura", name: "ชุดซากุระ", tint: 0xffb3d1, price: 60 },
-	{ id: "night", name: "ชุดราตรี", tint: 0xa58bff, price: 60 },
-	{ id: "snow", name: "ชุดหิมะ", tint: 0x9fe3ff, price: 80 },
-	{ id: "forest", name: "ชุดผู้พิทักษ์ป่า", tint: 0x8fe39a, price: 80 },
-	{ id: "gold", name: "ชุดทองคำ", tint: 0xffd36b, price: 150 },
-];
-
-// ---------- top-up (MOCK: no real payment is ever taken) ----------
-export const GEM_PACKS = [
-	{ id: "p1", gems: 60, bonus: 0, price: "฿35" },
-	{ id: "p2", gems: 300, bonus: 30, price: "฿169" },
-	{ id: "p3", gems: 980, bonus: 150, price: "฿529" },
-];
-// 🧪 TEST ONLY: gems -> zeny for the playtest period. Breaks the "gems never buy power" rule on purpose;
-// flip GEM_TO_ZENY_TEST to false (or delete this block) before a real release.
-export const GEM_TO_ZENY_TEST = true;
-export const ZENY_PER_GEM = 50;
-export const ZENY_PACKS = [10, 60, 300]; // gems spent per pack
-// 🧪 TEST ONLY (2026-11-08): zeny -> free gems for the playtest. Lands in s.gems (free, client save), never in
-// server paid gems. Price per gem must stay > ZENY_PER_GEM so a gem -> zeny -> gem loop always loses (tests/exchange.test.ts).
-// Flip to false (or delete) before a real release, together with GEM_TO_ZENY_TEST.
-export const ZENY_TO_GEM_TEST = true;
-export const ZENY_COST_PER_GEM = 100;
-export const GEM_BUY_PACKS = [5, 20, 50]; // gems bought per pack
-export const SUPPORTER_PRICE = 300; // gems: badge + gold name, no stats
-// free gem sources, so nothing in the gem shop is locked behind money
-export const FREE_GEMS = { firstClear: 50, clear: 5, levelUp: 10, daily: 20 };
 
 // ---------- combine everything into the hero's starting stats ----------
 export interface StatsInput {
