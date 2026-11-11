@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "skills": {
+    "game-setup-and-config": {
+      "source": "phaserjs/phaser",
+      "sourceType": "github",
+      "skillPath": "skills/game-setup-and-config/SKILL.md",
+      "computedHash": "768aa16da0efb08b22cbf91be3ce656008a88bd929929fee942152fad485e3f3"
+    },
+    "physics-arcade": {
+      "source": "phaserjs/phaser",
+      "sourceType": "github",
+      "skillPath": "skills/physics-arcade/SKILL.md",
+      "computedHash": "98c9456ce56dedc4a20472a50d330d7d54cf85aeb36dd71228e79a5eb42cd57e"
+    },
+    "scenes": {
+      "source": "phaserjs/phaser",
+      "sourceType": "github",
+      "skillPath": "skills/scenes/SKILL.md",
+      "computedHash": "d83a8b7828d7c526210be340ef91db476072d588a2129c3ba1fbc0eaa03283b6"
+    }
+  }
+}
