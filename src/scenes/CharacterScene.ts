@@ -128,6 +128,7 @@ import { UNIQUE } from "../data/uniques";
 import { heroPower } from "../data/power";
 import { askRepick } from "./JobScene";
 import {
+	type Btn,
 	button,
 	confirm,
 	go,
@@ -163,9 +164,25 @@ export class CharacterScene extends Phaser.Scene {
 	private modal?: Phaser.GameObjects.Container;
 	private webScrollY = 0; // RO Mobile continuous vertical scroll offset
 	private webMaxScroll = 0;
+	// v-scroll perf: drag/wheel/momentum only move these refs (no full render() per frame)
+	private webC?: Phaser.GameObjects.Container;
+	private webView = { x: 326, y: 146, w: 616, h: 346 };
+	private webThumb?: Phaser.GameObjects.Graphics;
+	private webSb = { y: 0, h: 0, thumbH: 0 };
+	private webHits: { go: Phaser.GameObjects.GameObject; top: number; bot: number }[] = [];
+	private webPills: Btn[] = [];
+	private webDrag?: {
+		mode: "content" | "thumb";
+		startY: number;
+		startScroll: number;
+		lastY: number;
+		lastT: number;
+		vel: number;
+		moved: boolean;
+	};
 	private tierOffsets: [number, number, number] = [0, 380, 760]; // Y anchors for Tier 1, Tier 2, Tier 3
 	private previewJob2Idx = 0; // when still Class 1, toggle which Class 2 branch to preview in the continuous tree
-	private showLeftStatsInSkill = false; // toggle left panel between Cumulative Ult/Scalable summary vs full stat table
+	private showUlt = false; // skill web: 🔥 รวมผล Ult popup (was the left sidebar; left side is now the node detail panel)
 	private talent2 = false; // v119 talent tab: show ทาเลนต์ชั้น 2
 	constructor() {
 		super("character");
@@ -176,25 +193,35 @@ export class CharacterScene extends Phaser.Scene {
 		this.cameras.main.fadeIn(160, 20, 23, 43);
 		this.tab = data?.tab ?? 0;
 		this.showDetail = false;
+		this.showUlt = false;
 		this.input.keyboard?.on("keydown-ESC", () => {
-			if (this.showDetail) {
+			if (this.showDetail || this.showUlt) {
 				this.showDetail = false;
+				this.showUlt = false;
 				this.render();
 			}
 		});
 		this.input.on(
 			"wheel",
 			(_p: unknown, _go: unknown, _dx: number, dy: number) => {
-				if (
-					this.tab !== 3 ||
-					this.skillBasic ||
-					save().job === "novice" ||
-					this.showDetail
-				)
-					return;
+				if (!this.webActive()) return;
 				this.scrollToWebY(this.webScrollY + dy * 0.65, false);
 			},
 		);
+		// Skill-web swipe: scene-level so it starts anywhere in the viewport (even on top of nodes)
+		// and survives across frames — the old per-render drag zone was destroyed mid-gesture.
+		this.input.on("pointerdown", (p: Phaser.Input.Pointer) =>
+			this.webPointerDown(p),
+		);
+		this.input.on("pointermove", (p: Phaser.Input.Pointer) =>
+			this.webPointerMove(p),
+		);
+		this.input.on("pointerup", () => this.webPointerUp());
+		this.input.on("pointerupoutside", () => this.webPointerUp());
+		this.events.once("shutdown", () => {
+			this.webDrag = undefined;
+			this.webC = undefined;
+		});
 		const back = data?.back; // v101: opened from the forge's 🃏 button -> ‹ กลับ returns there (same item on the anvil)
 		topBar(this, "👤 ตัวละคร", () =>
 			back ? go(this, back.key, back.data) : go(this, "hub"),
@@ -227,6 +254,7 @@ export class CharacterScene extends Phaser.Scene {
 				? this.skillTab()
 				: this.unifiedWebTab();
 		else this.talentTab();
+		if (this.showUlt && this.tab === 3) this.ultModal();
 	}
 
 	private redraw() {
@@ -239,20 +267,124 @@ export class CharacterScene extends Phaser.Scene {
 			0,
 			Math.min(this.webMaxScroll, Math.round(targetY)),
 		);
-		if (clamped === this.webScrollY && !animate) return;
+		this.tweens.killTweensOf(this);
+		if (clamped === this.webScrollY) return;
 		if (!animate) {
 			this.webScrollY = clamped;
-			this.render();
+			this.applyWebScroll();
 			return;
 		}
-		this.tweens.killTweensOf(this);
 		this.tweens.add({
 			targets: this,
 			webScrollY: clamped,
-			duration: 220,
+			duration: 260,
 			ease: "Cubic.easeOut",
-			onUpdate: () => this.render(),
+			onUpdate: () => this.applyWebScroll(),
 		});
+	}
+
+	private webActive() {
+		return (
+			!!this.webC?.active && this.tab === 3 && !this.showDetail && !this.showUlt
+		);
+	}
+
+	private webTier(): 1 | 2 | 3 {
+		return this.webScrollY < this.tierOffsets[1] - 120
+			? 1
+			: this.webScrollY < this.tierOffsets[2] - 120
+				? 2
+				: 3;
+	}
+
+	/** Cheap per-frame scroll: moves the content + thumb, re-tints tier pills, gates hit zones. No rebuild. */
+	private applyWebScroll() {
+		const c = this.webC;
+		if (!c?.active) return;
+		const v = this.webView;
+		c.setY(v.y - this.webScrollY);
+		const sb = this.webSb;
+		if (this.webThumb?.active && this.webMaxScroll > 0)
+			this.webThumb.setY(
+				sb.y + (this.webScrollY / this.webMaxScroll) * (sb.h - sb.thumbH),
+			);
+		const t = this.webTier();
+		this.webPills.forEach((pill, i) => {
+			if (pill.active) pill.setFill(i + 1 === t ? COLORS.gold : 0x3b4269);
+		});
+		// Masks don't clip input: disable anything scrolled under the header/tabs, and everything mid-drag
+		const dragging = !!this.webDrag?.moved;
+		for (const h of this.webHits) {
+			const inp = h.go.input;
+			if (!inp) continue;
+			const top = h.top + c.y,
+				bot = h.bot + c.y;
+			inp.enabled = !dragging && top >= v.y - 2 && top < v.y + v.h && bot > v.y;
+		}
+	}
+
+	private webPointerDown(p: Phaser.Input.Pointer) {
+		if (!this.webActive() || this.webMaxScroll <= 0) return;
+		const v = this.webView;
+		const onThumb = p.x >= v.x + v.w - 8 && p.x <= v.x + v.w + 22;
+		if (p.y < v.y || p.y > v.y + v.h || p.x < v.x || (!onThumb && p.x > v.x + v.w))
+			return;
+		this.tweens.killTweensOf(this);
+		this.webDrag = {
+			mode: onThumb ? "thumb" : "content",
+			startY: p.y,
+			startScroll: this.webScrollY,
+			lastY: p.y,
+			lastT: performance.now(),
+			vel: 0,
+			moved: false,
+		};
+		if (onThumb) this.webThumbTo(p.y, true);
+	}
+
+	private webPointerMove(p: Phaser.Input.Pointer) {
+		const d = this.webDrag;
+		if (!d || !p.isDown || !this.webActive()) return;
+		if (d.mode === "thumb") {
+			this.webThumbTo(p.y, false);
+			return;
+		}
+		if (!d.moved && Math.abs(p.y - d.startY) < 8) return;
+		if (!d.moved) {
+			d.moved = true;
+			// cancel any half-pressed button under the finger so releasing doesn't fire it
+			for (const h of this.webHits) h.go.emit("pointerout");
+		}
+		const now = performance.now();
+		const dt = Math.max(1, now - d.lastT);
+		d.vel = d.vel * 0.3 + ((d.lastY - p.y) / dt) * 0.7; // px/ms, smoothed
+		d.lastY = p.y;
+		d.lastT = now;
+		// rubber-band a little past the edges, clamp on release
+		const raw = d.startScroll + (d.startY - p.y);
+		const over = raw < 0 ? raw : raw > this.webMaxScroll ? raw - this.webMaxScroll : 0;
+		this.webScrollY = raw - over * 0.65;
+		this.applyWebScroll();
+	}
+
+	private webPointerUp() {
+		const d = this.webDrag;
+		this.webDrag = undefined;
+		if (!d || !this.webC?.active) return;
+		if (d.mode === "thumb" || !d.moved) {
+			this.applyWebScroll();
+			return;
+		}
+		this.applyWebScroll(); // drag over -> re-enable hit zones
+		const idle = performance.now() - d.lastT > 90; // finger rested before lifting -> no fling
+		this.scrollToWebY(this.webScrollY + (idle ? 0 : d.vel * 280), true);
+	}
+
+	/** Scrollbar: tap the track to jump, drag the thumb to scrub. */
+	private webThumbTo(py: number, animate: boolean) {
+		const sb = this.webSb;
+		const r = Math.max(0, Math.min(1, (py - sb.y - sb.thumbH / 2) / Math.max(1, sb.h - sb.thumbH)));
+		this.scrollToWebY(r * this.webMaxScroll, animate);
 	}
 
 	// ---------- left: hero preview + derived stats summary (or Cumulative Ult & Scalable panel on Skill Tab) ----------
@@ -328,6 +460,12 @@ export class CharacterScene extends Phaser.Scene {
 			return;
 		}
 
+		// Skill web: left side is the node detail panel (drawn by nodeFooter into body) -> compact hero strip only
+		if (this.tab === 3 && s.job !== "novice" && !this.skillBasic) {
+			this.drawSkillHeroStrip(c);
+			return;
+		}
+
 		// Hero Avatar Podium / Frame
 		const pod = this.add.graphics();
 		pod.fillStyle(0x000000, 0.4).fillEllipse(165, 192, 130, 36);
@@ -371,17 +509,6 @@ export class CharacterScene extends Phaser.Scene {
 			).setOrigin(0.5),
 		);
 
-		// On Skill Tree tab, show the Cumulative Ultimate & Scalable Skill Evolution Card (with a toggle to switch to raw stats)
-		if (
-			this.tab === 3 &&
-			s.job !== "novice" &&
-			!this.skillBasic &&
-			!this.showLeftStatsInSkill
-		) {
-			this.drawUltEvolutionSidebar(c);
-			return;
-		}
-
 		// Stats box with grouped rows
 		const statBox = this.add.graphics();
 		statBox.fillStyle(0x131728, 0.85).fillRoundedRect(24, 280, 282, 270, 8);
@@ -405,24 +532,75 @@ export class CharacterScene extends Phaser.Scene {
 				),
 			);
 		});
+	}
 
-		if (this.tab === 3 && s.job !== "novice" && !this.skillBasic) {
-			c.add(
-				button(
-					this,
-					248,
-					292,
-					104,
-					22,
-					"🔥 ดูรวมผล Ult",
-					() => {
-						this.showLeftStatsInSkill = false;
-						this.drawPreview();
-					},
-					{ size: 10, fill: 0x5a4320, color: UI.gold },
-				),
-			);
-		}
+	/** Skill web left panel top: one-line hero identity + 🔥 รวมผล Ult popup button. Rest of the panel = node detail. */
+	private drawSkillHeroStrip(c: Phaser.GameObjects.Container) {
+		const s = save(),
+			j3 = activeJob3(s);
+		const cls = j3
+			? `${JOB3[j3].icon} ${JOB3[j3].name}`
+			: s.job2
+				? `${JOB2[s.job2].icon} ${JOB2[s.job2].name}`
+				: `${JOBS[s.job].icon} ${JOBS[s.job].name}`;
+		const jl = j3
+			? `Job3 Lv ${s.job3Level ?? 1}`
+			: s.job2
+				? `Job2 Lv ${s.job2Level ?? 1}`
+				: `Job Lv ${s.jobLevel}`;
+		c.add(
+			clipW(
+				txt(this, 28, 80, `${s.supporter ? "🌟 " : ""}${s.name}`, 15, s.supporter ? UI.gold : UI.text, true),
+				170,
+			),
+		);
+		c.add(clipW(txt(this, 28, 101, `${cls} · Base ${s.baseLevel} · ${jl}`, 10.5, UI.sub), 170));
+		c.add(
+			button(
+				this,
+				254,
+				98,
+				96,
+				32,
+				"🔥 รวมผล Ult",
+				() => {
+					this.showUlt = true;
+					this.render();
+				},
+				{ size: 12, fill: 0x5a4320, color: UI.gold },
+			),
+		);
+		const g = this.add.graphics();
+		g.lineStyle(1, UI.line, 0.8).lineBetween(26, 124, 304, 124);
+		c.add(g);
+	}
+
+	/** 🔥 รวมผล Ult popup: the old left sidebar card, scaled up and centered. */
+	private ultModal() {
+		const close = () => {
+			this.showUlt = false;
+			this.render();
+		};
+		const c = this.add.container(0, 0).setDepth(30000);
+		this.modal = c;
+		const dim = this.add
+			.rectangle(W / 2, H / 2, W, H, 0x080a18, 0.8)
+			.setInteractive();
+		dim.on("pointerup", close);
+		c.add(dim);
+		// sidebar art spans x 24..306, y 280..552 (center 165,416) -> scale around the screen center
+		const k = Math.min(1.6, (H - 70) / 272);
+		const inner = this.add.container(W / 2 - 165 * k, H / 2 - 416 * k).setScale(k);
+		inner.add(this.add.zone(24, 280, 282, 272).setOrigin(0).setInteractive()); // swallow taps on the card
+		this.drawUltEvolutionSidebar(inner);
+		c.add(inner);
+		c.add(
+			button(this, W / 2 + 141 * k + 28, H / 2 - 136 * k + 18, 40, 36, "✕", close, {
+				size: 17,
+				fill: 0x5a5f8a,
+				color: UI.text,
+			}),
+		);
 	}
 
 	/** Left sidebar card on the Skill Tree tab: shows how Ultimate accumulates Class 1 -> 2 -> 3 benefits + Scalable Milestones. */
@@ -458,25 +636,9 @@ export class CharacterScene extends Phaser.Scene {
 					UI.gold,
 					true,
 				),
-				192,
+				264,
 			),
 		);
-		c.add(
-			button(
-				this,
-				266,
-				294,
-				68,
-				20,
-				"📊 ค่าพลัง",
-				() => {
-					this.showLeftStatsInSkill = true;
-					this.drawPreview();
-				},
-				{ size: 10, fill: 0x3b4269, color: UI.text },
-			),
-		);
-
 		// 3 Cumulative Ultimate Tiers stacked with connecting vertical gold spine
 		const spine = this.add.graphics();
 		spine.lineStyle(2, COLORS.gold, 0.65).lineBetween(40, 316, 40, 424);
@@ -1951,82 +2113,49 @@ export class CharacterScene extends Phaser.Scene {
 
 		// 1. Unified Top Header Bar: shows all 3 class point pools at once + Quick Tier Jump pills
 		b.add(
+			clipW(
 			txt(
 				this,
 				330,
 				110,
-				`แต้มสกิลรวม: ✨ขั้น1 [${p1}] · ${j2.icon}ขั้น2 [${s.job2 ? p2 : "🔒"}] · ${j3Def ? j3Def.icon : "⚜️"}ขั้น3 [${activeJob3(s) ? p3 : "🔒"}]`,
-				13.5,
+				`แต้ม: ✨ขั้น1 [${p1}] · ${j2.icon}ขั้น2 [${s.job2 ? p2 : "🔒"}] · ${j3Def ? j3Def.icon : "⚜️"}ขั้น3 [${activeJob3(s) ? p3 : "🔒"}]`,
+				13,
 				p1 + p2 + p3 > 0 ? UI.gold : UI.sub,
 				true,
 			),
+			326,
+			),
 		);
 		b.add(
-			txt(
-				this,
-				330,
-				130,
-				`💡 ไถขึ้น-ลงดูทั้ง 3 คลาสต่อเนื่อง · แต้มคลาสสูงอัปสกิลคลาสต่ำได้${crossPts > 0 ? ` (ยืมข้ามชั้น ${crossPts} แต้ม)` : ""}`,
-				10.5,
-				"#b8c0e8",
+			clipW(
+				txt(
+					this,
+					330,
+					130,
+					`💡 ไถดูทั้ง 3 คลาส · แต้มคลาสสูงอัปคลาสต่ำได้${crossPts > 0 ? ` (ยืม ${crossPts})` : ""}`,
+					10.5,
+					"#b8c0e8",
+				),
+				326,
 			),
 		);
 
-		// Quick-jump tier buttons (RO Mobile style: smooth scroll to Tier 1 / 2 / 3 without leaving screen)
-		const curTier =
-			this.webScrollY < this.tierOffsets[1] - 120
-				? 1
-				: this.webScrollY < this.tierOffsets[2] - 120
-					? 2
-					: 3;
-		b.add(
-			button(
+		// Quick-jump tier pills (RO Mobile style). Tint is updated live by applyWebScroll(), no re-render.
+		const curTier = this.webTier();
+		this.webPills = ([1, 2, 3] as const).map((t, i) => {
+			const pill = button(
 				this,
-				666,
+				666 + i * 70,
 				122,
 				66,
 				26,
-				`1️⃣ ขั้น 1`,
-				() => this.scrollToWebY(this.tierOffsets[0], true),
-				{
-					size: 11,
-					fill: curTier === 1 ? COLORS.gold : 0x3b4269,
-					color: curTier === 1 ? UI.ink : UI.text,
-				},
-			),
-		);
-		b.add(
-			button(
-				this,
-				736,
-				122,
-				66,
-				26,
-				`2️⃣ ขั้น 2`,
-				() => this.scrollToWebY(this.tierOffsets[1], true),
-				{
-					size: 11,
-					fill: curTier === 2 ? COLORS.gold : 0x3b4269,
-					color: curTier === 2 ? UI.ink : UI.text,
-				},
-			),
-		);
-		b.add(
-			button(
-				this,
-				806,
-				122,
-				66,
-				26,
-				`3️⃣ ขั้น 3`,
-				() => this.scrollToWebY(this.tierOffsets[2], true),
-				{
-					size: 11,
-					fill: curTier === 3 ? COLORS.gold : 0x3b4269,
-					color: curTier === 3 ? UI.ink : UI.text,
-				},
-			),
-		);
+				`${["1️⃣", "2️⃣", "3️⃣"][i]} ขั้น ${t}`,
+				() => this.scrollToWebY(this.tierOffsets[i], true),
+				{ size: 11, fill: curTier === t ? COLORS.gold : 0x3b4269 },
+			);
+			b.add(pill);
+			return pill;
+		});
 		b.add(
 			button(
 				this,
@@ -2047,7 +2176,7 @@ export class CharacterScene extends Phaser.Scene {
 		const viewX = 326,
 			viewY = 146,
 			viewW = 616,
-			viewH = 346;
+			viewH = 410; // down to the panel bottom (old bottom footer moved into the left panel)
 		const frameBg = this.add.graphics();
 		frameBg
 			.fillStyle(0x0d1020, 0.7)
@@ -2057,31 +2186,8 @@ export class CharacterScene extends Phaser.Scene {
 			.strokeRoundedRect(viewX, viewY, viewW, viewH, 10);
 		b.add(frameBg);
 
-		// Drag-to-scroll interactive background inside the viewport
-		const dragZone = this.add
-			.zone(viewX, viewY, viewW, viewH)
-			.setOrigin(0)
-			.setInteractive();
-		let dragStartY = 0,
-			scrollStart = 0,
-			isDragging = false;
-		dragZone.on("pointerdown", (p: Phaser.Input.Pointer) => {
-			dragStartY = p.y;
-			scrollStart = this.webScrollY;
-			isDragging = true;
-		});
-		dragZone.on("pointermove", (p: Phaser.Input.Pointer) => {
-			if (!isDragging || !p.isDown) return;
-			const dy = dragStartY - p.y;
-			if (Math.abs(dy) > 4) this.scrollToWebY(scrollStart + dy, false);
-		});
-		dragZone.on("pointerup", () => {
-			isDragging = false;
-		});
-		dragZone.on("pointerout", () => {
-			isDragging = false;
-		});
-		b.add(dragZone);
+		// Swipe is handled scene-wide (webPointerDown/Move/Up) so it works on top of nodes too.
+		this.webView = { x: viewX, y: viewY, w: viewW, h: viewH };
 
 		const maskShape = this.make.graphics({});
 		maskShape.fillStyle(0xffffff).fillRect(viewX, viewY, viewW, viewH);
@@ -2889,22 +2995,45 @@ export class CharacterScene extends Phaser.Scene {
 		this.webScrollY = Math.max(0, Math.min(this.webMaxScroll, this.webScrollY));
 		scrollC.setY(viewY - this.webScrollY);
 
-		// Right-edge Scrollbar indicator & quick step arrows
+		// Right-edge scrollbar: track + separately positioned thumb (drag/tap handled in webPointerDown)
+		this.webThumb = undefined;
 		if (this.webMaxScroll > 0) {
-			const sbX = 946,
+			const sbX = 945,
 				sbY = viewY + 4,
 				sbH = viewH - 8;
-			const sbG = this.add.graphics();
-			sbG.fillStyle(0x131728, 0.9).fillRoundedRect(sbX, sbY, 6, sbH, 3);
-			const thumbH = Math.max(36, Math.round((viewH / curY) * sbH));
-			const thumbY =
-				sbY +
-				Math.round((this.webScrollY / this.webMaxScroll) * (sbH - thumbH));
-			sbG
-				.fillStyle(COLORS.gold, 0.85)
-				.fillRoundedRect(sbX, thumbY, 6, thumbH, 3);
-			b.add(sbG);
+			const track = this.add.graphics();
+			track.fillStyle(0x131728, 0.95).fillRoundedRect(sbX, sbY, 8, sbH, 4);
+			track.lineStyle(1, UI.line, 0.6).strokeRoundedRect(sbX, sbY, 8, sbH, 4);
+			const thumbH = Math.max(44, Math.round((viewH / curY) * sbH));
+			const thumb = this.add.graphics();
+			thumb.fillStyle(COLORS.gold, 0.9).fillRoundedRect(sbX, 0, 8, thumbH, 4);
+			thumb.fillStyle(0xffffff, 0.35).fillRect(sbX + 2, thumbH / 2 - 4, 4, 1);
+			thumb.fillStyle(0xffffff, 0.35).fillRect(sbX + 2, thumbH / 2, 4, 1);
+			thumb.fillStyle(0xffffff, 0.35).fillRect(sbX + 2, thumbH / 2 + 4, 4, 1);
+			b.add([track, thumb]);
+			this.webThumb = thumb;
+			this.webSb = { y: sbY, h: sbH, thumbH };
 		}
+
+		// Remember every interactive inside the scroller (content-space Y) so applyWebScroll can gate it
+		this.webC = scrollC;
+		this.webHits = [];
+		const collect = (list: Phaser.GameObjects.GameObject[], offY: number) => {
+			for (const go of list) {
+				if (go instanceof Phaser.GameObjects.Container) {
+					if (go.input) {
+						const top = offY + go.y - go.displayOriginY;
+						this.webHits.push({ go, top, bot: top + go.displayHeight });
+					}
+					collect(go.list, offY + go.y);
+				} else if (go instanceof Phaser.GameObjects.Zone && go.input) {
+					const top = offY + go.y - go.displayOriginY;
+					this.webHits.push({ go, top, bot: top + go.displayHeight });
+				}
+			}
+		};
+		collect(scrollC.list, 0);
+		this.applyWebScroll();
 
 		// Default selected node fallback
 		if (!this.selNode || !nodeById(this.selNode)) {
@@ -3022,8 +3151,16 @@ export class CharacterScene extends Phaser.Scene {
 			n.branch.endsWith("_u2") ||
 			n.branch.endsWith("_u3") ||
 			BRANCHES.find((b) => b.id === n.branch)?.line === "ult";
-		const rootDesc =
-			tier === 3 && n.kind === "pow3" && j3Def
+		// tier-1 roots (ทักษะ 1 / Ult): show what the base skill actually does (e.g. Cleric's heal OR smite 2 front)
+		const sk1 =
+			tier === 1 && n.kind === "pow"
+				? n.branch.endsWith("_s1")
+					? JOBS[s.job].auto
+					: JOBS[s.job].ult
+				: undefined;
+		const rootDesc = sk1
+			? `${sk1.icon} ${sk1.name}: ${sk1.desc}`
+			: tier === 3 && n.kind === "pow3" && j3Def
 				? `✨ ${j3Def.ultName}: ${j3Def.ultDesc} (รวมผล Ult ขั้น 1+2 ทั้งหมด)`
 				: root2
 					? `${root2.icon} ${root2.name}: ${root2.desc}${!s3 ? " (รวมผล Ult ขั้น 1 ทั้งหมด)" : ""}`
@@ -3078,7 +3215,7 @@ export class CharacterScene extends Phaser.Scene {
 		);
 	}
 
-	/** Bottom strip of the unified skill web: the picked node in 2 short lines + 📋 detail (opens the modal) + learn. */
+	/** Left panel of the unified skill web: picked node (name, Lv bar, now / next / lock) + 📋 detail modal + learn. */
 	private nodeFooter(
 		n: TreeNode,
 		lv: number,
@@ -3092,55 +3229,119 @@ export class CharacterScene extends Phaser.Scene {
 		borrowed = false,
 	) {
 		const b = this.body!,
-			locked = !!why && why !== "เต็มแล้ว";
-		b.add(panel(this, 330, 498, 620, 72, UI.panelHi, UI.goldDark, 10));
-		const g = this.add.graphics();
-		g.lineStyle(1, 0xffd15c, 0.3).strokeRoundedRect(332, 500, 616, 68, 8);
-		b.add(g);
+			locked = !!why && why !== "เต็มแล้ว",
+			isMax = lv >= n.max;
+		const x = 28,
+			w = 274,
+			top = 132,
+			btnY = 528;
 
+		// name + tier tag + level bar
+		b.add(clipW(txt(this, x, top, `${n.icon} ${n.name}`, 17, UI.gold, true), w));
 		b.add(
 			clipW(
+				txt(this, x, top + 24, `Lv ${lv}/${n.max}${tag ? ` · ${tag}` : ""}`, 11.5, UI.sub, true),
+				w,
+			),
+		);
+		const bar = this.add.graphics();
+		bar.fillStyle(0x0f1220, 1).fillRoundedRect(x, top + 44, w, 7, 3);
+		if (lv > 0)
+			bar
+				.fillStyle(isMax ? COLORS.gold : 0x4a8cd4, 1)
+				.fillRoundedRect(x, top + 44, Math.max(7, (w * lv) / n.max), 7, 3);
+		b.add(bar);
+
+		// sections (shrink-to-fit above the buttons)
+		const secs: { head: string; body: string; color: string }[] = [];
+		if (rootDesc) secs.push({ head: "📖 ตัวสกิล", body: rootDesc, color: UI.text });
+		secs.push(
+			lv
+				? { head: `✅ ตอนนี้ (Lv ${lv})`, body: n.desc(lv), color: UI.text }
+				: { head: "⬆️ Lv 1", body: n.desc(1), color: UI.green },
+		);
+		if (lv && !isMax)
+			secs.push({
+				head: `⬆️ ถัดไป (Lv ${lv + 1})${borrowed ? " · ⚡ใช้แต้มคลาสสูง" : ""}`,
+				body: n.desc(lv + 1),
+				color: borrowed ? "#d7bfff" : UI.green,
+			});
+		if (isMax) secs.push({ head: "✅ เต็มแล้ว", body: "", color: UI.green });
+		if (locked) secs.push({ head: "🔒 ยังเรียนไม่ได้", body: why ?? "", color: "#ffb0b0" });
+
+		// 🔢 real numbers: what the next point changes (or, when maxed / nothing changes, the current totals)
+		const rows = nodeDetail(save(), n, tier2).rows.filter(
+			(r) => !r.section && r.label !== "ใช้",
+		);
+		const changed = rows.filter((r) => r.next !== undefined && r.next !== r.now);
+		const show = (changed.length ? changed : rows).slice(0, 3);
+		const numH = show.length ? 22 + show.length * 34 : 0;
+		const numTop = btnY - 26 - numH;
+		if (show.length) {
+			const bg = this.add.graphics();
+			bg.fillStyle(0x0d1020, 0.75).fillRoundedRect(x - 4, numTop - 2, w + 8, numH, 6);
+			b.add(bg);
+			b.add(
 				txt(
 					this,
-					344,
-					503,
-					`${n.icon} ${n.name}  ${lv}/${n.max}${tag ? `  · ${tag}` : ""}`,
-					15,
+					x + 2,
+					numTop + 2,
+					changed.length && lv < n.max
+						? `🔢 ผลรวมตอนนี้ → Lv ${lv + 1}`
+						: "🔢 ผลรวมตอนนี้",
+					11.5,
 					UI.gold,
 					true,
 				),
-				420,
-			),
-		);
-		const now = lv ? `ตอนนี้: ${n.desc(lv)}` : `Lv 1: ${n.desc(1)}`;
-		b.add(clipW(txt(this, 344, 526, now, 12, lv ? UI.text : UI.green), 420));
-		b.add(
-			clipW(
-				txt(
-					this,
-					344,
-					546,
-					locked
-						? `🔒 ${why}`
-						: lv && lv < n.max
-							? `${borrowed ? `⚡ ใช้แต้มคลาสสูงอัปต่อได้ · ` : ""}ถัดไป: ${n.desc(lv + 1)}`
-							: lv >= n.max
-								? "✅ เต็มแล้ว"
-								: rootDesc || "แตะ 📋 เพื่อดูตัวเลขจริง",
-					11.5,
-					locked ? "#ffb0b0" : borrowed ? "#d7bfff" : UI.green,
-				),
-				420,
-			),
-		);
+			);
+			show.forEach((r, i) => {
+				const ry = numTop + 22 + i * 34;
+				b.add(clipW(txt(this, x + 2, ry, r.label, 10.5, "#b8c0e8"), w - 4));
+				const nowT = clipW(txt(this, x + 2, ry + 14, r.now, 12.5, UI.text, true), w - 4);
+				b.add(nowT);
+				if (changed.length && r.next !== undefined && r.next !== r.now) {
+					const nx = x + 2 + nowT.width + 6;
+					b.add(
+						clipW(
+							txt(this, nx, ry + 14, `→ ${r.next}`, 12.5, UI.green, true),
+							Math.max(20, x + w - nx),
+						),
+					);
+				}
+			});
+		}
+
+		let size = 13,
+			made: Phaser.GameObjects.Text[] = [];
+		for (; ; size -= 0.5) {
+			made.forEach((m) => m.destroy());
+			made = [];
+			let ty = top + 62;
+			for (const sc of secs) {
+				const hd = txt(this, x, ty, sc.head, size, UI.gold, true);
+				ty += hd.height + 1;
+				made.push(hd);
+				if (sc.body) {
+					const bd = txt(this, x, ty, sc.body, size - 0.5, sc.color)
+						.setWordWrapWidth(w, true)
+						.setLineSpacing(2);
+					ty += bd.height;
+					made.push(bd);
+				}
+				ty += 8;
+			}
+			if (ty <= numTop - 6 || size <= 9.5) break;
+		}
+		b.add(made);
+
 		b.add(
 			button(
 				this,
-				808,
-				534,
-				98,
-				38,
-				"📋 รายละเอียด",
+				x + 62,
+				btnY,
+				124,
+				40,
+				"📋 ตัวเลขจริง",
 				() => {
 					this.showDetail = true;
 					this.render();
@@ -3149,8 +3350,8 @@ export class CharacterScene extends Phaser.Scene {
 			),
 		);
 		b.add(
-			button(this, 904, 534, 78, 38, btnLabel, learn, {
-				size: borrowed ? 11.5 : 14,
+			button(this, x + w - 70, btnY, 140, 40, btnLabel, learn, {
+				size: borrowed ? 12.5 : 15,
 				fill: borrowed ? 0x7b5ce6 : COLORS.gold,
 				color: borrowed ? "#ffffff" : UI.ink,
 			}).setEnabled(can),
@@ -3219,7 +3420,8 @@ export class CharacterScene extends Phaser.Scene {
 
 		// left: words + Cumulative Ultimate lineage if inspecting an Ultimate node
 		const lx = x + 20,
-			lw = 300;
+			hasRows = d.rows.length > 0, // no numbers -> text spans the whole modal
+			lw = hasRows ? 300 : w - 40;
 		const words: { head: string; body: string; color: string }[] = [];
 		if (rootDesc)
 			words.push({ head: "📖 ตัวสกิล", body: rootDesc, color: UI.text });
@@ -3237,22 +3439,8 @@ export class CharacterScene extends Phaser.Scene {
 		if (why && why !== "เต็มแล้ว")
 			words.push({ head: "🔒 ยังเรียนไม่ได้", body: why, color: "#ffb0b0" });
 
-		const sum = ultEvolutionSummary(
-			s.job,
-			s.job2,
-			activeJob3(s),
-			s.jobTree ?? {},
-			s.job2Tree ?? {},
-			s.job3Tree ?? {},
-			totalCrossSpent(s),
-		);
-		words.push({
-			head: "🔥 การสืบทอดพลัง Ultimate (ขั้น 1 → ปัจจุบัน)",
-			body: sum.tiers.map((t) => `• ${t.name}: ${t.summary}`).join("\n"),
-			color: "#ffe994",
-		});
-
-		let size = 13,
+		// Ult lineage (ขั้น 1 → ปัจจุบัน) lives in the left "🔥 รวมผล Ult" panel — not repeated here (space)
+		let size = hasRows ? 14 : 16,
 			made: Phaser.GameObjects.Text[] = [];
 		for (; ; size--) {
 			made.forEach((m) => m.destroy());
@@ -3272,81 +3460,72 @@ export class CharacterScene extends Phaser.Scene {
 		c.add(made);
 
 		// right: numbers
-		const rx = x + 340,
-			rw = w - 360,
-			c1 = rx + rw - 236,
-			c2 = rx + rw - 116;
-		c.add(
-			this.add.rectangle(rx - 10, y + 76, 1, h - 150, 0x454c80).setOrigin(0),
-		);
-		c.add(
-			txt(this, rx, y + 80, "🔢 ตัวเลขจริง (รวมผลข้ามคลาส)", 14, UI.gold, true),
-		);
-		c.add(txt(this, c1, y + 82, "ตอนนี้", 12, UI.text, true));
-		c.add(
-			txt(
-				this,
-				c2,
-				y + 82,
-				lv < n.max ? `Lv ${lv + 1}` : "เต็ม",
-				12,
-				lv < n.max ? UI.green : UI.sub,
-				true,
-			),
-		);
-		const rowH = 21,
-			maxRows = Math.floor((h - 190) / rowH),
-			rows = d.rows.slice(0, maxRows);
-		rows.forEach((r, i) => {
-			const ry = y + 106 + i * rowH;
-			if (r.section) {
-				c.add(clipW(txt(this, rx, ry, r.label, 12, UI.gold, true), rw));
-				return;
-			}
-			const changed = r.next !== undefined && r.next !== r.now;
-			if (i % 2)
-				c.add(
-					this.add
-						.rectangle(rx - 4, ry - 2, rw + 4, rowH, 0xffffff, 0.04)
-						.setOrigin(0),
-				);
-			c.add(clipW(txt(this, rx + 8, ry, r.label, 12, "#d8d4f0"), c1 - rx - 16));
+		if (hasRows) {
+			const rx = x + 340,
+				rw = w - 360,
+				c1 = rx + rw - 236,
+				c2 = rx + rw - 116;
 			c.add(
-				clipW(
-					txt(this, c1, ry, r.now, 12, UI.text),
-					r.next === undefined ? rx + rw - c1 : c2 - c1 - 8,
+				this.add.rectangle(rx - 10, y + 76, 1, h - 150, 0x454c80).setOrigin(0),
+			);
+			c.add(
+				txt(this, rx, y + 80, "🔢 ตัวเลขจริง (รวมผลข้ามคลาส)", 14, UI.gold, true),
+			);
+			c.add(txt(this, c1, y + 82, "ตอนนี้", 12, UI.text, true));
+			c.add(
+				txt(
+					this,
+					c2,
+					y + 82,
+					lv < n.max ? `Lv ${lv + 1}` : "เต็ม",
+					12,
+					lv < n.max ? UI.green : UI.sub,
+					true,
 				),
 			);
-			if (r.next !== undefined)
+			const rowH = 21,
+				maxRows = Math.floor((h - 190) / rowH),
+				rows = d.rows.slice(0, maxRows);
+			rows.forEach((r, i) => {
+				const ry = y + 106 + i * rowH;
+				if (r.section) {
+					c.add(clipW(txt(this, rx, ry, r.label, 12, UI.gold, true), rw));
+					return;
+				}
+				const changed = r.next !== undefined && r.next !== r.now;
+				if (i % 2)
+					c.add(
+						this.add
+							.rectangle(rx - 4, ry - 2, rw + 4, rowH, 0xffffff, 0.04)
+							.setOrigin(0),
+					);
+				c.add(clipW(txt(this, rx + 8, ry, r.label, 12, "#d8d4f0"), c1 - rx - 16));
 				c.add(
 					clipW(
-						txt(this, c2, ry, r.next, 12, changed ? UI.green : UI.sub, changed),
-						rx + rw - c2,
+						txt(this, c1, ry, r.now, 12, UI.text),
+						r.next === undefined ? rx + rw - c1 : c2 - c1 - 8,
 					),
 				);
-		});
-		if (!rows.length)
-			c.add(
-				txt(
-					this,
-					rx,
-					y + 110,
-					"โหนดนี้เปลี่ยนการทำงานในการต่อสู้\nดูคำอธิบายด้านซ้ายนะคะ",
-					13,
-					UI.sub,
-				).setLineSpacing(4),
-			);
-		if (d.rows.length > rows.length)
-			c.add(
-				txt(
-					this,
-					rx,
-					y + 106 + rows.length * rowH,
-					`… และอีก ${d.rows.length - rows.length} บรรทัด`,
-					11,
-					UI.sub,
-				),
-			);
+				if (r.next !== undefined)
+					c.add(
+						clipW(
+							txt(this, c2, ry, r.next, 12, changed ? UI.green : UI.sub, changed),
+							rx + rw - c2,
+						),
+					);
+			});
+			if (d.rows.length > rows.length)
+				c.add(
+					txt(
+						this,
+						rx,
+						y + 106 + rows.length * rowH,
+						`… และอีก ${d.rows.length - rows.length} บรรทัด`,
+						11,
+						UI.sub,
+					),
+				);
+		}
 		c.add(
 			txt(this, x + 20, y + h - 52, d.note, 10, UI.sub).setWordWrapWidth(
 				w - 200,

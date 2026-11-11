@@ -120,7 +120,7 @@ test('class lines: every class has a small, equal total weight and a valid 3-ste
     byClass.set(key, (byClass.get(key) ?? 0) + d.w)
     assert.ok(d.vals[0] > 0 && d.vals[0] <= d.vals[1] && d.vals[1] <= d.vals[2], `${d.stat} ladder goes up`)
   }
-  assert.equal(byClass.size, 11)
+  assert.equal(byClass.size, 12, '10 2nd jobs + 2 3rd jobs (Paladin, Champion)')
   for (const [k, w] of byClass) assert.ok(Math.abs(w - CLASS_LINE_W) < 1e-9, `${k} weighs ${CLASS_LINE_W}`)
   const normalW = LINE_POOL.reduce((a, d) => a + d.w, 0)
   assert.ok(CLASS_LINE_W / (normalW + CLASS_LINE_W) < 0.2, 'class lines stay a minority of rolls')
