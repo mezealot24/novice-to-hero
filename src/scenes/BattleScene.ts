@@ -1078,6 +1078,34 @@ export class BattleScene extends Phaser.Scene {
   private thunderAtkAdd() {
     return this.st.j2ThunderAtk > 0 ? this.st.j2ThunderAtk * this.st.atk / Math.max(1, magicPower(this.st)) : 0
   }
+  /** 🥊 Champion Falling Thunder variant: 🐅 Tiger Knuckle (single + stun) / 💥 Chain Crush (all True Dmg). */
+  private async championVariant(live: Mon[], pow: number) {
+    const P = KIT3.champion, s = save(), heir = this.st.j3Heir > 0, base = pow * (1 + this.st.j3VarMul)
+    const n = this.charges
+    this.addCharges(-n)
+    if (s.job3Var === 'b') {
+      const V = P.varB, hpBonus = heir && branchPts(s.job2Tree, V.branch) >= P.heirNeed ? 0.03 * this.st.maxHp : 0
+      this.cameras.main.flash(90, 255, 170, 70)
+      for (const m of this.alive()) {
+        const dmg = Math.round(this.st.atk * V.mul * base + this.st.mdef * this.st.maxHp * V.mdefHp + hpBonus)
+        this.burst(m.spr.x, m.spr.y - 30, 0xff9a3c, 10, 180)
+        this.withSrc('skill', () => this.damageMon(m, dmg, true, '#ff9a3c', true))
+      }
+      this.floatText(HERO_X, GROUND - 170, `💥 Chain Crush x${n}`, '#ff9a3c')
+      await this.wait(BATTLE.stepMs * 0.3)
+      return
+    }
+    const V = P.varA, t = this.bossTarget() ?? live[0]
+    if (t) {
+      await this.lunge(t, () => {
+        this.cameras.main.flash(100, 255, 230, 150)
+        this.burst(t.spr.x, t.spr.y - 30, 0xffd24a, 16, 220)
+        this.strike(t, V.mul * base + V.hp * this.st.maxHp / Math.max(1, this.st.atk), false, '#ffd24a')
+        if (!t.dead) { t.frozen = true; this.dotIcon(t) }
+      })
+      this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 30, `🐅 Tiger Knuckle (💫 เสียเทิร์น)`, '#ffd24a')
+    }
+  }
   /** 🐉 Lord Knight Brandish Spear variant (design/awakening-lordknight-v1.md): 🐉 Dragon Breath (all + burn) / 💥 Joint Beat (one, DEF -50%). */
   private async lkVariant(live: Mon[], pow: number) {
     const P = KIT3.lordknight, s = save(), heir = this.st.j3Heir > 0, base = pow * (1 + this.st.pskill) * (1 + this.st.j3VarMul)
@@ -1455,13 +1483,17 @@ export class BattleScene extends Phaser.Scene {
           await this.shoot(m, 0xd8d8e8, () => this.strike(m, this.st.j2ShieldBoom * this.st.def / Math.max(1, this.st.atk)))
         }
       } else if (j2.id === 'monk') { // ⚡ Falling Thunder: spend every charge, lightning on all (+ หมัดอัสนี P.ATK)
-        const O = KIT2.monk, n = this.charges
-        this.addCharges(-n)
-        this.cameras.main.flash(90, 191, 230, 255)
-        const mul = (O.thunderPm * (1 + (O.thunderPer + this.st.j2ThunderPer) * n) + this.thunderAtkAdd()) * pow
-        for (const m of this.alive()) { playPfx(this, 'zap', m.spr.x, m.spr.y - m.spr.displayHeight * 0.45, { scale: 1.4, speed: 1.3 }); this.strike(m, mul, true, '#bfe6ff') }
-        this.floatText(HERO_X, GROUND - 170, `⚡ x${n}`, '#bfe6ff')
-        await this.wait(BATTLE.stepMs * 0.3)
+        if (this.st.j3Ch > 0) {
+          await this.championVariant(live, pow)
+        } else {
+          const O = KIT2.monk, n = this.charges
+          this.addCharges(-n)
+          this.cameras.main.flash(90, 191, 230, 255)
+          const mul = (O.thunderPm * (1 + (O.thunderPer + this.st.j2ThunderPer) * n) + this.thunderAtkAdd()) * pow
+          for (const m of this.alive()) { playPfx(this, 'zap', m.spr.x, m.spr.y - m.spr.displayHeight * 0.45, { scale: 1.4, speed: 1.3 }); this.strike(m, mul, true, '#bfe6ff') }
+          this.floatText(HERO_X, GROUND - 170, `⚡ x${n}`, '#bfe6ff')
+          await this.wait(BATTLE.stepMs * 0.3)
+        }
       } else if (j2.id === 'rogue') { // 🗡️ Back Stab: sure crit on the highest-HP monster
         const t = this.alive().sort((a, b) => b.hp - a.hp)[0]
         if (t) { this.forceCrit = true; await this.lunge(t, () => this.strike(t, KIT2.rogue.stabMul * pow * (1 + this.st.pskill), false, '#ffd36b')); this.forceCrit = false }
@@ -1570,6 +1602,22 @@ export class BattleScene extends Phaser.Scene {
             this.withSrc('ult', () => this.damageMon(t, dmg, true, '#ff6b4a', true))
           })
           this.callout(`💥 อาชูร่าสไตรก์! (${spentCharges}🔵 + ${burntMana} Mana)`, W / 2, 165, '#ff9a3c')
+          if (this.st.j3Ch > 0) {
+            const shockwaveHits = KIT3.champion.extraHits + this.st.j3GospelField
+            for (let sh = 0; sh < shockwaveHits; sh++) {
+              const k3 = 1 + this.st.u3Pow
+              const splashDmg = Math.round(dmg * 0.3 * k3)
+              for (const m of this.alive().filter(x => x !== t)) {
+                this.burst(m.spr.x, m.spr.y - 30, 0xffaa4a, 12, 180)
+                this.withSrc('ult', () => this.damageMon(m, splashDmg, true, '#ffaa4a', true))
+              }
+            }
+            if (this.st.j3GospelHeal > 0) this.heal(this.st.maxHp * this.st.j3GospelHeal, true)
+            if (this.st.j3AfterBless > 0) {
+              this.j3Bless = KIT3.common.afterTurns
+              this.floatText(HERO_X, GROUND - 150, `🌅 พรหลังศึก +${Math.round(this.st.j3AfterBless * 100)}%`, '#ffe08a')
+            }
+          }
         }
         this.asuraExhaust = O.asuraExhaustTurns + 1
         await this.wait(BATTLE.stepMs * 0.35)

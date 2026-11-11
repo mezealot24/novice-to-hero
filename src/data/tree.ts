@@ -28,6 +28,7 @@ import { tree2 as innovator } from "./trees2/innovator";
 import { JOB3, JOB3_RULES, type Job3Id, type Job3Path } from "./jobs3";
 import { tree3 as paladin } from "./trees3/paladin";
 import { tree3 as lordknight } from "./trees3/lordknight";
+import { tree3 as champion } from "./trees3/champion";
 
 // v83: s2PlusMax 3 -> 5 (Stats.s2Lv = Lv x s2PlusOld / s2PlusMax, so Lv 5 = the old Lv 3) · the ★ needs the "+" at s2StarNeed.
 // stretch: old max -> new max for class / ใยชั้น 2 nodes (stretchNode below); unlock rules + parentLv gates unchanged.
@@ -372,7 +373,7 @@ export const TREE2: TreeNode[] = web2Nodes;
 
 // ===== ใยชั้น 3 (design/awakening-crusader-v1.md §4.4-§5): one per 3rd job, its own points (save.job3Points) =====
 // One "+power" root (Ult วิวัฒน์ 2) + 3 branches x 4 nodes. Hybrid path: own tier 1-2 + the sibling 2nd job's ใยชั้น 2 tier 1-2.
-const JOB3_TREES: Record<Job3Id, ClassTree> = { paladin, lordknight };
+const JOB3_TREES: Record<Job3Id, ClassTree> = { paladin, lordknight, champion };
 const web3Branches: TreeBranch[] = [],
 	web3Nodes: TreeNode[] = [];
 for (const id of Object.keys(JOB3_TREES) as Job3Id[]) {
@@ -478,7 +479,7 @@ export function lockReason3(
 		return `สาย Hybrid เปิดได้ถึงชั้น ${HYBRID_MAX_TIER}`;
 	return lockReason(t, job, node, undefined, web3Scope(j3, path));
 }
-const JOB3_PREFIX: Record<Job3Id, string> = { paladin: "pa", lordknight: "lk" };
+const JOB3_PREFIX: Record<Job3Id, string> = { paladin: "pa", lordknight: "lk", champion: "ch" };
 export const JOB3_POINTS_MAX = JOB3_RULES.maxJobLevel - 1;
 const ALL_NODES = [...webNodes, ...web2Nodes, ...web3Nodes];
 export const branches2Of = (j2: Job2Id) =>

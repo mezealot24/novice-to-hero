@@ -7,7 +7,7 @@
 // unlock also needs the Master Trial win (P2), so no real save can reach a 3rd job until then.
 import type { Job2Id } from './jobs2'
 
-export type Job3Id = 'paladin' | 'lordknight' // Crusader -> Paladin (pilot) · Knight -> Lord Knight. One 2nd job at a time.
+export type Job3Id = 'paladin' | 'lordknight' | 'champion' // Crusader -> Paladin · Knight -> Lord Knight · Monk -> Champion. One 2nd job at a time.
 export type Job3Path = 'pure' | 'hybrid' // pure: own ใยชั้น 3 to the top · hybrid: tier 1-2 of it + tier 1-2 of the sibling 2nd job's web
 export type Job3Variant = 'a' | 'b' // which Skill 3 variant is on (picked in town, free)
 
@@ -47,6 +47,17 @@ export const JOB3: Record<Job3Id, Job3Def> = {
     variants: {
       a: { name: 'Dragon Breath', icon: '🐉', desc: 'Brandish Spear เป็นไฟมังกรใส่ทุกตัว + ติดไฟ 2 เทิร์น · แรงขึ้นตามแต้มสาย 🌀 กวาดทวน' },
       b: { name: 'Joint Beat', icon: '💥', desc: 'Brandish Spear เป็นแทงหนัก 1 ตัว (บอสก่อน) ข้าม DEF 50% · แรงขึ้นตามแต้มสาย 🗡️ หอกทะลวง' },
+    },
+  },
+  champion: {
+    id: 'champion', parent: 'monk', sibling: 'crusader', name: 'Champion', icon: '🥊',
+    blurb: 'Monk ที่ตื่นรู้ · ปราณจิตระเบิดพลัง · หมัดคอมโบต่อเนื่อง · อาชูร่าคลื่นกระแทก · แต้มในใยเดิมยิ่งเยอะยิ่งแรง',
+    focus: 'คอมโบสะท้าน · Supreme Asura',
+    ultName: 'Supreme Asura', ultDesc: 'Asura / Tempest Bell เพิ่มคลื่นกระแทก AoE ทะลวงเกราะ', rootDesc: 'คลื่นพลังที่ชั้น 3 เพิ่ม',
+    signature: { icon: '🧘', name: 'Ki Translation', desc: 'ลูกพลังสูงสุด +2 ลูก · ตีคอมโบฟื้น Mana +25% · ขณะถือแรงฮึด M.DEF +10%' },
+    variants: {
+      a: { name: 'Tiger Knuckle', icon: '🐅', desc: 'Falling Thunder เป็นพุ่งต่อยเดี่ยว (บอสก่อน) สตั๊น 1 เทิร์น · แรงขึ้นตามแต้มสาย 👊 คอมโบ' },
+      b: { name: 'Chain Crush', icon: '💥', desc: 'Falling Thunder เป็นพายุหมัดคลื่นลมปราณใส่ทุกตัว True Dmg · แรงขึ้นตามแต้มสาย 🥊 หมัดแค้น' },
     },
   },
 }

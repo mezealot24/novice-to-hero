@@ -131,7 +131,7 @@ test('pure vs hybrid: pure cannot borrow Monk nodes; hybrid stops at tier 2 and 
   assert.deepEqual(mods.map((m) => Object.keys(m)[0]), ['combo'], 'tier-3 Paladin node off on hybrid, Monk node on')
   assert.equal(tree3Mods({ mk_c1: 3 }, 'paladin', 'pure').length, 0, 'borrowed node off on pure')
   assert.ok(heroStats({ ...s, job3Path: 'hybrid', job3Tree: { mk_c1: 3 } }).combo > heroStats(s).combo)
-  assert.ok(TREE3.every((n) => /^(paladin_u3p|lordknight_u3p|pa_|lk_)/.test(n.id)), 'ids are save data')
+  assert.ok(TREE3.every((n) => /^(paladin_u3p|lordknight_u3p|champion_u3p|pa_|lk_|ch_)/.test(n.id)), 'ids are save data')
 })
 
 // ---------- 🐉 Lord Knight + retroactive trial (Q 2026-11-08) ----------
@@ -157,7 +157,8 @@ test('Knight awakens into Lord Knight; a 🔥 hard / 😈 hell ดัน 10 clea
   assert.equal(job3Ready(s, 'lordknight'), true, 'old hell clear')
   assert.equal(changeJob3('lordknight'), true)
   assert.equal(activeJob3(s), 'lordknight')
-  assert.equal(j3Of('monk'), undefined, 'other 2nd jobs: none yet')
+  assert.equal(j3Of('monk')?.id, 'champion', 'Monk awakens into Champion')
+  assert.equal(j3Of('rogue'), undefined, 'other 2nd jobs: none yet')
 })
 
 test('Lord Knight: Aura Blade (spear HP share + HP) and legacy reads the Knight branches with caps', () => {
@@ -178,3 +179,40 @@ test('Lord Knight hybrid borrows Berserker tier 1-2 only', () => {
   assert.equal(lockReason3({}, 'swordsman', nodeById('mk_c1')!, 'lordknight', 'hybrid'), 'ไม่ใช่ใยของอาชีพนี้', 'not the Monk web')
   assert.deepEqual(tree3Mods({ bz_c1: 3, lk_g3: 2 }, 'lordknight', 'hybrid').map((m) => Object.keys(m)[0]), ['crit'])
 })
+
+/** A Monk at Job2 Lv 50 with ดัน 10 cleared. */
+function monk(pts = 0, extra: Partial<SaveData> = {}): SaveData {
+  const s = newSave('t', 'human')
+  const fill = (ids: string[], n: number) => { const t: Record<string, number> = {}; for (const id of ids) { const k = Math.min(n, nodeById(id)!.max); t[id] = k; n -= k } return t }
+  Object.assign(s, { job: 'cleric', jobLevel: 40, job2: 'monk', job2Level: 50, job2Points: 0, gems: 100, clearsBy: { d1: 1, d5: 1, d10: 1 }, clears: 10,
+    job2Tree: { ...fill(['mk_c1', 'mk_c2', 'mk_c3'], pts), ...fill(['mk_h1', 'mk_h2', 'mk_h3'], pts), ...fill(['mk_a1', 'mk_a2', 'mk_a3'], pts) }, ...extra })
+  setSave(s)
+  return s
+}
+
+test('Monk awakens into Champion; Ki Translation raises charge max & legacy reads Monk branches', () => {
+  const s = monk(5)
+  s.hardClearsBy = { d10: 1 }
+  assert.equal(job3Ready(s, 'champion'), true)
+  assert.equal(changeJob3('champion'), true)
+  assert.equal(activeJob3(s), 'champion')
+
+  const mk = heroStats(monk(5)), ch = heroStats(monk(5, { job3: 'champion', job3Level: 30, job3Trial: { champion: 1 }, job3Tree: {} }))
+  assert.equal(ch.j3Ch, 1)
+  assert.equal(ch.j2ChargeMax - mk.j2ChargeMax, KIT3.champion.chargeMaxAdd)
+
+  const leg = (pts: number) => heroStats(monk(pts, { job3: 'champion', job3Trial: { champion: 1 }, job3Tree: { ch_l1: 3 } })).ult2Pow
+    - heroStats(monk(pts, { job3: 'champion', job3Trial: { champion: 1 }, job3Tree: {} })).ult2Pow
+  assert.ok(Math.abs(leg(0)) < 1e-9)
+  assert.ok(Math.abs(leg(5) - 0.075) < 1e-9)
+  assert.ok(leg(99) <= KIT3.champion.leg.crossCap + 1e-9)
+})
+
+test('Champion hybrid borrows Crusader tier 1-2 only', () => {
+  const cr = nodeById('cr_s1')!
+  assert.equal(lockReason3({}, 'cleric', cr, 'champion', 'pure'), 'เฉพาะสาย Hybrid')
+  assert.equal(lockReason3({}, 'cleric', cr, 'champion', 'hybrid'), '')
+  assert.equal(lockReason3({}, 'cleric', nodeById('bz_c1')!, 'champion', 'hybrid'), 'ไม่ใช่ใยของอาชีพนี้')
+  assert.deepEqual(tree3Mods({ cr_s1: 3, ch_g3: 2 }, 'champion', 'hybrid').map((m) => Object.keys(m)[0]), ['j2Guard'])
+})
+

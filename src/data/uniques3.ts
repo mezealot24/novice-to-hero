@@ -173,6 +173,7 @@ export const UNIQUE3_ITEMS: Item[] = [
 export const UNIQUE3_DROPS: Record<Job3Id, string[]> = {
   paladin: ['u_pl_aegiscrown', 'u_pl_sanctumplate', 'u_pl_gospelrelic', 'u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'],
   lordknight: ['u_lk_dragonhelm', 'u_lk_dragonscale', 'u_lk_warmedal', 'u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'],
+  champion: ['u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'],
 }
 
 /** Roll drop for 3rd Job uniques at D10.

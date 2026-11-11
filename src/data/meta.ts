@@ -2103,6 +2103,10 @@ export function heroStats(s: StatsInput): Stats {
 				st.j2HpDmg += KIT3.lordknight.hpDmgAdd;
 				j2pct.maxHp += KIT3.lordknight.hpPct;
 			} // 🐉 Aura Blade + Hundred Spear
+			if (j3 === "champion") {
+				st.j3Ch = 1;
+				st.j2ChargeMax += KIT3.champion.chargeMaxAdd;
+			} // 🥊 Ki Translation + Supreme Asura
 			for (const m of tree3Mods(s.job3Tree, j3, s.job3Path)) add(m);
 			const leg = Math.min(
 				P.leg.crossCap,
