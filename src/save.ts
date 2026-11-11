@@ -1,471 +1,692 @@
 // One save slot in localStorage. Every read/write is guarded: private windows and sandboxed hosts
 // may throw or start empty, and the game must still run (it just won't remember).
-import { JOB_CHANGE, type JobId } from './data/jobs'
-import { UNIQUE } from './data/uniques'
-import { JOB2, JOB2_RULES, type Job2Id, type PetId } from './data/jobs2'
-import { activeJob3, JOB3, JOB3_RULES, job3Of, type Job3Id, type Job3Path, type Job3Variant } from './data/jobs3'
-import type { RefineLine } from './data/craft'
-import type { TaintRec } from './data/taint'
-import type { ModeRecord } from './data/modes'
-import { FREE_GEMS, JOB_RULES, NOVICE_PASSIVES, NOVICE_RULES, noviceSpent, RACES, STAT_RULES, type BaseStat, type RaceId, type SkillId, BARE_ITEM, type EquipSlot, itemById, offhandLocked, slotKind } from './data/meta'
+import { JOB_CHANGE, type JobId } from "./data/jobs";
+import { UNIQUE } from "./data/uniques";
+import { JOB2, JOB2_RULES, type Job2Id, type PetId } from "./data/jobs2";
+import {
+	activeJob3,
+	JOB3,
+	JOB3_RULES,
+	job3Of,
+	type Job3Id,
+	type Job3Path,
+	type Job3Variant,
+} from "./data/jobs3";
+import type { RefineLine } from "./data/craft";
+import type { TaintRec } from "./data/taint";
+import type { ModeRecord } from "./data/modes";
+import {
+	FREE_GEMS,
+	JOB_RULES,
+	NOVICE_PASSIVES,
+	NOVICE_RULES,
+	noviceSpent,
+	RACES,
+	STAT_RULES,
+	type BaseStat,
+	type RaceId,
+	type SkillId,
+	BARE_ITEM,
+	type EquipSlot,
+	itemById,
+	offhandLocked,
+	slotKind,
+} from "./data/meta";
+
+export interface CrossSpent {
+	j2In1?: number; // Job2 points spent downward into Class 1 tree (jobTree)
+	j3In1?: number; // Job3 points spent downward into Class 1 tree (jobTree)
+	j3In2?: number; // Job3 points spent downward into Class 2 tree (job2Tree)
+}
 
 export interface SaveData {
-  v: 1
-  name: string
-  race: RaceId
-  baseLevel: number
-  baseXp: number
-  statPoints: number
-  jobLevel: number
-  jobXp: number
-  skillPoints: number
-  skills: Record<SkillId, number>
-  nov3?: 1 // v86: ทุบ points refunded (it now levels with Job Lv)
-  nov2?: 1 // v85: novice passives moved to their own 10-point pool (old Job Lv points refunded once)
-  job: JobId
-  jobSkills: { auto: number; ult: number } // retired in skill web v1 (always 1/1): power now comes from the web's +power nodes
-  jobTree?: Record<string, number> // skill web node -> level (data/tree.ts, design/skill-web-v1.md), current job only
-  job2?: Job2Id // 2nd job on top of `job` (design/second-jobs-v1.md); undefined = not yet
-  job2Level?: number // Job2 Lv 1..JOB2_RULES.maxJobLevel (kept on a re-pick)
-  job2Xp?: number
-  job2Points?: number // free ใยชั้น 2 points (1 per Job2 Lv)
-  job2Tree?: Record<string, number> // ใยชั้น 2 node -> level (data/tree.ts TREE2)
-  job3?: Job3Id // 3rd job "Awakening" on top of job2 (design/awakening-crusader-v1.md); parked (kept, off) when job2 changes
-  job3Level?: number // Job3 Lv 1..JOB3_RULES.maxJobLevel
-  job3Xp?: number
-  job3Points?: number // free ใยชั้น 3 points (1 per Job3 Lv)
-  job3Tree?: Record<string, number> // ใยชั้น 3 node -> level (P5)
-  job3Path?: Job3Path
-  job3Var?: Job3Variant
-  job3SwapAt?: string // yyyy-mm-dd of the last free path swap
-  job3Trial?: Partial<Record<Job3Id, 1>> // ⚔️ Master Trial won (P2)
-  pet?: PetId // 🐺 Beastmaster companion (picked in town, free to change); undefined = hawk
-  web?: 1 // save migrated to the skill web (v27)
-  webRefund?: number // skill points refunded by that migration, shown once in town
-  stretch?: 1 // v83: webs refunded once for the node-level stretch (data/tree.ts TREE_RULES.stretch)
-  stretchRefund?: { skill: number; job2: number } // points that migration gave back, shown once in town
-  job2Talents?: Record<string, { id: string; rank: number }> // v119 ทาเลนต์ชั้น 2: same shape, Talent Points from Job2 Lv; cleared when the 2nd job changes
-  jobTalents?: Record<string, { id: string; rank: number }> // talent row "1".."4" -> pick + rank; Talent Points are derived from Job Lv (data/tree.ts)
-  stats: Record<BaseStat, number>
-  zeny: number
-  gems: number
-  owned: string[] // item ids
-  equipped: Record<EquipSlot, string> // head / offhand / acc2 added in the equipment-screen update (filled on load)
-  costumes: string[]
-  costume: string
-  supporter: boolean
-  clears: number
-  bestRoom: number
-  clearsBy?: Record<string, number> // per dungeon id (d1, d2, ...)
-  hardClearsBy?: Record<string, number> // hard-mode clears per dungeon id (v47)
-  hellClearsBy?: Record<string, number> // 😈 hell-mode clears per dungeon id (D6-D10, data/hell.ts HELL_MODE)
-  cards?: Record<string, number> // equipment cards in the bag (not slotted), by card id (data/cards.ts)
-  sockets?: Record<string, string[]> // item id -> card ids slotted in it
-  cardPity?: Record<string, number> // kills of that card's monster since its last drop
-  cardSeen?: string[] // card book: every card ever found
-  mats?: Record<string, number> // forge materials by id (data/materials.ts)
-  grade?: Record<string, number> // item id -> forge grade 2..5 (missing = 1, data/craft.ts)
-  refine?: Record<string, number> // item id -> refine +1..+10 (missing = +0, data/refine.ts)
-  broken?: string[] // item ids broken by a failed refine: no stats / cards until repaired
-  refinePity?: Record<string, number> // item id -> failed refines in a row
-  refineLines?: Record<string, RefineLine[]> // item id -> bonus lines from +5 / +7 / +10 (index 0 / 1 / 2)
-  taint?: Record<string, TaintRec> // v89: item id -> taint result (a record = tainted = locked; data/taint.ts)
-  forgeFast?: 1 // v99 ⚡ fast mode at the forge: no anticipation, no hit-stop, no spin
-  forgePin?: string // v99 📌 recipe id pinned at the forge: the run result says when it becomes affordable
-  refineGems?: string[] // "itemId:7" / "itemId:10": free refine gems already paid out (kept after selling)
-  rerollCount?: Record<string, number> // item id -> option-gacha rolls made (price +10% each, data/refine.ts rerollMul)
-  fodder?: Record<string, number> // basic shop items kept as forge fodder, by item id (counts)
-  modes?: Record<string, ModeRecord> // game modes v51 (data/modes.ts): tower bestFloor / clears, daily lastSeed (YYYYMMDD) / clears
-  fortune?: number // Fortune meter 0..100 (data/events.ts FORTUNE), kept across runs: full = the next event is a JACKPOT
-  lastDaily: string // yyyy-mm-dd of last free daily gems
-  muted: boolean
-  lowShake?: boolean // settings: ลดจอสั่น (camera shake x1/3)
-  autoUlt?: 'auto' | 'manual' // v55 settings: ult casts itself (default) or waits for the ult button
+	v: 1;
+	name: string;
+	race: RaceId;
+	baseLevel: number;
+	baseXp: number;
+	statPoints: number;
+	jobLevel: number;
+	jobXp: number;
+	skillPoints: number;
+	skills: Record<SkillId, number>;
+	nov3?: 1; // v86: ทุบ points refunded (it now levels with Job Lv)
+	nov2?: 1; // v85: novice passives moved to their own 10-point pool (old Job Lv points refunded once)
+	job: JobId;
+	jobSkills: { auto: number; ult: number }; // retired in skill web v1 (always 1/1): power now comes from the web's +power nodes
+	jobTree?: Record<string, number>; // skill web node -> level (data/tree.ts, design/skill-web-v1.md), current job only
+	job2?: Job2Id; // 2nd job on top of `job` (design/second-jobs-v1.md); undefined = not yet
+	job2Level?: number; // Job2 Lv 1..JOB2_RULES.maxJobLevel (kept on a re-pick)
+	job2Xp?: number;
+	job2Points?: number; // free ใยชั้น 2 points (1 per Job2 Lv)
+	job2Tree?: Record<string, number>; // ใยชั้น 2 node -> level (data/tree.ts TREE2)
+	job3?: Job3Id; // 3rd job "Awakening" on top of job2 (design/awakening-crusader-v1.md); parked (kept, off) when job2 changes
+	job3Level?: number; // Job3 Lv 1..JOB3_RULES.maxJobLevel
+	job3Xp?: number;
+	job3Points?: number; // free ใยชั้น 3 points (1 per Job3 Lv)
+	job3Tree?: Record<string, number>; // ใยชั้น 3 node -> level (P5)
+	job3Path?: Job3Path;
+	job3Var?: Job3Variant;
+	job3SwapAt?: string; // yyyy-mm-dd of the last free path swap
+	job3Trial?: Partial<Record<Job3Id, 1>>; // ⚔️ Master Trial won (P2)
+	crossSpent?: CrossSpent; // RO Mobile style downward point spending across class tiers
+	pet?: PetId; // 🐺 Beastmaster companion (picked in town, free to change); undefined = hawk
+	web?: 1; // save migrated to the skill web (v27)
+	webRefund?: number; // skill points refunded by that migration, shown once in town
+	stretch?: 1; // v83: webs refunded once for the node-level stretch (data/tree.ts TREE_RULES.stretch)
+	stretchRefund?: { skill: number; job2: number }; // points that migration gave back, shown once in town
+	job2Talents?: Record<string, { id: string; rank: number }>; // v119 ทาเลนต์ชั้น 2: same shape, Talent Points from Job2 Lv; cleared when the 2nd job changes
+	jobTalents?: Record<string, { id: string; rank: number }>; // talent row "1".."4" -> pick + rank; Talent Points are derived from Job Lv (data/tree.ts)
+	stats: Record<BaseStat, number>;
+	zeny: number;
+	gems: number;
+	owned: string[]; // item ids
+	equipped: Record<EquipSlot, string>; // head / offhand / acc2 added in the equipment-screen update (filled on load)
+	costumes: string[];
+	costume: string;
+	supporter: boolean;
+	clears: number;
+	bestRoom: number;
+	clearsBy?: Record<string, number>; // per dungeon id (d1, d2, ...)
+	hardClearsBy?: Record<string, number>; // hard-mode clears per dungeon id (v47)
+	hellClearsBy?: Record<string, number>; // 😈 hell-mode clears per dungeon id (D6-D10, data/hell.ts HELL_MODE)
+	cards?: Record<string, number>; // equipment cards in the bag (not slotted), by card id (data/cards.ts)
+	sockets?: Record<string, string[]>; // item id -> card ids slotted in it
+	cardPity?: Record<string, number>; // kills of that card's monster since its last drop
+	cardSeen?: string[]; // card book: every card ever found
+	mats?: Record<string, number>; // forge materials by id (data/materials.ts)
+	grade?: Record<string, number>; // item id -> forge grade 2..5 (missing = 1, data/craft.ts)
+	refine?: Record<string, number>; // item id -> refine +1..+10 (missing = +0, data/refine.ts)
+	broken?: string[]; // item ids broken by a failed refine: no stats / cards until repaired
+	refinePity?: Record<string, number>; // item id -> failed refines in a row
+	refineLines?: Record<string, RefineLine[]>; // item id -> bonus lines from +5 / +7 / +10 (index 0 / 1 / 2)
+	taint?: Record<string, TaintRec>; // v89: item id -> taint result (a record = tainted = locked; data/taint.ts)
+	forgeFast?: 1; // v99 ⚡ fast mode at the forge: no anticipation, no hit-stop, no spin
+	forgePin?: string; // v99 📌 recipe id pinned at the forge: the run result says when it becomes affordable
+	refineGems?: string[]; // "itemId:7" / "itemId:10": free refine gems already paid out (kept after selling)
+	rerollCount?: Record<string, number>; // item id -> option-gacha rolls made (price +10% each, data/refine.ts rerollMul)
+	fodder?: Record<string, number>; // basic shop items kept as forge fodder, by item id (counts)
+	modes?: Record<string, ModeRecord>; // game modes v51 (data/modes.ts): tower bestFloor / clears, daily lastSeed (YYYYMMDD) / clears
+	fortune?: number; // Fortune meter 0..100 (data/events.ts FORTUNE), kept across runs: full = the next event is a JACKPOT
+	lastDaily: string; // yyyy-mm-dd of last free daily gems
+	muted: boolean;
+	lowShake?: boolean; // settings: ลดจอสั่น (camera shake x1/3)
+	autoUlt?: "auto" | "manual"; // v55 settings: ult casts itself (default) or waits for the ult button
 }
 
 /** v55: ult mode, default auto (Q found the manual ult button confusing). */
-export function ultMode(s: SaveData = save()): 'auto' | 'manual' { return s.autoUlt ?? 'auto' }
+export function ultMode(s: SaveData = save()): "auto" | "manual" {
+	return s.autoUlt ?? "auto";
+}
 
-const KEY = 'novice-to-hero.save.v1'
-let cache: SaveData | null = null
+const KEY = "novice-to-hero.save.v1";
+let cache: SaveData | null = null;
 
 export function newSave(name: string, race: RaceId): SaveData {
-  const s = STAT_RULES.start
-  return {
-    v: 1, web: 1, stretch: 1, name, race, baseLevel: 1, baseXp: 0, statPoints: 3,
-    jobLevel: 1, jobXp: 0, skillPoints: 0, skills: { smash: 1, firstaid: 0, tough: 0, focus: 0, power: 0, iron: 0, swift: 0 }, nov2: 1, nov3: 1, job: 'novice', jobSkills: { auto: 1, ult: 1 },
-    stats: { str: s, vit: s, wis: s, dex: s, int: s, luk: s, agi: s },
-    zeny: 100, gems: 0,
-    owned: ['knife', 'cloth', 'none', 'none_head', 'none_off'], equipped: { weapon: 'knife', armor: 'cloth', acc: 'none', head: 'none_head', offhand: 'none_off', acc2: 'none' },
-    costumes: ['default'], costume: 'default', supporter: false,
-    clears: 0, bestRoom: 0, lastDaily: '', muted: false,
-  }
+	const s = STAT_RULES.start;
+	return {
+		v: 1,
+		web: 1,
+		stretch: 1,
+		name,
+		race,
+		baseLevel: 1,
+		baseXp: 0,
+		statPoints: 3,
+		jobLevel: 1,
+		jobXp: 0,
+		skillPoints: 0,
+		skills: {
+			smash: 1,
+			firstaid: 0,
+			tough: 0,
+			focus: 0,
+			power: 0,
+			iron: 0,
+			swift: 0,
+		},
+		nov2: 1,
+		nov3: 1,
+		job: "novice",
+		jobSkills: { auto: 1, ult: 1 },
+		stats: { str: s, vit: s, wis: s, dex: s, int: s, luk: s, agi: s },
+		zeny: 100,
+		gems: 0,
+		owned: ["knife", "cloth", "none", "none_head", "none_off"],
+		equipped: {
+			weapon: "knife",
+			armor: "cloth",
+			acc: "none",
+			head: "none_head",
+			offhand: "none_off",
+			acc2: "none",
+		},
+		costumes: ["default"],
+		costume: "default",
+		supporter: false,
+		clears: 0,
+		bestRoom: 0,
+		lastDaily: "",
+		muted: false,
+	};
 }
 
 export function hasSave(): boolean {
-  if (cache) return true
-  try { return !!localStorage.getItem(KEY) } catch { return false }
+	if (cache) return true;
+	try {
+		return !!localStorage.getItem(KEY);
+	} catch {
+		return false;
+	}
 }
 
 export function load(): SaveData | null {
-  if (cache) return cache
-  try {
-    const raw = localStorage.getItem(KEY)
-    if (!raw) return null
-    const s = JSON.parse(raw) as SaveData
-    if (s.v !== 1 || !RACES[s.race]) return null
-    if (s.stats.wis === undefined) s.stats.wis = STAT_RULES.start // saves from before WIS existed
-    if (!s.job) { s.job = 'novice'; s.jobSkills = { auto: 1, ult: 1 } }
-    if (!s.web) migrateToWeb(s)
-    migrateThiefWeb(s)
-    migratePriestBless(s)
-    migrateClericDawn(s)
-    migrateDawnBurst(s)
-    migrateNodeStretch(s)
-    migrateGear(s)
-    migrateNovicePool(s)
-    migrateSmashAuto(s)
-    s.modes ??= {} // v51 game modes: additive, old saves start with no records
-    delete (s as SaveData & { reroll?: unknown }).reroll // v84 option gacha: no more pending keep-old / take-new (the old line stays)
-    cache = s
-    return s
-  } catch { return null }
+	if (cache) return cache;
+	try {
+		const raw = localStorage.getItem(KEY);
+		if (!raw) return null;
+		const s = JSON.parse(raw) as SaveData;
+		if (s.v !== 1 || !RACES[s.race]) return null;
+		if (s.stats.wis === undefined) s.stats.wis = STAT_RULES.start; // saves from before WIS existed
+		if (!s.job) {
+			s.job = "novice";
+			s.jobSkills = { auto: 1, ult: 1 };
+		}
+		if (!s.web) migrateToWeb(s);
+		migrateThiefWeb(s);
+		migratePriestBless(s);
+		migrateClericDawn(s);
+		migrateDawnBurst(s);
+		migrateNodeStretch(s);
+		migrateGear(s);
+		migrateNovicePool(s);
+		migrateSmashAuto(s);
+		s.modes ??= {}; // v51 game modes: additive, old saves start with no records
+		delete (s as SaveData & { reroll?: unknown }).reroll; // v84 option gacha: no more pending keep-old / take-new (the old line stays)
+		cache = s;
+		return s;
+	} catch {
+		return null;
+	}
 }
 
 /** Saves from before the 6-slot equipment screen only had weapon / armor / acc: add the new empty slots.
  * Never deletes an item (sockets are keyed by item id, so cards need no change), so it is safe to run on every load.
  * A 2-handed weapon takes both hands: an off-hand piece left over from before goes back to the bag (still owned). */
 function migrateGear(s: SaveData) {
-  const eq = (s.equipped ??= { weapon: 'knife', armor: 'cloth', acc: 'none', head: 'none_head', offhand: 'none_off', acc2: 'none' })
-  eq.head ??= 'none_head'; eq.offhand ??= 'none_off'; eq.acc2 ??= 'none'
-  eq.acc ??= 'none'
-  for (const id of ['none', 'none_head', 'none_off']) if (!s.owned.includes(id)) s.owned.push(id)
-  if (eq.acc2 !== 'none' && eq.acc2 === eq.acc) eq.acc2 = 'none' // one copy of each item: never worn twice
-  if (offhandLocked(s)) eq.offhand = BARE_ITEM.offhand
+	const eq = (s.equipped ??= {
+		weapon: "knife",
+		armor: "cloth",
+		acc: "none",
+		head: "none_head",
+		offhand: "none_off",
+		acc2: "none",
+	});
+	eq.head ??= "none_head";
+	eq.offhand ??= "none_off";
+	eq.acc2 ??= "none";
+	eq.acc ??= "none";
+	for (const id of ["none", "none_head", "none_off"])
+		if (!s.owned.includes(id)) s.owned.push(id);
+	if (eq.acc2 !== "none" && eq.acc2 === eq.acc) eq.acc2 = "none"; // one copy of each item: never worn twice
+	if (offhandLocked(s)) eq.offhand = BARE_ITEM.offhand;
 }
 
 /** The slot wearing `itemId` would fill: its own kind; an accessory fills an empty side first, else the left one. Shop / forge compare use it too. */
-export function replaceSlot(eq: Record<EquipSlot, string>, itemId: string): EquipSlot {
-  const kind = itemById(itemId).slot
-  if (kind !== 'acc') return kind
-  return eq.acc === 'none' || eq.acc2 !== 'none' ? 'acc' : 'acc2'
+export function replaceSlot(
+	eq: Record<EquipSlot, string>,
+	itemId: string,
+): EquipSlot {
+	const kind = itemById(itemId).slot;
+	if (kind !== "acc") return kind;
+	return eq.acc === "none" || eq.acc2 !== "none" ? "acc" : "acc2";
 }
 
 /** Why `itemId` can't be worn at `slot` right now (null = it can): wrong slot kind, too many uniques, or a 2-handed weapon holds the off-hand. */
-export type EquipBlock = 'slot' | 'unique' | 'twohand'
-export function equipBlock(s: SaveData, itemId: string, slot?: EquipSlot): EquipBlock | null {
-  const kind = itemById(itemId).slot
-  const at: EquipSlot = slot ?? replaceSlot(s.equipped, itemId)
-  if (slotKind(at) !== kind) return 'slot'
-  if (at === 'offhand' && itemId !== BARE_ITEM.offhand && offhandLocked(s)) return 'twohand' // 2H weapon = both hands: change weapon first
-  if (uniqueEquipBlocked(s, itemId, at)) return 'unique' // v88: at most UNIQUE.maxEquipped uniques at once
-  return null
+export type EquipBlock = "slot" | "unique" | "twohand";
+export function equipBlock(
+	s: SaveData,
+	itemId: string,
+	slot?: EquipSlot,
+): EquipBlock | null {
+	const kind = itemById(itemId).slot;
+	const at: EquipSlot = slot ?? replaceSlot(s.equipped, itemId);
+	if (slotKind(at) !== kind) return "slot";
+	if (at === "offhand" && itemId !== BARE_ITEM.offhand && offhandLocked(s))
+		return "twohand"; // 2H weapon = both hands: change weapon first
+	if (uniqueEquipBlocked(s, itemId, at)) return "unique"; // v88: at most UNIQUE.maxEquipped uniques at once
+	return null;
 }
 
 /** Wear an item. Accessories: `slot` picks the side; with no side it fills an empty side first. The same
  * accessory can't be on both sides (one copy per id), so it moves over instead.
  * A 2-handed weapon replaces the off-hand piece (back to the bag, still owned, cards stay in it); while one is worn the off-hand takes nothing. */
 export function equip(s: SaveData, itemId: string, slot?: EquipSlot): boolean {
-  if (equipBlock(s, itemId, slot)) return false
-  const it = itemById(itemId)
-  const at: EquipSlot = slot ?? replaceSlot(s.equipped, itemId)
-  if (it.slot === 'acc' && itemId !== 'none') {
-    const other: EquipSlot = at === 'acc' ? 'acc2' : 'acc'
-    if (s.equipped[other] === itemId) s.equipped[other] = 'none'
-  }
-  s.equipped[at] = itemId
-  if (at === 'weapon' && it.twoHand) s.equipped.offhand = BARE_ITEM.offhand
-  return true
+	if (equipBlock(s, itemId, slot)) return false;
+	const it = itemById(itemId);
+	const at: EquipSlot = slot ?? replaceSlot(s.equipped, itemId);
+	if (it.slot === "acc" && itemId !== "none") {
+		const other: EquipSlot = at === "acc" ? "acc2" : "acc";
+		if (s.equipped[other] === itemId) s.equipped[other] = "none";
+	}
+	s.equipped[at] = itemId;
+	if (at === "weapon" && it.twoHand) s.equipped.offhand = BARE_ITEM.offhand;
+	return true;
 }
 /** v88: would wearing `itemId` at `at` put more than UNIQUE.maxEquipped uniques on? Counts the other slots only (the one being
  * replaced leaves, and the same accessory moving from the other side is not counted twice). */
-export function uniqueEquipBlocked(s: SaveData, itemId: string, at: EquipSlot): boolean {
-  if (!itemById(itemId).unique) return false
-  const others = (Object.keys(s.equipped) as EquipSlot[]).filter((sl) => sl !== at && s.equipped[sl] !== itemId)
-  return others.filter((sl) => itemById(s.equipped[sl]).unique).length >= UNIQUE.maxEquipped
+export function uniqueEquipBlocked(
+	s: SaveData,
+	itemId: string,
+	at: EquipSlot,
+): boolean {
+	if (!itemById(itemId).unique) return false;
+	const others = (Object.keys(s.equipped) as EquipSlot[]).filter(
+		(sl) => sl !== at && s.equipped[sl] !== itemId,
+	);
+	return (
+		others.filter((sl) => itemById(s.equipped[sl]).unique).length >=
+		UNIQUE.maxEquipped
+	);
 }
 /** Is this item worn in any slot? */
-export const isWorn = (s: SaveData, itemId: string) => Object.values(s.equipped).includes(itemId)
+export const isWorn = (s: SaveData, itemId: string) =>
+	Object.values(s.equipped).includes(itemId);
 /** Is there something to take off at `slot`? (the empty item / the weapon + armor starter piece counts as nothing) */
-export const canUnequip = (s: SaveData, slot: EquipSlot) => s.equipped[slot] !== BARE_ITEM[slotKind(slot)]
+export const canUnequip = (s: SaveData, slot: EquipSlot) =>
+	s.equipped[slot] !== BARE_ITEM[slotKind(slot)];
 /** Take an item off: the slot goes back to its empty item (weapon / armor: the starter knife / cloth). The item stays owned, cards stay in it.
  * Returns false when there was nothing to take off. */
 export function unequip(s: SaveData, slot: EquipSlot): boolean {
-  if (!canUnequip(s, slot)) return false
-  const bare = BARE_ITEM[slotKind(slot)]
-  if (!s.owned.includes(bare)) s.owned.push(bare) // the starter piece is free: never leave a slot pointing at something not owned
-  s.equipped[slot] = bare
-  return true
+	if (!canUnequip(s, slot)) return false;
+	const bare = BARE_ITEM[slotKind(slot)];
+	if (!s.owned.includes(bare)) s.owned.push(bare); // the starter piece is free: never leave a slot pointing at something not owned
+	s.equipped[slot] = bare;
+	return true;
 }
 
 /** The current save; scenes after the title can rely on it existing. */
 export function save(): SaveData {
-  if (!cache) cache = load() ?? newSave('โนวิส', 'human')
-  return cache
+	if (!cache) cache = load() ?? newSave("โนวิส", "human");
+	return cache;
 }
 
-export function setSave(s: SaveData) { cache = s; persist() }
+export function setSave(s: SaveData) {
+	cache = s;
+	persist();
+}
 
 export function persist() {
-  if (!cache) return
-  try { localStorage.setItem(KEY, JSON.stringify(cache)) } catch { /* storage blocked: keep playing in memory */ }
-  hooks.persist?.()
+	if (!cache) return;
+	try {
+		localStorage.setItem(KEY, JSON.stringify(cache));
+	} catch {
+		/* storage blocked: keep playing in memory */
+	}
+	hooks.persist?.();
 }
 
 /** Cloud sync (cloud.ts) listens here so save.ts never imports the network layer. localStorage stays the cache + offline fallback. */
-const hooks: { persist?: () => void; wipe?: () => void } = {}
-export function setSaveHooks(h: typeof hooks) { Object.assign(hooks, h) }
+const hooks: { persist?: () => void; wipe?: () => void } = {};
+export function setSaveHooks(h: typeof hooks) {
+	Object.assign(hooks, h);
+}
 /** The raw JSON of this device's save (what would be uploaded), or null. */
-export function localJson(): string | null { try { return localStorage.getItem(KEY) } catch { return null } }
+export function localJson(): string | null {
+	try {
+		return localStorage.getItem(KEY);
+	} catch {
+		return null;
+	}
+}
 /** Replace this device's save with a cloud copy: write it, then load() it again so the migrations run. */
 export function adopt(data: unknown): boolean {
-  try { localStorage.setItem(KEY, JSON.stringify(data)) } catch { return false }
-  cache = null
-  return load() !== null
+	try {
+		localStorage.setItem(KEY, JSON.stringify(data));
+	} catch {
+		return false;
+	}
+	cache = null;
+	return load() !== null;
 }
 
 /** v42 Thief rework (Q 2026-11-03): D.Strike max 10 -> 5 and gates ทักษะ 2. Refund the extra D.Strike points, and the ทักษะ 2 points of a save that took one before D.Strike was full. */
 function migrateThiefWeb(s: SaveData) {
-  const t = s.jobTree
-  if (s.job !== 'thief' || !t) return
-  let back = 0
-  if ((t.thief_core1 ?? 0) > 5) { back += t.thief_core1 - 5; t.thief_core1 = 5 }
-  if ((t.thief_core1 ?? 0) < 5) for (const id of Object.keys(t)) if (/^th_(smoke|pick|wound)/.test(id) && t[id] > 0) { back += t[id]; delete t[id] }
-  s.skillPoints += back
+	const t = s.jobTree;
+	if (s.job !== "thief" || !t) return;
+	let back = 0;
+	if ((t.thief_core1 ?? 0) > 5) {
+		back += t.thief_core1 - 5;
+		t.thief_core1 = 5;
+	}
+	if ((t.thief_core1 ?? 0) < 5)
+		for (const id of Object.keys(t))
+			if (/^th_(smoke|pick|wound)/.test(id) && t[id] > 0) {
+				back += t[id];
+				delete t[id];
+			}
+	s.skillPoints += back;
 }
 /** v77 Priest พรแสง back to an active Skill 2 (root max 5 -> 1): refund the root points above 1. Ids unchanged. */
 function migratePriestBless(s: SaveData) {
-  const t = s.jobTree
-  if (s.job !== 'cleric' || !t || (t.cl_bless ?? 0) <= 1) return
-  s.skillPoints += t.cl_bless - 1; t.cl_bless = 1
+	const t = s.jobTree;
+	if (s.job !== "cleric" || !t || (t.cl_bless ?? 0) <= 1) return;
+	s.skillPoints += t.cl_bless - 1;
+	t.cl_bless = 1;
 }
 /** v86 🌄 รุ่งอรุณ replaced the ⛪ ฟื้นคืน web branch: points in its old nodes come back as skill points. The short-lived
  *  talent version (row II แสงรุ่งอรุณ, never shipped) is dropped too; Talent Points are counted from picks, so that refunds. */
-const GONE_NODES = ['cleric_d1', 'cleric_d2', 'cleric_d3', 'cleric_d4']
+const GONE_NODES = ["cleric_d1", "cleric_d2", "cleric_d3", "cleric_d4"];
 export function migrateClericDawn(s: SaveData) {
-  const t = s.jobTree
-  if (t) for (const id of GONE_NODES) if (t[id]) { s.skillPoints += t[id]; delete t[id] }
-  const tal = s.jobTalents
-  if (tal) for (const [row, p] of Object.entries(tal)) if (p?.id === 'cleric_t2_dawnlight') delete tal[row]
+	const t = s.jobTree;
+	if (t)
+		for (const id of GONE_NODES)
+			if (t[id]) {
+				s.skillPoints += t[id];
+				delete t[id];
+			}
+	const tal = s.jobTalents;
+	if (tal)
+		for (const [row, p] of Object.entries(tal))
+			if (p?.id === "cleric_t2_dawnlight") delete tal[row];
 }
 /** v102 ☀️ แสงแตก (Q 2026-11-07): new effect (WIS buff), max 5 -> 3. Points above 3 come back as skill points. Id unchanged. */
 export function migrateDawnBurst(s: SaveData) {
-  const t = s.jobTree
-  if (!t || (t.cleric_dn3 ?? 0) <= 3) return
-  s.skillPoints += t.cleric_dn3 - 3; t.cleric_dn3 = 3
+	const t = s.jobTree;
+	if (!t || (t.cleric_dn3 ?? 0) <= 3) return;
+	s.skillPoints += t.cleric_dn3 - 3;
+	t.cleric_dn3 = 3;
 }
 /** v85 novice pool (Q 2026-11-06): ปฐมพยาบาล / ร่างกายแกร่ง used to cost Job Lv skill points. Those points come back
  *  as skill points; the levels stay and now count against the free 10-point novice pool (max 5+5 = 10, always fits). */
 function migrateNovicePool(s: SaveData) {
-  for (const p of NOVICE_PASSIVES) s.skills[p.id] ??= 0
-  if (s.nov2) return
-  s.skillPoints += (s.skills.firstaid ?? 0) + (s.skills.tough ?? 0)
-  s.nov2 = 1
+	for (const p of NOVICE_PASSIVES) s.skills[p.id] ??= 0;
+	if (s.nov2) return;
+	s.skillPoints += (s.skills.firstaid ?? 0) + (s.skills.tough ?? 0);
+	s.nov2 = 1;
 }
 /** v86 (Q 2026-11-06): 💢 ทุบ levels with Job Lv (meta smashLv), so the Job Lv points put into it come back once. */
 export function migrateSmashAuto(s: SaveData) {
-  if (s.nov3) return
-  s.skillPoints += Math.max(0, (s.skills.smash ?? 1) - 1)
-  s.skills.smash = 1
-  s.nov3 = 1
+	if (s.nov3) return;
+	s.skillPoints += Math.max(0, (s.skills.smash ?? 1) - 1);
+	s.skills.smash = 1;
+	s.nov3 = 1;
 }
 
 /** Clear every novice passive for 💎 NOVICE_RULES.resetGems (the pool refills by itself). False when short or nothing to clear. */
 export function resetNovice(s: SaveData = save()): boolean {
-  if (!noviceSpent(s.skills) || s.gems < NOVICE_RULES.resetGems) return false
-  s.gems -= NOVICE_RULES.resetGems
-  for (const p of NOVICE_PASSIVES) s.skills[p.id] = 0
-  persist()
-  return true
+	if (!noviceSpent(s.skills) || s.gems < NOVICE_RULES.resetGems) return false;
+	s.gems -= NOVICE_RULES.resetGems;
+	for (const p of NOVICE_PASSIVES) s.skills[p.id] = 0;
+	persist();
+	return true;
 }
 
 /** v83 (Q 2026-11-06) node levels 1->3 / 2->4 / 3->5 at the same full value: the old levels no longer mean the same, so
  *  refund the whole class web and the whole ใยชั้น 2 web once (free re-spend). Novice skills and talents are untouched. */
 export function migrateNodeStretch(s: SaveData) {
-  if (s.stretch) return
-  const skill = resetTree(s), job2 = s.job2Tree ? resetTree2(s) : 0
-  s.skillPoints += skill
-  if (job2 > 0) s.job2Points = (s.job2Points ?? 0) + job2
-  if (skill + job2 > 0) s.stretchRefund = { skill, job2 }
-  s.stretch = 1
+	if (s.stretch) return;
+	const skill = resetTree(s),
+		job2 = s.job2Tree ? resetTree2(s) : 0;
+	s.skillPoints += skill;
+	if (job2 > 0) s.job2Points = (s.job2Points ?? 0) + job2;
+	if (skill + job2 > 0) s.stretchRefund = { skill, job2 };
+	s.stretch = 1;
 }
 /** v27 skill web: class skill levels and the old tree become web nodes with new rules, so refund every point once. */
 function migrateToWeb(s: SaveData) {
-  const back = s.job === 'novice' ? 0 : Math.max(0, (s.jobSkills?.auto ?? 1) - 1) + Math.max(0, (s.jobSkills?.ult ?? 1) - 1) + resetTree(s)
-  s.skillPoints += back
-  if (back > 0) s.webRefund = back
-  s.jobSkills = { auto: 1, ult: 1 }
-  s.web = 1
-  try { localStorage.setItem(KEY, JSON.stringify(s)) } catch { /* ignore */ }
+	const back =
+		s.job === "novice"
+			? 0
+			: Math.max(0, (s.jobSkills?.auto ?? 1) - 1) +
+				Math.max(0, (s.jobSkills?.ult ?? 1) - 1) +
+				resetTree(s);
+	s.skillPoints += back;
+	if (back > 0) s.webRefund = back;
+	s.jobSkills = { auto: 1, ult: 1 };
+	s.web = 1;
+	try {
+		localStorage.setItem(KEY, JSON.stringify(s));
+	} catch {
+		/* ignore */
+	}
 }
 
 export function wipe() {
-  cache = null
-  try { localStorage.removeItem(KEY) } catch { /* ignore */ }
-  hooks.wipe?.()
+	cache = null;
+	try {
+		localStorage.removeItem(KEY);
+	} catch {
+		/* ignore */
+	}
+	hooks.wipe?.();
 }
 
 /** Adds Base + Job EXP; returns how many Base / Job levels were gained. */
 export function addXp(n: number): { base: number; job: number } {
-  const s = save()
-  let ups = 0, jobUps = 0
-  const maxJob = s.job === 'novice' ? JOB_RULES.maxJobLevel : JOB_CHANGE.classMaxJobLevel
-  n = Math.round(n * RACES[s.race].expMul)
-  s.baseXp += n
-  const j3 = activeJob3(s)
-  if (j3) { // 3rd job: Job EXP goes to Job3 Lv (Job2 Lv is maxed to unlock it)
-    if ((s.job3Level ?? 1) < JOB3_RULES.maxJobLevel) s.job3Xp = (s.job3Xp ?? 0) + n
-    while ((s.job3Level ?? 1) < JOB3_RULES.maxJobLevel && (s.job3Xp ?? 0) >= JOB_RULES.jobXpNeed(s.job3Level ?? 1)) {
-      s.job3Xp! -= JOB_RULES.jobXpNeed(s.job3Level ?? 1)
-      s.job3Level = (s.job3Level ?? 1) + 1
-      s.job3Points = (s.job3Points ?? 0) + 1
-      jobUps++
-    }
-    if ((s.job3Level ?? 1) >= JOB3_RULES.maxJobLevel) s.job3Xp = 0
-  } else if (s.job2) { // 2nd job: Job EXP goes to Job2 Lv (the base class is maxed)
-    const lv = s.job2Level ?? 1
-    if (lv < JOB2_RULES.maxJobLevel) s.job2Xp = (s.job2Xp ?? 0) + n
-    while ((s.job2Level ?? 1) < JOB2_RULES.maxJobLevel && (s.job2Xp ?? 0) >= JOB_RULES.jobXpNeed(s.job2Level ?? 1)) {
-      s.job2Xp! -= JOB_RULES.jobXpNeed(s.job2Level ?? 1)
-      s.job2Level = (s.job2Level ?? 1) + 1
-      s.job2Points = (s.job2Points ?? 0) + 1
-      jobUps++
-    }
-    if ((s.job2Level ?? 1) >= JOB2_RULES.maxJobLevel) s.job2Xp = 0
-  }
-  if (!s.job2 && s.jobLevel < maxJob) s.jobXp += n
-  while (!s.job2 && s.jobLevel < maxJob && s.jobXp >= JOB_RULES.jobXpNeed(s.jobLevel)) {
-    s.jobXp -= JOB_RULES.jobXpNeed(s.jobLevel)
-    s.jobLevel++
-    s.skillPoints++
-    jobUps++
-  }
-  if (s.jobLevel >= maxJob) s.jobXp = 0
-  while (s.baseLevel < STAT_RULES.maxBaseLevel && s.baseXp >= STAT_RULES.baseXpNeed(s.baseLevel)) {
-    s.baseXp -= STAT_RULES.baseXpNeed(s.baseLevel)
-    s.baseLevel++
-    s.statPoints += STAT_RULES.pointsPerLevel
-    s.gems += FREE_GEMS.levelUp
-    ups++
-  }
-  return { base: ups, job: jobUps }
+	const s = save();
+	let ups = 0,
+		jobUps = 0;
+	const maxJob =
+		s.job === "novice" ? JOB_RULES.maxJobLevel : JOB_CHANGE.classMaxJobLevel;
+	n = Math.round(n * RACES[s.race].expMul);
+	s.baseXp += n;
+	const j3 = activeJob3(s);
+	if (j3) {
+		// 3rd job: Job EXP goes to Job3 Lv (Job2 Lv is maxed to unlock it)
+		if ((s.job3Level ?? 1) < JOB3_RULES.maxJobLevel)
+			s.job3Xp = (s.job3Xp ?? 0) + n;
+		while (
+			(s.job3Level ?? 1) < JOB3_RULES.maxJobLevel &&
+			(s.job3Xp ?? 0) >= JOB_RULES.jobXpNeed(s.job3Level ?? 1)
+		) {
+			s.job3Xp! -= JOB_RULES.jobXpNeed(s.job3Level ?? 1);
+			s.job3Level = (s.job3Level ?? 1) + 1;
+			s.job3Points = (s.job3Points ?? 0) + 1;
+			jobUps++;
+		}
+		if ((s.job3Level ?? 1) >= JOB3_RULES.maxJobLevel) s.job3Xp = 0;
+	} else if (s.job2) {
+		// 2nd job: Job EXP goes to Job2 Lv (the base class is maxed)
+		const lv = s.job2Level ?? 1;
+		if (lv < JOB2_RULES.maxJobLevel) s.job2Xp = (s.job2Xp ?? 0) + n;
+		while (
+			(s.job2Level ?? 1) < JOB2_RULES.maxJobLevel &&
+			(s.job2Xp ?? 0) >= JOB_RULES.jobXpNeed(s.job2Level ?? 1)
+		) {
+			s.job2Xp! -= JOB_RULES.jobXpNeed(s.job2Level ?? 1);
+			s.job2Level = (s.job2Level ?? 1) + 1;
+			s.job2Points = (s.job2Points ?? 0) + 1;
+			jobUps++;
+		}
+		if ((s.job2Level ?? 1) >= JOB2_RULES.maxJobLevel) s.job2Xp = 0;
+	}
+	if (!s.job2 && s.jobLevel < maxJob) s.jobXp += n;
+	while (
+		!s.job2 &&
+		s.jobLevel < maxJob &&
+		s.jobXp >= JOB_RULES.jobXpNeed(s.jobLevel)
+	) {
+		s.jobXp -= JOB_RULES.jobXpNeed(s.jobLevel);
+		s.jobLevel++;
+		s.skillPoints++;
+		jobUps++;
+	}
+	if (s.jobLevel >= maxJob) s.jobXp = 0;
+	while (
+		s.baseLevel < STAT_RULES.maxBaseLevel &&
+		s.baseXp >= STAT_RULES.baseXpNeed(s.baseLevel)
+	) {
+		s.baseXp -= STAT_RULES.baseXpNeed(s.baseLevel);
+		s.baseLevel++;
+		s.statPoints += STAT_RULES.pointsPerLevel;
+		s.gems += FREE_GEMS.levelUp;
+		ups++;
+	}
+	return { base: ups, job: jobUps };
 }
 
-export const today = () => new Date().toISOString().slice(0, 10)
+export const today = () => new Date().toISOString().slice(0, 10);
 
-export const canChangeJob = (s: SaveData) => s.job === 'novice' && s.clears >= JOB_CHANGE.needClears
+export const canChangeJob = (s: SaveData) =>
+	s.job === "novice" && s.clears >= JOB_CHANGE.needClears;
 
 /** Become a base class. Job Lv restarts at 1; the skill web starts empty. Novice skill points carry over. */
 export function changeJob(job: JobId) {
-  const s = save()
-  s.skillPoints += resetTree(s) // the skill web holds every class point (refund on a re-pick)
-  s.jobTalents = {}
-  s.job = job
-  s.jobLevel = 1; s.jobXp = 0
-  s.jobSkills = { auto: 1, ult: 1 }
-  persist()
+	const s = save();
+	s.skillPoints += resetTree(s); // the skill web holds every class point (refund on a re-pick)
+	s.jobTalents = {};
+	s.job = job;
+	s.jobLevel = 1;
+	s.jobXp = 0;
+	s.jobSkills = { auto: 1, ult: 1 };
+	persist();
 }
 
-export const canRepickJob = (s: SaveData) => s.job !== 'novice'
+export const canRepickJob = (s: SaveData) => s.job !== "novice";
 
 // ---------- 2nd jobs (design/second-jobs-v1.md, Q 2026-11-05: Job Lv 40 + ดัน 5 cleared) ----------
-export const job2Ready = (s: SaveData) => s.job !== 'novice' && s.jobLevel >= JOB2_RULES.unlockJobLv && (s.clearsBy?.[JOB2_RULES.unlockClear] ?? 0) > 0
-export const canChangeJob2 = (s: SaveData) => job2Ready(s) && !s.job2
+export const job2Ready = (s: SaveData) =>
+	s.job !== "novice" &&
+	s.jobLevel >= JOB2_RULES.unlockJobLv &&
+	(s.clearsBy?.[JOB2_RULES.unlockClear] ?? 0) > 0;
+export const canChangeJob2 = (s: SaveData) => job2Ready(s) && !s.job2;
 /** Why the 2nd job is still locked ('' = open). */
 export function job2Lock(s: SaveData): string {
-  if (s.job === 'novice') return 'เปลี่ยนอาชีพแรกก่อน'
-  const need: string[] = []
-  if (s.jobLevel < JOB2_RULES.unlockJobLv) need.push(`Job Lv ${s.jobLevel}/${JOB2_RULES.unlockJobLv}`)
-  if (!((s.clearsBy?.[JOB2_RULES.unlockClear] ?? 0) > 0)) need.push('เคลียร์ดัน 5')
-  return need.join(' · ')
+	if (s.job === "novice") return "เปลี่ยนอาชีพแรกก่อน";
+	const need: string[] = [];
+	if (s.jobLevel < JOB2_RULES.unlockJobLv)
+		need.push(`Job Lv ${s.jobLevel}/${JOB2_RULES.unlockJobLv}`);
+	if (!((s.clearsBy?.[JOB2_RULES.unlockClear] ?? 0) > 0))
+		need.push("เคลียร์ดัน 5");
+	return need.join(" · ");
 }
 /** Pick a 2nd job. First time: Job2 Lv 1, no points. A re-pick (gems, or free after a base re-pick) keeps Job2 Lv: web points come back. */
 export function changeJob2(id: Job2Id, gems = 0): boolean {
-  const s = save()
-  if (!job2Ready(s) || JOB2[id].parent !== s.job || id === s.job2 || s.gems < gems) return false
-  s.gems -= gems
-  s.job2Points = (s.job2Points ?? 0) + resetTree2(s)
-  s.job2Talents = {} // v119: talents belong to the old 2nd job (TP are derived, nothing to refund)
-  s.job2 = id
-  s.job2Level ??= 1; s.job2Xp ??= 0
-  persist()
-  return true
+	const s = save();
+	if (
+		!job2Ready(s) ||
+		JOB2[id].parent !== s.job ||
+		id === s.job2 ||
+		s.gems < gems
+	)
+		return false;
+	s.gems -= gems;
+	s.job2Points = (s.job2Points ?? 0) + resetTree2(s);
+	s.job2Talents = {}; // v119: talents belong to the old 2nd job (TP are derived, nothing to refund)
+	s.job2 = id;
+	s.job2Level ??= 1;
+	s.job2Xp ??= 0;
+	persist();
+	return true;
 }
-/** Free ใยชั้น 2 reset: clears it and returns the points it held (not yet added back). */
+/** Free ใยชั้น 2 reset: clears it, refunds any borrowed Job3 points back to job3Points, and returns the native Job2 points it held. */
 export function resetTree2(s: SaveData): number {
-  const n = Object.values(s.job2Tree ?? {}).reduce((a, v) => a + v, 0)
-  s.job2Tree = {}
-  return n
+	const total = Object.values(s.job2Tree ?? {}).reduce((a, v) => a + v, 0);
+	const j3 = Math.min(total, s.crossSpent?.j3In2 ?? 0);
+	if (j3 > 0) {
+		s.job3Points = (s.job3Points ?? 0) + j3;
+		if (s.crossSpent) s.crossSpent.j3In2 = 0;
+	}
+	s.job2Tree = {};
+	return Math.max(0, total - j3);
 }
 
 // ---------- 3rd jobs "Awakening" (design/awakening-crusader-v1.md) ----------
 /** Job2 Lv 50 + ดัน 10 cleared + the Master Trial of that 3rd job won. */
-export const job3Ready = (s: SaveData, id: Job3Id) => !!s.job2 && JOB3[id].parent === s.job2
-  && (s.job2Level ?? 1) >= JOB3_RULES.unlockJob2Lv && (s.clearsBy?.[JOB3_RULES.unlockClear] ?? 0) > 0 && trialPassed(s, id)
+export const job3Ready = (s: SaveData, id: Job3Id) =>
+	!!s.job2 &&
+	JOB3[id].parent === s.job2 &&
+	(s.job2Level ?? 1) >= JOB3_RULES.unlockJob2Lv &&
+	(s.clearsBy?.[JOB3_RULES.unlockClear] ?? 0) > 0 &&
+	trialPassed(s, id);
 /** ⚔️ Master Trial passed: won after the update (job3Trial) or a 🔥 hard / 😈 hell ดัน 10 clear already on the save (Q 2026-11-08: count old clears). */
-export const trialPassed = (s: SaveData, id: Job3Id) => !!s.job3Trial?.[id]
-  || ((s.hardClearsBy ?? {})[JOB3_RULES.trialDungeon] ?? 0) > 0 || ((s.hellClearsBy ?? {})[JOB3_RULES.trialDungeon] ?? 0) > 0
+export const trialPassed = (s: SaveData, id: Job3Id) =>
+	!!s.job3Trial?.[id] ||
+	((s.hardClearsBy ?? {})[JOB3_RULES.trialDungeon] ?? 0) > 0 ||
+	((s.hellClearsBy ?? {})[JOB3_RULES.trialDungeon] ?? 0) > 0;
 /** Why that 3rd job is still locked ('' = open). */
 export function job3Lock(s: SaveData, id: Job3Id): string {
-  const d = JOB3[id]
-  if (s.job2 !== d.parent) return `ต้องเป็น ${JOB2[d.parent].name}`
-  const need: string[] = []
-  if ((s.job2Level ?? 1) < JOB3_RULES.unlockJob2Lv) need.push(`Job2 Lv ${s.job2Level ?? 1}/${JOB3_RULES.unlockJob2Lv}`)
-  if (!((s.clearsBy?.[JOB3_RULES.unlockClear] ?? 0) > 0)) need.push('เคลียร์ดัน 10')
-  if (!trialPassed(s, id)) need.push('ผ่าน Master Trial (เคลียร์ดัน 10 🔥โหมดยาก ตอน Job2 Lv 50)')
-  return need.join(' · ')
+	const d = JOB3[id];
+	if (s.job2 !== d.parent) return `ต้องเป็น ${JOB2[d.parent].name}`;
+	const need: string[] = [];
+	if ((s.job2Level ?? 1) < JOB3_RULES.unlockJob2Lv)
+		need.push(`Job2 Lv ${s.job2Level ?? 1}/${JOB3_RULES.unlockJob2Lv}`);
+	if (!((s.clearsBy?.[JOB3_RULES.unlockClear] ?? 0) > 0))
+		need.push("เคลียร์ดัน 10");
+	if (!trialPassed(s, id))
+		need.push("ผ่าน Master Trial (เคลียร์ดัน 10 🔥โหมดยาก ตอน Job2 Lv 50)");
+	return need.join(" · ");
 }
 /** ⚔️ Master Trial: a 🔥 hard ดัน 10 win at Job2 Lv 50 passes the trial of that 2nd job's Awakening. Returns it the first time. */
-export function trialWin(s: SaveData, dungeon: string, hard: boolean): Job3Id | undefined {
-  if (!hard || dungeon !== JOB3_RULES.trialDungeon || !s.job2 || (s.job2Level ?? 1) < JOB3_RULES.unlockJob2Lv) return undefined
-  const d = job3Of(s.job2)
-  if (!d || s.job3Trial?.[d.id]) return undefined
-  ;(s.job3Trial ??= {})[d.id] = 1
-  return d.id
+export function trialWin(
+	s: SaveData,
+	dungeon: string,
+	hard: boolean,
+): Job3Id | undefined {
+	if (
+		!hard ||
+		dungeon !== JOB3_RULES.trialDungeon ||
+		!s.job2 ||
+		(s.job2Level ?? 1) < JOB3_RULES.unlockJob2Lv
+	)
+		return undefined;
+	const d = job3Of(s.job2);
+	if (!d || s.job3Trial?.[d.id]) return undefined;
+	(s.job3Trial ??= {})[d.id] = 1;
+	return d.id;
 }
 /** Awaken. First time: Job3 Lv 1, no points, pure path, variant A. Coming back to a parked one keeps everything. */
 export function changeJob3(id: Job3Id): boolean {
-  const s = save()
-  if (!job3Ready(s, id) || activeJob3(s) === id) return false
-  if (s.job3 && s.job3 !== id) { s.job3Points = (s.job3Points ?? 0) + resetTree3(s); s.job3Path = 'pure'; s.job3Var = 'a' } // another 3rd job: web points come back
-  s.job3 = id
-  s.job3Level ??= 1; s.job3Xp ??= 0; s.job3Points ??= 0; s.job3Tree ??= {}
-  s.job3Path ??= 'pure'; s.job3Var ??= 'a'
-  persist()
-  return true
+	const s = save();
+	if (!job3Ready(s, id) || activeJob3(s) === id) return false;
+	if (s.job3 && s.job3 !== id) {
+		s.job3Points = (s.job3Points ?? 0) + resetTree3(s);
+		s.job3Path = "pure";
+		s.job3Var = "a";
+	} // another 3rd job: web points come back
+	s.job3 = id;
+	s.job3Level ??= 1;
+	s.job3Xp ??= 0;
+	s.job3Points ??= 0;
+	s.job3Tree ??= {};
+	s.job3Path ??= "pure";
+	s.job3Var ??= "a";
+	persist();
+	return true;
 }
 /** Free ใยชั้น 3 reset: clears it and returns the points it held (not yet added back). */
 export function resetTree3(s: SaveData): number {
-  const n = Object.values(s.job3Tree ?? {}).reduce((a, v) => a + v, 0)
-  s.job3Tree = {}
-  return n
+	const n = Object.values(s.job3Tree ?? {}).reduce((a, v) => a + v, 0);
+	s.job3Tree = {};
+	return n;
 }
 /** 💎 a path swap costs right now: 0 once every JOB3_RULES.freeSwapDays days, else pathSwapGems. */
 export function job3SwapCost(s: SaveData, day = today()): number {
-  if (!s.job3SwapAt) return 0
-  const days = (Date.parse(day) - Date.parse(s.job3SwapAt)) / 86_400_000
-  return days >= JOB3_RULES.freeSwapDays ? 0 : JOB3_RULES.pathSwapGems
+	if (!s.job3SwapAt) return 0;
+	const days = (Date.parse(day) - Date.parse(s.job3SwapAt)) / 86_400_000;
+	return days >= JOB3_RULES.freeSwapDays ? 0 : JOB3_RULES.pathSwapGems;
 }
 /** Pure <-> hybrid. The web resets (points back) because each path opens different nodes. False = nothing spent. */
 export function setJob3Path(path: Job3Path, day = today()): boolean {
-  const s = save()
-  if (!activeJob3(s) || s.job3Path === path) return false
-  const cost = job3SwapCost(s, day)
-  if (s.gems < cost) return false
-  s.gems -= cost
-  if (cost === 0) s.job3SwapAt = day
-  s.job3Points = (s.job3Points ?? 0) + resetTree3(s)
-  s.job3Path = path
-  persist()
-  return true
+	const s = save();
+	if (!activeJob3(s) || s.job3Path === path) return false;
+	const cost = job3SwapCost(s, day);
+	if (s.gems < cost) return false;
+	s.gems -= cost;
+	if (cost === 0) s.job3SwapAt = day;
+	s.job3Points = (s.job3Points ?? 0) + resetTree3(s);
+	s.job3Path = path;
+	persist();
+	return true;
 }
 /** Skill 3 variant (A / B): free, any time in town. */
 export function setJob3Variant(v: Job3Variant): boolean {
-  const s = save()
-  if (!activeJob3(s) || s.job3Var === v) return false
-  s.job3Var = v
-  persist()
-  return true
+	const s = save();
+	if (!activeJob3(s) || s.job3Var === v) return false;
+	s.job3Var = v;
+	persist();
+	return true;
 }
 
 /** Class -> another base class for JOB_CHANGE.repickGems (Q 2026-11-04). Unlike changeJob, Job Lv + EXP stay:
@@ -473,82 +694,163 @@ export function setJob3Variant(v: Job3Variant): boolean {
  *  them again. Web points come back as skill points, talents clear (derived from Job Lv, re-place free).
  *  Base Lv, stat points, items, cards, zeny and the remaining gems are untouched. False (nothing spent) when short. */
 export function repickJob(job: JobId): boolean {
-  const s = save()
-  if (!canRepickJob(s) || job === s.job || job === 'novice' || s.gems < JOB_CHANGE.repickGems) return false
-  s.gems -= JOB_CHANGE.repickGems
-  s.skillPoints += resetTree(s)
-  s.jobTalents = {}
-  if (s.job2) { s.job2Points = (s.job2Points ?? 0) + resetTree2(s); s.job2 = undefined; s.job2Talents = {} } // the new class picks its own 2nd job free (Job2 Lv kept)
-  s.job = job
-  s.jobSkills = { auto: 1, ult: 1 }
-  persist()
-  return true
+	const s = save();
+	if (
+		!canRepickJob(s) ||
+		job === s.job ||
+		job === "novice" ||
+		s.gems < JOB_CHANGE.repickGems
+	)
+		return false;
+	s.gems -= JOB_CHANGE.repickGems;
+	s.skillPoints += resetTree(s);
+	s.jobTalents = {};
+	if (s.job2) {
+		s.job2Points = (s.job2Points ?? 0) + resetTree2(s);
+		s.job2 = undefined;
+		s.job2Talents = {};
+	} // the new class picks its own 2nd job free (Job2 Lv kept)
+	s.job = job;
+	s.jobSkills = { auto: 1, ult: 1 };
+	persist();
+	return true;
 }
 
-/** Free skill tree reset: clears the tree and returns the points it held (not yet added back). */
+/** Free skill tree reset: clears Class 1 tree, refunds any borrowed Job2/Job3 points to their pools, and returns native Class 1 points. */
 export function resetTree(s: SaveData): number {
-  const n = Object.values(s.jobTree ?? {}).reduce((a, v) => a + v, 0)
-  s.jobTree = {}
-  return n
+	const total = Object.values(s.jobTree ?? {}).reduce((a, v) => a + v, 0);
+	const j2 = Math.min(total, s.crossSpent?.j2In1 ?? 0);
+	const j3 = Math.min(Math.max(0, total - j2), s.crossSpent?.j3In1 ?? 0);
+	if (j2 > 0) s.job2Points = (s.job2Points ?? 0) + j2;
+	if (j3 > 0) s.job3Points = (s.job3Points ?? 0) + j3;
+	if (s.crossSpent) {
+		s.crossSpent.j2In1 = 0;
+		s.crossSpent.j3In1 = 0;
+	}
+	s.jobTree = {};
+	return Math.max(0, total - j2 - j3);
+}
+
+/** RO Mobile style downward point check: can the hero spend a point on a `tier` (1 | 2 | 3) node using native or higher-tier points? */
+export function canSpendInTier(
+	s: SaveData,
+	tier: 1 | 2 | 3,
+): { can: boolean; fromTier: 1 | 2 | 3; avail: number; borrowed: boolean } {
+	const p1 = s.skillPoints ?? 0;
+	const p2 = s.job2 ? (s.job2Points ?? 0) : 0;
+	const p3 = activeJob3(s) ? (s.job3Points ?? 0) : 0;
+	if (tier === 1) {
+		const avail = p1 + p2 + p3;
+		const fromTier: 1 | 2 | 3 = p1 > 0 ? 1 : p2 > 0 ? 2 : 3;
+		return { can: avail > 0, fromTier, avail, borrowed: p1 <= 0 && avail > 0 };
+	}
+	if (tier === 2) {
+		const avail = p2 + p3;
+		const fromTier: 1 | 2 | 3 = p2 > 0 ? 2 : 3;
+		return { can: avail > 0, fromTier, avail, borrowed: p2 <= 0 && avail > 0 };
+	}
+	return { can: p3 > 0, fromTier: 3, avail: p3, borrowed: false };
+}
+
+/** Spend 1 skill point on a `tier` (1 | 2 | 3) node: uses native points first, then borrows from Job2 -> Job3 downward. Returns the source tier (1/2/3) or 0 if none. */
+export function spendPointInTier(s: SaveData, tier: 1 | 2 | 3): 1 | 2 | 3 | 0 {
+	const check = canSpendInTier(s, tier);
+	if (!check.can) return 0;
+	const cs = (s.crossSpent ??= {});
+	if (check.fromTier === 1) {
+		s.skillPoints--;
+		return 1;
+	}
+	if (check.fromTier === 2) {
+		s.job2Points = (s.job2Points ?? 0) - 1;
+		if (tier === 1) cs.j2In1 = (cs.j2In1 ?? 0) + 1;
+		return 2;
+	}
+	s.job3Points = (s.job3Points ?? 0) - 1;
+	if (tier === 1) cs.j3In1 = (cs.j3In1 ?? 0) + 1;
+	else if (tier === 2) cs.j3In2 = (cs.j3In2 ?? 0) + 1;
+	return 3;
+}
+
+/** Total points borrowed downward across all tiers. */
+export function totalCrossSpent(s: { crossSpent?: CrossSpent }): number {
+	const c = s.crossSpent;
+	return (c?.j2In1 ?? 0) + (c?.j3In1 ?? 0) + (c?.j3In2 ?? 0);
 }
 
 // ---------- equipment cards (data/cards.ts, design/equipment-cards.md) ----------
 export function addCard(s: SaveData, id: string, n = 1) {
-  const bag = (s.cards ??= {})
-  bag[id] = (bag[id] ?? 0) + n
-  const seen = (s.cardSeen ??= [])
-  if (!seen.includes(id)) seen.push(id)
+	const bag = (s.cards ??= {});
+	bag[id] = (bag[id] ?? 0) + n;
+	const seen = (s.cardSeen ??= []);
+	if (!seen.includes(id)) seen.push(id);
 }
 /** Put a card from the bag into the first free slot of an item. */
-export function socketCard(s: SaveData, itemId: string, cardId: string, max: number): boolean {
-  const bag = (s.cards ??= {}), sock = ((s.sockets ??= {})[itemId] ??= [])
-  if ((bag[cardId] ?? 0) <= 0 || sock.length >= max) return false
-  bag[cardId]--
-  if (bag[cardId] <= 0) delete bag[cardId]
-  sock.push(cardId)
-  return true
+export function socketCard(
+	s: SaveData,
+	itemId: string,
+	cardId: string,
+	max: number,
+): boolean {
+	const bag = (s.cards ??= {}),
+		sock = ((s.sockets ??= {})[itemId] ??= []);
+	if ((bag[cardId] ?? 0) <= 0 || sock.length >= max) return false;
+	bag[cardId]--;
+	if (bag[cardId] <= 0) delete bag[cardId];
+	sock.push(cardId);
+	return true;
 }
 /** Take one card out (free, the card goes back to the bag). */
 export function unsocketCard(s: SaveData, itemId: string, index: number) {
-  const sock = s.sockets?.[itemId]
-  if (!sock || index >= sock.length) return
-  const [id] = sock.splice(index, 1)
-  addCard(s, id)
-  if (!sock.length) delete s.sockets![itemId]
+	const sock = s.sockets?.[itemId];
+	if (!sock || index >= sock.length) return;
+	const [id] = sock.splice(index, 1);
+	addCard(s, id);
+	if (!sock.length) delete s.sockets![itemId];
 }
 /** Every card in an item back to the bag (before the item is sold). */
 export function unsocketAll(s: SaveData, itemId: string) {
-  while (s.sockets?.[itemId]?.length) unsocketCard(s, itemId, 0)
+	while (s.sockets?.[itemId]?.length) unsocketCard(s, itemId, 0);
 }
 
 // ---------- forge: materials + grades (data/materials.ts, data/craft.ts) ----------
 export function addMat(s: SaveData, id: string, n = 1) {
-  const bag = (s.mats ??= {})
-  bag[id] = (bag[id] ?? 0) + n
+	const bag = (s.mats ??= {});
+	bag[id] = (bag[id] ?? 0) + n;
 }
-export const canPay = (s: SaveData, c: { mats: Record<string, number>; zeny: number }) =>
-  s.zeny >= c.zeny && Object.entries(c.mats).every(([id, n]) => (s.mats?.[id] ?? 0) >= n)
+export const canPay = (
+	s: SaveData,
+	c: { mats: Record<string, number>; zeny: number },
+) =>
+	s.zeny >= c.zeny &&
+	Object.entries(c.mats).every(([id, n]) => (s.mats?.[id] ?? 0) >= n);
 /** Spend a forge cost; false (and nothing spent) when short. */
-export function pay(s: SaveData, c: { mats: Record<string, number>; zeny: number }): boolean {
-  if (!canPay(s, c)) return false
-  s.zeny -= c.zeny
-  for (const [id, n] of Object.entries(c.mats)) { s.mats![id] -= n; if (s.mats![id] <= 0) delete s.mats![id] }
-  return true
+export function pay(
+	s: SaveData,
+	c: { mats: Record<string, number>; zeny: number },
+): boolean {
+	if (!canPay(s, c)) return false;
+	s.zeny -= c.zeny;
+	for (const [id, n] of Object.entries(c.mats)) {
+		s.mats![id] -= n;
+		if (s.mats![id] <= 0) delete s.mats![id];
+	}
+	return true;
 }
 
 /** Forge fodder (basic shop items kept as counts, design 3.7). */
 export function addFodder(s: SaveData, id: string, n = 1) {
-  const bag = (s.fodder ??= {})
-  bag[id] = (bag[id] ?? 0) + n
-  if (bag[id] <= 0) delete bag[id]
+	const bag = (s.fodder ??= {});
+	bag[id] = (bag[id] ?? 0) + n;
+	if (bag[id] <= 0) delete bag[id];
 }
 /** Forget every forge record of an item that leaves the bag (sold / turned into fodder). */
 export function forgetForge(s: SaveData, id: string) {
-  if (s.grade) delete s.grade[id]
-  if (s.refine) delete s.refine[id]
-  if (s.refinePity) delete s.refinePity[id]
-  if (s.refineLines) delete s.refineLines[id]
-  if (s.broken) s.broken = s.broken.filter((x) => x !== id)
-  if (s.rerollCount) delete s.rerollCount[id]
-  if (s.taint) delete s.taint[id] // v89: a tainted item that leaves the bag is gone with its curse
+	if (s.grade) delete s.grade[id];
+	if (s.refine) delete s.refine[id];
+	if (s.refinePity) delete s.refinePity[id];
+	if (s.refineLines) delete s.refineLines[id];
+	if (s.broken) s.broken = s.broken.filter((x) => x !== id);
+	if (s.rerollCount) delete s.rerollCount[id];
+	if (s.taint) delete s.taint[id]; // v89: a tainted item that leaves the bag is gone with its curse
 }
