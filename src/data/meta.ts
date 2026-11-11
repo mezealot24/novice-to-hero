@@ -1938,16 +1938,19 @@ export function totalBase(s: StatsInput): Record<BaseStat, number> {
 	if (s.job === "cleric" && s.jobTree) {
 		// v86 💠 แก่นศรัทธา: จิตสงบ + STR / WIS · ศรัทธาสู่กาย INT -> STR (v102: + WIS -> VIT)
 		let flat = 0,
+			int = 0,
 			per = 0,
 			perW = 0;
 		for (const m of treeMods(s.jobTree, "cleric")) {
 			flat += m.clCoreBase ?? 0;
+			int += m.clInt ?? 0;
 			if (m.clIntToStr) per = per ? Math.min(per, m.clIntToStr) : m.clIntToStr;
 			if (m.clWisToVit)
 				perW = perW ? Math.min(perW, m.clWisToVit) : m.clWisToVit;
 		}
 		out.str += Math.round(flat);
 		out.wis += Math.round(flat);
+		out.int += Math.round(int); // before INT -> STR
 		if (per > 0) out.str += Math.floor(out.int / per);
 		if (perW > 0) out.vit += Math.floor(out.wis / perW); // WIS after จิตสงบ
 	}

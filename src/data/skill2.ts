@@ -52,7 +52,7 @@ export const SKILL2: Skill2Def[] = [
   s('cl_bless', 'cleric', '🔆', 'พรแสง', 30, 4, `${S2N.blessTurns} เทิร์น STR/DEX/INT/WIS +${S2N.blessStat} + ล้างดีบัฟ ${S2N.blessCleanse} อย่าง (ร่ายเมื่อพรหมด)`, // v77 Q 2026-11-06: passive -> active
     { icon: '🛡️', name: 'Kyrie Eleison', desc: (lv) => `ร่ายพรแล้วได้บาเรีย ${Math.round(S2N.kyrieHp(lv) * 100)}% HP สูงสุด (แตกเมื่อโดน ${S2N.kyrieHits} ฮิต)` },
     { icon: '✨', name: 'Gloria', desc: `ระหว่างพรแสง LUK +${S2N.gloriaLuk} (คริ / หลบโชคดี / โอกาสติดผลสูงขึ้น)` }),
-  s('cl_spear', 'cleric', '🔱', 'หอกแสง', 20, 3, 'เรียกหอกแสง 2 เล่ม (ยิงทุกตัวตอนจบเทิร์น)',
+  s('cl_spear', 'cleric', '🔱', 'หอกแสง', 20, 3, 'เรียกหอกแสง 2 เล่ม (ตอนจบเทิร์น ใส่ตัวสุ่ม · ตัวข้างๆ 50%)',
     { icon: '⚜️', name: 'หอกคม', desc: (lv) => `หอกแรง +${lv * 10}%` }, { icon: '🌟', name: 'หอกสวรรค์', desc: 'เรียกหอก 4 เล่ม' }),
   // 🗡️ Thief (Energy)
   s('th_smoke', 'thief', '💨', 'ม่านควัน', 40, 4, 'หลบการโจมตีถัดไปแน่นอน 1 ครั้ง',

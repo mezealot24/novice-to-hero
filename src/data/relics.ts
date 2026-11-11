@@ -30,7 +30,7 @@ export const RELICS: Record<RelicId, RelicDef> = {
   asura: { id: 'asura', name: 'ร่างอสุรา', icon: '👹', desc: 'ร่างสลับ: คริ +20% · ดาเมจคริ +60% · แลกกับ: ฟื้น Mana/Energy/Rage −50%' },
   queen: { id: 'queen', name: 'ราชินีธาตุ', icon: '😈', desc: 'ร่างสลับ: ดาเมจธาตุ (⚡🔥❄️✨☠️ ทั้งพรและไฟลุก/พิษ) +60% · แลกกับ: ตีปกติ −50%' },
   superbolt: { id: 'superbolt', name: 'อสนีเทพ', icon: '⚡', desc: 'ร่างแปลง: สายฟ้าจากพร 20% กลายเป็นฟ้าผ่าใหญ่ x3 + ระเบิดใส่ตัวอื่น 0.5x', needs: 'storm' },
-  magicspear: { id: 'magicspear', name: 'หอกเวท', icon: '✨', desc: 'ร่างแปลง: หอกแสงแรง x2.5 · ทุกชุดหอกปล่อยคลื่นไฟใส่ทุกตัว', needs: 'holy' },
+  magicspear: { id: 'magicspear', name: 'หอกเวท', icon: '✨', desc: 'ร่างแปลง: หอกแสงแรง x1.8 · ทุกชุดหอกปล่อยคลื่นไฟใส่ทุกตัว', needs: 'holy' },
   glass: { id: 'glass', name: 'แก้วร้าว', icon: '💔', desc: 'ร่างแปลง: HP ต่ำกว่า 30% → ดาเมจ +60% · รับดาเมจ +30% · ล้มศัตรูฟื้น 5%' },
 }
 
@@ -54,7 +54,7 @@ export const RELIC_RULES = {
   asura: { crit: 0.2, critMul: 0.6, regenCut: 0.5 },
   queen: { elem: 0.6, basicCut: 0.5 },
   superbolt: { chance: 0.2, mul: 3, splash: 0.5 },
-  magicspear: { mul: 2.5 },
+  magicspear: { mul: 1.8 },
   glass: { below: 0.3, dmg: 0.6, taken: 0.3, killHeal: 0.05 },
 }
 

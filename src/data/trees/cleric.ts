@@ -24,17 +24,18 @@ export const tree: ClassTree = {
   nodes: [
     // A: Sanctuary
     // v58 melee hybrid (Q 2026-11-04): the Ult column. Old ids kept so saved points stay; meanings changed.
-    n('cleric_a1', 'cleric_a', 1, '💗', 'พรอุ่นไอ', 5, (lv) => `สวนกลับ +${+(lv * KIT.clericWarmCounterLv * 100).toFixed(1)}% · Ult Holy Light ${CLERIC_KIT.ultLights + lv * KIT.clericWarmLightLv} ลูก`, (lv) => ({ counter: KIT.clericWarmCounterLv * lv, clUltLights: KIT.clericWarmLightLv * lv })),
+    n('cleric_a1', 'cleric_a', 1, '💗', 'พรอุ่นไอ', 5, (lv) => `สวนกลับ +${+(lv * KIT.clericWarmCounterLv * 100).toFixed(1)}% · Ult 🔱หอกแสง ${CLERIC_KIT.ultLights + lv * KIT.clericWarmLightLv} เล่ม`, (lv) => ({ counter: KIT.clericWarmCounterLv * lv, clUltLights: KIT.clericWarmLightLv * lv })),
     n('cleric_a2', 'cleric_a', 2, '🔰', 'เกราะแสง', 3, (lv) => `หอกแสงยิงแล้วได้โล่ ${Math.round(lv * KIT.clericSpearShieldLv * 100)}% HP (ต่อชุดหอก)`, (lv) => ({ clSpearShield: KIT.clericSpearShieldLv * lv })),
     n('cleric_a3t', 'cleric_a', 3, '✴️', 'หนามแสง', 3, (lv) => `โล่รับดาเมจแล้วสะท้อน ${lv * 25}% ใส่ตัวที่ตี`, (lv) => ({ thorns: 0.25 * lv })),
     n('cleric_a4x', 'cleric_a', 4, '🔆', 'ไฟชำระ', 1, () => `Ult ล้างดีบัฟบนตัวทั้งหมด + ฮีล ${Math.round(CLERIC_KIT.purifyHeal * 100)}% M.ATK`, () => ({ clPurify: 1 })),
     // B: Judgement
-    n('cleric_b1', 'cleric_b', 1, '🌟', 'แสงคม', 3, (lv) => `M.ATK +${lv * 5}`, (lv) => ({ matk: 5 * lv })),
+    // v120 (Q 2026-11-11): + INT 1 per shown level (lv here is the OLD 0..3 scale, stretched to 5 -> x5/3)
+    n('cleric_b1', 'cleric_b', 1, '🌟', 'แสงคม', 3, (lv) => `M.ATK +${lv * 5} · INT +${Math.round((lv * 5) / 3)} → ฮีล · หอกแสง · ดาเมจเวททุกท่าแรงขึ้น`, (lv) => ({ matk: 5 * lv, clInt: (lv * 5) / 3 })),
     n('cleric_b2', 'cleric_b', 2, '⚖️', 'ตัดสินหมู่', 3, (lv) => `แสงยิง ${2 + Math.min(lv, 2)} ตัว${lv >= 3 ? ' · ดาเมจแสง +15%' : ''}`, (lv) => ({ smiteTargets: Math.min(lv, 2), smiteMul: lv >= 3 ? 0.15 : 0 })),
     n('cleric_b3s', 'cleric_b', 3, '🧘', 'ใจนิ่ง', 3, (lv) => `ฮีลเมื่อ HP < ${75 - lv * 10}% · ฮีลแรง +${lv * 10}%`, (lv) => ({ healAt: 0.1 * lv, healAmp: 0.1 * lv })),
     n('cleric_b4j', 'cleric_b', 4, '⚖️', 'วันพิพากษา', 1, () => 'แสงครั้งที่ 3 ทุกรอบ = พิพากษา: ใส่ทุกตัว 2.2x + ตราบาป (รับดาเมจ +15% 2 เทิร์น)', () => ({ judge: 1 })),
     // C: ศรัทธา (Faith stacks -> holy burst)
-    n('cleric_c1', 'cleric_c', 1, '📿', 'สวดภาวนา', 3, (lv) => `ทักษะ 1 ศรัทธา +${T.faithCast} · ฮีลสกิล +${T.faithHeal} · ครบ ${T.faithMax} = ระเบิดแสงใส่ทุกตัว ${x2(T.faith * lv)}x Pm`, (lv) => ({ clFaith: T.faith * lv })),
+    n('cleric_c1', 'cleric_c', 1, '📿', 'สวดภาวนา', 3, (lv) => `สะสม 🙏ศรัทธา: ใช้ทักษะ 1 +${T.faithCast} · ฮีลจากสกิล +${T.faithHeal} · ศรัทธาละ ฮีลแรง +${pc(T.faithHealAmp)} (เต็ม +${pc(T.faithHealAmp * T.faithMax)}) · ครบ ${T.faithMax} → ระเบิดแสงใส่มอนทุกตัว ${x2(T.faith * lv)}x M.ATK แล้วเริ่มนับใหม่`, (lv) => ({ clFaith: T.faith * lv })),
     n('cleric_c2', 'cleric_c', 2, '💛', 'ล้นศรัทธา', 3, (lv) => `ฮีลเกิน HP เต็ม (≥ ${pc(T.overMin)} HP) ${pc(T.faithOver * lv)} ได้ศรัทธา +1`, (lv) => ({ clFaithOver: T.faithOver * lv })),
     n('cleric_c3', 'cleric_c', 3, '🤲', 'พรเกื้อ', 3, (lv) => `ระเบิดศรัทธาฮีล ${pc(T.faithHealPer * lv)} HP ต่อศรัทธา (เต็ม = ${pc(T.faithHealPer * lv * T.faithMax)})`, (lv) => ({ clFaithHeal: T.faithHealPer * lv })),
     n('cleric_c4', 'cleric_c', 4, '🌞', 'แสงล้นฟ้า', 1, () => `ฮีลเกิน HP เต็ม → ดาเมจแสงใส่ตัวหน้า x${T.overBurst} ของส่วนเกิน (นับได้ถึง ${pc(T.overCap)} HP ต่อครั้ง)`, () => ({ clOverBurst: 1 })),
@@ -60,7 +61,7 @@ export const tree: ClassTree = {
   talents: [
     // Row I · Job Lv 5
     t('cleric_t1_focus', 1, '💧', 'สมาธิ', 2, (r) => `ฟื้น Mana +${r === 1 ? 6 : 10}/เทิร์น`, (r) => ({ resRegen: r === 1 ? 2 : 3.4 })),
-    t('cleric_t1_spear', 1, '🔱', 'หอกเปิดศึก', 2, (r) => `เริ่มทุกไฟต์ด้วยหอกแสง ${r === 1 ? 2 : 3} เล่ม (เล่มละ 30% M.ATK ใส่ทุกตัว)`, (r) => ({ spearStart: r === 1 ? 2 : 3 })),
+    t('cleric_t1_spear', 1, '🔱', 'หอกเปิดศึก', 2, (r) => `เริ่มทุกไฟต์ด้วยหอกแสง ${r === 1 ? 2 : 3} เล่ม (เล่มละ 30% M.ATK ใส่ตัวสุ่ม · ตัวข้างๆ 50%)`, (r) => ({ spearStart: r === 1 ? 2 : 3 })),
     t('cleric_t1_ward', 1, '🛡️', 'ร่างพร', 2, (r) => `เริ่มไฟต์บอสด้วยโล่ ${r === 1 ? 12 : 20}% HP`, (r) => ({ bossShield: r === 1 ? 0.12 : 0.2 })),
     // Row II · Job Lv 10 (ult "พรคุ้มครอง")
     t('cleric_t2_regen', 2, '🌿', 'พรยืนยาว', 2, (r) => `ult แถมฟื้น ${r === 1 ? 2 : 3}% HP/เทิร์น 3 เทิร์น`, (r) => ({ ultRegen: r === 1 ? 0.02 : 0.03 })),

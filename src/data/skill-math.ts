@@ -44,7 +44,7 @@ export const KIT = {
   // v58 Priest Ult web (Q 2026-11-04), linear per level: พรคุ้มครอง (v92 Q 2026-11-07) = ult smash 150% + 50%/Lv P.ATK, Lv5 = 400% · พรอุ่นไอ Lv5 = counter +12.5%, Holy Light 3 -> 8 · เกราะแสง Lv3 = 6% shield per spear volley
   clericUltAtkLv: 0.15, // v108 (Q: Ult back to v58): root พรคุ้มครอง smash +0.15x P.ATK per Lv = 150% x (1 + 10%/Lv) · v104 0.2 per 🌄 Lv · v92 0.5 per root Lv
   clericWarmCounterLv: 0.025, clericWarmLightLv: 1, clericSpearShieldLv: 0.02,
-  spearBase: 0.3, spearMax: 8,
+  spearBase: 0.3, spearMax: 8, spearSplash: 0.5, // v120 Q 2026-11-11: หอกแสง = random target (Priest lights: their own target) + the monster on each side x spearSplash
   thiefAuto: 1.6, thiefAutoPoison: 3, thiefUlt: 0.7, thiefUltHits: 4, thiefUltDodge: 2,
   // v82 Archer web: 🧪 ศรพิษ (under ทักษะ 1) + 🏷️ ล่าหัว (under Ult), first guesses (design/skill-tree-archer.md v82)
   archerTree: {
@@ -61,7 +61,7 @@ export const KIT = {
   },
   // v84 Priest web: 🙏 ศรัทธา (under ทักษะ 1) + ⛪ ฟื้นคืน (under Ult), first guesses (design/skill-tree-priest.md v84)
   clericTree: {
-    faithMax: 5, faithHeal: 2, faithCast: 1, faith: 0.4, // สวดภาวนา: Skill 1 cast +1 / skill heal +2 Faith · full = burst every monster x Pm per lv
+    faithMax: 5, faithHeal: 2, faithCast: 1, faith: 0.4, faithHealAmp: 0.06, // v120 Q: each held Faith = heal +6% // สวดภาวนา: Skill 1 cast +1 / skill heal +2 Faith · full = burst every monster x Pm per lv
     faithOver: 0.2, overMin: 0.03, faithHealPer: 0.01, // ล้นศรัทธา: overheal >= 3% max HP: chance/lv of +1 Faith · พรเกื้อ: burst heals max HP share per stack per lv
     overBurst: 1.5, overCap: 0.25, // ★ แสงล้นฟ้า: overheal x this as holy damage to the front monster (overheal counted up to 25% max HP per heal)
     wardTurns: 2, ward: 0.06, emergencyAt: 0.3, emergency: 0.08, mend: 0.1, // ม่านพร: after ult −dmg taken/lv N hero turns · ฉุกเฉิน: under 30% HP heal max HP share/lv (1/wave) · ชุบชีวา: ult heals missing HP share/lv
@@ -333,9 +333,12 @@ export function autoInfo(jobId: JobId, st: Stats): InfoRow[] {
       if (st.mgOverflow > 0) out.push({ label: 'ตอน Mana ≥ 90% (พลังล้น)', value: hitText(st, MAGE_CAST.fireMul * pow * st.mgOverflow, true) })
       break
     case 'cleric':
-      out.push({ label: 'ตีปกติ ทุบประชิด (P.ATK)', value: hitText(st, clericBasic(), false) })
-      out.push({ label: `ฮีล (HP < ${pct(KIT.clericHealBelow - st.healAt)})`, value: `${heal(st, st.matk * CLERIC_KIT.heal * pow)} HP` })
-      out.push({ label: `แสงหลังทุบ ${KIT.clericSmiteTargets + st.smiteTargets} ตัวหน้า ดาเมจ/ตัว`, value: hitText(st, CLERIC_KIT.smite * pow * (1 + st.smiteMul), true) })
+      out.push({ label: '🔨 ทุบประชิด (P.ATK)', value: hitText(st, clericBasic(), false) })
+      out.push({ label: `💖 ฮีล (ตอน HP < ${pct(KIT.clericHealBelow - st.healAt)})`, value: `${heal(st, st.matk * CLERIC_KIT.heal * pow)} HP` })
+      out.push({ label: `🔱 หอกแสงใส่ ${KIT.clericSmiteTargets + st.smiteTargets} ตัวหน้า (ตอนไม่ฮีล) /ตัว`, value: hitText(st, CLERIC_KIT.smite * pow * (1 + st.smiteMul), true) })
+      out.push({ label: '　↳ ตัวข้างๆ โดน 50%', value: hitText(st, CLERIC_KIT.smite * pow * (1 + st.smiteMul) * KIT.spearSplash, true) })
+      if (st.clFaith > 0) out.push({ label: `🙏 ฮีลตอนศรัทธาเต็ม ${KIT.clericTree.faithMax}`, value: `${heal(st, st.matk * CLERIC_KIT.heal * pow * (1 + KIT.clericTree.faithHealAmp * KIT.clericTree.faithMax))} HP` })
+      if (st.clFaith > 0) out.push({ label: `🙏 ระเบิดศรัทธา (ครบ ${KIT.clericTree.faithMax}) ใส่ทุกตัว`, value: hitText(st, st.clFaith * pow, true) })
       if (st.judge > 0) out.push({ label: `พิพากษา (ทุก ${KIT.clericJudgeEvery} ครั้ง)`, value: hitText(st, KIT.clericJudge * pow * (1 + st.smiteMul), true) })
       break
     case 'thief':
@@ -420,7 +423,8 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
         break
       }
       out.push({ label: `ทุบทุกตัว ${pct(clericUltSmash(st))} P.ATK`, value: hitText(st, clericUltSmash(st) * hitPow * (1 + st.pskill), false) })
-      out.push({ label: `Holy Light ${clericUltLights(st)} ลูก ตัวสุ่ม (พลังเวท)`, value: hitText(st, CLERIC_KIT.ultLight * hitPow, true) })
+      out.push({ label: `🔱 หอกแสง ${clericUltLights(st)} เล่ม ตัวสุ่ม /เล่ม`, value: hitText(st, CLERIC_KIT.ultLight * hitPow, true) })
+      out.push({ label: '　↳ ตัวข้างๆ โดน 50%', value: hitText(st, CLERIC_KIT.ultLight * hitPow * KIT.spearSplash, true) })
       out.push({ label: `โล่ ${CLERIC_KIT.ultShieldTurns} เทิร์น`, value: `${shield(st, st.maxHp * CLERIC_KIT.ultShield)} (รวมไม่เกิน ${r(st.maxHp * CLERIC_KIT.shieldCap)})` })
       if (st.clPurify > 0) out.push({ label: 'ไฟชำระ: ล้างดีบัฟ + ฮีล (M.ATK)', value: `${heal(st, st.matk * CLERIC_KIT.purifyHeal)} HP` })
       if (st.ultHoly > 0) out.push({ label: 'แสงลงทัณฑ์/ตัว', value: hitText(st, st.ultHoly, true) })
@@ -455,7 +459,7 @@ export function skill2Info(k: Skill2Def, st: Stats): InfoRow[] {
       if (lv) add('🛡️ Kyrie Eleison', `${shield(st, st.maxHp * S2N.kyrieHp(lv))} · แตกเมื่อโดน ${S2N.kyrieHits} ฮิต`)
       if (star) add('✨ Gloria', `LUK +${S2N.gloriaLuk}`)
       break
-    case 'cl_spear': add(`หอกแสง ${S2N.spearCount(star)} เล่ม ดาเมจ/ตัว`, hitText(st, spearMul(st, k), true)); break
+    case 'cl_spear': add(`หอกแสง ${S2N.spearCount(star)} เล่ม ตัวสุ่ม /เล่ม (ข้างๆ 50%)`, hitText(st, spearMul(st, k), true)); break
     case 'th_smoke': add('หลบแน่นอน', `${S2N.smokeDodges(star)} ครั้ง`); if (lv) add('ฟื้น HP', `${heal(st, st.maxHp * S2N.smokeHeal(lv))}`); break
     case 'th_pick': add('แทงตัวหน้า', hitText(st, S2N.pickMul(star), false)); add('คืน Energy', `${S2N.pickRes(lv)}`); if (star) add('พิษ', `+${S2N.pickPoison} stack`); break
     case 'th_wound': add('แทงทะลุ DEF', hitText(st, S2N.woundMul(star), false)); add('พิษ', `+${S2N.woundPoison(lv)} stack (${st.poisonDmg.toFixed(1)}/stack/เทิร์น)`); break

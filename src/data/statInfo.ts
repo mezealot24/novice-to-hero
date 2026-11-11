@@ -44,7 +44,7 @@ export const STAT_INFO: Record<BaseStat, StatInfo> = {
   int: {
     generic: [(_b, d) => `M.ATK +${P.int.matk}/แต้ม (ตอนนี้ +${P.int.matk * d})`],
     byClass: {
-      swordsman: [maxMana], mage: [maxMana, 'ดาเมจเวททุกท่ามาจาก M.ATK'], cleric: [maxMana, 'เวท + ฮีลทั้งหมดใช้ M.ATK: แสงศักดิ์สิทธิ์ · หอกแสง · Holy Light · ฮีล · ฟื้นฟู · ไฟชำระ'],
+      swordsman: [maxMana], mage: [maxMana, 'ดาเมจเวททุกท่ามาจาก M.ATK'], cleric: [maxMana, 'เวท + ฮีลทั้งหมดใช้ M.ATK: หอกแสง · ฮีล · ฟื้นฟู · ไฟชำระ'],
       thief: [(_b, d) => `ดาเมจพิษ +0.1/stack/แต้ม (ตอนนี้ +${f1(0.1 * d)})`],
     },
   },

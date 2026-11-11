@@ -796,7 +796,9 @@ export class BattleScene extends Phaser.Scene {
     const mul = (KIT.spearBase + this.st.spearMul) * (this.relic === 'magicspear' ? RELIC_RULES.magicspear.mul : 1) // mythic หอกเวท
     this.withSrc('spear', () => {
       for (let i = 0; i < n; i++) {
-        for (const m of this.alive()) { this.strike(m, mul, true, '#f6e27a'); if (this.pk.spearBurn > 0) this.addBurn(m, this.pk.spearBurn, false) } // legend หอกเพลิง
+        const t = this.alive(); if (!t.length) break
+        const m = t[Phaser.Math.Between(0, t.length - 1)] // v120: random target + splash (was: every monster)
+        this.lanceHit(m, mul); if (this.pk.spearBurn > 0 && !m.dead) this.addBurn(m, this.pk.spearBurn, false) // legend หอกเพลิง
         if (this.st.spearHeal > 0) this.heal(this.st.maxHp * this.st.spearHeal, true)
         if (this.px('spearShield') > 0 && Math.random() < this.px('spearShield')) this.addShield(this.st.maxHp * PROC_RULES.spearShield, true) // หอกคุ้มกาย
       }
@@ -1917,11 +1919,29 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** v58 Priest ult: a beam of Holy Light falls on one monster (magic, M.ATK). */
-  private async holyLight(m: Mon, mul: number) {
-    playPfx(this, 'smite', m.spr.x, GROUND, { scale: 1.5, speed: 1.6 }) // pixelfx: a bolt of light drops like a hammer
-    const d = this.strike(m, mul, true, '#fff3a0')
+  private async holyLight(m: Mon, mul: number, skip?: ReadonlySet<Mon>) {
+    const d = this.lanceHit(m, mul, skip) // v120: every Priest light is a หอกแสง (same look, same splash as perk spears)
     await this.wait(BATTLE.stepMs * 0.12)
     return d
+  }
+  /** v120 หอกแสง (Q 2026-11-11): full hit on `m` + KIT.spearSplash on the alive monster next to it on each side
+   *  (`skip` = monsters this volley already hits head-on). Damage source stays the caller's (withSrc). */
+  private lanceHit(m: Mon, mul: number, skip?: ReadonlySet<Mon>): number {
+    if (m.dead) return 0
+    const row = this.alive().sort((a, b) => a.slot - b.slot), i = row.indexOf(m)
+    this.lanceFx(m)
+    const d = this.strike(m, mul, true, '#f6e27a')
+    for (const o of [row[i - 1], row[i + 1]]) if (o && !o.dead && !skip?.has(o)) this.strike(o, mul * KIT.spearSplash, true, '#f6e27a')
+    return d
+  }
+  /** A golden lance drops from the upper left onto the target, then a light burst. Fire-and-forget. */
+  private lanceFx(m: Mon) {
+    const tx = m.spr.x, ty = GROUND - 20
+    const spr = this.add.image(tx - 90, ty - 170, 'dot').setTint(0xf6e27a).setScale(9, 1.6).setRotation(Math.atan2(150, 90)).setDepth(9000).setAlpha(0.95)
+    this.tweens.add({ targets: spr, x: tx, y: ty, duration: 110, ease: 'Quad.easeIn', onComplete: () => {
+      spr.destroy()
+      playPfx(this, 'smite', tx, GROUND, { scale: 1.1, speed: 2 })
+    } })
   }
 
   private async goHome() {
@@ -2219,10 +2239,13 @@ export class BattleScene extends Phaser.Scene {
         else if (this.st.judge > 0 && ++this.smiteCount % KIT.clericJudgeEvery === 0) { // tree ★B: วันพิพากษา
           this.callout('⚖️ พิพากษา!', W / 2, 170); live.forEach((m) => playPfx(this, 'pillar', m.spr.x, GROUND, { scale: 1.2, speed: 2 }))
           for (const m of live) { const d = this.strike(m, KIT.clericJudge * pow * (1 + this.st.smiteMul), true, '#f6e27a'); if (!m.dead) m.marked = 2; if (this.st.smiteVamp > 0) this.heal(d * this.st.smiteVamp, true) }
-        } else for (const m of live.slice(0, KIT.clericSmiteTargets + this.st.smiteTargets)) { // v59 Q: light falls from the sky after the smash (no more ranged orb)
+        } else {
+          const hit = live.slice(0, KIT.clericSmiteTargets + this.st.smiteTargets), set = new Set(hit)
+          for (const m of hit) { // v120: หอกแสง on the front N; splash only onto monsters outside that group
           if (m.dead) continue
-          const d = await this.holyLight(m, CLERIC_KIT.smite * pow * (1 + this.st.smiteMul))
+          const d = await this.holyLight(m, CLERIC_KIT.smite * pow * (1 + this.st.smiteMul), set)
           if (this.st.smiteVamp > 0) this.heal(d * this.st.smiteVamp, true)
+        }
         }
         this.addFaith(KIT.clericTree.faithCast) // v84 สวดภาวนา
         await this.wait(BATTLE.stepMs * 0.4)
@@ -3200,6 +3223,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.ignorePainTurns > 0) return // Berserker ★ ไม่รู้สึกเจ็บ: ดูดเลือดหรือฮีลไม่มีผลใดๆ ขณะอยู่ในสถานะนี้
     const before = this.hp
     if (this.hx.burn > 0) n *= 1 - BATTLE.burnHealCut // burning: healing on the hero is cut
+    if (this.st.clFaith > 0) n *= 1 + this.faith * KIT.clericTree.faithHealAmp // v120 สวดภาวนา: each held Faith = heal +6%
     n *= this.run.mut.healMul * this.aff.healMul // daily mutator แผลเรื้อรัง · tower affix แผลลึก
     const want = Math.ceil(this.hp + n * (1 + this.st.healAmp))
     if (this.st.j2NoLight > 0 && want > this.st.maxHp) { const cap = Math.ceil(this.st.maxHp * KIT2.monk.darkCap); if (this.shield < cap) this.shield = Math.min(cap, this.shield + (want - this.st.maxHp) * KIT2.monk.noLightMul) } // Monk ★ ไร้แสง

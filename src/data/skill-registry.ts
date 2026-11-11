@@ -97,7 +97,7 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
     ],
   },
   cleric: {
-    s1: [sk('job.cleric.auto.cost', 'ค่า Mana', COST), kit('cleric.heal', 'ฮีล × M.ATK'), kit('clericHealBelow', 'ฮีลเมื่อ HP ต่ำกว่า'), kit('cleric.smite', 'แสงตกใส่ × M.ATK'), kit('clericSmiteTargets', 'แสงตกกี่ตัว')],
+    s1: [sk('job.cleric.auto.cost', 'ค่า Mana', COST), kit('cleric.heal', 'ฮีล × M.ATK'), kit('clericHealBelow', 'ฮีลเมื่อ HP ต่ำกว่า'), kit('cleric.smite', 'หอกแสง (ทักษะ 1) × M.ATK'), kit('clericSmiteTargets', 'หอกแสงทักษะ 1 กี่ตัว')],
     s2: [
       s2('cl_renew', ...lin('renewHeal', 'ฮีลต่อเทิร์น × M.ATK')),
       s2('cl_bless', sk('s2n.blessTurns', 'นาน (เทิร์น)', int(0, 20)), sk('s2n.blessStat', 'STR/DEX/INT/WIS +', int(0, 200)), sk('s2n.blessCleanse', 'ล้างดีบัฟ (อย่าง)', int(0, 10)),
@@ -118,7 +118,7 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
     ],
     ult: [
       kit('cleric.ultMana', 'ค่า Mana'), sk('job.cleric.ult.cd', 'คูลดาวน์ (เทิร์น)', CD), kit('cleric.ultAtk', 'ทุบทุกตัว × P.ATK'),
-      kit('cleric.ultLights', 'Holy Light (ลูก)'), kit('cleric.ultLight', 'Holy Light ต่อลูก × M.ATK'), kit('cleric.ultShield', 'โล่ % HP สูงสุด'), kit('cleric.ultShieldTurns', 'โล่นาน (เทิร์น)'), kit('cleric.purifyHeal', 'ไฟชำระฮีล × M.ATK'),
+      kit('cleric.ultLights', 'หอกแสง Ult (เล่ม)'), kit('cleric.ultLight', 'หอกแสง Ult ต่อเล่ม × M.ATK'), kit('cleric.ultShield', 'โล่ % HP สูงสุด'), kit('cleric.ultShieldTurns', 'โล่นาน (เทิร์น)'), kit('cleric.purifyHeal', 'ไฟชำระฮีล × M.ATK'),
     ],
   },
   thief: {
