@@ -77,6 +77,7 @@ import {
 	webPointerUp,
 	webTier,
 } from "./character/web-scroll";
+import { drawEvolutionConduit, drawSkillNode } from "./character/skill-node";
 
 const BRANCH_PET: Record<string, PetId> = {
 	bm_h: "hawk",
@@ -197,160 +198,6 @@ export class CharacterScene extends Phaser.Scene {
 	redraw() {
 		drawPreview(this);
 		this.render();
-	}
-
-	/** Procedural RPG Skill Node Card: displays socket frame, rarity glow, level badge, and icon. */
-	private drawSkillNode(
-		c: Phaser.GameObjects.Container,
-		x: number,
-		y: number,
-		w: number,
-		h: number,
-		n: TreeNode,
-		lv: number,
-		open: boolean,
-		star: boolean,
-		sel: boolean,
-		onClick: () => void,
-		isUltSpine = false,
-	) {
-		const isMax = lv >= n.max;
-		const g = this.add.graphics();
-
-		// 1. Drop shadow
-		g.fillStyle(0x000000, 0.45).fillRoundedRect(x + 1, y + 2, w, h, 10);
-
-		// 2. Node socket background (Ult Spine gets a warm royal gold-violet tint)
-		const bgFill = sel
-			? 0x323c66
-			: isMax
-				? isUltSpine
-					? 0x3b2c1a
-					: 0x1f3448
-				: lv
-					? isUltSpine
-						? 0x2d223b
-						: 0x202b48
-					: open
-						? isUltSpine
-							? 0x221b30
-							: 0x1a1e35
-						: 0x121422;
-		g.fillStyle(bgFill, 1).fillRoundedRect(x, y, w, h, 10);
-
-		// 3. Subtle inner gradient gloss
-		if (open) {
-			g.fillStyle(0xffffff, sel ? 0.13 : isMax ? 0.08 : 0.04).fillRoundedRect(
-				x + 2,
-				y + 2,
-				w - 4,
-				Math.floor(h / 2),
-				8,
-			);
-		}
-
-		// 4. Outer border / Frame
-		let strokeColor = isUltSpine && open ? 0xb58938 : UI.line;
-		let strokeW = isUltSpine ? 2 : 1.5;
-		if (sel) {
-			strokeColor = 0xfff0aa;
-			strokeW = 3;
-		} else if (isMax) {
-			strokeColor = COLORS.gold;
-			strokeW = 2.2;
-		} else if (star) {
-			strokeColor = 0xffb347;
-			strokeW = 2;
-		} else if (lv > 0) {
-			strokeColor = isUltSpine ? 0xffd15c : 0x6bb7f2;
-			strokeW = 2;
-		} else if (!open) {
-			strokeColor = 0x22263b;
-			strokeW = 1;
-		}
-		g.lineStyle(strokeW, strokeColor, 1).strokeRoundedRect(x, y, w, h, 10);
-
-		if (sel || isMax) {
-			g.lineStyle(1, 0xffe277, 0.4).strokeRoundedRect(
-				x + 2,
-				y + 2,
-				w - 4,
-				h - 4,
-				8,
-			);
-		}
-		c.add(g);
-
-		// Left skill icon with recessed circle socket
-		const iconSocket = this.add.graphics();
-		const scX = x + 15,
-			scY = y + 15;
-		iconSocket.fillStyle(0x0c0e1a, 0.7).fillCircle(scX, scY, 10.5);
-		iconSocket.lineStyle(1, strokeColor, 0.6).strokeCircle(scX, scY, 10.5);
-		c.add(iconSocket);
-
-		c.add(
-			txt(this, scX, scY, n.icon, 12)
-				.setOrigin(0.5)
-				.setAlpha(open ? 1 : 0.4),
-		);
-
-		// Right-top level badge
-		const badgeW = 30,
-			badgeH = 14,
-			bx = x + w - badgeW - 3,
-			by = y + 4;
-		const badgeG = this.add.graphics();
-		badgeG
-			.fillStyle(isMax ? 0x7c5415 : lv > 0 ? 0x163456 : 0x0f1220, 0.95)
-			.fillRoundedRect(bx, by, badgeW, badgeH, 5);
-		badgeG
-			.lineStyle(1, isMax ? COLORS.gold : lv > 0 ? 0x4a8cd4 : 0x2e3553, 1)
-			.strokeRoundedRect(bx, by, badgeW, badgeH, 5);
-		c.add(badgeG);
-		c.add(
-			txt(
-				this,
-				bx + badgeW / 2,
-				by + badgeH / 2 - 1,
-				`${lv}/${n.max}`,
-				9,
-				isMax ? "#fff0ba" : lv > 0 ? "#bfe3ff" : UI.sub,
-				true,
-			).setOrigin(0.5),
-		);
-
-		if (star) {
-			c.add(txt(this, x + 28, y + 4, "★", 10, "#ffd15c", true));
-		}
-
-		const nameColor = !open
-			? "#5d6382"
-			: sel
-				? "#ffffff"
-				: isMax
-					? "#ffe994"
-					: UI.text;
-		c.add(
-			clipW(
-				txt(this, x + 5, y + 29, n.name, 10.5, nameColor, isMax || sel),
-				w - 10,
-			),
-		);
-
-		// Tap vs Drag disambiguation so vertical swipe scrolling works smoothly on mobile/desktop
-		const z = this.add
-			.zone(x, y, w, h)
-			.setOrigin(0)
-			.setInteractive({ useHandCursor: true });
-		let downY = 0;
-		z.on("pointerdown", (p: Phaser.Input.Pointer) => {
-			downY = p.y;
-		});
-		z.on("pointerup", (p: Phaser.Input.Pointer) => {
-			if (Math.abs(p.y - downY) < 10) onClick();
-		});
-		c.add(z);
 	}
 
 	// ---------- tab 3: Unified RO Mobile Style 3-Class Vertical Skill Web ----------
@@ -672,7 +519,8 @@ export class CharacterScene extends Phaser.Scene {
 				open = !why || why === "เต็มแล้ว";
 			const star = n.tier === 4 || n.kind === "s2star",
 				sel = id === this.selNode;
-			this.drawSkillNode(
+			drawSkillNode(
+				this,
 				scrollC,
 				p.x,
 				p.y,
@@ -910,7 +758,7 @@ export class CharacterScene extends Phaser.Scene {
 		});
 
 		// Draw Cross-Class Energy Bridges from Tier 1 -> Tier 2 (Skill 1 -> Skill 3 AND Ultimate Spine 1 -> Ultimate Spine 2)
-		this.drawEvolutionConduit(
+		drawEvolutionConduit(
 			spineG,
 			s1CenterX,
 			t1BottomY,
@@ -920,7 +768,7 @@ export class CharacterScene extends Phaser.Scene {
 			t2Unlocked,
 			"⚡ ต่อยอดทักษะ 1 → 3",
 		);
-		this.drawEvolutionConduit(
+		drawEvolutionConduit(
 			spineG,
 			ult1CenterX,
 			t1BottomY,
@@ -956,7 +804,8 @@ export class CharacterScene extends Phaser.Scene {
 			const open = t2Unlocked && (!why || why === "เต็มแล้ว"),
 				star = n.tier === 4,
 				sel = id === this.selNode;
-			this.drawSkillNode(
+			drawSkillNode(
+				this,
 				scrollC,
 				p.x,
 				p.y,
@@ -1152,7 +1001,7 @@ export class CharacterScene extends Phaser.Scene {
 				);
 			});
 
-			this.drawEvolutionConduit(
+			drawEvolutionConduit(
 				spineG,
 				x0 + wAll * 0.35,
 				t2BottomY,
@@ -1162,7 +1011,7 @@ export class CharacterScene extends Phaser.Scene {
 				isJ3Active,
 				"⚜️ แต้มใยชั้น 2 → โบนัสสายตำนาน",
 			);
-			this.drawEvolutionConduit(
+			drawEvolutionConduit(
 				spineG,
 				ult2CenterX,
 				t2BottomY,
@@ -1198,7 +1047,8 @@ export class CharacterScene extends Phaser.Scene {
 				const open = isJ3Active && (!why || why === "เต็มแล้ว"),
 					star = n.tier === 4,
 					sel = id === this.selNode;
-				this.drawSkillNode(
+				drawSkillNode(
+					this,
 					scrollC,
 					p.x,
 					p.y,
@@ -1219,7 +1069,7 @@ export class CharacterScene extends Phaser.Scene {
 			curY += t3PanelH + 16;
 		} else {
 			curY += 34;
-			this.drawEvolutionConduit(
+			drawEvolutionConduit(
 				spineG,
 				ult2CenterX,
 				t2BottomY,
@@ -1303,52 +1153,5 @@ export class CharacterScene extends Phaser.Scene {
 			this.selNode = cols1[0].cells[0].n.id;
 		}
 		renderSelectedNodeFooter(this);
-	}
-
-	/** Draws a glowing vertical/angled energy conduit connecting Class 1 -> Class 2 -> Class 3 skill lines. */
-	private drawEvolutionConduit(
-		g: Phaser.GameObjects.Graphics,
-		x1: number,
-		y1: number,
-		x2: number,
-		y2: number,
-		color: number,
-		active: boolean,
-		label: string,
-	) {
-		const midY = (y1 + y2) / 2;
-		g.lineStyle(active ? 5 : 3, color, active ? 0.35 : 0.18);
-		g.beginPath();
-		g.moveTo(x1, y1);
-		g.lineTo(x1, midY);
-		g.lineTo(x2, midY);
-		g.lineTo(x2, y2);
-		g.strokePath();
-		g.lineStyle(
-			active ? 2 : 1.5,
-			active ? 0xfff6c7 : color,
-			active ? 0.9 : 0.45,
-		);
-		g.beginPath();
-		g.moveTo(x1, y1);
-		g.lineTo(x1, midY);
-		g.lineTo(x2, midY);
-		g.lineTo(x2, y2);
-		g.strokePath();
-		g.fillStyle(color, active ? 0.95 : 0.5)
-			.fillCircle(x1, y1, 4)
-			.fillCircle(x2, y2, 4);
-
-		const pillW = Math.min(220, Math.max(130, label.length * 6.5));
-		const px = (x1 + x2) / 2 - pillW / 2,
-			py = midY - 10;
-		g.fillStyle(0x111528, 0.92).fillRoundedRect(px, py, pillW, 18, 6);
-		g.lineStyle(1, color, active ? 0.8 : 0.4).strokeRoundedRect(
-			px,
-			py,
-			pillW,
-			18,
-			6,
-		);
 	}
 }
