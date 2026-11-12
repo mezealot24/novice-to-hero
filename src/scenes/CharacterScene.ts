@@ -7,40 +7,19 @@ import {
 import { derivedRows } from "../data/stat-rows";
 export { derivedRows };
 export { nodeDetail } from "./character/node-detail";
-import { gradeStars, gradeCap } from "../data/craft";
 import {
 	smashLv,
-	canWearAs,
-	forged,
-	forgeTag,
-	gradeOf,
-	isBroken,
-	refineOf,
 	CERT_SLOTS_AT,
-	EQUIP_SLOTS,
-	offhandLocked,
-	slotKind,
 	type EquipSlot,
-	COSTUMES,
-	itemStatLine,
-	splitStatLine,
-	ITEMS,
-	itemById,
-	slotCount,
-	socketed,
 	NOVICE_PASSIVES,
 	NOVICE_RULES,
 	noviceLeft,
 	noviceSpent,
 	SKILLS,
-	wearText,
 } from "../data/meta";
 import {
 	canChangeJob,
 	canSpendInTier,
-	canUnequip,
-	equip,
-	equipBlock,
 	job2Lock,
 	job3Lock,
 	persist,
@@ -52,7 +31,6 @@ import {
 	setJob3Variant,
 	spendPointInTier,
 	totalCrossSpent,
-	unequip,
 } from "../save";
 import {
 	HYBRID_MAX_TIER,
@@ -85,7 +63,6 @@ import {
 	JOB3_RULES,
 	job3Of,
 } from "../data/jobs3";
-import { UNIQUE } from "../data/uniques";
 import { askRepick } from "./JobScene";
 import {
 	type Btn,
@@ -99,13 +76,13 @@ import {
 	txt,
 	UI,
 } from "../ui";
-import { fitHeroScale, heroTex } from "../gfx/hero-visual";
-import { nodeDetail, clip, clipW } from "./character/node-detail";
+import { nodeDetail, clipW } from "./character/node-detail";
 import { statusTab } from "./character/status-tab";
 import { talentTab } from "./character/talent-tab";
 import { ultModal } from "./character/ult-modal";
 import { drawPreview } from "./character/preview";
 import { cardTab } from "./character/cards-tab";
+import { equipTab } from "./character/equip-tab";
 
 const BRANCH_PET: Record<string, PetId> = {
 	bm_h: "hawk",
@@ -118,8 +95,8 @@ export class CharacterScene extends Phaser.Scene {
 	body?: Phaser.GameObjects.Container;
 	preview?: Phaser.GameObjects.Container;
 	tab = 0;
-	private slot: EquipSlot | "costume" = "weapon";
-	private bagPage = 0;
+	slot: EquipSlot | "costume" = "weapon";
+	bagPage = 0;
 	cardPage = 0;
 	cardBook = false;
 	bookDg = 0;
@@ -212,7 +189,7 @@ export class CharacterScene extends Phaser.Scene {
 		this.modal?.destroy();
 		this.modal = undefined;
 		this.body = this.add.container(0, 0);
-		if (this.tab === 0) this.equipTab();
+		if (this.tab === 0) equipTab(this);
 		else if (this.tab === 1) cardTab(this);
 		else if (this.tab === 2) statusTab(this);
 		else if (this.tab === 3)
@@ -351,403 +328,6 @@ export class CharacterScene extends Phaser.Scene {
 		const sb = this.webSb;
 		const r = Math.max(0, Math.min(1, (py - sb.y - sb.thumbH / 2) / Math.max(1, sb.h - sb.thumbH)));
 		this.scrollToWebY(r * this.webMaxScroll, animate);
-	}
-
-	// ---------- tab 1: equipment screen (RO style): 3 slots left, hero in the middle, 3 slots right ----------
-	private equipTab() {
-		const s = save(),
-			b = this.body!;
-		const locked = offhandLocked(s);
-		const costume = COSTUMES.find((c) => c.id === s.costume) ?? COSTUMES[0];
-		// hero in the middle
-		b.add(panel(this, 528, 112, 220, 196, 0x23284a, UI.line, 14));
-		const eqSpr = this.add.image(638, 186, heroTex(s)).setTint(costume.tint);
-		b.add(eqSpr.setScale(fitHeroScale(eqSpr.width, eqSpr.height, 3, 154)));
-		const onC = this.slot === "costume";
-		b.add(
-			button(
-				this,
-				638,
-				284,
-				200,
-				30,
-				`👗 ${costume.name}`,
-				() => {
-					this.slot = "costume";
-					this.bagPage = 0;
-					this.render();
-				},
-				{
-					size: 13,
-					fill: onC ? COLORS.gold : 0x5a5f8a,
-					color: onC ? UI.ink : UI.text,
-				},
-			),
-		);
-		EQUIP_SLOTS.forEach((sl, i) => {
-			const x = i < 3 ? 330 : 756,
-				y = 112 + (i % 3) * 66,
-				on = sl.id === this.slot;
-			const twin = sl.id === "offhand" && locked;
-			const it = itemById(s.equipped[twin ? "weapon" : sl.id]),
-				n = twin ? 0 : slotCount(it, gradeOf(s, it.id));
-			const g = this.add.graphics();
-			g.fillStyle(on ? 0x34396a : UI.panel, 1).fillRoundedRect(
-				x,
-				y,
-				190,
-				60,
-				12,
-			);
-			g.lineStyle(on ? 3 : 2, on ? COLORS.gold : UI.line).strokeRoundedRect(
-				x,
-				y,
-				190,
-				60,
-				12,
-			);
-			b.add(g);
-			b.add(txt(this, x + 10, y + 4, `${sl.icon} ${sl.name}`, 11, UI.sub));
-			if (n)
-				b.add(
-					txt(
-						this,
-						x + 182,
-						y + 4,
-						`🃏${socketed(s, it).length}/${n}`,
-						11,
-						UI.gold,
-					).setOrigin(1, 0),
-				);
-			const r = refineOf(s, it.id),
-				tag = twin
-					? ""
-					: [
-							gradeOf(s, it.id) > 1
-								? r
-									? `★${gradeOf(s, it.id)}`
-									: gradeStars(gradeOf(s, it.id), gradeCap(it))
-								: "",
-							r ? `+${r}` : "",
-						]
-							.filter(Boolean)
-							.join(" ");
-			if (tag)
-				b.add(
-					txt(this, x + (n ? 140 : 182), y + 4, tag, 11, "#ffd36b").setOrigin(
-						1,
-						0,
-					),
-				);
-			b.add(
-				txt(
-					this,
-					x + 10,
-					y + 19,
-					clip(`${it.icon} ${it.name}`, 15),
-					15,
-					it.id.startsWith("none") ? UI.sub : UI.text,
-					true,
-				),
-			);
-			const warn = twin
-				? ""
-				: isBroken(s, it.id)
-					? "💔 แตก ไม่ได้ค่าพลัง (ซ่อมที่โรงตีเหล็ก)"
-					: !canWearAs(it, s)
-						? `⚠ ${wearText(it)} เท่านั้น`
-						: "";
-			const curse =
-				!twin && !warn && !!splitStatLine(forged(s, it), !!it.unique).curse;
-			if (twin)
-				b.add(
-					txt(
-						this,
-						x + 10,
-						y + 41,
-						"🔒 อาวุธ 2 มือ: ใช้ทั้งสองมือ",
-						10,
-						"#ffd36b",
-					),
-				);
-			else
-				b.add(
-					txt(
-						this,
-						x + 10,
-						y + 41,
-						clip(
-							warn ||
-								`${curse ? "💀" : ""}${itemStatLine(forged(s, it))}` ||
-								it.desc,
-							30,
-						),
-						10,
-						warn ? UI.red : curse ? "#ffa06b" : UI.green,
-					),
-				);
-			const z = this.add
-				.zone(x + 95, y + 30, 190, 60)
-				.setInteractive({ useHandCursor: true });
-			z.on("pointerup", () => {
-				this.slot = sl.id;
-				this.bagPage = 0;
-				this.render();
-			});
-			b.add(z);
-		});
-
-		const cur = EQUIP_SLOTS.find((q) => q.id === this.slot);
-		b.add(
-			txt(
-				this,
-				330,
-				314,
-				this.slot === "costume"
-					? "👗 ชุดที่มี (ซื้อเพิ่มที่ร้านเพชร)"
-					: `${cur!.icon} ${cur!.name}: ของที่มีในกระเป๋า${this.slot === "offhand" && locked ? " · 🔒 ถืออาวุธ 2 มือ แทนมือรอง" : ""}`,
-				14,
-				UI.sub,
-			),
-		);
-		const slot = this.slot;
-		if (slot !== "costume")
-			b.add(
-				button(this, 896, 314, 100, 28, "✋ ถอด", () => this.takeOff(slot), {
-					size: 13,
-					fill: 0x8a6fd1,
-					color: UI.text,
-				}).setEnabled(canUnequip(s, slot)),
-			);
-		const list =
-			slot === "costume"
-				? COSTUMES.filter((c) => s.costumes.includes(c.id)).map((c) => ({
-						id: c.id,
-						label: c.name,
-						desc: "ไม่มีค่าพลัง",
-						worn: s.costume === c.id,
-						tint: c.tint,
-						other: "",
-					}))
-				: ITEMS.filter(
-						(it) => it.slot === slotKind(slot) && s.owned.includes(it.id),
-					)
-						.sort((a, c) => Number(!canWearAs(a, s)) - Number(!canWearAs(c, s)))
-						.map((it) => {
-							const other =
-								slot === "acc" || slot === "acc2"
-									? s.equipped[slot === "acc" ? "acc2" : "acc"] === it.id &&
-										it.id !== "none"
-										? "ใส่อีกข้าง"
-										: ""
-									: "";
-							const lock2h =
-								slot === "offhand" && locked && it.id !== "none_off";
-							return {
-								id: it.id,
-								label: `${it.icon} ${it.name}${forgeTag(s, it.id)}`,
-								desc: lock2h
-									? "🔒 ถืออาวุธ 2 มืออยู่ ใส่ไม่ได้"
-									: !canWearAs(it, s)
-										? `⚠ ${wearText(it)} เท่านั้น`
-										: isBroken(s, it.id)
-											? "💔 แตก: ไม่ได้ค่าพลังจนกว่าจะซ่อม"
-											: `${splitStatLine(forged(s, it), !!it.unique).curse ? "💀" : ""}${itemStatLine(forged(s, it))}` ||
-												it.desc,
-								worn: s.equipped[slot] === it.id,
-								tint: 0,
-								off: !canWearAs(it, s) || lock2h,
-								other,
-								curse: !!it.unique && !!splitStatLine(forged(s, it)).curse,
-							};
-						});
-		const per = 6,
-			pages = Math.max(1, Math.ceil(list.length / per));
-		this.bagPage = Math.min(this.bagPage, pages - 1);
-		if (pages > 1) {
-			b.add(
-				button(
-					this,
-					700,
-					545,
-					44,
-					34,
-					"◀",
-					() => {
-						this.bagPage--;
-						this.render();
-					},
-					{ size: 15 },
-				).setEnabled(this.bagPage > 0),
-			);
-			b.add(
-				txt(
-					this,
-					745,
-					545,
-					`${this.bagPage + 1}/${pages}`,
-					14,
-					UI.text,
-					true,
-				).setOrigin(0.5),
-			);
-			b.add(
-				button(
-					this,
-					790,
-					545,
-					44,
-					34,
-					"▶",
-					() => {
-						this.bagPage++;
-						this.render();
-					},
-					{ size: 15 },
-				).setEnabled(this.bagPage < pages - 1),
-			);
-		}
-		list
-			.slice(this.bagPage * per, this.bagPage * per + per)
-			.forEach((it, i) => {
-				const x = 330 + (i % 2) * 308,
-					y = 336 + Math.floor(i / 2) * 58;
-				b.add(
-					panel(
-						this,
-						x,
-						y,
-						300,
-						52,
-						UI.panel,
-						it.worn ? COLORS.gold : UI.line,
-						10,
-					),
-				);
-				if (it.tint)
-					b.add(
-						this.add
-							.image(x + 24, y + 26, "novice")
-							.setScale(0.85)
-							.setTint(it.tint),
-					);
-				b.add(
-					txt(
-						this,
-						x + (it.tint ? 48 : 12),
-						y + 5,
-						clip(it.label, 17),
-						15,
-						UI.text,
-						true,
-					),
-				);
-				b.add(
-					txt(
-						this,
-						x + (it.tint ? 48 : 12),
-						y + 28,
-						clip(it.desc, 30),
-						11,
-						"off" in it && it.off
-							? UI.red
-							: "curse" in it && it.curse
-								? "#ffa06b"
-								: UI.green,
-					)
-						.setWordWrapWidth(196)
-						.setLineSpacing(0),
-				);
-				const takeOffRow = it.worn && slot !== "costume" && canUnequip(s, slot);
-				b.add(
-					button(
-						this,
-						x + 258,
-						y + 26,
-						72,
-						36,
-						takeOffRow
-							? "ถอด"
-							: it.worn
-								? "ใส่อยู่"
-								: it.other
-									? "ย้ายมา"
-									: "ใส่",
-						() => {
-							if (slot === "costume") s.costume = it.id;
-							else if (takeOffRow) {
-								this.takeOff(slot);
-								return;
-							} else {
-								const why = equipBlock(s, it.id, slot);
-								if (why) {
-									toast(
-										this,
-										why === "twohand"
-											? "ถืออาวุธ 2 มืออยู่ ใส่มือรองไม่ได้ค่ะ เปลี่ยนเป็นอาวุธ 1 มือก่อนนะคะ"
-											: why === "unique"
-												? `ใส่ของยูนีคได้พร้อมกันสูงสุด ${UNIQUE.maxEquipped} ชิ้นค่ะ ถอดชิ้นอื่นก่อนนะคะ`
-												: "ใส่ช่องนี้ไม่ได้ค่ะ",
-										UI.red,
-									);
-									return;
-								}
-								const pushed =
-									slot === "weapon" &&
-									itemById(it.id).twoHand &&
-									canUnequip(s, "offhand")
-										? itemById(s.equipped.offhand)
-										: null;
-								equip(s, it.id, slot);
-								if (pushed)
-									toast(
-										this,
-										`ถือ 2 มือ: เก็บ ${pushed.icon} ${pushed.name} กลับกระเป๋าแล้วค่ะ`,
-									);
-							}
-							persist();
-							this.redraw();
-						},
-						{ size: 14 },
-					).setEnabled(takeOffRow || (!it.worn && !("off" in it && it.off))),
-				);
-			});
-		if (list.length <= 1)
-			b.add(
-				txt(
-					this,
-					638,
-					440,
-					slot === "costume"
-						? "ยังไม่มีชุดอื่น"
-						: "ยังไม่มีของชิ้นอื่น\nเก็บ zeny จากดันแล้วไปร้านค้านะคะ",
-					15,
-					UI.sub,
-				)
-					.setOrigin(0.5)
-					.setAlign("center"),
-			);
-		b.add(
-			button(
-				this,
-				876,
-				545,
-				140,
-				34,
-				slot === "costume" ? "💎 ร้านเพชร" : "🛒 ร้านค้า",
-				() => go(this, slot === "costume" ? "gemshop" : "shop"),
-				{ size: 15, fill: 0x5a5f8a, color: UI.text },
-			),
-		);
-	}
-
-	private takeOff(slot: EquipSlot) {
-		const s = save(),
-			it = itemById(s.equipped[slot]);
-		if (!unequip(s, slot)) return;
-		persist();
-		toast(this, `ถอด ${it.icon} ${it.name} แล้ว เก็บไว้ในกระเป๋าค่ะ`);
-		this.redraw();
 	}
 
 	// ---------- tab 3 (Novice / Basic view): novice passives + certificates ----------
