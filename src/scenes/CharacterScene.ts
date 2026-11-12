@@ -33,9 +33,7 @@ import {
 	slotKind,
 	type EquipSlot,
 	COSTUMES,
-	gearBase,
 	heroStats,
-	jobBonusBase,
 	cardStatLine,
 	itemStatLine,
 	splitStatLine,
@@ -51,10 +49,8 @@ import {
 	RACES,
 	SKILLS,
 	SLOTS,
-	STAT_RULES,
 	totalBase,
 	wearText,
-	type BaseStat,
 } from "../data/meta";
 import {
 	canChangeJob,
@@ -103,7 +99,7 @@ import {
 	ultEvolutionSummary,
 	type TreeNode,
 } from "../data/tree";
-import { JOB_CHANGE, JOBS, type JobId } from "../data/jobs";
+import { JOB_CHANGE, JOBS } from "../data/jobs";
 import {
 	JOB2,
 	JOB2_RULES,
@@ -118,7 +114,6 @@ import {
 	JOB3_RULES,
 	job3Of,
 } from "../data/jobs3";
-import { statLines } from "../data/statInfo";
 import { UNIQUE } from "../data/uniques";
 import { heroPower } from "../data/power";
 import { askRepick } from "./JobScene";
@@ -136,6 +131,7 @@ import {
 } from "../ui";
 import { fitHeroScale, heroCostumeTint, heroTex } from "../gfx/hero-visual";
 import { nodeDetail, clip, clipW } from "./character/node-detail";
+import { statusTab } from "./character/status-tab";
 
 const BRANCH_PET: Record<string, PetId> = {
 	bm_h: "hawk",
@@ -145,7 +141,7 @@ const BRANCH_PET: Record<string, PetId> = {
 
 // Character sheet: preview on the left, tabs on the right (equipment, cards, status, unified 3-class RO Mobile skill tree, talents).
 export class CharacterScene extends Phaser.Scene {
-	private body?: Phaser.GameObjects.Container;
+	body?: Phaser.GameObjects.Container;
 	private preview?: Phaser.GameObjects.Container;
 	private tab = 0;
 	private slot: EquipSlot | "costume" = "weapon";
@@ -244,7 +240,7 @@ export class CharacterScene extends Phaser.Scene {
 		this.body = this.add.container(0, 0);
 		if (this.tab === 0) this.equipTab();
 		else if (this.tab === 1) this.cardTab();
-		else if (this.tab === 2) this.statusTab();
+		else if (this.tab === 2) statusTab(this);
 		else if (this.tab === 3)
 			save().job === "novice" || this.skillBasic
 				? this.skillTab()
@@ -253,7 +249,7 @@ export class CharacterScene extends Phaser.Scene {
 		if (this.showUlt && this.tab === 3) this.ultModal();
 	}
 
-	private redraw() {
+	redraw() {
 		this.drawPreview();
 		this.render();
 	}
@@ -1543,153 +1539,6 @@ export class CharacterScene extends Phaser.Scene {
 					),
 				);
 		});
-	}
-
-	// ---------- tab 3: base stats ----------
-	private statusTab() {
-		const s = save(),
-			b = this.body!;
-		const total = totalBase(s),
-			gear = gearBase(s),
-			jobB = jobBonusBase(s);
-		b.add(
-			txt(
-				this,
-				330,
-				112,
-				`แต้มสถานะเหลือ: ${s.statPoints}`,
-				20,
-				s.statPoints ? UI.gold : UI.sub,
-				true,
-			),
-		);
-		b.add(
-			txt(
-				this,
-				330,
-				138,
-				`ได้ ${STAT_RULES.pointsPerLevel} แต้มทุก Base Lv · รีเซ็ตฟรีได้ตลอด`,
-				14,
-				UI.sub,
-			),
-		);
-		BASE_STATS.forEach((bs, i) => {
-			const y = 166 + i * 56;
-			b.add(panel(this, 330, y, 600, 50, UI.panel, UI.line, 10));
-			b.add(txt(this, 344, y + 6, bs.name, 19, UI.gold, true));
-			b.add(txt(this, 344, y + 30, bs.role, 12, UI.sub));
-			const gearB = gear[bs.id],
-				jobN = jobB[bs.id],
-				raceB = total[bs.id] - s.stats[bs.id] - gearB - jobN;
-			b.add(txt(this, 404, y + 11, `${total[bs.id]}`, 22, UI.text, true));
-			const tags: [string, string][] = [];
-			if (raceB)
-				tags.push([
-					`${raceB > 0 ? "+" : ""}${raceB} เผ่า`,
-					raceB > 0 ? UI.green : UI.red,
-				]);
-			if (gearB) tags.push([`+${gearB} ของ`, "#7fd7ff"]);
-			if (jobN) tags.push([`+${jobN} อาชีพ`, UI.gold]);
-			const step = tags.length > 2 ? 14 : 18;
-			tags.forEach(([t, c], j) =>
-				b.add(
-					txt(this, 436, y + (tags.length > 2 ? 4 : 8) + j * step, t, 10, c),
-				),
-			);
-			this.statDesc(b, bs.id, s.job, total[bs.id], 482, y + 4, 322, 44);
-			const add = (n: number) => {
-				n = Math.min(n, s.statPoints, STAT_RULES.max - s.stats[bs.id]);
-				if (n <= 0) return;
-				s.stats[bs.id] += n;
-				s.statPoints -= n;
-				persist();
-				this.redraw();
-			};
-			b.add(
-				button(this, 838, y + 25, 52, 36, "+1", () => add(1), {
-					size: 16,
-				}).setEnabled(s.statPoints > 0),
-			);
-			b.add(
-				button(this, 896, y + 25, 52, 36, "+5", () => add(5), {
-					size: 16,
-				}).setEnabled(s.statPoints > 1),
-			);
-		});
-		b.add(
-			button(
-				this,
-				860,
-				132,
-				140,
-				38,
-				"↺ รีเซ็ตแต้ม",
-				() => {
-					const spent = Object.values(s.stats).reduce(
-						(a, v) => a + v - STAT_RULES.start,
-						0,
-					);
-					if (!spent) {
-						toast(this, "ยังไม่ได้ลงแต้มเลยค่ะ", UI.sub);
-						return;
-					}
-					confirm(
-						this,
-						"รีเซ็ตแต้มสถานะ?",
-						`คืน ${spent} แต้มให้ลงใหม่ ฟรี ไม่เสียอะไรค่ะ`,
-						"รีเซ็ต",
-						() => {
-							for (const k of Object.keys(s.stats) as (keyof typeof s.stats)[])
-								s.stats[k] = STAT_RULES.start;
-							s.statPoints += spent;
-							persist();
-							this.redraw();
-						},
-					);
-				},
-				{ size: 15, fill: 0x5a5f8a, color: UI.text },
-			),
-		);
-	}
-
-	private statDesc(
-		b: Phaser.GameObjects.Container,
-		stat: BaseStat,
-		job: JobId,
-		total: number,
-		x: number,
-		y: number,
-		w: number,
-		h: number,
-	) {
-		const { generic, cls } = statLines(stat, job, total);
-		for (const size of [12, 11, 10, 9]) {
-			const g = txt(this, x, y, generic.join(" · "), size, "#d8d4f0")
-				.setWordWrapWidth(w)
-				.setLineSpacing(0);
-			const c = cls.length
-				? txt(
-						this,
-						x,
-						y + g.height,
-						`${JOBS[job].icon} ${cls.join(" · ")}`,
-						size,
-						UI.gold,
-					)
-						.setWordWrapWidth(w)
-						.setLineSpacing(0)
-				: undefined;
-			if (g.height + (c?.height ?? 0) <= h || size === 9) {
-				const pad = Math.max(0, (h - g.height - (c?.height ?? 0)) / 2);
-				g.y += pad;
-				if (c) c.y += pad;
-				b.add(g);
-				if (c) b.add(c);
-				return;
-			}
-			g.destroy();
-			c?.destroy();
-		}
 	}
 
 	// ---------- tab 3 (Novice / Basic view): novice passives + certificates ----------
