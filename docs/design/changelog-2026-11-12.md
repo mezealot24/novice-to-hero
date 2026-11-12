@@ -20,3 +20,7 @@
 - **B1.7** (ทำหลัง B1.8) ย้าย `slotCount` / `gradeOf` / `ForgeState` / `refineOf` / `isBroken` / `linesOf` / `isTainted` / `forged` / `forgeTag` → `src/data/meta/forge-state.ts` (verbatim)
 - **B1.10** (ทำก่อน B1.9 เพื่อให้ `StatsInput` อยู่ที่เดียวกับ worn helpers ชั่วคราว ไม่ต้อง import ผ่าน barrel) ย้าย `StatsInput` / `gearBase` / `jobBonusBase` / `jobUpText` / `totalBase` / `applyBase` / `baseDefence` / `blessBase` / `heroStats` → `src/data/meta/hero-stats.ts` (function body verbatim; `meta.ts` เหลือแค่ barrel)
 - **B1.9** (ทำหลัง B1.10) ย้าย `wornItems` / `offhandLocked` / `cardFits` / `socketed` / `wornCards` → `src/data/meta/worn.ts`; `import type { StatsInput }` จาก `hero-stats` (type-only, ไม่เกิด runtime cycle)
+
+## 3. 🧹 Track B2 — data/game-data.ts → barrel
+
+- **B2.1** ย้าย `TILE` / `COLS` / `ROWS` / `W` / `H` + `COLORS` / `FONT_UI` / `FONT_NUM` → `src/data/ui-tokens.ts` (verbatim, ไม่เปลี่ยน behavior; `game-data.ts` re-export ผ่าน `export *`, importers ไม่ต้องแก้)

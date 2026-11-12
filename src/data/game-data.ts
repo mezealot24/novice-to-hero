@@ -2,13 +2,8 @@ import type { Archetype, SkillScale, StatAlloc } from './mon-stats'
 import type { BaseStat } from './meta'
 import { PACKS, type D7Kind, type D7Mini, type D8Kind, type D8Mini, type D9Kind, type D9Mini, type D10Kind, type D10Mini } from './dungeons'
 import type { SkillFormula } from './mon-skill-scale'
+export * from './ui-tokens'
 // ===== All tunable numbers live here, so balance changes never touch game logic. =====
-
-export const TILE = 48
-export const COLS = 20
-export const ROWS = 12
-export const W = TILE * COLS // 960
-export const H = TILE * ROWS // 576
 
 // Hero stats. Perks add to these (see PERKS). All numbers are per-run, nothing persists yet.
 export type Resource = 'mana' | 'rage' | 'energy'
@@ -808,18 +803,6 @@ export const DUNGEONS: DungeonDef[] = [{
 ]
 /** Old single-dungeon name (DungeonScene, the unused real-time prototype, still reads it). */
 export const DUNGEON = DUNGEONS[0]
-
-export const COLORS = {
-  night: 0x14172b,
-  gold: 0xf2b84b,
-  hp: 0xe5484d,
-  hpBack: 0x3a1a24,
-  cream: 0xf6eedc,
-  telegraph: 0xff5a4e,
-}
-
-export const FONT_UI = '"Mali", "Leelawadee UI", "Noto Sans Thai", sans-serif'
-export const FONT_NUM = '"Pixelify Sans", "Mali", monospace'
 
 /** Stat spec v1: hit chance = clamp(0.80 + (Hit - Flee) * 1%, 80%, 98%), both sides. */
 /** Thief Double Strike: Lv 1 20% ... Lv 5 60% (Q: Lv 5 = RO Lv 10). */
