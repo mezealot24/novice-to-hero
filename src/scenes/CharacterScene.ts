@@ -18,7 +18,6 @@ import {
 } from "../data/cards";
 import { gradeStars, gradeCap } from "../data/craft";
 import {
-	BASE_STATS,
 	smashLv,
 	canWearAs,
 	forged,
@@ -33,7 +32,6 @@ import {
 	slotKind,
 	type EquipSlot,
 	COSTUMES,
-	heroStats,
 	cardStatLine,
 	itemStatLine,
 	splitStatLine,
@@ -41,15 +39,12 @@ import {
 	itemById,
 	slotCount,
 	socketed,
-	JOB_RULES,
 	NOVICE_PASSIVES,
 	NOVICE_RULES,
 	noviceLeft,
 	noviceSpent,
-	RACES,
 	SKILLS,
 	SLOTS,
-	totalBase,
 	wearText,
 } from "../data/meta";
 import {
@@ -101,12 +96,10 @@ import {
 } from "../data/jobs2";
 import {
 	activeJob3,
-	JOB3,
 	JOB3_RULES,
 	job3Of,
 } from "../data/jobs3";
 import { UNIQUE } from "../data/uniques";
-import { heroPower } from "../data/power";
 import { askRepick } from "./JobScene";
 import {
 	type Btn,
@@ -120,11 +113,12 @@ import {
 	txt,
 	UI,
 } from "../ui";
-import { fitHeroScale, heroCostumeTint, heroTex } from "../gfx/hero-visual";
+import { fitHeroScale, heroTex } from "../gfx/hero-visual";
 import { nodeDetail, clip, clipW } from "./character/node-detail";
 import { statusTab } from "./character/status-tab";
 import { talentTab } from "./character/talent-tab";
 import { ultModal } from "./character/ult-modal";
+import { drawPreview } from "./character/preview";
 
 const BRANCH_PET: Record<string, PetId> = {
 	bm_h: "hawk",
@@ -135,15 +129,15 @@ const BRANCH_PET: Record<string, PetId> = {
 // Character sheet: preview on the left, tabs on the right (equipment, cards, status, unified 3-class RO Mobile skill tree, talents).
 export class CharacterScene extends Phaser.Scene {
 	body?: Phaser.GameObjects.Container;
-	private preview?: Phaser.GameObjects.Container;
-	private tab = 0;
+	preview?: Phaser.GameObjects.Container;
+	tab = 0;
 	private slot: EquipSlot | "costume" = "weapon";
 	private bagPage = 0;
 	private cardPage = 0;
 	private cardBook = false;
 	private bookDg = 0;
 	private bookV2 = false;
-	private skillBasic = false; // skill tab: false = unified 3-class skill web, true = Novice skills + certificates + job
+	skillBasic = false; // skill tab: false = unified 3-class skill web, true = Novice skills + certificates + job
 	private selNode = "";
 	private showDetail = false; // skill web: node detail modal open
 	modal?: Phaser.GameObjects.Container;
@@ -211,7 +205,7 @@ export class CharacterScene extends Phaser.Scene {
 		topBar(this, "👤 ตัวละคร", () =>
 			back ? go(this, back.key, back.data) : go(this, "hub"),
 		);
-		this.drawPreview();
+		drawPreview(this);
 		tabs(
 			this,
 			330,
@@ -243,7 +237,7 @@ export class CharacterScene extends Phaser.Scene {
 	}
 
 	redraw() {
-		this.drawPreview();
+		drawPreview(this);
 		this.render();
 	}
 
@@ -370,194 +364,6 @@ export class CharacterScene extends Phaser.Scene {
 		const sb = this.webSb;
 		const r = Math.max(0, Math.min(1, (py - sb.y - sb.thumbH / 2) / Math.max(1, sb.h - sb.thumbH)));
 		this.scrollToWebY(r * this.webMaxScroll, animate);
-	}
-
-	// ---------- left: hero preview + derived stats summary (or Cumulative Ult & Scalable panel on Skill Tab) ----------
-	private drawPreview() {
-		this.preview?.destroy();
-		const s = save(),
-			c = this.add.container(0, 0);
-		this.preview = c;
-		c.add(panel(this, 16, 70, 298, 490, UI.panel, UI.line, 14));
-		const st = heroStats(s);
-		const rows: [string, string][] = [
-			["⚡ Hero Power", `${heroPower(s)}`],
-			...derivedRows(st),
-		]; // v59: the number monsters scale to
-		if (this.tab === 0) {
-			// equipment screen (RO style): hero sits between the gear slots, so this side is a stats panel
-			c.add(panel(this, 26, 78, 278, 44, UI.panelHi, UI.goldDark, 10));
-			c.add(
-				txt(
-					this,
-					165,
-					84,
-					`${s.supporter ? "🌟 " : ""}${s.name}`,
-					18,
-					s.supporter ? UI.gold : UI.text,
-					true,
-				).setOrigin(0.5, 0),
-			);
-			c.add(
-				txt(
-					this,
-					165,
-					104,
-					`${s.job2 ? `${JOB2[s.job2].icon} ${JOB2[s.job2].name}` : `${JOBS[s.job].icon} ${JOBS[s.job].name}`} · Base Lv ${s.baseLevel} · ${s.job2 ? `Job2 Lv ${s.job2Level ?? 1}` : `Job Lv ${s.jobLevel}`}`,
-					11,
-					UI.sub,
-				).setOrigin(0.5, 0),
-			);
-			const tot = totalBase(s);
-			BASE_STATS.forEach((bs, i) => {
-				const x = 26 + (i % 2) * 144,
-					y = 128 + Math.floor(i / 2) * 26;
-				c.add(panel(this, x, y, 136, 22, 0x161a2e, UI.line, 6));
-				c.add(txt(this, x + 8, y + 3, bs.name, 12, UI.gold, true));
-				c.add(
-					txt(
-						this,
-						x + 128,
-						y + 3,
-						`${tot[bs.id]}`,
-						12,
-						UI.text,
-						true,
-					).setOrigin(1, 0),
-				);
-			});
-			// RPG Stat Table with alternating row tints
-			rows.forEach(([k, v], i) => {
-				const y = 236 + i * 20;
-				if (i % 2 === 0) {
-					const bg = this.add.graphics();
-					bg.fillStyle(0xffffff, 0.02).fillRoundedRect(24, y - 2, 282, 18, 4);
-					c.add(bg);
-				}
-				c.add(txt(this, 30, y, k, 12, i === 0 ? UI.gold : UI.sub, i === 0));
-				c.add(
-					txt(this, 300, y, v, 12, i === 0 ? UI.gold : UI.text, true).setOrigin(
-						1,
-						0,
-					),
-				);
-			});
-			return;
-		}
-
-		// Skill web: left side is the node detail panel (drawn by nodeFooter into body) -> compact hero strip only
-		if (this.tab === 3 && s.job !== "novice" && !this.skillBasic) {
-			this.drawSkillHeroStrip(c);
-			return;
-		}
-
-		// Hero Avatar Podium / Frame
-		const pod = this.add.graphics();
-		pod.fillStyle(0x000000, 0.4).fillEllipse(165, 192, 130, 36);
-		pod.fillStyle(0x353b60, 0.3).fillEllipse(165, 190, 110, 26);
-		pod.lineStyle(1.5, UI.goldDark, 0.5).strokeCircle(165, 145, 60);
-		c.add(pod);
-
-		const spr = this.add
-			.image(165, 145, heroTex(s))
-			.setTint(heroCostumeTint(s.costume));
-		c.add(spr.setScale(fitHeroScale(spr.width, spr.height, 2.5, 132)));
-
-		// Hero title banner card
-		const j3 = activeJob3(s);
-		c.add(panel(this, 26, 206, 278, 68, UI.panelHi, UI.goldDark, 10));
-		c.add(
-			txt(
-				this,
-				165,
-				214,
-				`${s.supporter ? "🌟 " : ""}${s.name}`,
-				20,
-				s.supporter ? UI.gold : UI.text,
-				true,
-			).setOrigin(0.5),
-		);
-		const lineage = j3
-			? `${JOBS[s.job].icon} → ${JOB2[s.job2!].icon} → ${JOB3[j3].icon} ${JOB3[j3].name}`
-			: s.job2
-				? `${JOBS[s.job].icon} ${JOBS[s.job].name} → ${JOB2[s.job2].icon} ${JOB2[s.job2].name}`
-				: `${RACES[s.race].icon} ${RACES[s.race].name} · ${JOBS[s.job].icon} ${JOBS[s.job].name}`;
-		c.add(txt(this, 165, 238, lineage, 12, UI.sub).setOrigin(0.5));
-		c.add(
-			txt(
-				this,
-				165,
-				258,
-				`Base Lv ${s.baseLevel} · ${j3 ? `Job3 Lv ${s.job3Level ?? 1}/${JOB3_RULES.maxJobLevel}` : s.job2 ? `Job2 Lv ${s.job2Level ?? 1}/${JOB2_RULES.maxJobLevel}` : `Job Lv ${s.jobLevel}/${s.job === "novice" ? JOB_RULES.maxJobLevel : JOB_CHANGE.classMaxJobLevel}`}`,
-				12,
-				UI.gold,
-			).setOrigin(0.5),
-		);
-
-		// Stats box with grouped rows
-		const statBox = this.add.graphics();
-		statBox.fillStyle(0x131728, 0.85).fillRoundedRect(24, 280, 282, 270, 8);
-		statBox
-			.lineStyle(1.5, UI.line, 0.8)
-			.strokeRoundedRect(24, 280, 282, 270, 8);
-		c.add(statBox);
-
-		rows.forEach(([k, v], i) => {
-			const y = 286 + i * 16.5;
-			if (i % 2 === 1) {
-				const rowBg = this.add.graphics();
-				rowBg.fillStyle(0xffffff, 0.025).fillRect(26, y - 2, 278, 16);
-				c.add(rowBg);
-			}
-			c.add(txt(this, 30, y, k, 11, i === 0 ? UI.gold : UI.sub, i === 0));
-			c.add(
-				txt(this, 300, y, v, 11, i === 0 ? UI.gold : UI.text, true).setOrigin(
-					1,
-					0,
-				),
-			);
-		});
-	}
-
-	/** Skill web left panel top: one-line hero identity + 🔥 รวมผล Ult popup button. Rest of the panel = node detail. */
-	private drawSkillHeroStrip(c: Phaser.GameObjects.Container) {
-		const s = save(),
-			j3 = activeJob3(s);
-		const cls = j3
-			? `${JOB3[j3].icon} ${JOB3[j3].name}`
-			: s.job2
-				? `${JOB2[s.job2].icon} ${JOB2[s.job2].name}`
-				: `${JOBS[s.job].icon} ${JOBS[s.job].name}`;
-		const jl = j3
-			? `Job3 Lv ${s.job3Level ?? 1}`
-			: s.job2
-				? `Job2 Lv ${s.job2Level ?? 1}`
-				: `Job Lv ${s.jobLevel}`;
-		c.add(
-			clipW(
-				txt(this, 28, 80, `${s.supporter ? "🌟 " : ""}${s.name}`, 15, s.supporter ? UI.gold : UI.text, true),
-				170,
-			),
-		);
-		c.add(clipW(txt(this, 28, 101, `${cls} · Base ${s.baseLevel} · ${jl}`, 10.5, UI.sub), 170));
-		c.add(
-			button(
-				this,
-				254,
-				98,
-				96,
-				32,
-				"🔥 รวมผล Ult",
-				() => {
-					this.showUlt = true;
-					this.render();
-				},
-				{ size: 12, fill: 0x5a4320, color: UI.gold },
-			),
-		);
-		const g = this.add.graphics();
-		g.lineStyle(1, UI.line, 0.8).lineBetween(26, 124, 304, 124);
-		c.add(g);
 	}
 
 	// ---------- tab 1: equipment screen (RO style): 3 slots left, hero in the middle, 3 slots right ----------
