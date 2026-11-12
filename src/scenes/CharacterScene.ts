@@ -68,6 +68,15 @@ import { cardTab } from "./character/cards-tab";
 import { equipTab } from "./character/equip-tab";
 import { skillTab } from "./character/skill-basic";
 import { renderSelectedNodeFooter } from "./character/node-footer";
+import {
+	applyWebScroll,
+	scrollToWebY,
+	webActive,
+	webPointerDown,
+	webPointerMove,
+	webPointerUp,
+	webTier,
+} from "./character/web-scroll";
 
 const BRANCH_PET: Record<string, PetId> = {
 	bm_h: "hawk",
@@ -90,16 +99,16 @@ export class CharacterScene extends Phaser.Scene {
 	selNode = "";
 	showDetail = false; // skill web: node detail modal open
 	modal?: Phaser.GameObjects.Container;
-	private webScrollY = 0; // RO Mobile continuous vertical scroll offset
-	private webMaxScroll = 0;
+	webScrollY = 0; // RO Mobile continuous vertical scroll offset
+	webMaxScroll = 0;
 	// v-scroll perf: drag/wheel/momentum only move these refs (no full render() per frame)
-	private webC?: Phaser.GameObjects.Container;
-	private webView = { x: 326, y: 146, w: 616, h: 346 };
-	private webThumb?: Phaser.GameObjects.Graphics;
-	private webSb = { y: 0, h: 0, thumbH: 0 };
-	private webHits: { go: Phaser.GameObjects.GameObject; top: number; bot: number }[] = [];
-	private webPills: Btn[] = [];
-	private webDrag?: {
+	webC?: Phaser.GameObjects.Container;
+	webView = { x: 326, y: 146, w: 616, h: 346 };
+	webThumb?: Phaser.GameObjects.Graphics;
+	webSb = { y: 0, h: 0, thumbH: 0 };
+	webHits: { go: Phaser.GameObjects.GameObject; top: number; bot: number }[] = [];
+	webPills: Btn[] = [];
+	webDrag?: {
 		mode: "content" | "thumb";
 		startY: number;
 		startScroll: number;
@@ -108,7 +117,7 @@ export class CharacterScene extends Phaser.Scene {
 		vel: number;
 		moved: boolean;
 	};
-	private tierOffsets: [number, number, number] = [0, 380, 760]; // Y anchors for Tier 1, Tier 2, Tier 3
+	tierOffsets: [number, number, number] = [0, 380, 760]; // Y anchors for Tier 1, Tier 2, Tier 3
 	previewJob2Idx = 0; // when still Class 1, toggle which Class 2 branch to preview in the continuous tree
 	showUlt = false; // skill web: 🔥 รวมผล Ult popup (was the left sidebar; left side is now the node detail panel)
 	talent2 = false; // v119 talent tab: show ทาเลนต์ชั้น 2
@@ -132,20 +141,20 @@ export class CharacterScene extends Phaser.Scene {
 		this.input.on(
 			"wheel",
 			(_p: unknown, _go: unknown, _dx: number, dy: number) => {
-				if (!this.webActive()) return;
-				this.scrollToWebY(this.webScrollY + dy * 0.65, false);
+				if (!webActive(this)) return;
+				scrollToWebY(this, this.webScrollY + dy * 0.65, false);
 			},
 		);
 		// Skill-web swipe: scene-level so it starts anywhere in the viewport (even on top of nodes)
 		// and survives across frames — the old per-render drag zone was destroyed mid-gesture.
 		this.input.on("pointerdown", (p: Phaser.Input.Pointer) =>
-			this.webPointerDown(p),
+			webPointerDown(this, p),
 		);
 		this.input.on("pointermove", (p: Phaser.Input.Pointer) =>
-			this.webPointerMove(p),
+			webPointerMove(this, p),
 		);
-		this.input.on("pointerup", () => this.webPointerUp());
-		this.input.on("pointerupoutside", () => this.webPointerUp());
+		this.input.on("pointerup", () => webPointerUp(this));
+		this.input.on("pointerupoutside", () => webPointerUp(this));
 		this.events.once("shutdown", () => {
 			this.webDrag = undefined;
 			this.webC = undefined;
@@ -188,131 +197,6 @@ export class CharacterScene extends Phaser.Scene {
 	redraw() {
 		drawPreview(this);
 		this.render();
-	}
-
-	private scrollToWebY(targetY: number, animate = true) {
-		const clamped = Math.max(
-			0,
-			Math.min(this.webMaxScroll, Math.round(targetY)),
-		);
-		this.tweens.killTweensOf(this);
-		if (clamped === this.webScrollY) return;
-		if (!animate) {
-			this.webScrollY = clamped;
-			this.applyWebScroll();
-			return;
-		}
-		this.tweens.add({
-			targets: this,
-			webScrollY: clamped,
-			duration: 260,
-			ease: "Cubic.easeOut",
-			onUpdate: () => this.applyWebScroll(),
-		});
-	}
-
-	private webActive() {
-		return (
-			!!this.webC?.active && this.tab === 3 && !this.showDetail && !this.showUlt
-		);
-	}
-
-	private webTier(): 1 | 2 | 3 {
-		return this.webScrollY < this.tierOffsets[1] - 120
-			? 1
-			: this.webScrollY < this.tierOffsets[2] - 120
-				? 2
-				: 3;
-	}
-
-	/** Cheap per-frame scroll: moves the content + thumb, re-tints tier pills, gates hit zones. No rebuild. */
-	private applyWebScroll() {
-		const c = this.webC;
-		if (!c?.active) return;
-		const v = this.webView;
-		c.setY(v.y - this.webScrollY);
-		const sb = this.webSb;
-		if (this.webThumb?.active && this.webMaxScroll > 0)
-			this.webThumb.setY(
-				sb.y + (this.webScrollY / this.webMaxScroll) * (sb.h - sb.thumbH),
-			);
-		const t = this.webTier();
-		this.webPills.forEach((pill, i) => {
-			if (pill.active) pill.setFill(i + 1 === t ? COLORS.gold : 0x3b4269);
-		});
-		// Masks don't clip input: disable anything scrolled under the header/tabs, and everything mid-drag
-		const dragging = !!this.webDrag?.moved;
-		for (const h of this.webHits) {
-			const inp = h.go.input;
-			if (!inp) continue;
-			const top = h.top + c.y,
-				bot = h.bot + c.y;
-			inp.enabled = !dragging && top >= v.y - 2 && top < v.y + v.h && bot > v.y;
-		}
-	}
-
-	private webPointerDown(p: Phaser.Input.Pointer) {
-		if (!this.webActive() || this.webMaxScroll <= 0) return;
-		const v = this.webView;
-		const onThumb = p.x >= v.x + v.w - 8 && p.x <= v.x + v.w + 22;
-		if (p.y < v.y || p.y > v.y + v.h || p.x < v.x || (!onThumb && p.x > v.x + v.w))
-			return;
-		this.tweens.killTweensOf(this);
-		this.webDrag = {
-			mode: onThumb ? "thumb" : "content",
-			startY: p.y,
-			startScroll: this.webScrollY,
-			lastY: p.y,
-			lastT: performance.now(),
-			vel: 0,
-			moved: false,
-		};
-		if (onThumb) this.webThumbTo(p.y, true);
-	}
-
-	private webPointerMove(p: Phaser.Input.Pointer) {
-		const d = this.webDrag;
-		if (!d || !p.isDown || !this.webActive()) return;
-		if (d.mode === "thumb") {
-			this.webThumbTo(p.y, false);
-			return;
-		}
-		if (!d.moved && Math.abs(p.y - d.startY) < 8) return;
-		if (!d.moved) {
-			d.moved = true;
-			// cancel any half-pressed button under the finger so releasing doesn't fire it
-			for (const h of this.webHits) h.go.emit("pointerout");
-		}
-		const now = performance.now();
-		const dt = Math.max(1, now - d.lastT);
-		d.vel = d.vel * 0.3 + ((d.lastY - p.y) / dt) * 0.7; // px/ms, smoothed
-		d.lastY = p.y;
-		d.lastT = now;
-		// rubber-band a little past the edges, clamp on release
-		const raw = d.startScroll + (d.startY - p.y);
-		const over = raw < 0 ? raw : raw > this.webMaxScroll ? raw - this.webMaxScroll : 0;
-		this.webScrollY = raw - over * 0.65;
-		this.applyWebScroll();
-	}
-
-	private webPointerUp() {
-		const d = this.webDrag;
-		this.webDrag = undefined;
-		if (!d || !this.webC?.active) return;
-		if (d.mode === "thumb" || !d.moved) {
-			this.applyWebScroll();
-			return;
-		}
-		this.applyWebScroll(); // drag over -> re-enable hit zones
-		const idle = performance.now() - d.lastT > 90; // finger rested before lifting -> no fling
-		this.scrollToWebY(this.webScrollY + (idle ? 0 : d.vel * 280), true);
-	}
-
-	/** Scrollbar: tap the track to jump, drag the thumb to scrub. */
-	private webThumbTo(py: number, animate: boolean) {
-		const sb = this.webSb;
-		const r = Math.max(0, Math.min(1, (py - sb.y - sb.thumbH / 2) / Math.max(1, sb.h - sb.thumbH)));
-		this.scrollToWebY(r * this.webMaxScroll, animate);
 	}
 
 	/** Procedural RPG Skill Node Card: displays socket frame, rarity glow, level badge, and icon. */
@@ -520,7 +404,7 @@ export class CharacterScene extends Phaser.Scene {
 		);
 
 		// Quick-jump tier pills (RO Mobile style). Tint is updated live by applyWebScroll(), no re-render.
-		const curTier = this.webTier();
+		const curTier = webTier(this);
 		this.webPills = ([1, 2, 3] as const).map((t, i) => {
 			const pill = button(
 				this,
@@ -529,7 +413,7 @@ export class CharacterScene extends Phaser.Scene {
 				66,
 				26,
 				`${["1️⃣", "2️⃣", "3️⃣"][i]} ขั้น ${t}`,
-				() => this.scrollToWebY(this.tierOffsets[i], true),
+				() => scrollToWebY(this, this.tierOffsets[i], true),
 				{ size: 11, fill: curTier === t ? COLORS.gold : 0x3b4269 },
 			);
 			b.add(pill);
@@ -1412,7 +1296,7 @@ export class CharacterScene extends Phaser.Scene {
 			}
 		};
 		collect(scrollC.list, 0);
-		this.applyWebScroll();
+		applyWebScroll(this);
 
 		// Default selected node fallback
 		if (!this.selNode || !nodeById(this.selNode)) {
