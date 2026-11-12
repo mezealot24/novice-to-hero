@@ -25,3 +25,4 @@
 
 - **B2.1** ย้าย `TILE` / `COLS` / `ROWS` / `W` / `H` + `COLORS` / `FONT_UI` / `FONT_NUM` → `src/data/ui-tokens.ts` (verbatim, ไม่เปลี่ยน behavior; `game-data.ts` re-export ผ่าน `export *`, importers ไม่ต้องแก้)
 - **B2.2** ย้าย `Resource` / `Stats` / `PLAYER` / `RULES` → `src/data/stats.ts` (verbatim; ไม่มี import เลย, `RULES` ไม่ clone เพราะ `patch.ts` mutate in place; `BaseStat` type ที่ `MonsterDef` ใช้ยังอยู่ใน `game-data.ts`)
+- **B2.3** ย้าย `Tag` / `TAGS` / `Perk` / `perkDesc` / `PERKS` / `COMMON_PERKS` / `SET_BONUS` → `src/data/perk-tags.ts` (verbatim; `import type { Stats }` จาก `./stats` เท่านั้น)
