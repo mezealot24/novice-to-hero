@@ -10,3 +10,4 @@ export * from "./meta/items";
 export * from "./meta/forge-state";
 export * from "./meta/stat-text";
 export * from "./meta/hero-stats";
+export * from "./meta/worn";
