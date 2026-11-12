@@ -37,3 +37,4 @@
 - หมายเหตุ: ไม่มี C2 (`CharCtx`) — ใช้การส่ง scene เข้าไปเป็น parameter แรกของ free function แทน (`fooTab(scene, ...)`) เพื่อให้ diff เป็น mechanical; ตั้งชื่อ param ว่า `scene` ไม่ใช่ `s` เพราะเกือบทุก method มี local `const s = save()` ชนกัน; state ทั้งหมดยังอยู่บน scene instance (field/method ที่ถูกเรียกข้ามไฟล์ถอด `private`)
 - **C1** ย้าย `DetailRow` / `nodeDetail` / `clip` / `clipW` → `src/scenes/character/node-detail.ts` (verbatim; เพิ่ม `export` ให้ `clip` / `clipW`; `CharacterScene.ts` ยัง `export { nodeDetail }` ต่อผ่าน re-export)
 - **C3** ย้าย `statusTab` / `statDesc` → `src/scenes/character/status-tab.ts` (verbatim; `this` → `scene`, `this.statDesc(...)` → `statDesc(scene, ...)`; ถอด `private` ของ `body` / `redraw`)
+- **C4** ย้าย `talentTab` → `src/scenes/character/talent-tab.ts` (verbatim; ถอด `private` ของ `talent2`)
