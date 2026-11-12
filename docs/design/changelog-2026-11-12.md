@@ -17,3 +17,4 @@
 - **B1.5** แยก `ITEMS` literal เป็น `WEAPONS` / `ARMOR` / `HEAD_OFF` → `src/data/meta/items-{weapons,armor,head-off}.ts` (verbatim; `meta.ts` ประกอบ `ITEMS` ด้วย spread ตามลำดับเดิม, ไม่ re-export 3 array นี้)
 - **B1.6** ย้าย `ITEMS` (spread `WEAPONS`/`ARMOR`/`HEAD_OFF` + craft/cardforge/uniques/uniques3/class-gear/class-craft ตามลำดับเดิม) + `itemById` / `canWear` / `canWearAs` / `itemUnlocked` / `REQ_TEXT` → `src/data/meta/items.ts`; เช็ค id order 196 ตัวเหมือนเดิม
 - **B1.8** (ทำก่อน B1.7 เพราะ `forgeTag` เรียก `splitStatLine`) ย้าย `STAT_LABEL` / `CLASS_STAT_LABEL` / `splitStatLine` / `itemStatLine` / `StatEntry` / `statEntries` / `cardStatLine` / `wearText` → `src/data/meta/stat-text.ts` (verbatim; label tables ยัง private)
+- **B1.7** (ทำหลัง B1.8) ย้าย `slotCount` / `gradeOf` / `ForgeState` / `refineOf` / `isBroken` / `linesOf` / `isTainted` / `forged` / `forgeTag` → `src/data/meta/forge-state.ts` (verbatim)
