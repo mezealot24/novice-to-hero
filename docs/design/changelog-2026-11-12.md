@@ -43,3 +43,4 @@
 - **C7** ย้าย `cardTab` / `cardBagView` / `cardBookView` → `src/scenes/character/cards-tab.ts` (verbatim; ถอด `private` ของ `cardPage` / `cardBook` / `bookDg` / `bookV2`)
 - **C8** ย้าย `equipTab` / `takeOff` → `src/scenes/character/equip-tab.ts` (verbatim; ถอด `private` ของ `slot` / `bagPage`)
 - **C9** ย้าย `skillTab` (novice/basic view) → `src/scenes/character/skill-basic.ts` (verbatim; ไม่ต้องถอด `private` เพิ่ม)
+- **C10** ย้าย `renderSelectedNodeFooter` / `nodeFooter` / `nodeModal` → `src/scenes/character/node-footer.ts` (verbatim; `nodeFooter` เก็บ positional params เดิมทั้งหมด แค่เติม `scene` เป็นตัวแรก; ถอด `private` ของ `selNode` / `previewJob2Idx` / `showDetail`)
