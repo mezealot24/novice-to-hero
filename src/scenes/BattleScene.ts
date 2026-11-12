@@ -40,7 +40,7 @@ import { CombatLog, deathText, recapLines, saveDeath, type DeathRec, type HitOut
 import { ftue, track } from '../analytics'
 import { HeroRig } from '../battle/hero-rig'
 import { fitHeroScale, heroCostumeTint, heroRigSpec, heroTex, type HeroRigSpec } from '../gfx/hero-visual'
-import { CLERIC_PFX, playPfx, preloadPfx } from '../gfx/pixelfx'
+import { CLERIC_PFX, MAGE_PFX, playPfx, preloadPfx } from '../gfx/pixelfx'
 import { blockShieldFx, bowlingBashFx, brandishSweepFx, chargeOpenerFx, comboSlashFx, guardianUltFx, pierceHitFx, skill2AuraFx, spearBoomerangFx, whirlwindFx } from '../battle/sword-vfx'
 
 // Side-scroll, turn-based (Capybara Go-like): the hero walks right, meets a group, and everyone
@@ -86,13 +86,14 @@ interface Mon {
   wet: number // Innovator ☁️ เมฆฝน: turns of +KIT2.innovator.wetAmp damage taken
   huntMark: number // v82 Archer หมายหัว: turns of +st.arMark damage taken (ticks with its turns)
 }
-type Element = 'lightning' | 'fire' | 'ice'
+type Element = 'lightning' | 'fire' | 'ice' | 'arcane'
 /** v78 / v85 chant entry: `paid` = Mana spent (partly refunded on a break) · `safe` = the steady pity chant (can't break). */
 type Cast = { kind: 'gust' | 'ult'; pow: number; hit: number; paid: number; safe?: boolean }
 const ELEMENTS: Record<Element, { icon: string; name: string; sub: string }> = {
   lightning: { icon: '⚡', name: 'สายฟ้า', sub: 'เป้าเดียว ฟาด 6 ฮิต (0.3–1.2x ต่อฮิต) ฆ่าบอส' },
   fire: { icon: '🔥', name: 'ไฟ', sub: 'ดาเมจกลาง 2x + เผาซ้อน (ลดฮีลศัตรู)' },
   ice: { icon: '❄️', name: 'น้ำแข็ง', sub: 'ดาเมจ 1.6x + ช้าลง · โดนซ้ำแช่แข็ง' },
+  arcane: { icon: '✨', name: 'เวทมนตร์', sub: 'ศรเวทและดาวตก ทะลวงเกราะเวท' },
 }
 type Actor = { hero: true } | { hero: false; m: Mon }
 const MINI_HINT: Record<string, string> = {
@@ -337,6 +338,7 @@ export class BattleScene extends Phaser.Scene {
     this.job = JOBS[s.job ?? 'novice']
     this.j2 = s.job2 && JOB2[s.job2]?.parent === this.job.id ? JOB2[s.job2] : undefined // 2nd job (design/second-jobs-v1.md)
     if (this.job.id === 'cleric') preloadPfx(this, CLERIC_PFX) // bake the pixelfx sheets now, not on the first cast
+    if (this.job.id === 'mage') preloadPfx(this, MAGE_PFX)
     if (this.j2) this.job = { ...this.job, resource: this.j2.resource ?? this.job.resource, auto: { ...this.job.auto, cost: this.j2.autoCost ?? this.job.auto.cost }, ult: { ...this.job.ult, ...this.j2.ult, ...(this.j2.id === 'monk' && this.st.j2Asura > 0 ? { icon: '💥', name: 'อาชูร่าสไตรก์' } : {}) } } // Berserker: Rage · Ult วิวัฒน์ · Monk ★ Asura Strike
     if (this.j2?.id === 'sage') this.job = { ...this.job, attack: 'melee' } // 📖 Sage: melee basic + counters (P.ATK)
     this.sageInt = totalBase(s).int; this.heroDex = totalBase(s).dex; this.heroWis = totalBase(s).wis; this.casts = []; this.steady = false; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
@@ -1720,6 +1722,7 @@ export class BattleScene extends Phaser.Scene {
   private castFx(on: boolean) {
     if (this.castRing) { this.tweens.killTweensOf(this.castRing); this.castRing.destroy(); this.castRing = undefined }
     if (!on) return
+    playPfx(this, 'magicCircle', HERO_X, GROUND, { scale: 1.1, speed: 1.4 })
     this.castRing = this.add.ellipse(HERO_X, GROUND - 2, 130, 36).setStrokeStyle(3, 0xb48aff).setDepth(GROUND - 0.5)
     this.tweens.add({ targets: this.castRing, alpha: 0.35, scaleX: 1.15, scaleY: 1.15, duration: 360, yoyo: true, repeat: -1 })
   }
@@ -1728,6 +1731,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.j2!.id === 'wizard') { await this.stormGust(pow); return }
     const S = KIT2.sage
     this.endow = Math.max(this.endow, S.endowTurns + this.st.j2EndowTurns)
+    playPfx(this, 'runeCircle', HERO_X, GROUND, { scale: 1.2, speed: 1.5 })
     this.burst(HERO_X, GROUND - 40, 0xc9a8ff, 18, 160)
     this.floatText(HERO_X, GROUND - 160, `🗡️ Endow ${ELEMENTS[this.element].icon} +${Math.round((S.endowAmp + this.st.j2EndowAmp) * 100)}%`, '#c9a8ff')
     await this.wait(BATTLE.stepMs * 0.3)
@@ -1737,8 +1741,10 @@ export class BattleScene extends Phaser.Scene {
     const Z = KIT2.wizard, mul = (Z.gustMul + this.st.j2GustMul) * pow
     this.callout('❄️ Storm Gust!', W / 2, 170)
     this.cameras.main.flash(120, 159, 227, 255)
+    playPfx(this, 'frostNova', 700, GROUND, { scale: 1.4, speed: 1.4 })
     for (let h = 0; h < Z.gustHits; h++) {
       this.burst(700, GROUND - 40, 0x9fe3ff, 24, 300)
+      playPfx(this, 'iceSpikes', 620 + h * 35, GROUND, { scale: 1.1, speed: 1.6 })
       for (const m of this.alive()) {
         this.strike(m, mul, true, '#9fe3ff')
         if (h < Z.gustHits - 1 || m.dead) continue
@@ -1760,8 +1766,13 @@ export class BattleScene extends Phaser.Scene {
     for (const m of this.alive()) n += this.dispell(m)
     this.callout(n > 0 ? `🚫 Dispell! ลบ ${n} อย่าง` : '🚫 Dispell!', W / 2, 170)
     this.cameras.main.flash(120, 201, 168, 255)
+    playPfx(this, 'magicCircle', 700, GROUND, { scale: 1.3, speed: 1.5 })
     this.gainRes(S.ultMana); this.floatText(HERO_X, GROUND - 165, `🔷 Mana +${S.ultMana}`, '#5aa0ff')
-    if (t && !t.dead) await this.lunge(t, () => { this.strike(t, (S.ultAtk + this.st.ultMulAdd) * h2 * (1 + this.st.pskill)); this.strike(t, S.ultPm * h2, true, '#c9a8ff') })
+    if (t && !t.dead) await this.lunge(t, () => {
+      playPfx(this, 'arcaneBeam', t.spr.x - 30, GROUND, { scale: 1.2, speed: 1.5 })
+      this.strike(t, (S.ultAtk + this.st.ultMulAdd) * h2 * (1 + this.st.pskill))
+      this.strike(t, S.ultPm * h2, true, '#c9a8ff')
+    })
   }
   /** Sage Dispell on one monster: shield, war cry, reflect / absorb, vengeance, a charge. Returns how many it stripped. */
   private dispell(m: Mon) {
@@ -1778,7 +1789,7 @@ export class BattleScene extends Phaser.Scene {
   /** Wizard big blast by the run element (+ base Mage ult amps, ร่ายคู่, Mana back, วงล้อธาตุ). */
   private async wizUlt(p2: number, h2: number) {
     const Z = KIT2.wizard, el = this.element
-    const amp = 1 + this.st.mgUltAmp + (el === 'lightning' ? this.st.mgLightAmp : el === 'fire' ? this.st.mgFireAmp : this.st.mgIceAmp)
+    const amp = 1 + this.st.mgUltAmp + (el === 'lightning' ? this.st.mgLightAmp : el === 'fire' ? this.st.mgFireAmp : el === 'ice' ? this.st.mgIceAmp : 0)
     const dbl = this.st.mgDoubleCast > 0
     for (let c = 0; c < (dbl ? 2 : 1) && this.alive().length; c++) await this.wizBlast(el, h2 * amp * (dbl ? this.st.mgDoubleCast : 1))
     this.addShield(this.st.matk * (MAGE_SPELL.barrier + (el === 'ice' ? this.st.iceBarrier : 0)) * p2 * (el === 'ice' ? Z.iceBarrier : 1) * (1 - this.st.mgBarrierCut))
@@ -1791,24 +1802,38 @@ export class BattleScene extends Phaser.Scene {
     if (el === 'ice') { await this.stormGust(pow); return } // ❄️ a free Storm Gust
     if (el === 'fire') { // ☄️ Meteor Storm
       this.callout('☄️ Meteor Storm!', W / 2, 170)
+      playPfx(this, 'fireTornado', 700, GROUND, { scale: 1.5, speed: 1.3 })
       for (let i = 0; i < Z.meteors + this.st.j2Meteors; i++) {
         const l = this.alive(); if (!l.length) break
         const t = l[Phaser.Math.Between(0, l.length - 1)]
         const orb = this.add.circle(t.spr.x + 90, 20, 16, 0xff8c42).setDepth(9000)
         await this.tween({ targets: orb, x: t.spr.x, y: t.spr.y - 30, duration: 170, ease: 'Quad.easeIn' })
         orb.destroy()
+        playPfx(this, 'fireball', t.spr.x, t.spr.y - 30, { scale: 1.3, speed: 1.8 })
         this.burst(t.spr.x, t.spr.y - 30, 0xff8c42, 16, 220)
         this.strike(t, (Z.meteorMul + this.st.j2MeteorMul) * pow, true, '#ff8c42')
         if (!t.dead) { t.burnStacks = Math.min(this.burnMax(), t.burnStacks + Z.meteorBurn + this.st.mgFireStack); t.burnStackTurns = 3; this.dotIcon(t) }
       }
       return
     }
+    if (el === 'arcane') { // ✨ Star Fall
+      this.callout('✨ Star Fall!', W / 2, 170)
+      playPfx(this, 'magicCircle', 700, GROUND, { scale: 1.4, speed: 1.4 })
+      playPfx(this, 'starFall', 700, GROUND, { scale: 1.5, speed: 1.3 })
+      for (const m of this.alive()) {
+        playPfx(this, 'arcaneMissiles', m.spr.x, GROUND, { scale: 1.2, speed: 1.6 })
+        this.strike(m, (Z.meteorMul + this.st.j2MeteorMul) * pow, true, '#c9a8ff')
+      }
+      return
+    }
     // ⚡ Lord of Vermilion: every monster, N hits, stun chance (boss / mini: gauge push)
     this.callout('⚡ Lord of Vermilion!', W / 2, 170)
+    playPfx(this, 'thunderclap', 700, GROUND, { scale: 1.5, speed: 1.4 })
     this.zapTurn.clear()
     for (let h = 0; h < Z.lovHits + this.st.j2LovHits; h++) {
       this.cameras.main.flash(80, 200, 230, 255)
       for (const m of this.alive()) {
+        playPfx(this, 'chainLightning', m.spr.x, GROUND, { scale: 1.1, speed: 1.8 })
         this.zap(m, (Z.lovMul + this.st.j2LovMul) * pow, '#bfe6ff', false)
         if (m.dead || Math.random() >= Z.lovStun + this.st.j2LovStun) continue
         if (m.def.ai === 'boss') m.gauge -= Z.lovPush
@@ -1829,8 +1854,19 @@ export class BattleScene extends Phaser.Scene {
     for (let i = 0; i < 1 + this.st.j2AutoBolts; i++) {
       const t = target && !target.dead ? target : this.front()[0]
       if (!t) break
-      if (el === 'lightning') this.withSrc('other', () => this.zap(t, S.autoMul, '#bfe6ff', false))
-      else this.withSrc('other', () => this.strike(t, S.autoMul, true, el === 'fire' ? '#ff8c42' : '#9fe3ff'))
+      if (el === 'lightning') {
+        playPfx(this, 'lightningStrike', t.spr.x, GROUND, { scale: 1.1, speed: 1.8 })
+        this.withSrc('other', () => this.zap(t, S.autoMul, '#bfe6ff', false))
+      } else if (el === 'arcane') {
+        playPfx(this, 'arcaneMissiles', t.spr.x, GROUND, { scale: 1.1, speed: 1.6 })
+        this.withSrc('other', () => this.strike(t, S.autoMul, true, '#c9a8ff'))
+      } else if (el === 'ice') {
+        playPfx(this, 'iceLance', t.spr.x, t.spr.y - t.spr.displayHeight * 0.4, { scale: 1.1, speed: 1.6 })
+        this.withSrc('other', () => this.strike(t, S.autoMul, true, '#9fe3ff'))
+      } else {
+        playPfx(this, 'fireball', t.spr.x, t.spr.y - t.spr.displayHeight * 0.4, { scale: 1.1, speed: 1.6 })
+        this.withSrc('other', () => this.strike(t, S.autoMul, true, '#ff8c42'))
+      }
       if (t.dead) continue
       if (el === 'fire') { t.burnStacks = Math.min(this.burnMax(), t.burnStacks + 1); t.burnStackTurns = 3 }
       else if (el === 'ice') { t.chill = Math.max(t.chill, 1); if (!t.charging) t.spr.setTint(0x9fe3ff) }
@@ -2117,10 +2153,16 @@ export class BattleScene extends Phaser.Scene {
       case 'ar_trap':
         for (const m of star ? this.alive() : [front()].filter(Boolean) as Mon[]) { this.strike(m, S2N.trapMul); if (this.st.arPoisonS2 > 0) this.addPoison(m, KIT.archerTree.poisonArrowStacks); m.gauge -= S2N.trapPush(lv); this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, '🕳️', '#c9c9d6') }
         break
-      case 'mg_mshield': B.mshield = S2N.mshieldTurns(star); this.floatText(HERO_X, GROUND - 100, '🔷 Mana Shield', '#5aa0ff'); break
+      case 'mg_mshield':
+        B.mshield = S2N.mshieldTurns(star)
+        playPfx(this, 'runeCircle', HERO_X, GROUND, { scale: 1.2, speed: 1.5 })
+        this.floatText(HERO_X, GROUND - 100, '🔷 Mana Shield', '#5aa0ff')
+        break
       case 'mg_nova':
+        playPfx(this, 'frostNova', 700, GROUND, { scale: 1.3, speed: 1.4 })
         this.burst(700, GROUND - 20, 0x9fe3ff, 30, 300)
         for (const m of this.alive()) {
+          playPfx(this, 'iceSpikes', m.spr.x, GROUND, { scale: 1.1, speed: 1.6 })
           this.strike(m, S2N.novaMul(lv), true, '#9fe3ff')
           if (m.dead) continue
           m.chill = Math.max(m.chill, S2N.novaChill(star)); if (star) m.gauge -= S2N.novaPush
@@ -2133,6 +2175,7 @@ export class BattleScene extends Phaser.Scene {
         for (let i = 0; i < S2N.arcaneHits(star); i++) {
           if (!t || t.dead) { t = bossFirst(); if (!t) break }
           const m = t
+          playPfx(this, 'arcaneMissiles', m.spr.x, GROUND, { scale: 1.2, speed: 1.7 })
           await this.shoot(m, 0xc9a8ff, () => this.strike(m, S2N.arcaneMul(lv), true, '#c9a8ff'))
         }
         break
@@ -2258,8 +2301,10 @@ export class BattleScene extends Phaser.Scene {
 
   /** ลูกไฟระเบิด: fire on every monster at `mul` x Pm (Mage / Sage: MAGE_CAST.fireMul · Wizard: MAGE_SPELL.autoMul). */
   private async mageFire(pow: number, mul: number) {
+    playPfx(this, 'fireTornado', 700, GROUND, { scale: 1.4, speed: 1.4 })
     this.burst(700, GROUND - 30, 0xff8c42, 30, 300)
     for (const m of this.front()) {
+      playPfx(this, 'fireball', m.spr.x, m.spr.y - m.spr.displayHeight * 0.4, { scale: 1.2, speed: 1.6 })
       this.strike(m, mul * pow * (this.overflow ? this.st.mgOverflow : 1), true, '#ff8c42')
       if (this.st.burnDps > 0 && !m.dead) { m.burn = this.st.burnDps; m.burnTurns = 3; this.dotIcon(m) }
       if (this.st.autoBurn > 0 && this.element === 'fire' && !m.dead) { m.burnStacks = Math.min(this.burnMax(), m.burnStacks + this.st.autoBurn); m.burnStackTurns = 3; this.dotIcon(m) } // tree
@@ -2536,11 +2581,24 @@ export class BattleScene extends Phaser.Scene {
   /** `pow` = damage power (with ultAmp) · `bpow` = barrier power (0 = no barrier). */
   private async mageUlt(el: Element, pow: number, bpow: number) {
     const live = this.front()
-    const col = el === 'lightning' ? 0xbfe6ff : el === 'fire' ? 0xff8c42 : 0x9fe3ff
-    const txt = el === 'lightning' ? '#bfe6ff' : el === 'fire' ? '#ff8c42' : '#9fe3ff'
+    const col = el === 'lightning' ? 0xbfe6ff : el === 'fire' ? 0xff8c42 : el === 'ice' ? 0x9fe3ff : 0xc9a8ff
+    const txt = el === 'lightning' ? '#bfe6ff' : el === 'fire' ? '#ff8c42' : el === 'ice' ? '#9fe3ff' : '#c9a8ff'
     this.floatText(HERO_X, GROUND - 150, `${ELEMENTS[el].icon} ${ELEMENTS[el].name}`, txt)
-    if (el === 'lightning') this.cameras.main.flash(140, 200, 230, 255)
-    else {
+    if (el === 'lightning') {
+      this.cameras.main.flash(140, 200, 230, 255)
+      playPfx(this, 'thunderclap', 700, GROUND, { scale: 1.5, speed: 1.4 })
+    } else if (el === 'fire') {
+      playPfx(this, 'fireTornado', 700, GROUND, { scale: 1.5, speed: 1.3 })
+      const orb = this.add.circle(W - 60, 40, 30, col).setDepth(9000)
+      await this.tween({ targets: orb, x: 700, y: GROUND - 30, duration: 380, ease: 'Quad.easeIn' })
+      orb.destroy()
+    } else if (el === 'ice') {
+      playPfx(this, 'frostNova', 700, GROUND, { scale: 1.5, speed: 1.3 })
+      const orb = this.add.circle(W - 60, 40, 30, col).setDepth(9000)
+      await this.tween({ targets: orb, x: 700, y: GROUND - 30, duration: 380, ease: 'Quad.easeIn' })
+      orb.destroy()
+    } else {
+      playPfx(this, 'starFall', 700, GROUND, { scale: 1.5, speed: 1.3 })
       const orb = this.add.circle(W - 60, 40, 30, col).setDepth(9000)
       await this.tween({ targets: orb, x: 700, y: GROUND - 30, duration: 380, ease: 'Quad.easeIn' })
       orb.destroy()
@@ -2551,18 +2609,24 @@ export class BattleScene extends Phaser.Scene {
     if (el === 'lightning') await this.lightningStorm(pow, txt) // single target, many hits (Q 2026-11-03)
     for (const m of el === 'lightning' ? [] : live) {
       if (el === 'fire') {
+        playPfx(this, 'fireball', m.spr.x, m.spr.y - m.spr.displayHeight * 0.4, { scale: 1.3, speed: 1.6 })
         this.strike(m, KIT.mageFire * pow, true, txt)
         if (!m.dead && this.relic === 'hellfire') { m.hell += KIT.mageFireStacks + this.st.mgFireStack; this.dotIcon(m) } // Hellfire: no cap, never expires
         else if (!m.dead) { m.burnStacks = Math.min(this.burnMax(), m.burnStacks + KIT.mageFireStacks + this.st.mgFireStack); m.burnStackTurns = 3; this.dotIcon(m) }
-      } else {
+      } else if (el === 'ice') {
+        playPfx(this, 'iceLance', m.spr.x, m.spr.y - m.spr.displayHeight * 0.4, { scale: 1.3, speed: 1.5 })
         this.strike(m, KIT.mageIce * pow, true, txt)
         if (m.dead) continue
         if (m.chill > 0 && m.def.ai !== 'boss') { m.frozen = true; froze = true; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, 'แช่แข็ง!', '#9fe3ff') }
         m.chill = KIT.mageIceChill + this.st.chillPlus; m.gauge -= 25; if (!m.charging) m.spr.setTint(0x9fe3ff); this.dotIcon(m)
+      } else {
+        playPfx(this, 'arcaneBeam', m.spr.x - 30, GROUND, { scale: 1.2, speed: 1.6 })
+        this.strike(m, KIT.mageFire * pow, true, txt)
       }
     }
     if (froze && this.st.shatter > 0) { // tree ice ★ "ผลึกแตก"
       this.callout('❄️ ผลึกแตก!', W / 2, 170)
+      playPfx(this, 'iceSpikes', 700, GROUND, { scale: 1.3, speed: 1.5 })
       for (const m of this.alive()) this.strike(m, m.frozen ? 1.5 : 0.75, true, '#9fe3ff')
     }
     if (bpow > 0) this.addShield(this.st.matk * (MAGE_SPELL.barrier + (el === 'ice' ? this.st.iceBarrier : 0)) * bpow * (1 - this.st.mgBarrierCut))
@@ -2590,7 +2654,11 @@ export class BattleScene extends Phaser.Scene {
     if (proc && fork && this.pk.chain > 0 && Math.random() < this.pk.chain) { // legend ฟ้าแตกแขนง: never chains again
       const l = this.alive(); if (l.length) this.zap(l[Phaser.Math.Between(0, l.length - 1)], mul, txt, false)
     } else if (fork && this.element === 'lightning' && this.st.lightChain > 0 && Math.random() < this.st.lightChain) { // tree "ฟ้าแตกแขนง": never chains again
-      const l = this.alive(); if (l.length) this.zap(l[Phaser.Math.Between(0, l.length - 1)], mul, txt, false)
+      const l = this.alive(); if (l.length) {
+        const tgt = l[Phaser.Math.Between(0, l.length - 1)]
+        playPfx(this, 'chainLightning', tgt.spr.x, GROUND, { scale: 1.1, speed: 1.8 })
+        this.zap(tgt, mul, txt, false)
+      }
     }
   }
 
@@ -2604,6 +2672,7 @@ export class BattleScene extends Phaser.Scene {
       if (!t || t.dead) { const l = this.alive(); if (!l.length) break; t = l[Phaser.Math.Between(0, l.length - 1)] }
       let r = Phaser.Math.FloatBetween(KIT.mageLightLo, KIT.mageLightHi)
       if (this.st.lightLuck > 0) r = Math.max(r, Phaser.Math.FloatBetween(KIT.mageLightLo, KIT.mageLightHi)) // tree ★ ฟ้าลิขิต
+      playPfx(this, i === 0 ? 'lightningStrike' : 'chainLightning', t.spr.x, GROUND, { scale: 1.2, speed: 1.8 })
       this.zap(t, r * pow, txt)
       if (r >= 1 && this.st.overload > 0 && this.job.resource === 'mana') this.res = Math.min(this.resMax(), this.res + this.st.overload)
       await this.wait(70)
@@ -3495,13 +3564,22 @@ export class BattleScene extends Phaser.Scene {
         }
         break
       case 'firewave':
+        playPfx(this, 'fireTornado', 700, GROUND, { scale: 1.4, speed: 1.4 })
         for (let k = 0; k < n; k++) {
           this.burst(700, GROUND - 20, 0xff8c42, 18, 260)
           for (const m of this.alive()) { this.withSrc('fire', () => this.strike(m, pow, true, '#ff8c42')); this.addBurn(m, p.burn?.[i] ?? 1) }
         }
         break
-      case 'icespike': { const t = pickT(); if (t) this.iceHit(t, pow, false); break }
+      case 'icespike': {
+        const t = pickT()
+        if (t) {
+          playPfx(this, 'iceLance', t.spr.x, t.spr.y - 30, { scale: 1.3, speed: 1.6 })
+          this.iceHit(t, pow, false)
+        }
+        break
+      }
       case 'icewave':
+        playPfx(this, 'frostNova', 700, GROUND, { scale: 1.4, speed: 1.4 })
         this.burst(700, GROUND - 20, 0x9fe3ff, 16, 240)
         for (const m of this.alive()) this.iceHit(m, pow, !!p.freeze2 && i === 1)
         break
@@ -3548,6 +3626,7 @@ export class BattleScene extends Phaser.Scene {
     this.dotIcon(m)
   }
   private fireballFx(m: Mon) {
+    playPfx(this, 'fireball', m.spr.x, m.spr.y - 30, { scale: 1.3, speed: 1.6 })
     const b = this.add.image(HERO_X + 20, GROUND - 50, 'dot').setTint(0xff8c42).setScale(2.4).setDepth(9000)
     this.tweens.add({ targets: b, x: m.spr.x, y: m.spr.y - 30, duration: 200, onComplete: () => { b.destroy(); this.burst(m.spr.x, m.spr.y - 30, 0xff8c42, 10, 160) } })
   }
