@@ -31,3 +31,8 @@
 - **B2.5** (ทำหลัง B2.4/B2.7) ย้าย `doubleAtkChance` / `hitChance` / `afterDef` / `COMBO` / `RESIST_RULES` / `softCapDiminish` / `comboExtra` / `BATTLE` → `src/data/battle-rules.ts` (verbatim; `BATTLE.monSpeed` อ่าน `PACKS` จาก `./dungeons` ตรง + `import type { MonsterKind }`; `COMBO` / `BATTLE` ไม่ clone เพราะ `patch.ts` mutate in place)
 - **B2.6** (ทำหลัง B2.7/B2.5) ย้าย `RoomDef` / `DungeonDef` / `DUNGEONS` / `DUNGEON` → `src/data/dungeon-defs.ts` (verbatim; `DUNGEONS` อ่าน `PACKS` จาก `./dungeons` ตรง, `DUNGEON = DUNGEONS[0]` อยู่หลัง `DUNGEONS` เหมือนเดิม); `game-data.ts` เหลือเป็น barrel ล้วน (`export *` 7 บรรทัด)
 - ลำดับทำจริง: B2.1 → B2.2 → B2.3 → B2.7 → B2.4 → B2.5 → B2.6 (ไม่มีไฟล์ใหม่ import จาก barrel `./game-data`); `./dungeons/*` import `../game-data` แบบ `import type` เท่านั้น (เช็คแล้ว ไม่มี runtime cycle)
+
+## 4. 🧹 Track C — CharacterScene.ts → scenes/character/
+
+- หมายเหตุ: ไม่มี C2 (`CharCtx`) — ใช้การส่ง scene เข้าไปเป็น parameter แรกของ free function แทน (`fooTab(scene, ...)`) เพื่อให้ diff เป็น mechanical; ตั้งชื่อ param ว่า `scene` ไม่ใช่ `s` เพราะเกือบทุก method มี local `const s = save()` ชนกัน; state ทั้งหมดยังอยู่บน scene instance (field/method ที่ถูกเรียกข้ามไฟล์ถอด `private`)
+- **C1** ย้าย `DetailRow` / `nodeDetail` / `clip` / `clipW` → `src/scenes/character/node-detail.ts` (verbatim; เพิ่ม `export` ให้ `clip` / `clipW`; `CharacterScene.ts` ยัง `export { nodeDetail }` ต่อผ่าน re-export)
