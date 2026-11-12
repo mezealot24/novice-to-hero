@@ -15,3 +15,4 @@
 - **B1.3** ย้าย `SKILLS` / `NOVICE_RULES` / `smashLv` / `NOVICE_PASSIVES` / `noviceSpent` / `noviceLeft` / `CERT_SLOTS_AT` → `src/data/meta/novice.ts` และ `RACES` → `src/data/meta/races.ts` (verbatim)
 - **B1.4** ย้าย `Slot` / `EquipSlot` / `SLOTS` / `EQUIP_SLOTS` / `EMPTY_ITEM` / `BARE_ITEM` / `slotKind` / `ItemReq` / `Item` → `src/data/meta/item-types.ts`; เพิ่ม `export` ให้ `SW/AR/MG/CL/TH` (เดิม private) เพราะ items-*.ts ต้องใช้
 - **B1.5** แยก `ITEMS` literal เป็น `WEAPONS` / `ARMOR` / `HEAD_OFF` → `src/data/meta/items-{weapons,armor,head-off}.ts` (verbatim; `meta.ts` ประกอบ `ITEMS` ด้วย spread ตามลำดับเดิม, ไม่ re-export 3 array นี้)
+- **B1.6** ย้าย `ITEMS` (spread `WEAPONS`/`ARMOR`/`HEAD_OFF` + craft/cardforge/uniques/uniques3/class-gear/class-craft ตามลำดับเดิม) + `itemById` / `canWear` / `canWearAs` / `itemUnlocked` / `REQ_TEXT` → `src/data/meta/items.ts`; เช็ค id order 196 ตัวเหมือนเดิม
