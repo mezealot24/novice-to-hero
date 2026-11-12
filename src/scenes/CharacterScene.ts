@@ -84,12 +84,10 @@ import {
 	branchesOf,
 	lockReason,
 	nodeTierOf,
-	SCALABLE_RULES,
 	nodeById,
 	nodesOf,
 	TREE_RULES,
 	treeSpent,
-	ultEvolutionSummary,
 	type TreeNode,
 } from "../data/tree";
 import { JOB_CHANGE, JOBS } from "../data/jobs";
@@ -126,6 +124,7 @@ import { fitHeroScale, heroCostumeTint, heroTex } from "../gfx/hero-visual";
 import { nodeDetail, clip, clipW } from "./character/node-detail";
 import { statusTab } from "./character/status-tab";
 import { talentTab } from "./character/talent-tab";
+import { ultModal } from "./character/ult-modal";
 
 const BRANCH_PET: Record<string, PetId> = {
 	bm_h: "hawk",
@@ -147,7 +146,7 @@ export class CharacterScene extends Phaser.Scene {
 	private skillBasic = false; // skill tab: false = unified 3-class skill web, true = Novice skills + certificates + job
 	private selNode = "";
 	private showDetail = false; // skill web: node detail modal open
-	private modal?: Phaser.GameObjects.Container;
+	modal?: Phaser.GameObjects.Container;
 	private webScrollY = 0; // RO Mobile continuous vertical scroll offset
 	private webMaxScroll = 0;
 	// v-scroll perf: drag/wheel/momentum only move these refs (no full render() per frame)
@@ -168,7 +167,7 @@ export class CharacterScene extends Phaser.Scene {
 	};
 	private tierOffsets: [number, number, number] = [0, 380, 760]; // Y anchors for Tier 1, Tier 2, Tier 3
 	private previewJob2Idx = 0; // when still Class 1, toggle which Class 2 branch to preview in the continuous tree
-	private showUlt = false; // skill web: 🔥 รวมผล Ult popup (was the left sidebar; left side is now the node detail panel)
+	showUlt = false; // skill web: 🔥 รวมผล Ult popup (was the left sidebar; left side is now the node detail panel)
 	talent2 = false; // v119 talent tab: show ทาเลนต์ชั้น 2
 	constructor() {
 		super("character");
@@ -227,7 +226,7 @@ export class CharacterScene extends Phaser.Scene {
 		);
 	}
 
-	private render() {
+	render() {
 		this.body?.destroy();
 		this.modal?.destroy();
 		this.modal = undefined;
@@ -240,7 +239,7 @@ export class CharacterScene extends Phaser.Scene {
 				? this.skillTab()
 				: this.unifiedWebTab();
 		else talentTab(this);
-		if (this.showUlt && this.tab === 3) this.ultModal();
+		if (this.showUlt && this.tab === 3) ultModal(this);
 	}
 
 	redraw() {
@@ -559,207 +558,6 @@ export class CharacterScene extends Phaser.Scene {
 		const g = this.add.graphics();
 		g.lineStyle(1, UI.line, 0.8).lineBetween(26, 124, 304, 124);
 		c.add(g);
-	}
-
-	/** 🔥 รวมผล Ult popup: the old left sidebar card, scaled up and centered. */
-	private ultModal() {
-		const close = () => {
-			this.showUlt = false;
-			this.render();
-		};
-		const c = this.add.container(0, 0).setDepth(30000);
-		this.modal = c;
-		const dim = this.add
-			.rectangle(W / 2, H / 2, W, H, 0x080a18, 0.8)
-			.setInteractive();
-		dim.on("pointerup", close);
-		c.add(dim);
-		// sidebar art spans x 24..306, y 280..552 (center 165,416) -> scale around the screen center
-		const k = Math.min(1.6, (H - 70) / 272);
-		const inner = this.add.container(W / 2 - 165 * k, H / 2 - 416 * k).setScale(k);
-		inner.add(this.add.zone(24, 280, 282, 272).setOrigin(0).setInteractive()); // swallow taps on the card
-		this.drawUltEvolutionSidebar(inner);
-		c.add(inner);
-		c.add(
-			button(this, W / 2 + 141 * k + 28, H / 2 - 136 * k + 18, 40, 36, "✕", close, {
-				size: 17,
-				fill: 0x5a5f8a,
-				color: UI.text,
-			}),
-		);
-	}
-
-	/** Left sidebar card on the Skill Tree tab: shows how Ultimate accumulates Class 1 -> 2 -> 3 benefits + Scalable Milestones. */
-	private drawUltEvolutionSidebar(c: Phaser.GameObjects.Container) {
-		const s = save();
-		const j3 = activeJob3(s);
-		const crossPts = totalCrossSpent(s);
-		const sum = ultEvolutionSummary(
-			s.job,
-			s.job2,
-			j3,
-			s.jobTree ?? {},
-			s.job2Tree ?? {},
-			s.job3Tree ?? {},
-			crossPts,
-		);
-
-		const box = this.add.graphics();
-		box.fillStyle(0x14172b, 0.94).fillRoundedRect(24, 280, 282, 272, 10);
-		box
-			.lineStyle(1.5, UI.goldDark, 0.85)
-			.strokeRoundedRect(24, 280, 282, 272, 10);
-		c.add(box);
-
-		c.add(
-			clipW(
-				txt(
-					this,
-					32,
-					286,
-					`🔥 รวมผล Ult: ${sum.curIcon} ${sum.curName}`,
-					13,
-					UI.gold,
-					true,
-				),
-				264,
-			),
-		);
-		// 3 Cumulative Ultimate Tiers stacked with connecting vertical gold spine
-		const spine = this.add.graphics();
-		spine.lineStyle(2, COLORS.gold, 0.65).lineBetween(40, 316, 40, 424);
-		c.add(spine);
-
-		sum.tiers.forEach((tr, idx) => {
-			const ty = 310 + idx * 45;
-			const cardG = this.add.graphics();
-			cardG
-				.fillStyle(tr.active ? 0x1e2544 : 0x16192c, 0.92)
-				.fillRoundedRect(30, ty, 270, 41, 7);
-			cardG
-				.lineStyle(1, tr.active ? COLORS.gold : 0x2e3558, tr.active ? 0.7 : 0.5)
-				.strokeRoundedRect(30, ty, 270, 41, 7);
-			c.add(cardG);
-			c.add(
-				clipW(
-					txt(
-						this,
-						36,
-						ty + 3,
-						`${tr.icon} ${tr.name}`,
-						11,
-						tr.active ? "#ffe994" : UI.sub,
-						true,
-					),
-					258,
-				),
-			);
-			c.add(
-				clipW(
-					txt(this, 36, ty + 20, tr.summary, 10, tr.active ? UI.green : UI.sub),
-					258,
-				),
-			);
-		});
-
-		// Scalable Skill & Cross-Tier Point Breakthrough section
-		const syY = 448;
-		const syG = this.add.graphics();
-		syG.fillStyle(0x1b1832, 0.95).fillRoundedRect(30, syY, 270, 98, 8);
-		syG.lineStyle(1, 0x8a6fd1, 0.8).strokeRoundedRect(30, syY, 270, 98, 8);
-		c.add(syG);
-
-		c.add(
-			txt(
-				this,
-				36,
-				syY + 4,
-				"⚡ Scalable Skill (อัปคลาส 1 เปิดลูกเล่นใหม่)",
-				11,
-				"#d7bfff",
-				true,
-			),
-		);
-
-		const odOn = sum.ultOverdrive;
-		c.add(
-			clipW(
-				txt(
-					this,
-					36,
-					syY + 23,
-					`${odOn ? "✅" : "🔒"} 🌟 Ult Overdrive (สาย Ult ขั้น 1: ${sum.ultPts}/${SCALABLE_RULES.ultOverdriveNeed})`,
-					10,
-					odOn ? UI.green : UI.text,
-					odOn,
-				),
-				258,
-			),
-		);
-		c.add(
-			clipW(
-				txt(
-					this,
-					44,
-					syY + 37,
-					"ปลดล็อก: Ult ทุกคลาสแรงขึ้น +15% ทุกฮิต!",
-					9.5,
-					odOn ? "#ffe994" : UI.sub,
-				),
-				250,
-			),
-		);
-
-		const awOn = sum.s1Awaken;
-		c.add(
-			clipW(
-				txt(
-					this,
-					36,
-					syY + 53,
-					`${awOn ? "✅" : "🔒"} ⚡ Origin Awaken (สายทักษะ 1: ${sum.s1Pts}/${SCALABLE_RULES.s1AwakenNeed})`,
-					10,
-					awOn ? UI.green : UI.text,
-					awOn,
-				),
-				258,
-			),
-		);
-		c.add(
-			clipW(
-				txt(
-					this,
-					44,
-					syY + 67,
-					"ปลดล็อก: ทักษะ 1 & ทักษะ 3 แรงขึ้น +12%!",
-					9.5,
-					awOn ? "#ffe994" : UI.sub,
-				),
-				250,
-			),
-		);
-
-		const crPct =
-			Math.round(
-				Math.min(
-					SCALABLE_RULES.crossPtCap,
-					crossPts * SCALABLE_RULES.crossPtBonus,
-				) * 1000,
-			) / 10;
-		c.add(
-			clipW(
-				txt(
-					this,
-					36,
-					syY + 82,
-					`🔗 แต้มคลาสสูงอัดลงคลาสต่ำ: ${crossPts} แต้ม (สกิล&Ult +${crPct}%)`,
-					9.5,
-					crossPts > 0 ? UI.gold : UI.sub,
-					crossPts > 0,
-				),
-				258,
-			),
-		);
 	}
 
 	// ---------- tab 1: equipment screen (RO style): 3 slots left, hero in the middle, 3 slots right ----------

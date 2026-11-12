@@ -38,3 +38,4 @@
 - **C1** ย้าย `DetailRow` / `nodeDetail` / `clip` / `clipW` → `src/scenes/character/node-detail.ts` (verbatim; เพิ่ม `export` ให้ `clip` / `clipW`; `CharacterScene.ts` ยัง `export { nodeDetail }` ต่อผ่าน re-export)
 - **C3** ย้าย `statusTab` / `statDesc` → `src/scenes/character/status-tab.ts` (verbatim; `this` → `scene`, `this.statDesc(...)` → `statDesc(scene, ...)`; ถอด `private` ของ `body` / `redraw`)
 - **C4** ย้าย `talentTab` → `src/scenes/character/talent-tab.ts` (verbatim; ถอด `private` ของ `talent2`)
+- **C5** ย้าย `ultModal` / `drawUltEvolutionSidebar` → `src/scenes/character/ult-modal.ts` (verbatim; ถอด `private` ของ `showUlt` / `render` / `modal`)
