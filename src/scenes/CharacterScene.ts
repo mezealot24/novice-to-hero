@@ -8,22 +8,13 @@ import { derivedRows } from "../data/stat-rows";
 export { derivedRows };
 export { nodeDetail } from "./character/node-detail";
 import {
-	smashLv,
-	CERT_SLOTS_AT,
 	type EquipSlot,
-	NOVICE_PASSIVES,
-	NOVICE_RULES,
-	noviceLeft,
-	noviceSpent,
-	SKILLS,
 } from "../data/meta";
 import {
-	canChangeJob,
 	canSpendInTier,
 	job2Lock,
 	job3Lock,
 	persist,
-	resetNovice,
 	resetTree,
 	resetTree2,
 	resetTree3,
@@ -49,7 +40,7 @@ import {
 	treeSpent,
 	type TreeNode,
 } from "../data/tree";
-import { JOB_CHANGE, JOBS } from "../data/jobs";
+import { JOBS } from "../data/jobs";
 import {
 	JOB2,
 	JOB2_RULES,
@@ -63,11 +54,9 @@ import {
 	JOB3_RULES,
 	job3Of,
 } from "../data/jobs3";
-import { askRepick } from "./JobScene";
 import {
 	type Btn,
 	button,
-	confirm,
 	go,
 	panel,
 	tabs,
@@ -83,6 +72,7 @@ import { ultModal } from "./character/ult-modal";
 import { drawPreview } from "./character/preview";
 import { cardTab } from "./character/cards-tab";
 import { equipTab } from "./character/equip-tab";
+import { skillTab } from "./character/skill-basic";
 
 const BRANCH_PET: Record<string, PetId> = {
 	bm_h: "hawk",
@@ -194,7 +184,7 @@ export class CharacterScene extends Phaser.Scene {
 		else if (this.tab === 2) statusTab(this);
 		else if (this.tab === 3)
 			save().job === "novice" || this.skillBasic
-				? this.skillTab()
+				? skillTab(this)
 				: this.unifiedWebTab();
 		else talentTab(this);
 		if (this.showUlt && this.tab === 3) ultModal(this);
@@ -328,246 +318,6 @@ export class CharacterScene extends Phaser.Scene {
 		const sb = this.webSb;
 		const r = Math.max(0, Math.min(1, (py - sb.y - sb.thumbH / 2) / Math.max(1, sb.h - sb.thumbH)));
 		this.scrollToWebY(r * this.webMaxScroll, animate);
-	}
-
-	// ---------- tab 3 (Novice / Basic view): novice passives + certificates ----------
-	private skillTab() {
-		const s = save(),
-			b = this.body!;
-		const novice = s.job === "novice",
-			left = noviceLeft(s.skills),
-			spent = noviceSpent(s.skills);
-		b.add(
-			txt(
-				this,
-				330,
-				116,
-				`แต้มโนวิส: ${left}/${NOVICE_RULES.points}`,
-				20,
-				left ? UI.gold : UI.sub,
-				true,
-			),
-		);
-		b.add(
-			txt(
-				this,
-				330,
-				144,
-				novice
-					? `ฟรี ${NOVICE_RULES.points} แต้มตั้งแต่เริ่ม · 💢 ทุบ เลเวลขึ้นเองตาม Job Lv`
-					: "สกิลโนวิสติดตัวไปด้วย · สกิลอาชีพอยู่ใน 🕸️ ใยสกิล 3 คลาส",
-				14,
-				UI.sub,
-			),
-		);
-		if (!novice)
-			b.add(
-				button(
-					this,
-					885,
-					124,
-					120,
-					30,
-					"🕸️ ใยสกิล 3 ชั้น",
-					() => {
-						this.skillBasic = false;
-						this.redraw();
-					},
-					{ size: 12 },
-				),
-			);
-		b.add(
-			button(
-				this,
-				novice ? 870 : 755,
-				124,
-				120,
-				30,
-				`↺ รีเซ็ต 💎${NOVICE_RULES.resetGems}`,
-				() => {
-					if (s.gems < NOVICE_RULES.resetGems) {
-						toast(
-							this,
-							`เพชรไม่พอ ต้องใช้ 💎${NOVICE_RULES.resetGems} (มี ${s.gems})`,
-							UI.sub,
-						);
-						return;
-					}
-					confirm(
-						this,
-						"↺ รีเซ็ตสกิลโนวิส?",
-						`คืนแต้มโนวิสทั้ง ${spent} แต้ม\nจ่าย 💎${NOVICE_RULES.resetGems}`,
-						"รีเซ็ต",
-						() => {
-							if (resetNovice(s)) {
-								toast(this, `คืน ${spent} แต้มแล้ว`);
-								this.redraw();
-							}
-						},
-					);
-				},
-				{ size: 12, fill: 0x5a5f8a, color: UI.text },
-			).setEnabled(spent > 0),
-		);
-
-		let gy = 168;
-		if (novice) {
-			const sm = SKILLS.find((x) => x.id === "smash")!,
-				lv = smashLv(s.jobLevel);
-			b.add(panel(this, 330, 164, 600, 36, UI.panel, UI.line, 10));
-			b.add(
-				txt(
-					this,
-					342,
-					172,
-					`${sm.icon} ${sm.name}  Lv ${lv}/${sm.max}`,
-					14,
-					UI.text,
-					true,
-				),
-			);
-			b.add(
-				txt(
-					this,
-					520,
-					174,
-					`${sm.desc(lv)} · เลเวลขึ้นเองตาม Job Lv`,
-					10,
-					UI.green,
-				).setWordWrapWidth(400),
-			);
-			gy = 206;
-		}
-		NOVICE_PASSIVES.forEach((sk, i) => {
-			const w = 297,
-				h = 44,
-				x = 330 + (i % 2) * (w + 6),
-				y = gy + Math.floor(i / 2) * (h + 5);
-			const lv = s.skills[sk.id] ?? 0;
-			b.add(panel(this, x, y, w, h, UI.panel, lv ? COLORS.gold : UI.line, 10));
-			b.add(
-				txt(this, x + 10, y + 4, `${sk.icon} ${sk.name}`, 14, UI.text, true),
-			);
-			b.add(
-				txt(
-					this,
-					x + 236,
-					y + 6,
-					`${lv}/${sk.max}`,
-					12,
-					lv ? UI.gold : UI.sub,
-					true,
-				).setOrigin(1, 0),
-			);
-			b.add(
-				txt(
-					this,
-					x + 10,
-					y + 25,
-					sk.desc(Math.max(1, lv)),
-					10,
-					lv ? UI.green : UI.sub,
-				).setWordWrapWidth(226),
-			);
-			b.add(
-				button(
-					this,
-					x + 268,
-					y + h / 2,
-					46,
-					30,
-					lv ? "+1" : "เรียน",
-					() => {
-						if (noviceLeft(s.skills) <= 0 || (s.skills[sk.id] ?? 0) >= sk.max)
-							return;
-						s.skills[sk.id] = (s.skills[sk.id] ?? 0) + 1;
-						persist();
-						this.redraw();
-					},
-					{ size: 12 },
-				).setEnabled(left > 0 && lv < sk.max),
-			);
-		});
-
-		const y0 = 372;
-		b.add(
-			txt(
-				this,
-				330,
-				y0,
-				"🎖️ ช่องใบรับรอง (Passive พิเศษ) · เปิดตาม Base Lv",
-				16,
-				UI.text,
-				true,
-			),
-		);
-		CERT_SLOTS_AT.forEach((lv, i) => {
-			const x = 330 + i * 152,
-				open = s.baseLevel >= lv;
-			b.add(
-				panel(
-					this,
-					x,
-					y0 + 28,
-					144,
-					56,
-					open ? 0x2a3b5a : 0x1d2140,
-					open ? COLORS.gold : UI.line,
-					10,
-				),
-			);
-			b.add(
-				txt(
-					this,
-					x + 72,
-					y0 + 56,
-					open ? "ว่าง\n(เร็วๆ นี้)" : `🔒 Base Lv ${lv}`,
-					12,
-					open ? UI.gold : UI.sub,
-				)
-					.setOrigin(0.5)
-					.setAlign("center"),
-			);
-		});
-		b.add(
-			txt(this, 330, y0 + 100, "🌳 ทาเลนต์ & เปลี่ยนอาชีพ", 16, UI.text, true),
-		);
-		if (canChangeJob(s) || s.job !== "novice") {
-			b.add(
-				txt(
-					this,
-					330,
-					y0 + 126,
-					s.job === "novice"
-						? "ล้มบอสดันแรกแล้ว! ไปเลือกอาชีพได้เลย"
-						: `ลงแต้มสกิลอาชีพได้ที่ 🕸️ ใยสกิล · เปลี่ยนอาชีพใหม่ได้ด้วย 💎${JOB_CHANGE.repickGems} (คืนแต้มใยสกิลครบ Job Lv คงเดิม)`,
-					13,
-					UI.gold,
-				).setWordWrapWidth(420),
-			);
-			b.add(
-				button(
-					this,
-					850,
-					y0 + 132,
-					150,
-					36,
-					s.job === "novice" ? "🎓 อาชีพ" : `🔄 💎${JOB_CHANGE.repickGems}`,
-					() => (s.job === "novice" ? go(this, "job") : askRepick(this)),
-					{ size: 15 },
-				),
-			);
-		} else
-			b.add(
-				txt(
-					this,
-					330,
-					y0 + 126,
-					"ปลดล็อกเมื่อล้มบอสดันแรก (ราชาเจลล็อป) · มี 5 อาชีพ: นักดาบ นักธนู จอมเวท นักบวช โจร",
-					13,
-					UI.sub,
-				).setWordWrapWidth(600),
-			);
 	}
 
 	/** Procedural RPG Skill Node Card: displays socket frame, rarity glow, level badge, and icon. */

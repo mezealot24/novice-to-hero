@@ -42,3 +42,4 @@
 - **C6** ย้าย `drawPreview` / `drawSkillHeroStrip` → `src/scenes/character/preview.ts` (verbatim; `BRANCH_PET` ไม่ได้ย้าย เพราะมีแค่ `unifiedWebTab` ที่ใช้; ถอด `private` ของ `preview` / `tab` / `skillBasic`)
 - **C7** ย้าย `cardTab` / `cardBagView` / `cardBookView` → `src/scenes/character/cards-tab.ts` (verbatim; ถอด `private` ของ `cardPage` / `cardBook` / `bookDg` / `bookV2`)
 - **C8** ย้าย `equipTab` / `takeOff` → `src/scenes/character/equip-tab.ts` (verbatim; ถอด `private` ของ `slot` / `bagPage`)
+- **C9** ย้าย `skillTab` (novice/basic view) → `src/scenes/character/skill-basic.ts` (verbatim; ไม่ต้องถอด `private` เพิ่ม)
