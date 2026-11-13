@@ -12,6 +12,7 @@ import * as bluntHit from '../vendor/pixelfx/fx/impacts/blunt-hit.js'
 import * as critHit from '../vendor/pixelfx/fx/impacts/crit-hit.js'
 import * as groundSlam from '../vendor/pixelfx/fx/impacts/ground-slam.js'
 import * as zapHit from '../vendor/pixelfx/fx/lightning/zap-hit.js'
+import * as zapStrike from './zap-strike'
 // Fire
 import * as fireball from '../vendor/pixelfx/fx/fire/fireball.js'
 import * as fireTornado from '../vendor/pixelfx/fx/fire/fire-tornado.js'
@@ -45,6 +46,7 @@ export interface PfxDef {
 
 const GOLD_HIT = ['#2a1a06', '#5c3a0a', '#a36a14', '#e09a2c', '#ffc23d', '#ffe08a', '#fff6c8', '#ffffff'] // crit-hit's own ramp is red-orange
 export const ZAP_YELLOW = ['#241d08', '#524412', '#947e1f', '#d4bb34', '#f5df53', '#fff08a', '#fffad1', '#ffffff']
+export const ZAP_YELLOW_SPARKS = ['#ffffff', '#fffad1', '#fff08a', '#d4bb34']
 
 export const DEFS = {
   smite: { mod: smite, from: 0.45, until: 1.9 }, // holy light falling on one monster
@@ -56,11 +58,10 @@ export const DEFS = {
   critOrange: { mod: critHit },
   slam: { mod: groundSlam, until: 2.4 },
   zap: { mod: zapHit },
+  zapBolt: { mod: zapStrike },
   zapYellow: {
-    mod: zapHit,
-    size: [112, 144],
-    origin: [56, 86],
-    opts: { palette: ZAP_YELLOW, flip: true, angle: -Math.PI / 2 },
+    mod: zapStrike,
+    opts: { palette: ZAP_YELLOW, sparks: ZAP_YELLOW_SPARKS },
   },
   // Fire
   fireball: { mod: fireball, until: 1.2 },
@@ -191,6 +192,7 @@ export const MAGE_PFX: PfxId[] = [
   'iceLance',
   'iceSpikes',
   'lightningStrike',
+  'zapBolt',
   'chainLightning',
   'thunderclap',
   'magicCircle',

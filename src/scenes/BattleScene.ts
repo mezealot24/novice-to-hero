@@ -339,7 +339,7 @@ export class BattleScene extends Phaser.Scene {
     this.j2 = s.job2 && JOB2[s.job2]?.parent === this.job.id ? JOB2[s.job2] : undefined // 2nd job (design/second-jobs-v1.md)
     if (this.job.id === 'cleric') preloadPfx(this, CLERIC_PFX) // bake the pixelfx sheets now, not on the first cast
     if (this.job.id === 'mage') preloadPfx(this, MAGE_PFX)
-    preloadPfx(this, ['zapYellow'])
+    preloadPfx(this, ['zapYellow', 'zapBolt'])
     if (this.j2) this.job = { ...this.job, resource: this.j2.resource ?? this.job.resource, auto: { ...this.job.auto, cost: this.j2.autoCost ?? this.job.auto.cost }, ult: { ...this.job.ult, ...this.j2.ult, ...(this.j2.id === 'monk' && this.st.j2Asura > 0 ? { icon: '💥', name: 'อาชูร่าสไตรก์' } : {}) } } // Berserker: Rage · Ult วิวัฒน์ · Monk ★ Asura Strike
     if (this.j2?.id === 'sage') this.job = { ...this.job, attack: 'melee' } // 📖 Sage: melee basic + counters (P.ATK)
     this.sageInt = totalBase(s).int; this.heroDex = totalBase(s).dex; this.heroWis = totalBase(s).wis; this.casts = []; this.steady = false; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
@@ -1834,7 +1834,7 @@ export class BattleScene extends Phaser.Scene {
     for (let h = 0; h < Z.lovHits + this.st.j2LovHits; h++) {
       this.cameras.main.flash(80, 200, 230, 255)
       for (const m of this.alive()) {
-        playPfx(this, 'chainLightning', m.spr.x, GROUND, { scale: 1.1, speed: 1.8 })
+        playPfx(this, 'zapBolt', m.spr.x, GROUND, { scale: 1.15, speed: 1.4, flip: h % 2 === 1 })
         this.zap(m, (Z.lovMul + this.st.j2LovMul) * pow, '#bfe6ff', false)
         if (m.dead || Math.random() >= Z.lovStun + this.st.j2LovStun) continue
         if (m.def.ai === 'boss') m.gauge -= Z.lovPush
@@ -2639,10 +2639,7 @@ export class BattleScene extends Phaser.Scene {
     const proc = this.src === 'zap' // card lightning (not the Mage ult)
     const superHit = proc && fork && this.relic === 'superbolt' && Math.random() < RELIC_RULES.superbolt.chance
     if (proc) {
-      playPfx(this, 'zapYellow', m.spr.x, m.spr.y - m.spr.displayHeight * 0.45, { scale: superHit ? 1.7 : 1.4, speed: 1.4 })
-    } else {
-      const bolt = this.add.rectangle(m.spr.x, (m.spr.y - 40) / 2, 6, Math.max(10, m.spr.y - 40), 0xbfe6ff).setDepth(9000)
-      this.tweens.add({ targets: bolt, alpha: 0, duration: 140, onComplete: () => bolt.destroy() })
+      playPfx(this, 'zapYellow', m.spr.x, GROUND, { scale: superHit ? 1.45 : 1.2, speed: 1.4, flip: this.zapCount % 2 === 1 })
     }
     const n = this.zapTurn.get(m) ?? 0
     this.zapTurn.set(m, n + 1)
@@ -2655,7 +2652,7 @@ export class BattleScene extends Phaser.Scene {
       mul *= RELIC_RULES.superbolt.mul
       this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 46, '⚡ อสนีเทพ!', '#fff07a')
       for (const o of this.alive().filter((x) => x !== m).slice(0, 2)) {
-        playPfx(this, 'zapYellow', o.spr.x, o.spr.y - o.spr.displayHeight * 0.45, { scale: 1.2, speed: 1.4 })
+        playPfx(this, 'zapYellow', o.spr.x, GROUND, { scale: 1.05, speed: 1.4, flip: true })
         this.strike(o, RELIC_RULES.superbolt.splash, true, txt)
       }
     }
@@ -2665,7 +2662,7 @@ export class BattleScene extends Phaser.Scene {
     } else if (fork && this.element === 'lightning' && this.st.lightChain > 0 && Math.random() < this.st.lightChain) { // tree "ฟ้าแตกแขนง": never chains again
       const l = this.alive(); if (l.length) {
         const tgt = l[Phaser.Math.Between(0, l.length - 1)]
-        playPfx(this, 'chainLightning', tgt.spr.x, GROUND, { scale: 1.1, speed: 1.8 })
+        playPfx(this, 'zapBolt', tgt.spr.x, GROUND, { scale: 1.15, speed: 1.4, flip: true })
         this.zap(tgt, mul, txt, false)
       }
     }
@@ -2681,7 +2678,7 @@ export class BattleScene extends Phaser.Scene {
       if (!t || t.dead) { const l = this.alive(); if (!l.length) break; t = l[Phaser.Math.Between(0, l.length - 1)] }
       let r = Phaser.Math.FloatBetween(KIT.mageLightLo, KIT.mageLightHi)
       if (this.st.lightLuck > 0) r = Math.max(r, Phaser.Math.FloatBetween(KIT.mageLightLo, KIT.mageLightHi)) // tree ★ ฟ้าลิขิต
-      playPfx(this, i === 0 ? 'lightningStrike' : 'chainLightning', t.spr.x, GROUND, { scale: 1.2, speed: 1.8 })
+      playPfx(this, i === 0 ? 'lightningStrike' : 'zapBolt', t.spr.x, GROUND, { scale: 1.2, speed: i === 0 ? 1.8 : 1.4, flip: i % 2 === 1 })
       this.zap(t, r * pow, txt)
       if (r >= 1 && this.st.overload > 0 && this.job.resource === 'mana') this.res = Math.min(this.resMax(), this.res + this.st.overload)
       await this.wait(70)
@@ -4217,7 +4214,7 @@ export class BattleScene extends Phaser.Scene {
     for (let i = 0; i < S.bolts; i++) {
       const t = this.alive(); if (!t.length) break
       const m = t[Phaser.Math.Between(0, t.length - 1)]
-      playPfx(this, 'zapYellow', m.spr.x, m.spr.y - m.spr.displayHeight * 0.45, { scale: 1.5, speed: 1.4 })
+      playPfx(this, 'zapYellow', m.spr.x, GROUND, { scale: 1.25, speed: 1.4, flip: i % 2 === 1 })
       this.withSrc('zap', () => this.damageMon(m, Math.max(1, Math.round(this.magicPow() * Phaser.Math.FloatBetween(0.9, 1.1) * S.mul)), false, '#fff08a')) // magic: no crit (RO rule)
       sfx.hit()
       await this.wait(70)

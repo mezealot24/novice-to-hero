@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DEFS, ZAP_YELLOW, bake } from '../src/gfx/pixelfx'
+import { DEFS, ZAP_YELLOW, ZAP_YELLOW_SPARKS, bake } from '../src/gfx/pixelfx'
 import { createFrame, clearFrame, createFx } from '../src/vendor/pixelfx/core/index.js'
 import { PROC_RULES, nextZapTarget } from '../src/data/perks'
 
@@ -46,25 +46,27 @@ test('nextZapTarget skips monsters that died mid-sequence', () => {
   assert.ok(!picked.includes('m2'))
 })
 
-test('zapYellow renders vertically with yellowish electric palette and no clipping', () => {
+test('zapYellow strikes instantaneously from Thunder Strike height with yellowish palette', () => {
   const def = DEFS.zapYellow
-  assert.deepEqual(def.size, [112, 144])
-  assert.deepEqual(def.origin, [56, 86])
-  assert.equal(def.opts?.flip, true)
-  assert.equal(def.opts?.angle, -Math.PI / 2)
+  const lsMeta = DEFS.lightningStrike.mod.meta
+  assert.equal(def.mod.meta.origin[1], lsMeta.origin[1], 'Origin Y must match lightningStrike')
+  assert.equal(def.mod.meta.size[1], lsMeta.size[1], 'Canvas height must match lightningStrike')
+  assert.ok(def.mod.meta.duration <= 0.35, `zapYellow should finish fast (got ${def.mod.meta.duration}s)`)
   assert.deepEqual(def.opts?.palette, ZAP_YELLOW)
+  assert.deepEqual(def.opts?.sparks, ZAP_YELLOW_SPARKS)
 
-  const [w, h] = def.size!
-  const [ox, oy] = def.origin!
+  const [w, h] = def.mod.meta.size
+  const [ox, oy] = def.mod.meta.origin
   const frame = createFrame(w, h)
   const fx = createFx(def.mod, { x: ox, y: oy, ...def.opts })
 
   let minDy = Infinity
   let maxDy = -Infinity
+  let firstFrameMinDy = Infinity
   let yellowPixels = 0
   let blueDominantPixels = 0
 
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 7; i++) {
     if (i > 0) fx.update(1 / 20)
     clearFrame(frame)
     fx.draw(frame)
@@ -73,6 +75,7 @@ test('zapYellow renders vertically with yellowish electric palette and no clippi
         const c = frame.color[y * w + x]
         if (!c) continue
         const dy = y - oy
+        if (i === 0 && dy < firstFrameMinDy) firstFrameMinDy = dy
         if (dy < minDy) minDy = dy
         if (dy > maxDy) maxDy = dy
         const r = c & 0xff
@@ -84,13 +87,14 @@ test('zapYellow renders vertically with yellowish electric palette and no clippi
     }
   }
 
-  assert.ok(minDy <= -60, `Vertical bolt should reach well above origin (minDy=${minDy})`)
-  assert.ok(maxDy >= 25, `Vertical impact should extend below origin (maxDy=${maxDy})`)
+  assert.ok(firstFrameMinDy <= -200, `Frame 0 must snap immediately from sky height (firstFrameMinDy=${firstFrameMinDy})`)
+  assert.ok(minDy <= -210, `Vertical bolt should reach Thunder Strike height (minDy=${minDy})`)
+  assert.ok(maxDy >= -15, `Vertical impact should hit monster body near ground (maxDy=${maxDy})`)
   assert.ok(yellowPixels > 200, `zapYellow should render yellowish pixels (got ${yellowPixels})`)
   assert.equal(blueDominantPixels, 0, 'zapYellow should not render blue-dominant pixels')
 })
 
-test('bake succeeds for zapYellow', () => {
+test('bake succeeds for zapYellow and zapBolt', () => {
   if (typeof (globalThis as unknown as { ImageData?: unknown }).ImageData === 'undefined') {
     (globalThis as unknown as { ImageData: unknown }).ImageData = class ImageData {
       data: Uint8ClampedArray
@@ -123,4 +127,8 @@ test('bake succeeds for zapYellow', () => {
   assert.equal(bake(mockScene, 'zapYellow'), true)
   assert.equal(createdTextures.has('pfx_zapYellow'), true)
   assert.equal(createdAnims.has('pfx_zapYellow'), true)
+
+  assert.equal(bake(mockScene, 'zapBolt'), true)
+  assert.equal(createdTextures.has('pfx_zapBolt'), true)
+  assert.equal(createdAnims.has('pfx_zapBolt'), true)
 })
