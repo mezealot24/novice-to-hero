@@ -31,8 +31,25 @@ export interface Proc {
 export const PROC_POW: Partial<Record<Effect, number>> = { zap: 0.3, fireball: 1.0, firewave: 0.5, icespike: 0.5, icewave: 0.4 }
 export const PROC_RULES = {
   burnTurns: 3, chillTurns: 2, freezeBase: 0.1, lowHpAt: 0.3, regenTurns: 3, spearShield: 0.03,
+  /** Delay between staggered lightning perk strikes (ms). */
+  zapDelayMs: 400,
   /** Mage pays Mana for magic procs (spec default): per zap, per fire / ice effect */
   mageZap: 2, mageFire: 8, mageIce: 4,
+}
+/** Pick next random target without repeating an alive monster until every alive monster has been struck once. */
+export function nextZapTarget<T>(alive: readonly T[], bag: T[], randInt: (max: number) => number): { target: T | undefined; bag: T[] } {
+  if (!alive.length) return { target: undefined, bag: [] }
+  const aliveSet = new Set(alive)
+  let nextBag = bag.filter((m) => aliveSet.has(m))
+  if (!nextBag.length) {
+    nextBag = [...alive]
+    for (let i = nextBag.length - 1; i > 0; i--) {
+      const j = randInt(i + 1)
+      ;[nextBag[i], nextBag[j]] = [nextBag[j], nextBag[i]]
+    }
+  }
+  const target = nextBag.pop()
+  return { target, bag: nextBag }
 }
 /** Level-up offer: each of the 3 line slots comes from the job's own lines (JOB_LINES) this often, else from any line.
  *  พร v2 tuning: magic cards run on 70/30 magic power, so a physical job drew too many weak cards from a fully random pool. */
@@ -99,11 +116,11 @@ const L = (id: string, line: Line, icon: string, name: string, desc: [string, st
 
 export const PERKS_V2: PerkDef[] = [
   // ---------- ⚡ storm ----------
-  c('stm_roar', 'storm', '⚡', 'ฟ้าคำราม', ['ทุกเทิร์นผ่าสายฟ้า 3 ครั้ง (ครั้งละ 0.3x พลังเวท สุ่มเป้า)', 'ทุกเทิร์นผ่าสายฟ้า 5 ครั้ง'], { proc: { on: 'turn', fx: 'zap', count: [3, 5] } }),
-  c('stm_open', 'storm', '🌩️', 'ฟ้าเปิดศึก', ['เริ่มทุกไฟต์ ผ่าสายฟ้า 4 ครั้ง', 'เริ่มทุกไฟต์ ผ่าสายฟ้า 7 ครั้ง'], { proc: { on: 'fightStart', fx: 'zap', count: [4, 7] } }),
+  c('stm_roar', 'storm', '⚡', 'ฟ้าคำราม', ['ทุกเทิร์นสุ่มผ่าสายฟ้าตัวละ 1 ที (3 ครั้ง · ครั้งละ 0.3x พลังเวท · หน่วง 0.4 วิ)', 'ทุกเทิร์นสุ่มผ่าสายฟ้าตัวละ 1 ที (5 ครั้ง)'], { proc: { on: 'turn', fx: 'zap', count: [3, 5] } }),
+  c('stm_open', 'storm', '🌩️', 'ฟ้าเปิดศึก', ['เริ่มทุกไฟต์ สุ่มผ่าสายฟ้าตัวละ 1 ที (4 ครั้ง · หน่วง 0.4 วิ)', 'เริ่มทุกไฟต์ สุ่มผ่าสายฟ้าตัวละ 1 ที (7 ครั้ง)'], { proc: { on: 'fightStart', fx: 'zap', count: [4, 7] } }),
   c('stm_hits', 'storm', '⚡', 'ฟ้าตามฮิต', ['ทุก 4 ฮิต (ตีปกติ/คอมโบ) ผ่าสายฟ้า 1 ครั้ง', 'ทุก 3 ฮิต ผ่าสายฟ้า 1 ครั้ง'], { proc: { on: 'hits', fx: 'zap', every: [4, 3], count: [1, 1] } }),
-  c('stm_ult', 'storm', '🌩️', 'ท่าไม้ตายเรียกฟ้า', ['ใช้{ult}แล้ว ผ่าสายฟ้า 3 ครั้ง', 'ใช้{ult}แล้ว ผ่าสายฟ้า 5 ครั้ง'], { proc: { on: 'ult', fx: 'zap', count: [3, 5] } }),
-  c('stm_arm', 'storm', '🗡️', 'อาวุธอสนี', ['ตีธรรมดา 25% ผ่าสายฟ้า 2 ครั้ง', 'ตีธรรมดา 40% ผ่าสายฟ้า 2 ครั้ง'], { proc: { on: 'basic', fx: 'zap', chance: [0.25, 0.4], count: [2, 2] } }),
+  c('stm_ult', 'storm', '🌩️', 'ท่าไม้ตายเรียกฟ้า', ['ใช้{ult}แล้ว สุ่มผ่าสายฟ้าตัวละ 1 ที (3 ครั้ง · หน่วง 0.4 วิ)', 'ใช้{ult}แล้ว สุ่มผ่าสายฟ้าตัวละ 1 ที (5 ครั้ง)'], { proc: { on: 'ult', fx: 'zap', count: [3, 5] } }),
+  c('stm_arm', 'storm', '🗡️', 'อาวุธอสนี', ['ตีธรรมดา 25% สุ่มผ่าสายฟ้าตัวละ 1 ที (2 ครั้ง · หน่วง 0.4 วิ)', 'ตีธรรมดา 40% สุ่มผ่าสายฟ้าตัวละ 1 ที (2 ครั้ง)'], { proc: { on: 'basic', fx: 'zap', chance: [0.25, 0.4], count: [2, 2] } }),
   // ---------- 🔥 fire ----------
   c('fir_ball', 'fire', '🔥', 'ลูกไฟ', ['ทุกตีที่ 3 ยิงลูกไฟ 1.5x พลังเวท + ไฟลุก', 'ทุกตีที่ 2 ยิงลูกไฟ'], { proc: { on: 'hits', fx: 'fireball', every: [3, 2], pow: 1.5 } }),
   c('fir_orbit', 'fire', '☄️', 'วงไฟหมุน', ['ทุกเทิร์นยิงลูกไฟ 1 ลูก (1x พลังเวท + ไฟลุก)', 'ทุกเทิร์นยิงลูกไฟ 2 ลูก'], { proc: { on: 'turn', fx: 'fireball', count: [1, 2] } }),

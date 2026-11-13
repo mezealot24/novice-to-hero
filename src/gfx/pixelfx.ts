@@ -34,9 +34,17 @@ export interface PfxMeta { size: number[]; origin: number[]; duration: number } 
 export interface PfxMod { meta: PfxMeta }
 
 /** from / until: the slice of the effect's own time that is baked (skips lead-ins the battle already shows). */
-export interface PfxDef { mod: PfxMod; from?: number; until?: number; opts?: Record<string, unknown> }
+export interface PfxDef {
+  mod: PfxMod
+  from?: number
+  until?: number
+  size?: [number, number]
+  origin?: [number, number]
+  opts?: Record<string, unknown>
+}
 
 const GOLD_HIT = ['#2a1a06', '#5c3a0a', '#a36a14', '#e09a2c', '#ffc23d', '#ffe08a', '#fff6c8', '#ffffff'] // crit-hit's own ramp is red-orange
+export const ZAP_YELLOW = ['#241d08', '#524412', '#947e1f', '#d4bb34', '#f5df53', '#fff08a', '#fffad1', '#ffffff']
 
 export const DEFS = {
   smite: { mod: smite, from: 0.45, until: 1.9 }, // holy light falling on one monster
@@ -48,6 +56,12 @@ export const DEFS = {
   critOrange: { mod: critHit },
   slam: { mod: groundSlam, until: 2.4 },
   zap: { mod: zapHit },
+  zapYellow: {
+    mod: zapHit,
+    size: [112, 144],
+    origin: [56, 86],
+    opts: { palette: ZAP_YELLOW, flip: true, angle: -Math.PI / 2 },
+  },
   // Fire
   fireball: { mod: fireball, until: 1.2 },
   fireTornado: { mod: fireTornado, until: 1.6 },
@@ -96,7 +110,9 @@ export function bake(scene: Phaser.Scene, id: PfxId, palette?: (string | number)
   if (scene.textures.exists(key)) return true
   const def: PfxDef = DEFS[id]
   if (!def) return false
-  const { size: [w, h], origin: [ox, oy], duration } = def.mod.meta
+  const { duration } = def.mod.meta
+  const [w, h] = def.size ?? def.mod.meta.size
+  const [ox, oy] = def.origin ?? def.mod.meta.origin
   const from = def.from ?? 0, until = Math.min(def.until ?? duration, duration)
   const n = Math.max(1, Math.round((until - from) * BAKE_FPS) + 1)
   const cols = Math.max(1, Math.min(n, Math.floor(MAX_W / w))), rows = Math.ceil(n / cols)
@@ -150,7 +166,8 @@ export interface PfxPlay {
  */
 export function playPfx(scene: Phaser.Scene, id: PfxId, x: number, y: number, o: PfxPlay = {}) {
   if (!bake(scene, id, o.palette)) return undefined
-  const key = texKey(id, o.palette), [w, h] = DEFS[id].mod.meta.size, [ox, oy] = DEFS[id].mod.meta.origin
+  const def: PfxDef = DEFS[id]
+  const key = texKey(id, o.palette), [w, h] = def.size ?? def.mod.meta.size, [ox, oy] = def.origin ?? def.mod.meta.origin
   const spr = scene.add.sprite(x, y, key, 0)
     .setOrigin(o.flip ? 1 - ox / w : ox / w, oy / h)
     .setScale(o.scale ?? 2)
