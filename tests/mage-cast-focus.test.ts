@@ -35,7 +35,7 @@ test('v85 breakRefundMana: 60% of the Mana paid comes back, rounded down, never 
 })
 
 test('v78 / v85 MAGE_CAST numbers live in one place and are tunable as kit cast.*', () => {
-  assert.deepEqual(MAGE_CAST, { breakBase: 0.25, breakDex: 0.012, breakMinHp: 0.06, breakRefund: 0.6, fireMul: 1, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 })
+  assert.deepEqual(MAGE_CAST, { breakBase: 0.25, breakDex: 0.012, breakMinHp: 0.06, breakRefund: 0.6, fireMul: 0.45, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 })
   assert.equal(KIT.cast, MAGE_CAST)
   const pats = TABLES.kit.fields.map(([p]) => p).join(' ')
   for (const k of Object.keys(MAGE_CAST)) assert.ok(pats.includes(k), `kit table misses cast.${k}`)
@@ -45,7 +45,7 @@ test('v78 release rule: a Mage / Sage chant uses up the release turn, Wizard rel
   assert.equal(castUsesTurn(undefined), true) // base Mage
   assert.equal(castUsesTurn('sage'), true)
   assert.equal(castUsesTurn('wizard'), false)
-  assert.ok(MAGE_CAST.fireMul >= 0.9) // v85: ลูกไฟระเบิด is instant again (no chant), at least the pre-v78 0.9x
+  assert.ok(MAGE_CAST.fireMul > 0 && MAGE_CAST.fireMul < 1) // v85: ลูกไฟระเบิด is instant (no chant) · 2026-11-13 rework: light hit, cast almost every turn (see mage-auto.test.ts)
 })
 
 test('v78 focus fallbacks: full bar -> shield / heal, empty bar -> resource, Novice -> all shield / heal', () => {

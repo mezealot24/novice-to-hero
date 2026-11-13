@@ -23,7 +23,7 @@ export const RES_RULES = {
 }
 /** Mage (Q 2026-11-03): no Mana Shield; every spell costs Mana, the basic attack is a weak free magic bolt. */
 export const MAGE_SPELL = {
-  autoMul: 0.9, // ลูกไฟระเบิด x M.ATK (1.1 until the class rebalance 2026-11-03)
+  autoMul: 0.4, // Wizard ลูกไฟระเบิด x Pm (0.9 until the 2026-11-13 auto rework: cost 36 -> 5, so Mage fireMul 1 -> 0.45 and the Wizard keeps its 0.9 : 1 ratio)
   barrier: 1.5, // ult barrier x M.ATK (2 until the class rebalance)
   basicMul: 0.6, // basic attack: magic projectile 0.6x M.ATK, free
   boltPerHit: 2, // card Lightning Bolt: Mana per hit, cast only when Mana covers every hit
@@ -72,7 +72,7 @@ export const JOBS: Record<JobId, JobDef> = {
   mage: {
     id: 'mage', name: 'จอมเวท', icon: '🔮', tex: 'hero_mage', blurb: 'เวทแรง ตีทั้งกลุ่ม ไม่มีวันพลาด แต่ตัวบาง · ตีปกติเป็นลูกเวทเบาๆ ดูด Mana · ลูกไฟ/ult ต้องร่าย 1 เทิร์น โดนตีอาจร่ายแตก (DEX ช่วย)', focus: 'INT · WIS',
     resource: 'mana', attack: 'magic', tags: ['fire', 'storm', 'crit'], mod: { maxRes: 20, maxHp: 10 },
-    auto: { name: 'ลูกไฟระเบิด', icon: '🔥', cost: 36, desc: 'Mana 36: ปล่อยไฟใส่ทุกตัวทันที (ไม่ต้องร่าย · ไม่แตก) (ติดไฟถ้ามีพรเผาไหม้) · ตัวเลขดูในหน้าสกิล' }, // v85: instant again; numbers in skill-math MAGE_CAST (jobs.ts can't import it)
+    auto: { name: 'ลูกไฟระเบิด', icon: '🔥', cost: 5, desc: 'Mana 5: ปล่อยไฟใส่ทุกตัวทันที เบาแต่ใช้ได้เกือบทุกเทิร์น (ไม่ต้องร่าย · ไม่แตก) · ดาเมจสเกล M.ATK 90% : P.ATK 10% (ติดไฟถ้ามีพรเผาไหม้) · ตัวเลขดูในหน้าสกิล' }, // v85: instant again; numbers in skill-math MAGE_CAST (jobs.ts can't import it) · 2026-11-13 rework: cost 36 -> 5
     ult: { name: 'เวทธาตุ', icon: '☄️', cd: 5, cost: 30, desc: `Mana 30: ร่าย 1 เทิร์น แล้วปล่อยเทิร์นถัดไป (แรงขึ้น · โดนตีแรงระหว่างร่ายอาจแตก: คืน Mana บางส่วน + คูลดาวน์สั้นลง + ร่ายครั้งหน้าไม่แตก) · เลือกธาตุตอนเริ่มรอบ · ⚡ สายฟ้า เป้าเดียว 6 ฮิต (0.3–1.2x/ฮิต) · 🔥 ไฟ 2x + เผาซ้อน · ❄️ น้ำแข็ง 1.6x + ช้า/แช่แข็ง · ทุกธาตุได้บาเรีย ${MAGE_SPELL.barrier}x M.ATK` },
   },
   cleric: {

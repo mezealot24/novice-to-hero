@@ -15,7 +15,7 @@ import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/ski
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { KIT3 } from '../data/skill-math'
 import { branchPts } from '../data/tree'
-import { asuraDamage, autoCost, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, haymakerCalc, physBase, hitBase, KIT, KIT2, MAGE_CAST, magicPower, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
+import { asuraDamage, autoCost, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -342,7 +342,7 @@ export class BattleScene extends Phaser.Scene {
     preloadPfx(this, ['zapYellow', 'zapBolt'])
     if (this.j2) this.job = { ...this.job, resource: this.j2.resource ?? this.job.resource, auto: { ...this.job.auto, cost: this.j2.autoCost ?? this.job.auto.cost }, ult: { ...this.job.ult, ...this.j2.ult, ...(this.j2.id === 'monk' && this.st.j2Asura > 0 ? { icon: '💥', name: 'อาชูร่าสไตรก์' } : {}) } } // Berserker: Rage · Ult วิวัฒน์ · Monk ★ Asura Strike
     if (this.j2?.id === 'sage') this.job = { ...this.job, attack: 'melee' } // 📖 Sage: melee basic + counters (P.ATK)
-    this.sageInt = totalBase(s).int; this.heroDex = totalBase(s).dex; this.heroWis = totalBase(s).wis; this.casts = []; this.steady = false; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
+    this.sageInt = totalBase(s).int; this.heroDex = totalBase(s).dex; this.heroWis = totalBase(s).wis; this.mdPower = mageDefPower(totalBase(s).int, totalBase(s).wis, s.baseLevel); this.casts = []; this.steady = false; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
     this.heroLuk = totalBase(s).luk; this.pet = s.pet ?? 'hawk' // Phase 4 Archer: hawk / gadget odds read base LUK
     { const wpn = itemById(s.equipped.weapon ?? ''); this.j2Weapon = !!this.j2?.mastery.ok(wpn); this.hasShield = !wpn.twoHand && !!s.equipped.offhand && s.equipped.offhand !== 'none_off'; this.dualKnife = this.hasShield && itemById(s.equipped.offhand ?? '').wtype === 'dagger' }
     this.frenzy = 0; this.frenzyAt = 0; this.s3Cd = 0; this.rampage = 0; this.charges = 0; this.monkGrit = 0; this.asuraExhaust = 0; this.allies = []; this.allyTxt.clear(); this.chargeTxt = undefined
@@ -469,7 +469,10 @@ export class BattleScene extends Phaser.Scene {
       if (this.st.arStartFull > 0) this.res = this.resMax()
     }
     if (this.st.mgWaveBarrier > 0) this.addShield(this.st.matk * this.st.mgWaveBarrier, true) // mage talent ลูกศิษย์น้ำแข็ง
-    if (this.st.waveDodge > 0) this.dodgeCharges = Math.max(this.dodgeCharges, this.st.waveDodge) // Thief talent: ม่านควัน
+    this.auraLeft = this.st.mgAura > 0 ? MAGE_PASSIVE.aura.turns : 0 // Mage core passive 🔮 ออร่าเวท: the buff restarts every wave
+    if (this.auraLeft > 0) this.floatText(HERO_X, GROUND - 150, `🔮 ออร่าเวท +${Math.round(this.st.mgAura * 100)}%`, '#c9a8ff')
+    const waveDodge = this.st.waveDodge + staticDodgeCharges(this.st.mgStatic) // Thief talent: ม่านควัน + Mage passive ⚡ Static Mirage (stack)
+    if (waveDodge > 0) this.dodgeCharges = Math.max(this.dodgeCharges, waveDodge)
     if (this.st.bossShield > 0 && this.mons.some((m) => !m.dead && m.def.ai === 'boss')) this.addShield(this.st.maxHp * this.st.bossShield) // cleric talent: ร่างพร
     if (this.st.spearStart > 0) this.spears += this.st.spearStart // cleric talent: หอกเปิดศึก
     if (this.st.clManaShield > 0) this.addShield(this.st.maxRes * this.st.clManaShield, true) // v86 💠 มานาพิทักษ์: wave-start shield from Max Mana
@@ -659,6 +662,7 @@ export class BattleScene extends Phaser.Scene {
       const want = Math.round(this.st.maxHp * this.st.j2Banner * (1 + this.st.shieldAmp))
       if (this.shield < want) { this.shield = want; this.floatText(HERO_X, GROUND - 100, `🚩 ปักธง: โล่ ${want}`, '#9fe3ff') }
     }
+    this.mdLast = { shock: -Infinity, nova: -Infinity }; this.raiseGlacial() // Mage passive ❄️ Glacial Aegis: barrier at the start of every wave
     this.lowHpDone = false; this.demonOn = false; this.demonDone = false; this.comboAtkN = 0; this.fightUlts = 0; this.lowRegen = { turns: 0, amt: 0 }; this.ignorePainTurns = 0; this.ignorePainDmg = 0; this.ignorePainUsed = false; this.ignorePainRegenTurns = 0; this.ignorePainRegenPerTurn = 0
     const room = this.roomDef(this.room)
     this.turnLimit = room?.turnLimit ?? (room?.boss ? BATTLE.bossTurnLimit : BATTLE.turnLimit)
@@ -680,6 +684,7 @@ export class BattleScene extends Phaser.Scene {
         if (this.fightTurns >= this.turnLimit) { await this.timeUp(); return false }
         this.fightTurns++
         this.peakTurns = Math.max(this.peakTurns, this.fightTurns)
+        if (glacialDue(this.st.mgGlacial, this.fightTurns)) this.raiseGlacial() // Mage passive ❄️: re-raise every few hero turns
         this.enrageTick(room)
         const left = this.turnLimit - this.fightTurns
         if (left === 3 || left === 1) this.callout(`⏳ เหลืออีก ${left} เทิร์น!`, W / 2, 150)
@@ -838,6 +843,7 @@ export class BattleScene extends Phaser.Scene {
     // resource tick
     if (this.job.resource === 'mana' && this.asuraExhaust <= 0) this.res = Math.min(this.resMax(), this.res + this.st.resRegen * RES_RULES.manaPerTurnMul * (1 - this.st.resRegenCut))
     this.overflow = this.st.mgOverflow > 0 && this.job.resource === 'mana' && this.res >= this.resMax() * 0.9 // mage talent พลังล้น
+    this.auraNow = this.auraLeft > 0 ? this.st.mgAura : 0; if (this.auraLeft > 0) this.auraLeft-- // Mage core passive 🔮 ออร่าเวท: this turn's bonus, then one turn used up
     if (this.alive().length && (await this.procs('turn')) + (await this.procs('every2')) > 0) { await this.wait(160); if (!this.alive().length) return } // พร v2: every-turn cards
     if (this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + (RES_RULES.energyPerTurn + this.st.arTurnRes) * (1 - this.st.resRegenCut))
     const chantDone = this.casts.length > 0 && castUsesTurn(this.j2?.id) // v78: a Mage / Sage chant landing IS this turn's action (Wizard: free)
@@ -915,6 +921,50 @@ export class BattleScene extends Phaser.Scene {
   private zapCount = 0 // lightning hits this run (ประจุสะสม)
   private zapTurn = new Map<Mon, number>() // storm set: hits per target this turn
   private emergencyUsed = false
+  private mdLast = { shock: -Infinity, nova: -Infinity } // Mage passives (docs/passive_mage_3.md): hero turn each internal cooldown last fired
+  private auraLeft = 0 // Mage core passive 🔮 ออร่าเวท: hero turns of the buff left this wave
+  private auraNow = 0 // ...and the damage bonus active on the current hero turn (0 when it ran out)
+  private mdPower: MageDefPower = MAGE_DEF_POWER_NONE // Mage passives: INT / WIS / Base Lv scaling, set at run init
+  /** ❄️ Glacial Aegis: raise the barrier to its size (tops up, never stacks). */
+  private raiseGlacial() {
+    const target = Math.round(glacialBarrierMax(this.st.mgGlacial, this.st.maxHp, this.st.matk, this.mdPower.shield) * (1 + this.st.shieldAmp))
+    if (target <= 0 || this.shield >= target) return
+    this.shield = target
+    this.floatText(HERO_X, GROUND - 100, `❄️ บาเรียน้ำแข็ง ${target}`, '#9fe3ff')
+  }
+  /** ⚡ Static Mirage: on a hit or a dodge, zap the attacker (1 proc per hero turn); maybe shock it (gauge push). */
+  private staticCounter(src?: Mon) {
+    const r = this.st.mgStatic
+    if (r <= 0 || !src || src.dead || !icdReady(this.fightTurns, this.mdLast.shock, MAGE_DEF.static.icdTurns)) return
+    this.mdLast.shock = this.fightTurns
+    playPfx(this, 'zapYellow', src.spr.x, src.spr.y - src.spr.displayHeight * 0.4, { scale: 1.1, speed: 1.4 })
+    this.withSrc('other', () => this.strike(src, staticCounterMul(r, this.mdPower.dmg), true, '#ffe94a'))
+    if (!src.dead && Math.random() < staticShockChance(r, this.mdPower.shockAdd)) { src.gauge -= MAGE_DEF.static.shockPush; this.floatText(src.spr.x, src.spr.y - src.spr.displayHeight - 20, '⚡ ชะงัก!', '#ffe94a') }
+  }
+  /** 🔥 Molten Mantle + ❄️ Glacial Aegis on-hit parts (the hit landed, before the shield soaks it). */
+  private mageOnHit(src: Mon) {
+    if (this.st.mgMolten > 0 && !src.dead) {
+      playPfx(this, 'fireball', src.spr.x, src.spr.y - src.spr.displayHeight * 0.4, { scale: 1, speed: 1.6 })
+      this.withSrc('other', () => this.strike(src, moltenThornsMul(this.st.mgMolten, this.mdPower.dmg), true, '#ff8c42'))
+      if (!src.dead) { src.burnStacks = Math.min(this.burnMax(), src.burnStacks + MAGE_DEF.molten.burnStacks); src.burnStackTurns = Math.max(src.burnStackTurns, PROC_RULES.burnTurns); this.dotIcon(src) }
+    }
+    if (this.st.mgGlacial > 0 && this.shield > 0 && !src.dead) { src.chill = Math.max(src.chill, MAGE_DEF.glacial.chillTurns); this.dotIcon(src) }
+  }
+  /** ❄️ Shatter Nova: the shield just broke. Every monster takes a cold blast; normal ones freeze, boss / mini only get chill + a gauge push. */
+  private glacialNova() {
+    const r = this.st.mgGlacial
+    if (r <= 0 || !icdReady(this.fightTurns, this.mdLast.nova, MAGE_DEF.glacial.novaIcdTurns)) return
+    this.mdLast.nova = this.fightTurns
+    this.callout('❄️ Shatter Nova!', HERO_X + 120, GROUND - 160)
+    for (const m of [...this.alive()]) {
+      playPfx(this, 'frostNova', m.spr.x, m.spr.y - m.spr.displayHeight * 0.3, { scale: 1.1, speed: 1.4 })
+      this.withSrc('other', () => this.strike(m, glacialNovaMul(r, this.mdPower.dmg), true, '#9fe3ff'))
+      if (m.dead) continue
+      if (m.def.ai === 'boss') m.gauge -= MAGE_DEF.glacial.freezePush
+      else { m.frozen = true; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, 'แช่แข็ง!', '#9fe3ff') }
+      m.chill = Math.max(m.chill, MAGE_DEF.glacial.chillTurns); this.dotIcon(m)
+    }
+  }
   private firstOffer = true
   /** Drainer under Summon Maiden takes 0 damage, so auto-targeting skips her while the Maiden lives (beta report 2026-11-07). */
   private maidenGuarded(m: Mon) { return !!m.maiden && !m.maiden.dead }
@@ -2276,7 +2326,7 @@ export class BattleScene extends Phaser.Scene {
         }
         break
       case 'mage':
-        await this.mageFire(pow, this.j2?.id === 'wizard' ? MAGE_SPELL.autoMul : MAGE_CAST.fireMul) // v85: instant for every Mage (Mage / Sage MAGE_CAST.fireMul · Wizard MAGE_SPELL.autoMul)
+        await this.mageFire(pow + this.auraNow, mageAutoMul(this.st, this.j2?.id === 'wizard' ? MAGE_SPELL.autoMul : MAGE_CAST.fireMul)) // 2026-11-13: 90% M.ATK : 10% P.ATK · v85: instant for every Mage (Mage / Sage MAGE_CAST.fireMul · Wizard MAGE_SPELL.autoMul)
         break
       case 'cleric':
         if (this.hp < this.st.maxHp * (KIT.clericHealBelow - this.st.healAt)) { this.skillHeal(this.st.matk * CLERIC_KIT.heal * pow); playPfx(this, 'healRing', HERO_X, GROUND, { scale: 1, speed: 1.6 }) }
@@ -2307,6 +2357,7 @@ export class BattleScene extends Phaser.Scene {
     for (const m of this.front()) {
       playPfx(this, 'fireball', m.spr.x, m.spr.y - m.spr.displayHeight * 0.4, { scale: 1.2, speed: 1.6 })
       this.strike(m, mul * pow * (this.overflow ? this.st.mgOverflow : 1), true, '#ff8c42')
+      if (this.st.mgHex > 0 && !m.dead) { m.weakPct = Math.max(m.weakTurns > 0 ? m.weakPct : 0, this.st.mgHex); m.weakTurns = Math.max(m.weakTurns, MAGE_PASSIVE.hex.turns); this.dotIcon(m) } // Mage core passive 🕯️ มนต์ถดถอย: its hits weaken (the stronger / longer one wins, never stacks)
       if (this.st.burnDps > 0 && !m.dead) { m.burn = this.st.burnDps; m.burnTurns = 3; this.dotIcon(m) }
       if (this.st.autoBurn > 0 && this.element === 'fire' && !m.dead) { m.burnStacks = Math.min(this.burnMax(), m.burnStacks + this.st.autoBurn); m.burnStackTurns = 3; this.dotIcon(m) } // tree
     }
@@ -2315,7 +2366,7 @@ export class BattleScene extends Phaser.Scene {
 
   private async ultimate() {
     const pow = 1 + this.st.ultPow // skill web: Ult +power node
-    const hitPow = pow * (1 + this.st.ultAmp) // run pick บดกระดูก: damage only, shields/heals stay
+    const hitPow = pow * (1 + this.st.ultAmp + this.auraNow) // run pick บดกระดูก (+ Mage 🔮 ออร่าเวท): damage only, shields/heals stay
     await this.skillName(this.job.ult)
     if (this.job.id === 'mage' && !this.j2) { this.charge({ kind: 'ult', pow: pow * MAGE_CAST.ultMul, hit: hitPow * MAGE_CAST.ultMul, paid: this.ultCost() }, this.res + this.ultCost()); return } // v78: the element ult chants 1 turn
     sfx.slam()
@@ -2899,6 +2950,8 @@ export class BattleScene extends Phaser.Scene {
     if (!m.dead && m.burnStackTurns > 0) { // ไฟลุก: stacks x magic power (พร v2: 70% M.ATK + 30% P.ATK)
       m.burnStackTurns--
       this.withSrc('fire', () => this.damageMon(m, Math.max(1, Math.round(m.burnStacks * magicPower(this.st) * (0.12 + this.st.burnTick) * this.dotMul())), false, '#ff8c42', true))
+      const ward = moltenWardGain(this.st.mgMolten, this.st.matk, this.st.maxHp, this.shield, this.mdPower.shield) // Mage passive 🔥 Flame Ward: burn ticks feed a shield (capped)
+      if (ward > 0) { this.shield += ward; this.floatText(HERO_X, GROUND - 100, `🔥 เกราะเพลิง +${ward}`, '#ff8c42') }
       if (!m.burnStackTurns) m.burnStacks = 0
       this.dotIcon(m)
     }
@@ -3195,6 +3248,7 @@ export class BattleScene extends Phaser.Scene {
         if (this.job.attack === 'melee') this.dashStrike(src)
         else this.withSrc('counter', () => this.strike(src, BATTLE.counterMul, this.job.attack === 'magic'))
       }
+      this.staticCounter(src) // Mage passive ⚡ Static Mirage: also on a dodge
       if (this.st.dodgeHeal > 0) this.heal(this.st.maxHp * this.st.dodgeHeal) // gear: dodging heals a little (Thief)
       if (this.st.arDodgeShield > 0 && this.shield < this.st.maxHp * this.st.arDodgeShield * 3) this.addShield(Math.min(this.st.maxHp * this.st.arDodgeShield, this.st.maxHp * this.st.arDodgeShield * 3 - this.shield)) // archer tree โล่ลม
       if (this.st.arDodgeRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arDodgeRes) // archer ★ ยิงถอย
@@ -3222,6 +3276,7 @@ export class BattleScene extends Phaser.Scene {
       return false
     }
     this.lastHurt = n; this.j2Hurt = true
+    if (src && !src.dead) { this.staticCounter(src); this.mageOnHit(src) } // Mage passives ⚡🔥❄️ (docs/passive_mage_3.md)
     if (this.st.j2GritRate > 0 && n > 0) {
       const { cap } = haymakerCalc(this.st, this.monkGrit)
       const add = Math.min(Math.max(0, cap - this.monkGrit), n * this.st.j2GritRate)
@@ -3251,6 +3306,7 @@ export class BattleScene extends Phaser.Scene {
         this.callout('💥 บาเรียระเบิด!', HERO_X + 120, GROUND - 160)
         for (const m of this.alive()) { this.strike(m, this.st.barrierBoom, true, '#c9a8ff'); if (this.st.barrierBoom >= 1.6) m.gauge -= 20 }
       }
+      if (this.shield <= 0) this.glacialNova() // Mage passive ❄️ Shatter Nova
       if (this.st.thorns > 0 && src && !src.dead) this.damageMon(src, Math.max(1, Math.round(absorbed * this.st.thorns)), false, '#9fe3ff', true) // tree: "โล่หนาม"
       if (n <= 0) return true
     }

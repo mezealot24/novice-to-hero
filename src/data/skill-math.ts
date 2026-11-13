@@ -7,6 +7,7 @@ import { BATTLE, PLAYER, type MonsterKind, type Stats } from './game-data'
 import { CLERIC_KIT, JOBS, MAGE_SPELL, SPELL_VAMP, SWORD_MANA, type JobDef, type JobId } from './jobs'
 import type { Skill2Def } from './skill2'
 import { PACKS } from './dungeons'
+import { STAT_RULES } from './meta/stat-spec'
 
 /** Q 2026-11-04 rule: magic damage = 70% M.ATK + 30% P.ATK for ALL hero magic (Mage/Priest class skills too). */
 export const MAGIC_MIX = { matk: 0.7, atk: 0.3 }
@@ -23,7 +24,23 @@ export const hitBase = (st: Stats, magic: boolean) => (magic ? magicBase(st) : p
  *  A hit that reaches HP while chanting may break it: it must deal >= breakMinHp of max HP, then breakChance rolls (DoT never breaks).
  *  Broken: refund breakRefund of the Mana paid, ult waits brokenUltCd turns (not the full cd), and the NEXT chant can't break (steady).
  *  The release IS the next turn's action (Wizard's stays free). ultMul x the chanted ult. Numbers are guesses (v85). */
-export const MAGE_CAST = { breakBase: 0.25, breakDex: 0.012, breakMinHp: 0.06, breakRefund: 0.6, fireMul: 1, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 }
+export const MAGE_CAST = { breakBase: 0.25, breakDex: 0.012, breakMinHp: 0.06, breakRefund: 0.6, fireMul: 0.45, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 } // fireMul: 1 -> 0.45 in the 2026-11-13 auto rework (cost 36 -> 5, cast nearly every turn)
+/** 2026-11-13 Mage auto rework (Q): ลูกไฟระเบิด scales 90% M.ATK : 10% P.ATK (the shared hit mix stays 70 : 30 for every other magic hit). */
+export const MAGE_AUTO_MIX = { matk: 0.9, atk: 0.1 }
+/** 2026-11-13 Mage core passives (the "แก่นเวท" column, always on, no pick): 🕯️ มนต์ถดถอย (debuff) · 🔮 ออร่าเวท (buff). Numbers are first guesses.
+ *  Node levels are per OLD level (max 3); data/tree.ts stretches them to 5 and calls the formula with lv x 3/5, so Lv 5 = `x3` below. */
+export const MAGE_PASSIVE = {
+  hex: { weakPer: 0.07, cap: 0.35, turns: 2 }, // ลูกไฟระเบิด hit -> the monster's own hits lose weakPer x lv (cap) for `turns` of its turns (the stronger / longer one wins, never stacks)
+  aura: { ampPer: 0.1, turns: 4 }, // first `turns` hero turns of every wave: ลูกไฟระเบิด + ult damage +ampPer x lv (not shields)
+}
+/** 🕯️ share of damage a hexed monster loses. */
+export const hexWeak = (lv: number) => Math.min(MAGE_PASSIVE.hex.cap, MAGE_PASSIVE.hex.weakPer * Math.max(0, lv))
+/** 🔮 damage bonus while the aura lasts. */
+export const auraAmp = (lv: number) => MAGE_PASSIVE.aura.ampPer * Math.max(0, lv)
+/** Multiplier that turns "x Pm" (70 : 30) into "x the 90 : 10 mix" for ลูกไฟระเบิด: strike() always multiplies Pm, so we scale the skill mul by this. */
+export const mageAutoRatio = (st: Stats) => (st.matk * MAGE_AUTO_MIX.matk + st.atk * MAGE_AUTO_MIX.atk) / Math.max(1, magicPower(st))
+/** ลูกไฟระเบิด multiplier in Pm units (base `mul` x the 90 : 10 mix). */
+export const mageAutoMul = (st: Stats, mul: number) => mul * mageAutoRatio(st)
 /** v78: does a released chant use up the hero's turn? Base Mage / Sage yes, Wizard no (its edge). */
 export const castUsesTurn = (job2?: string) => job2 !== 'wizard'
 /** Chance one hit breaks the chant: 25% − 1.2%/DEX − tenacity, never below 0 (🧘 Poise = 0). */
@@ -211,7 +228,7 @@ export const S2N = {
 }
 
 // ---------- costs / cooldowns ----------
-export const autoCost = (job: JobDef, st: Stats) => Math.max(10, job.auto.cost - st.autoCostCut)
+export const autoCost = (job: JobDef, st: Stats) => Math.max(Math.min(10, job.auto.cost), job.auto.cost - st.autoCostCut) // floor 10, unless the class's own cost is lower (Mage 5, 2026-11-13)
 /** Mana the ult costs (Mage, Swordsman, Cleric since v86); 0 for every other job. v102: pass st for the base Cleric ult (+clUltMana by Ult node Lv). */
 export const ultCost = (job: JobDef, st?: Stats) => (job.resource === 'mana' ? (job.ult.cost ?? 0) + (job.id === 'cleric' && (job.ult.cost ?? 0) > 0 ? st?.clUltMana ?? 0 : 0) : 0)
 /** Ult cooldown in hero turns before relics (gear smashCd lowers it for every job). */
@@ -329,8 +346,8 @@ export function autoInfo(jobId: JobId, st: Stats): InfoRow[] {
       break
     case 'mage':
       out.push({ label: 'ร่าย', value: 'ทันที (ไม่มีร่ายแตก) · เฉพาะ ult ที่ต้องร่าย' })
-      out.push({ label: 'ไฟ/ตัว (ทุกตัว)', value: hitText(st, MAGE_CAST.fireMul * pow, true) })
-      if (st.mgOverflow > 0) out.push({ label: 'ตอน Mana ≥ 90% (พลังล้น)', value: hitText(st, MAGE_CAST.fireMul * pow * st.mgOverflow, true) })
+      out.push({ label: `ไฟ/ตัว (ทุกตัว · M.ATK ${Math.round(MAGE_AUTO_MIX.matk * 100)}% : P.ATK ${Math.round(MAGE_AUTO_MIX.atk * 100)}%)`, value: hitText(st, mageAutoMul(st, MAGE_CAST.fireMul * pow), true) })
+      if (st.mgOverflow > 0) out.push({ label: 'ตอน Mana ≥ 90% (พลังล้น)', value: hitText(st, mageAutoMul(st, MAGE_CAST.fireMul * pow * st.mgOverflow), true) })
       break
     case 'cleric':
       out.push({ label: '🔨 ทุบประชิด (P.ATK)', value: hitText(st, clericBasic(), false) })
@@ -466,3 +483,59 @@ export function skill2Info(k: Skill2Def, st: Stats): InfoRow[] {
   }
   return out
 }
+
+// ===== Mage defensive passives (docs/passive_mage_3.md): ⚡ Static Mirage · 🔥 Molten Mantle · ❄️ Glacial Aegis =====
+// Node ranks 0-5 land in Stats.mgStatic / mgMolten / mgGlacial (data/trees/mage.ts, branch mage_def). The always-on part
+// (dodge / damage cut / DEF) is plain Stats in the node `mod`; BattleScene.hurtHeroCore reads the rest. Turn-based: the doc's seconds became hero turns.
+// Counter multipliers are x the hero magic hit (Pm), like every other hero magic proc. Numbers are first guesses.
+export const MAGE_DEF = {
+  maxRank: 5,
+  static: { dodgeCharges: [1, 1, 2, 2, 3], counterBase: 0.2, counterPer: 0.08, shockBase: 0.2, shockPer: 0.05, shockPush: 25, icdTurns: 1 }, // shock = gauge push (micro-stun) · 1 proc per hero turn
+  molten: { guardPer: 0.02, thornsBase: 0.25, thornsPer: 0.1, burnStacks: 1, wardPer: 0.05, wardCap: 0.25 }, // ward: shield from burn ticks, total shield capped at 25% max HP
+  glacial: { mdefPer: 0.04, defPer: 2, barrierHpPer: 0.06, barrierMatkPer: 0.25, every: 3, chillTurns: 1, novaBase: 0.3, novaPer: 0.1, novaIcdTurns: 3, freezePush: 25 }, // barrier every `every` hero turns · nova ICD in hero turns
+  // Stat scaling (round 3, first guesses): soft curve max x stat/(stat+K), same shape as WIS->M.DEF. INT -> counter damage · WIS -> barrier / ward / shock chance · Base Lv -> a small flat bonus to all three.
+  scale: { intK: 150, intMax: 0.6, wisK: 150, wisMax: 0.6, shockWisMax: 0.25, shockCap: 0.9, lvMax: 0.2 },
+} as const
+
+const rank = (r: number) => Math.max(0, Math.min(MAGE_DEF.maxRank, Math.floor(r)))
+const soft = (stat: number, k: number) => { const s = Math.max(0, stat); return s / (s + k) }
+
+/** Multipliers for the mage passives. All 1 / 0 at INT 0, WIS 0, Base Lv 0 (= pre-scaling behaviour). */
+export interface MageDefPower {
+  /** x counter damage: ⚡ shock hit · 🔥 thorns · ❄️ Shatter Nova (INT + Base Lv). */
+  dmg: number
+  /** x shield size: ❄️ barrier · 🔥 Flame Ward (WIS + Base Lv). */
+  shield: number
+  /** added to ⚡ shock chance (WIS only; staticShockChance caps the sum). */
+  shockAdd: number
+}
+export const MAGE_DEF_POWER_NONE: MageDefPower = { dmg: 1, shield: 1, shockAdd: 0 }
+/** INT / WIS / Base Lv -> passive multipliers. Negatives clamp to 0; bounded by 1 + max + lvMax. */
+export function mageDefPower(int: number, wis: number, baseLv: number): MageDefPower {
+  const S = MAGE_DEF.scale
+  const lv = S.lvMax * Math.min(1, Math.max(0, baseLv) / STAT_RULES.maxBaseLevel)
+  const w = soft(wis, S.wisK)
+  return { dmg: 1 + S.intMax * soft(int, S.intK) + lv, shield: 1 + S.wisMax * w + lv, shockAdd: S.shockWisMax * w }
+}
+
+/** ⚡ sure dodges refilled at every wave start (counted, not a %): rank 1-5 -> 1,1,2,2,3. 0 at rank 0. Each dodge also fires the counter-shock. */
+export const staticDodgeCharges = (r: number) => (rank(r) > 0 ? MAGE_DEF.static.dodgeCharges[rank(r) - 1] : 0)
+/** ⚡ counter-shock hit (x Pm), 0 at rank 0. `dmg` = MageDefPower.dmg. */
+export const staticCounterMul = (r: number, dmg = 1) => (rank(r) > 0 ? (MAGE_DEF.static.counterBase + MAGE_DEF.static.counterPer * rank(r)) * dmg : 0)
+/** ⚡ chance the counter also shocks (gauge push) the attacker. `add` = MageDefPower.shockAdd; total capped at shockCap. */
+export const staticShockChance = (r: number, add = 0) =>
+  rank(r) > 0 ? Math.min(MAGE_DEF.scale.shockCap, MAGE_DEF.static.shockBase + MAGE_DEF.static.shockPer * rank(r) + Math.max(0, add)) : 0
+/** 🔥 thorns hit (x Pm) when a monster's hit lands. */
+export const moltenThornsMul = (r: number, dmg = 1) => (rank(r) > 0 ? (MAGE_DEF.molten.thornsBase + MAGE_DEF.molten.thornsPer * rank(r)) * dmg : 0)
+/** 🔥 Flame Ward: shield gained from one burn tick (x M.ATK), limited so the whole shield stays <= wardCap of max HP. */
+export const moltenWardGain = (r: number, matk: number, maxHp: number, shield: number, shieldMul = 1) =>
+  rank(r) > 0 ? Math.max(0, Math.min(Math.floor(matk * MAGE_DEF.molten.wardPer * rank(r) * shieldMul), Math.floor(maxHp * MAGE_DEF.molten.wardCap - shield))) : 0
+/** ❄️ barrier size: maxHp x 6% x rank + M.ATK x 25% x rank (x `shieldMul` = MageDefPower.shield). */
+export const glacialBarrierMax = (r: number, maxHp: number, matk: number, shieldMul = 1) =>
+  rank(r) > 0 ? Math.floor((maxHp * MAGE_DEF.glacial.barrierHpPer * rank(r) + matk * MAGE_DEF.glacial.barrierMatkPer * rank(r)) * shieldMul) : 0
+/** ❄️ is it time to re-raise the barrier? (heroTurns = hero turns this fight; turn 0 = fight start is handled by the wave start.) */
+export const glacialDue = (r: number, heroTurns: number) => rank(r) > 0 && heroTurns > 0 && heroTurns % MAGE_DEF.glacial.every === 0
+/** ❄️ Shatter Nova hit (x Pm) when the barrier breaks. */
+export const glacialNovaMul = (r: number, dmg = 1) => (rank(r) > 0 ? (MAGE_DEF.glacial.novaBase + MAGE_DEF.glacial.novaPer * rank(r)) * dmg : 0)
+/** Internal cooldown in hero turns: `last` = turn it last fired (use -Infinity for never). */
+export const icdReady = (turn: number, last: number, icdTurns: number) => turn - last >= icdTurns
