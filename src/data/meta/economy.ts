@@ -33,6 +33,12 @@ export const ZENY_PACKS = [10, 60, 300]; // gems spent per pack
 export const ZENY_TO_GEM_TEST = true;
 export const ZENY_COST_PER_GEM = 100;
 export const GEM_BUY_PACKS = [5, 20, 50]; // gems bought per pack
+// 🧪 TEST ONLY (2026-11-13): gems -> Base Lv / Job Lv for playtesting late-game builds. Breaks "gems never buy power" on purpose;
+// flip to false (or delete) before a real release, together with GEM_TO_ZENY_TEST. Price per level must stay > FREE_GEMS.levelUp
+// (a bought level never pays gems back, but keep the price above it anyway). Logic + tests: data/levelup.ts, tests/levelup.test.ts.
+export const GEM_TO_LEVEL_TEST = true;
+export const LEVEL_GEM_COST = { base: 20, job: 15 }; // gems per level
+export const LEVEL_PACKS = [1, 5, 10]; // levels per pack
 export const SUPPORTER_PRICE = 300; // gems: badge + gold name, no stats
 // free gem sources, so nothing in the gem shop is locked behind money
 export const FREE_GEMS = { firstClear: 50, clear: 5, levelUp: 10, daily: 20 };

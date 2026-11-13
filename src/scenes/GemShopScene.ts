@@ -1,7 +1,8 @@
 import Phaser from 'phaser'
 import { COLORS } from '../data/game-data'
-import { COSTUMES, FREE_GEMS, GEM_BUY_PACKS, GEM_PACKS, GEM_TO_ZENY_TEST, SUPPORTER_PRICE, ZENY_COST_PER_GEM, ZENY_PACKS, ZENY_PER_GEM, ZENY_TO_GEM_TEST } from '../data/meta'
+import { COSTUMES, FREE_GEMS, GEM_BUY_PACKS, GEM_PACKS, GEM_TO_LEVEL_TEST, GEM_TO_ZENY_TEST, LEVEL_GEM_COST, LEVEL_PACKS, STAT_RULES, SUPPORTER_PRICE, ZENY_COST_PER_GEM, ZENY_PACKS, ZENY_PER_GEM, ZENY_TO_GEM_TEST } from '../data/meta'
 import { gemsToZeny, zenyCostOf, zenyToGems } from '../data/exchange'
+import { gemsToLevel, jobTrackOf, levelCost, levelRoom, levelsFor, type LevelKind } from '../data/levelup'
 import { persist, save, today } from '../save'
 import { cloudEnabled, refreshWallet as syncWallet, spendPaid, status } from '../cloud'
 import { sfx } from '../sfx'
@@ -61,17 +62,51 @@ export class GemShopScene extends Phaser.Scene {
       ...(EXCHANGE_TEST ? ['🧪 แลก Zeny ⇄ เพชร: ช่วงทดสอบ'] : []),
     ].join('\n'), 15, UI.text).setLineSpacing(6)
 
-    const labels = ['💎 เติมเพชร', '👗 ชุดแต่งกาย', '🌟 ผู้สนับสนุน', ...(EXCHANGE_TEST ? ['🧪 แลกเปลี่ยน'] : [])]
-    tabs(this, 294, 92, labels, labels.length > 3 ? 152 : 204, (i) => { this.tab = i; this.render() })
+    const labels = ['💎 เติมเพชร', '👗 ชุดแต่งกาย', '🌟 ผู้สนับสนุน', ...(EXCHANGE_TEST ? ['🧪 แลกเปลี่ยน'] : []), ...(GEM_TO_LEVEL_TEST ? ['🧪 ปั๊มเลเวล'] : [])]
+    this.tabIds = ['topup', 'costumes', 'supporter', ...(EXCHANGE_TEST ? ['exchange' as const] : []), ...(GEM_TO_LEVEL_TEST ? ['levels' as const] : [])]
+    tabs(this, 294, 92, labels, labels.length > 4 ? 122 : labels.length > 3 ? 152 : 204, (i) => { this.tab = i; this.render() })
   }
 
+  private tabIds: ('topup' | 'costumes' | 'supporter' | 'exchange' | 'levels')[] = []
   private render() {
     this.body?.destroy()
     this.body = this.add.container(0, 0)
-    if (this.tab === 0) this.topUp()
-    else if (this.tab === 1) this.costumes()
-    else if (this.tab === 2) this.supporter()
-    else this.exchange()
+    const id = this.tabIds[this.tab]
+    if (id === 'topup') this.topUp()
+    else if (id === 'costumes') this.costumes()
+    else if (id === 'supporter') this.supporter()
+    else if (id === 'exchange') this.exchange()
+    else this.levels()
+  }
+
+  /** 🧪 TEST ONLY: gems -> Base Lv / Job Lv (meta/economy.ts GEM_TO_LEVEL_TEST). Free gems only. */
+  private levels() {
+    const s = save(), b = this.body!
+    b.add(panel(this, 294, 128, 640, 36, 0x4a2a3a, 0xff7a7a))
+    b.add(txt(this, 614, 146, '🧪 ทดสอบเท่านั้น · จะเอาออกก่อนเปิดจริงค่ะ', 15, UI.text, true).setOrigin(0.5))
+    const track = jobTrackOf(s)
+    const jobLv = track === 'job3' ? (s.job3Level ?? 1) : track === 'job2' ? (s.job2Level ?? 1) : s.jobLevel
+    const rows: { kind: LevelKind; y: number; title: string; now: string; color: string }[] = [
+      { kind: 'base', y: 176, title: `⭐ Base Lv (+${STAT_RULES.pointsPerLevel} stat point/เลเวล)`, now: `ตอนนี้ Lv ${s.baseLevel}/${STAT_RULES.maxBaseLevel}`, color: UI.gold },
+      { kind: 'job', y: 352, title: `📘 ${track === 'job3' ? 'Job3' : track === 'job2' ? 'Job2' : 'Job'} Lv (+1 skill point/เลเวล)`, now: `ตอนนี้ Lv ${jobLv} (เหลือ ${levelRoom(s, 'job')} เลเวล)`, color: UI.green },
+    ]
+    for (const r of rows) {
+      b.add(txt(this, 294, r.y, `${r.title} · ${r.now}`, 15, r.color, true))
+      LEVEL_PACKS.forEach((n, i) => {
+        const x = 294 + i * 216, y = r.y + 22, w = 204, h = 128
+        const got = levelsFor(s, r.kind, n), cost = levelCost(s, r.kind, n)
+        b.add(panel(this, x, y, w, h, UI.panel, UI.line))
+        b.add(txt(this, x + w / 2, y + 12, `+${n}`, 32, r.color, true).setOrigin(0.5, 0))
+        b.add(txt(this, x + w / 2, y + 56, got < n ? (got ? `ได้แค่ +${got} (เต็ม)` : 'เต็มแล้ว') : 'เลเวล', 14, UI.sub).setOrigin(0.5, 0))
+        b.add(button(this, x + w / 2, y + h - 26, w - 30, 38, got ? `💎 ${cost}` : '—', () =>
+          confirm(this, `ปั๊ม ${r.kind === 'base' ? 'Base' : 'Job'} Lv +${got}?`, `ใช้ ${cost} เพชร (เหลือ ${s.gems - cost})\n🧪 ระบบนี้มีแค่ช่วงทดสอบนะคะ`, 'ปั๊มเลย', () => {
+            const lv = gemsToLevel(s, r.kind, n)
+            if (!lv) return
+            persist(); sfx.win(); this.refreshWallet(); toast(this, `${r.kind === 'base' ? 'Base' : 'Job'} Lv +${lv} (ทดสอบ)`, r.color); this.render()
+          }), { size: 16 }).setEnabled(got > 0 && s.gems >= cost))
+      })
+    }
+    b.add(txt(this, 294, 534, `มี 💎 ${s.gems} · ราคา Base 💎${LEVEL_GEM_COST.base} / Job 💎${LEVEL_GEM_COST.job} ต่อเลเวล · ซื้อเลเวลแล้ว EXP ของเลเวลนั้นรีเซ็ตค่ะ`, 13, UI.sub).setWordWrapWidth(640))
   }
 
   private topUp() {

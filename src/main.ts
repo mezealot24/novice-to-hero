@@ -15,6 +15,7 @@ import { CloudScene } from './scenes/CloudScene'
 import { liveInfo, loadLiveConfig } from './live-config'
 import { initAnalytics, setAnalyticsContext, type Props } from './analytics'
 import { load } from './save'
+import { initDisplay } from './display'
 import { deathText, loadDeaths } from './data/combat-log'
 
 class BootScene extends Phaser.Scene {
@@ -26,6 +27,7 @@ class BootScene extends Phaser.Scene {
 }
 
 async function boot() {
+  initDisplay() // night-play brightness: before any await so a dimmed screen never flashes bright while fonts load
   // wait (briefly) for the Thai + pixel fonts so canvas text doesn't render in a fallback face
   const fonts = Promise.race([
     Promise.all([document.fonts.load('20px "Mali"'), document.fonts.load('bold 20px "Mali"'), document.fonts.load('20px "Pixelify Sans"')]),

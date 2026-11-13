@@ -2,6 +2,11 @@
 // Spec: design/skill-tree-mage.md. Node ids are save data: never rename or remove a shipped id.
 // Element nodes only matter on runs with that ult element (BattleScene reads them inside the element's code).
 import { lvAt, node as n, talent as t, type ClassTree } from '../tree-types'
+import { MAGE_DEF as D, MAGE_PASSIVE, auraAmp, hexWeak, glacialNovaMul, moltenThornsMul, staticCounterMul, staticDodgeCharges, staticShockChance } from '../skill-math'
+
+const pc = (x: number) => `${Math.round(x * 100)}%`
+/** Passive rank 0-5 from a T1 node level. Class nodes are written per OLD level (max 3); data/tree.ts stretches them to 5 and calls us with lv x 3/5, so this is the shown level. */
+const pr = (lv: number) => Math.round((lv * D.maxRank) / 3)
 
 export const tree: ClassTree = {
   branches: [
@@ -14,15 +19,24 @@ export const tree: ClassTree = {
     n('mage_core1', 'mage_core', 0, '🔷', 'แก่นเวท', 3, (lv) => `Max Mana +${lv * 8}`, (lv) => ({ maxRes: 8 * lv })), // v21: was Mana Shield (removed)
     n('mage_core2', 'mage_core', 0, '🧘', 'สมาธิ', 3, (lv) => `ฟื้น Mana +${lv * 2}/เทิร์น`, (lv) => ({ resRegen: (2 / 3) * lv })),
     n('mage_core3', 'mage_core', 0, '💪', 'กายสู่เวท', 3, (lv) => `STR ${Math.round(lvAt([0.3, 0.6, 1], lv) * 100)}% นับเป็น INT ด้วย (M.ATK + Max Mana)`, (lv) => ({ strToInt: lvAt([0.3, 0.6, 1], lv) })), // Q 2026-11-03: off-stat STR is useful for Mage
-    n('mage_l1', 'mage_l', 1, '⚡', 'กระแสแรง', 3, (lv) => `ult สายฟ้า +${lv} ฮิต`, (lv) => ({ lightHits: lv })),
+    // 2026-11-13: two always-on passives in the core column (no pick, take both): a debuff and a buff. Both only touch ลูกไฟระเบิด / ult.
+    n('mage_core4', 'mage_core', 0, '🕯️', 'มนต์ถดถอย', 3, (lv) => `Debuff: ลูกไฟระเบิดทำให้มอนที่โดนอ่อนแรง ตีเบาลง ${pc(hexWeak(lv))} นาน ${MAGE_PASSIVE.hex.turns} เทิร์นของมัน (ไม่ซ้อน)`, (lv) => ({ mgHex: hexWeak(lv) })),
+    n('mage_core5', 'mage_core', 0, '🔮', 'ออร่าเวท', 3, (lv) => `Buff: ${MAGE_PASSIVE.aura.turns} เทิร์นแรกของทุกเวฟ ลูกไฟระเบิดและ ult แรง +${pc(auraAmp(lv))} (บาเรีย/ฮีลไม่เพิ่ม)`, (lv) => ({ mgAura: auraAmp(lv) })),
+    n('mage_l1', 'mage_l', 1, '⚡', 'กระแสแรง', 3,
+      (lv) => `ult สายฟ้า +${lv} ฮิต · 🛡️ อาภรณ์อัสนี: เริ่มทุกเวฟ หลบแน่นอน ${staticDodgeCharges(pr(lv))} ครั้ง · โดนตี/หลบสำเร็จ ช็อตสวน ${pc(staticCounterMul(pr(lv)))} ของเวท ${pc(staticShockChance(pr(lv)))} ทำศัตรูชะงัก (${D.static.icdTurns} ครั้ง/เทิร์น) · สเกลตาม INT/WIS/Base Lv`,
+      (lv) => ({ lightHits: lv, mgStatic: pr(lv) })),
     n('mage_l2', 'mage_l', 2, '🌩️', 'ฟ้าแตกแขนง', 3, (lv) => `ทุกฮิตสายฟ้า ${lv * 8}% แตกเป็นฮิตเพิ่มใส่ตัวสุ่ม`, (lv) => ({ lightChain: 0.08 * lv })),
     n('mage_l3', 'mage_l', 3, '✴️', 'ประจุ', 3, (lv) => `M.ATK +${lv * 4}`, (lv) => ({ matk: 4 * lv })),
     n('mage_l4', 'mage_l', 4, '🔱', 'ฟ้าลิขิต', 1, () => 'ทุกฮิตสายฟ้าทอย 2 ครั้ง เอาค่าสูง · ฮิต ≥1x คืน Mana 3', () => ({ lightLuck: 1, overload: 3 })),
-    n('mage_f1', 'mage_f', 1, '🌲', 'เชื้อเพลิง', 3, (lv) => `เพดานเผา +${lv * 2} stack`, (lv) => ({ burnCap: 2 * lv })),
+    n('mage_f1', 'mage_f', 1, '🌲', 'เชื้อเพลิง', 3,
+      (lv) => `เพดานเผา +${lv * 2} stack · 🛡️ เกราะเพลิงผลาญ: ลดดาเมจ ${pc(D.molten.guardPer * pr(lv))} · โดนตี สะท้อนไฟ ${pc(moltenThornsMul(pr(lv)))} ของเวท + เผา ${D.molten.burnStacks} stack · เผาศัตรูได้เกราะ ${pc(D.molten.wardPer * pr(lv))} M.ATK (รวมไม่เกิน ${pc(D.molten.wardCap)} HP) · สเกลตาม INT/WIS/Base Lv`,
+      (lv) => ({ burnCap: 2 * lv, guard: D.molten.guardPer * pr(lv), mgMolten: pr(lv) })),
     n('mage_f2', 'mage_f', 2, '🔥', 'ลูกไฟติดเชื้อ', 3, (lv) => `ลูกไฟระเบิด (สกิลออโต้) ติดเผา ${lv} stack`, (lv) => ({ autoBurn: lv })),
     n('mage_f3', 'mage_f', 3, '♨️', 'เปลวร้อน', 3, (lv) => `เผาแรงขึ้น +${lv}% M.ATK ต่อ stack`, (lv) => ({ burnTick: 0.01 * lv })),
     n('mage_f4', 'mage_f', 4, '☄️', 'เถ้าลุกลาม', 1, () => 'มอนตาย: stack เผาครึ่งหนึ่งลามไปทุกตัว', () => ({ fireSpread: 1 })),
-    n('mage_i1', 'mage_i', 1, '🧊', 'หนาวลึก', 3, (lv) => `มอนที่ช้าอยู่ ช้าลงอีก ${lv * 5}%`, (lv) => ({ chillSlow: 0.05 * lv })),
+    n('mage_i1', 'mage_i', 1, '🧊', 'หนาวลึก', 3,
+      (lv) => `มอนที่ช้าอยู่ ช้าลงอีก ${lv * 5}% · 🛡️ เกราะน้ำแข็งนิรันดร์: M.DEF +${pc(D.glacial.mdefPer * pr(lv))} · P.DEF +${D.glacial.defPer * pr(lv)} · บาเรียน้ำแข็ง ${pc(D.glacial.barrierHpPer * pr(lv))} HP + ${pc(D.glacial.barrierMatkPer * pr(lv))} M.ATK ทุก ${D.glacial.every} เทิร์น · ศัตรูที่ตีโดนบาเรียติดหนาว · บาเรียแตก = ระเบิด ${pc(glacialNovaMul(pr(lv)))} + แช่แข็ง · สเกลตาม INT/WIS/Base Lv`,
+      (lv) => ({ chillSlow: 0.05 * lv, mdef: D.glacial.mdefPer * pr(lv), def: D.glacial.defPer * pr(lv), mgGlacial: pr(lv) })),
     n('mage_i2', 'mage_i', 2, '💠', 'เปราะ', 3, (lv) => `มอนที่ช้าอยู่รับดาเมจ +${lv * 6}%`, (lv) => ({ brittle: 0.06 * lv })),
     n('mage_i3', 'mage_i', 3, '🛡️', 'เกราะน้ำแข็ง', 3, (lv) => `บาเรีย ult น้ำแข็ง +${+(lv * 0.3).toFixed(2)}x M.ATK`, (lv) => ({ iceBarrier: 0.3 * lv })),
     n('mage_i4', 'mage_i', 4, '❄️', 'ผลึกแตก', 1, () => 'แช่แข็งแล้วแตก 1.5x (ตัวอื่น 0.75x)', () => ({ shatter: 1 })),
@@ -34,7 +48,7 @@ export const tree: ClassTree = {
     t('mg_t0c', 1, '❄️', 'ลูกศิษย์น้ำแข็ง', 2, (r) => `เริ่มทุกเวฟด้วยบาเรีย ${r === 1 ? '1' : '1.6'}x M.ATK · ult น้ำแข็ง +${r * 10}%`, (r) => ({ mgWaveBarrier: r === 1 ? 1 : 1.6, mgIceAmp: 0.1 * r })),
     // row 2 (Job Lv 10): สไตล์ Mana
     t('mg_t1a', 2, '🏺', 'คลังมานา', 2, (r) => `Max Mana +${r === 1 ? 25 : 45} · ฟื้น Mana −20%`, (r) => ({ maxRes: r === 1 ? 25 : 45, resRegenCut: 0.2 })), // v21: was ปราการมานา (Mana Shield removed)
-    t('mg_t1b', 2, '💨', 'ร่ายไว', 2, (r) => `สกิลออโต้ใช้ Mana −${r === 1 ? 7 : 13} · Max Mana −15`, (r) => ({ autoCostCut: r === 1 ? 7 : 13, maxRes: -15 })),
+    t('mg_t1b', 2, '💨', 'ร่ายไว', 2, (r) => `ลูกไฟระเบิด (สกิลออโต้) แรง +${r === 1 ? 12 : 20}% · ฟื้น Mana −10%`, (r) => ({ s1Pow: r === 1 ? 0.12 : 0.2, resRegenCut: 0.1 })), // 2026-11-13: auto cost is 5 now, so the old "cost -7/-13" does nothing; the talent trades Mana regen for fire power instead
     t('mg_t1c', 2, '🔄', 'วงล้อธาตุ', 2, (r) => `ธาตุ ult หมุนเองทุกครั้งที่ร่าย ⚡→🔥→❄️ · ult +${r * 10}%`, (r) => ({ elemWheel: 1, mgUltAmp: 0.1 * r })),
     // row 3 (Job Lv 20): รอดตอนคับขัน
     t('mg_t2a', 3, '💥', 'บาเรียระเบิด', 2, (r) => r === 1 ? 'บาเรียแตก → ระเบิด 1x M.ATK ใส่ทุกตัว · บาเรีย −20%' : 'บาเรียแตก → ระเบิด 1.6x ใส่ทุกตัว + ผลักเทิร์น · บาเรีย −20%', (r) => ({ barrierBoom: r === 1 ? 1 : 1.6, mgBarrierCut: 0.2 })),
