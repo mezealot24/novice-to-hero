@@ -9,7 +9,7 @@ export interface BoarChargeOpts {
   seed?: number
 }
 
-type Pt = [number, number]
+import { bbox, insideBox, type Pt } from './_poly'
 
 interface PainterLike {
   dot(x: number, y: number, c: number, a?: number): void
@@ -91,16 +91,6 @@ function ell(cx: number, cy: number, rx: number, ry: number, n = 14): Pt[] {
   return Array.from({ length: n }, (_, i): Pt => [cx + Math.cos((i / n) * TAU) * rx, cy + Math.sin((i / n) * TAU) * ry])
 }
 
-function inside(pts: Pt[], x: number, y: number): boolean {
-  let c = false
-  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-    const [xi, yi] = pts[i]
-    const [xj, yj] = pts[j]
-    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c
-  }
-  return c
-}
-
 const BACK: Pt[] = [[-20, -8], [-13, -12.5], [-4, -15.5], [5, -16.5], [11, -13.5]]
 function backY(x: number): number {
   for (let i = 1; i < BACK.length; i++) {
@@ -176,6 +166,7 @@ function blit(p: PainterLike, parts: Part[], x: number, y: number, ang: number, 
   const n = Math.ceil(R * 2) + 2
   const grid = new Int8Array(n * n).fill(-1)
   const ids = new Int8Array(n * n).fill(-1)
+  const boxes = parts.map((part) => bbox(part.pts))
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
       const wx = x0 + i + 0.5 - x
@@ -184,7 +175,7 @@ function blit(p: PainterLike, parts: Part[], x: number, y: number, ang: number, 
       const v = (-wx * sa + wy * ca) / sc
       const k = (x0 + i + y0 + j) & 1
       for (let q = 0; q < parts.length; q++) {
-        if (inside(parts[q].pts, u, v)) {
+        if (insideBox(parts[q].pts, boxes[q], u, v)) {
           const t = parts[q].tone(u, v, k)
           if (t >= 0) {
             grid[j * n + i] = t

@@ -9,7 +9,7 @@ export interface HawkDiveOpts {
   seed?: number
 }
 
-type Pt = [number, number]
+import { bbox, insideBox, type Pt } from './_poly'
 
 interface PainterLike {
   px(x: number, y: number, c: number): void
@@ -80,16 +80,6 @@ interface Part {
 
 function ell(cx: number, cy: number, rx: number, ry: number, n = 16): Pt[] {
   return Array.from({ length: n }, (_, i): Pt => [cx + Math.cos((i / n) * TAU) * rx, cy + Math.sin((i / n) * TAU) * ry])
-}
-
-function inside(pts: Pt[], x: number, y: number): boolean {
-  let c = false
-  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-    const [xi, yi] = pts[i]
-    const [xj, yj] = pts[j]
-    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c
-  }
-  return c
 }
 
 const WING: Pt[] = [
@@ -195,6 +185,7 @@ function blit(p: PainterLike, parts: Part[], x: number, y: number, ang: number, 
   const n = Math.ceil(R * 2) + 2
   const grid = new Int8Array(n * n).fill(-1)
   const ids = new Int8Array(n * n).fill(-1)
+  const boxes = parts.map((part) => bbox(part.pts))
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
       const wx = x0 + i + 0.5 - x
@@ -204,7 +195,7 @@ function blit(p: PainterLike, parts: Part[], x: number, y: number, ang: number, 
       const k = (x0 + i + y0 + j) & 1
       for (let q = 0; q < parts.length; q++) {
         const part = parts[q]
-        if (inside(part.pts, u, v)) {
+        if (insideBox(part.pts, boxes[q], u, v)) {
           const t = part.tone(u, v, k)
           if (t >= 0) {
             grid[j * n + i] = t
