@@ -9,7 +9,7 @@ import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster, EQUIP_CARDS 
 import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, type JobDef } from '../data/jobs'
 import { JOB2, PET_IDS, type Job2Def, type PetId } from '../data/jobs2'
 import { skill2Picked } from '../data/tree'
-import { ALLIES, fillAllies, gadgetById, guardHit, hawkMul, hurtAlly, liveAllies, makeAlly, readyAllies, reviveAllies, rollGadget, tauntTarget, tickAllies, TRAP_IDS, useAlly, wolfMul, type Ally, type AllyCtx, type GadgetId } from '../battle/allies'
+import { ALLIES, fillAllies, frenzyMul, gadgetById, guardHit, hawkMul, hurtAlly, liveAllies, makeAlly, readyAllies, reviveAllies, rollGadget, tauntTarget, tickAllies, TRAP_IDS, useAlly, wolfMul, type Ally, type AllyCtx, type GadgetId } from '../battle/allies'
 import type { Skill2Def } from '../data/skill2'
 import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/skill-registry'
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
@@ -606,7 +606,7 @@ export class BattleScene extends Phaser.Scene {
   private removeMon(m: Mon) { m.spr.destroy(); m.shadow.destroy(); m.dotTxt?.destroy(); m.dotTxt = undefined }
   private alive() { return this.mons.filter((m) => !m.dead) }
   private smashTurns() { return Math.max(2, Math.round(this.st.smashCd / BATTLE.msPerTurn)) }
-  private heroSpeed() { return BATTLE.heroSpeed * (this.st.aspd / PLAYER.aspd) * (1 + this.frenzy * KIT2.berserker.frenzyAspd) * (this.hx.slow > 0 ? BATTLE.frozenHeart : 1) * (this.asuraExhaust > 0 ? 1 - KIT2.monk.asuraSlow : 1) * (this.relic === 'haste' ? 1 + RELIC_RULES.haste.speed : 1) }
+  private heroSpeed() { return BATTLE.heroSpeed * (this.st.aspd / PLAYER.aspd) * (1 + this.frenzy * KIT2.berserker.frenzyAspd) * (this.hx.slow > 0 ? BATTLE.frozenHeart : 1) * (this.asuraExhaust > 0 ? 1 - KIT2.monk.asuraSlow : 1) * (this.relic === 'haste' ? 1 + RELIC_RULES.haste.speed : 1) * (this.st.j2Frenzy > 0 ? frenzyMul(this.st, this.front()[0]?.poison ?? 0) : 1) } // 🩸 Beastmaster Bloodscent Frenzy
 
   /** Who acts next: fill gauges until someone reaches 100 (ties go to the hero). */
   private nextActor(): Actor {
@@ -1010,7 +1010,7 @@ export class BattleScene extends Phaser.Scene {
   private strike(m: Mon, mul: number, magic = false, color?: string, pierce = 0): number {
     if (m.dead || this.hp <= 0) return 0
     if (this.j3Bless > 0) mul *= 1 + this.st.j3AfterBless // ⚜️ พรหลังศึก
-    const crit = this.forceCrit || (this.critAllowed() && Math.random() < (magic ? this.st.spellCrit : this.st.crit + (this.buf.hawk > 0 ? S2N.hawkCrit(this.st.s2Lv) : 0) + this.critAdd + (this.rampage > 0 ? KIT2.berserker.ultCrit : 0))) // magic crits only with spellCrit (talent/item/card) · Skill 2 ตาเหยี่ยว · 2nd job
+    const crit = this.forceCrit || (!this.petNoCrit && this.critAllowed() && Math.random() < (magic ? this.st.spellCrit : this.st.crit + (this.buf.hawk > 0 ? S2N.hawkCrit(this.st.s2Lv) : 0) + this.critAdd + (this.rampage > 0 ? KIT2.berserker.ultCrit : 0))) // magic crits only with spellCrit (talent/item/card) · Skill 2 ตาเหยี่ยว · 2nd job
     if (!magic && !crit && !this.sureHit && this.zenTurns <= 0 && Math.random() > hitChance(this.st.hit, m.def.flee ?? 5)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
     if (!magic && m.def.luckyDodge && Math.random() < m.def.luckyDodge) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, '🍀 หลบ!', '#a9a6c7'); return 0 } // D6+ stat monsters: LUK lucky dodge (even vs crits, like the hero's)
     if (m.def.fixedFlee && Math.random() < m.def.fixedFlee) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS 👻', '#e0a8ff'); return 0 } // Maiden: always 50%
@@ -1066,6 +1066,9 @@ export class BattleScene extends Phaser.Scene {
   private boomUsed = false // Knight Spear Boomerang used this wave
   private firstSwing = false // Knight Charge Attack: first basic swing of the wave
   private forceCrit = false
+  /** Q 2026-11-14: Beastmaster Ult + Skill 3 hawk / boar hits never crit (the wolf still can; sure crits still go through). */
+  private petNoCrit = false
+  private noPetCrit(fn: () => void) { const p = this.petNoCrit; this.petNoCrit = true; try { fn() } finally { this.petNoCrit = p } }
   // ----- v92 Cleric web 🌄 แสงรุ่งอรุณ (KIT.clericTree.dawn): bonus magic damage (STR + WIS + matk x M.ATK) · v108: passive on every Nth basic / combo hit -----
   /** Bonus magic hit on the targets (hitPow 1 for the passive); ★ = sure crit + crit dmg; heals a share of the first hit. */
   private dawnBonus(targets: Mon[], hitPow: number) {
@@ -1244,13 +1247,35 @@ export class BattleScene extends Phaser.Scene {
     return {
       ally: a, st: this.st, luk: this.heroLuk, combo,
       hitAll: (mul, magic, color) => run(() => { for (const m of this.alive()) this.strike(m, mul, magic, color) }),
-      hitOne: (mul, magic, color, sure) => {
-        const t = this.alive(); if (!t.length) return
+      hitOne: (mul, magic, color, sure, fx) => {
+        const t = this.alive(); if (!t.length) return false
         const p = this.sureHit; this.sureHit = p || !!sure
         const tgt = t[Phaser.Math.Between(0, t.length - 1)] // picked here (same single RNG call) so the pet fx hits the same monster
-        try { run(() => { this.allyHitFx(a, tgt); this.strike(tgt, mul, magic, color) }) } finally { this.sureHit = p }
+        let d = 0
+        try { run(() => { this.allyHitFx(a, tgt); d = this.strike(tgt, mul, magic, color) }) } finally { this.sureHit = p }
+        if (tgt.dead || d <= 0 || !fx) return false
+        const B = KIT2.beastmaster, fresh = !!fx.mark && tgt.huntMark <= 0
+        if (fx.mark) tgt.huntMark = Math.max(tgt.huntMark, B.preyTurns) // 🏷️ Prey Mark (shares Archer huntMark)
+        if (fresh) huntMarkOn(this, tgt.spr)
+        if (fx.blind && fx.blind > 0) tgt.blind = Math.max(tgt.blind, fx.blind) // 🪶 Razor Gust
+        if (fx.mark || fx.blind) this.dotIcon(tgt)
+        return fresh
       },
-      hitFront: (mul, color, bleed = 0) => { const m = this.front()[0]; if (!m) return; run(() => { this.allyHitFx(a, m); this.strike(m, mul, false, color) }); if (bleed > 0) this.addPoison(m, bleed) },
+      rally: (id) => { const x = readyAllies(this.allies).find((y) => y.def.id === id && y.def.trigger === 'ownTurn'); if (x) x.gauge = Math.max(x.gauge, 100) },
+      hitFront: (mul, color, bleed = 0, crit = false) => {
+        const m = this.front()[0]; if (!m) return 0
+        let d = 0; const fc = this.forceCrit; this.forceCrit = fc || crit
+        try { run(() => { this.allyHitFx(a, m); d = this.strike(m, mul, false, color) }) } finally { this.forceCrit = fc }
+        if (bleed > 0) this.addPoison(m, bleed)
+        return d
+      },
+      frontInfo: () => { const m = this.front()[0]; return m ? { hpPct: m.hp / Math.max(1, m.def.hp), marked: m.huntMark > 0 } : undefined },
+      healPack: (n) => {
+        if (n <= 0) return
+        if (this.hp > 0) this.heal(n, true)
+        const b = readyAllies(this.allies).find((x) => x.def.share)
+        if (b) { b.hp = Math.min(b.maxHp, b.hp + Math.max(1, Math.round(n))); this.syncAlly(b) }
+      },
       hitFoe: (mul, color) => { const m = front(); if (m) run(() => this.strike(m, mul, false, color)) },
       stun: (all) => { for (const m of all ? this.alive() : [front()]) if (m) this.stunMon(m) },
       chill: (turns, all) => { for (const m of all ? this.alive() : [front()]) if (m && !m.dead) { m.chill = Math.max(m.chill, turns); this.dotIcon(m) } },
@@ -1357,7 +1382,7 @@ export class BattleScene extends Phaser.Scene {
       if (p.id === 'hawk') {
         this.floatText(HERO_X + 70, GROUND - 160, '🦅 ฟาด!', '#f2d24b')
         const c = this.allyCtx(makeAlly(ALLIES.hawk, this.st, k))
-        for (let i = 0; i < B.cmdHawkHits; i++) c.hitOne(hawkMul(this.st) * k, false, '#f2d24b', true)
+        this.noPetCrit(() => { for (let i = 0; i < B.cmdHawkHits; i++) c.hitOne(hawkMul(this.st) * k, false, '#f2d24b', true) })
       } else if (p.id === 'boar') this.addShield(this.st.maxHp * B.cmdBoarShield * k)
       else {
         this.floatText(HERO_X + 70, GROUND - 160, '🐺 อู้ววว! เรียกฝูง', '#c9c9d6')
@@ -1374,11 +1399,11 @@ export class BattleScene extends Phaser.Scene {
     if (row.length) stampedeFx(this, row.reduce((sum, m) => sum + m.spr.x, 0) / row.length, GROUND)
     this.cameras.main.flash(120, 230, 200, 140)
     this.sureHit = true
-    try { this.withSrc('other', () => { row.forEach((m, i) => { if (i < RANGER_FX.maxHawks) petHitFx(this, 'hawk', m.spr, GROUND, i); this.strike(m, B.ultHawk * h2, false, '#f2d24b') }) }) } finally { this.sureHit = false }
+    try { this.withSrc('other', () => this.noPetCrit(() => { row.forEach((m, i) => { if (i < RANGER_FX.maxHawks) petHitFx(this, 'hawk', m.spr, GROUND, i); this.strike(m, B.ultHawk * h2, false, '#f2d24b') }) })) } finally { this.sureHit = false }
     this.floatText(HERO_X + 70, GROUND - 160, '🦅🐗🐺 Stampede!', '#f2d24b')
     await this.wait(BATTLE.stepMs * 0.25)
     { const bf = this.front()[0]; if (bf) petHitFx(this, 'boar', bf.spr, GROUND) }
-    for (const m of this.alive()) { this.strike(m, B.ultBoar * h2 * (1 + this.st.pskill), false, '#e0b07a'); if (!m.dead) { m.gauge -= B.boarPush; this.tweens.add({ targets: m.spr, x: m.spr.x + 30, duration: 90, yoyo: true }) } }
+    for (const m of this.alive()) { this.noPetCrit(() => this.strike(m, B.ultBoar * h2 * (1 + this.st.pskill), false, '#e0b07a')); if (!m.dead) { m.gauge -= B.boarPush; this.tweens.add({ targets: m.spr, x: m.spr.x + 30, duration: 90, yoyo: true }) } }
     this.shake(120, 0.008)
     await this.wait(BATTLE.stepMs * 0.25)
     const f = this.front()[0]
@@ -2819,7 +2844,7 @@ export class BattleScene extends Phaser.Scene {
     if (m.dead) return
     dmg = Math.ceil(dmg * this.srcMul(m, dot)) // พร v2 tags (masteries, style switches) · whole numbers only (Q: round up), so shown == applied
     if ((m.marked ?? 0) > 0) dmg = Math.ceil(dmg * 1.15) // cleric ★B: ตราบาป
-    if (!dot && m.huntMark > 0 && this.st.arMark > 0) dmg = Math.ceil(dmg * (1 + this.st.arMark)) // v82 archer หมายหัว (hits only)
+    if (!dot && m.huntMark > 0) { const mk = Math.max(this.st.arMark, this.j2?.id === 'beastmaster' ? KIT2.beastmaster.preyMark : 0); if (mk > 0) dmg = Math.ceil(dmg * (1 + mk)) } // v82 archer หมายหัว · 🏷️ Beastmaster Prey Mark (hits only)
     if (!dot && m.armorBrk > 0 && this.st.swBreak > 0) dmg = Math.ceil(dmg * (1 + this.st.swBreak)) // v84 Swordsman ทุบเกราะ (hits only)
     if (this.st.lateDmg > 0 && this.fightTurns >= 12) dmg = Math.ceil(dmg * (1 + this.st.lateDmg)) // cleric talent: อรุณรุ่ง
     if (this.st.poisonAmp > 0 && m.poison >= 10) dmg = Math.ceil(dmg * (1 + this.st.poisonAmp)) // Thief talent: กัดกร่อน

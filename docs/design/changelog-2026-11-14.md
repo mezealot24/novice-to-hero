@@ -33,3 +33,37 @@
 - 💤N ของหมูป่าอัปเดตทุกเทิร์น (เดิมค้างที่ตัวเลขแรก) · ตัวเลข GUARD / 💢 เต็ม ขึ้นเหนือช่องหมูป่าเอง (เดิมขึ้นช่องแรก = เหยี่ยว)
 - ปุ่มในเมือง `character/web-tier2.ts`: "🐾 เลือก" → "🏹 ตั้งคู่หูพราน" + toast บอกว่าสัตว์ 3 ตัวสู้ทุกเวฟเสมอ
 - Admin: key ที่หายไป (`secondPow`, `boarTaunt`) ไม่อยู่ใน whitelist แล้ว = override เก่าถูกข้าม (tests `admin` 22 ผ่าน) · ⚠️ **Q เช็คหน้า admin:** ถ้าเคย override `tree.pack3Pow` หรือ `boarHp` ไว้ ความหมาย/สเกลเปลี่ยนแล้ว
+
+## 3. 🐺 Beastmaster Rework — Phase 2 (หมาป่า)
+
+ค่าเป็น first guess ยังไม่ได้เล่นจริง
+- **Bleed = poison เดิม** ใช้ cap เดิม `poisonMax()` (12 + poisonCap) · **ไม่ตั้ง cap 5 ใหม่** เพราะจะชนกับ talent/ศรพิษของ Archer · "5" เหลือแค่เพดานที่ Frenzy นับ
+- **🩸 คลั่งเลือด (Bloodscent Frenzy)** ผูกกับ `bm_w3` ฝีเท้าป่า (ID เดิม, stat ใหม่ `j2Frenzy`): poison บนตัวหน้า 1 stack = ความเร็วฮีโร่ +1%/Lv (Lv3 = +3%/stack, สูงสุด +15% ที่ 5 stack) · หมาป่าเร็วตามไปด้วย (เกจหมาป่าคิดจาก step ของฮีโร่)
+- **🦷 ขย้ำปลิดชีพ (Savage Crunch)** ผูกกับ ★ `bm_w4` ราชาหมาป่า (โบนัสวิวัฒน์เดิมยังอยู่): กัดครั้งที่ 3 / ตัวหน้าติด 🏷️ `huntMark` / HP ตัวหน้า < 35% → **คริแน่นอน** + ฮีลฮีโร่และหมูป่า 10% ของดาเมจ (Q4: เป็น heal ตรง ไม่ใช่ lifesteal)
+- `AllyCtx`: `hitFront` คืนดาเมจ + รับ `crit` · ใหม่ `frontInfo()` · `healPack()`
+- ⚠️ ตอนนี้ 🏷️ ติดจาก Archer หมายหัวเท่านั้น · Phase 3 ให้เหยี่ยวแปะเอง
+- ⚠️ ความเร็วฮีโร่กระทบทั้งเกม (คอมโบ, เทิร์นต่อเวฟ) → balance pass
+
+**ไฟล์:** `allies.ts` · `BattleScene.ts` · `skill-math.ts` · `skill-registry.ts` · `stats.ts` · `trees2/beastmaster.ts` · tests: `allies` (11) · ผ่าน `archer-bm-tree` / `job2-talents` / `skill-registry` · typecheck ผ่าน
+
+## 4. 🦅 Beastmaster Rework — Phase 3 (เหยี่ยว)
+
+ค่าเป็น first guess ยังไม่ได้เล่นจริง
+- **🏷️ Prey Mark (ทุก Blitz Beat, ไม่ต้องลง node):** ทุกฮิตของเหยี่ยวที่โดน แปะ `huntMark` (ใช้ร่วมกับหมายหัวของ Archer — Q2) นาน `preyTurns` 2 เทิร์นมอน · โบนัสดาเมจที่ได้รับ = `max(arMark, preyMark 10%)` (เดิมอ่าน `arMark` อย่างเดียว → Beastmaster ได้ 0%) · แปะใหม่เล่น `huntMarkOn` VFX เดิม
+- **🪶 Razor Gust** ผูกกับ `bm_h3` โฉบฝูง (ID เดิม, +1 ตัวเดิมยังอยู่, stat ใหม่ `j2Gust`): Blitz Beat ครั้งที่ 3 ทำให้ทุกตัวที่โดน **ตาบอด** 2 เทิร์น (ใช้ blind ของ Crusader: Hit มอน −20%)
+- **👁️ ตาทิพย์ (Apex Spotter)** ผูกกับ ★ `bm_h4` เหยี่ยวทอง (โบนัสวิวัฒน์เดิมยังอยู่): คริฮีโร่ +5% · Blitz Beat ที่แปะ 🏷️ **ใหม่** ได้ → หมาป่าได้เทิร์นทันที (เติมเกจ 100, ลงมือใน step ถัดไปของคิว)
+- **ต่อกับ Phase 2:** 🏷️ จากเหยี่ยว → หมาป่า ★ ขย้ำปลิดชีพ คริแน่นอน ทำงานได้โดยไม่ต้องมี node ของ Archer แล้ว
+- ไม่ได้ทำ "ลด DEF 15%" ของ Prey Mark (จะต้องยืม `armorBrk` ของ Mobster ที่มีสูตรแยก) → ถ้าอยากได้ค่อยเพิ่ม
+- `AllyCtx.hitOne` คืน `true` เมื่อแปะใหม่ + รับ `fx` · ใหม่ `rally(id)`
+- ⚠️ 3 สัตว์ + Prey Mark ทุกฮิต + ขย้ำคริ = ดาเมจรวมพุ่งมาก → balance pass ก่อน merge
+
+**ไฟล์:** `allies.ts` · `BattleScene.ts` · `skill-math.ts` · `skill-registry.ts` · `stats.ts` · `trees2/beastmaster.ts` · tests: `allies` (14) · ผ่าน `archer-bm-tree` / `job2-talents` / `skill-registry` · typecheck ผ่าน
+
+## 5. 🐾 Beastmaster: ลดดาเมจ Ult + สกิล 3 (Q: แรงเกินไปมาก)
+
+- **📯 สั่งลุย:** เหยี่ยวฟาด 3 → **2** ครั้ง · ฝูงหมาป่าตัวละ 0.6 → **0.3** · โล่หมูป่า 15% คงเดิม
+- **🐾 Stampede:** เหยี่ยว 1.2 → **0.6** · หมูป่า 1 → **0.5** · หมาป่า 1.5 → **0.7** (ศรทะลวงต่อท้ายไม่แตะ)
+- **ไม่มีคริ (Beastmaster เท่านั้น):** ฮิตของ 🦅 เหยี่ยว / 🐗 หมูป่า ใน Ult + สกิล 3 คริไม่ได้ · 🐺 หมาป่ายังคริได้ · คริแน่นอน (ขย้ำปลิดชีพ) ยังผ่าน · Archer / Innovator ไม่โดน (`petNoCrit` ใน `BattleScene.strike`)
+- ⚠️ ถ้า Q เคย override `cmdHawkHits` / `cmdPackPow` / `ultHawk|Boar|Wolf` ในหน้า admin ไว้ ค่าบน server ยังทับค่านี้
+
+**ไฟล์:** `skill-math.ts` · `BattleScene.ts` · typecheck + tests `allies` / `skill-registry` / `job2-talents` / `archer-bm-tree` ผ่าน
