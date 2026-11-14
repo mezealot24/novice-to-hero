@@ -40,7 +40,8 @@ import { CombatLog, deathText, recapLines, saveDeath, type DeathRec, type HitOut
 import { ftue, track } from '../analytics'
 import { HeroRig } from '../battle/hero-rig'
 import { fitHeroScale, heroCostumeTint, heroRigSpec, heroTex, type HeroRigSpec } from '../gfx/hero-visual'
-import { CLERIC_PFX, MAGE_PFX, playPfx, preloadPfx } from '../gfx/pixelfx'
+import { ARCHER_PFX, BEAST_PFX, CLERIC_PFX, MAGE_PFX, POISON_GREEN, RICOCHET_LEAF, playPfx, preloadPfx } from '../gfx/pixelfx'
+import { RANGER_FX, arrowImpactFx, arrowProjectile, arrowRainFx, beastRoarFx, eagleEyeFx, huntMarkOn, petHitFx, type PetKind, pierceShotFx, snareTrapFx, stampedeFx, wolfRoarPalette } from '../battle/ranger-vfx'
 import { blockShieldFx, bowlingBashFx, brandishSweepFx, chargeOpenerFx, comboSlashFx, guardianUltFx, pierceHitFx, skill2AuraFx, spearBoomerangFx, whirlwindFx } from '../battle/sword-vfx'
 
 // Side-scroll, turn-based (Capybara Go-like): the hero walks right, meets a group, and everyone
@@ -339,6 +340,9 @@ export class BattleScene extends Phaser.Scene {
     this.j2 = s.job2 && JOB2[s.job2]?.parent === this.job.id ? JOB2[s.job2] : undefined // 2nd job (design/second-jobs-v1.md)
     if (this.job.id === 'cleric') preloadPfx(this, CLERIC_PFX) // bake the pixelfx sheets now, not on the first cast
     if (this.job.id === 'mage') preloadPfx(this, MAGE_PFX)
+    if (this.job.id === 'archer') preloadPfx(this, ARCHER_PFX)
+    if (this.j2?.id === 'beastmaster') preloadPfx(this, BEAST_PFX)
+    else if (this.st.arHawk > 0) preloadPfx(this, ['hawkDive']) // archer talent เหยี่ยวคู่ใจ
     preloadPfx(this, ['zapYellow', 'zapBolt'])
     if (this.j2) this.job = { ...this.job, resource: this.j2.resource ?? this.job.resource, auto: { ...this.job.auto, cost: this.j2.autoCost ?? this.job.auto.cost }, ult: { ...this.job.ult, ...this.j2.ult, ...(this.j2.id === 'monk' && this.st.j2Asura > 0 ? { icon: '💥', name: 'อาชูร่าสไตรก์' } : {}) } } // Berserker: Rage · Ult วิวัฒน์ · Monk ★ Asura Strike
     if (this.j2?.id === 'sage') this.job = { ...this.job, attack: 'melee' } // 📖 Sage: melee basic + counters (P.ATK)
@@ -852,7 +856,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.gc && this.alive().length && this.hp > 0) { await this.asSkill(() => this.gcPulse(), 'ult', 'ult'); if (!this.alive().length || this.hp <= 0) return } // v111 ✨ Grand Cross: next pulse
     if (this.j2 && this.alive().length && this.hp > 0) await this.skill3Turn()
     if (!this.alive().length || this.hp <= 0) return
-    if (this.st.arHawk > 0 && ++this.hawkTurn % 3 === 0) { const t = this.alive(); if (t.length) { const m = t[Phaser.Math.Between(0, t.length - 1)]; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, '🦅', '#f2d24b'); this.strike(m, this.st.arHawk, true, '#f2d24b') } } // archer talent เหยี่ยวคู่ใจ
+    if (this.st.arHawk > 0 && ++this.hawkTurn % 3 === 0) { const t = this.alive(); if (t.length) { const m = t[Phaser.Math.Between(0, t.length - 1)]; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, '🦅', '#f2d24b'); petHitFx(this, 'hawk', m.spr, GROUND); this.strike(m, this.st.arHawk, true, '#f2d24b') } } // archer talent เหยี่ยวคู่ใจ
     if (this.asuraExhaust > 0) {
       this.floatText(HERO_X, GROUND - 140, `😵 ง่อยแดก! (${this.asuraExhaust})`, '#ff9a9a')
       await this.basicAttack()
@@ -1238,15 +1242,22 @@ export class BattleScene extends Phaser.Scene {
       hitOne: (mul, magic, color, sure) => {
         const t = this.alive(); if (!t.length) return
         const p = this.sureHit; this.sureHit = p || !!sure
-        try { run(() => this.strike(t[Phaser.Math.Between(0, t.length - 1)], mul, magic, color)) } finally { this.sureHit = p }
+        const tgt = t[Phaser.Math.Between(0, t.length - 1)] // picked here (same single RNG call) so the pet fx hits the same monster
+        try { run(() => { this.allyHitFx(a, tgt); this.strike(tgt, mul, magic, color) }) } finally { this.sureHit = p }
       },
-      hitFront: (mul, color, bleed = 0) => { const m = this.front()[0]; if (!m) return; run(() => this.strike(m, mul, false, color)); if (bleed > 0) this.addPoison(m, bleed) },
+      hitFront: (mul, color, bleed = 0) => { const m = this.front()[0]; if (!m) return; run(() => { this.allyHitFx(a, m); this.strike(m, mul, false, color) }); if (bleed > 0) this.addPoison(m, bleed) },
       hitFoe: (mul, color) => { const m = front(); if (m) run(() => this.strike(m, mul, false, color)) },
       stun: (all) => { for (const m of all ? this.alive() : [front()]) if (m) this.stunMon(m) },
       chill: (turns, all) => { for (const m of all ? this.alive() : [front()]) if (m && !m.dead) { m.chill = Math.max(m.chill, turns); this.dotIcon(m) } },
       shield: (share) => { this.allyActed = true; this.addShield(this.st.maxHp * share) },
       say: (text, color) => this.floatText(HERO_X + 70, GROUND - 150, text, color),
     }
+  }
+  private petFxN = 0 // pet fx counter: nudges repeated hits so they do not stack exactly
+  /** Beastmaster pet strike visual (hawk dive / boar charge / claw slash) on the monster the ally really hit. */
+  private allyHitFx(a: Ally, m: Mon) {
+    const kind: PetKind | undefined = a.def.id === 'hawk' ? 'hawk' : a.def.id === 'boar' ? 'boar' : a.def.id === 'wolf' || a.def.id === 'pack' ? 'wolf' : undefined
+    if (kind) petHitFx(this, kind, m.spr, GROUND, this.petFxN++)
   }
   /** One ally act: wiggle its icon, use up a trap. */
   private allyAct(a: Ally, combo = false, foe?: Mon) {
@@ -1336,6 +1347,7 @@ export class BattleScene extends Phaser.Scene {
   /** 📯 สั่งลุย: every pet in the lineup does its special move. */
   private async petCommand(pow: number) {
     const B = KIT2.beastmaster
+    beastRoarFx(this, HERO_X, GROUND) // 📯 the call goes out
     for (const p of this.pets) {
       if (!this.alive().length) return
       const k = pow * p.pow
@@ -1346,6 +1358,7 @@ export class BattleScene extends Phaser.Scene {
       } else if (p.id === 'boar') this.addShield(this.st.maxHp * B.cmdBoarShield * k)
       else {
         this.floatText(HERO_X + 70, GROUND - 160, '🐺 อู้ววว! เรียกฝูง', '#c9c9d6')
+        beastRoarFx(this, HERO_X + 90, GROUND, wolfRoarPalette)
         for (let i = 0; i < B.cmdPack; i++) { const w = makeAlly(ALLIES.pack, this.st, B.cmdPackPow * k); w.gauge = 50; this.spawnAlly(w) }
       }
       await this.wait(BATTLE.stepMs * 0.2)
@@ -1354,16 +1367,19 @@ export class BattleScene extends Phaser.Scene {
   /** 🐾 Stampede: hawk, boar and wolf all hit once. */
   private async stampede(h2: number) {
     const B = KIT2.beastmaster
+    const row = this.alive()
+    if (row.length) stampedeFx(this, row.reduce((sum, m) => sum + m.spr.x, 0) / row.length, GROUND)
     this.cameras.main.flash(120, 230, 200, 140)
     this.sureHit = true
-    try { this.withSrc('other', () => { for (const m of this.alive()) this.strike(m, B.ultHawk * h2, false, '#f2d24b') }) } finally { this.sureHit = false }
+    try { this.withSrc('other', () => { row.forEach((m, i) => { if (i < RANGER_FX.maxHawks) petHitFx(this, 'hawk', m.spr, GROUND, i); this.strike(m, B.ultHawk * h2, false, '#f2d24b') }) }) } finally { this.sureHit = false }
     this.floatText(HERO_X + 70, GROUND - 160, '🦅🐗🐺 Stampede!', '#f2d24b')
     await this.wait(BATTLE.stepMs * 0.25)
+    { const bf = this.front()[0]; if (bf) petHitFx(this, 'boar', bf.spr, GROUND) }
     for (const m of this.alive()) { this.strike(m, B.ultBoar * h2 * (1 + this.st.pskill), false, '#e0b07a'); if (!m.dead) { m.gauge -= B.boarPush; this.tweens.add({ targets: m.spr, x: m.spr.x + 30, duration: 90, yoyo: true }) } }
     this.shake(120, 0.008)
     await this.wait(BATTLE.stepMs * 0.25)
     const f = this.front()[0]
-    if (f) { this.strike(f, B.ultWolf * h2 * (1 + this.st.pskill), false, '#c9c9d6'); this.addPoison(f, B.wolfBleed + this.st.j2WolfBleed) }
+    if (f) { petHitFx(this, 'wolf', f.spr, GROUND); this.strike(f, B.ultWolf * h2 * (1 + this.st.pskill), false, '#c9c9d6'); this.addPoison(f, B.wolfBleed + this.st.j2WolfBleed) }
   }
   /** 🎲 กล่องสุ่มประหลาด: one gadget (💥 jackpot = all of them). */
   private async gadget(id: GadgetId, pow: number) {
@@ -2035,12 +2051,17 @@ export class BattleScene extends Phaser.Scene {
     if (Math.abs(this.heroSpr.x - HERO_X) > 1) await this.tween({ targets: this.heroSpr, x: HERO_X, duration: BATTLE.stepMs * 0.35, ease: 'Quad.easeOut' })
   }
 
-  private async shoot(m: Mon, color: number, fn: () => void) {
-    const b = this.add.image(HERO_X + 30, GROUND - 50, 'dot').setTint(color).setScale(2.2, 1.2).setDepth(9000)
+  /** Ranged projectile. `arrow` set = the pixel-art arrow (rotated at the target, impact burst on arrival) instead of the tinted dot. */
+  private async shoot(m: Mon, color: number, fn: () => void, arrow?: { palette?: (string | number)[] }) {
+    const sx = HERO_X + 30, sy = GROUND - 50
+    const tx = m.spr.x, ty = m.spr.y - (arrow ? m.spr.displayHeight * 0.4 : 30)
+    const shaft = arrow ? arrowProjectile(this, sx, sy, Math.atan2(ty - sy, tx - sx), arrow.palette) : undefined
+    const b = shaft ?? this.add.image(sx, sy, 'dot').setTint(color).setScale(2.2, 1.2).setDepth(9000)
     this.tweens.add({ targets: this.heroSpr, x: HERO_X - 8, duration: 80, yoyo: true })
     sfx.swing()
-    await this.tween({ targets: b, x: m.spr.x, y: m.spr.y - 30, duration: 200 })
+    await this.tween({ targets: b, x: tx, y: ty, duration: 200 })
     b.destroy()
+    if (arrow) arrowImpactFx(this, tx, ty, arrow.palette)
     fn()
   }
 
@@ -2125,7 +2146,7 @@ export class BattleScene extends Phaser.Scene {
         this.lockStacks = this.lockTarget === f ? Math.min(5, this.lockStacks + 1) : 0
         this.lockTarget = f; mul += 0.08 * this.lockStacks
       }
-      await this.shoot(f, 0xf6eedc, () => this.strike(f, mul))
+      await this.shoot(f, 0xf6eedc, () => this.strike(f, mul), {})
     }
     else if (kind === 'mage' && this.j2?.id === 'sage') await this.lunge(f, () => { this.strike(f, KIT2.sage.basicMul) }) // 📖 Sage: melee x P.ATK
     else if (kind === 'mage') await this.shoot(f, 0x9f7bff, () => { if (this.strike(f, MAGE_SPELL.basicMul, true, '#c9a8ff') > 0) this.gainRes(MAGE_CAST.boltMana) }) // weak free magic bolt (v78: + Mana on hit); real damage = Mana spells
@@ -2195,14 +2216,14 @@ export class BattleScene extends Phaser.Scene {
         break
       case 'ar_rain':
         for (let w = 0; w < S2N.rainWaves(star); w++) {
-          this.burst(700, GROUND - 60, 0xf6eedc, 20, 240)
+          arrowRainFx(this, GROUND, this.st.arPoisonS2 > 0 ? POISON_GREEN : undefined)
           for (const m of this.alive()) { this.strike(m, S2N.rainMul(lv)); if (this.st.arPoisonS2 > 0) this.addPoison(m, KIT.archerTree.poisonArrowStacks) } // v82 ★ หมอกพิษ
           await this.wait(BATTLE.stepMs * 0.3)
         }
         break
-      case 'ar_hawk': B.hawk = S2N.hawkTurns; break
+      case 'ar_hawk': B.hawk = S2N.hawkTurns; eagleEyeFx(this, HERO_X, GROUND); break
       case 'ar_trap':
-        for (const m of star ? this.alive() : [front()].filter(Boolean) as Mon[]) { this.strike(m, S2N.trapMul); if (this.st.arPoisonS2 > 0) this.addPoison(m, KIT.archerTree.poisonArrowStacks); m.gauge -= S2N.trapPush(lv); this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, '🕳️', '#c9c9d6') }
+        for (const m of star ? this.alive() : [front()].filter(Boolean) as Mon[]) { this.strike(m, S2N.trapMul); if (this.st.arPoisonS2 > 0) this.addPoison(m, KIT.archerTree.poisonArrowStacks); m.gauge -= S2N.trapPush(lv); this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, '🕳️', '#c9c9d6'); snareTrapFx(this, m.spr.x, GROUND) }
         break
       case 'mg_mshield':
         B.mshield = S2N.mshieldTurns(star)
@@ -2497,14 +2518,18 @@ export class BattleScene extends Phaser.Scene {
     if (t) {
       this.tweens.add({ targets: this.heroSpr, x: HERO_X - 40, duration: 120, yoyo: true })
       this.ultFiring = true
-      await this.shoot(t, 0xfff3a0, () => {
+      this.tweens.add({ targets: this.heroSpr, x: HERO_X - 8, duration: 80, yoyo: true })
+      sfx.swing()
+      pierceShotFx(this, t.spr.x, t.spr.y - t.spr.displayHeight * 0.4) // the lance flies in from the left; the strike lands as it arrives
+      await this.wait(RANGER_FX.pierceShot.hitMs)
+      {
         const A = KIT.archerTree, low = this.st.arExecute > 0 && t.hp < t.def.hp * A.execBelow // v82 ★ ศรประหาร
         if (low && t.def.ai !== 'boss') this.execute(t)
         else this.strike(t, (KIT.archerUlt - this.st.arUltMulCut) * hitPow * (low ? 1 + A.execBig : 1), false, undefined, this.st.pierce)
         this.burst(t.spr.x, t.spr.y - 30, 0xfff3a0, 20, 260)
-        if (this.st.arMark > 0 && !t.dead) { t.huntMark = A.markTurns; this.dotIcon(t); this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 40, '🏷️ หมายหัว', '#f2b84b') } // v82 หมายหัว
+        if (this.st.arMark > 0 && !t.dead) { t.huntMark = A.markTurns; this.dotIcon(t); huntMarkOn(this, t.spr); this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 40, '🏷️ หมายหัว', '#f2b84b') } // v82 หมายหัว
         if (this.st.arUltSplash > 0) for (const o of this.alive()) if (o !== t) this.strike(o, this.st.arUltSplash * hitPow, false, undefined, this.st.pierce) // talent ศรเจาะทะลุ
-      })
+      }
       this.ultFiring = false
       this.shake(160, 0.012)
     }
@@ -2515,12 +2540,12 @@ export class BattleScene extends Phaser.Scene {
   /** One ยิงคู่ arrow: ศรอาบพิษ may poison · a kill fires ศรเด้ง at the front (a ricochet never ricochets again). */
   private async arrow(m: Mon, mul: number, pow: number) {
     const was = !m.dead
-    await this.shoot(m, 0xf2b84b, () => { if (this.strike(m, mul) > 0) this.poisonArrow(m) })
+    await this.shoot(m, 0xf2b84b, () => { if (this.strike(m, mul) > 0) this.poisonArrow(m) }, { palette: this.st.arPoisonArrow > 0 ? POISON_GREEN : undefined })
     if (!was || !m.dead || this.st.arRicochet <= 0) return
     const n = this.front()[0]
     if (!n) return
     this.floatText(n.spr.x, n.spr.y - n.spr.displayHeight - 40, '🍃 ศรเด้ง!', '#c9f2a0')
-    await this.shoot(n, 0xc9f2a0, () => { if (this.strike(n, this.st.arRicochet * pow) > 0) this.poisonArrow(n) })
+    await this.shoot(n, 0xc9f2a0, () => { if (this.strike(n, this.st.arRicochet * pow) > 0) this.poisonArrow(n) }, { palette: RICOCHET_LEAF })
   }
   private poisonArrow(m: Mon) { if (this.st.arPoisonArrow > 0 && Math.random() < this.st.arPoisonArrow) this.addPoison(m, KIT.archerTree.poisonArrowStacks) }
   /** ★ ศรประหาร on a normal monster: finish it through the normal kill path (on-kill effects still run). */
@@ -2539,7 +2564,7 @@ export class BattleScene extends Phaser.Scene {
       m.huntMark = 0
       this.gainRes(this.st.arMarkJump)
       const f = others.filter((o) => !o.dead).sort((a, b) => a.slot - b.slot)[0]
-      if (f) { f.huntMark = A.markTurns; this.dotIcon(f); this.floatText(f.spr.x, f.spr.y - f.spr.displayHeight - 40, '🏷️ ไล่ล่า!', '#f2b84b') }
+      if (f) { f.huntMark = A.markTurns; this.dotIcon(f); huntMarkOn(this, f.spr); this.floatText(f.spr.x, f.spr.y - f.spr.displayHeight - 40, '🏷️ ไล่ล่า!', '#f2b84b') }
     }
     if (this.st.arKillCd > 0 && this.smashCdLeft > 0 && Math.random() < this.st.arKillCd) { this.smashCdLeft = Math.max(0, this.smashCdLeft - A.killCdCut); this.floatText(HERO_X, GROUND - 170, `⏳ ult −${A.killCdCut}`, '#f2b84b') }
   }
@@ -3050,7 +3075,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.st.j2Hindsight > 0) this.sageSpell(m) // Sage ★ Hindsight
       if (this.st.ctrAoe > 0) for (const o of this.alive()) if (o !== m) this.strike(o, 0.5, magic) // tree: "สวนพายุ"
     })
-    if (this.job.attack !== 'melee') { await this.shoot(m, magic ? 0x9f7bff : 0xf6eedc, hit); return }
+    if (this.job.attack !== 'melee') { await this.shoot(m, magic ? 0x9f7bff : 0xf6eedc, hit, this.job.id === 'archer' && !magic ? {} : undefined); return }
     // melee: wind back, dash in with an afterimage, knock the attacker back and chase it a little, then walk home
     const step = BATTLE.stepMs
     this.heroRig.playWindup(this.rigSpec.isKnightLine)
