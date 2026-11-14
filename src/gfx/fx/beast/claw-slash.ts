@@ -91,7 +91,6 @@ function drawRake(p: PainterLike, r: Rake, t: number, C: number[]): void {
     const prof = Math.pow(Math.sin(Math.PI * Math.pow(u, 0.88)), 0.85)
     const w = r.w * prof * thin
     const half = w / 2
-    const knob = head < 1 && u > head - 0.1 ? 1 : 0
     for (let o = -half - 1.1; o <= half + 1.1; o += 0.5) {
       const ao = Math.abs(o)
       const v = ao / Math.max(0.6, half)

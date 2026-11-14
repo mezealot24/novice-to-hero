@@ -1,7 +1,7 @@
 // Beastmaster boar: a low, heavy charge. A bristled boar rams in from the left edge on a rolling dust trail and
 // speed lines, slams into the target with an impact star, shock rings, a dust burst and kicked-up rocks, then
 // recoils and fades. Origin is the impact point on the ground.
-import { Bits, Lights, P, Particles, Rng, TAU, WHITE, B, clamp, ease, fit, mix, rng, seg, smooth } from '../../../vendor/pixelfx/core/index.js'
+import { Bits, Lights, P, Particles, Rng, TAU, WHITE, B, clamp, ease, fit, mix, rng, smooth } from '../../../vendor/pixelfx/core/index.js'
 import { brokenRing, frontCrescent, rock, rockShape, spikes, star, stone } from '../../../vendor/pixelfx/fx/impacts/_lib.js'
 
 export interface BoarChargeOpts {
@@ -52,7 +52,7 @@ export const meta = {
 // ---- timing ---------------------------------------------------------------------------------------------------
 const HIT = 0.22
 const SC = 1.3
-const X0 = -172
+const X0 = -158
 const X_HIT = -44 // boar centre when the snout touches the target
 const GROUND = 0
 const FOOT = 17 // feet below the boar's centre, in boar units
@@ -258,7 +258,7 @@ export function create(o: BoarChargeOpts = {}) {
       if (t < HIT + 0.02) {
         for (acc += dt * 170; acc > 1; acc--) {
           const sp = pose.x - 22 * SC + R.range(-8, 3)
-          puffs.push({ x: sp, y: GROUND - R.range(2, 5), vx: -R.range(25, 70), vy: -R.range(3, 18), r: R.range(2.2, 4.2), age: 0, life: R.range(0.26, 0.36), tone: R.int(0, 1), front: false })
+          puffs.push({ x: Math.max(sp, -203), y: GROUND - R.range(2, 5), vx: -R.range(25, 70), vy: -R.range(3, 18), r: R.range(2.2, 4.2), age: 0, life: R.range(0.26, 0.36), tone: R.int(0, 1), front: false })
           if (R.chance(0.3)) ps.spawn(P.GRIT, sp, GROUND - 1, -R.range(20, 80), -R.range(30, 100), R.range(0.25, 0.4), R.pick([C[5], C[3], C[2]]), 1)
         }
       }
@@ -271,18 +271,18 @@ export function create(o: BoarChargeOpts = {}) {
           puffs.push({ x: s * R.range(2, 14) + 2, y: -R.range(1.5, 5), vx: s * R.range(40, 150), vy: -R.range(2, 20), r: R.range(2.6, 5.2), age: 0, life: R.range(0.24, 0.33), tone: R.int(0, 1), front: true })
         }
         for (let i = 0; i < 18; i++) {
-          const a = -R.range(0.1, 1.4) + (R.chance(0.3) ? Math.PI * 0.8 : 0)
-          const sp = R.range(150, 380)
+          const a = -R.range(0.1, 1.4) + (R.chance(0.35) ? Math.PI * 0.8 : 0)
+          const sp = R.range(110, 250)
           ps.spawn(P.SPARK, 4, -12, Math.cos(a) * sp, Math.sin(a) * sp, R.range(0.1, 0.22), WHITE, 1)
         }
         for (let i = 0; i < 8; i++) {
           const a = -R.range(0.4, 1.5)
           const sp = R.range(180, 330)
-          bits.add({ kind: B.CHUNK, x: R.range(-6, 8), y: -3, vx: Math.cos(a) * sp * 0.9 + 20, vy: Math.sin(a) * sp, g: 1, drag: 0.4, bounce: 0.3, life: R.range(0.28, 0.33), a: R.range(0, TAU), va: R.range(-14, 14), s: R.pick([2.5, 3, 3.5]), pts: rockShape(R) })
+          bits.add({ kind: B.CHUNK, x: R.range(-6, 8), y: -3, vx: Math.cos(a) * sp * 0.5 + 10, vy: Math.sin(a) * sp, g: 1, drag: 0.4, bounce: 0.3, life: R.range(0.28, 0.33), a: R.range(0, TAU), va: R.range(-14, 14), s: R.pick([2.5, 3, 3.5]), pts: rockShape(R) })
         }
         for (let i = 0; i < 16; i++) {
-          const a = -R.range(0.2, 1.3) + (R.chance(0.3) ? Math.PI * 0.7 : 0)
-          const sp = R.range(70, 220)
+          const a = -R.range(0.3, 1.3) + (R.chance(0.35) ? Math.PI * 0.7 : 0)
+          const sp = R.range(60, 170)
           ps.spawn(P.GRIT, 4 + R.range(-5, 5), -2, Math.cos(a) * sp, Math.sin(a) * sp, R.range(0.25, 0.36), R.pick([C[5], C[4], C[3], C[2]]), R.chance(0.3) ? 2 : 1)
         }
       }
@@ -316,8 +316,9 @@ export function create(o: BoarChargeOpts = {}) {
           const r = rng(seed, 7, i)
           const y = GROUND - 3 - r.range(0, 33)
           const off = r.range(26, 70)
-          const len = r.range(22, 56) * (0.55 + 0.45 * clamp((t + 0.04) / 0.1))
           const x1 = pose.x - off
+          const len = Math.min(r.range(22, 56) * (0.55 + 0.45 * clamp((t + 0.04) / 0.1)), x1 + 204)
+          if (len < 3) continue
           p.line(x1 - len, y, x1, y, i % 3 === 0 ? WHITE : C[5], 0.85 * lineK)
           p.line(x1 - len * 0.6, y + 1, x1, y + 1, C[3], 0.6 * lineK)
         }
@@ -348,7 +349,7 @@ export function create(o: BoarChargeOpts = {}) {
           const cols = g < 0.25 ? [C[7], C[6], C[5]] : g < 0.55 ? [C[6], C[5], C[4]] : [C[5], C[4], C[3]]
           const hh = 4 + 17 * Math.pow(1 - g, 0.8)
           const ww = 1.5 + 5 * Math.pow(1 - g, 0.9)
-          frontCrescent(p, 6 + 62 * ease.outCubic(g), 1, hh, ww, cols, k)
+          frontCrescent(p, 6 + 34 * ease.outCubic(g), 1, hh, ww, cols, k)
           frontCrescent(p, -2 - 28 * ease.outCubic(g), -1, hh * 0.7, ww * 0.8, cols, k)
         }
         const pop = Math.exp(-h / 0.05)

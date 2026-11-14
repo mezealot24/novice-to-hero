@@ -38,7 +38,7 @@ export const meta = {
 // ---- timing / path ---------------------------------------------------------------------------------------
 const HIT = 0.17 // the talons land
 const SCALE = 1.35
-const START: Pt = [-70, -72]
+const START: Pt = [-62, -66]
 const HIT_POS: Pt = [-7, -11]
 // after the strike: [t, x, y, heading], pulling up and away to the upper right
 const PULL: number[][] = [
@@ -331,7 +331,7 @@ export function create(o: HawkDiveOpts = {}) {
     plumes.push({
       x: hit ? HIT_POS[0] + R.range(-6, 6) : 4 + R.range(-3, 8), y: hit ? HIT_POS[1] + R.range(-4, 6) : -14 + R.range(-3, 6),
       vx: Math.cos(a) * sp * (hit ? 1 : 0.6), vy: Math.sin(a) * sp * (hit ? 0.8 : 0.5) - 8,
-      a: R.range(0, TAU), va: R.range(-7, 7), len: R.range(9, 13), wid: R.range(2.6, 3.3), t0: hit ? HIT + R.range(0, 0.02) : 0.22 + R.range(0, 0.06), life: R.range(0.3, 0.36), side: R.sign(),
+      a: R.range(0, TAU), va: R.range(-7, 7), len: R.range(9, 13), wid: R.range(2.6, 3.3), t0: hit ? HIT + R.range(0, 0.02) : 0.22 + R.range(0, 0.06), life: hit ? R.range(0.3, 0.36) : R.range(0.22, 0.26), side: R.sign(),
     })
   }
   const spk = spikes(R, 12, 0.7, { len: [9, 13], w: [1.5, 2.2], fwd: 1.2, back: 0.8, jag: 0.5 })
