@@ -30,6 +30,21 @@ import * as runeCircle from '../vendor/pixelfx/fx/arcane/rune-circle.js'
 import * as arcaneMissiles from '../vendor/pixelfx/fx/arcane/arcane-missiles.js'
 import * as arcaneBeam from '../vendor/pixelfx/fx/arcane/arcane-beam.js'
 import * as starFall from '../vendor/pixelfx/fx/arcane/star-fall.js'
+// Archer
+import * as arrowShot from './fx/archer/arrow-shot'
+import * as arrowHit from './fx/archer/arrow-hit'
+import * as arrowRain from './fx/archer/arrow-rain'
+import * as pierceShot from './fx/archer/pierce-shot'
+import * as snareTrap from './fx/archer/snare-trap'
+import * as huntMark from './fx/archer/hunt-mark'
+// Beastmaster
+import * as hawkDive from './fx/beast/hawk-dive'
+import * as clawSlash from './fx/beast/claw-slash'
+import * as boarCharge from './fx/beast/boar-charge'
+import * as beastRoar from './fx/beast/beast-roar'
+import * as stampede from './fx/beast/stampede'
+import { WOOD_GOLD } from './fx/archer/arrow-shot'
+export { WOOD_GOLD }
 
 export interface PfxMeta { size: number[]; origin: number[]; duration: number } // JS meta: [w, h] and [x, y]
 export interface PfxMod { meta: PfxMeta }
@@ -47,6 +62,12 @@ export interface PfxDef {
 const GOLD_HIT = ['#2a1a06', '#5c3a0a', '#a36a14', '#e09a2c', '#ffc23d', '#ffe08a', '#fff6c8', '#ffffff'] // crit-hit's own ramp is red-orange
 export const ZAP_YELLOW = ['#241d08', '#524412', '#947e1f', '#d4bb34', '#f5df53', '#fff08a', '#fffad1', '#ffffff']
 export const ZAP_YELLOW_SPARKS = ['#ffffff', '#fffad1', '#fff08a', '#d4bb34']
+
+/** Archer palette variants: poison arrows (dark green -> lime -> white) and the ricochet arrow (pale leaf green, ~0xc9f2a0). */
+export const POISON_GREEN = ['#0b1a08', '#17380f', '#2b6a1a', '#4ca028', '#8ad83a', '#c4f56a', '#eaffb0', '#ffffff']
+export const RICOCHET_LEAF = ['#27361a', '#46612b', '#6f9446', '#9cc46b', '#c9f2a0', '#ddf7c0', '#effce0', '#ffffff']
+/** Wolf roar (silver-blue, same family as the claw slash). */
+export const WOLF_SILVER = ['#0c1424', '#1c2c4a', '#34507a', '#5b82ad', '#8db4d4', '#c4dcec', '#eaf6ff', '#ffffff']
 
 export const DEFS = {
   smite: { mod: smite, from: 0.45, until: 1.9 }, // holy light falling on one monster
@@ -80,6 +101,19 @@ export const DEFS = {
   arcaneMissiles: { mod: arcaneMissiles, until: 1.6 },
   arcaneBeam: { mod: arcaneBeam, until: 1.2 },
   starFall: { mod: starFall, until: 2.2 },
+  // Archer
+  arrowShot: { mod: arrowShot, until: 0.35 }, // looping: drop the last frame (t = 0.4 repeats t = 0) so the loop is seamless
+  arrowHit: { mod: arrowHit },
+  arrowRain: { mod: arrowRain },
+  pierceShot: { mod: pierceShot },
+  snareTrap: { mod: snareTrap },
+  huntMark: { mod: huntMark },
+  // Beastmaster
+  hawkDive: { mod: hawkDive },
+  clawSlash: { mod: clawSlash },
+  boarCharge: { mod: boarCharge },
+  beastRoar: { mod: beastRoar },
+  stampede: { mod: stampede },
 } satisfies Record<string, PfxDef>
 
 export type PfxId = keyof typeof DEFS
@@ -161,11 +195,8 @@ export interface PfxPlay {
   palette?: (string | number)[]
 }
 
-/**
- * Plays an effect once at (x, y) = the effect's own origin (feet / impact point) and removes it.
- * Never awaited by battle logic: it is decoration only.
- */
-export function playPfx(scene: Phaser.Scene, id: PfxId, x: number, y: number, o: PfxPlay = {}) {
+/** Shared by playPfx / loopPfx: bakes, then makes the sprite at (x, y) = the effect's own origin. */
+function makeSprite(scene: Phaser.Scene, id: PfxId, x: number, y: number, o: PfxPlay): { spr: Phaser.GameObjects.Sprite; key: string } | undefined {
   if (!bake(scene, id, o.palette)) return undefined
   const def: PfxDef = DEFS[id]
   const key = texKey(id, o.palette), [w, h] = def.size ?? def.mod.meta.size, [ox, oy] = def.origin ?? def.mod.meta.origin
@@ -176,9 +207,28 @@ export function playPfx(scene: Phaser.Scene, id: PfxId, x: number, y: number, o:
     .setAlpha(o.alpha ?? 1)
     .setDepth(o.depth ?? 9001)
   spr.anims.timeScale = o.speed ?? 1.5
+  return { spr, key }
+}
+
+/**
+ * Plays an effect once at (x, y) = the effect's own origin (feet / impact point) and removes it.
+ * Never awaited by battle logic: it is decoration only.
+ */
+export function playPfx(scene: Phaser.Scene, id: PfxId, x: number, y: number, o: PfxPlay = {}) {
+  const made = makeSprite(scene, id, x, y, o)
+  if (!made) return undefined
+  const { spr, key } = made
   spr.play(key)
   spr.once('animationcomplete', () => spr.destroy())
   return spr
+}
+
+/** Like playPfx but loops forever (a projectile in flight): the caller moves it and destroys it. */
+export function loopPfx(scene: Phaser.Scene, id: PfxId, x: number, y: number, o: PfxPlay = {}): Phaser.GameObjects.Sprite | undefined {
+  const made = makeSprite(scene, id, x, y, o)
+  if (!made) return undefined
+  made.spr.play({ key: made.key, repeat: -1 })
+  return made.spr
 }
 
 /** Every effect the Cleric line (Cleric · Crusader · Monk · Paladin) can show. */
@@ -201,3 +251,22 @@ export const MAGE_PFX: PfxId[] = [
   'arcaneBeam',
   'starFall',
 ]
+
+/** Every effect the Archer line can show (the palette variants are the poison / ricochet arrows). */
+export const ARCHER_PFX: PfxPreloadEntry[] = [
+  'arrowShot',
+  { id: 'arrowShot', palette: POISON_GREEN },
+  { id: 'arrowShot', palette: RICOCHET_LEAF },
+  'arrowHit',
+  { id: 'arrowHit', palette: POISON_GREEN },
+  { id: 'arrowHit', palette: RICOCHET_LEAF },
+  'arrowRain',
+  { id: 'arrowRain', palette: POISON_GREEN },
+  'pierceShot',
+  'snareTrap',
+  'huntMark',
+  { id: 'huntMark', palette: WOOD_GOLD },
+]
+
+/** Every effect the Beastmaster line can show. */
+export const BEAST_PFX: PfxPreloadEntry[] = ['hawkDive', 'clawSlash', 'boarCharge', 'beastRoar', { id: 'beastRoar', palette: WOLF_SILVER }, 'stampede']
