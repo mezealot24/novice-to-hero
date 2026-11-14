@@ -1,6 +1,6 @@
 // Archer volley: arrows streak down steeply from the upper left across a ground strip, each landing in a dust
 // puff and spark, standing in the ground at the fall angle for a moment, then fading.
-import { Rng, WHITE, fit, rng } from '../../../vendor/pixelfx/core/index.js'
+import { Rng, WHITE, clamp, fit, rng } from '../../../vendor/pixelfx/core/index.js'
 
 export interface ArrowRainOpts {
   palette?: string[]
@@ -86,46 +86,64 @@ export function draw(p: PainterLike, t: number, o: ArrowRainOpts): void {
   const slots = shuffled(), tslots = shuffled()
   const pathLen = FALL / DY
 
+  interface Shot { lx: number; yg: number; tl: number; hold: number; ang: number; spd: number; i: number }
+  const shots: Shot[] = []
   for (let i = 0; i < N; i++) {
     const r = rng(S, i, 3)
-    const lx = -100 + ((slots[i] + 0.5) / N) * 200 + r.range(-6, 6)
-    const tl = 0.14 + (tslots[i] / N) * 0.32 + r.range(0, 0.02)
-    const hold = r.range(0.14, 0.22)
+    shots.push({
+      lx: -100 + ((slots[i] + 0.5) / N) * 200 + r.range(-6, 6),
+      tl: 0.14 + (tslots[i] / N) * 0.32 + r.range(0, 0.02),
+      hold: r.range(0.06, 0.24),
+      yg: r.range(-10, 6),
+      ang: ANG + r.range(-0.14, 0.14),
+      spd: r.range(0.85, 1.15),
+      i,
+    })
+  }
+  // further-back arrows first
+  shots.sort((m, n) => m.yg - n.yg)
+
+  for (const sh of shots) {
+    const r = rng(S, sh.i, 31)
+    const { lx, yg, tl, hold, ang } = sh
+    const near = clamp((yg + 10) / 16) // 0 far back .. 1 nearest
+    const sc = 0.84 + 0.16 * near, dim = 1
+    const len = LEN * sc
     const age = t - tl
 
     if (age < 0) {
       // in flight: tip travels along the fall path, a short streak behind the tail
-      const d = SPEED * r.range(0.85, 1.15) * -age
+      const d = SPEED * sh.spd * -age
       if (d > pathLen) continue
-      const tx = lx - DX * d, ty = 2 - DY * d
+      const tx = lx - DX * d, ty = yg + 2 - DY * d
       for (let k = 1; k <= 2; k++) {
-        const o0 = LEN + 2 + (k - 1) * 8
+        const o0 = len + 2 + (k - 1) * 8
         p.line(tx - DX * o0, ty - DY * o0, tx - DX * (o0 + 10 + k * 2), ty - DY * (o0 + 10 + k * 2), (u: number) => (u < 0.4 ? C[6] : C[4]), (u: number) => (1 - u) * 0.7)
       }
-      arrowAt(p, C, tx, ty, ANG, LEN)
+      arrowAt(p, C, tx, ty, ANG, len, dim)
       continue
     }
 
-    // landing: dust puffs, a spark star and a flash
-    if (age < 0.22) {
-      const k = age / 0.22
-      for (let q = 0; q < 3; q++) {
-        const dir = q - 1, bx = lx + dir * (2 + 9 * k) + r.range(-1, 1), by = -1 - 4 * k * (q === 1 ? 1.2 : 0.7)
-        p.circle(bx, by, 1.6 + 3.4 * k * (q === 1 ? 1.1 : 0.9), k < 0.4 ? C[5] : C[3], 0.8 * (1 - k) ** 1.2)
+    // landing: dust puffs, a bright spark flash and radiating sparks at this arrow's own ground depth
+    if (age < 0.26) {
+      const k = age / 0.26
+      for (let q = 0; q < 4; q++) {
+        const dir = q - 1.5, bx = lx + dir * (2.5 + 10 * k) + r.range(-1, 1), by = yg - 1 - 5 * k * (q === 1 || q === 2 ? 1.2 : 0.7)
+        p.circle(bx, by, 2 + 4 * k * (q === 1 || q === 2 ? 1.15 : 0.9), k < 0.4 ? C[6] : C[3], 0.85 * (1 - k) ** 1.1)
       }
-      if (age < 0.07) {
-        for (let q = 0; q < 6; q++) {
-          const a = -Math.PI + (q / 5) * Math.PI + r.range(-0.15, 0.15), l = 3 + age * 90 * r.range(0.6, 1.1)
-          p.line(lx + Math.cos(a) * 2, -1 + Math.sin(a) * 2, lx + Math.cos(a) * l, -1 + Math.sin(a) * l * 1.2, (u: number) => (u > 0.5 ? WHITE : C[5]))
+      if (age < 0.08) {
+        for (let q = 0; q < 7; q++) {
+          const an = -Math.PI + (q / 6) * Math.PI + r.range(-0.15, 0.15), l = 4 + age * 110 * r.range(0.6, 1.1)
+          p.line(lx + Math.cos(an) * 2, yg - 1 + Math.sin(an) * 2, lx + Math.cos(an) * l, yg - 1 + Math.sin(an) * l * 1.2, (u: number) => (u > 0.5 ? WHITE : C[5]))
         }
-        p.circle(lx, -1, 2.4 * (1 - age / 0.09), WHITE)
-        p.glow(lx, -2, 16, C[5], 0.45 * (1 - age / 0.07))
+        p.circle(lx, yg - 1, 3.8 * (1 - age / 0.1), WHITE)
+        p.glow(lx, yg - 2, 20, C[5], 0.5 * (1 - age / 0.08))
       }
     }
-    // standing in the ground: a quick quiver, then a fade
-    const fadeAt = hold, a = age < fadeAt ? 1 : Math.max(0, 1 - (age - fadeAt) / 0.16)
+    // standing in the ground: a quick quiver, then a fade at its own time
+    const a = (age < hold ? 1 : Math.max(0, 1 - (age - hold) / 0.15)) * dim
     if (a <= 0.04) continue
     const quiver = Math.sin(age * 70) * 0.13 * Math.exp(-age * 16)
-    arrowAt(p, C, lx, 2, ANG + quiver, LEN, a)
+    arrowAt(p, C, lx, yg + 2, ang + quiver, len, a)
   }
 }
