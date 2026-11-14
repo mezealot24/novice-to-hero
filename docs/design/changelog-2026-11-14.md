@@ -45,3 +45,16 @@
 - ⚠️ ความเร็วฮีโร่กระทบทั้งเกม (คอมโบ, เทิร์นต่อเวฟ) → balance pass
 
 **ไฟล์:** `allies.ts` · `BattleScene.ts` · `skill-math.ts` · `skill-registry.ts` · `stats.ts` · `trees2/beastmaster.ts` · tests: `allies` (11) · ผ่าน `archer-bm-tree` / `job2-talents` / `skill-registry` · typecheck ผ่าน
+
+## 4. 🦅 Beastmaster Rework — Phase 3 (เหยี่ยว)
+
+ค่าเป็น first guess ยังไม่ได้เล่นจริง
+- **🏷️ Prey Mark (ทุก Blitz Beat, ไม่ต้องลง node):** ทุกฮิตของเหยี่ยวที่โดน แปะ `huntMark` (ใช้ร่วมกับหมายหัวของ Archer — Q2) นาน `preyTurns` 2 เทิร์นมอน · โบนัสดาเมจที่ได้รับ = `max(arMark, preyMark 10%)` (เดิมอ่าน `arMark` อย่างเดียว → Beastmaster ได้ 0%) · แปะใหม่เล่น `huntMarkOn` VFX เดิม
+- **🪶 Razor Gust** ผูกกับ `bm_h3` โฉบฝูง (ID เดิม, +1 ตัวเดิมยังอยู่, stat ใหม่ `j2Gust`): Blitz Beat ครั้งที่ 3 ทำให้ทุกตัวที่โดน **ตาบอด** 2 เทิร์น (ใช้ blind ของ Crusader: Hit มอน −20%)
+- **👁️ ตาทิพย์ (Apex Spotter)** ผูกกับ ★ `bm_h4` เหยี่ยวทอง (โบนัสวิวัฒน์เดิมยังอยู่): คริฮีโร่ +5% · Blitz Beat ที่แปะ 🏷️ **ใหม่** ได้ → หมาป่าได้เทิร์นทันที (เติมเกจ 100, ลงมือใน step ถัดไปของคิว)
+- **ต่อกับ Phase 2:** 🏷️ จากเหยี่ยว → หมาป่า ★ ขย้ำปลิดชีพ คริแน่นอน ทำงานได้โดยไม่ต้องมี node ของ Archer แล้ว
+- ไม่ได้ทำ "ลด DEF 15%" ของ Prey Mark (จะต้องยืม `armorBrk` ของ Mobster ที่มีสูตรแยก) → ถ้าอยากได้ค่อยเพิ่ม
+- `AllyCtx.hitOne` คืน `true` เมื่อแปะใหม่ + รับ `fx` · ใหม่ `rally(id)`
+- ⚠️ 3 สัตว์ + Prey Mark ทุกฮิต + ขย้ำคริ = ดาเมจรวมพุ่งมาก → balance pass ก่อน merge
+
+**ไฟล์:** `allies.ts` · `BattleScene.ts` · `skill-math.ts` · `skill-registry.ts` · `stats.ts` · `trees2/beastmaster.ts` · tests: `allies` (14) · ผ่าน `archer-bm-tree` / `job2-talents` / `skill-registry` · typecheck ผ่าน

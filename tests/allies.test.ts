@@ -92,9 +92,9 @@ function wolfRun(stats: typeof st, front: { hpPct: number; marked: boolean }, bi
   const w = makeAlly(ALLIES.wolf, stats), crits: boolean[] = [], heals: number[] = []
   const ctx = {
     ally: w as Ally, st: stats, luk: 0, combo: false,
-    hitAll: () => {}, hitOne: () => {}, hitFoe: () => {}, stun: () => {}, chill: () => {}, shield: () => {}, say: () => {},
+    hitAll: () => {}, hitOne: () => false, hitFoe: () => {}, stun: () => {}, chill: () => {}, shield: () => {}, say: () => {},
     hitFront: (_m: number, _c: string, _b?: number, crit?: boolean) => { crits.push(!!crit); return 100 },
-    frontInfo: () => front, healPack: (n: number) => { heals.push(n) },
+    frontInfo: () => front, healPack: (n: number) => { heals.push(n) }, rally: () => {},
   } satisfies AllyCtx
   for (let i = 0; i < bites; i++) w.def.act(ctx)
   return { crits, heals }
@@ -111,4 +111,37 @@ test('★ Savage Crunch: every Nth bite, marked or low-HP front = sure crit + he
   assert.deepEqual(plain.heals, [100 * BM.crunchHeal])
   assert.ok(wolfRun(evo, { hpPct: 1, marked: true }, 2).crits.every(Boolean))
   assert.ok(wolfRun(evo, { hpPct: BM.crunchLow - 0.01, marked: false }, 2).crits.every(Boolean))
+})
+
+// ----- Phase 3 🦅 hawk: Prey Mark + 🪶 Razor Gust + 👁️ ★ Apex Spotter -----
+/** Runs Blitz Beat `casts` times with the proc roll forced (Math.random = 0), recording hitOne fx and rallies. */
+function hawkRun(stats: typeof st, casts: number, freshMark = true) {
+  const h = makeAlly(ALLIES.hawk, stats), fx: { mark?: boolean; blind?: number }[] = [], rallies: string[] = []
+  const ctx = {
+    ally: h as Ally, st: stats, luk: 0, combo: false,
+    hitAll: () => {}, hitFoe: () => {}, stun: () => {}, chill: () => {}, shield: () => {}, say: () => {},
+    hitOne: (_m: number, _g: boolean, _c: string, _s?: boolean, f?: { mark?: boolean; blind?: number }) => { fx.push(f ?? {}); return freshMark },
+    hitFront: () => 0, frontInfo: () => undefined, healPack: () => {}, rally: (id: string) => { rallies.push(id) },
+  } satisfies AllyCtx
+  const rnd = Math.random; Math.random = () => 0
+  try { for (let i = 0; i < casts; i++) h.def.act(ctx) } finally { Math.random = rnd }
+  return { fx, rallies, casts: h.acts }
+}
+
+test('every Blitz Beat hit carries the Prey Mark, no blind without bm_h3', () => {
+  const r = hawkRun(st, 3)
+  assert.ok(r.fx.length >= 3 && r.fx.every((f) => f.mark && !f.blind))
+  assert.deepEqual(r.rallies, []) // no ★: no Apex Spotter
+})
+
+test('🪶 Razor Gust: only every Nth Blitz Beat blinds', () => {
+  const r = hawkRun({ ...st, j2Gust: 1 }, BM.gustEvery)
+  const blinded = r.fx.filter((f) => (f.blind ?? 0) > 0).length
+  assert.ok(blinded > 0 && blinded < r.fx.length)
+  assert.ok(r.fx.filter((f) => f.blind === BM.gustBlind).length === blinded)
+})
+
+test('👁️ ★ Apex Spotter: a fresh mark rallies the wolf once per Blitz Beat, an old mark does not', () => {
+  assert.deepEqual(hawkRun({ ...st, j2HawkEvo: 1 }, 2).rallies, ['wolf', 'wolf'])
+  assert.deepEqual(hawkRun({ ...st, j2HawkEvo: 1 }, 2, false).rallies, [])
 })

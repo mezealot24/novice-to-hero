@@ -157,7 +157,7 @@ VFX ใหม่ที่ต้องมีจริง: **boar-guard** (ตอ�
 | 0 ✅ | Pack lineup | สัตว์ครบ 3 ตัวทุกเวฟ · ลด `pow` ต่อตัว · ปิดทาง "2★ = ตัวที่ 2" / `bm_k4` เดิม | — |
 | 1 ✅ | Boar Guardian | `share` + `boarCut` + Grit + พักฟื้น + แถบ Grit | 0 |
 | 2 ✅ | Wolf | Frenzy + Savage Crunch (bleed cap = `poisonMax` เดิม, ไม่ตั้ง 5 ใหม่) | — |
-| 3 | Hawk | Prey Mark + Razor Gust (blind) + Apex Spotter | — |
+| 3 ✅ | Hawk | Prey Mark + Razor Gust (blind) + Apex Spotter (ยังไม่มีลด DEF) | — |
 | 4 | Synergy chain | Mark → Crunch → ฮีลหมูป่า | 1–3 |
 | 5 | Ult Awakening | `awakenTurns` + finisher (ใช้ `stampede()` เดิม) | 1–3 |
 | 6 | Tree text + migration | ชื่อ/คำอธิบาย node + รีเซ็ตแต้มฟรี | 1–5 |

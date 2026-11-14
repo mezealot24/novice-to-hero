@@ -176,6 +176,9 @@ export const KIT2 = {
     packPow: 0.7, // rework v1 (Q 2026-11-14): all 3 pets every wave, each at this power (x ใจเดียวกัน, x ฝูงพันธมิตร)
     hawkChance: 0.15, hawkLuk: 0.004, hawkCap: 0.6, hawkMul: 0.6, hawkHits: 1, hawkHitsMax: 3, // 🦅 Blitz Beat per hero swing: chance + per LUK (capped), 1..N random targets, never misses
     hawkEvoMul: 0.5, hawkEvoHits: 1, // ★ เหยี่ยวทอง
+    preyMark: 0.1, preyTurns: 2, // 🏷️ Prey Mark: every Blitz Beat hit marks (shares Archer huntMark: damage taken + max(arMark, this), its own turns) — Q2
+    gustEvery: 3, gustBlind: 2, // 🪶 Razor Gust (bm_h3): every Nth Blitz Beat also blinds what it hits (Crusader blind: Hit -KIT2.crusader.blindHit), turns
+    spotCrit: 0.05, // 👁️ ★ Apex Spotter (bm_h4): hero crit + · a newly marked target sends the wolf in now
     boarHp: 0.6, boarEvery: 3, boarMul: 0.8, boarPush: 30, // 🐗 HP = share of hero max HP (VIT) · every N hero turns charges the front (loses its turn; boss: gauge push)
     boarShare: 0.35, boarCut: 0.3, boarRageK: 140, boarDown: 3, // 🐗 Guardian: takes this share of every landed monster hit, -boarCut of it · Rage += taken / boar max HP x K, 100 = extra charge · 0 HP = down N hero turns, then back full + charges
     boarEvoHp: 0.5, boarEvoEvery: 2, boarEvoShare: 0.1, boarEvoDown: 2, // ★ หมูป่าเกราะ: + HP share, charges more often, takes more, gets up sooner

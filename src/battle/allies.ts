@@ -14,7 +14,8 @@ export interface AllyCtx {
   ally: Ally; st: Stats; luk: number
   combo: boolean // heroBasic: this swing is a combo hit
   hitAll: (mul: number, magic: boolean, color: string) => void
-  hitOne: (mul: number, magic: boolean, color: string, sure?: boolean) => void // sure = never misses (Blitz Beat)
+  hitOne: (mul: number, magic: boolean, color: string, sure?: boolean, fx?: { mark?: boolean; blind?: number }) => boolean // sure = never misses (Blitz Beat) · fx: 🏷️ Prey Mark / 🪶 blind turns on the target · true = it was newly marked
+  rally: (id: string) => void // 👁️ Apex Spotter: that ready ally acts at once (its own-turn gauge is filled)
   hitFront: (mul: number, color: string, bleed?: number, crit?: boolean) => number // physical on the front monster, + bleed (poison stacks) · crit = sure crit · returns damage dealt
   frontInfo: () => { hpPct: number; marked: boolean } | undefined // the front monster: HP share, 🏷️ huntMark on
   healPack: (n: number) => void // heal the hero + the 🐗 guardian (Savage Crunch: a heal, not lifesteal)
@@ -137,8 +138,11 @@ export const ALLIES = {
       const st = c.st, evo = st.j2HawkEvo ? BM.hawkEvoHits : 0
       if (c.combo || Math.random() >= hawkChance(st, c.luk)) return
       const n = Math.min(BM.hawkHitsMax + evo, BM.hawkHits + st.j2HawkHits + evo + Math.floor(Math.random() * 3)) // 1-3 targets
-      c.say(st.j2HawkEvo ? '🦅✨ Blitz Beat!' : '🦅 Blitz Beat!', '#f2d24b')
-      for (let i = 0; i < n; i++) c.hitOne(hawkMul(st) * c.ally.pow, false, '#f2d24b', true)
+      const gust = st.j2Gust > 0 && ++c.ally.acts % BM.gustEvery === 0 // 🪶 Razor Gust
+      c.say(gust ? '🦅🪶 Razor Gust!' : st.j2HawkEvo ? '🦅✨ Blitz Beat!' : '🦅 Blitz Beat!', '#f2d24b')
+      let marked = false
+      for (let i = 0; i < n; i++) marked = c.hitOne(hawkMul(st) * c.ally.pow, false, '#f2d24b', true, { mark: true, blind: gust ? BM.gustBlind : 0 }) || marked
+      if (marked && st.j2HawkEvo > 0) c.rally('wolf') // 👁️ ★ Apex Spotter
     } },
   boar: { id: 'boar', name: 'หมูป่า', icon: '🐗', kind: 'pet', trigger: 'heroTurn', hp: (st) => st.maxHp * (BM.boarHp + st.j2BoarHp + (st.j2BoarEvo ? BM.boarEvoHp : 0)),
     share: (st) => BM.boarShare + (st.j2BoarEvo ? BM.boarEvoShare : 0), cut: BM.boarCut, rageK: BM.boarRageK,

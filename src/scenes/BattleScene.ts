@@ -1244,12 +1244,21 @@ export class BattleScene extends Phaser.Scene {
     return {
       ally: a, st: this.st, luk: this.heroLuk, combo,
       hitAll: (mul, magic, color) => run(() => { for (const m of this.alive()) this.strike(m, mul, magic, color) }),
-      hitOne: (mul, magic, color, sure) => {
-        const t = this.alive(); if (!t.length) return
+      hitOne: (mul, magic, color, sure, fx) => {
+        const t = this.alive(); if (!t.length) return false
         const p = this.sureHit; this.sureHit = p || !!sure
         const tgt = t[Phaser.Math.Between(0, t.length - 1)] // picked here (same single RNG call) so the pet fx hits the same monster
-        try { run(() => { this.allyHitFx(a, tgt); this.strike(tgt, mul, magic, color) }) } finally { this.sureHit = p }
+        let d = 0
+        try { run(() => { this.allyHitFx(a, tgt); d = this.strike(tgt, mul, magic, color) }) } finally { this.sureHit = p }
+        if (tgt.dead || d <= 0 || !fx) return false
+        const B = KIT2.beastmaster, fresh = !!fx.mark && tgt.huntMark <= 0
+        if (fx.mark) tgt.huntMark = Math.max(tgt.huntMark, B.preyTurns) // 🏷️ Prey Mark (shares Archer huntMark)
+        if (fresh) huntMarkOn(this, tgt.spr)
+        if (fx.blind && fx.blind > 0) tgt.blind = Math.max(tgt.blind, fx.blind) // 🪶 Razor Gust
+        if (fx.mark || fx.blind) this.dotIcon(tgt)
+        return fresh
       },
+      rally: (id) => { const x = readyAllies(this.allies).find((y) => y.def.id === id && y.def.trigger === 'ownTurn'); if (x) x.gauge = Math.max(x.gauge, 100) },
       hitFront: (mul, color, bleed = 0, crit = false) => {
         const m = this.front()[0]; if (!m) return 0
         let d = 0; const fc = this.forceCrit; this.forceCrit = fc || crit
@@ -2832,7 +2841,7 @@ export class BattleScene extends Phaser.Scene {
     if (m.dead) return
     dmg = Math.ceil(dmg * this.srcMul(m, dot)) // พร v2 tags (masteries, style switches) · whole numbers only (Q: round up), so shown == applied
     if ((m.marked ?? 0) > 0) dmg = Math.ceil(dmg * 1.15) // cleric ★B: ตราบาป
-    if (!dot && m.huntMark > 0 && this.st.arMark > 0) dmg = Math.ceil(dmg * (1 + this.st.arMark)) // v82 archer หมายหัว (hits only)
+    if (!dot && m.huntMark > 0) { const mk = Math.max(this.st.arMark, this.j2?.id === 'beastmaster' ? KIT2.beastmaster.preyMark : 0); if (mk > 0) dmg = Math.ceil(dmg * (1 + mk)) } // v82 archer หมายหัว · 🏷️ Beastmaster Prey Mark (hits only)
     if (!dot && m.armorBrk > 0 && this.st.swBreak > 0) dmg = Math.ceil(dmg * (1 + this.st.swBreak)) // v84 Swordsman ทุบเกราะ (hits only)
     if (this.st.lateDmg > 0 && this.fightTurns >= 12) dmg = Math.ceil(dmg * (1 + this.st.lateDmg)) // cleric talent: อรุณรุ่ง
     if (this.st.poisonAmp > 0 && m.poison >= 10) dmg = Math.ceil(dmg * (1 + this.st.poisonAmp)) // Thief talent: กัดกร่อน

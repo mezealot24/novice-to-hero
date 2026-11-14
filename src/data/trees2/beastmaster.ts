@@ -17,8 +17,8 @@ export const tree2: ClassTree = {
   nodes: [
     n('bm_h1', 'bm_h', 1, '🦅', 'ตาเหยี่ยว', 3, (lv) => `Blitz Beat โอกาส +${lv * 5}%`, (lv) => ({ j2HawkChance: 0.05 * lv })),
     n('bm_h2', 'bm_h', 2, '🍃', 'กรงเล็บ', 3, (lv) => `เหยี่ยวแรง +${lv * 10}% P.ATK`, (lv) => ({ j2HawkMul: 0.1 * lv })),
-    n('bm_h3', 'bm_h', 3, '🌪️', 'โฉบฝูง', 1, () => 'Blitz Beat ฟาดเพิ่ม +1 ตัว', () => ({ j2HawkHits: 1 })),
-    n('bm_h4', 'bm_h', 4, '✨', 'เหยี่ยวทอง', 1, () => 'วิวัฒน์: เหยี่ยวแรง +50% และฟาดเพิ่ม 1 ตัว (สูงสุด 4)', () => ({ j2HawkEvo: 1 })),
+    n('bm_h3', 'bm_h', 3, '🌪️', 'โฉบฝูง', 1, () => `Blitz Beat ฟาดเพิ่ม +1 ตัว · 🪶 ทุกครั้งที่ ${KIT2.beastmaster.gustEvery}: ตัวที่โดนตาบอด ${KIT2.beastmaster.gustBlind} เทิร์น`, () => ({ j2HawkHits: 1, j2Gust: 1 })),
+    n('bm_h4', 'bm_h', 4, '✨', 'เหยี่ยวทอง', 1, () => `วิวัฒน์: เหยี่ยวแรง +50% และฟาดเพิ่ม 1 ตัว (สูงสุด 4) · 👁️ ตาทิพย์: คริ +${pc(KIT2.beastmaster.spotCrit)} · แปะ 🏷️ ใหม่ได้ → หมาป่าพุ่งตามทันที`, () => ({ j2HawkEvo: 1, crit: KIT2.beastmaster.spotCrit })),
     n('bm_b1', 'bm_b', 1, '🐗', 'หนังหนา', 3, (lv) => `หมูป่า HP +${lv * 10}% ของ HP ฮีโร่`, (lv) => ({ j2BoarHp: 0.1 * lv })),
     n('bm_b2', 'bm_b', 2, '💥', 'เขี้ยวงัด', 3, (lv) => `พุ่งชนแรง +${lv * 20}% P.ATK`, (lv) => ({ j2BoarMul: 0.2 * lv })),
     n('bm_b3', 'bm_b', 3, '🛡️', 'คุ้มกันนาย', 2, (lv) => `พุ่งชนแล้วฮีโร่ได้โล่ ${lv * 4}% HP`, (lv) => ({ j2BoarShield: 0.04 * lv })),
