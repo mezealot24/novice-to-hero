@@ -31,74 +31,67 @@ export const meta = {
   options: { palette: STEEL, seed: 9 },
 }
 
-const HW = 30 // jaw half-width at the base
-const HT = 29.5 // jaw height
-const SEAM = 2.8 // half-gap of the zig-zag seam
+const HW = 28 // hinge half-span
 const T_SNAP = 0.075
 const T_BITE = 0.15
-const K = 18
-const NT = 4 // teeth per jaw
+const K = 44
+const TOOTH_GAP = 7
 
-const lerp2 = (a: number[], b: number[], c: number): number[] => [a[0] + (b[0] - a[0]) * c, a[1] + (b[1] - a[1]) * c]
-
-/** Outer edge of a jaw: u 0 at the hinge, 1 at the tip. Open: lying flat and arched a touch. Shut: a narrow pointed arch. */
-function edgeP(side: number, u: number, c: number): number[] {
-  const open = [side * (HW + 22 * u), -4 * Math.sin(u * Math.PI) - 5]
-  const s = 1 - u
-  const shut = [side * (SEAM + (HW - SEAM) * s), -HT * (1 - Math.pow(s, 2.5))]
-  return lerp2(open, shut, c)
-}
-/** The rest of the outline, from the tip round the underside back to the hinge. */
-function edgeQ(side: number, v: number, c: number): number[] {
-  const open = [side * (HW + 22 - 22 * v), 1]
-  const shut = v < 0.5 ? [side * SEAM, -HT + 2 * (HT - 1) * v] : [side * (SEAM + (HW - SEAM) * ((v - 0.5) * 2)), 1]
-  return lerp2(open, shut, c)
-}
-/** Where teeth sit: down the seam when shut, along the top of the flat jaw when open. */
-function toothAt(side: number, w: number, c: number): number[] {
-  return lerp2([side * (50 - 20 * w), -5.5], [side * SEAM, -HT + 3.5 + w * (HT - 11)], c)
+/** A hoop through both hinges: a half-ellipse of signed height h (negative bulges below the hinge line). */
+function hoop(h: number): number[][] {
+  const pts: number[][] = []
+  for (let k = 0; k <= K; k++) {
+    const ph = (k / K) * Math.PI
+    pts.push([-HW * Math.cos(ph), -h * Math.sin(ph)])
+  }
+  return pts
 }
 
-function jaw(p: PainterLike, C: number[], side: number, c: number, sx: number, sy: number, a: number): void {
-  const T = (q: number[]): number[] => [q[0] * sx, q[1] * sy]
-  const P: number[][] = [], Q: number[][] = []
-  for (let k = 0; k <= K; k++) P.push(T(edgeP(side, k / K, c)))
-  for (let k = 0; k <= K; k++) Q.push(T(edgeQ(side, k / K, c)))
-  const poly = [...P, ...Q]
-  // body, lit from the top left: lighter towards the top and the left jaw, one step darker on the right jaw
-  const dk = side > 0 ? 1 : 0
-  p.poly(poly, (x: number, y: number) => {
-    const yy = clamp(1 + y / (HT + 2)) // 0 at the top, 1 at the ground (when shut)
-    const lit = c > 0.5 ? yy : 0.5 + 0.5 * Math.abs(x) / 52
-    const i = lit < 0.2 ? 5 : lit < 0.45 ? 4 : lit < 0.75 ? 3 : 2
-    return C[i - dk]
-  }, a)
-  // lit top edge along the outer curve, dark outline all round
+/** One steel bar (outline, body, lit upper-left edge) with teeth every TOOTH_GAP px along it. */
+function bar(p: PainterLike, C: number[], h: number, c: number, phase: number, flash: boolean, a: number): void {
+  const pts = hoop(h)
+  const nrm = pts.map((q, k) => {
+    const A = pts[Math.max(0, k - 1)], B = pts[Math.min(K, k + 1)]
+    let tx = B[0] - A[0], ty = B[1] - A[1]
+    const l = Math.hypot(tx, ty) || 1
+    tx /= l; ty /= l
+    let nx = -ty, ny = tx
+    if (nx * q[0] + ny * (q[1] + 0.001) < 0) { nx = -nx; ny = -ny }
+    return [nx, ny]
+  })
+  // teeth first, so the bar overlaps their bases
+  let acc = 0, next = phase
   for (let k = 1; k <= K; k++) {
-    p.line(P[k - 1][0], P[k - 1][1] + 1, P[k][0], P[k][1] + 1, side < 0 ? C[7] : C[6], a)
-    p.line(P[k - 1][0], P[k - 1][1], P[k][0], P[k][1], C[1], a)
+    acc += Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1])
+    if (acc < next) continue
+    next += TOOTH_GAP
+    const q = pts[k], n = nrm[k]
+    if (Math.abs(q[0]) > HW - 4) continue
+    const dx = (1 - c) * 0 + c * n[0], dy = (1 - c) * -1 + c * n[1]
+    const dl = Math.hypot(dx, dy) || 1, ux = dx / dl, uy = dy / dl, vx = -uy, vy = ux
+    const L = 5.5, hw = 2.8, bx = q[0] + ux * 1, by = q[1] + uy * 1
+    const tip = [bx + ux * L, by + uy * L]
+    p.poly([[bx - vx * (hw + 0.8) - ux, by - vy * (hw + 0.8) - uy], [tip[0] + ux * 0.9, tip[1] + uy * 0.9], [bx + vx * (hw + 0.8) - ux, by + vy * (hw + 0.8) - uy]], C[1], a)
+    p.poly([[bx - vx * hw, by - vy * hw], tip, [bx + vx * hw, by + vy * hw]], C[3], a)
+    p.poly([[bx - vx * hw * 0.5 + ux * 1.8, by - vy * hw * 0.5 + uy * 1.8], tip, [bx + vx * hw * 0.5 + ux * 1.8, by + vy * hw * 0.5 + uy * 1.8]], C[5], a)
+    p.line(bx - vx * hw, by - vy * hw, bx + vx * hw, by + vy * hw, C[2], a)
+    p.dot(tip[0], tip[1], flash ? WHITE : C[7], a)
+    if (flash) p.dot(tip[0] - ux, tip[1] - uy, WHITE, a)
   }
-  for (let k = 1; k < poly.length; k++) p.line(poly[k - 1][0], poly[k - 1][1], poly[k][0], poly[k][1], C[1], a)
-  p.line(poly[poly.length - 1][0], poly[poly.length - 1][1], poly[0][0], poly[0][1], C[1], a)
-  // panel line and rivets
-  const h = T(edgeP(side, 0.07, c))
-  p.dot(h[0] - side * 2, h[1] - 2, C[6], a)
-  // teeth: interlocking triangles (the right jaw's sit between the left jaw's)
-  for (let j = 0; j < NT; j++) {
-    const w = (j + (side < 0 ? 0.3 : 0.8)) / NT
-    const b = T(toothAt(side, w, c))
-    const dx = (1 - c) * 0 + c * -side, dy = (1 - c) * -1
-    const dl = Math.hypot(dx, dy) || 1, ux = dx / dl, uy = dy / dl, nx = -uy, ny = ux
-    const L = 6, hw = 2.5
-    const tip = [b[0] + ux * L, b[1] + uy * L]
-    p.poly([[b[0] - nx * (hw + 0.7) - ux, b[1] - ny * (hw + 0.7) - uy], [tip[0] + ux * 0.8, tip[1] + uy * 0.8], [b[0] + nx * (hw + 0.7) - ux, b[1] + ny * (hw + 0.7) - uy]], C[1], a)
-    p.poly([[b[0] - nx * hw - ux, b[1] - ny * hw - uy], tip, [b[0] + nx * hw - ux, b[1] + ny * hw - uy]], side < 0 ? C[5] : C[3], a)
-    p.dot(tip[0], tip[1], C[6], a)
+  for (const off of [-2.1, 2.1]) {
+    for (let k = 1; k <= K; k++) p.line(pts[k - 1][0] + nrm[k - 1][0] * off, pts[k - 1][1] + nrm[k - 1][1] * off, pts[k][0] + nrm[k][0] * off, pts[k][1] + nrm[k][1] * off, C[1], a)
   }
-  // hinge rivet
-  const hh = T([side * HW, -1])
-  p.circle(hh[0], hh[1], 2.4, C[1], a)
-  p.circle(hh[0], hh[1], 1.4, C[5], a)
+  for (const [off, col] of [[1, C[2]], [0, C[4]], [-1, C[3]]] as Array<[number, number]>) {
+    for (let k = 1; k <= K; k++) {
+      const n = nrm[k]
+      const up = n[0] * -0.7 + n[1] * -0.7 > 0.35
+      p.line(pts[k - 1][0] + nrm[k - 1][0] * off, pts[k - 1][1] + nrm[k - 1][1] * off, pts[k][0] + n[0] * off, pts[k][1] + n[1] * off, off === -1 && up ? C[6] : col, a)
+    }
+  }
+  for (const s1 of [-1, 1]) {
+    p.circle(s1 * HW, 0, 2.6, C[1], a)
+    p.circle(s1 * HW, 0, 1.5, C[5], a)
+  }
 }
 
 export function draw(p: PainterLike, t: number, o: SnareTrapOpts): void {
@@ -108,9 +101,12 @@ export function draw(p: PainterLike, t: number, o: SnareTrapOpts): void {
   // open for a beat, snaps shut in two frames, one frame of overshoot and squash, then settles
   const q = seg(t, T_SNAP, T_BITE)
   const e = q * q * (3 - 2 * q)
-  let c = e, sx = 1, sy = 1
+  const c = e
+  let extra = 0
   const sinceBite = t - T_BITE
-  if (sinceBite > 0 && sinceBite < 0.05) { c = 1.1; sx = 1.07; sy = 0.9 } else if (sinceBite >= 0.05 && sinceBite < 0.08) { c = 1.03; sx = 1.02; sy = 0.97 }
+  const flash = sinceBite >= 0 && sinceBite < 0.05
+  if (flash) extra = 3
+  else if (sinceBite >= 0.05 && sinceBite < 0.08) extra = 1
   const hold = 0.45
   const fade = t < hold ? 1 : clamp(1 - (t - hold) / (meta.duration - hold - 0.03))
   if (fade <= 0.02) return
@@ -126,13 +122,19 @@ export function draw(p: PainterLike, t: number, o: SnareTrapOpts): void {
     p.line(x + 1, 2, x + 3, 6, i % 2 ? C[5] : C[4], fade)
   }
   p.glow(0, -12, 34, C[4], 0.1 * fade)
-  jaw(p, C, -1, c, sx, sy, fade)
-  jaw(p, C, 1, c, sx, sy, fade)
+  // trigger pan in the middle of the plate
+  p.ellipse(0, 1, 9.5, 3.4, C[1], fade)
+  p.ellipse(0, 0.6, 8, 2.6, C[3], fade)
+  p.ellipse(0, 0.2, 5, 1.4, C[5], fade)
+  // two hoops: far one (flat: bulges up/behind) first, near one (flat: bulges down/toward the viewer) second
+  const farH = 6 + 22 * c + extra, nearH = -8 + 34 * c + extra
+  bar(p, C, farH, c, 3.5, flash, fade)
+  bar(p, C, nearH, c, 7, flash, fade)
 
   // the bite: flash, X-shaped glint at the seam, sparks
   const b = t - T_BITE
   if (b >= -0.01 && b < 0.22) {
-    const bb = Math.max(0, b), gy = -17
+    const bb = Math.max(0, b), gy = -25
     if (bb < 0.06) p.circle(0, gy, 7 * (1 - bb / 0.07), WHITE)
     const gl = clamp(1 - bb / 0.18)
     if (gl > 0) {
