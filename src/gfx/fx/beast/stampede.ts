@@ -3,13 +3,13 @@
 // leaves and speed lines; the dust then lingers, settles and fades. Origin is bottom-centre on the ground line.
 import { B, Bits, Lights, P, Particles, Rng, TAU, WHITE, ease, fit, mix, rng, seg, smooth } from '../../../vendor/pixelfx/core/index.js'
 import { frontCrescent, rock, rockShape, stone } from '../../../vendor/pixelfx/fx/impacts/_lib.js'
+import { bbox, insideBox, type Pt } from './_poly'
 
 export interface StampedeOpts {
   palette?: string[]
   seed?: number
 }
 
-type Pt = [number, number]
 type Ramp = number | ((u: number) => number)
 
 interface PainterLike {
@@ -48,16 +48,6 @@ const frontX = (t: number): number => F0 + SPEED * t // keeps going after the sw
 interface Part {
   pts: Pt[]
   c: number // ramp index (0 deep shadow, 1 body, 5 eye glint)
-}
-
-function inside(pts: Pt[], x: number, y: number): boolean {
-  let r = false
-  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-    const [xi, yi] = pts[i]
-    const [xj, yj] = pts[j]
-    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) r = !r
-  }
-  return r
 }
 
 function ell(cx: number, cy: number, rx: number, ry: number, n = 14): Pt[] {
@@ -143,11 +133,12 @@ function blit(p: PainterLike, parts: Part[], x: number, y: number, sc: number, C
   const y0 = Math.floor(y - R)
   const n = Math.ceil(R * 2) + 2
   const grid = new Int8Array(n * n).fill(-1)
+  const boxes = parts.map((part) => bbox(part.pts))
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
       const u = (x0 + i + 0.5 - x) / sc
       const v = (y0 + j + 0.5 - y) / sc
-      for (const part of parts) if (inside(part.pts, u, v)) grid[j * n + i] = part.c
+      for (let q = 0; q < parts.length; q++) if (insideBox(parts[q].pts, boxes[q], u, v)) grid[j * n + i] = parts[q].c
     }
   }
   for (let j = 0; j < n; j++) {
