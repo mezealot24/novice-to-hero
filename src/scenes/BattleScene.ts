@@ -9,7 +9,7 @@ import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster, EQUIP_CARDS 
 import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, type JobDef } from '../data/jobs'
 import { JOB2, PET_IDS, type Job2Def, type PetId } from '../data/jobs2'
 import { skill2Picked } from '../data/tree'
-import { ALLIES, fillAllies, gadgetById, hawkMul, hurtAlly, liveAllies, makeAlly, rollGadget, tauntTarget, tickAllies, TRAP_IDS, useAlly, wolfMul, type Ally, type AllyCtx, type GadgetId } from '../battle/allies'
+import { ALLIES, fillAllies, gadgetById, guardHit, hawkMul, hurtAlly, liveAllies, makeAlly, readyAllies, reviveAllies, rollGadget, tauntTarget, tickAllies, TRAP_IDS, useAlly, wolfMul, type Ally, type AllyCtx, type GadgetId } from '../battle/allies'
 import type { Skill2Def } from '../data/skill2'
 import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/skill-registry'
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
@@ -743,6 +743,11 @@ export class BattleScene extends Phaser.Scene {
     if (this.allies.length) await this.alliesOnTurn() // boar charge / robot turret
     if (this.st.j2Sweep > 0 && ++this.sweepTurn % KIT2.knight.tree.sweepEvery === 0 && this.alive().length && this.hp > 0) await this.spearSweep() // v84 Knight ทวนวน
     if (this.wardTurns > 0) this.wardTurns-- // v84 Priest ม่านพร
+    for (const a of reviveAllies(this.allies)) { // 🐗 back up from down: full HP + charge (still-down ones refresh their 💤N below)
+      this.floatText(HERO_X + 70, GROUND - 120, `${a.def.icon} ฟื้นแล้ว!`, '#9fe08a'); this.syncAlly(a)
+      if (a.def.charge && this.alive().length && this.hp > 0) this.allyAct(a, false, undefined, a.def.charge)
+    }
+    for (const a of this.allies) if (a.down > 0) this.syncAlly(a)
     for (const a of tickAllies(this.allies)) { this.floatText(HERO_X + 70, GROUND - 120, `${a.def.icon} หมดเวลา`, '#c9c9d6'); this.syncAlly(a) }
     this.allies = liveAllies(this.allies)
     if (this.rampage > 0) this.rampage--
@@ -1260,9 +1265,9 @@ export class BattleScene extends Phaser.Scene {
     if (kind) petHitFx(this, kind, m.spr, GROUND, this.petFxN++)
   }
   /** One ally act: wiggle its icon, use up a trap. */
-  private allyAct(a: Ally, combo = false, foe?: Mon) {
+  private allyAct(a: Ally, combo = false, foe?: Mon, move: (c: AllyCtx) => void = a.def.act) {
     this.allyActed = false
-    a.def.act(this.allyCtx(a, combo, foe))
+    move(this.allyCtx(a, combo, foe))
     if (this.allyActed && a.def.kind === 'pet') this.petPerks()
     this.tweens.add({ targets: this.allyTxt.get(a), angle: 12, duration: 60, yoyo: true })
     if (a.def.uses && useAlly(a)) { this.syncAlly(a); this.allies = liveAllies(this.allies) }
@@ -1275,27 +1280,27 @@ export class BattleScene extends Phaser.Scene {
   }
   /** Own-turn allies (wolf, wolf pack) whose gauge is full act now. */
   private async allyTurns() {
-    for (const a of liveAllies(this.allies)) {
+    for (const a of readyAllies(this.allies)) {
       while (a.def.trigger === 'ownTurn' && !a.dead && a.gauge >= 100 && this.alive().length && this.hp > 0) { a.gauge -= 100; this.allyAct(a); await this.wait(140) }
     }
   }
   /** End of a hero turn: 'heroTurn' allies act (boar charge, robot turret). */
   private async alliesOnTurn() {
     let n = 0
-    for (const a of liveAllies(this.allies)) if (a.def.trigger === 'heroTurn' && this.alive().length && this.hp > 0) { this.allyAct(a); n++ }
+    for (const a of readyAllies(this.allies)) if (a.def.trigger === 'heroTurn' && this.alive().length && this.hp > 0) { this.allyAct(a); n++ }
     if (n) await this.wait(120)
   }
   /** A monster starts its action: the first live trap goes off on it. True when one did. */
   private trapOnAct(m: Mon): boolean {
-    const a = liveAllies(this.allies).find((x) => x.def.trigger === 'monsterAct')
+    const a = readyAllies(this.allies).find((x) => x.def.trigger === 'monsterAct')
     if (!a) return false
     this.allyAct(a, false, m)
     return true
   }
   // ===== Phase 4 Archer: 🐺 Beastmaster / 🔧 Innovator (numbers KIT2.beastmaster / KIT2.innovator, allies battle/allies.ts) =====
   private heroLuk = 0
-  private pet: PetId = 'hawk'
-  private pets: { id: PetId; pow: number }[] = [] // this wave's pet lineup (main + ★★ second)
+  private pet: PetId = 'hawk' // save.pet: the partner ★ พรานแห่งป่า sends in again
+  private pets: { id: PetId; pow: number }[] = [] // this wave's pet lineup (rework v1: all 3)
   private sureHit = false // Blitz Beat: skips Flee
   private zenyWave = 0 // 🧲 แม่เหล็ก: + zeny share this wave
   private mirror = false // 🔁 กระจก: the next landed monster hit is bounced back
@@ -1303,11 +1308,9 @@ export class BattleScene extends Phaser.Scene {
   private waveAllies() {
     this.pets = []
     if (this.j2?.id === 'beastmaster') {
-      const st = this.st, evo: Record<PetId, number> = { hawk: st.j2HawkEvo, boar: st.j2BoarEvo, wolf: st.j2WolfEvo }, k = 1 + st.j2PetPow // v82 ใจเดียวกัน
-      this.pets.push({ id: this.pet, pow: k })
-      const stars = PET_IDS.filter((p) => evo[p] > 0)
-      if (st.j2Pack3 > 0) { for (const p of PET_IDS) if (p !== this.pet) this.pets.push({ id: p, pow: KIT2.beastmaster.tree.pack3Pow * k }) } // v82 ★ ฝูงพันธมิตร (replaces the 2 ★ second pet)
-      else if (stars.length >= 2) this.pets.push({ id: stars.find((p) => p !== this.pet) ?? stars[0], pow: KIT2.beastmaster.secondPow * k }) // 2 ★ = a second pet
+      const st = this.st, B = KIT2.beastmaster
+      const k = B.packPow * (1 + st.j2PetPow) * (st.j2Pack3 > 0 ? 1 + B.tree.pack3Pow : 1) // rework v1 (Q1): all 3 pets every wave · ใจเดียวกัน · ★ ฝูงพันธมิตร
+      for (const p of PET_IDS) this.pets.push({ id: p, pow: k })
       for (const p of this.pets) this.spawnAlly(makeAlly(ALLIES[p.id], st, p.pow))
       if (st.j2Roar > 0 && this.alive().length) { for (const m of this.alive()) m.gauge -= st.j2Roar; this.floatText(HERO_X + 70, GROUND - 160, '🐺 ขู่คำราม!', '#c9c9d6') } // v82 ขู่คำราม
     }
@@ -1325,7 +1328,7 @@ export class BattleScene extends Phaser.Scene {
   private allyActed = false // set by an AllyCtx hit / shield: the ally really did something this act
   private allyHitting = false // an ally hit is running (no ผู้นำฝูง bonus, no ★ พรานแห่งป่า)
   private critPetUsed = false // ★ พรานแห่งป่า: once per hero turn (reset in heroAct)
-  private livePets() { return liveAllies(this.allies).filter((a) => a.def.kind === 'pet').length }
+  private livePets() { return readyAllies(this.allies).filter((a) => a.def.kind === 'pet').length }
   /** A pet acted: ประสานล่า Energy · เลียแผล heal. */
   private petPerks() {
     if (this.st.j2PetRes > 0) this.gainRes(this.st.j2PetRes)
@@ -1333,7 +1336,7 @@ export class BattleScene extends Phaser.Scene {
   }
   /** ★ พรานแห่งป่า: a hero crit sends the main pet in again now (hawk 1 sure hit · boar charge hit, no stun · wolf bite). */
   private critPet() {
-    const a = liveAllies(this.allies).find((x) => x.def.id === this.pet)
+    const a = readyAllies(this.allies).find((x) => x.def.id === this.pet)
     if (!a || !this.alive().length) return
     this.critPetUsed = true
     const c = this.allyCtx(a), B = KIT2.beastmaster
@@ -1407,13 +1410,24 @@ export class BattleScene extends Phaser.Scene {
   private syncAlly(a: Ally) {
     const t = this.allyTxt.get(a); if (!t?.active) return
     if (a.dead) { t.destroy(); this.allyTxt.delete(a); return }
-    t.setText(`${a.def.icon}\n${a.def.hp ? `${a.hp}` : ''}`).setFontSize(a.def.hp ? 18 : 28)
+    const info = a.down > 0 ? `💤${a.down}` : a.def.hp ? `${a.hp}${a.def.rageK ? `\n💢${Math.floor(a.rage)}` : ''}` : '' // 🐗 HP + Rage · down = turns left
+    t.setText(`${a.def.icon}\n${info}`).setFontSize(a.def.hp ? 18 : 28).setAlpha(a.down > 0 ? 0.45 : 1)
   }
   private clearAllies() { for (const a of this.allies) { a.dead = true; this.syncAlly(a) } this.allies = [] }
   /** Hero basic / combo swing: allies with trigger 'heroBasic' act (Tempest Bell rings). */
   private alliesOnSwing() {
     const combo = this.comboLevel >= 2
-    for (const a of liveAllies(this.allies)) if ((a.def.trigger === 'heroBasic' || (combo && a.def.comboFollow)) && this.alive().length) this.allyAct(a, combo) // wolf: bites along with hero combo hits
+    for (const a of readyAllies(this.allies)) if ((a.def.trigger === 'heroBasic' || (combo && a.def.comboFollow)) && this.alive().length) this.allyAct(a, combo) // wolf: bites along with hero combo hits
+  }
+  /** 🐗 Guardian split (allies.guardHit): the boar takes its share, Rage full = an extra charge. Returns the hero's part. */
+  private boarGuard(n: number): number {
+    const g = guardHit(this.allies, n, this.st); if (!g) return n
+    const bx = this.allyTxt.get(g.ally)?.x ?? HERO_X + 70 // over the boar's own slot
+    this.damageNumber(bx, GROUND - 90, g.took, false, '#f2b84b')
+    if (g.broke) this.floatText(bx, GROUND - 130, g.ally.dead ? `${g.ally.def.icon} หมดแรง!` : `${g.ally.def.icon} หมดแรง! พัก ${g.ally.down} เทิร์น`, '#e0b07a')
+    this.syncAlly(g.ally)
+    if (g.full && g.ally.def.charge && this.alive().length) { this.floatText(bx, GROUND - 175, '💢 เกจโกรธเต็ม!', '#ff9a3c'); this.allyAct(g.ally, false, undefined, g.ally.def.charge) }
+    return g.hero
   }
   /** A monster attack goes to a taunting ally instead of the hero (raw damage, no DEF); true = the ally took it. */
   private allyTaunt(dmg: number): boolean {
@@ -3300,6 +3314,7 @@ export class BattleScene extends Phaser.Scene {
       this.damageMon(src, Math.max(1, Math.round(Math.min(n * KIT2.innovator.mirrorCap, this.st.maxHp * BATTLE.reflectCap))), false, '#c9e0ff', true)
       return false
     }
+    if (src && this.allies.length) n = this.boarGuard(n) // 🐗 Guardian: the boar takes its share of a landed hit (DoTs have no src)
     this.lastHurt = n; this.j2Hurt = true
     if (src && !src.dead) { this.staticCounter(src); this.mageOnHit(src) } // Mage passives ⚡🔥❄️ (docs/passive_mage_3.md)
     if (this.st.j2GritRate > 0 && n > 0) {

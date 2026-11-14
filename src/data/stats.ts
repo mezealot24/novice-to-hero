@@ -296,7 +296,7 @@ export interface Stats {
   j2PetPow: number // v82 Beastmaster ใจเดียวกัน: + every pet's power
   j2PetRes: number // v82 Beastmaster ประสานล่า: hero Energy per pet act
   j2CmdCut: number // v82 Beastmaster คำสั่งไว: สั่งลุย costs this much less
-  j2Pack3: number // v82 Beastmaster ★ ฝูงพันธมิตร flag: all 3 pets every wave (non-main at KIT2.beastmaster.tree.pack3Pow)
+  j2Pack3: number // Beastmaster ★ ฝูงพันธมิตร flag: rework v1 = every pet +KIT2.beastmaster.tree.pack3Pow (Phase 4: Tri-Beast Harmony chain)
   j2PackLead: number // v82 Beastmaster ผู้นำฝูง: + hero damage per live pet
   j2PetHeal: number // v82 Beastmaster เลียแผล: heal (share of max HP) per pet act
   j2Roar: number // v82 Beastmaster ขู่คำราม: wave start, every monster's gauge -this

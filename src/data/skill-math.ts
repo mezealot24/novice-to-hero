@@ -173,18 +173,19 @@ export const KIT2 = {
   },
   // ----- Phase 4 Archer: Beastmaster / Innovator (Ally pets / traps / turrets: battle/allies.ts) -----
   beastmaster: {
-    secondPow: 0.5, // 2 ★ owned = a second pet at this power
+    packPow: 0.7, // rework v1 (Q 2026-11-14): all 3 pets every wave, each at this power (x ใจเดียวกัน, x ฝูงพันธมิตร)
     hawkChance: 0.15, hawkLuk: 0.004, hawkCap: 0.6, hawkMul: 0.6, hawkHits: 1, hawkHitsMax: 3, // 🦅 Blitz Beat per hero swing: chance + per LUK (capped), 1..N random targets, never misses
     hawkEvoMul: 0.5, hawkEvoHits: 1, // ★ เหยี่ยวทอง
-    boarHp: 0.4, boarTaunt: 0.6, boarEvery: 3, boarMul: 0.8, boarPush: 30, // 🐗 HP = share of hero max HP (VIT) · pulls hits · every N hero turns charges the front (loses its turn; boss: gauge push)
-    boarEvoHp: 0.5, boarEvoEvery: 2, // ★ หมูป่าเกราะ: + HP share, charges more often
+    boarHp: 0.6, boarEvery: 3, boarMul: 0.8, boarPush: 30, // 🐗 HP = share of hero max HP (VIT) · every N hero turns charges the front (loses its turn; boss: gauge push)
+    boarShare: 0.35, boarCut: 0.3, boarRageK: 140, boarDown: 3, // 🐗 Guardian: takes this share of every landed monster hit, -boarCut of it · Rage += taken / boar max HP x K, 100 = extra charge · 0 HP = down N hero turns, then back full + charges
+    boarEvoHp: 0.5, boarEvoEvery: 2, boarEvoShare: 0.1, boarEvoDown: 2, // ★ หมูป่าเกราะ: + HP share, charges more often, takes more, gets up sooner
     wolfSpeed: 0.8, wolfMul: 0.7, wolfBleed: 2, // 🐺 own turn at this share of hero speed (AGI) · bite + bleed (poison stacks) · follows hero combo hits
     wolfEvoMul: 0.5, wolfEvoSpeed: 0.3, // ★ ราชาหมาป่า
     cmdCost: 30, cmdCd: 3, cmdHawkHits: 3, cmdBoarShield: 0.15, cmdPack: 2, cmdPackTurns: 2, cmdPackPow: 0.6, // 📯 สั่งลุย per pet
     ultHawk: 1.2, ultBoar: 1, ultWolf: 1.5, // 🐾 Stampede: all 3 pets hit once (then the base archer pierce shot)
     mastery: { atkPct: 0.05, hit: 8 }, // bow
     // v82 ใยชั้น 2: 🤝 ผูกพัน + 🌿 สัญชาตญาณ, first guesses (design/second-jobs-v1.md §4 v82)
-    tree: { petPow: 0.08, petRes: 1, cmdCut: 5, pack3Pow: 0.35, packLead: 0.04, petHeal: 0.005, roar: 10 },
+    tree: { petPow: 0.08, petRes: 1, cmdCut: 5, pack3Pow: 0.2, packLead: 0.04, petHeal: 0.005, roar: 10 },
   },
   innovator: {
     traps: 1, mineMul: 1.5, snarePush: 30, freezeMul: 0.6, freezeChill: 2, // 🧰 wave-start trap (random of 3) fires when a monster acts: 💣 Land Mine · 🕳️ Ankle Snare (boss: gauge -30) · ❄️ Freezing Trap
