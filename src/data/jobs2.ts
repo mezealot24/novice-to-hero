@@ -23,7 +23,7 @@ export interface Job2Def {
 }
 
 export const JOB2_RULES = { unlockJobLv: 40, unlockClear: 'd5', maxJobLevel: 50, repickGems: 30 }
-/** 🐺 Beastmaster companion (save.pet, picked in town, free to change). Its ★ capstone evolves it; 2 ★ = a second pet at KIT2.beastmaster.secondPow. */
+/** 🐺 Beastmaster companion (save.pet, picked in town, free to change). Rework v1: all 3 pets fight every wave; save.pet = the partner for ★ พรานแห่งป่า. */
 export type PetId = 'hawk' | 'boar' | 'wolf'
 export const PETS: Record<PetId, { name: string; icon: string; evo: string; desc: string }> = {
   hawk: { name: 'เหยี่ยว', icon: '🦅', evo: 'เหยี่ยวทอง', desc: 'ไม่โดนตี · ฮีโร่ตีธรรมดา มีโอกาส (LUK) ฟาด 1-3 ตัว ไม่พลาด' },
@@ -113,10 +113,10 @@ export const JOB2: Record<Job2Id, Job2Def> = {
   // ----- Phase 4 Archer -----
   beastmaster: {
     id: 'beastmaster', parent: 'archer', name: 'บีสต์มาสเตอร์', icon: '🐺', focus: 'DEX · AGI · LUK',
-    blurb: 'นักธนูคู่หูสัตว์ · เลือก 🦅 เหยี่ยว / 🐗 หมูป่า / 🐺 หมาป่า ในเมือง (เปลี่ยนฟรี) · ★ ใยชั้น 2 วิวัฒน์สัตว์ ได้ 2 ดวง = เลี้ยง 2 ตัว',
+    blurb: 'นักธนูคุมฝูง 🦅 เหยี่ยว + 🐗 หมูป่า + 🐺 หมาป่า สู้พร้อมกันทุกเวฟ · คู่หูในเมือง = ตัวที่ ★ พรานแห่งป่า ส่งไปตีซ้ำ · ★ ใยชั้น 2 วิวัฒน์สัตว์',
     mod: { hit: 5 },
     mastery: { weapon: 'ธนู', ok: (it) => it.wtype === 'bow', mod: { hit: BM.mastery.hit }, pct: { atk: BM.mastery.atkPct } },
-    signature: { name: 'คู่หู', icon: '🐾', desc: `สัตว์ 1 ตัวสู้ข้างฮีโร่ทุกเวฟ (พลังตามสเตตัสฮีโร่ ไม่ดูดเลือด ไม่ติดคอมโบ) · 🦅 ฟาด ${pc(BM.hawkChance)} +${BM.hawkLuk * 100}%/LUK ${BM.hawkMul}x · 🐗 HP ${pc(BM.boarHp)} ดึงมอนตี ${pc(BM.boarTaunt)} พุ่งชน ${BM.boarMul}x · 🐺 เทิร์นเอง กัด ${BM.wolfMul}x + เลือดไหล ${BM.wolfBleed} · ★ 2 ดวง = ตัวที่ 2 พลัง ${pc(BM.secondPow)}` },
+    signature: { name: 'คู่หู', icon: '🐾', desc: `สัตว์ 3 ตัวสู้ข้างฮีโร่ทุกเวฟ ตัวละ ${pc(BM.packPow)} (พลังตามสเตตัสฮีโร่ ไม่ดูดเลือด ไม่ติดคอมโบ) · 🦅 ฟาด ${pc(BM.hawkChance)} +${BM.hawkLuk * 100}%/LUK ${BM.hawkMul}x · 🐗 HP ${pc(BM.boarHp)} รับดาเมจแทน ${pc(BM.boarShare)} (ลด ${pc(BM.boarCut)}) เกจโกรธเต็ม/ทุก ${BM.boarEvery} เทิร์น พุ่งชน ${BM.boarMul}x · 🐺 เทิร์นเอง กัด ${BM.wolfMul}x + เลือดไหล ${BM.wolfBleed}` },
     skill3: { name: 'สั่งลุย', icon: '📯', cost: BM.cmdCost, cd: BM.cmdCd, desc: `Energy ${BM.cmdCost} · คูลดาวน์ ${BM.cmdCd}: 🦅 ฟาด ${BM.cmdHawkHits} ครั้ง · 🐗 โล่ให้ฮีโร่ ${pc(BM.cmdBoarShield)} HP · 🐺 หอนเรียกฝูง ${BM.cmdPack} ตัว ${BM.cmdPackTurns} เทิร์น` },
     ult: { name: 'ฝูงสัตว์ป่า (Stampede)', icon: '🐾', cd: 4, desc: `🦅 ฟาดทุกตัว ${BM.ultHawk}x · 🐗 ชนทุกตัว ${BM.ultBoar}x ดันเกจ · 🐺 กัดตัวหน้า ${BM.ultWolf}x + เลือดไหล · แล้วยิงศรทะลวงเดิม` },
   },

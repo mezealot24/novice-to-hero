@@ -1,5 +1,5 @@
 // 🐺 Beastmaster ใยชั้น 2 (design/second-jobs-v1.md §4). Node ids are save data: never rename.
-// Each ★ evolves its branch's pet · 2 ★ = a second pet at KIT2.beastmaster.secondPow (battle: BattleScene.spawnPets).
+// Each ★ evolves its branch's pet · rework v1: all 3 pets every wave (battle: BattleScene.waveAllies).
 import { node as n, rk, talent as t, type ClassTree } from '../tree-types'
 import { KIT2 } from '../skill-math'
 
@@ -11,7 +11,7 @@ export const tree2: ClassTree = {
     { id: 'bm_b', job: 'archer', job2: 'beastmaster', name: 'ป่า', icon: '🐗', blurb: 'หมูป่าถึก พุ่งชนแรง ให้โล่ · ★ หมูป่าเกราะ' },
     { id: 'bm_w', job: 'archer', job2: 'beastmaster', name: 'เขี้ยว', icon: '🐺', blurb: 'หมาป่ากัดแรง เลือดไหล ไว · ★ ราชาหมาป่า' },
     // v82: ★ here takes a ★ slot too (2 ★ cap) -> trade-off vs "2 evolutions = second pet"
-    { id: 'bm_k', job: 'archer', job2: 'beastmaster', name: 'ผูกพัน', icon: '🤝', blurb: 'สัตว์ทุกตัวแรงขึ้น · คืน Energy · สั่งลุยถูก · ★ ฝูง 3 ตัว' },
+    { id: 'bm_k', job: 'archer', job2: 'beastmaster', name: 'ผูกพัน', icon: '🤝', blurb: 'สัตว์ทุกตัวแรงขึ้น · คืน Energy · สั่งลุยถูก · ★ ฝูงแรงขึ้น' },
     { id: 'bm_s', job: 'archer', job2: 'beastmaster', name: 'สัญชาตญาณ', icon: '🌿', blurb: 'ฮีโร่แรงตามฝูง · ฮีล · ขู่ตอนเริ่มเวฟ · ★ คริแล้วสัตว์ตีซ้ำ' },
   ],
   nodes: [
@@ -30,7 +30,7 @@ export const tree2: ClassTree = {
     n('bm_k1', 'bm_k', 1, '🐾', 'ใจเดียวกัน', 3, (lv) => `สัตว์ทุกตัวแรง +${pc(T.petPow * lv)}`, (lv) => ({ j2PetPow: T.petPow * lv })),
     n('bm_k2', 'bm_k', 2, '🔋', 'ประสานล่า', 3, (lv) => `สัตว์ลงมือ 1 ครั้ง → ฮีโร่ Energy +${T.petRes * lv}`, (lv) => ({ j2PetRes: T.petRes * lv })),
     n('bm_k3', 'bm_k', 3, '📯', 'คำสั่งไว', 3, (lv) => `สั่งลุยใช้ Energy −${T.cmdCut * lv} (${KIT2.beastmaster.cmdCost} → ${KIT2.beastmaster.cmdCost - T.cmdCut * lv})`, (lv) => ({ j2CmdCut: T.cmdCut * lv })),
-    n('bm_k4', 'bm_k', 4, '🦁', 'ฝูงพันธมิตร', 1, () => `สัตว์ครบ 3 ตัวทุกเวฟ: คู่หูแรงเต็ม · อีก 2 ตัวแรง ${pc(T.pack3Pow)}`, () => ({ j2Pack3: 1 })),
+    n('bm_k4', 'bm_k', 4, '🦁', 'ฝูงพันธมิตร', 1, () => `สัตว์ทุกตัวแรง +${pc(T.pack3Pow)}`, () => ({ j2Pack3: 1 })),
     n('bm_s1', 'bm_s', 1, '🎯', 'ผู้นำฝูง', 3, (lv) => `ฮีโร่แรง +${pc(T.packLead * lv)} ต่อสัตว์ที่ยังอยู่`, (lv) => ({ j2PackLead: T.packLead * lv })),
     n('bm_s2', 'bm_s', 2, '🩹', 'เลียแผล', 3, (lv) => `สัตว์ลงมือ 1 ครั้ง → ฮีล ${pc(T.petHeal * lv)} HP สูงสุด`, (lv) => ({ j2PetHeal: T.petHeal * lv })),
     n('bm_s3', 'bm_s', 3, '🐺', 'ขู่คำราม', 3, (lv) => `เริ่มเวฟ: เกจมอนทุกตัว −${T.roar * lv}`, (lv) => ({ j2Roar: T.roar * lv })),

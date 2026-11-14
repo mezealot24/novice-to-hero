@@ -34,19 +34,28 @@ export interface AllyDef {
   comboFollow?: boolean // also acts on hero combo hits (wolf)
   act: (ctx: AllyCtx) => void
   onBreak?: (ctx: AllyCtx) => void // its hp hit 0
+  // ----- Beastmaster rework v1 🐗 Guardian (docs/design/beastmaster-rework-gap.md §7.3) -----
+  share?: (st: Stats) => number // takes this share of every landed monster hit on the hero (after DEF), no taunt roll
+  cut?: number // ... and shrugs off this much of its share
+  rageK?: number // Rage += taken / max HP x this; 100 = charge now
+  recover?: (st: Stats) => number // 0 HP = down this many hero turns, then back at full HP + charge (none = gone for the wave)
+  charge?: (ctx: AllyCtx) => void // its special move (Rage full / back up)
 }
-export interface Ally { def: AllyDef; hp: number; maxHp: number; turns: number; pow: number; dead: boolean; gauge: number; acts: number; uses: number; soaks: number }
+/** down: hero turns left before it gets up (0 = in the fight) · rage: 0..100 */
+export interface Ally { def: AllyDef; hp: number; maxHp: number; turns: number; pow: number; dead: boolean; gauge: number; acts: number; uses: number; soaks: number; rage: number; down: number }
 
 export function makeAlly(def: AllyDef, st: Stats, pow = 1, turns = def.turns): Ally {
   const hp = Math.max(1, Math.round(def.hp?.(st) ?? 0))
-  return { def, hp, maxHp: hp, turns: turns ?? Infinity, pow, dead: false, gauge: 0, acts: 0, uses: def.uses ?? Infinity, soaks: def.soaks ?? Infinity }
+  return { def, hp, maxHp: hp, turns: turns ?? Infinity, pow, dead: false, gauge: 0, acts: 0, uses: def.uses ?? Infinity, soaks: def.soaks ?? Infinity, rage: 0, down: 0 }
 }
 export const liveAllies = (all: Ally[]) => all.filter((a) => !a.dead)
+/** In the fight right now: alive and not down (a downed boar keeps its slot but does nothing). */
+export const readyAllies = (all: Ally[]) => all.filter((a) => !a.dead && a.down <= 0)
 /** A monster attack: the ally (with hp or soaks + taunt) that takes it instead of the hero, if any. Taunts add up (capped by the roll). */
 export function tauntTarget(all: Ally[], roll = Math.random()): Ally | undefined {
   let acc = 0
   for (const a of all) {
-    if (a.dead || !(a.def.hp || a.def.soaks) || !a.def.taunt) continue
+    if (a.dead || a.down > 0 || !(a.def.hp || a.def.soaks) || !a.def.taunt) continue
     acc += a.def.taunt
     if (roll < acc) return a
   }
@@ -59,6 +68,33 @@ export function hurtAlly(a: Ally, n: number): boolean {
   else { a.hp = Math.max(0, a.hp - Math.max(1, Math.round(n))); if (a.hp > 0) return false }
   a.dead = true
   return true
+}
+export interface GuardHit { ally: Ally; hero: number; took: number; broke: boolean; full: boolean }
+/** 🐗 Guardian split of a landed hit n (after DEF): the first ready sharing ally takes floor(n x share), minus its cut.
+ *  hero = what is left for the hero · full = Rage hit 100 (reset, caller charges) · broke = 0 HP (down, Rage reset). */
+export function guardHit(all: Ally[], n: number, st: Stats, share?: number): GuardHit | undefined {
+  const a = all.find((x) => !x.dead && x.down <= 0 && x.hp > 0 && x.def.share)
+  if (!a || n <= 0) return undefined
+  const part = Math.min(n, Math.floor(n * (share ?? a.def.share!(st))))
+  if (part <= 0) return undefined
+  const took = Math.max(1, Math.round(part * (1 - (a.def.cut ?? 0))))
+  a.hp = Math.max(0, a.hp - took)
+  a.rage = Math.min(100, a.rage + (took / a.maxHp) * (a.def.rageK ?? 0))
+  const broke = a.hp <= 0
+  if (broke) {
+    a.rage = 0
+    const t = Math.round(a.def.recover?.(st) ?? 0)
+    if (t > 0) a.down = t; else a.dead = true
+  }
+  const full = !broke && a.rage >= 100
+  if (full) a.rage = 0
+  return { ally: a, hero: n - part, took, broke, full }
+}
+/** End of a hero turn: downed allies count down; returns the ones back up (full HP). */
+export function reviveAllies(all: Ally[]): Ally[] {
+  const out: Ally[] = []
+  for (const a of all) if (!a.dead && a.down > 0 && --a.down <= 0) { a.down = 0; a.hp = a.maxHp; out.push(a) }
+  return out
 }
 /** One act used up (traps): true when that was its last. */
 export function useAlly(a: Ally): boolean {
@@ -76,6 +112,12 @@ export function tickAllies(all: Ally[]): Ally[] {
 }
 
 const MK = KIT2.monk, BM = KIT2.beastmaster, IN = KIT2.innovator
+/** 🐗 charge: front monster + stun (+ ★ คุ้มกันนาย shield). Every N hero turns, on full Rage, on getting back up. */
+const boarCharge = (c: AllyCtx) => {
+  c.say(c.st.j2BoarEvo ? '🐗🛡️ พุ่งชน!' : '🐗 พุ่งชน!', '#e0b07a')
+  c.hitFront((BM.boarMul + c.st.j2BoarMul) * c.ally.pow, '#e0b07a'); c.stun(false)
+  if (c.st.j2BoarShield > 0) c.shield(c.st.j2BoarShield * c.ally.pow)
+}
 export const hawkMul = (st: Stats) => BM.hawkMul + st.j2HawkMul + (st.j2HawkEvo ? BM.hawkEvoMul : 0)
 export const wolfMul = (st: Stats) => BM.wolfMul + st.j2WolfMul + (st.j2WolfEvo ? BM.wolfEvoMul : 0)
 export const hawkChance = (st: Stats, luk: number) => Math.min(BM.hawkCap, BM.hawkChance + BM.hawkLuk * luk + st.j2HawkChance)
@@ -85,7 +127,7 @@ export const ALLIES = {
     hp: (st) => st.maxHp * (MK.bellHp + (st.wis ?? 0) * (MK.bellWis ?? 0.008)) * bellMdefMul(st), taunt: MK.bellTaunt, turns: MK.bellTurns,
     act: (c) => c.hitAll(MK.bellRing * c.ally.pow * bellMdefMul(c.st), true, '#bfe6ff'),
     onBreak: (c) => { c.say('🔔 ระฆังแตก!', '#ffe08a'); c.hitAll(MK.bellBoom * c.ally.pow * bellMdefMul(c.st), true, '#ffe08a') } },
-  // ----- Phase 4 🐺 Beastmaster pets (spawn every wave, x ally.pow: 2nd pet = KIT2.beastmaster.secondPow) · ★ evolutions read Stats flags -----
+  // ----- Phase 4 🐺 Beastmaster pets (rework v1: all 3 spawn every wave at KIT2.beastmaster.packPow, x ally.pow) · ★ evolutions read Stats flags -----
   hawk: { id: 'hawk', name: 'เหยี่ยว', icon: '🦅', kind: 'pet', trigger: 'heroBasic', // RO Blitz Beat: no HP, can't be hit
     act: (c) => {
       const st = c.st, evo = st.j2HawkEvo ? BM.hawkEvoHits : 0
@@ -94,13 +136,11 @@ export const ALLIES = {
       c.say(st.j2HawkEvo ? '🦅✨ Blitz Beat!' : '🦅 Blitz Beat!', '#f2d24b')
       for (let i = 0; i < n; i++) c.hitOne(hawkMul(st) * c.ally.pow, false, '#f2d24b', true)
     } },
-  boar: { id: 'boar', name: 'หมูป่า', icon: '🐗', kind: 'pet', trigger: 'heroTurn', hp: (st) => st.maxHp * (BM.boarHp + st.j2BoarHp + (st.j2BoarEvo ? BM.boarEvoHp : 0)), taunt: BM.boarTaunt,
-    act: (c) => {
-      if (++c.ally.acts % (c.st.j2BoarEvo ? BM.boarEvoEvery : BM.boarEvery) !== 0) return
-      c.say(c.st.j2BoarEvo ? '🐗🛡️ พุ่งชน!' : '🐗 พุ่งชน!', '#e0b07a')
-      c.hitFront((BM.boarMul + c.st.j2BoarMul) * c.ally.pow, '#e0b07a'); c.stun(false)
-      if (c.st.j2BoarShield > 0) c.shield(c.st.j2BoarShield * c.ally.pow)
-    } },
+  boar: { id: 'boar', name: 'หมูป่า', icon: '🐗', kind: 'pet', trigger: 'heroTurn', hp: (st) => st.maxHp * (BM.boarHp + st.j2BoarHp + (st.j2BoarEvo ? BM.boarEvoHp : 0)),
+    share: (st) => BM.boarShare + (st.j2BoarEvo ? BM.boarEvoShare : 0), cut: BM.boarCut, rageK: BM.boarRageK,
+    recover: (st) => (st.j2BoarEvo ? BM.boarEvoDown : BM.boarDown),
+    act: (c) => { if (++c.ally.acts % (c.st.j2BoarEvo ? BM.boarEvoEvery : BM.boarEvery) === 0) boarCharge(c) }, // Q3: the timer stays, Rage adds extra charges
+    charge: boarCharge },
   wolf: { id: 'wolf', name: 'หมาป่า', icon: '🐺', kind: 'pet', trigger: 'ownTurn', comboFollow: true,
     speed: (st) => BM.wolfSpeed + st.j2WolfSpeed + (st.j2WolfEvo ? BM.wolfEvoSpeed : 0),
     act: (c) => c.hitFront(wolfMul(c.st) * c.ally.pow, '#c9c9d6', BM.wolfBleed + c.st.j2WolfBleed) },
