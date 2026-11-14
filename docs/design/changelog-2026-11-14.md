@@ -58,3 +58,12 @@
 - ⚠️ 3 สัตว์ + Prey Mark ทุกฮิต + ขย้ำคริ = ดาเมจรวมพุ่งมาก → balance pass ก่อน merge
 
 **ไฟล์:** `allies.ts` · `BattleScene.ts` · `skill-math.ts` · `skill-registry.ts` · `stats.ts` · `trees2/beastmaster.ts` · tests: `allies` (14) · ผ่าน `archer-bm-tree` / `job2-talents` / `skill-registry` · typecheck ผ่าน
+
+## 5. 🐾 Beastmaster: ลดดาเมจ Ult + สกิล 3 (Q: แรงเกินไปมาก)
+
+- **📯 สั่งลุย:** เหยี่ยวฟาด 3 → **2** ครั้ง · ฝูงหมาป่าตัวละ 0.6 → **0.3** · โล่หมูป่า 15% คงเดิม
+- **🐾 Stampede:** เหยี่ยว 1.2 → **0.6** · หมูป่า 1 → **0.5** · หมาป่า 1.5 → **0.7** (ศรทะลวงต่อท้ายไม่แตะ)
+- **ไม่มีคริ (Beastmaster เท่านั้น):** ฮิตของ 🦅 เหยี่ยว / 🐗 หมูป่า ใน Ult + สกิล 3 คริไม่ได้ · 🐺 หมาป่ายังคริได้ · คริแน่นอน (ขย้ำปลิดชีพ) ยังผ่าน · Archer / Innovator ไม่โดน (`petNoCrit` ใน `BattleScene.strike`)
+- ⚠️ ถ้า Q เคย override `cmdHawkHits` / `cmdPackPow` / `ultHawk|Boar|Wolf` ในหน้า admin ไว้ ค่าบน server ยังทับค่านี้
+
+**ไฟล์:** `skill-math.ts` · `BattleScene.ts` · typecheck + tests `allies` / `skill-registry` / `job2-talents` / `archer-bm-tree` ผ่าน
