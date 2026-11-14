@@ -186,8 +186,10 @@ export const KIT2 = {
     wolfEvoMul: 0.5, wolfEvoSpeed: 0.3, // ★ ราชาหมาป่า
     frenzyCap: 5, frenzySpd: 0.01, // 🩸 Bloodscent Frenzy (bm_w3): hero speed (wolf follows) + this x Lv per poison stack on the front monster, counting up to cap stacks
     crunchEvery: 3, crunchLow: 0.35, crunchHeal: 0.1, // 🦷 ★ Savage Crunch: every Nth bite / front has 🏷️ mark / front HP < low → sure crit, heals hero + boar this share of it (Q4: a heal, not lifesteal)
+    harmonyWolf: 0.25, harmonyBoarHeal: 0.08, // 🤝 ★ Tri-Beast Harmony (bm_k4): wolf deals +this vs 🏷️ marked target & heals boar this share of boar max HP
+    wolfBleedCap: 1.5, // 🐺 IV talent: % Max HP bleed tick cap = this × P.ATK
     cmdCost: 30, cmdCd: 3, cmdHawkHits: 2, cmdBoarShield: 0.15, cmdPack: 2, cmdPackTurns: 2, cmdPackPow: 0.3, // 📯 สั่งลุย per pet · Q 2026-11-14: damage cut hard (hawk 3 → 2 hits, pack 0.6 → 0.3; shield unchanged)
-    ultHawk: 0.6, ultBoar: 0.5, ultWolf: 0.7, // 🐾 Stampede: all 3 pets hit once (then the base archer pierce shot) · Q 2026-11-14: about half (was 1.2 / 1 / 1.5)
+    ultAwakenTurns: 3, ultBoarShare: 0.7, ultReflect: 0.5, ultEndShield: 0.4, ultEndShieldMin: 0.1, // 🐾 Primeval Awakening (Q5): multi-turn stance (cleanse + revive/heal boar + stun all → 3 turns → end shield)
     mastery: { atkPct: 0.05, hit: 8 }, // bow
     // v82 ใยชั้น 2: 🤝 ผูกพัน + 🌿 สัญชาตญาณ, first guesses (design/second-jobs-v1.md §4 v82)
     tree: { petPow: 0.08, petRes: 1, cmdCut: 5, pack3Pow: 0.2, packLead: 0.04, petHeal: 0.005, roar: 10 },

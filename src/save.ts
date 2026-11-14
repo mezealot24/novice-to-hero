@@ -75,6 +75,7 @@ export interface SaveData {
 	webRefund?: number; // skill points refunded by that migration, shown once in town
 	stretch?: 1; // v83: webs refunded once for the node-level stretch (data/tree.ts TREE_RULES.stretch)
 	stretchRefund?: { skill: number; job2: number }; // points that migration gave back, shown once in town
+	bmRework?: 1; // Beastmaster rework v1: 1-time free job2Tree reset for existing Beastmasters
 	job2Talents?: Record<string, { id: string; rank: number }>; // v119 ทาเลนต์ชั้น 2: same shape, Talent Points from Job2 Lv; cleared when the 2nd job changes
 	jobTalents?: Record<string, { id: string; rank: number }>; // talent row "1".."4" -> pick + rank; Talent Points are derived from Job Lv (data/tree.ts)
 	stats: Record<BaseStat, number>;
@@ -201,6 +202,7 @@ export function load(): SaveData | null {
 		migrateGear(s);
 		migrateNovicePool(s);
 		migrateSmashAuto(s);
+		migrateBeastmasterRework(s);
 		s.modes ??= {}; // v51 game modes: additive, old saves start with no records
 		delete (s as SaveData & { reroll?: unknown }).reroll; // v84 option gacha: no more pending keep-old / take-new (the old line stays)
 		cache = s;
@@ -432,6 +434,14 @@ export function migrateNodeStretch(s: SaveData) {
 	if (job2 > 0) s.job2Points = (s.job2Points ?? 0) + job2;
 	if (skill + job2 > 0) s.stretchRefund = { skill, job2 };
 	s.stretch = 1;
+}
+/** Beastmaster rework v1 (Phase 6): reset Beastmaster job2Tree once for free so players can re-spend on reworked nodes. */
+export function migrateBeastmasterRework(s: SaveData) {
+	if (s.bmRework) return;
+	s.bmRework = 1;
+	if (s.job2 !== 'beastmaster' || !s.job2Tree) return;
+	const back = resetTree2(s);
+	if (back > 0) s.job2Points = (s.job2Points ?? 0) + back;
 }
 /** v27 skill web: class skill levels and the old tree become web nodes with new rules, so refund every point once. */
 function migrateToWeb(s: SaveData) {

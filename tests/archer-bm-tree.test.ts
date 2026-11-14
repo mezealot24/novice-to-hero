@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { branches2Of, branchesOf, lockReason, nodesOf, TREE, TREE2, TREE_RULES, type TreeNode, type TreeSave } from '../src/data/tree'
 import type { Stats } from '../src/data/game-data'
+import { migrateBeastmasterRework, newSave } from '../src/save'
 
 // v82 point pools (plan): Archer = 48 class points, Beastmaster = 49 job2 points
 const ARCHER_POOL = 48, BM_POOL = 49
@@ -84,4 +85,23 @@ test('each new node sets its field', () => {
     }
     if (n.max > 1) for (const k of keys) assert.ok((n.mod(n.max)[k] ?? 0) > (n.mod(1)[k] ?? 0), `${id} ${k} grows`)
   }
+})
+
+test('migrateBeastmasterRework: refunds Beastmaster job2Tree once, idempotent, skips other jobs', () => {
+  const s = { ...newSave(), job: 'archer' as const, job2: 'beastmaster' as const, job2Points: 1, job2Tree: { bm_h1: 2, bm_k4: 1 } }
+  migrateBeastmasterRework(s)
+  assert.equal(s.bmRework, 1)
+  assert.equal(s.job2Points, 4)
+  assert.deepEqual(s.job2Tree, {})
+  // idempotent
+  s.job2Tree = { bm_h1: 1 }
+  migrateBeastmasterRework(s)
+  assert.equal(s.job2Points, 4)
+  assert.deepEqual(s.job2Tree, { bm_h1: 1 })
+  // other job2 untouched
+  const other = { ...newSave(), job: 'archer' as const, job2: 'innovator' as const, job2Points: 1, job2Tree: { in_t1: 2 } }
+  migrateBeastmasterRework(other)
+  assert.equal(other.bmRework, 1)
+  assert.equal(other.job2Points, 1)
+  assert.deepEqual(other.job2Tree, { in_t1: 2 })
 })

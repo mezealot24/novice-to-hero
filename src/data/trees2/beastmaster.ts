@@ -8,10 +8,10 @@ const T = KIT2.beastmaster.tree, pc = (x: number) => `${+(x * 100).toFixed(1)}%`
 export const tree2: ClassTree = {
   branches: [
     { id: 'bm_h', job: 'archer', job2: 'beastmaster', name: 'ฟ้า', icon: '🦅', blurb: 'เหยี่ยว Blitz Beat บ่อย / แรง / หลายตัว · ★ เหยี่ยวทอง' },
-    { id: 'bm_b', job: 'archer', job2: 'beastmaster', name: 'ป่า', icon: '🐗', blurb: 'หมูป่าถึก พุ่งชนแรง ให้โล่ · ★ หมูป่าเกราะ' },
+    { id: 'bm_b', job: 'archer', job2: 'beastmaster', name: 'ป่า', icon: '🐗', blurb: 'หมูป่าถึก รับดาเมจแทน พุ่งชนแรง ให้โล่ · ★ หมูป่าเกราะ' },
     { id: 'bm_w', job: 'archer', job2: 'beastmaster', name: 'เขี้ยว', icon: '🐺', blurb: 'หมาป่ากัดแรง เลือดไหล ไว · ★ ราชาหมาป่า' },
     // v82: ★ here takes a ★ slot too (2 ★ cap) -> trade-off vs "2 evolutions = second pet"
-    { id: 'bm_k', job: 'archer', job2: 'beastmaster', name: 'ผูกพัน', icon: '🤝', blurb: 'สัตว์ทุกตัวแรงขึ้น · คืน Energy · สั่งลุยถูก · ★ ฝูงแรงขึ้น' },
+    { id: 'bm_k', job: 'archer', job2: 'beastmaster', name: 'ผูกพัน', icon: '🤝', blurb: 'สัตว์ทุกตัวแรงขึ้น · คืน Energy · สั่งลุยถูก · ★ ลูกโซ่ Harmony' },
     { id: 'bm_s', job: 'archer', job2: 'beastmaster', name: 'สัญชาตญาณ', icon: '🌿', blurb: 'ฮีโร่แรงตามฝูง · ฮีล · ขู่ตอนเริ่มเวฟ · ★ คริแล้วสัตว์ตีซ้ำ' },
   ],
   nodes: [
@@ -30,7 +30,7 @@ export const tree2: ClassTree = {
     n('bm_k1', 'bm_k', 1, '🐾', 'ใจเดียวกัน', 3, (lv) => `สัตว์ทุกตัวแรง +${pc(T.petPow * lv)}`, (lv) => ({ j2PetPow: T.petPow * lv })),
     n('bm_k2', 'bm_k', 2, '🔋', 'ประสานล่า', 3, (lv) => `สัตว์ลงมือ 1 ครั้ง → ฮีโร่ Energy +${T.petRes * lv}`, (lv) => ({ j2PetRes: T.petRes * lv })),
     n('bm_k3', 'bm_k', 3, '📯', 'คำสั่งไว', 3, (lv) => `สั่งลุยใช้ Energy −${T.cmdCut * lv} (${KIT2.beastmaster.cmdCost} → ${KIT2.beastmaster.cmdCost - T.cmdCut * lv})`, (lv) => ({ j2CmdCut: T.cmdCut * lv })),
-    n('bm_k4', 'bm_k', 4, '🦁', 'ฝูงพันธมิตร', 1, () => `สัตว์ทุกตัวแรง +${pc(T.pack3Pow)}`, () => ({ j2Pack3: 1 })),
+    n('bm_k4', 'bm_k', 4, '🦁', 'ฝูงพันธมิตร', 1, () => `สัตว์ทุกตัวแรง +${pc(T.pack3Pow)} · 🤝 ลูกโซ่: เหยี่ยวแปะ 🏷️ → หมาป่ากัดแรง +${pc(KIT2.beastmaster.harmonyWolf)} และฮีลหมูป่า ${pc(KIT2.beastmaster.harmonyBoarHeal)} HP`, () => ({ j2Pack3: 1 })),
     n('bm_s1', 'bm_s', 1, '🎯', 'ผู้นำฝูง', 3, (lv) => `ฮีโร่แรง +${pc(T.packLead * lv)} ต่อสัตว์ที่ยังอยู่`, (lv) => ({ j2PackLead: T.packLead * lv })),
     n('bm_s2', 'bm_s', 2, '🩹', 'เลียแผล', 3, (lv) => `สัตว์ลงมือ 1 ครั้ง → ฮีล ${pc(T.petHeal * lv)} HP สูงสุด`, (lv) => ({ j2PetHeal: T.petHeal * lv })),
     n('bm_s3', 'bm_s', 3, '🐺', 'ขู่คำราม', 3, (lv) => `เริ่มเวฟ: เกจมอนทุกตัว −${T.roar * lv}`, (lv) => ({ j2Roar: T.roar * lv })),
@@ -41,14 +41,14 @@ export const tree2: ClassTree = {
     t('bm_t1_pet', 1, '🐾', 'สายใยผูกพัน', 2, (r) => `สัตว์ทุกตัวแรง +${rk(r, 6, 10)}%`, (r) => ({ j2PetPow: rk(r, 0.06, 0.1) })),
     t('bm_t1_hit', 1, '🎯', 'ตาพราน', 2, (r) => `HIT +${rk(r, 6, 10)}`, (r) => ({ hit: rk(r, 6, 10) })),
     t('bm_t1_crit', 1, '🏹', 'ยิงจุดตาย', 2, (r) => `คริ +${rk(r, 3, 5)}%`, (r) => ({ crit: rk(r, 0.03, 0.05) })),
-    t('bm_t2_ult', 2, '🐾', 'ฝูงคลั่ง', 2, (r) => `ฝูงสัตว์ป่าแรง +${rk(r, 15, 25)}%`, (r) => ({ ult2Pow: rk(r, 0.15, 0.25) })),
+    t('bm_t2_ult', 2, '🐾', 'ฝูงคลั่ง', 2, (r) => `Awakening สะท้อน & โล่แรง +${rk(r, 15, 25)}%`, (r) => ({ ult2Pow: rk(r, 0.15, 0.25) })),
     t('bm_t2_lead', 2, '🎯', 'จ่าฝูง', 2, (r) => `ฮีโร่แรง +${rk(r, 3, 5)}% ต่อสัตว์ที่ยังอยู่`, (r) => ({ j2PackLead: rk(r, 0.03, 0.05) })),
     t('bm_t2_heal', 2, '🩹', 'สัตว์เลียแผล', 2, (r) => `สัตว์ลงมือ 1 ครั้ง → ฮีล ${rk(r, 0.4, 0.7)}% HP สูงสุด`, (r) => ({ j2PetHeal: rk(r, 0.004, 0.007) })),
     t('bm_t3_cmd', 3, '📯', 'สั่งลุยแรง', 2, (r) => `สั่งลุยแรง +${rk(r, 15, 25)}%`, (r) => ({ s3Pow: rk(r, 0.15, 0.25) })),
     t('bm_t3_cut', 3, '🔋', 'คำสั่งประหยัด', 2, (r) => `สั่งลุยใช้ Energy −${rk(r, 4, 7)}`, (r) => ({ j2CmdCut: rk(r, 4, 7) })),
     t('bm_t3_res', 3, '⚡', 'ล่าประสาน', 2, (r) => `สัตว์ลงมือ 1 ครั้ง → Energy +${rk(r, 1, 2)}`, (r) => ({ j2PetRes: rk(r, 1, 2) })),
-    t('bm_t4_hawk', 4, '🦅', 'เหยี่ยวพายุ', 2, (r) => `🦅 Blitz Beat โอกาส +${rk(r, 5, 8)}% · เหยี่ยวแรง +${rk(r, 10, 15)}%`, (r) => ({ j2HawkChance: rk(r, 0.05, 0.08), j2HawkMul: rk(r, 0.1, 0.15) })),
-    t('bm_t4_boar', 4, '🐗', 'หมูป่าเหล็ก', 2, (r) => `🐗 หมูป่า HP +${rk(r, 10, 18)}% ของ HP ฮีโร่ · พุ่งชนแรง +${rk(r, 15, 25)}%`, (r) => ({ j2BoarHp: rk(r, 0.1, 0.18), j2BoarMul: rk(r, 0.15, 0.25) })),
-    t('bm_t4_wolf', 4, '🐺', 'หมาป่าหิวโหย', 2, (r) => `🐺 กัดแรง +${rk(r, 12, 20)}% · เร็ว +${rk(r, 8, 12)}%`, (r) => ({ j2WolfMul: rk(r, 0.12, 0.2), j2WolfSpeed: rk(r, 0.08, 0.12) })),
+    t('bm_t4_hawk', 4, '🦅', 'เหยี่ยวพายุ', 2, (r) => `🦅 Blitz Beat เป็น True Damage (ไม่ผ่าน DEF) · โอกาส +${rk(r, 5, 8)}% · แรง +${rk(r, 10, 15)}%`, (r) => ({ j2HawkTrue: 1, j2HawkChance: rk(r, 0.05, 0.08), j2HawkMul: rk(r, 0.1, 0.15) })),
+    t('bm_t4_boar', 4, '🐗', 'หมูป่าเหล็ก', 2, (r) => `🐗 พุ่งชน Stun ทั้งแถว (บอส: ผลักเกจ) · HP +${rk(r, 10, 18)}% · พุ่งชนแรง +${rk(r, 15, 25)}%`, (r) => ({ j2BoarStunAll: 1, j2BoarHp: rk(r, 0.1, 0.18), j2BoarMul: rk(r, 0.15, 0.25) })),
+    t('bm_t4_wolf', 4, '🐺', 'หมาป่าหิวโหย', 2, (r) => `🐺 เลือดไหลทำดาเมจ +${rk(r, 0.4, 0.7)}% Max HP ศัตรู/stack (สูงสุด ${KIT2.beastmaster.wolfBleedCap}x P.ATK) · กัดแรง +${rk(r, 12, 20)}% · เร็ว +${rk(r, 8, 12)}%`, (r) => ({ j2WolfBleedPct: rk(r, 0.004, 0.007), j2WolfMul: rk(r, 0.12, 0.2), j2WolfSpeed: rk(r, 0.08, 0.12) })),
   ],
 }

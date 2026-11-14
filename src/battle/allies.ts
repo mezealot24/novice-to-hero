@@ -13,12 +13,15 @@ export type AllyTrigger = 'ownTurn' | 'heroBasic' | 'heroTurn' | 'monsterAct'
 export interface AllyCtx {
   ally: Ally; st: Stats; luk: number
   combo: boolean // heroBasic: this swing is a combo hit
+  awaken?: boolean // Primeval Awakening active: hawk chance x2, wolf follows every basic
+  awakenPow?: number // Awakening power multiplier (1 + ult2Pow)
   hitAll: (mul: number, magic: boolean, color: string) => void
-  hitOne: (mul: number, magic: boolean, color: string, sure?: boolean, fx?: { mark?: boolean; blind?: number }) => boolean // sure = never misses (Blitz Beat) · fx: 🏷️ Prey Mark / 🪶 blind turns on the target · true = it was newly marked
+  hitOne: (mul: number, magic: boolean, color: string, sure?: boolean, fx?: { mark?: boolean; blind?: number; pierce?: number }) => boolean // sure = never misses (Blitz Beat) · fx: 🏷️ Prey Mark / 🪶 blind / pierce (True Damage) · true = it was newly marked
   rally: (id: string) => void // 👁️ Apex Spotter: that ready ally acts at once (its own-turn gauge is filled)
   hitFront: (mul: number, color: string, bleed?: number, crit?: boolean) => number // physical on the front monster, + bleed (poison stacks) · crit = sure crit · returns damage dealt
   frontInfo: () => { hpPct: number; marked: boolean } | undefined // the front monster: HP share, 🏷️ huntMark on
   healPack: (n: number) => void // heal the hero + the 🐗 guardian (Savage Crunch: a heal, not lifesteal)
+  healBoar: (share: number) => void // 🤝 Tri-Beast Harmony: heal the 🐗 guardian by share of its max HP
   hitFoe: (mul: number, color: string) => void // physical on the monster that set it off ('monsterAct'), else the front one
   stun: (all: boolean) => void // the foe (else the front) loses its next turn (boss / mini: gauge push instead) · all = every monster
   chill: (turns: number, all: boolean) => void
@@ -120,7 +123,7 @@ const MK = KIT2.monk, BM = KIT2.beastmaster, IN = KIT2.innovator
 /** 🐗 charge: front monster + stun (+ ★ คุ้มกันนาย shield). Every N hero turns, on full Rage, on getting back up. */
 const boarCharge = (c: AllyCtx) => {
   c.say(c.st.j2BoarEvo ? '🐗🛡️ พุ่งชน!' : '🐗 พุ่งชน!', '#e0b07a')
-  c.hitFront((BM.boarMul + c.st.j2BoarMul) * c.ally.pow, '#e0b07a'); c.stun(false)
+  c.hitFront((BM.boarMul + c.st.j2BoarMul) * c.ally.pow * (c.awakenPow ?? 1), '#e0b07a'); c.stun(c.st.j2BoarStunAll > 0)
   if (c.st.j2BoarShield > 0) c.shield(c.st.j2BoarShield * c.ally.pow)
 }
 export const hawkMul = (st: Stats) => BM.hawkMul + st.j2HawkMul + (st.j2HawkEvo ? BM.hawkEvoMul : 0)
@@ -136,12 +139,14 @@ export const ALLIES = {
   hawk: { id: 'hawk', name: 'เหยี่ยว', icon: '🦅', kind: 'pet', trigger: 'heroBasic', // RO Blitz Beat: no HP, can't be hit
     act: (c) => {
       const st = c.st, evo = st.j2HawkEvo ? BM.hawkEvoHits : 0
-      if (c.combo || Math.random() >= hawkChance(st, c.luk)) return
+      const chance = Math.min(1, hawkChance(st, c.luk) * (c.awaken ? 2 : 1))
+      if (c.combo || Math.random() >= chance) return
       const n = Math.min(BM.hawkHitsMax + evo, BM.hawkHits + st.j2HawkHits + evo + Math.floor(Math.random() * 3)) // 1-3 targets
       const gust = st.j2Gust > 0 && ++c.ally.acts % BM.gustEvery === 0 // 🪶 Razor Gust
+      const pierce = st.j2HawkTrue > 0 ? 1 : 0 // 🦅 IV talent: True Damage
       c.say(gust ? '🦅🪶 Razor Gust!' : st.j2HawkEvo ? '🦅✨ Blitz Beat!' : '🦅 Blitz Beat!', '#f2d24b')
       let marked = false
-      for (let i = 0; i < n; i++) marked = c.hitOne(hawkMul(st) * c.ally.pow, false, '#f2d24b', true, { mark: true, blind: gust ? BM.gustBlind : 0 }) || marked
+      for (let i = 0; i < n; i++) marked = c.hitOne(hawkMul(st) * c.ally.pow * (c.awakenPow ?? 1), false, '#f2d24b', true, { mark: true, blind: gust ? BM.gustBlind : 0, pierce }) || marked
       if (marked && st.j2HawkEvo > 0) c.rally('wolf') // 👁️ ★ Apex Spotter
     } },
   boar: { id: 'boar', name: 'หมูป่า', icon: '🐗', kind: 'pet', trigger: 'heroTurn', hp: (st) => st.maxHp * (BM.boarHp + st.j2BoarHp + (st.j2BoarEvo ? BM.boarEvoHp : 0)),
@@ -154,9 +159,13 @@ export const ALLIES = {
     act: (c) => {
       const f = c.frontInfo(); if (!f) return
       const crunch = c.st.j2WolfEvo > 0 && (++c.ally.acts % BM.crunchEvery === 0 || f.marked || f.hpPct < BM.crunchLow) // 🦷 ★ Savage Crunch
+      const harm = c.st.j2Pack3 > 0 && f.marked // 🤝 ★ Tri-Beast Harmony chain
       if (crunch) c.say('🐺🦷 ขย้ำปลิดชีพ!', '#ff6b6b')
-      const d = c.hitFront(wolfMul(c.st) * c.ally.pow, '#c9c9d6', BM.wolfBleed + c.st.j2WolfBleed, crunch)
+      else if (harm) c.say('🤝 Harmony!', '#9fe08a')
+      const mul = wolfMul(c.st) * (harm ? 1 + BM.harmonyWolf : 1) * c.ally.pow * (c.awakenPow ?? 1)
+      const d = c.hitFront(mul, '#c9c9d6', BM.wolfBleed + c.st.j2WolfBleed, crunch)
       if (crunch && d > 0) c.healPack(d * BM.crunchHeal)
+      if (harm && d > 0) c.healBoar(BM.harmonyBoarHeal)
     } },
   pack: { id: 'pack', name: 'ฝูงหมาป่า', icon: '🐺', kind: 'summon', trigger: 'ownTurn', turns: BM.cmdPackTurns, speed: (st) => BM.wolfSpeed + st.j2WolfSpeed,
     act: (c) => c.hitFront(wolfMul(c.st) * c.ally.pow, '#c9c9d6', 1) },

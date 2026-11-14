@@ -87,17 +87,17 @@ test('Bloodscent Frenzy: + speed per poison stack, counted up to the cap, off wi
   assert.equal(frenzyMul(fs, 99), frenzyMul(fs, BM.frenzyCap))
 })
 
-/** A fake ctx that records the wolf's bites (crit flag) and heals. */
+/** A fake ctx that records the wolf's bites (crit flag, mul, heals, boarHeals). */
 function wolfRun(stats: typeof st, front: { hpPct: number; marked: boolean }, bites: number) {
-  const w = makeAlly(ALLIES.wolf, stats), crits: boolean[] = [], heals: number[] = []
+  const w = makeAlly(ALLIES.wolf, stats), crits: boolean[] = [], muls: number[] = [], heals: number[] = [], boarHeals: number[] = []
   const ctx = {
     ally: w as Ally, st: stats, luk: 0, combo: false,
     hitAll: () => {}, hitOne: () => false, hitFoe: () => {}, stun: () => {}, chill: () => {}, shield: () => {}, say: () => {},
-    hitFront: (_m: number, _c: string, _b?: number, crit?: boolean) => { crits.push(!!crit); return 100 },
-    frontInfo: () => front, healPack: (n: number) => { heals.push(n) }, rally: () => {},
+    hitFront: (m: number, _c: string, _b?: number, crit?: boolean) => { muls.push(m); crits.push(!!crit); return 100 },
+    frontInfo: () => front, healPack: (n: number) => { heals.push(n) }, healBoar: (s: number) => { boarHeals.push(s) }, rally: () => {},
   } satisfies AllyCtx
   for (let i = 0; i < bites; i++) w.def.act(ctx)
-  return { crits, heals }
+  return { crits, muls, heals, boarHeals }
 }
 
 test('no ★ ราชาหมาป่า: never a Savage Crunch', () => {
@@ -116,12 +116,12 @@ test('★ Savage Crunch: every Nth bite, marked or low-HP front = sure crit + he
 // ----- Phase 3 🦅 hawk: Prey Mark + 🪶 Razor Gust + 👁️ ★ Apex Spotter -----
 /** Runs Blitz Beat `casts` times with the proc roll forced (Math.random = 0), recording hitOne fx and rallies. */
 function hawkRun(stats: typeof st, casts: number, freshMark = true) {
-  const h = makeAlly(ALLIES.hawk, stats), fx: { mark?: boolean; blind?: number }[] = [], rallies: string[] = []
+  const h = makeAlly(ALLIES.hawk, stats), fx: { mark?: boolean; blind?: number; pierce?: number }[] = [], rallies: string[] = []
   const ctx = {
     ally: h as Ally, st: stats, luk: 0, combo: false,
     hitAll: () => {}, hitFoe: () => {}, stun: () => {}, chill: () => {}, shield: () => {}, say: () => {},
-    hitOne: (_m: number, _g: boolean, _c: string, _s?: boolean, f?: { mark?: boolean; blind?: number }) => { fx.push(f ?? {}); return freshMark },
-    hitFront: () => 0, frontInfo: () => undefined, healPack: () => {}, rally: (id: string) => { rallies.push(id) },
+    hitOne: (_m: number, _g: boolean, _c: string, _s?: boolean, f?: { mark?: boolean; blind?: number; pierce?: number }) => { fx.push(f ?? {}); return freshMark },
+    hitFront: () => 0, frontInfo: () => undefined, healPack: () => {}, healBoar: () => {}, rally: (id: string) => { rallies.push(id) },
   } satisfies AllyCtx
   const rnd = Math.random; Math.random = () => 0
   try { for (let i = 0; i < casts; i++) h.def.act(ctx) } finally { Math.random = rnd }
@@ -144,4 +144,40 @@ test('🪶 Razor Gust: only every Nth Blitz Beat blinds', () => {
 test('👁️ ★ Apex Spotter: a fresh mark rallies the wolf once per Blitz Beat, an old mark does not', () => {
   assert.deepEqual(hawkRun({ ...st, j2HawkEvo: 1 }, 2).rallies, ['wolf', 'wolf'])
   assert.deepEqual(hawkRun({ ...st, j2HawkEvo: 1 }, 2, false).rallies, [])
+})
+
+// ----- Phase 4 🤝 Tri-Beast Harmony + Phase 5 Awakening + Talent IV Specializations -----
+test('🤝 ★ Tri-Beast Harmony: wolf deals +harmonyWolf on marked target and heals boar, off on unmarked or without bm_k4', () => {
+  const harm = wolfRun({ ...st, j2Pack3: 1 }, { hpPct: 1, marked: true }, 1)
+  const plain = wolfRun({ ...st, j2Pack3: 1 }, { hpPct: 1, marked: false }, 1)
+  const noNode = wolfRun(st, { hpPct: 1, marked: true }, 1)
+  assert.ok(Math.abs(harm.muls[0] - plain.muls[0] * (1 + BM.harmonyWolf)) < 1e-9)
+  assert.deepEqual(harm.boarHeals, [BM.harmonyBoarHeal])
+  assert.deepEqual(plain.boarHeals, [])
+  assert.deepEqual(noNode.boarHeals, [])
+})
+
+test('🐾 Awakening: boar guardHit accepts ultBoarShare (70%) override', () => {
+  const b = makeAlly(ALLIES.boar, st)
+  const g = guardHit([b], 100, st, BM.ultBoarShare)!
+  assert.equal(g.hero, 100 - Math.floor(100 * BM.ultBoarShare))
+})
+
+test('Talent IV: 🦅 j2HawkTrue passes pierce=1, 🐗 j2BoarStunAll stuns whole row', () => {
+  assert.ok(hawkRun(st, 1).fx.every((f) => !f.pierce))
+  assert.ok(hawkRun({ ...st, j2HawkTrue: 1 }, 1).fx.every((f) => f.pierce === 1))
+  const stuns: boolean[] = []
+  const boarRun = (stats: typeof st) => {
+    const b = makeAlly(ALLIES.boar, stats)
+    const ctx = {
+      ally: b as Ally, st: stats, luk: 0, combo: false,
+      hitAll: () => {}, hitOne: () => false, hitFoe: () => {}, chill: () => {}, shield: () => {}, say: () => {},
+      stun: (all: boolean) => { stuns.push(all) },
+      hitFront: () => 100, frontInfo: () => undefined, healPack: () => {}, healBoar: () => {}, rally: () => {},
+    } satisfies AllyCtx
+    b.def.charge!(ctx)
+  }
+  boarRun(st)
+  boarRun({ ...st, j2BoarStunAll: 1 })
+  assert.deepEqual(stuns, [false, true])
 })

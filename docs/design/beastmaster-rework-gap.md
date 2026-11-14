@@ -158,10 +158,10 @@ VFX ใหม่ที่ต้องมีจริง: **boar-guard** (ตอ�
 | 1 ✅ | Boar Guardian | `share` + `boarCut` + Grit + พักฟื้น + แถบ Grit | 0 |
 | 2 ✅ | Wolf | Frenzy + Savage Crunch (bleed cap = `poisonMax` เดิม, ไม่ตั้ง 5 ใหม่) | — |
 | 3 ✅ | Hawk | Prey Mark + Razor Gust (blind) + Apex Spotter (ยังไม่มีลด DEF) | — |
-| 4 | Synergy chain | Mark → Crunch → ฮีลหมูป่า | 1–3 |
-| 5 | Ult Awakening | `awakenTurns` + finisher (ใช้ `stampede()` เดิม) | 1–3 |
-| 6 | Tree text + migration | ชื่อ/คำอธิบาย node + รีเซ็ตแต้มฟรี | 1–5 |
-| 7 | VFX boar-guard | โมดูล pixelfx ใหม่ | 1 |
+| 4 ✅ | Synergy chain | Mark → Crunch → ฮีลหมูป่า | 1–3 |
+| 5 ✅ | Ult Awakening | `awakenTurns` + finisher (ใช้ `stampedeFx` เป็นภาพ + โล่ฮีโร่) | 1–3 |
+| 6 ✅ | Tree text + migration | ชื่อ/คำอธิบาย node + รีเซ็ตแต้มฟรี (`migrateBeastmasterRework`) | 1–5 |
+| 7 ✅ | VFX boar-guard | โมดูล pixelfx ใหม่ (`boar-guard.ts` + `boarGuardFx`) | 1 |
 
 แต่ละ phase = 1 commit + test เฉพาะไฟล์ (`tests/` ตามที่มี) + `npm run typecheck`
 

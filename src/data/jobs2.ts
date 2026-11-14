@@ -118,7 +118,7 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     mastery: { weapon: 'ธนู', ok: (it) => it.wtype === 'bow', mod: { hit: BM.mastery.hit }, pct: { atk: BM.mastery.atkPct } },
     signature: { name: 'คู่หู', icon: '🐾', desc: `สัตว์ 3 ตัวสู้ข้างฮีโร่ทุกเวฟ ตัวละ ${pc(BM.packPow)} (พลังตามสเตตัสฮีโร่ ไม่ดูดเลือด ไม่ติดคอมโบ) · 🦅 ฟาด ${pc(BM.hawkChance)} +${BM.hawkLuk * 100}%/LUK ${BM.hawkMul}x · 🐗 HP ${pc(BM.boarHp)} รับดาเมจแทน ${pc(BM.boarShare)} (ลด ${pc(BM.boarCut)}) เกจโกรธเต็ม/ทุก ${BM.boarEvery} เทิร์น พุ่งชน ${BM.boarMul}x · 🐺 เทิร์นเอง กัด ${BM.wolfMul}x + เลือดไหล ${BM.wolfBleed}` },
     skill3: { name: 'สั่งลุย', icon: '📯', cost: BM.cmdCost, cd: BM.cmdCd, desc: `Energy ${BM.cmdCost} · คูลดาวน์ ${BM.cmdCd}: 🦅 ฟาด ${BM.cmdHawkHits} ครั้ง · 🐗 โล่ให้ฮีโร่ ${pc(BM.cmdBoarShield)} HP · 🐺 หอนเรียกฝูง ${BM.cmdPack} ตัว ${BM.cmdPackTurns} เทิร์น` },
-    ult: { name: 'ฝูงสัตว์ป่า (Stampede)', icon: '🐾', cd: 4, desc: `🦅 ฟาดทุกตัว ${BM.ultHawk}x · 🐗 ชนทุกตัว ${BM.ultBoar}x ดันเกจ · 🐺 กัดตัวหน้า ${BM.ultWolf}x + เลือดไหล · แล้วยิงศรทะลวงเดิม` },
+    ult: { name: 'ปลุกพลังฝูง (Primeval Awakening)', icon: '🐾', cd: 4, desc: `คำรามล้างดีบัฟ + ปลุก/ฮีลหมูป่าเต็ม + Stun ทั้งแถว · แปลงร่าง ${BM.ultAwakenTurns} เทิร์น: 🐗 รับแทน ${pc(BM.ultBoarShare)} + สะท้อน · 🦅 โอกาส ×2 + 🏷️ ไม่หมด · 🐺 กัดตามทุกตีปกติ · จบ: 🛡️ โล่ตามดาเมจที่หมูป่ารับ` },
   },
   innovator: {
     id: 'innovator', parent: 'archer', name: 'อินโนเวเตอร์', icon: '🔧', focus: 'DEX · LUK · AGI',

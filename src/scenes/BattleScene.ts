@@ -41,7 +41,7 @@ import { ftue, track } from '../analytics'
 import { HeroRig } from '../battle/hero-rig'
 import { fitHeroScale, heroCostumeTint, heroRigSpec, heroTex, type HeroRigSpec } from '../gfx/hero-visual'
 import { ARCHER_PFX, BEAST_PFX, CLERIC_PFX, MAGE_PFX, POISON_GREEN, RICOCHET_LEAF, playPfx, preloadPfx } from '../gfx/pixelfx'
-import { RANGER_FX, arrowImpactFx, arrowProjectile, arrowRainFx, beastRoarFx, eagleEyeFx, huntMarkOn, petHitFx, type PetKind, pierceShotFx, snareTrapFx, stampedeFx, wolfRoarPalette } from '../battle/ranger-vfx'
+import { RANGER_FX, arrowImpactFx, arrowProjectile, arrowRainFx, beastRoarFx, boarGuardFx, eagleEyeFx, huntMarkOn, petHitFx, type PetKind, pierceShotFx, snareTrapFx, stampedeFx, wolfRoarPalette } from '../battle/ranger-vfx'
 import { blockShieldFx, bowlingBashFx, brandishSweepFx, chargeOpenerFx, comboSlashFx, guardianUltFx, pierceHitFx, skill2AuraFx, spearBoomerangFx, whirlwindFx } from '../battle/sword-vfx'
 
 // Side-scroll, turn-based (Capybara Go-like): the hero walks right, meets a group, and everyone
@@ -655,7 +655,7 @@ export class BattleScene extends Phaser.Scene {
     this.undrain()
     this.fightTurns = 0; this.timedOut = false
     this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.rampage = 0
-    this.martyrUsed = false; this.j2Hurt = false; this.monkGrit = 0; this.asuraExhaust = 0; this.clearAllies() // Crusader ★ ผู้พลีชีพ once per wave · allies last one wave
+    this.martyrUsed = false; this.j2Hurt = false; this.monkGrit = 0; this.asuraExhaust = 0; this.awakenTurns = 0; this.awakenAbsorbed = 0; this.awakenUltPow = 1; this.clearAllies() // Crusader ★ ผู้พลีชีพ once per wave · allies last one wave · Awakening resets per wave
     this.inspireUsed = false; this.inspire = 0; this.earthDone = false // ⚜️ Paladin: once per fight
     this.clearBookings() // v86: booked Skill 1-3 do not carry into the next wave (the ult booking does)
     this.zenyWave = 0; this.mirror = false; this.waveAllies() // Phase 4 Archer: pets / traps every wave
@@ -751,6 +751,7 @@ export class BattleScene extends Phaser.Scene {
     for (const a of tickAllies(this.allies)) { this.floatText(HERO_X + 70, GROUND - 120, `${a.def.icon} หมดเวลา`, '#c9c9d6'); this.syncAlly(a) }
     this.allies = liveAllies(this.allies)
     if (this.rampage > 0) this.rampage--
+    if (this.awakenTurns > 0 && --this.awakenTurns === 0) this.endAwakening()
     if (this.asuraExhaust > 0 && --this.asuraExhaust === 0) this.floatText(HERO_X, GROUND - 150, '💪 ฟื้นจากง่อยแดก!', '#6fd08c')
     if (this.endow > 0 && !this.st.j2EndowWave) this.endow-- // Sage Endow (★ อาวุธธาตุ: whole wave)
     if (this.ignorePainTurns > 0) {
@@ -1246,13 +1247,14 @@ export class BattleScene extends Phaser.Scene {
     }
     return {
       ally: a, st: this.st, luk: this.heroLuk, combo,
+      awaken: this.awakenTurns > 0, awakenPow: this.awakenTurns > 0 ? this.awakenUltPow : 1,
       hitAll: (mul, magic, color) => run(() => { for (const m of this.alive()) this.strike(m, mul, magic, color) }),
       hitOne: (mul, magic, color, sure, fx) => {
         const t = this.alive(); if (!t.length) return false
         const p = this.sureHit; this.sureHit = p || !!sure
         const tgt = t[Phaser.Math.Between(0, t.length - 1)] // picked here (same single RNG call) so the pet fx hits the same monster
         let d = 0
-        try { run(() => { this.allyHitFx(a, tgt); d = this.strike(tgt, mul, magic, color) }) } finally { this.sureHit = p }
+        try { run(() => { this.allyHitFx(a, tgt); d = this.strike(tgt, mul, magic, color, fx?.pierce ?? 0) }) } finally { this.sureHit = p }
         if (tgt.dead || d <= 0 || !fx) return false
         const B = KIT2.beastmaster, fresh = !!fx.mark && tgt.huntMark <= 0
         if (fx.mark) tgt.huntMark = Math.max(tgt.huntMark, B.preyTurns) // 🏷️ Prey Mark (shares Archer huntMark)
@@ -1275,6 +1277,15 @@ export class BattleScene extends Phaser.Scene {
         if (this.hp > 0) this.heal(n, true)
         const b = readyAllies(this.allies).find((x) => x.def.share)
         if (b) { b.hp = Math.min(b.maxHp, b.hp + Math.max(1, Math.round(n))); this.syncAlly(b) }
+      },
+      healBoar: (share) => {
+        if (share <= 0) return
+        const b = readyAllies(this.allies).find((x) => x.def.share)
+        if (!b || b.hp >= b.maxHp) return
+        const h = Math.max(1, Math.round(b.maxHp * share))
+        b.hp = Math.min(b.maxHp, b.hp + h); this.syncAlly(b)
+        const bx = this.allyTxt.get(b)?.x ?? HERO_X + 70
+        this.floatText(bx, GROUND - 110, `+${h}`, '#9fe08a')
       },
       hitFoe: (mul, color) => { const m = front(); if (m) run(() => this.strike(m, mul, false, color)) },
       stun: (all) => { for (const m of all ? this.alive() : [front()]) if (m) this.stunMon(m) },
@@ -1392,22 +1403,32 @@ export class BattleScene extends Phaser.Scene {
       await this.wait(BATTLE.stepMs * 0.2)
     }
   }
-  /** 🐾 Stampede: hawk, boar and wolf all hit once. */
-  private async stampede(h2: number) {
+  private awakenTurns = 0 // 🐾 Primeval Awakening hero turns left
+  private awakenAbsorbed = 0 // total damage absorbed by the boar during Awakening (for end shield)
+  private awakenUltPow = 1 // 1 + ult2Pow while Awakening is active
+  /** 🐾 Primeval Awakening (Q5): roar cleanse + wake/full-heal boar + stun all → multi-turn Awakening stance. */
+  private async primevalAwakening(ultPow: number) {
+    const B = KIT2.beastmaster
+    beastRoarFx(this, HERO_X, GROUND)
+    this.cameras.main.flash(140, 240, 200, 120)
+    this.callout('🐾 PRIMEVAL AWAKENING!', W / 2, 170, '#f2d24b')
+    while (this.cleanseOne()) { /* clear hero debuffs */ }
+    for (const a of this.allies) if (!a.dead && a.def.share) { a.down = 0; a.hp = a.maxHp; this.syncAlly(a) }
+    for (const m of this.alive()) this.stunMon(m)
+    this.awakenTurns = B.ultAwakenTurns + 1 // ticks down at end of this hero turn
+    this.awakenAbsorbed = 0
+    this.awakenUltPow = Math.max(1, ultPow)
+    await this.wait(BATTLE.stepMs * 0.3)
+  }
+  /** Awakening ends: stampede visual + hero shield from absorbed damage (no big finisher burst — Q5). */
+  private endAwakening() {
     const B = KIT2.beastmaster
     const row = this.alive()
     if (row.length) stampedeFx(this, row.reduce((sum, m) => sum + m.spr.x, 0) / row.length, GROUND)
-    this.cameras.main.flash(120, 230, 200, 140)
-    this.sureHit = true
-    try { this.withSrc('other', () => this.noPetCrit(() => { row.forEach((m, i) => { if (i < RANGER_FX.maxHawks) petHitFx(this, 'hawk', m.spr, GROUND, i); this.strike(m, B.ultHawk * h2, false, '#f2d24b') }) })) } finally { this.sureHit = false }
-    this.floatText(HERO_X + 70, GROUND - 160, '🦅🐗🐺 Stampede!', '#f2d24b')
-    await this.wait(BATTLE.stepMs * 0.25)
-    { const bf = this.front()[0]; if (bf) petHitFx(this, 'boar', bf.spr, GROUND) }
-    for (const m of this.alive()) { this.noPetCrit(() => this.strike(m, B.ultBoar * h2 * (1 + this.st.pskill), false, '#e0b07a')); if (!m.dead) { m.gauge -= B.boarPush; this.tweens.add({ targets: m.spr, x: m.spr.x + 30, duration: 90, yoyo: true }) } }
-    this.shake(120, 0.008)
-    await this.wait(BATTLE.stepMs * 0.25)
-    const f = this.front()[0]
-    if (f) { petHitFx(this, 'wolf', f.spr, GROUND); this.strike(f, B.ultWolf * h2 * (1 + this.st.pskill), false, '#c9c9d6'); this.addPoison(f, B.wolfBleed + this.st.j2WolfBleed) }
+    const sh = Math.max(this.st.maxHp * B.ultEndShieldMin, this.awakenAbsorbed * B.ultEndShield) * this.awakenUltPow
+    this.addShield(sh)
+    this.floatText(HERO_X + 70, GROUND - 160, '🐾 สิ้นสุด Awakening! 🛡️', '#f2d24b')
+    this.awakenAbsorbed = 0; this.awakenUltPow = 1
   }
   /** 🎲 กล่องสุ่มประหลาด: one gadget (💥 jackpot = all of them). */
   private async gadget(id: GadgetId, pow: number) {
@@ -1441,14 +1462,23 @@ export class BattleScene extends Phaser.Scene {
   private clearAllies() { for (const a of this.allies) { a.dead = true; this.syncAlly(a) } this.allies = [] }
   /** Hero basic / combo swing: allies with trigger 'heroBasic' act (Tempest Bell rings). */
   private alliesOnSwing() {
-    const combo = this.comboLevel >= 2
-    for (const a of readyAllies(this.allies)) if ((a.def.trigger === 'heroBasic' || (combo && a.def.comboFollow)) && this.alive().length) this.allyAct(a, combo) // wolf: bites along with hero combo hits
+    const combo = this.comboLevel >= 2 || this.awakenTurns > 0
+    for (const a of readyAllies(this.allies)) if ((a.def.trigger === 'heroBasic' || (combo && a.def.comboFollow)) && this.alive().length) this.allyAct(a, this.comboLevel >= 2) // wolf: bites along with hero combo hits (or every basic during Awakening)
   }
   /** 🐗 Guardian split (allies.guardHit): the boar takes its share, Rage full = an extra charge. Returns the hero's part. */
-  private boarGuard(n: number): number {
-    const g = guardHit(this.allies, n, this.st); if (!g) return n
+  private boarGuard(n: number, src?: Mon): number {
+    const B = KIT2.beastmaster
+    const g = guardHit(this.allies, n, this.st, this.awakenTurns > 0 ? B.ultBoarShare : undefined); if (!g) return n
     const bx = this.allyTxt.get(g.ally)?.x ?? HERO_X + 70 // over the boar's own slot
+    boarGuardFx(this, bx, GROUND - 55)
     this.damageNumber(bx, GROUND - 90, g.took, false, '#f2b84b')
+    if (this.awakenTurns > 0) {
+      this.awakenAbsorbed += g.took
+      if (src && !src.dead) {
+        const ref = Math.max(1, Math.round(Math.min(g.took * B.ultReflect * this.awakenUltPow, this.st.maxHp * BATTLE.reflectCap)))
+        this.damageMon(src, ref, false, '#f2d24b', true)
+      }
+    }
     if (g.broke) this.floatText(bx, GROUND - 130, g.ally.dead ? `${g.ally.def.icon} หมดแรง!` : `${g.ally.def.icon} หมดแรง! พัก ${g.ally.down} เทิร์น`, '#e0b07a')
     this.syncAlly(g.ally)
     if (g.full && g.ally.def.charge && this.alive().length) { this.floatText(bx, GROUND - 175, '💢 เกจโกรธเต็ม!', '#ff9a3c'); this.allyAct(g.ally, false, undefined, g.ally.def.charge) }
@@ -1636,7 +1666,7 @@ export class BattleScene extends Phaser.Scene {
   private async ult2(live: Mon[], pow: number, hitPow: number) {
     const p2 = pow * (1 + this.st.ult2Pow), h2 = hitPow * (1 + this.st.ult2Pow)
     if (this.j2!.id === 'wizard' || this.j2!.id === 'sage') { await this.mageUlt2(live, p2, h2); return } // Phase 5 Mage
-    if (this.j2!.id === 'beastmaster') { await this.stampede(h2); await this.archerPierce(h2); return } // 🐾 Stampede + the base pierce shot
+    if (this.j2!.id === 'beastmaster') { await this.primevalAwakening(1 + this.st.ult2Pow); return } // 🐾 Primeval Awakening (Q5)
     if (this.j2!.id === 'innovator') { // 🛠️ สิ่งประดิษฐ์สุดเพี้ยน: 3 boxes + every trap + the base pierce shot
       for (let i = 0; i < KIT2.innovator.ultBoxes && this.alive().length; i++) await this.gadget(rollGadget(this.st, this.heroLuk), p2)
       for (const t of TRAP_IDS) this.layTrap(t, p2)
@@ -2993,13 +3023,13 @@ export class BattleScene extends Phaser.Scene {
     if (m.weakTurns > 0 && --m.weakTurns === 0) this.dotIcon(m)
     if ((m.trueTurns ?? 0) > 0 && --m.trueTurns! === 0) this.dotIcon(m)
     if ((m.marked ?? 0) > 0) m.marked!--
-    if (m.huntMark > 0 && --m.huntMark === 0) this.dotIcon(m)
+    if (this.awakenTurns <= 0 && m.huntMark > 0 && --m.huntMark === 0) this.dotIcon(m)
     if (m.armorBrk > 0 && --m.armorBrk === 0) this.dotIcon(m)
     if (m.blind > 0 && --m.blind === 0) this.dotIcon(m)
     if (m.wet > 0 && --m.wet === 0) this.dotIcon(m)
     if (m.def.toxicSkin) { // Toxic Skin tenacity: debuffs on it wear off twice as fast
       if (m.chill > 0) m.chill--; if (m.burnTurns > 0) m.burnTurns--; if (m.burnStackTurns > 0) m.burnStackTurns--; if (m.poison > 0) m.poison--
-      if (m.weakTurns > 0 && --m.weakTurns === 0) this.dotIcon(m); if ((m.marked ?? 0) > 0) m.marked!--; if (m.huntMark > 0 && --m.huntMark === 0) this.dotIcon(m); if (m.armorBrk > 0 && --m.armorBrk === 0) this.dotIcon(m)
+      if (m.weakTurns > 0 && --m.weakTurns === 0) this.dotIcon(m); if ((m.marked ?? 0) > 0) m.marked!--; if (this.awakenTurns <= 0 && m.huntMark > 0 && --m.huntMark === 0) this.dotIcon(m); if (m.armorBrk > 0 && --m.armorBrk === 0) this.dotIcon(m)
     }
     if (m.drainStats && !m.dead && this.hp > 0) this.deathRealm(m, m.drainStats)
     if (m.vengCd) m.vengCd--
@@ -3010,7 +3040,11 @@ export class BattleScene extends Phaser.Scene {
     }
     // damage over time first
     if (m.burnTurns > 0) { m.burnTurns--; this.withSrc('fire', () => this.damageMon(m, Math.max(1, Math.round(m.burn * this.dotMul())), false, '#ff8c42', true)); if (!m.burnTurns) this.dotIcon(m) }
-    if (!m.dead && m.poison > 0) { this.withSrc('poison', () => this.damageMon(m, Math.max(1, Math.round(m.poison * m.poisonDmg * this.dotMul())), false, '#a77be0', true)); if (this.st.poisonLeech > 0) this.heal(m.poison * m.poisonDmg * this.st.poisonLeech, true) } // Thief เลือดพิษ
+    if (!m.dead && m.poison > 0) {
+      const hpBleed = this.st.j2WolfBleedPct > 0 ? Math.min(Math.round(m.poison * m.def.hp * this.st.j2WolfBleedPct), Math.round(KIT2.beastmaster.wolfBleedCap * this.st.atk)) : 0
+      this.withSrc('poison', () => this.damageMon(m, Math.max(1, Math.round(m.poison * m.poisonDmg * this.dotMul()) + hpBleed), false, '#a77be0', true))
+      if (this.st.poisonLeech > 0) this.heal(m.poison * m.poisonDmg * this.st.poisonLeech, true)
+    } // Thief เลือดพิษ · 🐺 IV talent % Max HP bleed
     if (!m.dead && m.burnStackTurns > 0) { // ไฟลุก: stacks x magic power (พร v2: 70% M.ATK + 30% P.ATK)
       m.burnStackTurns--
       this.withSrc('fire', () => this.damageMon(m, Math.max(1, Math.round(m.burnStacks * magicPower(this.st) * (0.12 + this.st.burnTick) * this.dotMul())), false, '#ff8c42', true))
@@ -3339,7 +3373,7 @@ export class BattleScene extends Phaser.Scene {
       this.damageMon(src, Math.max(1, Math.round(Math.min(n * KIT2.innovator.mirrorCap, this.st.maxHp * BATTLE.reflectCap))), false, '#c9e0ff', true)
       return false
     }
-    if (src && this.allies.length) n = this.boarGuard(n) // 🐗 Guardian: the boar takes its share of a landed hit (DoTs have no src)
+    if (src && this.allies.length) n = this.boarGuard(n, src) // 🐗 Guardian: the boar takes its share of a landed hit (DoTs have no src)
     this.lastHurt = n; this.j2Hurt = true
     if (src && !src.dead) { this.staticCounter(src); this.mageOnHit(src) } // Mage passives ⚡🔥❄️ (docs/passive_mage_3.md)
     if (this.st.j2GritRate > 0 && n > 0) {
@@ -4209,7 +4243,7 @@ export class BattleScene extends Phaser.Scene {
     if (amt === 0 && was > 0) this.floatText(HERO_X, GROUND - 150, '☀️ แสงแตกหมด', '#c9c9d6')
   }
   /** Remove the worst hero debuff (v77 พรแสง cleanse). */
-  private cleanseOne() {
+  private cleanseOne(): boolean {
     const X = this.hx
     if (X.venomTurns > 0) { X.venomTurns = 0; X.venom = 0 }
     else if (X.poison > 0) X.poison = 0
@@ -4220,8 +4254,9 @@ export class BattleScene extends Phaser.Scene {
     else if (X.weaken > 0) X.weaken = 0
     else if (X.slow > 0) X.slow = 0
     else if (X.thorn > 0) X.thorn = 0
-    else return
+    else return false
     this.floatText(HERO_X, GROUND - 175, '🔆 ล้างดีบัฟ!', '#ffe08a')
+    return true
   }
   private undrain() {
     if (!this.drained) return

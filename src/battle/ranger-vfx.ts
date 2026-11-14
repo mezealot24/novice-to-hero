@@ -25,6 +25,7 @@ export const RANGER_FX = {
   eagleEye: { scale: 0.6, speed: 1.2, depth: 9004, dx: 16, dy: 128 }, // ar_hawk buff: a small gold focus mark at the hero's head
   hawk: { scale: 0.9, speed: 1.5, depth: 9004, chest: 0.4 },
   boar: { scale: 0.9, speed: 1.4, depth: 9002 },
+  boarGuard: { scale: 1, speed: 1.3, depth: 9003 },
   claw: { scale: 1, speed: 1.6, depth: 9004, chest: 0.5 },
   roar: { scale: 1.2, speed: 1.2, depth: 9001 },
   stampede: { scale: 1.6, speed: 1, depth: 9003 },
@@ -107,4 +108,10 @@ export const wolfRoarPalette: Palette = WOLF_SILVER
 export function stampedeFx(scene: Phaser.Scene, centerX: number, groundY: number) {
   const c = RANGER_FX.stampede
   playPfx(scene, 'stampede', centerX, groundY, { scale: c.scale, speed: c.speed, depth: c.depth })
+}
+
+/** 🐗 Guardian split: amber hexagonal shield over the boar's slot. */
+export function boarGuardFx(scene: Phaser.Scene, x: number, y: number) {
+  const c = RANGER_FX.boarGuard
+  playPfx(scene, 'boarGuard', x, y, { scale: c.scale, speed: c.speed, depth: c.depth })
 }

@@ -41,6 +41,7 @@ import * as huntMark from './fx/archer/hunt-mark'
 import * as hawkDive from './fx/beast/hawk-dive'
 import * as clawSlash from './fx/beast/claw-slash'
 import * as boarCharge from './fx/beast/boar-charge'
+import * as boarGuard from './fx/beast/boar-guard'
 import * as beastRoar from './fx/beast/beast-roar'
 import * as stampede from './fx/beast/stampede'
 import { WOOD_GOLD } from './fx/archer/arrow-shot'
@@ -112,6 +113,7 @@ export const DEFS = {
   hawkDive: { mod: hawkDive },
   clawSlash: { mod: clawSlash },
   boarCharge: { mod: boarCharge },
+  boarGuard: { mod: boarGuard },
   beastRoar: { mod: beastRoar },
   stampede: { mod: stampede },
 } satisfies Record<string, PfxDef>
@@ -269,4 +271,4 @@ export const ARCHER_PFX: PfxPreloadEntry[] = [
 ]
 
 /** Every effect the Beastmaster line can show. */
-export const BEAST_PFX: PfxPreloadEntry[] = ['hawkDive', 'clawSlash', 'boarCharge', 'beastRoar', { id: 'beastRoar', palette: WOLF_SILVER }, 'stampede']
+export const BEAST_PFX: PfxPreloadEntry[] = ['hawkDive', 'clawSlash', 'boarCharge', 'boarGuard', 'beastRoar', { id: 'beastRoar', palette: WOLF_SILVER }, 'stampede']

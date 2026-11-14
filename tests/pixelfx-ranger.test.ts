@@ -4,7 +4,7 @@ import { ARCHER_PFX, BEAST_PFX, DEFS, POISON_GREEN, RICOCHET_LEAF, texKey, type 
 import { createFrame, createFx, clearFrame } from '../src/vendor/pixelfx/core/index.js'
 
 const ARCHER_IDS: PfxId[] = ['arrowShot', 'arrowHit', 'arrowRain', 'pierceShot', 'snareTrap', 'huntMark']
-const BEAST_IDS: PfxId[] = ['hawkDive', 'clawSlash', 'boarCharge', 'beastRoar', 'stampede']
+const BEAST_IDS: PfxId[] = ['hawkDive', 'clawSlash', 'boarCharge', 'boarGuard', 'beastRoar', 'stampede']
 const ALL_IDS = [...ARCHER_IDS, ...BEAST_IDS]
 const idOf = (e: PfxPreloadEntry): PfxId => (typeof e === 'string' ? e : e.id)
 
@@ -40,7 +40,7 @@ function sample(id: PfxId, palette?: string[]): Sample[] {
   return out
 }
 
-test('all 11 ranger effects are registered with valid meta and no stock actor', () => {
+test('all 12 ranger effects are registered with valid meta and no stock actor', () => {
   for (const id of ALL_IDS) {
     const def = DEFS[id]
     assert.ok(def, `DEFS must include ${id}`)

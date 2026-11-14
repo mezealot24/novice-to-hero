@@ -67,3 +67,22 @@
 - ⚠️ ถ้า Q เคย override `cmdHawkHits` / `cmdPackPow` / `ultHawk|Boar|Wolf` ในหน้า admin ไว้ ค่าบน server ยังทับค่านี้
 
 **ไฟล์:** `skill-math.ts` · `BattleScene.ts` · typecheck + tests `allies` / `skill-registry` / `job2-talents` / `archer-bm-tree` ผ่าน
+
+## 6. 🐾 Beastmaster Rework — Phase 4 (Harmony) + Phase 5 (Awakening) + ทาเลนต์แถว IV
+
+- **Phase 4 🤝 ลูกโซ่ Harmony (`bm_k4` ★ `j2Pack3`):** เหยี่ยวแปะ 🏷️ `huntMark` → หมาป่ากัดเป้าที่ติด 🏷️ แรงขึ้น `+25%` (`harmonyWolf`) + ฮีลหมูป่า `8%` Max HP (`harmonyBoarHeal`) · โบนัสพลังสัตว์ `+20%` เดิมยังอยู่
+- **Phase 5 🐾 Ult แบบ Awakening (`ปลุกพลังฝูง / Primeval Awakening`):**
+  - เปิด: คำราม (`beastRoarFx`) + ล้างดีบัฟฮีโร่ (`cleanseOne`) + ปลุก/ฮีลหมูป่าเต็ม + Stun ศัตรูทั้งแถว (`stunMon`)
+  - ระหว่าง Awakening `3` เทิร์นฮีโร่ (`ultAwakenTurns`): 🐗 รับแทน `70%` (`ultBoarShare`) + สะท้อนคลื่นกระแทก `50%` ที่รับ (cap `BATTLE.reflectCap`) · 🦅 Blitz Beat โอกาส ×2 + 🏷️ ไม่นับถอยหลัง · 🐺 หมาป่ากัดตามทุกตีปกติของฮีโร่ (`alliesOnSwing`)
+  - จบ: ไม่มีดาเมจก้อนใหญ่ (Q5) · เล่น `stampedeFx` + ให้โล่ฮีโร่ตาม `40%` ดาเมจที่หมูป่ารับไว้ (ขั้นต่ำ `10%` Max HP ฮีโร่) · `bm_t2_ult` (`ult2Pow`) คูณพลังสัตว์/สะท้อน/โล่จบ Awakening
+- **ทาเลนต์แถว IV เชี่ยวชาญ (`bm_t4_*`):**
+  - 🦅 `bm_t4_hawk` (`j2HawkTrue`): Blitz Beat เป็น True Damage (ไม่ผ่าน DEF, `pierce = 1`)
+  - 🐺 `bm_t4_wolf` (`j2WolfBleedPct`): เลือดไหลทำดาเมจ `+0.4%/0.7%` Max HP ศัตรู/stack ต่อเทิร์น (cap `1.5× P.ATK` ต่อเทิร์น)
+  - 🐗 `bm_t4_boar` (`j2BoarStunAll`): หมูป่าพุ่งชน Stun ทั้งแถว (`stun(true)`, บอสยังเป็น gauge push)
+
+**ไฟล์:** `allies.ts` · `BattleScene.ts` · `skill-math.ts` · `skill-registry.ts` · `stats.ts` · `jobs2.ts` · `trees2/beastmaster.ts` · `tests/allies.test.ts` · typecheck + 390 tests ผ่าน
+
+## 7. 🛡️ Beastmaster Rework — Phase 6 (Tree text + Migration) + Phase 7 (VFX `boar-guard`)
+
+- **Phase 6:** อัปเดตคำอธิบายสาย `bm_b` / `bm_k` และ `bm_t2_ult` ใน `trees2/beastmaster.ts` + เพิ่ม `migrateBeastmasterRework` ใน `save.ts` (รีเซ็ต `job2Tree` ฟรี 1 ครั้งสำหรับเซฟที่เป็น Beastmaster อยู่แล้ว, idempotent ผ่าน `bmRework: 1`)
+- **Phase 7:** เพิ่มโมดูล pixelfx `src/gfx/fx/beast/boar-guard.ts` (โล่หกเหลี่ยมสีอำพัน + ประกายไฟ) ลงทะเบียนใน `pixelfx.ts` (`BEAST_PFX`) + `boarGuardFx` ใน `ranger-vfx.ts` + เรียกใน `BattleScene.boarGuard()` + test ใน `pixelfx-ranger.test.ts` และ `archer-bm-tree.test.ts`
