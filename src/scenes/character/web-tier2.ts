@@ -241,8 +241,8 @@ export function buildTier2(scene: CharacterScene, w: WebBuild) {
 			const label = narrow
 				? `${cur ? "✅" : "🐾"} ${PETS[pet].icon}`
 				: cur
-					? `✅ คู่หู: ${PETS[pet].icon} ${evo ? PETS[pet].evo : PETS[pet].name}`
-					: `🐾 เลือก ${PETS[pet].icon} ${PETS[pet].name}`;
+					? `✅ คู่หูพราน: ${PETS[pet].icon} ${evo ? PETS[pet].evo : PETS[pet].name}`
+					: `🏹 ตั้งคู่หูพราน ${PETS[pet].icon}`;
 			scrollC.add(
 				button(
 					scene,
@@ -257,7 +257,7 @@ export function buildTier2(scene: CharacterScene, w: WebBuild) {
 						persist();
 						toast(
 							scene,
-							`คู่หู: ${PETS[pet].icon} ${PETS[pet].name} · ${PETS[pet].desc}`,
+							`🏹 คู่หูพราน: ${PETS[pet].icon} ${PETS[pet].name} (★ พรานแห่งป่า: ฮีโร่คริ → ตัวนี้ตีซ้ำ) · สัตว์ทั้ง 3 ตัวสู้ทุกเวฟเสมอ`,
 						);
 						scene.render();
 					},

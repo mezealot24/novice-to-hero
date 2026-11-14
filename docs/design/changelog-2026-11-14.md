@@ -28,3 +28,8 @@
 
 **ไฟล์:** `allies.ts` · `BattleScene.ts` · `skill-math.ts` · `skill-registry.ts` · `jobs2.ts` · `stats.ts` · `trees2/beastmaster.ts` · tests: `allies` (8) · ผ่าน `archer-bm-tree` / `skill-registry` / `job2-talents` / `monk-rework` · typecheck ผ่าน
 **ยังไม่ทำ:** UI เลือกคู่หูในเมือง (`character/web-tier2.ts`) ยังเขียนเหมือนเลือก lineup · VFX boar-guard (Phase 7)
+
+**Fix ตาม review (Phase 0–1)**
+- 💤N ของหมูป่าอัปเดตทุกเทิร์น (เดิมค้างที่ตัวเลขแรก) · ตัวเลข GUARD / 💢 เต็ม ขึ้นเหนือช่องหมูป่าเอง (เดิมขึ้นช่องแรก = เหยี่ยว)
+- ปุ่มในเมือง `character/web-tier2.ts`: "🐾 เลือก" → "🏹 ตั้งคู่หูพราน" + toast บอกว่าสัตว์ 3 ตัวสู้ทุกเวฟเสมอ
+- Admin: key ที่หายไป (`secondPow`, `boarTaunt`) ไม่อยู่ใน whitelist แล้ว = override เก่าถูกข้าม (tests `admin` 22 ผ่าน) · ⚠️ **Q เช็คหน้า admin:** ถ้าเคย override `tree.pack3Pow` หรือ `boarHp` ไว้ ความหมาย/สเกลเปลี่ยนแล้ว

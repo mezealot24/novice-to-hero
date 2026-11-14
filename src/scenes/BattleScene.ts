@@ -743,10 +743,11 @@ export class BattleScene extends Phaser.Scene {
     if (this.allies.length) await this.alliesOnTurn() // boar charge / robot turret
     if (this.st.j2Sweep > 0 && ++this.sweepTurn % KIT2.knight.tree.sweepEvery === 0 && this.alive().length && this.hp > 0) await this.spearSweep() // v84 Knight ทวนวน
     if (this.wardTurns > 0) this.wardTurns-- // v84 Priest ม่านพร
-    for (const a of reviveAllies(this.allies)) { // 🐗 back up from down: full HP + charge
+    for (const a of reviveAllies(this.allies)) { // 🐗 back up from down: full HP + charge (still-down ones refresh their 💤N below)
       this.floatText(HERO_X + 70, GROUND - 120, `${a.def.icon} ฟื้นแล้ว!`, '#9fe08a'); this.syncAlly(a)
       if (a.def.charge && this.alive().length && this.hp > 0) this.allyAct(a, false, undefined, a.def.charge)
     }
+    for (const a of this.allies) if (a.down > 0) this.syncAlly(a)
     for (const a of tickAllies(this.allies)) { this.floatText(HERO_X + 70, GROUND - 120, `${a.def.icon} หมดเวลา`, '#c9c9d6'); this.syncAlly(a) }
     this.allies = liveAllies(this.allies)
     if (this.rampage > 0) this.rampage--
@@ -1421,10 +1422,11 @@ export class BattleScene extends Phaser.Scene {
   /** 🐗 Guardian split (allies.guardHit): the boar takes its share, Rage full = an extra charge. Returns the hero's part. */
   private boarGuard(n: number): number {
     const g = guardHit(this.allies, n, this.st); if (!g) return n
-    this.damageNumber(HERO_X + 70, GROUND - 90, g.took, false, '#f2b84b')
-    if (g.broke) this.floatText(HERO_X + 70, GROUND - 130, g.ally.dead ? `${g.ally.def.icon} หมดแรง!` : `${g.ally.def.icon} หมดแรง! พัก ${g.ally.down} เทิร์น`, '#e0b07a')
+    const bx = this.allyTxt.get(g.ally)?.x ?? HERO_X + 70 // over the boar's own slot
+    this.damageNumber(bx, GROUND - 90, g.took, false, '#f2b84b')
+    if (g.broke) this.floatText(bx, GROUND - 130, g.ally.dead ? `${g.ally.def.icon} หมดแรง!` : `${g.ally.def.icon} หมดแรง! พัก ${g.ally.down} เทิร์น`, '#e0b07a')
     this.syncAlly(g.ally)
-    if (g.full && g.ally.def.charge && this.alive().length) { this.floatText(HERO_X + 70, GROUND - 175, '💢 เกจโกรธเต็ม!', '#ff9a3c'); this.allyAct(g.ally, false, undefined, g.ally.def.charge) }
+    if (g.full && g.ally.def.charge && this.alive().length) { this.floatText(bx, GROUND - 175, '💢 เกจโกรธเต็ม!', '#ff9a3c'); this.allyAct(g.ally, false, undefined, g.ally.def.charge) }
     return g.hero
   }
   /** A monster attack goes to a taunting ally instead of the hero (raw damage, no DEF); true = the ally took it. */
