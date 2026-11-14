@@ -9,7 +9,7 @@ import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster, EQUIP_CARDS 
 import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, type JobDef } from '../data/jobs'
 import { JOB2, PET_IDS, type Job2Def, type PetId } from '../data/jobs2'
 import { skill2Picked } from '../data/tree'
-import { ALLIES, fillAllies, gadgetById, guardHit, hawkMul, hurtAlly, liveAllies, makeAlly, readyAllies, reviveAllies, rollGadget, tauntTarget, tickAllies, TRAP_IDS, useAlly, wolfMul, type Ally, type AllyCtx, type GadgetId } from '../battle/allies'
+import { ALLIES, fillAllies, frenzyMul, gadgetById, guardHit, hawkMul, hurtAlly, liveAllies, makeAlly, readyAllies, reviveAllies, rollGadget, tauntTarget, tickAllies, TRAP_IDS, useAlly, wolfMul, type Ally, type AllyCtx, type GadgetId } from '../battle/allies'
 import type { Skill2Def } from '../data/skill2'
 import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/skill-registry'
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
@@ -606,7 +606,7 @@ export class BattleScene extends Phaser.Scene {
   private removeMon(m: Mon) { m.spr.destroy(); m.shadow.destroy(); m.dotTxt?.destroy(); m.dotTxt = undefined }
   private alive() { return this.mons.filter((m) => !m.dead) }
   private smashTurns() { return Math.max(2, Math.round(this.st.smashCd / BATTLE.msPerTurn)) }
-  private heroSpeed() { return BATTLE.heroSpeed * (this.st.aspd / PLAYER.aspd) * (1 + this.frenzy * KIT2.berserker.frenzyAspd) * (this.hx.slow > 0 ? BATTLE.frozenHeart : 1) * (this.asuraExhaust > 0 ? 1 - KIT2.monk.asuraSlow : 1) * (this.relic === 'haste' ? 1 + RELIC_RULES.haste.speed : 1) }
+  private heroSpeed() { return BATTLE.heroSpeed * (this.st.aspd / PLAYER.aspd) * (1 + this.frenzy * KIT2.berserker.frenzyAspd) * (this.hx.slow > 0 ? BATTLE.frozenHeart : 1) * (this.asuraExhaust > 0 ? 1 - KIT2.monk.asuraSlow : 1) * (this.relic === 'haste' ? 1 + RELIC_RULES.haste.speed : 1) * (this.st.j2Frenzy > 0 ? frenzyMul(this.st, this.front()[0]?.poison ?? 0) : 1) } // 🩸 Beastmaster Bloodscent Frenzy
 
   /** Who acts next: fill gauges until someone reaches 100 (ties go to the hero). */
   private nextActor(): Actor {
@@ -1250,7 +1250,20 @@ export class BattleScene extends Phaser.Scene {
         const tgt = t[Phaser.Math.Between(0, t.length - 1)] // picked here (same single RNG call) so the pet fx hits the same monster
         try { run(() => { this.allyHitFx(a, tgt); this.strike(tgt, mul, magic, color) }) } finally { this.sureHit = p }
       },
-      hitFront: (mul, color, bleed = 0) => { const m = this.front()[0]; if (!m) return; run(() => { this.allyHitFx(a, m); this.strike(m, mul, false, color) }); if (bleed > 0) this.addPoison(m, bleed) },
+      hitFront: (mul, color, bleed = 0, crit = false) => {
+        const m = this.front()[0]; if (!m) return 0
+        let d = 0; const fc = this.forceCrit; this.forceCrit = fc || crit
+        try { run(() => { this.allyHitFx(a, m); d = this.strike(m, mul, false, color) }) } finally { this.forceCrit = fc }
+        if (bleed > 0) this.addPoison(m, bleed)
+        return d
+      },
+      frontInfo: () => { const m = this.front()[0]; return m ? { hpPct: m.hp / Math.max(1, m.def.hp), marked: m.huntMark > 0 } : undefined },
+      healPack: (n) => {
+        if (n <= 0) return
+        if (this.hp > 0) this.heal(n, true)
+        const b = readyAllies(this.allies).find((x) => x.def.share)
+        if (b) { b.hp = Math.min(b.maxHp, b.hp + Math.max(1, Math.round(n))); this.syncAlly(b) }
+      },
       hitFoe: (mul, color) => { const m = front(); if (m) run(() => this.strike(m, mul, false, color)) },
       stun: (all) => { for (const m of all ? this.alive() : [front()]) if (m) this.stunMon(m) },
       chill: (turns, all) => { for (const m of all ? this.alive() : [front()]) if (m && !m.dead) { m.chill = Math.max(m.chill, turns); this.dotIcon(m) } },

@@ -33,3 +33,15 @@
 - 💤N ของหมูป่าอัปเดตทุกเทิร์น (เดิมค้างที่ตัวเลขแรก) · ตัวเลข GUARD / 💢 เต็ม ขึ้นเหนือช่องหมูป่าเอง (เดิมขึ้นช่องแรก = เหยี่ยว)
 - ปุ่มในเมือง `character/web-tier2.ts`: "🐾 เลือก" → "🏹 ตั้งคู่หูพราน" + toast บอกว่าสัตว์ 3 ตัวสู้ทุกเวฟเสมอ
 - Admin: key ที่หายไป (`secondPow`, `boarTaunt`) ไม่อยู่ใน whitelist แล้ว = override เก่าถูกข้าม (tests `admin` 22 ผ่าน) · ⚠️ **Q เช็คหน้า admin:** ถ้าเคย override `tree.pack3Pow` หรือ `boarHp` ไว้ ความหมาย/สเกลเปลี่ยนแล้ว
+
+## 3. 🐺 Beastmaster Rework — Phase 2 (หมาป่า)
+
+ค่าเป็น first guess ยังไม่ได้เล่นจริง
+- **Bleed = poison เดิม** ใช้ cap เดิม `poisonMax()` (12 + poisonCap) · **ไม่ตั้ง cap 5 ใหม่** เพราะจะชนกับ talent/ศรพิษของ Archer · "5" เหลือแค่เพดานที่ Frenzy นับ
+- **🩸 คลั่งเลือด (Bloodscent Frenzy)** ผูกกับ `bm_w3` ฝีเท้าป่า (ID เดิม, stat ใหม่ `j2Frenzy`): poison บนตัวหน้า 1 stack = ความเร็วฮีโร่ +1%/Lv (Lv3 = +3%/stack, สูงสุด +15% ที่ 5 stack) · หมาป่าเร็วตามไปด้วย (เกจหมาป่าคิดจาก step ของฮีโร่)
+- **🦷 ขย้ำปลิดชีพ (Savage Crunch)** ผูกกับ ★ `bm_w4` ราชาหมาป่า (โบนัสวิวัฒน์เดิมยังอยู่): กัดครั้งที่ 3 / ตัวหน้าติด 🏷️ `huntMark` / HP ตัวหน้า < 35% → **คริแน่นอน** + ฮีลฮีโร่และหมูป่า 10% ของดาเมจ (Q4: เป็น heal ตรง ไม่ใช่ lifesteal)
+- `AllyCtx`: `hitFront` คืนดาเมจ + รับ `crit` · ใหม่ `frontInfo()` · `healPack()`
+- ⚠️ ตอนนี้ 🏷️ ติดจาก Archer หมายหัวเท่านั้น · Phase 3 ให้เหยี่ยวแปะเอง
+- ⚠️ ความเร็วฮีโร่กระทบทั้งเกม (คอมโบ, เทิร์นต่อเวฟ) → balance pass
+
+**ไฟล์:** `allies.ts` · `BattleScene.ts` · `skill-math.ts` · `skill-registry.ts` · `stats.ts` · `trees2/beastmaster.ts` · tests: `allies` (11) · ผ่าน `archer-bm-tree` / `job2-talents` / `skill-registry` · typecheck ผ่าน

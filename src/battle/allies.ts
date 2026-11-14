@@ -15,7 +15,9 @@ export interface AllyCtx {
   combo: boolean // heroBasic: this swing is a combo hit
   hitAll: (mul: number, magic: boolean, color: string) => void
   hitOne: (mul: number, magic: boolean, color: string, sure?: boolean) => void // sure = never misses (Blitz Beat)
-  hitFront: (mul: number, color: string, bleed?: number) => void // physical on the front monster, + bleed (poison stacks)
+  hitFront: (mul: number, color: string, bleed?: number, crit?: boolean) => number // physical on the front monster, + bleed (poison stacks) · crit = sure crit · returns damage dealt
+  frontInfo: () => { hpPct: number; marked: boolean } | undefined // the front monster: HP share, 🏷️ huntMark on
+  healPack: (n: number) => void // heal the hero + the 🐗 guardian (Savage Crunch: a heal, not lifesteal)
   hitFoe: (mul: number, color: string) => void // physical on the monster that set it off ('monsterAct'), else the front one
   stun: (all: boolean) => void // the foe (else the front) loses its next turn (boss / mini: gauge push instead) · all = every monster
   chill: (turns: number, all: boolean) => void
@@ -102,6 +104,8 @@ export function useAlly(a: Ally): boolean {
   a.dead = true
   return true
 }
+/** 🩸 Bloodscent Frenzy: hero speed multiplier from the front monster's poison stacks (wolf rides the hero step). */
+export const frenzyMul = (st: Stats, stacks: number) => 1 + st.j2Frenzy * Math.min(BM.frenzyCap, Math.max(0, stacks))
 /** Turn queue: own-turn allies fill their gauge alongside the hero (heroStep = the hero's gauge gain this step). */
 export function fillAllies(all: Ally[], st: Stats, heroStep: number) { for (const a of all) if (!a.dead && a.def.trigger === 'ownTurn') a.gauge += heroStep * (a.def.speed?.(st) ?? 1) }
 /** End of a hero turn: every ally ages; returns the ones that just expired. */
@@ -143,7 +147,13 @@ export const ALLIES = {
     charge: boarCharge },
   wolf: { id: 'wolf', name: 'หมาป่า', icon: '🐺', kind: 'pet', trigger: 'ownTurn', comboFollow: true,
     speed: (st) => BM.wolfSpeed + st.j2WolfSpeed + (st.j2WolfEvo ? BM.wolfEvoSpeed : 0),
-    act: (c) => c.hitFront(wolfMul(c.st) * c.ally.pow, '#c9c9d6', BM.wolfBleed + c.st.j2WolfBleed) },
+    act: (c) => {
+      const f = c.frontInfo(); if (!f) return
+      const crunch = c.st.j2WolfEvo > 0 && (++c.ally.acts % BM.crunchEvery === 0 || f.marked || f.hpPct < BM.crunchLow) // 🦷 ★ Savage Crunch
+      if (crunch) c.say('🐺🦷 ขย้ำปลิดชีพ!', '#ff6b6b')
+      const d = c.hitFront(wolfMul(c.st) * c.ally.pow, '#c9c9d6', BM.wolfBleed + c.st.j2WolfBleed, crunch)
+      if (crunch && d > 0) c.healPack(d * BM.crunchHeal)
+    } },
   pack: { id: 'pack', name: 'ฝูงหมาป่า', icon: '🐺', kind: 'summon', trigger: 'ownTurn', turns: BM.cmdPackTurns, speed: (st) => BM.wolfSpeed + st.j2WolfSpeed,
     act: (c) => c.hitFront(wolfMul(c.st) * c.ally.pow, '#c9c9d6', 1) },
   // ----- Phase 4 🔧 Innovator: traps (one-shot, set off when a monster acts), robot turret, rubber chicken -----

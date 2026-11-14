@@ -181,6 +181,8 @@ export const KIT2 = {
     boarEvoHp: 0.5, boarEvoEvery: 2, boarEvoShare: 0.1, boarEvoDown: 2, // ★ หมูป่าเกราะ: + HP share, charges more often, takes more, gets up sooner
     wolfSpeed: 0.8, wolfMul: 0.7, wolfBleed: 2, // 🐺 own turn at this share of hero speed (AGI) · bite + bleed (poison stacks) · follows hero combo hits
     wolfEvoMul: 0.5, wolfEvoSpeed: 0.3, // ★ ราชาหมาป่า
+    frenzyCap: 5, frenzySpd: 0.01, // 🩸 Bloodscent Frenzy (bm_w3): hero speed (wolf follows) + this x Lv per poison stack on the front monster, counting up to cap stacks
+    crunchEvery: 3, crunchLow: 0.35, crunchHeal: 0.1, // 🦷 ★ Savage Crunch: every Nth bite / front has 🏷️ mark / front HP < low → sure crit, heals hero + boar this share of it (Q4: a heal, not lifesteal)
     cmdCost: 30, cmdCd: 3, cmdHawkHits: 3, cmdBoarShield: 0.15, cmdPack: 2, cmdPackTurns: 2, cmdPackPow: 0.6, // 📯 สั่งลุย per pet
     ultHawk: 1.2, ultBoar: 1, ultWolf: 1.5, // 🐾 Stampede: all 3 pets hit once (then the base archer pierce shot)
     mastery: { atkPct: 0.05, hit: 8 }, // bow

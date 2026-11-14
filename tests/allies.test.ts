@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { heroStats } from '../src/data/meta'
-import { ALLIES, fillAllies, GADGETS, guardHit, hurtAlly, makeAlly, readyAllies, reviveAllies, rollGadget, tauntTarget, useAlly } from '../src/battle/allies'
+import { ALLIES, fillAllies, frenzyMul, GADGETS, guardHit, hurtAlly, makeAlly, readyAllies, reviveAllies, rollGadget, tauntTarget, useAlly, type Ally, type AllyCtx } from '../src/battle/allies'
 import { KIT2 } from '../src/data/skill-math'
 
 const st = heroStats({ race: 'human', stats: { str: 5, vit: 5, wis: 5, dex: 5, int: 5, luk: 5, agi: 5 }, equipped: {}, skills: {}, job: 'archer' } as never)
@@ -77,4 +77,38 @@ test('guard split ignores allies without a share, zero hits and tiny hits', () =
   assert.equal(guardHit([makeAlly(ALLIES.tempestBell, st)], 100, st), undefined)
   assert.equal(guardHit([makeAlly(ALLIES.boar, st)], 0, st), undefined)
   assert.equal(guardHit([makeAlly(ALLIES.boar, st)], 1, st), undefined) // floor(1 x share) = 0: the hero keeps it
+})
+
+// ----- Phase 2 🐺 wolf: Bloodscent Frenzy + ★ Savage Crunch -----
+test('Bloodscent Frenzy: + speed per poison stack, counted up to the cap, off without the node', () => {
+  assert.equal(frenzyMul(st, 4), 1)
+  const fs = { ...st, j2Frenzy: 0.03 }
+  assert.ok(Math.abs(frenzyMul(fs, 2) - 1.06) < 1e-9)
+  assert.equal(frenzyMul(fs, 99), frenzyMul(fs, BM.frenzyCap))
+})
+
+/** A fake ctx that records the wolf's bites (crit flag) and heals. */
+function wolfRun(stats: typeof st, front: { hpPct: number; marked: boolean }, bites: number) {
+  const w = makeAlly(ALLIES.wolf, stats), crits: boolean[] = [], heals: number[] = []
+  const ctx = {
+    ally: w as Ally, st: stats, luk: 0, combo: false,
+    hitAll: () => {}, hitOne: () => {}, hitFoe: () => {}, stun: () => {}, chill: () => {}, shield: () => {}, say: () => {},
+    hitFront: (_m: number, _c: string, _b?: number, crit?: boolean) => { crits.push(!!crit); return 100 },
+    frontInfo: () => front, healPack: (n: number) => { heals.push(n) },
+  } satisfies AllyCtx
+  for (let i = 0; i < bites; i++) w.def.act(ctx)
+  return { crits, heals }
+}
+
+test('no ★ ราชาหมาป่า: never a Savage Crunch', () => {
+  assert.deepEqual(wolfRun(st, { hpPct: 0.1, marked: true }, 3).crits, [false, false, false])
+})
+
+test('★ Savage Crunch: every Nth bite, marked or low-HP front = sure crit + heal share', () => {
+  const evo = { ...st, j2WolfEvo: 1 }
+  const plain = wolfRun(evo, { hpPct: 1, marked: false }, BM.crunchEvery)
+  assert.deepEqual(plain.crits, [...Array(BM.crunchEvery - 1).fill(false), true])
+  assert.deepEqual(plain.heals, [100 * BM.crunchHeal])
+  assert.ok(wolfRun(evo, { hpPct: 1, marked: true }, 2).crits.every(Boolean))
+  assert.ok(wolfRun(evo, { hpPct: BM.crunchLow - 0.01, marked: false }, 2).crits.every(Boolean))
 })
