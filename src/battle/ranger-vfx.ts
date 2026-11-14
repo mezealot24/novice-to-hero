@@ -16,7 +16,7 @@ export interface VfxTarget {
 
 /** scale / speed (animation timeScale) / depth per effect; offsets in px. */
 export const RANGER_FX = {
-  arrowShot: { scale: 1.1, speed: 1, depth: 9000 },
+  arrowShot: { scale: 1.25, speed: 1, depth: 9000 },
   arrowHit: { scale: 0.9, speed: 1.6, depth: 9003 },
   arrowRain: { scale: 1.4, speed: 1.2, depth: 9003, x: 700 },
   pierceShot: { scale: 1.5, speed: 1.2, depth: 9004, hitMs: 200 }, // hitMs: wait before the strike lands (the star burst is at ~0.2 s of the sheet)
