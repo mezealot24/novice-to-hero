@@ -52,7 +52,7 @@ if (D >= 6) { // D6 profile (Q 2026-11-04 level dungeons): Base Lv 45 (135 point
   const t = { [`${job}_s1p`]: lvTo(save.jobSkills.auto), [`${job}_ultp`]: lvTo(save.jobSkills.ult) }
   if (process.env.S2) { t[process.env.S2] = 1; t[process.env.S2 + '_p'] = +(process.env.PL ?? 0); if (process.env.STAR) { t[process.env.S2 + '_p'] = 5; t[process.env.S2 + '_x'] = 1 } } // v83: "+" max 5 (PL = its Lv 0..5)
   if (process.env.TREEX) Object.assign(t, JSON.parse(process.env.TREEX)) // extra web nodes, e.g. {"thief_core1":5}
-  Object.assign(save, { web: 1, stretch: 1, jobTree: t, jobSkills: { auto: 1, ult: 1 } }) // stretch: skip the v83 refund migration
+  Object.assign(save, { web: 1, stretch: 1, bmRework: 2, jobTree: t, jobSkills: { auto: 1, ult: 1 } }) // stretch / bmRework: skip migrations
 }
 // EXTRA=1: also wear headgear + off-hand for the class and a second accessory (equipment screen v1)
 if (process.env.EXTRA) {
@@ -89,7 +89,7 @@ if (process.env.JOB2) {
     monk: { monk_s3p: 5, monk_u2p: 5, mk_c1: 5, mk_c2: 5, mk_c3: 4, mk_c4: 1, mk_i1: 5, mk_i2: 5, mk_i3: 5 },
     wizard: { wizard_s3p: 5, wizard_u2p: 5, wz_i1: 5, wz_i2: 5, wz_i3: 5, wz_i4: 1, wz_m1: 5, wz_m2: 5, wz_m3: 5 }, // Phase 5 Mage
     sage: { sage_s3p: 5, sage_u2p: 5, sg_a1: 5, sg_a2: 5, sg_a3: 1, sg_a4: 1, sg_e1: 5, sg_e2: 5, sg_e3: 4, sg_r1: 5 },
-    beastmaster: { beastmaster_s3p: 5, beastmaster_u2p: 5, bm_w1: 5, bm_w2: 5, bm_w3: 5, bm_w4: 1, bm_h1: 5, bm_h2: 5, bm_h3: 1, bm_h4: 1 }, // Phase 4 Archer (2 ★ = 2 pets)
+    beastmaster: { beastmaster_s3p: 5, beastmaster_u2p: 5, bm_w1: 5, bm_w2: 5, bm_w3: 5, bm_w4: 1, bm_h1: 5, bm_h2: 5, bm_h3: 1, bm_h4: 1 }, // Rework v2.1 (legal caps, 2 ★)
     innovator: { innovator_s3p: 5, innovator_u2p: 5, in_g1: 5, in_g2: 5, in_g3: 4, in_g4: 1, in_r1: 5, in_r2: 4, in_r3: 5, in_r4: 1 },
   }[j2] || {}
   const t = process.env.J2T === '0' ? {} : process.env.J2T ? JSON.parse(process.env.J2T) : preset
@@ -101,11 +101,16 @@ if (process.env.JOB2) {
   if (o && o !== '0') { save.owned.push(o); save.equipped.offhand = o }
   if (process.env.PET) save.pet = process.env.PET
 }
-// 3rd job (design/awakening-crusader-v1.md): JOB3=paladin (needs JOB2 = its parent) · J3LV=n (default 30) · J3P=pure|hybrid · J3V=a|b · J3T='{"node":lv}'
+// 3rd job (design/awakening-crusader-v1.md): JOB3=paladin|lordknight|champion|ranger (needs JOB2 = its parent) · J3LV=n (default 30) · J3P=pure|hybrid · J3V=a|b · J3T='{"node":lv}' (or J3T=0 empty)
 // sets the Master Trial win + ดัน 10 clear so the save is a legal Awakening
 if (process.env.JOB3) {
-  Object.assign(save, { job3: process.env.JOB3, job3Level: +(process.env.J3LV || 30), job3Xp: 0, job3Points: 0, job3Tree: process.env.J3T ? JSON.parse(process.env.J3T) : {},
-    job3Path: process.env.J3P || 'pure', job3Var: process.env.J3V || 'a', job3Trial: { [process.env.JOB3]: 1 }, job2Level: 50 })
+  const j3 = process.env.JOB3
+  const preset3 = {
+    ranger: { ranger_u3p: 5, rn_l1: 3, rn_l2: 3, rn_l3: 3, rn_l4: 1, rn_g1: 3, rn_g2: 3, rn_g3: 2, rn_g4: 1, rn_r1: 3, rn_r2: 2 }, // 29 pts, max 2 ★
+  }[j3] || {}
+  const t3 = process.env.J3T === '0' ? {} : process.env.J3T ? JSON.parse(process.env.J3T) : preset3
+  Object.assign(save, { job3: j3, job3Level: +(process.env.J3LV || 30), job3Xp: 0, job3Points: 0, job3Tree: t3,
+    job3Path: process.env.J3P || 'pure', job3Var: process.env.J3V || 'a', job3Trial: { [j3]: 1 }, job2Level: 50 })
   save.clearsBy = { ...save.clearsBy, d10: Math.max(1, save.clearsBy.d10 || 0) }
 }
 if (process.env.REFINE) save.refine = Object.fromEntries(Object.values(save.equipped).map((id) => [id, +process.env.REFINE]))
