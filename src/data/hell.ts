@@ -25,6 +25,12 @@ export const HELL_TRAITS: HellTrait[] = [
   { id: 'flame', icon: '🔥', name: 'เปลวนรก', apply: (d) => { d.onHit = { ...(d.onHit ?? {}), burn: Math.max(d.onHit?.burn ?? 0, 2) } }, bossOk: true, bossOnly: true },
 ]
 
+// ===== v125 endless deep hell (Q 2026-11-15 "ตั้งแต่ชั้น 100 monster จะเป็น Hell Stat + lv100") =====
+// Tower floor / Void Rift depth `from`+: EVERY monster (D1-D13, summons too) is a Hell copy, built with the 🔥 hard stat points
+// (MON_STAT.hardAdd, like 😈 hell mode) and never below Lv `minLv`. The tower keeps its own Lv curve on top (floor 100 = Lv 150).
+export const ENDLESS_HELL = { from: 100, minLv: 100 }
+export const endlessHell = (floor: number) => floor >= ENDLESS_HELL.from
+
 /** Chance that one D1-D5 kind on tower floor f is Hell (0 below HELL.from). */
 export const hellChance = (f: number) => (f < HELL.from ? 0 : f >= HELL.allFrom ? 1 : Math.min(HELL.max, HELL.chance0 + HELL.perFloor * (f - HELL.from)))
 

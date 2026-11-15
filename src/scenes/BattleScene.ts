@@ -26,8 +26,8 @@ import { rollUnique3Drop } from '../data/uniques3'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
 import { HARD_POWER, matchScale, overpowerMul, TOWER_POWER } from '../data/power'
-import { deepAnchor, homeDungeon, legacyLevel, levelDropMul, restatAt, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, statNative, towerMonLv, withStats } from '../data/mon-stats'
-import { HELL, HELL_MODE, hellify } from '../data/hell'
+import { deepAnchor, homeDungeon, homeLv, legacyLevel, levelDropMul, restatAt, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, statNative, towerMonLv, withStats } from '../data/mon-stats'
+import { ENDLESS_HELL, endlessHell, HELL, HELL_MODE, hellify } from '../data/hell'
 import { foldAffixes } from '../data/affixes'
 import { PACKS } from '../data/dungeons'
 import { buildRun, MODES, payTowerSkip, recordTowerCheckpoint, towerFloorLoot, towerSkipGems, type ModeArgs, type RunConfig, type RunRoom } from '../data/modes'
@@ -489,7 +489,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private addMon(kind: MonsterKind, slot: number, gauge?: number) {
-    let def = statNative(kind) && this.dg.level ? this.statDef(MONSTERS[kind]) : this.hardDef(this.modeDef(this.buffDef(this.legacyStats(kind)), kind))
+    let def = statNative(kind) && this.dg.level ? this.statDef(MONSTERS[kind], kind) :this.hardDef(this.modeDef(this.buffDef(this.legacyStats(kind)), kind))
     if (this.isHell(kind)) def = hellify(def, Math.random()) // v114 🔥 tower floor 25+
     const big = def.ai === 'boss'
     const x = this.roomDef(this.room)?.mixed ? MIX_X[slot] ?? SLOT_X[slot] : big ? 720 : SLOT_X[slot] // tower mixed fight: adds in front, big ones behind
@@ -516,9 +516,10 @@ export class BattleScene extends Phaser.Scene {
 
   /** D6+ level dungeon: numbers from the monster's 7 stats at the room's level (data/mon-stats.ts). No Hero Power scaling;
    * 🔥 hard = +50% stat points on every tier, boss / mini affixes, and the run's corruption (affixes + stat boosts). */
-  private statDef(base: MonsterDef): MonsterDef {
-    const lv = (this.roomDef(this.room)?.lv ?? roomLevel(this.dg.level!, this.dg.rooms, this.room)) + (this.hell ? HELL_MODE.lv : 0) // 😈 hell: +10 Lv
-    let out = statMonster(base, lv, { hard: this.hard, statMul: this.run.corrupt?.statMul })
+  private statDef(base: MonsterDef, kind?: MonsterKind): MonsterDef {
+    const endless = kind && this.run.riftMode ? this.towerLv(kind) : 0 // v125 rift: room Lv, never below ENDLESS_HELL.minLv from depth 100
+    const lv = endless || (this.roomDef(this.room)?.lv ?? roomLevel(this.dg.level!, this.dg.rooms, this.room)) + (this.hell ? HELL_MODE.lv : 0) // 😈 hell: +10 Lv
+    let out = statMonster(base, lv, { hard: this.hard || this.endlessDeep(), statMul: this.run.corrupt?.statMul })
     if (this.hell && !out.passive) out = hellify(out, Math.random()) // 😈 every monster is a Hell copy (one trait, HP / ATK / EXP up)
     const mut = this.run.mut
     if (mut.monHp !== 1) out.hp = Math.round(out.hp * mut.monHp)
@@ -534,16 +535,25 @@ export class BattleScene extends Phaser.Scene {
     const d = MONSTERS[kind], src = this.dg
     const base = statNative(kind) ? deepAnchor(kind) /* v114: a D6+ monster in the tower (no level dungeon here) */ : withStats(d, kind, legacyLevel(kind, d, src), { hard: this.hard, statMul: this.run.corrupt?.statMul })
     const lv = this.towerLv(kind)
-    return lv ? restatAt(base, kind, lv, true) : base // v116 tower Lv by floor · v122: HP / ATK / M.ATK from the stats at that Lv too (no Hero Power)
+    return lv ? restatAt(base, kind, lv, true, this.endlessDeep()) : base // v116 tower Lv by floor · v122: HP / ATK / M.ATK from the stats at that Lv too (no Hero Power) · v125 rift too
   }
-  /** v116: Lv a monster of `kind` takes on this tower floor (0 = not a tower floor). Hell copies get HELL.lv more. */
+  /** v116: Lv a monster of `kind` takes on this tower floor (0 = not an endless room). Hell copies get HELL.lv more.
+   *  v125: a Void Rift room's Lv (every kind, D1-D13). Floor / depth ENDLESS_HELL.from+: never below ENDLESS_HELL.minLv. */
   private towerLv(kind: MonsterKind): number {
     const r = this.roomDef(this.room)
-    if (this.run.modeId !== 'tower' || !r?.floor) return 0
-    return towerMonLv(r.floor) + (this.isHell(kind) ? HELL.lv : 0)
+    if (!r?.floor) return 0
+    const lv = this.run.modeId === 'tower' ? towerMonLv(r.floor) + (this.isHell(kind) ? HELL.lv : 0) : this.run.riftMode ? r.lv ?? 0 : 0
+    return lv && endlessHell(r.floor) ? Math.max(ENDLESS_HELL.minLv, lv) : lv
   }
-  /** v114 / v118: a 🔥 Hell copy here? Rolled per room (RunRoom.hell); from HELL.allFrom every D1-D5 kind is, summons included. */
+  /** v125: tower floor / rift depth ENDLESS_HELL.from+: every monster is Hell with the 🔥 hard stat points. */
+  private endlessDeep(): boolean {
+    const r = this.roomDef(this.room)
+    return (this.run.modeId === 'tower' || !!this.run.riftMode) && !!r?.floor && endlessHell(r.floor)
+  }
+  /** v114 / v118: a 🔥 Hell copy here? Rolled per room (RunRoom.hell); from HELL.allFrom every D1-D5 kind is, summons included.
+   *  v125: from ENDLESS_HELL.from every kind (D6+ too) in the tower and the Void Rift. */
   private isHell(kind: MonsterKind): boolean {
+    if (this.endlessDeep()) return true
     const r = this.roomDef(this.room)
     if (this.run.modeId !== 'tower' || !r?.floor) return false
     return !!r.hell?.includes(kind) || (r.floor >= HELL.allFrom && !statNative(kind))
@@ -551,14 +561,16 @@ export class BattleScene extends Phaser.Scene {
 
   /** v56 global monster buff by dungeon tier (BATTLE.monBuff): HP, ATK and M.ATK. */
   private buffDef(def: MonsterDef): MonsterDef {
-    if (this.run.modeId === 'tower') return def // v122: tower numbers come from the stats at the floor Lv, like D6+ (statDef has no buff either)
+    if (this.run.modeId === 'tower' || this.run.riftMode) return def // v125 rift: numbers from the room Lv like its D6+ kinds · v122: tower numbers come from the stats at the floor Lv, like D6+ (statDef has no buff either)
     const t = Math.max(0, Math.min(4, this.dg.tier - 1)), hp = BATTLE.monBuff.hp[t], dmg = BATTLE.monBuff.dmg[t]
     return { ...def, hp: Math.round(def.hp * hp), dmg: def.dmg * dmg, ...(def.matk ? { matk: def.matk * dmg } : {}) }
   }
 
   /** Tower / daily (RunConfig.scale): level + floor + mutator multipliers; tower bosses also roll the hard-mode affixes. */
   private modeDef(def: MonsterDef, kind?: MonsterKind): MonsterDef {
-    const room = this.roomDef(this.room), k = room ? this.run.scale(room, kind) : null
+    // v125 rift: a D1-D5 kind is already rebuilt at the room Lv, so it takes only the mutators (statDef gives its D6+ roommates the same)
+    const mut = this.run.mut, room = this.roomDef(this.room)
+    const k = !room ? null : this.run.riftMode ? { hp: mut.monHp, atk: mut.monAtk, hit: 0, speed: mut.monSpeed } : this.run.scale(room, kind)
     this.modeSpeed = (k?.speed ?? 1) * this.aff.speed
     if (!k) return def
     const out: MonsterDef = { ...def, hp: Math.round(def.hp * k.hp), dmg: def.dmg * k.atk, ...(def.matk ? { matk: def.matk * k.atk } : {}), hit: (def.hit ?? 15) + k.hit }
@@ -3137,8 +3149,15 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Equipment card drop (design/equipment-cards.md): base rate x LUK, guaranteed after `pity` kills of that monster. */
+  /** v125 tower / rift: a kind rebuilt below its home Lv (a D13 monster on floor 1) pays EXP / zeny x Lv / homeLv, and drops no card
+   *  and none of its own dungeon's mats (the theme's instead). 1 everywhere else. */
+  private endlessPay(m: Mon): number {
+    if (this.run.modeId !== 'tower' && !this.run.riftMode) return 1
+    const home = homeLv(m.kind)
+    return home > 0 && m.def.lv ? Math.min(1, m.def.lv / home) : 1
+  }
   private rollCard(m: Mon) {
-    if (m.revived) return
+    if (m.revived || this.endlessPay(m) < 1) return
     const pity = (save().cardPity ??= {})
     for (const cd of cardsOfMonster(m.kind)) {
       const n = (pity[cd.id] ?? 0) + 1
@@ -3154,7 +3173,7 @@ export class BattleScene extends Phaser.Scene {
   /** Forge materials (design/item-acquisition-v1.md): this dungeon's common one from normal monsters, its boss one from minis / bosses. Summons (no card) drop nothing. */
   private rollMat(m: Mon) {
     if (m.revived || !cardsOfMonster(m.kind).length) return
-    const dg = (!this.dg.level && statNative(m.kind) && homeDungeon(m.kind)) || this.dg.id, got: [string, number][] = [] // v114: a D6+ monster in the tower drops its own dungeon's mats
+    const dg = (!this.dg.level && statNative(m.kind) && this.endlessPay(m) >= 1 && homeDungeon(m.kind)) || this.dg.id, got: [string, number][] = [] // v114: a D6+ monster in the tower drops its own dungeon's mats
     if (m.def.ai === 'boss' && !m.def.mini) {
       got.push([matOf(dg, true), MAT_RULES.boss.boss], [matOf(dg, false), MAT_RULES.boss.common])
       if ((this.run.modeId === 'dungeon' || this.run.modeId === 'hard' || this.run.modeId === 'bounty') && this.roomDef(this.room)?.boss && taintDrop(dg)) got.push([TAINT_MAT, taintDrop(dg) + (this.hell ? HELL_MODE.taintAdd : 0)]) // v89 ผลึกโลกันตร์: D6+ final boss only
@@ -3218,10 +3237,11 @@ export class BattleScene extends Phaser.Scene {
         this.callout(`🧬 ${m.def.name}แยกร่าง!`, SLOT_X[sl] ?? W / 2, GROUND - 140)
       }
     }
-    this.runXp += m.def.xp
-    this.gainXp(m.def.xp)
+    const pay = this.endlessPay(m), xp = Math.max(1, Math.round(m.def.xp * pay))
+    this.runXp += xp
+    this.gainXp(xp)
     const [a, b] = m.def.zeny
-    this.coinsFly(m.spr.x, m.spr.y - 20, Math.round(Phaser.Math.Between(a, b) * (1 + this.zenyWave))) // Innovator 🧲 แม่เหล็ก
+    this.coinsFly(m.spr.x, m.spr.y - 20, Math.round(Phaser.Math.Between(a, b) * pay * (1 + this.zenyWave))) // Innovator 🧲 แม่เหล็ก
     this.rollCard(m)
     this.rollMat(m)
     this.rollUnique(m)

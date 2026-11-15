@@ -54,7 +54,8 @@ export function monBase(alloc: StatAlloc, points: number, statMul: StatAlloc = {
   return b
 }
 
-export interface StatMonOpts { hard?: boolean; statMul?: StatAlloc; tierPct?: number /* v122 tower MVP: share of the hero's points, replaces MON_STAT.tierPct */ }
+export interface StatMonOpts { hard?: boolean; statMul?: StatAlloc; tierPct?: number /* v122 tower MVP: share of the hero's points, replaces MON_STAT.tierPct */
+  /** v125 endless hell: withStats lets the hard points reach HP / ATK / M.ATK too (normally hardDef's job) */ hardNumbers?: boolean }
 
 /** What the 7 stats alone give a monster of this tier at this level (before its own bonuses / bodyMul). */
 interface Derived {
@@ -162,6 +163,13 @@ export function homeDungeon(kind: MonsterKind): string | undefined {
 /** Duel pool of a dungeon without its own miniPool (data/relics.ts MINI_POOL); kept here to avoid an import cycle. */
 const MINI_POOL_KINDS: MonsterKind[] = ['duelist', 'hunter', 'gunner', 'drainer']
 
+/** v125: lowest Lv a kind is met at home (D6+: its dungeon's band start, D1-D5: LEGACY Lv). The tower / rift pay a kind's own
+ *  EXP / mats / cards only at or above it, so a D13 monster rebuilt at Lv 8 on floor 1 pays like a Lv 8 monster. */
+export function homeLv(kind: MonsterKind): number {
+  const home = homeDungeon(kind), dg = home ? DUNGEONS.find((d) => d.id === home) : undefined
+  return dg?.level ? dg.level[0] : legacyLevel(kind, MONSTERS[kind], { id: home ?? '' })
+}
+
 /** Level of an old (non-statAlloc) monster: its home dungeon's band, else the dungeon it is fought in. */
 export function legacyLevel(kind: MonsterKind, d: MonsterDef, here: { id: string; level?: [number, number] }): number {
   const home = homeDungeon(kind), top = (home ? LEGACY.lv[home] : undefined) ?? LEGACY.lv[here.id] ?? here.level?.[0] ?? 5
@@ -223,7 +231,7 @@ export function withStats(d: MonsterDef, kind: MonsterKind, lv: number, o: StatM
   const alloc = allocOf(d), tier = monTier(d)
   const pm = d.pointsMul ?? 1
   const s = derive(alloc, lv, tier, o, pm) // stat-only parts (and skill scaling) see hard-mode points
-  const now = o.hard ? derive(alloc, lv, tier, { statMul: o.statMul, tierPct: o.tierPct }, pm) : s // numbers: hard mode is hardDef's job
+  const now = o.hard && !o.hardNumbers ? derive(alloc, lv, tier, { statMul: o.statMul, tierPct: o.tierPct }, pm) : s // numbers: hard mode is hardDef's job
   const ref = refOf(kind, d, lv)
   const out: MonsterDef = { ...d, lv, base: s.b, ...statOnly(d, s) }
   const ratio = (a: number, b: number) => (b > 0 ? a / b : 1)
@@ -326,14 +334,17 @@ export function skillAtLv(sk: MonSkill, lv = sk.lv ?? 1): MonSkill {
 // a D10 monster on floor 25 was Lv 90. Now every monster on a floor is rebuilt at that floor's tower Lv (Hell: + HELL.lv),
 // keeping the tower's HP / ATK. D1-D5 only move up from their home level; D6+ follow the tower Lv both ways.
 export const TOWER_LV = { perFloor: 1.5,
-  mvpPct: 2.5 } // v122 (Q 2026-11-08 "lv 77 stat point x 2.5 is mvp"): a tower boss gets 2.5x the hero's stat points at its Lv (dungeons: MON_STAT.tierPct.boss 1.5)
-export const towerMonLv = (floor: number) => Math.max(1, Math.round(TOWER_LV.perFloor * floor))
+  mvpPct: 2.5, // v122 (Q 2026-11-08 "lv 77 stat point x 2.5 is mvp"): a tower boss gets 2.5x the hero's stat points at its Lv (dungeons: MON_STAT.tierPct.boss 1.5)
+  minLv: 8 } // v125: D1-D13 now mix from floor 1 and D1-D5 follow the Lv down: floors 1-5 stay at the old floor-1 level (D2 normals, LEGACY d2 - 2)
+export const towerMonLv = (floor: number) => Math.max(TOWER_LV.minLv, Math.round(TOWER_LV.perFloor * floor))
 /** `base` (already built at its home level) rebuilt at Lv `lv`: stats + skill levels move, HP / ATK / M.ATK stay
  *  unless `numbers` (v122 tower: HP / ATK / M.ATK come from the stats at `lv` too, like a D6+ level dungeon). */
-export function restatAt(base: MonsterDef, kind: MonsterKind, lv: number, numbers = false): MonsterDef {
+export function restatAt(base: MonsterDef, kind: MonsterKind, lv: number, numbers = false, hard = false): MonsterDef {
   const d = MONSTERS[kind], home = base.lv ?? 1, deep = statNative(kind)
-  if (!d || lv === home || (!deep && (lv < home || !d.statAlloc))) return base
-  const o: StatMonOpts = numbers && monTier(d) === 'boss' ? { tierPct: TOWER_LV.mvpPct } : {}
+  // v125: with `numbers` a D1-D5 monster follows the Lv down too (the tower / rift mix every dungeon from floor 1). `hard` (endless
+  // floor 100+ hell) adds the 🔥 hard stat points, to HP / ATK too (withStats.hardNumbers), like 😈 hell mode on D6+.
+  if (!d || (lv === home && !hard) || (!deep && ((lv < home && !numbers) || !d.statAlloc))) return base
+  const o: StatMonOpts = { ...(numbers && monTier(d) === 'boss' ? { tierPct: TOWER_LV.mvpPct } : {}), ...(hard ? { hard: true, hardNumbers: numbers } : {}) }
   const at = deep ? statMonster(d, lv, o) : withStats(d, kind, lv, o)
   const out: MonsterDef = numbers ? { ...at } : { ...at, hp: base.hp, dmg: base.dmg }
   if (!numbers) { if (base.matk !== undefined) out.matk = base.matk; else delete out.matk }

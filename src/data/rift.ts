@@ -58,8 +58,11 @@ export const RIFT_TUNING = {
     miniboss: 2,
     boss: 4,
   } as const,
-  packMinDungeonNum: 6,
-  packDepthStepPerDungeon: 3,
+  // v125 (Q 2026-11-15 "อยากให้มี Monster ตั้งแต่ D1-D13 รวมกันมาเลย"): the catalog takes D1-D13 (was D6+), all from depth 1
+  // (was +3 depth per dungeon after D6). Every kind is built at the room Lv in battle (BattleScene endlessLv), so a D1 monster is not weak.
+  packMinDungeonNum: 1,
+  packMaxDungeonNum: 13,
+  packDepthStepPerDungeon: 0,
   fastSpeedThreshold: 120,
   slowSpeedThreshold: 65,
 } as const
