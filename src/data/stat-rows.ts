@@ -1,14 +1,18 @@
 // Derived stat rows (label, value) shown on the Character screen and the in-battle pause menu.
-import { COMBO, type Stats } from './game-data'
+import { COMBO, STAT_CAPS, type Stats } from './game-data'
 import { magicPower } from './skill-math'
 
 export function derivedRows(st: Stats): [string, string][] {
   const pct = (n: number) => `${Math.round(n * 100)}%`
+  const physPen = Math.min(STAT_CAPS.physPen, Math.max(0, st.physPen))
+  const magPen = Math.min(STAT_CAPS.magPen, Math.max(0, st.magPen))
+  const elemDmg = Math.min(STAT_CAPS.elemDmg, Math.max(0, st.elemDmg))
   return [
     ['HP', `${Math.round(st.maxHp)}`],
     ['P.ATK (ต่ำ~สูง)', `${Math.round(st.atk * st.minPct)}~${Math.round(st.atk)}`],
     ['M.ATK / พลังเวท (70%M+30%P)', `${Math.round(st.matk)} / ${Math.round(magicPower(st))}`], // พร v2: magic hits use magic power
-    ['ดาเมจสกิลกายภาพ', `+${(st.pskill * 100).toFixed(1)}%`],
+    ['ดาเมจสกิลกายภาพ / ธาตุ', `+${(st.pskill * 100).toFixed(1)}% / +${pct(elemDmg)} (สูงสุด +${pct(STAT_CAPS.elemDmg)})`],
+    ['เจาะเกราะ กาย / เวท', `${pct(physPen)} / ${pct(magPen)} (สูงสุด ${pct(STAT_CAPS.physPen)})`],
     ['P.DEF / M.DEF', `${Math.round(st.def)}(${Math.round(100 - 10000 / (100 + st.def))}%) / ${pct(st.mdef)}`],
     ['Hit / Flee / ต้านทาน', `${Math.round(st.hit)} / ${Math.round(st.flee)} / ${pct(st.tenacity)}`], // v94: ต้านทาน moved here so the crit row can show physical / magic crit
     ['คริ กาย / เวท', `${(st.crit * 100).toFixed(1)}% / ${(st.spellCrit * 100).toFixed(1)}%`], // v94: physical crit (basic, smash, skills) / magic crit (spears, card spells, Dawn Light bonus): see docs/design/crit-mechanic.md

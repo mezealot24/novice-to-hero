@@ -166,6 +166,9 @@ export const LINE_POOL: LineDef[] = [
   { stat: 'chillWeak', vals: [0.02, 0.04, 0.06], kind: 'def', w: 0.3, slots: ['armor', 'offhand'] },
   { stat: 'spearShield', vals: [0.03, 0.05, 0.07], kind: 'def', w: 0.3, slots: ['armor', 'offhand'], off: ['swordsman', 'archer', 'mage', 'thief', 'novice'] }, // holy spears: Priest
   { stat: 'resTurn', vals: [0.3, 0.5, 0.8], kind: 'def', w: 0.5, slots: ['acc'], off: ['novice'] },
+  { stat: 'physPen', vals: [0.02, 0.04, 0.06], kind: 'atk', w: 0.5, slots: ['weapon', 'acc'], off: ['mage'] },
+  { stat: 'magPen', vals: [0.02, 0.04, 0.06], kind: 'atk', w: 0.5, slots: ['weapon', 'acc'], off: NO_MAGIC },
+  { stat: 'elemDmg', vals: [0.03, 0.05, 0.08], kind: 'atk', w: 0.5, slots: ['weapon', 'head', 'acc'] },
 ]
 /** v125 (Q 2026-11-08 "option เวลาสุ่ม / อัพขั้น เฉพาะคลาสนั้นๆ"): class-only lines. A hero of that 2nd / 3rd job rolls them next to the normal pool
  * on ANY gear (refine +5 / +7 / +10 and the option gacha). The values are about half / one / one and a half levels of the matching ใยชั้น node.
@@ -184,6 +187,7 @@ const CLASS_LINES: { j2?: Job2Id; j3?: Job3Id; lines: [stat: string, vals: Vals]
   { j2: 'beastmaster', lines: [['j2PetPow', [0.04, 0.06, 0.1]], ['j2PetHeal', [0.003, 0.005, 0.008]]] },
   { j2: 'innovator', lines: [['j2TrapMul', [0.1, 0.2, 0.3]], ['j2TurretMul', [0.08, 0.15, 0.22]], ['j2BoxLuck', [0.1, 0.2, 0.3]]] },
   { j3: 'paladin', lines: [['j3Press', [0.15, 0.3, 0.45]], ['j3Banding', [0.01, 0.02, 0.03]], ['j3GospelHeal', [0.005, 0.01, 0.015]], ['j3AfterBless', [0.03, 0.05, 0.08]]] },
+  { j3: 'lordknight', lines: [['j2HpDmg', [0.005, 0.01, 0.015]], ['j3Banding', [0.01, 0.02, 0.03]], ['j3GospelHeal', [0.005, 0.01, 0.015]], ['j3AfterBless', [0.03, 0.05, 0.08]]] },
   { j3: 'champion', lines: [['j3Banding', [0.01, 0.02, 0.03]], ['j3GospelHeal', [0.005, 0.01, 0.015]], ['j3AfterBless', [0.03, 0.05, 0.08]]] },
 ]
 export const CLASS_LINE_POOL: LineDef[] = CLASS_LINES.flatMap((c) => c.lines.map(([stat, vals]): LineDef => ({

@@ -28,7 +28,7 @@ export const GRADE = {
 }
 
 // Stats that grow with grade. Flags, counts and the luck/economy stats stay as they are.
-const SCALES = new Set<keyof Stats>(['maxHp', 'atk', 'matk', 'pskill', 'def', 'mdef', 'tenacity', 'healAmp', 'shieldAmp', 'hit', 'flee', 'maxRes', 'resRegen', 'aspd', 'crit', 'spellCrit', 'critMul', 'guard', 'lifesteal', 'regen', 'counter', 'combo', 'dodgeHeal', 'waveShield', 'debuffRes', 'poisonDmg', 'burnDps'])
+const SCALES = new Set<keyof Stats>(['maxHp', 'atk', 'matk', 'pskill', 'def', 'mdef', 'tenacity', 'healAmp', 'shieldAmp', 'hit', 'flee', 'maxRes', 'resRegen', 'aspd', 'crit', 'spellCrit', 'critMul', 'guard', 'lifesteal', 'regen', 'counter', 'combo', 'dodgeHeal', 'waveShield', 'debuffRes', 'poisonDmg', 'burnDps', 'physPen', 'magPen', 'elemDmg'])
 
 const FLAT = new Set<keyof Stats>(['maxHp', 'atk', 'matk', 'def', 'hit', 'flee', 'maxRes'])
 const SW: JobId[] = ['swordsman'], AR: JobId[] = ['archer'], MG: JobId[] = ['mage'], CL: JobId[] = ['cleric'], TH: JobId[] = ['thief']
@@ -125,7 +125,15 @@ export function gradeCap(it: Item): number {
 }
 /** Which dungeon's materials an item uses for grade-ups. */
 // v114 fix: `req: 'job2'` is not a dungeon id (it built the unobtainable m_job2 / b_job2). 2nd-job gear uses D5 mats, the dungeon that unlocks the 2nd job (JOB2_RULES.unlockClear).
-const REQ_DG: Partial<Record<NonNullable<Item['req']>, string>> = { job2: 'd5', job3: 'd10' } // job3 = JOB3_RULES.unlockClear
+const REQ_DG: Partial<Record<NonNullable<Item['req']>, string>> = {
+  job2: 'd5',
+  job3: 'd10',
+  d10: 'd10',
+  d11: 'd11',
+  d12: 'd12',
+  d13: 'd13',
+  rift: 'rift',
+} // job3 = JOB3_RULES.unlockClear
 export const matDungeon = (it: Item) => it.craft?.dg ?? it.unique?.dg ?? (it.req && it.req !== 'job' ? REQ_DG[it.req] ?? it.req : 'd1')
 /** v114 (Q 2026-11-08): 2nd-job gear climbs the deep dungeons step by step, so it is not cheap on D5 mats alone.
  * refine = by refine tier (+1-4 / +5-7 / +8-10), grade = by target ★, reroll = by line count (lines exist from +5). */
@@ -134,8 +142,16 @@ export const JOB2_MATS: StepMats = { refine: ['d5', 'd7', 'd9'], grade: { 2: 'd5
 /** v116 (Q 2026-11-08 "เมือกใสหายาก late game"): 1st-class shop gear (cap ★4) used D1 mats at every step, and D1 is the only
  * source of them. It now climbs D1 -> D3 -> D5 like 2nd-job gear (D3 / D5 also drop in the tower). */
 export const JOB_MATS: StepMats = { refine: ['d1', 'd3', 'd5'], grade: { 2: 'd1', 3: 'd3', 4: 'd5' }, reroll: ['d3', 'd5'] }
+const endgameMats = (dg: string): StepMats => ({
+  refine: [dg, dg, dg],
+  grade: { 2: dg, 3: dg, 4: dg, 5: dg },
+  reroll: [dg, dg],
+})
 const stepMats = (it: Item): StepMats | null => {
   if (it.craft || it.unique) return null
+  if (it.req === 'd10' || it.req === 'd11' || it.req === 'd12' || it.req === 'd13' || it.req === 'rift') {
+    return endgameMats(REQ_DG[it.req] ?? it.req)
+  }
   if (it.req === 'job2' || it.req === 'job3') return JOB2_MATS
   if (it.req === 'job' || (it.jobs && !it.req)) return JOB_MATS
   return null

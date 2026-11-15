@@ -65,6 +65,13 @@ export const STAT_INFO: Record<BaseStat, StatInfo> = {
   },
 }
 
+/** Derived combat penetration & elemental caps surfaced in tooltips / stats screen. */
+export const DERIVED_STAT_CAPS = {
+  physPen: { label: 'เจาะเกราะกายภาพ', cap: 0.75, desc: 'ลด P.DEF เป้าหมายเมื่อคิดดาเมจกายภาพ (สูงสุด 75%)' },
+  magPen: { label: 'เจาะต้านเวท', cap: 0.75, desc: 'เจาะ M.DEF เป้าหมายเมื่อคิดดาเมจเวท/ธาตุ (สูงสุด 75%)' },
+  elemDmg: { label: 'ดาเมจธาตุ', cap: 2.0, desc: 'คูณดาเมจธาตุจากเวท สกิลธาตุ และเอฟเฟกต์อาวุธ (สูงสุด +200%)' },
+} as const
+
 /** Lines for this stat and class, already filled with the hero's numbers. */
 export function statLines(stat: BaseStat, job: JobId, total: number) {
   const info = STAT_INFO[stat], d = Math.max(0, total - 1)

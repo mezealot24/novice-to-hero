@@ -4,6 +4,7 @@ import type { Job3Id } from "../jobs3";
 import type { JobId } from "../jobs";
 import type { CraftInfo } from "../craft";
 import type { BaseStat } from "./stat-spec";
+import type { ItemEffectSpec, StatConvert } from "../item-effects";
 
 // ---------- equipment (bought with zeny; nothing here is sold for real money) ----------
 // Slot = what kind of item it is (shop tab, card type). EquipSlot = where it is worn: 6 places, two of them
@@ -50,7 +51,18 @@ export const slotKind = (sl: EquipSlot): Slot => (sl === "acc2" ? "acc" : sl);
 // stats (Hit, Flee, Counter, Combo, lifesteal, shields...). One item per slot, so nothing stacks.
 // jobs = who can wear it (none = everyone). req = when the shop sells it: 'job' after the first job change,
 // 'd2' after beating ป่าหมาป่าเงา. Item ids are save data: never rename or remove one.
-export type ItemReq = "job" | "d2" | "d3" | "d4" | "job2" | "job3";
+export type ItemReq =
+	| "job"
+	| "d2"
+	| "d3"
+	| "d4"
+	| "job2"
+	| "job3"
+	| "d10"
+	| "d11"
+	| "d12"
+	| "d13"
+	| "rift";
 export interface Item {
 	id: string;
 	slot: Slot;
@@ -72,6 +84,9 @@ export interface Item {
 	unique?: {
 		dg: string;
 	}; /* v88: boss-drop unique (data/uniques.ts); dg = the dungeon whose materials it uses */
+	effects?: ItemEffectSpec[];
+	conversions?: StatConvert[];
+	setId?: string;
 }
 export const SW: JobId[] = ["swordsman"],
 	AR: JobId[] = ["archer"],

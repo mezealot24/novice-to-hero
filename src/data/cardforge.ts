@@ -6,6 +6,7 @@ import type { Stats } from './game-data'
 import { CRAFT_ITEMS, craftCost, type CraftInfo } from './craft'
 import { CLASS_GEAR } from './class-gear'
 import { CLASS_CRAFT_ITEMS } from './class-craft'
+import { AWAKENED_CRAFT_ITEMS } from './awakened-craft'
 import type { Item } from './meta'
 import type { SaveData } from '../save'
 
@@ -13,9 +14,33 @@ export const CARDFORGE = {
   zenyMul: 1.5, // x the dearest classic recipe of the same dungeon, rounded to 100
   cardsNeed: { normal: 3, mini: 2, boss: 1 } as Record<'normal' | 'mini' | 'boss', number>,
   idPrefix: 'cf_',
+  fallbackZeny: 4500,
 }
 
-const zenyFor = (dg: string) => Math.round((Math.max(...CRAFT_ITEMS.filter((i) => i.craft?.dg === dg).map((i) => i.craft!.zeny)) * CARDFORGE.zenyMul) / 100) * 100
+export const CARDFORGE_ZENY: Record<string, number> = {
+  d1: 400,
+  d2: 900,
+  d3: 1400,
+  d4: 2300,
+  d5: 3800,
+  d6: 4800,
+  d7: 5700,
+  d8: 6800,
+  d9: 7800,
+  d10: 10500,
+  d11: 12300,
+  d12: 14100,
+  d13: 16500,
+  rift: 18000,
+}
+
+const zenyFor = (dg: string) => {
+  const prices = [...CRAFT_ITEMS, ...CLASS_CRAFT_ITEMS, ...AWAKENED_CRAFT_ITEMS]
+    .filter((i) => i.craft?.dg === dg)
+    .map((i) => i.craft!.zeny)
+  if (!prices.length) return CARDFORGE_ZENY[dg] ?? CARDFORGE.fallbackZeny
+  return Math.round((Math.max(...prices) * CARDFORGE.zenyMul) / 100) * 100
+}
 
 type Row = Omit<Item, 'price' | 'slots' | 'craft'> & { dg: string; common: number; boss: number; cards: Record<string, number>; sig: Partial<Stats>; bonus: CraftInfo['bonus'] }
 const row = (r: Row): Item => {
@@ -34,6 +59,144 @@ export const CARDFORGE_ITEMS: Item[] = [
   row({ id: 'cf_lichveil', slot: 'head', name: 'ผ้าคลุมวิญญาณลิช', icon: '👻', desc: '✦ ฮีลเกิน HP เต็มกลายเป็นโล่ · HP สูงสุดลด', mod: { mdef: 0.05, maxRes: 10 }, pct: { maxHp: -0.06 }, dg: 'd5', common: 16, boss: 4, cards: { card_lich: 1, card_wraith: 3 }, sig: { overhealShield: 1 }, bonus: [{ healAmp: 0.06 }, { regen: 0.4 }] }),
   row({ id: 'cf_emberring', slot: 'acc', name: 'แหวนเถ้าอเวจี', icon: '🔥', desc: '✦ ไฟลุกลามไปตัวอื่นเมื่อศัตรูตาย (ต้องมีแหล่งไฟ) · M.DEF ลด', base: { int: 2 }, mod: { vsBurn: 0.04, mdef: -0.03 }, dg: 'd5', common: 16, boss: 4, cards: { card_imp: 3, card_hexwitch: 3 }, sig: { fireSpread: 1 }, bonus: [{ burnDps: 2 }, { vsBurn: 0.04 }] }),
 ]
+
+/** D6-D13 expansion Cardforge pieces with signatures, effects, conversions, and set links. */
+export const CARDFORGE_EXPANSION_ITEMS: Item[] = [
+  row({
+    id: 'cf_suncenser',
+    slot: 'acc',
+    name: 'กระถางธูปสุริยะฟาโรห์',
+    icon: '☀️',
+    desc: '✦ สวนกลับเป็นเวทศักดิ์สิทธิ์ · ฮีลแรงขึ้น · ความเร็วลดเล็กน้อย',
+    base: { wis: 4, int: 3 },
+    mod: { healAmp: 0.1, aspd: -0.06 },
+    dg: 'd6',
+    common: 18,
+    boss: 4,
+    cards: { card_sunpriest: 3, card_pharaoh: 1 },
+    sig: { holyCounter: 1, counter: 0.08 },
+    bonus: [{ overhealShield: 1 }, { magPen: 0.06 }],
+  }),
+  row({
+    id: 'cf_frostbulwark',
+    slot: 'offhand',
+    name: 'โล่น้ำแข็งมังกรเหมันต์',
+    icon: '🧊',
+    setId: 'heartsteel_juggernaut',
+    desc: '✦ บาเรียเวทน้ำแข็ง · แปลง 220% P.DEF เป็น Max HP · หลบลดลง',
+    base: { vit: 5 },
+    mod: { maxHp: 180, def: 18, flee: -8 },
+    dg: 'd7',
+    common: 18,
+    boss: 4,
+    cards: { card_icegolem: 3, card_frostwyrm: 1 },
+    sig: { iceBarrier: 0.25, chillWeak: 0.1 },
+    conversions: [{ from: 'def', to: 'maxHp', ratio: 2.2, cap: 550, label: '220% P.DEF → Max HP (สูงสุด +550)' }],
+    bonus: [{ chillSlow: 0.1 }, { thorns: 0.15 }],
+  }),
+  row({
+    id: 'cf_magmaforgering',
+    slot: 'acc',
+    name: 'แหวนเตาหลอมลาวาไททัน',
+    icon: '🌋',
+    desc: '✦ ไฟลุกลามเมื่อศัตรูตาย + เผาไหม้รอบตัวทุกเทิร์น · M.DEF ลด',
+    base: { str: 4, int: 4 },
+    mod: { atk: 18, matk: 18, mdef: -0.05 },
+    dg: 'd8',
+    common: 20,
+    boss: 5,
+    cards: { card_flamecaller: 3, card_lavatitan: 1 },
+    sig: { fireSpread: 1, burnDps: 20 },
+    effects: [{ id: 'radiance_burn', power: 0.2, cd: 1 }],
+    bonus: [{ vsBurn: 0.12 }, { elemDmg: 0.1 }],
+  }),
+  row({
+    id: 'cf_spellcoil',
+    slot: 'head',
+    name: 'คอยล์เวทจักรกลออมนิ',
+    icon: '⚡',
+    setId: 'trinity_spellblade',
+    desc: '✦ ร่าย Ult คืน Mana + คริร่ายเวทเสริม · P.DEF ลดเล็กน้อย',
+    base: { int: 5, agi: 4 },
+    mod: { maxRes: 35, spellCrit: 0.06, def: -8 },
+    dg: 'd9',
+    common: 20,
+    boss: 5,
+    cards: { card_sparkcoil: 3, card_omnicore: 1 },
+    sig: { mgUltMana: 20, autoCostCut: 4 },
+    effects: [{ id: 'coc_cast', power: 0.75, chance: 0.4, cd: 1 }],
+    bonus: [{ elemDmg: 0.12 }, { magPen: 0.08 }],
+  }),
+  row({
+    id: 'cf_starweavershroud',
+    slot: 'armor',
+    name: 'ผ้าคลุมทอแสงดารา',
+    icon: '🌠',
+    desc: '✦ หลบแล้วตีสวน + Echo ฟันซ้ำสองจังหวะ · HP สูงสุดลดลง',
+    base: { dex: 5, luk: 5 },
+    mod: { crit: 0.06, flee: 12, maxHp: -80 },
+    dg: 'd10',
+    common: 22,
+    boss: 5,
+    cards: { card_voidstalker: 3, card_starweaver: 1 },
+    sig: { ultDodge: 1, dodgeStrike: 1 },
+    effects: [{ id: 'echo_double', power: 0.6, chance: 0.35, cd: 2 }],
+    bonus: [{ critMul: 0.18 }, { physPen: 0.08 }],
+  }),
+  row({
+    id: 'cf_chronowatch',
+    slot: 'acc',
+    name: 'นาฬิกาพกโครนอสไททัน',
+    icon: '⏳',
+    setId: 'clockwork_chronos',
+    desc: '✦ คอมโบแรง + Echo เบิ้ลโจมตี · HP สูงสุดลดเล็กน้อย',
+    base: { agi: 6, str: 4 },
+    mod: { aspd: 0.16, combo: 0.08, maxHp: -90 },
+    dg: 'd11',
+    common: 22,
+    boss: 5,
+    cards: { card_cogsentinel: 3, card_chronotitan: 1 },
+    sig: { comboDmg: 0.18, smashCd: -1500 },
+    effects: [{ id: 'echo_double', power: 0.65, chance: 0.4, cd: 2 }],
+    bonus: [{ physPen: 0.08 }, { combo: 0.06 }],
+  }),
+  row({
+    id: 'cf_leviathanscale',
+    slot: 'head',
+    name: 'เกราะเกล็ดร่องสมุทรเลเวียธาน',
+    icon: '🐋',
+    setId: 'abyssal_leviathan',
+    desc: '✦ ฮีลเกินเป็นโล่ · แปลง 3% Max HP เป็น M.ATK · ความเร็วลดเล็กน้อย',
+    base: { vit: 7, int: 5 },
+    mod: { maxHp: 320, def: 20, aspd: -0.06 },
+    dg: 'd12',
+    common: 24,
+    boss: 6,
+    cards: { card_trenchcrusher: 3, card_leviathan: 1 },
+    sig: { overhealShield: 1, waveShield: 0.08 },
+    conversions: [{ from: 'maxHp', to: 'matk', ratio: 0.03, cap: 190, label: '3% Max HP → M.ATK (สูงสุด +190)' }],
+    bonus: [{ lifesteal: 0.04 }, { mdef: 0.06 }],
+  }),
+  row({
+    id: 'cf_seraphhalo',
+    slot: 'head',
+    name: 'รัศมีเทวทูตสุริยคราส',
+    icon: '😇',
+    setId: 'eclipse_seraph',
+    desc: '✦ บาเรียต้นเวฟ + มานาล้นปลดพลังเวท +40% · P.DEF ลด',
+    base: { int: 7, wis: 7 },
+    mod: { matk: 28, elemDmg: 0.18, magPen: 0.12, def: -10 },
+    dg: 'd13',
+    common: 24,
+    boss: 6,
+    cards: { card_eclipsewraith: 3, card_seraph: 1 },
+    sig: { mgWaveBarrier: 0.6, spellVamp: 0.06 },
+    effects: [{ id: 'mana_overload', power: 0.35, threshold: 0.6 }],
+    bonus: [{ elemDmg: 0.14 }, { spellCrit: 0.06 }],
+  }),
+]
+
+export const ALL_CARDFORGE_ITEMS: Item[] = [...CARDFORGE_ITEMS, ...CARDFORGE_EXPANSION_ITEMS]
 
 export interface CardforgeCost { mats: Record<string, number>; zeny: number; cards: Record<string, number> }
 export const cardforgeCost = (it: Item): CardforgeCost => ({ ...craftCost(it), cards: { ...(it.craft?.cards ?? {}) } })
@@ -56,7 +219,7 @@ export function canCardforge(s: SaveData, it: Item): { ok: boolean; why?: 'locke
 
 /** v99 📌: the pinned recipe, if it can be built right now (so the run result can say so). Undefined when nothing is pinned, locked, owned or short. */
 export function pinnedReady(s: SaveData): Item | undefined {
-  const it = s.forgePin ? [...CRAFT_ITEMS, ...CLASS_GEAR, ...CLASS_CRAFT_ITEMS, ...CARDFORGE_ITEMS].find((x) => x.id === s.forgePin) : undefined
+  const it = s.forgePin ? [...CRAFT_ITEMS, ...CLASS_GEAR, ...CLASS_CRAFT_ITEMS, ...AWAKENED_CRAFT_ITEMS, ...ALL_CARDFORGE_ITEMS].find((x) => x.id === s.forgePin) : undefined
   if (!it?.craft || s.owned.includes(it.id) || !((s.clearsBy?.[it.craft.dg] ?? 0) > 0)) return undefined
   if (it.req === 'job2' && !s.job2) return undefined
   if (it.req === 'job3' && (!s.job2 || !s.job3)) return undefined
