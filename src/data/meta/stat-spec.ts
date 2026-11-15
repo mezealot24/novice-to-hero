@@ -77,8 +77,9 @@ export const STAT_RULES = {
 };
 
 /** 📈 Job bonus stat (Q 2026-11-08, design/job-bonus-stat-v1.md): +1 to each listed stat every `every` Job Lv.
- *  Derived from levels only (no save field). The base class bonus stays after the 2nd job (they stack). No bonus for Job3. */
+ *  Derived from levels only (no save field). Base class and 2nd job bonuses stack; Job3 uses JOB3_BONUS. */
 export const JOB_BONUS = { every: 10 };
+export const JOB3_BONUS = { every: 10, perStep: 2 };
 export const JOB_BONUS_STATS: Record<JobId, readonly BaseStat[]> = {
 	novice: [],
 	swordsman: ["str", "vit"],
@@ -98,6 +99,11 @@ export const JOB2_BONUS_STATS: Record<Job2Id, readonly BaseStat[]> = {
 	sage: ["int", "wis", "vit"],
 	beastmaster: ["dex", "vit", "luk"],
 	innovator: ["dex", "int", "agi"],
+};
+export const JOB3_BONUS_STATS: Record<'paladin' | 'lordknight' | 'champion', readonly BaseStat[]> = {
+	paladin: ["str", "vit", "int"],
+	lordknight: ["str", "vit", "dex"],
+	champion: ["str", "agi", "wis"],
 };
 
 // ---------- job + skills (Novice only for now; job change = M3) ----------

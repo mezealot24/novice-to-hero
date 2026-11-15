@@ -7,7 +7,38 @@ export type BiomeHazardId =
   | 'none'
   | 'clockwork_heat'     // D11: นรกจักรกล (Overheat Gauge)
   | 'abyssal_pressure'   // D12: วิหารใต้สมุทร (Shield/Guard Wave)
-  | 'astral_eclipse';    // D13: สุริยุปราคาดารา (5-Layer Astral Veil)
+  | 'astral_eclipse';    // D13: สุริยุปราคาดารา (4/6-Layer Astral Veil)
+
+/** Tunable hazard constants (live-config compatible plain object). */
+export const HAZARD_TUNING = {
+  clockwork_heat: {
+    heatPerSkill: 20,
+    coolPerTurn: 15,
+    sweetMin: 50,
+    sweetMax: 85,
+    sweetCritDmg: 0.35,
+    sweetSkillMul: 1.2,
+    overheatAt: 100,
+    resetHeat: 30,
+    selfBurnPct: 0.15,
+    silenceTurns: 1,
+  },
+  abyssal_pressure: {
+    healMul: 0.7,
+    waveDefMul: 1.2,
+    waveHpPct: 0.05,
+    maxWavesPerTurn: 1,
+  },
+  astral_eclipse: {
+    normalLayers: 4,
+    bossLayers: 6,
+    drPerLayer: 0.12,
+    drCap: 0.60,
+    staggerTurns: 2,
+    staggerDmgMul: 1.4,
+    regenLayers: 3,
+  },
+};
 
 export interface BiomeCombatState {
   hazard: BiomeHazardId;
@@ -15,9 +46,11 @@ export interface BiomeCombatState {
   heat: number;
   /** D11: จำนวนเทิร์นที่ติดสถานะ Overheat Silence */
   overheatedSilenceTurns: number;
+  /** D12: ปล่อยคลื่นแรงดันไปแล้วในเทิร์นนี้ (จำกัดต่อเทิร์นฮีโร่) */
+  pressureWaveUsedThisTurn?: boolean;
   /** D13: จำนวนชั้นเกราะ Astral ของมอนสเตอร์แต่ละตัว (key = monsterInstanceId) */
   monsterAstralLayers: Record<string, number>;
-  /** D13: จำนวนเทิร์นที่มอนสเตอร์ติดสถานะ Staggered รับดาเมจแรงขึ้น +50% */
+  /** D13: จำนวนเทิร์นที่มอนสเตอร์ติดสถานะ Staggered รับดาเมจแรงขึ้น */
   monsterStaggerTurns: Record<string, number>;
 }
 
@@ -26,13 +59,17 @@ export interface BiomeCombatState {
  */
 export function createBiomeCombatState(
   hazard: BiomeHazardId,
-  monsterInstanceIds: string[]
+  monsterInstanceIds: string[],
+  bossIds?: ReadonlySet<string>
 ): BiomeCombatState {
   const monsterAstralLayers: Record<string, number> = {};
   const monsterStaggerTurns: Record<string, number> = {};
+  const eclipse = HAZARD_TUNING.astral_eclipse;
 
   for (const id of monsterInstanceIds) {
-    monsterAstralLayers[id] = hazard === 'astral_eclipse' ? 5 : 0;
+    monsterAstralLayers[id] = hazard === 'astral_eclipse'
+      ? (bossIds?.has(id) ? eclipse.bossLayers : eclipse.normalLayers)
+      : 0;
     monsterStaggerTurns[id] = 0;
   }
 
@@ -40,6 +77,7 @@ export function createBiomeCombatState(
     hazard,
     heat: 0,
     overheatedSilenceTurns: 0,
+    pressureWaveUsedThisTurn: false,
     monsterAstralLayers,
     monsterStaggerTurns,
   };
@@ -47,9 +85,9 @@ export function createBiomeCombatState(
 
 /**
  * [D11: Clockwork Purgatory] เรียกเมื่อผู้เล่นกดใช้สกิล
- * - เพิ่มความร้อน +20%
- * - หากอยู่ในช่วง Sweet Spot (50% - 85%) รับโบนัส Crit DMG +60% และ Skill DMG +25%
- * - หากความร้อนแตะ 100% จะระเบิดตัวเอง เสีย 15% MaxHP และติดใบ้ 1 เทิร์น
+ * - เพิ่มความร้อน (+heatPerSkill)
+ * - หากอยู่ในช่วง Sweet Spot (sweetMin..sweetMax) รับโบนัส Crit DMG และ Skill DMG
+ * - หากความร้อนแตะ overheatAt จะระเบิดตัวเอง เสีย % MaxHP และติดใบ้
  */
 export function onHeroSkillCastBiome(
   state: BiomeCombatState,
@@ -69,24 +107,24 @@ export function onHeroSkillCastBiome(
     };
   }
 
-  state.heat = Math.min(100, state.heat + 20);
+  const cfg = HAZARD_TUNING.clockwork_heat;
+  state.heat = Math.min(cfg.overheatAt, state.heat + cfg.heatPerSkill);
 
-  if (state.heat >= 100) {
-    state.heat = 30; // รีเซ็ตลงมาที่ 30% หลังระเบิดระบายความร้อน
-    state.overheatedSilenceTurns = 1;
+  if (state.heat >= cfg.overheatAt) {
+    state.heat = cfg.resetHeat;
+    state.overheatedSilenceTurns = cfg.silenceTurns;
     return {
       critDmgBonus: 0,
       skillDmgMultiplier: 1.0,
-      selfBurnDamage: Math.floor(heroMaxHp * 0.15),
+      selfBurnDamage: Math.floor(heroMaxHp * cfg.selfBurnPct),
       triggeredOverheat: true,
     };
   }
 
-  // Sweet Spot: 50% ถึง 85%
-  if (state.heat >= 50 && state.heat <= 85) {
+  if (state.heat >= cfg.sweetMin && state.heat <= cfg.sweetMax) {
     return {
-      critDmgBonus: 0.6,
-      skillDmgMultiplier: 1.25,
+      critDmgBonus: cfg.sweetCritDmg,
+      skillDmgMultiplier: cfg.sweetSkillMul,
       selfBurnDamage: 0,
       triggeredOverheat: false,
     };
@@ -101,32 +139,34 @@ export function onHeroSkillCastBiome(
 }
 
 /**
- * [D12: Abyssal Sanctuary] ปรับลดค่าฮีลโดยตรงลง 50% แต่ส่งเสริมการสร้างเกราะ/ตั้งโล่
+ * [D12: Abyssal Sanctuary] ปรับลดค่าฮีลโดยตรงลงตาม healMul แต่ส่งเสริมการสร้างเกราะ/ตั้งโล่
  */
 export function modifyHeroDirectHealBiome(
   state: BiomeCombatState,
   rawHealAmount: number
 ): number {
   if (state.hazard === 'abyssal_pressure') {
-    return Math.floor(rawHealAmount * 0.5);
+    return Math.floor(rawHealAmount * HAZARD_TUNING.abyssal_pressure.healMul);
   }
   return rawHealAmount;
 }
 
 /**
  * [D12: Abyssal Sanctuary] เรียกเมื่อผู้เล่นสร้าง Shield, กด Guard หรือติด Block/Counter สำเร็จ
- * จะปล่อยคลื่นน้ำแรงดันสูงทำ True Damage ใส่ศัตรูทุกตัวในสนาม
+ * จะปล่อยคลื่นน้ำแรงดันสูงทำ True Damage ใส่ศัตรูทุกตัวในสนาม (จำกัดตาม maxWavesPerTurn ต่อเทิร์น)
  */
 export function onHeroShieldOrBlockBiome(
   state: BiomeCombatState,
   heroDef: number,
   heroMaxHp: number
 ): { aoeTrueDamage: number; triggeredWave: boolean } {
-  if (state.hazard !== 'abyssal_pressure') {
+  const cfg = HAZARD_TUNING.abyssal_pressure;
+  if (state.hazard !== 'abyssal_pressure' || cfg.maxWavesPerTurn <= 0 || state.pressureWaveUsedThisTurn) {
     return { aoeTrueDamage: 0, triggeredWave: false };
   }
 
-  const aoeTrueDamage = Math.floor(heroDef * 1.8 + heroMaxHp * 0.08);
+  state.pressureWaveUsedThisTurn = true;
+  const aoeTrueDamage = Math.floor(heroDef * cfg.waveDefMul + heroMaxHp * cfg.waveHpPct);
   return {
     aoeTrueDamage: Math.max(1, aoeTrueDamage),
     triggeredWave: true,
@@ -135,8 +175,8 @@ export function onHeroShieldOrBlockBiome(
 
 /**
  * [D13: Astral Eclipse] เรียกเมื่อมอนสเตอร์ได้รับดาเมจ 1 ฮิต (รวมถึงฮิตจากลูกน้องและ DoT)
- * - ลอกเกราะ Astral ออกทีละ 1 ชั้น (แต่ละชั้นลดดาเมจ 15%)
- * - เมื่อเกราะแตกเป็น 0 จะติด Staggered นาน 2 เทิร์น (รับดาเมจแรงขึ้น +50%)
+ * - ลอกเกราะ Astral ออกทีละ hitCount ชั้น (ลดดาเมจตาม drPerLayer สูงสุด drCap)
+ * - เมื่อเกราะแตกเป็น 0 จะติด Staggered นาน staggerTurns เทิร์น (รับดาเมจคูณ staggerDmgMul)
  */
 export function onMonsterHitBiome(
   state: BiomeCombatState,
@@ -158,10 +198,11 @@ export function onMonsterHitBiome(
     };
   }
 
+  const cfg = HAZARD_TUNING.astral_eclipse;
   const currentStagger = state.monsterStaggerTurns[monsterId] ?? 0;
   if (currentStagger > 0) {
     return {
-      finalDamage: Math.floor(rawDamage * 1.5),
+      finalDamage: Math.floor(rawDamage * cfg.staggerDmgMul),
       remainingLayers: 0,
       isStaggered: true,
       justBroken: false,
@@ -169,7 +210,7 @@ export function onMonsterHitBiome(
   }
 
   const currentLayers = state.monsterAstralLayers[monsterId] ?? 0;
-  const dmgReduction = Math.min(0.75, currentLayers * 0.15);
+  const dmgReduction = Math.min(cfg.drCap, currentLayers * cfg.drPerLayer);
   const finalDamage = Math.max(1, Math.floor(rawDamage * (1 - dmgReduction)));
 
   const nextLayers = Math.max(0, currentLayers - Math.max(1, hitCount));
@@ -177,7 +218,7 @@ export function onMonsterHitBiome(
 
   let justBroken = false;
   if (currentLayers > 0 && nextLayers === 0) {
-    state.monsterStaggerTurns[monsterId] = 2;
+    state.monsterStaggerTurns[monsterId] = cfg.staggerTurns;
     justBroken = true;
   }
 
@@ -194,10 +235,14 @@ export function onMonsterHitBiome(
  */
 export function onTurnEndBiome(state: BiomeCombatState): void {
   if (state.hazard === 'clockwork_heat') {
-    state.heat = Math.max(0, state.heat - 15);
+    state.heat = Math.max(0, state.heat - HAZARD_TUNING.clockwork_heat.coolPerTurn);
     if (state.overheatedSilenceTurns > 0) {
       state.overheatedSilenceTurns -= 1;
     }
+  }
+
+  if (state.hazard === 'abyssal_pressure') {
+    state.pressureWaveUsedThisTurn = false;
   }
 
   if (state.hazard === 'astral_eclipse') {
@@ -205,12 +250,10 @@ export function onTurnEndBiome(state: BiomeCombatState): void {
       const turns = state.monsterStaggerTurns[monsterId];
       if (turns > 0) {
         state.monsterStaggerTurns[monsterId] = turns - 1;
-        // เมื่อหมดเวลา Stagger ให้ฟื้นเกราะกลับมา 3 ชั้น
         if (state.monsterStaggerTurns[monsterId] === 0) {
-          state.monsterAstralLayers[monsterId] = 3;
+          state.monsterAstralLayers[monsterId] = HAZARD_TUNING.astral_eclipse.regenLayers;
         }
       }
     }
   }
 }
-

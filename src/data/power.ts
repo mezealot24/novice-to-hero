@@ -38,7 +38,7 @@ Object.assign(JOB2_K, { beastmaster: 1.15, innovator: 1.1 }) // Phase 4 Archer: 
  *  ≈ +20% Hero Power over the same 2nd job). Paladin 1.1 (P7 2026-11-08): the Stats see only ~+4% (legacy HP) while Gospel pulses,
  *  Faith, block amp, Shield Press / Banding are invisible; bot D10 🔥 n=4: Crusader 1/4, Paladin A 1/4 (deeper), B 2/4 at higher power.
  *  First guess from a small bot sample: re-check against Q's playtest before touching it again (bot plays worse than people). */
-export const JOB3_K: Partial<Record<Job3Id, number>> = { paladin: 1.1, lordknight: 1.15, champion: 1.15 } // lordknight: bot D10 🔥 3/4 -> 4/4 at +7% power, 😈 0/4 -> 3/4 (design/awakening-lordknight-v1.md)
+export const JOB3_K: Partial<Record<Job3Id, number>> = { paladin: 1.28, lordknight: 1.32, champion: 1.32 } // Job3 sqrt calibration (~+13-15% base + Job3 tree ~+15-20% total vs Job2)
 /** 2nd jobs that change the class magic share: Sage hits in melee (P.ATK) + Auto Spell / Endow (Pm 70/30), about half magic. */
 const MAGIC_SHARE2: Partial<Record<Job2Id, number>> = { sage: 0.5 }
 
@@ -51,13 +51,15 @@ export function powerParts(st: Stats, job: JobId = 'novice', job2?: Job2Id, job3
   const magic = st.matk * (1 + Math.min(1, st.spellCrit) * (st.critMul - 1))
   const perHit = phys * (1 - m) + magic * m
   const chain = (1 + comboExtra(st.combo, COMBO.baseCount + st.comboCount) * (1 + st.comboDmg)) * (1 + doubleAtkChance(st.doubleAtk))
-  const skill = 1 + 0.5 * (st.pskill * (1 - m) + st.s1Pow + st.ultPow + st.ultAmp) - 0.5 * st.skillDmgCut
+  const j3Off = 0.25 * (st.u3Pow + st.ult2Pow + st.j3VarMul) + 0.1 * st.j3Press * Math.max(0.2, st.j2Guard)
+  const skill = 1 + 0.5 * (st.pskill * (1 - m) + st.s1Pow + st.ultPow + st.ultAmp + j3Off) - 0.5 * st.skillDmgCut
   const offense = perHit * chain * (st.aspd / PLAYER.aspd) * Math.max(0.3, skill)
   // ---- survival ----
   const physTaken = (100 / (100 + st.def)) * (1 - st.guard)
   const magicTaken = (1 - st.mdef) * (1 - st.guard)
   const land = hitChance(R.hit, st.flee, 0.8 - st.fleeFloor) * (1 - st.luckyDodge) // same floor as BattleScene.hurtHero
-  const taken = physTaken * land * (1 - R.magicShare) + magicTaken * R.magicShare
+  const bandCut = Math.min(0.4, st.j3Banding * 2) // Banding DR averaged across ~2 active enemies
+  const taken = (physTaken * land * (1 - R.magicShare) + magicTaken * R.magicShare) * (1 - bandCut)
   // sustain over a ~15-attack fight: lifesteal / vamp, regen (%/turn), dodge heals (Thief gear: every dodge heals)
   const sustain = 1 + st.lifesteal + 0.5 * st.spellVamp + st.regen * BATTLE.regenPerTurn * 0.15 + 0.5 * st.healAmp + 0.5 * st.counter
     + st.dodgeHeal * (1 - land) * (1 - R.magicShare) * R.fightHits + (job === 'cleric' ? 0.3 : 0)

@@ -1,6 +1,15 @@
 import type { Archetype, SkillScale, StatAlloc } from './mon-stats'
 import type { BaseStat } from './meta'
-import { PACKS, type D7Kind, type D7Mini, type D8Kind, type D8Mini, type D9Kind, type D9Mini, type D10Kind, type D10Mini } from './dungeons'
+import {
+  PACKS,
+  type D7Kind, type D7Mini,
+  type D8Kind, type D8Mini,
+  type D9Kind, type D9Mini,
+  type D10Kind, type D10Mini,
+  type D11Kind, type D11Mini,
+  type D12Kind, type D12Mini,
+  type D13Kind, type D13Mini,
+} from './dungeons'
 import type { SkillFormula } from './mon-skill-scale'
 
 export type MonsterKind = 'jellop' | 'wolf' | 'king' | 'minijellop' | 'bat' | 'shroom' | 'boar' | 'shadowwolf' | 'alpha'
@@ -10,10 +19,10 @@ export type MonsterKind = 'jellop' | 'wolf' | 'king' | 'minijellop' | 'bat' | 's
   | 'dewsprite' | 'bonepriest'
   | 'mummy' | 'jackal' | 'sandscorp' | 'dunewraith' | 'scarab' | 'sunpriest' | 'sphinx' | 'jackallord' | 'pharaoh' // D6
   | 'maiden' // drainer's Summon Maiden (Q 2026-11-04)
-  | D7Kind | D8Kind | D9Kind | D10Kind // v78: D7-D10 packs (data/dungeons/dN.ts)
+  | D7Kind | D8Kind | D9Kind | D10Kind | D11Kind | D12Kind | D13Kind // v78+: D7-D13 packs (data/dungeons/dN.ts)
   | 'mimic' | 'mimicking' | 'goldjellop' // event monsters (design/roadmap-and-events-v1.md): stats scale with the dungeon tier at spawn
 export type MiniKind = 'duelist' | 'hunter' | 'gunner' | 'drainer' | 'venomqueen' | 'frostgiant' | 'mirage' | 'warlord' | 'sphinx' | 'jackallord'
-  | D7Mini | D8Mini | D9Mini | D10Mini
+  | D7Mini | D8Mini | D9Mini | D10Mini | D11Mini | D12Mini | D13Mini
 
 // ----- Dungeon 4-5 (design/dungeon-4-5-brutal.md): data-driven monster skills, debuffs on the hero, boss phases -----
 /** What a landed monster hit (or a skill / charged attack) puts on the hero. Turns count hero turns. */
@@ -90,6 +99,7 @@ export interface MonsterDef {
   slamAnim?: 'stomp' | 'pounce' | 'cleave' | 'shot' | 'cast' | 'bite' // boss: how the charged attack looks (Q 2026-11-03: not every boss stomps)
   slamColor?: number // tint of its projectile / magic / burst
   charge?: boolean // boss: telegraphed charged attack every chargeEvery turns, then a slam (BREAK removed, Q 2026-11-03)
+  chargeCounter?: 'interrupt_stun' | 'shield_or_guard' | 'multi_hit_break' // D11-D13 boss/mini charge telegraph counter hint
   // ----- Dungeon 3 (mini bosses, design/dungeon-3-miniboss.md) -----
   mini?: MiniKind // 1v1 mini boss archetype: its own turn script in BattleScene.miniTurn
   title?: string // epithet shown on the duel banner
@@ -266,8 +276,8 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
     skills: [{ kind: 'bolt', every: 3, pow: 1.2, name: '☀️ เปลวสุริยะ', fx: { burn: 1 } }, { kind: 'curse', every: 5, name: 'คำสาปสุสาน', fx: { weaken: 3, poison: 2 } }, { kind: 'revive', every: 4, pow: 0.5, name: 'ปลุกองครักษ์' }],
     phases: [{ at: 0.6, name: 'ตื่นจากโลง! โล่ทรายทอง + มัมมี่องครักษ์', shield: 0.12, summon: ['mummy', 2] },
       { at: 0.3, name: 'สุริยคราส! เร็วขึ้น ชาร์จถี่', speed: 1.25, dmg: 1.15, chargeEvery: 2, cleanse: true, slamFx: { burn: 3, armorBreak: 3, silence: 1 } }] },
-  // ----- D7-D10 (v78): one pack per dungeon, data/dungeons/dN.ts -----
-  ...Object.assign({}, ...PACKS.map((p) => p.monsters)) as Record<D7Kind | D8Kind | D9Kind | D10Kind, MonsterDef>,
+  // ----- D7-D13 (v78+): one pack per dungeon, data/dungeons/dN.ts -----
+  ...Object.assign({}, ...PACKS.map((p) => p.monsters)) as Record<D7Kind | D8Kind | D9Kind | D10Kind | D11Kind | D12Kind | D13Kind, MonsterDef>,
 }
 
 // ===== v49 monster kits (Q 2026-11-04: "ให้แต่ละตัวมี stat combo, counter, cri, สกิลโหดๆ"): merged into MONSTERS below =====

@@ -7,6 +7,7 @@ import {
   type TalentWallet,
 } from '../src/data/meta/talent-economy';
 import {
+  HAZARD_TUNING,
   createBiomeCombatState,
   onHeroSkillCastBiome,
   modifyHeroDirectHealBiome,
@@ -136,12 +137,13 @@ test('💎 [Talent Economy] Respec refunds 100% Dust and Medals with Zeny fee', 
 });
 
 test('🔥 [Biome Hazards] D11 Clockwork Heat Sweet Spot (50-85%) and Overheat (100%)', () => {
+  const cfg = HAZARD_TUNING.clockwork_heat;
   const state = createBiomeCombatState('clockwork_heat', []);
   assert.equal(state.heat, 0);
 
   // Cast 1: 20 heat (below sweet spot)
   const c1 = onHeroSkillCastBiome(state, 1000);
-  assert.equal(state.heat, 20);
+  assert.equal(state.heat, cfg.heatPerSkill);
   assert.equal(c1.critDmgBonus, 0);
 
   // Cast 2: 40 heat
@@ -150,58 +152,79 @@ test('🔥 [Biome Hazards] D11 Clockwork Heat Sweet Spot (50-85%) and Overheat (
   // Cast 3: 60 heat (Sweet Spot: 50% - 85%)
   const c3 = onHeroSkillCastBiome(state, 1000);
   assert.equal(state.heat, 60);
-  assert.equal(c3.critDmgBonus, 0.6);
-  assert.equal(c3.skillDmgMultiplier, 1.25);
+  assert.equal(c3.critDmgBonus, cfg.sweetCritDmg);
+  assert.equal(c3.skillDmgMultiplier, cfg.sweetSkillMul);
   assert.equal(c3.triggeredOverheat, false);
 
   // Cast 4: 80 heat (still sweet spot)
   const c4 = onHeroSkillCastBiome(state, 1000);
-  assert.equal(c4.critDmgBonus, 0.6);
+  assert.equal(c4.critDmgBonus, cfg.sweetCritDmg);
 
   // Cast 5: 100 heat -> Overheat explosion!
   const c5 = onHeroSkillCastBiome(state, 1000);
   assert.equal(c5.triggeredOverheat, true);
-  assert.equal(c5.selfBurnDamage, 150); // 15% of 1000 HP
-  assert.equal(state.overheatedSilenceTurns, 1);
-  assert.equal(state.heat, 30); // reset to 30
+  assert.equal(c5.selfBurnDamage, Math.floor(1000 * cfg.selfBurnPct));
+  assert.equal(state.overheatedSilenceTurns, cfg.silenceTurns);
+  assert.equal(state.heat, cfg.resetHeat);
 
-  // Turn end cools down heat by 15 and reduces silence
+  // Turn end cools down heat by coolPerTurn and reduces silence
   onTurnEndBiome(state);
-  assert.equal(state.heat, 15);
+  assert.equal(state.heat, cfg.resetHeat - cfg.coolPerTurn);
   assert.equal(state.overheatedSilenceTurns, 0);
 });
 
-test('🌊 [Biome Hazards] D12 Abyssal Pressure reduces direct heal and triggers Shield AoE true damage wave', () => {
+test('🌊 [Biome Hazards] D12 Abyssal Pressure reduces direct heal and triggers Shield AoE true damage wave once per turn', () => {
+  const cfg = HAZARD_TUNING.abyssal_pressure;
   const state = createBiomeCombatState('abyssal_pressure', []);
   const heal = modifyHeroDirectHealBiome(state, 500);
-  assert.equal(heal, 250); // 50% cut
+  assert.equal(heal, Math.floor(500 * cfg.healMul)); // 350
 
-  const wave = onHeroShieldOrBlockBiome(state, 200, 1000);
-  assert.equal(wave.triggeredWave, true);
-  // floor(200 * 1.8 + 1000 * 0.08) = floor(360 + 80) = 440
-  assert.equal(wave.aoeTrueDamage, 440);
+  const wave1 = onHeroShieldOrBlockBiome(state, 200, 1000);
+  assert.equal(wave1.triggeredWave, true);
+  // floor(200 * 1.2 + 1000 * 0.05) = floor(240 + 50) = 290
+  assert.equal(wave1.aoeTrueDamage, 290);
+  assert.equal(state.pressureWaveUsedThisTurn, true);
+
+  // Guard: second block/shield in the same hero turn does not fire another wave
+  const wave2 = onHeroShieldOrBlockBiome(state, 200, 1000);
+  assert.equal(wave2.triggeredWave, false);
+  assert.equal(wave2.aoeTrueDamage, 0);
+
+  // Turn end resets cooldown flag so next turn can trigger again
+  onTurnEndBiome(state);
+  assert.equal(state.pressureWaveUsedThisTurn, false);
+  const wave3 = onHeroShieldOrBlockBiome(state, 200, 1000);
+  assert.equal(wave3.triggeredWave, true);
+  assert.equal(wave3.aoeTrueDamage, 290);
 });
 
-test('✨ [Biome Hazards] D13 Astral Veil 5-layer reduction and Stagger on break', () => {
-  const state = createBiomeCombatState('astral_eclipse', ['mob_1']);
-  assert.equal(state.monsterAstralLayers['mob_1'], 5);
+test('✨ [Biome Hazards] D13 Astral Veil 4/6-layer reduction, bossIds support, and Stagger on break', () => {
+  const cfg = HAZARD_TUNING.astral_eclipse;
+  const state = createBiomeCombatState('astral_eclipse', ['mob_1', 'boss_1'], new Set(['boss_1']));
+  assert.equal(state.monsterAstralLayers['mob_1'], cfg.normalLayers);
+  assert.equal(state.monsterAstralLayers['boss_1'], cfg.bossLayers);
 
-  // Hit with 5 layers: 5 * 15% = 75% reduction
+  // Hit normal mob with 4 layers: 4 * 12% = 48% reduction -> 520 damage
   const h1 = onMonsterHitBiome(state, 'mob_1', 1000, 1);
-  assert.equal(h1.finalDamage, 250);
-  assert.equal(h1.remainingLayers, 4);
+  assert.equal(h1.finalDamage, 520);
+  assert.equal(h1.remainingLayers, 3);
   assert.equal(h1.isStaggered, false);
 
-  // Break all remaining 4 layers
-  const h2 = onMonsterHitBiome(state, 'mob_1', 1000, 4);
+  // Hit boss with 6 layers: capped at 60% reduction -> 400 damage
+  const b1 = onMonsterHitBiome(state, 'boss_1', 1000, 1);
+  assert.equal(b1.finalDamage, 400);
+  assert.equal(b1.remainingLayers, 5);
+
+  // Break all remaining 3 layers on mob_1
+  const h2 = onMonsterHitBiome(state, 'mob_1', 1000, 3);
   assert.equal(h2.remainingLayers, 0);
   assert.equal(h2.justBroken, true);
   assert.equal(h2.isStaggered, true);
-  assert.equal(state.monsterStaggerTurns['mob_1'], 2);
+  assert.equal(state.monsterStaggerTurns['mob_1'], cfg.staggerTurns);
 
-  // Hit while Staggered: +50% damage
+  // Hit while Staggered: x1.4 damage
   const h3 = onMonsterHitBiome(state, 'mob_1', 1000, 1);
-  assert.equal(h3.finalDamage, 1500);
+  assert.equal(h3.finalDamage, Math.floor(1000 * cfg.staggerDmgMul));
 
   // End turn 1 of Stagger
   onTurnEndBiome(state);
@@ -210,7 +233,7 @@ test('✨ [Biome Hazards] D13 Astral Veil 5-layer reduction and Stagger on break
   // End turn 2 of Stagger -> Stagger ends and 3 layers restored
   onTurnEndBiome(state);
   assert.equal(state.monsterStaggerTurns['mob_1'], 0);
-  assert.equal(state.monsterAstralLayers['mob_1'], 3);
+  assert.equal(state.monsterAstralLayers['mob_1'], cfg.regenLayers);
 });
 
 test('🏰 [Endgame Dungeons] D11–D13 catalog and boss telegraph definitions', () => {

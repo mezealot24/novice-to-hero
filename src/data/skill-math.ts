@@ -277,6 +277,7 @@ export const KIT3 = {
   champion: {
     chargeMaxAdd: 2, comboManaBonus: 0.25, gritMdefBonus: 0.1, // 🧘 Ki Translation signature
     extraHits: 1, // ✨ Supreme Asura / Tempest Bell shockwave pulse
+    earthDrivePer: 0.8, // 🌋 Champion Earth Drive DEF ratio per level (scaled up for Monk light armor vs Paladin)
     varA: { mul: 2.2, hp: 0.03, stunTurns: 1, per: 0.02, cap: 0.2, branch: 'mk_c' }, // 🐅 Tiger Knuckle: single heavy strike (boss first) + stun · +2% per คอมโบ point
     varB: { mul: 1.0, mdefHp: 0.04, per: 0.02, cap: 0.2, branch: 'mk_h' }, // 💥 Chain Crush: AoE true wave · +2% per หมัดแค้น point
     leg: { crossCap: 0.15, guardCap: 0.06, hpCap: 0.09, cross: 'mk_c', guard: 'mk_h', hp: 'mk_a' }, heirNeed: 6,
