@@ -1,27 +1,43 @@
 // 📜 สูตร (design/forge-ux-v1.md 4.7): the classic dungeon recipes, the 🃏 Cardforge pieces and ♻️ Salvage in one list.
 // Rules live in data/craft.ts, data/cardforge.ts, data/salvage.ts. Rebuilds on pick / filter / page / action (rare, small).
 import Phaser from 'phaser'
+import { AWAKENED_CRAFT_ITEMS } from '../../data/awakened-craft'
 import { DUNGEONS } from '../../data/game-data'
 import { cardById, cardName } from '../../data/cards'
-import { bagCards, canCardforge, cardforge, cardforgeCost, isCardforge } from '../../data/cardforge'
+import { ALL_CARDFORGE_ITEMS, bagCards, canCardforge, cardforge, cardforgeCost, isCardforge } from '../../data/cardforge'
 import { CRAFT_ITEMS, craftCost, forgeItem, GRADE, gradeStars } from '../../data/craft'
 import { CLASS_GEAR } from '../../data/class-gear'
 import { CLASS_CRAFT_ITEMS } from '../../data/class-craft'
+import { describeItemEffects, itemConversionsOf, itemEffectsOf } from '../../data/item-effects'
 import { matById } from '../../data/materials'
 import { canWearAs, gradeOf, ITEMS, itemStatLine, itemUnlocked, refineOf, REQ_TEXT, wearText, type Item } from '../../data/meta'
 import { salvage, salvageable, salvagePreview, type SalvageWhy } from '../../data/salvage'
 import { canPay, equip, pay, persist, save } from '../../save'
 import { sfx } from '../../sfx'
 import { button, chip, confirm, costStrip, fit, holdButton, itemIcon, panel, toast, txt, UI } from '../../ui'
-import { CARDFORGE_ITEMS } from '../../data/cardforge'
+import { itemSetOf } from './state'
 import { matSource } from './stash'
 
 export interface ViewHost { wallet(): void; say(text: string): void; changed(): void }
-type Filter = 'all' | 'mine' | 'classic' | 'cf' | 'salvage'
-const FILTERS: { id: Filter; label: string }[] = [{ id: 'all', label: 'ทั้งหมด' }, { id: 'mine', label: '🎯สายเรา' }, { id: 'classic', label: '🔨ดัน' }, { id: 'cf', label: '🃏ผนึก' }, { id: 'salvage', label: '♻️หลอม' }]
+type Filter = 'all' | 'mine' | 'classic' | 'awakened' | 'cf' | 'salvage'
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: 'all', label: 'ทั้งหมด' },
+  { id: 'mine', label: '🎯เรา' },
+  { id: 'classic', label: '🔨ดัน' },
+  { id: 'awakened', label: '✨D11+' },
+  { id: 'cf', label: '🃏ผนึก' },
+  { id: 'salvage', label: '♻️หลอม' },
+]
 const PER = 6, ROW_H = 52
-const dgName = (id: string) => DUNGEONS.find((d) => d.id === id)?.name ?? id
-const dgBoss = (id: string) => DUNGEONS.find((d) => d.id === id)?.boss ?? ''
+const AWAKENED_IDS = new Set(AWAKENED_CRAFT_ITEMS.map((it) => it.id))
+const dgName = (id: string) => (id === 'rift' ? 'รอยแยกนิรันดร์' : DUNGEONS.find((d) => d.id === id)?.name ?? id)
+const dgBoss = (id: string) => (id === 'rift' ? 'บอสรอยแยกนิรันดร์' : DUNGEONS.find((d) => d.id === id)?.boss ?? '')
+const dgIx = (it: Item) => {
+  if (!it.craft) return DUNGEONS.length + 2
+  if (it.craft.dg === 'rift') return DUNGEONS.length
+  const ix = DUNGEONS.findIndex((d) => d.id === it.craft!.dg)
+  return ix >= 0 ? ix : DUNGEONS.length + 1
+}
 const SALVAGE_WHY: Record<SalvageWhy, string> = { notOwned: 'ยังไม่มีชิ้นนี้', notCraft: 'ของร้านหลอมไม่ได้ (ขายได้ · ยกเว้นที่ติดคำสาป)', unique: '👑 ยูนีคหลอมไม่ได้', worn: 'ใส่อยู่ ถอดก่อนนะคะ', broken: '💔 แตกอยู่ ซ่อมก่อนนะคะ' }
 
 export class RecipeView {
@@ -33,10 +49,11 @@ export class RecipeView {
 
   /** The list for the current filter. Fixed order (dungeon, then catalogue), never by affordability, so rows don't jump. */
   private list(): Item[] {
-    const s = save(), dgIx = (it: Item) => (it.craft ? DUNGEONS.findIndex((d) => d.id === it.craft!.dg) : DUNGEONS.length) // Corrupted shop gear (no recipe) sorts last
-    const all = [...CRAFT_ITEMS, ...CLASS_GEAR, ...CLASS_CRAFT_ITEMS, ...CARDFORGE_ITEMS].sort((a, b) => dgIx(a) - dgIx(b))
+    const s = save()
+    const all = [...CRAFT_ITEMS, ...CLASS_GEAR, ...CLASS_CRAFT_ITEMS, ...AWAKENED_CRAFT_ITEMS, ...ALL_CARDFORGE_ITEMS].sort((a, b) => dgIx(a) - dgIx(b))
     if (this.filter === 'mine') return all.filter((it) => canWearAs(it, s))
     if (this.filter === 'classic') return all.filter((it) => !isCardforge(it))
+    if (this.filter === 'awakened') return all.filter((it) => AWAKENED_IDS.has(it.id))
     if (this.filter === 'cf') return all.filter(isCardforge)
     if (this.filter === 'salvage') return ITEMS.filter((it) => (it.craft || s.taint?.[it.id]) && s.owned.includes(it.id)).sort((a, b) => dgIx(a) - dgIx(b))
     return all
@@ -52,7 +69,7 @@ export class RecipeView {
     const s = save()
     if (this.filter === 'salvage') { const ok = salvageable(s, it); return ok.ok ? `คืน ${Object.values(salvagePreview(s, it).mats).reduce((a, b) => a + b, 0)} ชิ้น · ค่าธรรมเนียม ${salvagePreview(s, it).fee}z` : SALVAGE_WHY[ok.why] }
     if (!this.unlocked(it)) {
-      if (it.craft && !((s.clearsBy?.[it.craft.dg] ?? 0) > 0)) return `🔒 ล้มบอสดัน ${it.craft.dg.slice(1)} ก่อน`
+      if (it.craft && !((s.clearsBy?.[it.craft.dg] ?? 0) > 0)) return it.craft.dg === 'rift' ? '🔒 ล้มบอสรอยแยกก่อน' : `🔒 ล้มบอสดัน ${it.craft.dg.slice(1)} ก่อน`
       return `🔒 ${it.req ? REQ_TEXT[it.req] : 'ยังไม่ปลดล็อก'}`
     }
     if (s.owned.includes(it.id)) return '✓ มีแล้ว'
@@ -70,7 +87,7 @@ export class RecipeView {
     this.page = Math.max(0, Math.min(this.page, pages - 1))
     if (!this.sel || !list.some((it) => it.id === this.sel)) this.sel = list[this.page * PER]?.id ?? list[0]?.id
     root.add(panel(sc, 16, 112, 256, 450, 0x1d2140, UI.line, 12))
-    FILTERS.forEach((f, i) => root.add(button(sc, 16 + 30 + i * 49, 128, 46, 28, f.label, () => { this.filter = f.id; this.page = 0; this.sel = undefined; this.rebuild() }, { size: 11, fill: this.filter === f.id ? 0xf2b84b : 0x5a5f8a, color: this.filter === f.id ? UI.ink : UI.text })))
+    FILTERS.forEach((f, i) => root.add(button(sc, 41 + i * 41, 128, 38, 28, f.label, () => { this.filter = f.id; this.page = 0; this.sel = undefined; this.rebuild() }, { size: 10, fill: this.filter === f.id ? 0xf2b84b : 0x5a5f8a, color: this.filter === f.id ? UI.ink : UI.text })))
     list.slice(this.page * PER, this.page * PER + PER).forEach((it, i) => {
       const w = 244, cy = 162 + i * (ROW_H + 4) + ROW_H / 2, on = it.id === this.sel, hide = !this.unlocked(it) && this.filter !== 'salvage'
       const g = sc.add.graphics()
@@ -93,18 +110,22 @@ export class RecipeView {
   // ---------- right side ----------
   private stage(root: Phaser.GameObjects.Container, it: Item, s: ReturnType<typeof save>) {
     const sc = this.scene, open = this.unlocked(it), salv = this.filter === 'salvage', cf = isCardforge(it), c = it.craft
+    const itemSet = itemSetOf(it)
     root.add(panel(sc, 288, 112, 656, 150))
     const shown = open || salv
     root.add(itemIcon(sc, 288 + 70, 187, 96, shown ? it : { ...it, icon: '❓', name: '???' }, { grade: salv ? gradeOf(s, it.id) : 1, refine: salv ? refineOf(s, it.id) : 0 }))
-    root.add(fit(txt(sc, 288 + 128, 122, shown ? `${it.name}${cf ? '  🃏' : ''}` : '??? (ยังไม่ปลดสูตร)', 20, shown ? UI.text : UI.sub, true).setWordWrapWidth(500), 28))
-    root.add(txt(sc, 288 + 128, 150, `${c ? `ของ${dgName(c.dg)}` : 'ของร้าน (ติดคำสาป)'} · ${wearText(it)}${canWearAs(it, s) ? '' : ' (ไม่ใช่อาชีพนี้)'}`, 12, canWearAs(it, s) ? UI.sub : UI.red))
+    const titleBadges = `${cf ? '  🃏' : ''}${itemSet ? '  🧩' : ''}`
+    root.add(fit(txt(sc, 288 + 128, 120, shown ? `${it.name}${titleBadges}` : '??? (ยังไม่ปลดสูตร)', 19, shown ? UI.text : UI.sub, true).setWordWrapWidth(504), 26))
+    const setTag = shown && itemSet ? ` · 🧩 ${itemSet.name}` : ''
+    root.add(fit(txt(sc, 288 + 128, 147, `${c ? `ของ${dgName(c.dg)}` : 'ของร้าน (ติดคำสาป)'} · ${wearText(it)}${canWearAs(it, s) ? '' : ' (ไม่ใช่อาชีพนี้)'}${setTag}`, 12, canWearAs(it, s) ? UI.sub : UI.red).setWordWrapWidth(510), 18))
     const lockMsg = c && !((s.clearsBy?.[c.dg] ?? 0) > 0) ? `ล้ม${dgBoss(c.dg)}ก่อนถึงจะตีได้` : (it.req ? REQ_TEXT[it.req] : 'ยังไม่ปลดล็อก')
     if (shown) {
       const worn = forgeItem(it, salv ? gradeOf(s, it.id) : 1, salv ? refineOf(s, it.id) : 0)
-      root.add(fit(txt(sc, 288 + 128, 170, `${itemStatLine(worn)} · 🃏 ช่องการ์ด ${it.slots ?? 1}`, 13, '#9fe3a8', true).setWordWrapWidth(510), 34))
-      if (cf) root.add(fit(txt(sc, 288 + 128, 206, it.desc, 12, UI.gold, true).setWordWrapWidth(510), 34))
-      else root.add(fit(txt(sc, 288 + 128, 206, it.desc, 12, UI.sub).setWordWrapWidth(510), 18))
-      if (c) root.add(txt(sc, 288 + 128, 232, `★3 ปลด: ${itemStatLine({ mod: c.bonus[0] })}  ·  ★5 ปลด: ${itemStatLine({ mod: c.bonus[1] })}`, 11, GRADE.colors[3]).setWordWrapWidth(520))
+      root.add(fit(txt(sc, 288 + 128, 166, `${itemStatLine(worn)} · 🃏 ช่องการ์ด ${it.slots ?? 1}`, 13, '#9fe3a8', true).setWordWrapWidth(510), 32))
+      const fx = describeItemEffects(itemEffectsOf(undefined, it), itemConversionsOf(undefined, it))
+      const detail = fx.length > 0 ? `${it.desc} · ${fx.join(' · ')}` : it.desc
+      root.add(fit(txt(sc, 288 + 128, 200, detail, 11, cf ? UI.gold : UI.sub, cf).setWordWrapWidth(510), 32))
+      if (c) root.add(fit(txt(sc, 288 + 128, 234, `★3 ปลด: ${itemStatLine({ mod: c.bonus[0] })}  ·  ★5 ปลด: ${itemStatLine({ mod: c.bonus[1] })}`, 11, GRADE.colors[3]).setWordWrapWidth(510), 22))
     } else root.add(txt(sc, 288 + 128, 176, `🔒 ${lockMsg}\nวัตถุดิบ: ??? · ค่าตี: ???`, 14, UI.sub))
     root.add(panel(sc, 288, 272, 656, 190, UI.panel, UI.line))
     if (salv) this.salvageInfo(root, it, s)

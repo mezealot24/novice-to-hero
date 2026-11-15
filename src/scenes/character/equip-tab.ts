@@ -1,6 +1,14 @@
 import { COLORS } from "../../data/game-data";
 import { gradeStars, gradeCap } from "../../data/craft";
 import {
+	ASPECTS,
+	describeItemEffects,
+	itemConversionsOf,
+	itemEffectsOf,
+	type AspectId,
+	type SaveExt,
+} from "../../data/item-effects";
+import {
 	canWearAs,
 	forged,
 	forgeTag,
@@ -11,6 +19,7 @@ import {
 	offhandLocked,
 	slotKind,
 	type EquipSlot,
+	type Item,
 	COSTUMES,
 	itemStatLine,
 	splitStatLine,
@@ -19,7 +28,9 @@ import {
 	slotCount,
 	socketed,
 	wearText,
+	wornItems,
 } from "../../data/meta";
+import { ITEM_SETS, setBonuses } from "../../data/sets";
 import {
 	canUnequip,
 	equip,
@@ -31,6 +42,7 @@ import {
 import { UNIQUE } from "../../data/uniques";
 import {
 	button,
+	fit,
 	go,
 	panel,
 	toast,
@@ -40,6 +52,13 @@ import {
 import { fitHeroScale, heroTex } from "../../gfx/hero-visual";
 import type { CharacterScene } from "../CharacterScene";
 import { clip } from "./node-detail";
+
+function itemPowerBadges(s: SaveExt, it: Item): string {
+	const inSet = Boolean(
+		it.setId || ITEM_SETS.some((st) => st.memberIds?.includes(it.id)),
+	);
+	return `${s.awakened?.[it.id] ? "🌟" : ""}${s.imbue?.[it.id] ? "🔮" : ""}${inSet ? "🧩" : ""}`;
+}
 
 // ---------- tab 1: equipment screen (RO style): 3 slots left, hero in the middle, 3 slots right ----------
 export function equipTab(scene: CharacterScene) {
@@ -95,7 +114,17 @@ export function equipTab(scene: CharacterScene) {
 			12,
 		);
 		b.add(g);
-		b.add(txt(scene, x + 10, y + 4, `${sl.icon} ${sl.name}`, 11, UI.sub));
+		const slotBadges = twin ? "" : itemPowerBadges(s as SaveExt, it);
+		b.add(
+			txt(
+				scene,
+				x + 10,
+				y + 4,
+				`${sl.icon} ${sl.name}${slotBadges ? ` ${slotBadges}` : ""}`,
+				11,
+				UI.sub,
+			),
+		);
 		if (n)
 			b.add(
 				txt(
@@ -212,6 +241,7 @@ export function equipTab(scene: CharacterScene) {
 			? COSTUMES.filter((c) => s.costumes.includes(c.id)).map((c) => ({
 					id: c.id,
 					label: c.name,
+					badges: "",
 					desc: "ไม่มีค่าพลัง",
 					worn: s.costume === c.id,
 					tint: c.tint,
@@ -231,17 +261,27 @@ export function equipTab(scene: CharacterScene) {
 								: "";
 						const lock2h =
 							slot === "offhand" && locked && it.id !== "none_off";
+						const badges = itemPowerBadges(s as SaveExt, it);
+						const fxFirst = describeItemEffects(
+							itemEffectsOf(s as SaveExt, it),
+							itemConversionsOf(s as SaveExt, it),
+						)[0];
+						const statPart =
+							`${splitStatLine(forged(s, it), !!it.unique).curse ? "💀" : ""}${itemStatLine(forged(s, it))}` ||
+							it.desc;
 						return {
 							id: it.id,
 							label: `${it.icon} ${it.name}${forgeTag(s, it.id)}`,
+							badges,
 							desc: lock2h
 								? "🔒 ถืออาวุธ 2 มืออยู่ ใส่ไม่ได้"
 								: !canWearAs(it, s)
 									? `⚠ ${wearText(it)} เท่านั้น`
 									: isBroken(s, it.id)
 										? "💔 แตก: ไม่ได้ค่าพลังจนกว่าจะซ่อม"
-										: `${splitStatLine(forged(s, it), !!it.unique).curse ? "💀" : ""}${itemStatLine(forged(s, it))}` ||
-											it.desc,
+										: fxFirst
+											? `${statPart} · ${fxFirst}`
+											: statPart,
 							worn: s.equipped[slot] === it.id,
 							tint: 0,
 							off: !canWearAs(it, s) || lock2h,
@@ -319,17 +359,22 @@ export function equipTab(scene: CharacterScene) {
 						.setScale(0.85)
 						.setTint(it.tint),
 				);
+			const badges = "badges" in it ? it.badges : "";
 			b.add(
 				txt(
 					scene,
 					x + (it.tint ? 48 : 12),
 					y + 5,
-					clip(it.label, 17),
+					clip(it.label, badges ? 14 : 17),
 					15,
 					UI.text,
 					true,
 				),
 			);
+			if (badges)
+				b.add(
+					txt(scene, x + 216, y + 6, badges, 11, UI.gold).setOrigin(1, 0),
+				);
 			b.add(
 				txt(
 					scene,
@@ -415,6 +460,57 @@ export function equipTab(scene: CharacterScene) {
 				.setOrigin(0.5)
 				.setAlign("center"),
 		);
+	const selIt =
+		slot === "costume"
+			? undefined
+			: itemById(s.equipped[slot === "offhand" && locked ? "weapon" : slot]);
+	const { active } = setBonuses(wornItems(s));
+	b.add(panel(scene, 330, 510, 340, 56, 0x181c36, UI.line, 10));
+	let inspectLine = "👗 ชุดคอสตูม (ตกแต่งตัวละคร)";
+	if (selIt) {
+		if (selIt.id.startsWith("none")) {
+			inspectLine = "ยังไม่ได้สวมใส่ในช่องนี้";
+		} else {
+			const ext = s as SaveExt;
+			const aspId = ext.imbue?.[selIt.id] as AspectId | undefined;
+			const asp = aspId ? ASPECTS[aspId] : undefined;
+			const tags = [
+				ext.awakened?.[selIt.id] ? "🌟ปลุกพลัง" : "",
+				asp ? `${asp.icon}${asp.name}` : "",
+				...describeItemEffects(
+					itemEffectsOf(ext, selIt),
+					itemConversionsOf(ext, selIt),
+				),
+			].filter(Boolean);
+			inspectLine = `${selIt.icon} ${selIt.name}: ${tags.length ? tags.join(" · ") : "ยังไม่มีรูน/เอฟเฟกต์พิเศษ"}`;
+		}
+	}
+	b.add(
+		fit(
+			txt(scene, 340, 514, inspectLine, 11, "#d8c2ff").setWordWrapWidth(320),
+			16,
+		),
+	);
+	const setLine = active.length
+		? active
+				.map((a) => {
+					const maxP =
+						a.nextTier?.pieces ??
+						a.set.tiers[a.set.tiers.length - 1]?.pieces ??
+						a.count;
+					const latest = a.activeTiers[a.activeTiers.length - 1];
+					return `${a.set.icon}${a.set.name} ${a.count}/${maxP}${latest ? ` (${latest.label})` : " (ยังไม่ถึงขั้น)"}`;
+				})
+				.join(" · ")
+		: "🧩 เซตที่ใส่: ยังไม่เปิดโบนัส (ใส่ของเซตเดียวกัน 2+ ชิ้น)";
+	b.add(
+		fit(
+			txt(scene, 340, 533, setLine, 10, active.length ? UI.gold : UI.sub)
+				.setWordWrapWidth(320)
+				.setLineSpacing(1),
+			28,
+		),
+	);
 	b.add(
 		button(
 			scene,
