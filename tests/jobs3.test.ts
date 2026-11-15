@@ -131,7 +131,7 @@ test('pure vs hybrid: pure cannot borrow Monk nodes; hybrid stops at tier 2 and 
   assert.deepEqual(mods.map((m) => Object.keys(m)[0]), ['combo'], 'tier-3 Paladin node off on hybrid, Monk node on')
   assert.equal(tree3Mods({ mk_c1: 3 }, 'paladin', 'pure').length, 0, 'borrowed node off on pure')
   assert.ok(heroStats({ ...s, job3Path: 'hybrid', job3Tree: { mk_c1: 3 } }).combo > heroStats(s).combo)
-  assert.ok(TREE3.every((n) => /^(paladin_u3p|lordknight_u3p|champion_u3p|pa_|lk_|ch_)/.test(n.id)), 'ids are save data')
+  assert.ok(TREE3.every((n) => /^(paladin_u3p|lordknight_u3p|champion_u3p|ranger_u3p|pa_|lk_|ch_|rn_)/.test(n.id)), 'ids are save data')
 })
 
 // ---------- 🐉 Lord Knight + retroactive trial (Q 2026-11-08) ----------
@@ -214,5 +214,91 @@ test('Champion hybrid borrows Crusader tier 1-2 only', () => {
   assert.equal(lockReason3({}, 'cleric', cr, 'champion', 'hybrid'), '')
   assert.equal(lockReason3({}, 'cleric', nodeById('bz_c1')!, 'champion', 'hybrid'), 'ไม่ใช่ใยของอาชีพนี้')
   assert.deepEqual(tree3Mods({ cr_s1: 3, ch_g3: 2 }, 'champion', 'hybrid').map((m) => Object.keys(m)[0]), ['j2Guard'])
+})
+
+/** A Beastmaster at Job2 Lv 50 with ดัน 10 cleared; `pts` points in each of ฟ้า / ป่า / เขี้ยว / ผูกพัน / สัญชาตญาณ. */
+function beastmaster(pts = 0, extra: Partial<SaveData> = {}): SaveData {
+  const s = newSave('t', 'human')
+  const fill = (ids: string[], n: number) => { const t: Record<string, number> = {}; for (const id of ids) { const k = Math.min(n, nodeById(id)!.max); t[id] = k; n -= k } return t }
+  Object.assign(s, {
+    job: 'archer', jobLevel: 40, job2: 'beastmaster', job2Level: 50, job2Points: 0, gems: 100,
+    clearsBy: { d1: 1, d5: 1, d10: 1 }, clears: 10,
+    job2Tree: {
+      ...fill(['bm_h1', 'bm_h2', 'bm_h3'], pts),
+      ...fill(['bm_b1', 'bm_b2', 'bm_b3'], pts),
+      ...fill(['bm_w1', 'bm_w2', 'bm_w3'], pts),
+      ...fill(['bm_k1', 'bm_k2', 'bm_k3'], pts),
+      ...fill(['bm_s1', 'bm_s2', 'bm_s3'], pts),
+    },
+    ...extra,
+  })
+  setSave(s)
+  return s
+}
+
+test('Beastmaster awakens into Ranger (Camouflage, legacy routing into j2BoarShare, variant scaling)', () => {
+  assert.equal(j3Of('beastmaster')?.id, 'ranger')
+  assert.equal(J3.ranger.sibling, 'innovator')
+
+  const s = beastmaster()
+  assert.equal(job3Ready(s, 'ranger'), false)
+  s.hardClearsBy = { d10: 1 }
+  assert.equal(job3Ready(s, 'ranger'), true)
+  const powerBefore = heroPower(s)
+  assert.equal(changeJob3('ranger'), true)
+  assert.equal(activeJob3(s), 'ranger')
+  assert.ok(heroPower(s) > powerBefore && heroPower(s) < powerBefore * 1.25, 'Ranger JOB3_K raises Hero Power')
+
+  // Signature: 🎭 Camouflage
+  const bm = heroStats(beastmaster(5))
+  const rn = heroStats(beastmaster(5, { job3: 'ranger', job3Level: 30, job3Trial: { ranger: 1 }, job3Tree: {} }))
+  assert.equal(rn.j3Rn, 1)
+  assert.ok(Math.abs(rn.j2PetPow - bm.j2PetPow - KIT3.ranger.petPowAdd) < 1e-9)
+  assert.ok(Math.abs(rn.crit - bm.crit - KIT3.ranger.critAdd) < 1e-9)
+  assert.ok(Math.abs(rn.spellCrit - bm.spellCrit - KIT3.ranger.critAdd) < 1e-9)
+  assert.equal(rn.flee - bm.flee, KIT3.ranger.fleeAdd)
+
+  // Legacy rn_l1 -> ult2Pow (bm_k), rn_l2 -> j2BoarShare (NEVER j2Guard, bm_b), rn_l3 -> maxHp (bm_s)
+  const legUlt = (pts: number) => heroStats(beastmaster(pts, { job3: 'ranger', job3Trial: { ranger: 1 }, job3Tree: { rn_l1: 3 } })).ult2Pow
+    - heroStats(beastmaster(pts, { job3: 'ranger', job3Trial: { ranger: 1 }, job3Tree: {} })).ult2Pow
+  assert.ok(Math.abs(legUlt(0)) < 1e-9)
+  assert.ok(Math.abs(legUlt(5) - 0.075) < 1e-9)
+  assert.ok(Math.abs(legUlt(99) - KIT3.ranger.leg.crossCap) < 1e-9)
+
+  const legBoarBase = heroStats(beastmaster(5, { job3: 'ranger', job3Trial: { ranger: 1 }, job3Tree: {} }))
+  const legBoar = heroStats(beastmaster(5, { job3: 'ranger', job3Trial: { ranger: 1 }, job3Tree: { rn_l2: 3 } }))
+  assert.ok(Math.abs(legBoar.j2BoarShare - legBoarBase.j2BoarShare - 0.006 * 5) < 1e-9)
+  assert.equal(legBoar.j2Guard, 0, 'rn_l2 routes to j2BoarShare, never j2Guard')
+  const legBoarCap = heroStats(beastmaster(99, { job3: 'ranger', job3Trial: { ranger: 1 }, job3Tree: { rn_l2: 3 } })).j2BoarShare
+    - heroStats(beastmaster(99, { job3: 'ranger', job3Trial: { ranger: 1 }, job3Tree: {} })).j2BoarShare
+  assert.ok(Math.abs(legBoarCap - KIT3.ranger.leg.guardCap) < 1e-9)
+
+  const legHpBase = heroStats(beastmaster(5, { job3: 'ranger', job3Trial: { ranger: 1 }, job3Tree: {} })).maxHp
+  const legHp = heroStats(beastmaster(5, { job3: 'ranger', job3Trial: { ranger: 1 }, job3Tree: { rn_l3: 3 } })).maxHp
+  assert.ok(legHp > legHpBase)
+
+  // j3VarMul: variant A reads bm_h, variant B reads bm_w
+  const va = heroStats(beastmaster(5, { job3: 'ranger', job3Var: 'a', job3Trial: { ranger: 1 } }))
+  const vb = heroStats(beastmaster(5, { job3: 'ranger', job3Var: 'b', job3Trial: { ranger: 1 } }))
+  assert.ok(Math.abs(va.j3VarMul - 0.1) < 1e-9)
+  assert.ok(Math.abs(vb.j3VarMul - 0.1) < 1e-9)
+  const vCap = heroStats(beastmaster(99, { job3: 'ranger', job3Var: 'b', job3Trial: { ranger: 1 } }))
+  assert.ok(Math.abs(vCap.j3VarMul - KIT3.ranger.varB.cap) < 1e-9)
+
+  // Parking Ranger when switching to Innovator turns activeJob3 off
+  setSave(s)
+  assert.equal(changeJob2('innovator', 30), true)
+  assert.equal(activeJob3(s), undefined)
+})
+
+test('Ranger pure vs hybrid borrows Innovator tier 1-2 only', () => {
+  const in1 = nodeById('in_t1')!, in2 = nodeById('in_t2')!, rn3 = nodeById('rn_g3')!
+  assert.equal(lockReason3({}, 'archer', in1, 'ranger', 'pure'), 'เฉพาะสาย Hybrid')
+  assert.equal(lockReason3({}, 'archer', in1, 'ranger', 'hybrid'), '')
+  assert.equal(lockReason3({ in_t1: 5 }, 'archer', in2, 'ranger', 'hybrid'), '')
+  assert.match(lockReason3({ rn_g1: 3, rn_g2: 3 }, 'archer', rn3, 'ranger', 'hybrid'), /Hybrid/)
+  assert.equal(lockReason3({ rn_g1: 3, rn_g2: 3 }, 'archer', rn3, 'ranger', 'pure'), '')
+  assert.equal(lockReason3({}, 'archer', nodeById('mk_c1')!, 'ranger', 'hybrid'), 'ไม่ใช่ใยของอาชีพนี้')
+  assert.deepEqual(tree3Mods({ in_t1: 3, rn_g3: 2 }, 'ranger', 'hybrid').map((m) => Object.keys(m)[0]), ['j2TrapMul'])
 })
 

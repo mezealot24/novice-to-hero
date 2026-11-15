@@ -111,6 +111,9 @@ test('class lines: no class → no class line; each class rolls only its own', (
   const pal = roll({ job2: 'crusader', job3: 'paladin' })
   assert.ok(pal.has('j3Press') && pal.has('j2CrossAdd'), 'a Paladin gets Crusader + Paladin lines')
   assert.ok(!pal.has('j2Duel'), 'but never a Berserker line')
+  const rn = roll({ job2: 'beastmaster', job3: 'ranger' })
+  assert.ok(rn.has('j2PetPow') && rn.has('j3Banding') && rn.has('j3AfterBless'), 'a Ranger gets Beastmaster + Ranger lines')
+  assert.ok(!rn.has('j3Press'), 'but never a Paladin line')
 })
 
 test('class lines: every class has a small, equal total weight and a valid 3-step value ladder', () => {
@@ -120,7 +123,7 @@ test('class lines: every class has a small, equal total weight and a valid 3-ste
     byClass.set(key, (byClass.get(key) ?? 0) + d.w)
     assert.ok(d.vals[0] > 0 && d.vals[0] <= d.vals[1] && d.vals[1] <= d.vals[2], `${d.stat} ladder goes up`)
   }
-  assert.equal(byClass.size, 13, '10 2nd jobs + 3 3rd jobs (Paladin, Lord Knight, Champion)')
+  assert.equal(byClass.size, 14, '10 2nd jobs + 4 3rd jobs (Paladin, Lord Knight, Champion, Ranger)')
   for (const [k, w] of byClass) assert.ok(Math.abs(w - CLASS_LINE_W) < 1e-9, `${k} weighs ${CLASS_LINE_W}`)
   const normalW = LINE_POOL.reduce((a, d) => a + d.w, 0)
   assert.ok(CLASS_LINE_W / (normalW + CLASS_LINE_W) < 0.2, 'class lines stay a minority of rolls')

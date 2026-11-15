@@ -22,7 +22,7 @@ const BASE_JOBS: JobId[] = ['swordsman', 'thief', 'cleric', 'mage', 'archer']
 test('class craft: all ids unique, inside ITEMS, valid craft recipes & materials', () => {
   const ids = ITEMS.map((i) => i.id)
   assert.equal(new Set(ids).size, ids.length, 'no duplicate IDs')
-  assert.equal(CLASS_CRAFT_ITEMS.length, 31, '10 J2 armors + 15 D7-D9 + 6 J3 pieces')
+  assert.equal(CLASS_CRAFT_ITEMS.length, 35, '10 J2 armors + 15 D7-D9 + 10 J3 pieces')
 
   for (const it of CLASS_CRAFT_ITEMS) {
     assert.equal(itemById(it.id), it)
@@ -92,13 +92,16 @@ test('class craft: D7, D8, and D9 each provide 1 distinct crafted gear per base 
   }
 })
 
-test('class craft: D10 3rd-job Awakening gear covers Lord Knight full set & Paladin armor/shield', () => {
-  assert.equal(JOB3_CRAFT_ITEMS.length, 6)
+test('class craft: D10 3rd-job Awakening gear covers Lord Knight full set, Paladin armor/shield & Ranger full set', () => {
+  assert.equal(JOB3_CRAFT_ITEMS.length, 10)
   const lk = JOB3_CRAFT_ITEMS.filter((i) => i.j3?.includes('lordknight'))
   const pl = JOB3_CRAFT_ITEMS.filter((i) => i.j3?.includes('paladin'))
+  const rn = JOB3_CRAFT_ITEMS.filter((i) => i.j3?.includes('ranger'))
 
   assert.deepEqual(lk.map((i) => i.slot).sort(), ['acc', 'armor', 'head', 'weapon'])
   assert.deepEqual(pl.map((i) => i.slot).sort(), ['armor', 'offhand'])
+  assert.deepEqual(rn.map((i) => i.slot).sort(), ['acc', 'armor', 'head', 'weapon'])
+  assert.deepEqual(rn.map((i) => i.id).sort(), ['cc_rn_bow', 'cc_rn_cloak', 'cc_rn_crest', 'cc_rn_helm'])
 
   for (const it of JOB3_CRAFT_ITEMS) {
     assert.equal(it.craft!.dg, 'd10')

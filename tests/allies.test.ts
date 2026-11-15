@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { heroStats } from '../src/data/meta'
-import { ALLIES, fillAllies, frenzyMul, GADGETS, guardHit, hurtAlly, makeAlly, readyAllies, reviveAllies, rollGadget, tauntTarget, useAlly, type Ally, type AllyCtx } from '../src/battle/allies'
-import { KIT2 } from '../src/data/skill-math'
+import { ALLIES, fillAllies, frenzyMul, GADGETS, guardHit, hawkChance as allyHawkChance, hawkMul as allyHawkMul, hurtAlly, makeAlly, readyAllies, reviveAllies, rollGadget, tauntTarget, useAlly, type Ally, type AllyCtx } from '../src/battle/allies'
+import { boarRecoverTurnsOf, KIT2, KIT3 } from '../src/data/skill-math'
 
 const st = heroStats({ race: 'human', stats: { str: 5, vit: 5, wis: 5, dex: 5, int: 5, luk: 5, agi: 5 }, equipped: {}, skills: {}, job: 'archer' } as never)
 
@@ -64,10 +64,10 @@ test('boar at 0 HP goes down (keeps its slot), counts down, gets back up full', 
   const g = guardHit([b], 1000, st)!
   assert.equal(g.broke, true)
   assert.equal(b.dead, false)
-  assert.equal(b.down, BM.boarDown)
+  assert.equal(b.down, boarRecoverTurnsOf(st))
   assert.equal(readyAllies([b]).length, 0)
   assert.equal(guardHit([b], 1000, st), undefined) // a downed boar takes nothing
-  for (let i = 1; i < BM.boarDown; i++) assert.equal(reviveAllies([b]).length, 0)
+  for (let i = 1; i < boarRecoverTurnsOf(st); i++) assert.equal(reviveAllies([b]).length, 0)
   assert.deepEqual(reviveAllies([b]), [b])
   assert.equal(b.hp, b.maxHp)
   assert.equal(readyAllies([b]).length, 1)
@@ -163,9 +163,37 @@ test('🐾 Awakening: boar guardHit accepts ultBoarShare (70%) override', () => 
   assert.equal(g.hero, 100 - Math.floor(100 * BM.ultBoarShare))
 })
 
-test('Talent IV: 🦅 j2HawkTrue passes pierce=1, 🐗 j2BoarStunAll stuns whole row', () => {
-  assert.ok(hawkRun(st, 1).fx.every((f) => !f.pierce))
-  assert.ok(hawkRun({ ...st, j2HawkTrue: 1 }, 1).fx.every((f) => f.pierce === 1))
+test('Talent IV & Rework v2.1: RO Falconer pierce=1 + Blitz Storm hits, Wolf Stance frenzy cap 7, Boar v2.1 share/rageK/down, Ranger hawkChance caps', () => {
+  // Pending @combat-engine merge on src/battle/allies.ts:
+  // 1. RO Falconer Blitz Beat always passes pierce=1 (True Misc DMG), and bm_t4_hawk adds j2HawkBonusHits
+  assert.ok(hawkRun(st, 1).fx.every((f) => f.pierce === 1))
+  const storm = hawkRun({ ...st, j2HawkBonusHits: 2 }, 1)
+  assert.ok(storm.fx.length >= 3, `Blitz Storm +2 hits should yield >= 3 hits (got ${storm.fx.length})`)
+
+  // 2. Boar v2.1 node scaling (j2BoarShare, j2BoarCut, j2BoarRageK, j2BoarDownCut) & 0.80 non-awakening cap
+  const boarSt = { ...st, j2BoarShare: 0.09, j2BoarCut: 0.15, j2BoarRageK: 60, j2BoarDownCut: 1 }
+  const b1 = makeAlly(ALLIES.boar, boarSt)
+  b1.hp = b1.maxHp = 1000
+  const g1 = guardHit([b1], 100, boarSt)!
+  assert.equal(g1.hero, 100 - Math.floor(100 * (BM.boarShare + 0.09)))
+  assert.equal(g1.took, Math.round(Math.floor(100 * (BM.boarShare + 0.09)) * (1 - (BM.boarCut + 0.15))))
+  assert.ok(Math.abs(b1.rage - (g1.took / b1.maxHp) * (BM.boarRageK + 60)) < 1e-6)
+  b1.hp = 1
+  guardHit([b1], 1000, boarSt)
+  assert.equal(b1.down, 2, 'bm_b4 reduces boar down turns 3 -> 2')
+
+  // 3. Wolf Stance expands Bloodscent Frenzy cap 5 -> 7
+  const wolfSt = { ...st, j2Frenzy: 0.03, j2FrenzyCapAdd: 2 }
+  assert.ok(Math.abs(frenzyMul(wolfSt, 7) - 1.21) < 1e-9)
+  assert.ok(Math.abs(frenzyMul(wolfSt, 99) - 1.21) < 1e-9)
+
+  // 4. allies.hawkChance delegates to skill-math.ts (Skyhunter 0.75, Ranger 0.70, Ranger + Skyhunter 0.85)
+  assert.ok(Math.abs(allyHawkChance({ ...st, j2HawkCapAdd: 0.15 }, 300) - 0.75) < 1e-9)
+  assert.ok(Math.abs(allyHawkChance({ ...st, j3Rn: 1 }, 300) - (BM.hawkCap + KIT3.ranger.hawkCapAdd)) < 1e-9)
+  assert.ok(Math.abs(allyHawkChance({ ...st, j3Rn: 1, j2HawkCapAdd: 0.15 }, 300) - 0.85) < 1e-9)
+  assert.ok(allyHawkMul({ ...st, matk: 200 }) >= 0)
+
+  // 5. Boar bm_t4_boar stunAll
   const stuns: boolean[] = []
   const boarRun = (stats: typeof st) => {
     const b = makeAlly(ALLIES.boar, stats)

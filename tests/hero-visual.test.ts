@@ -90,3 +90,22 @@ test('heroCostumeTint and fitHeroScale handle default/custom costumes and wide K
   assert.equal(fitHeroScale(0, 0, 2, 100), 2)
 })
 
+test('heroRigSpec adds emerald-gold aura for active Ranger and clears it when parked', () => {
+  const ranger = heroRigSpec({
+    job: 'archer',
+    job2: 'beastmaster',
+    job3: 'ranger',
+  })
+  assert.equal(ranger.compositeTex, 'hero_archer')
+  assert.equal(ranger.auraTex, 'aura_gold')
+  assert.equal(ranger.auraTint, 0x9fe08a)
+
+  const parkedRanger = heroRigSpec({
+    job: 'archer',
+    job2: 'innovator',
+    job3: 'ranger',
+  })
+  assert.equal(parkedRanger.auraTex, undefined)
+  assert.equal(parkedRanger.auraTint, undefined)
+})
+
