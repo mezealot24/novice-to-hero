@@ -3,6 +3,9 @@
 Q 2026-11-15: เพื่อนๆ อยากให้เกมเป็นแนว "จัดตี้ turn-based จริงจัง" → ยืนยันแล้ว: **ผู้เล่นคนเดียวคุมหลายตัว** (แบบ JRPG คลาสสิก) ไม่ใช่ online co-op
 Status: 📝 draft (ยังไม่ implement) · Scope: Phase 1 MVP
 
+> **อัปเดต 2026-11-15:** ตัดสินใจย้ายไป Godot แล้ว (`godot-migration-v1.md`) → โหมดตี้จะเป็นฟีเจอร์แรกบน Godot
+> path `src/party/*.ts` ในเอกสารนี้ให้อ่านเป็น `godot/core/party/*.gd` ส่วน types, rules, events และ tests ยังใช้ตามเดิม
+
 > ทำแค่ "แนวเกม" (party, command menu, rows, ATB) ซึ่งเป็นกลไกทั่วไปของ JRPG
 > ห้ามใช้ชื่อ ตัวละคร ไอเทม ฉาก หรือหน้าตาของเกมอื่น (FF / TS Online) — ทุกอย่างใช้โลก Novice to Hero ของเราเอง
 
