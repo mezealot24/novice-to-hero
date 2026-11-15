@@ -5,7 +5,7 @@ import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LI
 import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
 import { blessBase, FREE_GEMS, heroBuild, heroStats, jobUpText, itemById, PER_POINT, RESOURCES, splitStatLine, totalBase, type BaseStat, type HeroBuildSummary } from '../data/meta'
-import { RESIST_RULES } from '../data/battle-rules'
+import { COIN_FX, RESIST_RULES, coinTier, splitZeny } from '../data/battle-rules'
 import { type ItemEffectId, type ItemEffectSpec } from '../data/item-effects'
 import { createBiomeCombatState, HAZARD_TUNING, modifyHeroDirectHealBiome, onHeroShieldOrBlockBiome, onHeroSkillCastBiome, onMonsterHitBiome, onTurnEndBiome, type BiomeCombatState } from '../data/biome-hazards'
 import { RIFT_BRANCHES, riftBoonById, type RiftBoonDef, type RiftBranchDef } from '../data/rift'
@@ -46,7 +46,7 @@ import { CombatLog, deathText, recapLines, saveDeath, type DeathRec, type HitOut
 import { ftue, track } from '../analytics'
 import { HeroRig } from '../battle/hero-rig'
 import { fitHeroScale, heroCostumeTint, heroRigSpec, heroTex, type HeroRigSpec } from '../gfx/hero-visual'
-import { ARCHER_PFX, BEAST_PFX, CLERIC_PFX, MAGE_PFX, POISON_GREEN, RICOCHET_LEAF, playPfx, preloadPfx } from '../gfx/pixelfx'
+import { ARCHER_PFX, BEAST_PFX, CLERIC_PFX, COIN_DROP_IDS, COIN_DROP_REST, COIN_PFX, MAGE_PFX, POISON_GREEN, RICOCHET_LEAF, playPfx, preloadPfx } from '../gfx/pixelfx'
 import { RANGER_FX, arrowImpactFx, arrowProjectile, arrowRainFx, beastRoarFx, boarGuardFx, eagleEyeFx, huntMarkOn, petHitFx, type PetKind, pierceShotFx, snareTrapFx, stampedeFx, wolfRoarPalette } from '../battle/ranger-vfx'
 import { blockShieldFx, bowlingBashFx, brandishSweepFx, chargeOpenerFx, comboSlashFx, guardianUltFx, pierceHitFx, skill2AuraFx, spearBoomerangFx, whirlwindFx } from '../battle/sword-vfx'
 
@@ -368,6 +368,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.j2?.id === 'beastmaster') preloadPfx(this, BEAST_PFX)
     else if (this.st.arHawk > 0) preloadPfx(this, ['hawkDive']) // archer talent เหยี่ยวคู่ใจ
     preloadPfx(this, ['zapYellow', 'zapBolt'])
+    preloadPfx(this, COIN_PFX) // kill loot: every job sees it
     if (this.j2) this.job = { ...this.job, resource: this.j2.resource ?? this.job.resource, auto: { ...this.job.auto, cost: this.j2.autoCost ?? this.job.auto.cost }, ult: { ...this.job.ult, ...this.j2.ult, ...(this.j2.id === 'monk' && this.st.j2Asura > 0 ? { icon: '💥', name: 'อาชูร่าสไตรก์' } : {}) } } // Berserker: Rage · Ult วิวัฒน์ · Monk ★ Asura Strike
     if (this.j2?.id === 'sage') this.job = { ...this.job, attack: 'melee' } // 📖 Sage: melee basic + counters (P.ATK)
     const tb = totalBase(s)
@@ -3516,7 +3517,7 @@ export class BattleScene extends Phaser.Scene {
     this.runXp += xp
     this.gainXp(xp)
     const [a, b] = m.def.zeny
-    this.coinsFly(m.spr.x, m.spr.y - 20, Math.round(Phaser.Math.Between(a, b) * pay * (1 + this.zenyWave))) // Innovator 🧲 แม่เหล็ก
+    this.coinsFly(m.spr.x, m.spr.y, Math.round(Phaser.Math.Between(a, b) * pay * (1 + this.zenyWave)), true) // Innovator 🧲 แม่เหล็ก
     this.rollCard(m)
     this.rollMat(m)
     this.rollUnique(m)
@@ -5960,13 +5961,46 @@ export class BattleScene extends Phaser.Scene {
     this.time.delayedCall(600, () => p.destroy())
   }
 
-  /** Coins pop out and fly to the zeny counter. */
-  private coinsFly(x: number, y: number, n: number) {
-    for (let i = 0; i < n; i++) {
-      const c = this.add.image(x, y, 'coin').setDepth(9800)
-      this.tweens.add({ targets: c, x: x + Phaser.Math.Between(-40, 40), y: y - Phaser.Math.Between(20, 60), duration: 220, ease: 'Quad.easeOut',
-        onComplete: () => this.tweens.add({ targets: c, x: this.coinImg?.x ?? W - 70, y: 25, duration: 380, delay: i * 30, ease: 'Quad.easeIn', onComplete: () => { c.destroy(); this.zeny++; sfx.coin() } }) })
+  /**
+   * Zeny loot. poof (a kill, (x, y) = the monster's feet): a pixelfx coin-drop bursts out and bounces, then its
+   * coins lift off where they settled and fly to the zeny counter. Without poof (events, chests) the coins pop
+   * out of (x, y) and fly. A fixed handful of coins per tier carries the zeny (COIN_FX), one sound each way.
+   */
+  private coinsFly(x: number, y: number, n: number, poof = false) {
+    if (n <= 0) return
+    const tier = coinTier(n), shares = splitZeny(n, tier.coins), k = shares.length
+    sfx.coinDrop()
+    const fly = () => {
+      let left = k
+      const rest: readonly number[] = COIN_DROP_REST[tier.coins]
+      shares.forEach((share, i) => {
+        const sx = poof ? x + (rest[i] ?? 0) * COIN_FX.scale : x + Phaser.Math.Between(-40, 40)
+        const sy = poof ? y - 3 * COIN_FX.scale : y
+        const c = this.add.image(sx, sy, 'coin').setDepth(9800)
+        this.tweens.add({ targets: c, scaleX: 0.25, duration: 110, yoyo: true, repeat: -1 }) // spins as it flies
+        this.tweens.add({ targets: c, y: sy - COIN_FX.hop - (poof ? 0 : Phaser.Math.Between(0, 30)), duration: COIN_FX.hopMs, delay: i * COIN_FX.staggerMs, ease: 'Quad.easeOut',
+          onComplete: () => this.tweens.add({ targets: c, x: this.coinImg?.x ?? W - 70, y: 25, duration: COIN_FX.flyMs, ease: 'Quad.easeIn',
+            onComplete: () => {
+              this.tweens.killTweensOf(c); c.destroy()
+              this.zeny += share
+              this.coinPop()
+              if (--left === 0) sfx.coinGet()
+            } }) })
+      })
     }
+    if (!poof) { fly(); return }
+    const spr = playPfx(this, COIN_DROP_IDS[tier.coins], x, y, { scale: COIN_FX.scale, speed: COIN_FX.speed, depth: y + 1 })
+    if (spr) spr.once('animationcomplete', fly)
+    else fly()
+  }
+
+  /** The HUD coin swells on each coin that lands. */
+  private coinPop() {
+    const img = this.coinImg
+    if (!img) return
+    this.tweens.killTweensOf(img)
+    img.setScale(COIN_FX.popScale)
+    this.tweens.add({ targets: img, scale: 1.2, duration: COIN_FX.popMs, ease: 'Quad.easeOut' })
   }
 
   private callout(text: string, x: number, y: number, color = '#f2b84b') {

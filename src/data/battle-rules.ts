@@ -96,3 +96,29 @@ export const BATTLE = {
   reflectCap: 0.04, // reflect / thorns: one reflected hit deals at most this share of hero max HP, and can't knock the hero out
   soulBolts: 5, soulCap: 0.4, // Mirage Soul Strike: stored damage fires as N magic bolts, total capped at this share of hero max HP
 }
+
+/** Kill loot juice (BattleScene.coinsFly): a pixelfx coin-drop at the kill, then a few coins fly to the zeny counter.
+ * The coin count no longer follows the zeny amount (920 zeny used to be 920 coins and 920 sounds): each tier shows
+ * a fixed number of coins and the zeny is split across them. One drop sound per kill, one tick when the last coin lands. */
+export const COIN_FX = {
+  tiers: [{ upTo: 3, coins: 3 }, { upTo: 50, coins: 6 }, { upTo: Infinity, coins: 10 }] as const,
+  scale: 1.6, // coin-drop sprite scale (monsters are drawn at 1.5)
+  speed: 1.8, // coin-drop playback rate: the bounce takes ~0.7 s
+  hop: 26, // px each coin pops up before it flies
+  hopMs: 130,
+  flyMs: 320,
+  staggerMs: 35, // between coins leaving the floor
+  popScale: 1.55, // the HUD coin swells to this on each arrival
+  popMs: 80,
+}
+
+export type CoinTier = (typeof COIN_FX.tiers)[number]
+
+/** Which coin-drop tier a payout of n zeny shows. */
+export const coinTier = (n: number): CoinTier => COIN_FX.tiers.find((t) => n <= t.upTo) ?? COIN_FX.tiers[COIN_FX.tiers.length - 1]
+
+/** Splits n zeny over k coins as evenly as possible (larger shares first; some may be 0 when n < k). Sums to n. */
+export const splitZeny = (n: number, k: number): number[] => {
+  const total = Math.max(0, Math.floor(n)), count = Math.max(1, Math.floor(k)), base = Math.floor(total / count), extra = total % count
+  return Array.from({ length: count }, (_, i) => base + (i < extra ? 1 : 0))
+}
