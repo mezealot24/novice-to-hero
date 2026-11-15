@@ -712,9 +712,9 @@ export class BattleScene extends Phaser.Scene {
     this.casts = []; this.castFx(false); this.zenTurns = 0; this.endow = 0; this.rodUsed = false // Phase 5 Mage: a charge never carries into the next wave
     if (this.st.j2ChargeFirst > 0) this.heroGauge = Math.max(this.heroGauge, 100) // Knight ★ ทะยาน: the hero acts first
     this.flow = 0; this.clEmerUsed = false; this.sweepTurn = 0 // v84: momentum and ฉุกเฉิน are per wave, the sweep counts this wave's hero turns
-    if (this.st.j2Banner > 0) { // v84 Knight ปักธง: tops the shield up at every wave start (never stacks)
-      const want = Math.round(this.st.maxHp * this.st.j2Banner * (1 + this.st.shieldAmp))
-      if (this.shield < want) { this.shield = want; this.floatText(HERO_X, GROUND - 100, `🚩 ปักธง: โล่ ${want}`, '#9fe3ff') }
+    if (this.st.j2Banner > 0) { // v84 Knight ปักธง: wave-start shield (stacks)
+      this.addShield(this.st.maxHp * this.st.j2Banner, true)
+      this.floatText(HERO_X, GROUND - 100, `🚩 ปักธง: โล่ ${Math.round(this.shield)}`, '#9fe3ff')
     }
     this.mdLast = { shock: -Infinity, nova: -Infinity }; this.raiseGlacial() // Mage passive ❄️ Glacial Aegis: barrier at the start of every wave
     this.lowHpDone = false; this.demonOn = false; this.demonDone = false; this.comboAtkN = 0; this.fightUlts = 0; this.lowRegen = { turns: 0, amt: 0 }; this.ignorePainTurns = 0; this.ignorePainDmg = 0; this.ignorePainUsed = false; this.ignorePainRegenTurns = 0; this.ignorePainRegenPerTurn = 0; this.wlUndyingTurns = 0
@@ -990,7 +990,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private async heroAct() {
-    this.execTurnUsed = false; this.critPetUsed = false
+    this.execTurnUsed = false; this.critPetUsed = false; this.killHealCritUsed = false
     if (this.st.regen > 0) {
       const lowAmp = this.st.swLowRegenAmp > 0 && this.hp < this.st.maxHp * KIT.swordCore.lowHpAt ? 1 + this.st.swLowRegenAmp : 1
       this.heal(this.st.maxHp * this.st.regen * BATTLE.regenPerTurn / 100 * lowAmp, true)
@@ -1201,6 +1201,10 @@ export class BattleScene extends Phaser.Scene {
     }
     const broken = m.armorBrk > 0
     this.damageMon(m, r.dmg, r.crit, color)
+    if (r.crit && !this.killHealCritUsed && this.st.killHeal > 0 && (m.def.ai === 'boss' || !!m.def.mini) && this.hp > 0) {
+      this.killHealCritUsed = true
+      this.heal(this.st.maxHp * this.st.killHeal * 0.25, true)
+    }
     if (broken && this.st.swBreakLeech > 0 && this.hp > 0) this.heal(r.dmg * this.st.swBreakLeech, true) // v84 Swordsman ซ้ำรอย
     if (m.def.toxicSkin && this.hp > 0) this.applyFx({ poison: BATTLE.toxicSkin.poison }) // every landed hit poisons the hero
     if (m.def.iceSkin && this.hp > 0) { if (!this.hx.thorn) this.floatText(HERO_X + 30, GROUND - 150, '❄️ หนามน้ำแข็ง! DMG -15%', '#9fe3ff'); this.hx.thorn = BATTLE.iceSkin.turns }
@@ -1256,6 +1260,7 @@ export class BattleScene extends Phaser.Scene {
   private rampage = 0 // Berserker บ้าระห่ำ turns left
   private boomUsed = false // Knight Spear Boomerang used this wave
   private firstSwing = false // Knight Charge Attack: first basic swing of the wave
+  private killHealCritUsed = false // กระหายเลือด: boss/mini crit heal once per hero turn
   private forceCrit = false
   /** Q 2026-11-14: Beastmaster Ult + Skill 3 hawk / boar hits never crit (the wolf still can; sure crits still go through). */
   private petNoCrit = false
@@ -1471,6 +1476,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.j3Press > 0 && src && !src.dead) this.strike(src, this.st.j3Press * this.st.def / Math.max(1, this.st.atk), false, '#d8d8e8') // Shield Press
     if (this.st.j2BlockShield > 0) this.addShield(this.st.maxHp * this.st.j2BlockShield * over, true)
     if (this.st.j2BlockHeal > 0) this.heal(this.st.maxHp * this.st.j2BlockHeal * over, true)
+    if (this.st.j2BannerKill > 0) this.addShield(this.st.maxHp * this.st.j2BannerKill * 0.5, true) // Knight ธงชัย: block shield (half of kill)
     if (this.st.j2BannerAura > 0) { // v84 Knight ★ ธงอมตะ
       const T = KIT2.knight.tree
       this.heal(this.st.maxHp * T.auraHeal, true); this.gainRage(T.auraRes); this.gainRes(T.auraRes)
@@ -2005,11 +2011,16 @@ export class BattleScene extends Phaser.Scene {
   }
   /** Knight ถึกเป็นแรง: spear skills add a share of max HP, as a P.ATK multiplier. */
   private hpMul() { return this.j2?.id === 'knight' ? (KIT2.knight.hpDmg + this.st.j2HpDmg) * this.st.maxHp / Math.max(1, this.st.atk) : 0 }
-  /** Knight Charge Attack / ★ ทะยาน: the first basic swing of each wave. */
+  /** Knight Charge Attack / ★ ทะยาน: the first basic swing of each wave (stacks with j2Charge). */
   private chargeMul() {
     if (!this.firstSwing) return 1
     this.firstSwing = false
-    if (this.st.j2ChargeFirst > 0) { this.floatText(HERO_X + 40, GROUND - 150, '🚀 ทะยาน!', '#f2d24b'); return KIT2.knight.chargeFirst }
+    if (this.st.j2ChargeFirst > 0) {
+      this.floatText(HERO_X + 40, GROUND - 150, '🚀 ทะยาน!', '#f2d24b')
+      this.heroGauge = Math.min(100, this.heroGauge + KIT2.knight.chargeFirstGauge)
+      this.resGain(KIT2.knight.chargeFirstRes)
+      return KIT2.knight.chargeFirst + this.st.j2Charge
+    }
     return 1 + this.st.j2Charge
   }
   /** ทักษะ 3: casts by itself (free extra action) at the start of the hero's turn when ready and paid for; Spear Boomerang answers a charge. */
@@ -2753,9 +2764,12 @@ export class BattleScene extends Phaser.Scene {
     else if (kind === 'mage') await this.shoot(f, 0x9f7bff, () => { if (this.strike(f, MAGE_SPELL.basicMul, true, '#c9a8ff') > 0) this.gainRes(MAGE_CAST.boltMana) }) // weak free magic bolt (v78: + Mana on hit); real damage = Mana spells
     else if (kind === 'thief') await this.lunge(f, () => { this.strike(f, 0.6); this.strike(f, 0.6); this.doubleAttack(f, 0.6) })
     else if (kind === 'cleric') {
-      if (this.st.j2Charge > 0 && this.firstSwing) chargeOpenerFx(this, HERO_X, f.spr.x, GROUND, this.st.j2ChargeFirst > 0)
+      const surge = this.firstSwing && this.st.j2ChargeFirst > 0
+      if (this.st.j2Charge > 0 && this.firstSwing) chargeOpenerFx(this, HERO_X, f.spr.x, GROUND, surge)
       const fs = this.chargeMul()
-      await this.maceSmash(f, () => this.strike(f, clericBasic() * fs)) // v58 Q: melee mace/book smash, P.ATK (STR) only; spells carry M.ATK
+      const prevForce = this.forceCrit, prevSure = this.sureHit
+      if (surge) { this.forceCrit = true; this.sureHit = true }
+      try { await this.maceSmash(f, () => this.strike(f, clericBasic() * fs)) } finally { this.forceCrit = prevForce; this.sureHit = prevSure } // v58 Q: melee mace/book smash, P.ATK (STR) only; spells carry M.ATK
       if (this.st.clDawn > 0 && ++this.dawnCount >= KIT.clericTree.dawn.every) { // v108 🌄 รุ่งอรุณ passive (Dawnbreaker): every Nth basic / combo hit
         this.dawnCount = 0
         const t = f.dead ? this.front()[0] : f
@@ -2763,9 +2777,14 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     else {
+      const surge = this.firstSwing && this.st.j2ChargeFirst > 0
       const knightCharge = (this.j2?.id === 'knight' || this.st.j2Charge > 0) && this.firstSwing
-      if (knightCharge) chargeOpenerFx(this, HERO_X, f.spr.x, GROUND, this.st.j2ChargeFirst > 0)
-      await this.lunge(f, () => { const cl = BATTLE.cleave + this.st.cleaveAdd, fs = this.chargeMul(); if (live[1]) { this.strike(f, fs); this.strike(live[1], cl) } else this.strike(f, fs + (kind === 'swordsman' ? cl : 0)) }, this.j2?.id === 'knight') // novice, swordsman: cleave (+talent ฟันกวาด) · swordsman alone vs 1 monster: the cleave lands on it too
+      if (knightCharge) chargeOpenerFx(this, HERO_X, f.spr.x, GROUND, surge)
+      const prevForce = this.forceCrit, prevSure = this.sureHit
+      if (surge) { this.forceCrit = true; this.sureHit = true }
+      try {
+        await this.lunge(f, () => { const cl = BATTLE.cleave + this.st.cleaveAdd, fs = this.chargeMul(); if (live[1]) { this.strike(f, fs); this.strike(live[1], cl) } else this.strike(f, fs + (kind === 'swordsman' ? cl : 0)) }, this.j2?.id === 'knight') // novice, swordsman: cleave (+talent ฟันกวาด) · swordsman alone vs 1 monster: the cleave lands on it too
+      } finally { this.forceCrit = prevForce; this.sureHit = prevSure }
     }
     this.lsMul = 0
     if (!f.dead && this.hp > 0) {
@@ -3202,7 +3221,11 @@ export class BattleScene extends Phaser.Scene {
       const f = others.filter((o) => !o.dead).sort((a, b) => a.slot - b.slot)[0]
       if (f) { f.huntMark = A.markTurns; this.dotIcon(f); huntMarkOn(this, f.spr); this.floatText(f.spr.x, f.spr.y - f.spr.displayHeight - 40, '🏷️ ไล่ล่า!', '#f2b84b') }
     }
-    if (this.st.arKillCd > 0 && this.smashCdLeft > 0 && Math.random() < this.st.arKillCd) { this.smashCdLeft = Math.max(0, this.smashCdLeft - A.killCdCut); this.floatText(HERO_X, GROUND - 170, `⏳ ult −${A.killCdCut}`, '#f2b84b') }
+    if (this.st.arKillCd > 0 && Math.random() < this.st.arKillCd) {
+      if (this.smashCdLeft > 0) this.smashCdLeft = Math.max(0, this.smashCdLeft - A.killCdCut)
+      this.gainRes(A.killCdRes)
+      this.floatText(HERO_X, GROUND - 170, `⏳ ult −${A.killCdCut} · +${A.killCdRes}`, '#f2b84b')
+    }
   }
 
   // ----- v84 webs: ⚔️ จังหวะดาบ / 🔨 ทลายเกราะ (KIT.swordTree) · 🙏 ศรัทธา / ⛪ ฟื้นคืน (KIT.clericTree) · 🚩 ธงศึก / 🌀 กวาดทวน (KIT2.knight.tree) -----
@@ -3270,7 +3293,12 @@ export class BattleScene extends Phaser.Scene {
         if (st.j2SweepStar > 0) { m.armorBrk = Math.max(m.armorBrk, T.sweepBreak); this.dotIcon(m); if (Math.random() < T.sweepStun) this.stunMon(m) }
       }
     }), false, true)
-    if (kills > 0 && st.j2SweepGauge > 0) { this.heroGauge = Math.min(100, this.heroGauge + st.j2SweepGauge * kills); this.floatText(HERO_X, GROUND - 160, '⚡ ทวนเร็ว', '#f2b84b') }
+    if (st.j2SweepGauge > 0 && (kills > 0 || live.length > 0)) {
+      const effLv = st.j2SweepGauge / T.sweepGauge
+      const gain = st.j2SweepGauge * kills + T.sweepHitGauge * effLv * live.length
+      this.heroGauge = Math.min(100, this.heroGauge + gain)
+      this.floatText(HERO_X, GROUND - 160, '⚡ ทวนเร็ว', '#f2b84b')
+    }
   }
 
   /** Thief ult เงาพริ้ว (Rogue พายุมีด reuses it). */
@@ -3571,7 +3599,10 @@ export class BattleScene extends Phaser.Scene {
 
   private killMon(m: Mon) {
     m.dead = true
-    if (this.st.killHeal > 0 && this.hp > 0) this.heal(this.st.maxHp * this.st.killHeal) // Thief กระหายเลือด
+    if (this.st.killHeal > 0 && this.hp > 0) {
+      this.heal(this.st.maxHp * this.st.killHeal) // Thief กระหายเลือด
+      if (this.job.resource === 'energy') this.resGain(10)
+    }
     if (this.st.lockOn > 0 && this.lockTarget === m && this.dodgeCharges < 1) { this.dodgeCharges = 1; this.floatText(HERO_X, GROUND - 100, '💨 ถอยตั้งหลัก', '#c9c9d6') } // archer ★ ล็อกเป้า: kill the locked target -> 1 sure dodge
     const others = this.alive()
     if (this.st.fireSpread > 0 && m.burnStacks > 0) for (const o of others) { o.burnStacks = Math.min(this.burnMax(), o.burnStacks + Math.ceil(m.burnStacks / 2)); o.burnStackTurns = 3; this.dotIcon(o) } // tree
@@ -3582,7 +3613,13 @@ export class BattleScene extends Phaser.Scene {
       this.resGain(this.st.swBreakSpread)
       this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 40, '💥 ร้าวลาม!', '#e0b07a')
     }
-    if (this.st.j2BannerKill > 0 && this.hp > 0) this.addShield(this.st.maxHp * this.st.j2BannerKill, true) // v84 Knight ธงชัย
+    if (this.st.j2BannerKill > 0 && this.hp > 0) { // Knight ธงชัย: shield + gauge + res on kill
+      const T = KIT2.knight.tree
+      this.addShield(this.st.maxHp * this.st.j2BannerKill, true)
+      this.heroGauge = Math.min(100, this.heroGauge + T.bannerKillGauge)
+      this.resGain(T.bannerKillRes)
+      this.floatText(HERO_X, GROUND - 135, '🎖️ ธงชัย!', '#f2d24b')
+    }
     this.kills++
     void this.procs('kill', m) // พร v2: on-kill cards
     if (this.relic === 'glass' && this.hp > 0) this.heal(this.st.maxHp * RELIC_RULES.glass.killHeal, true) // mythic แก้วร้าว
@@ -3992,7 +4029,10 @@ export class BattleScene extends Phaser.Scene {
     const raw = magic ? dmg * (1 - effMdef) : afterDef(dmg, this.st.def * ab)
     let n = Math.max(1, Math.ceil(raw * (1 - this.st.guard) * (this.buf.guard > 0 ? 1 - S2N.guardCut(this.st.s2Lv) : 1) * this.takenMul())) // Skill 2 ตั้งการ์ด · พร v2
     if (!magic && this.st.j2BoarGuardDr > 0 && readyAllies(this.allies).some((a) => a.def.share && a.hp > a.maxHp * KIT2.beastmaster.boarGuardHpPct)) n = Math.max(1, Math.ceil(n * (1 - this.st.j2BoarGuardDr))) // 🐗 bm_b3: Boar > 50% HP lowers physical dmg taken
-    if (src && this.st.j2Provoke > 0 && src.hp < src.def.hp * KIT2.knight.tree.provokeAt) n = Math.max(1, Math.ceil(n * (1 - this.st.j2Provoke))) // v84 Knight ข่มขวัญ
+    if (src && this.st.j2Provoke > 0) { // Knight ข่มขวัญ: immediate 50% DR, full DR below provokeAt HP
+      const cut = src.hp < src.def.hp * KIT2.knight.tree.provokeAt ? this.st.j2Provoke : this.st.j2Provoke * 0.5
+      n = Math.max(1, Math.ceil(n * (1 - cut)))
+    }
     if (this.mirror && src && !src.dead) { // Innovator 🔁 กระจก: the hit bounces back, capped like every reflect (BATTLE.reflectCap)
       this.mirror = false; this.hitOut = 'mirror'; this.floatText(HERO_X, GROUND - 120, '🔁 สะท้อน!', '#c9e0ff')
       this.damageMon(src, Math.max(1, Math.round(Math.min(n * KIT2.innovator.mirrorCap, this.st.maxHp * BATTLE.reflectCap))), false, '#c9e0ff', true)

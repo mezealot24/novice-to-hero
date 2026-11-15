@@ -78,7 +78,7 @@ export const KIT = {
   // v82 Archer web: 🧪 ศรพิษ (under ทักษะ 1) + 🏷️ ล่าหัว (under Ult), first guesses (design/skill-tree-archer.md v82)
   archerTree: {
     poisonArrow: [0.2, 0.35, 0.5], poisonArrowStacks: 1, vsPoison: 0.06, ricochet: [0.5, 0.7, 0.9], // ศรอาบพิษ chance per arrow · ซ้ำแผล per lv · ศรเด้ง shot mul
-    markTurns: 3, markAmp: 0.05, markJumpRes: 8, killCd: [0.15, 0.25, 0.35], killCdCut: 1, // หมายหัว per lv · ไล่ล่า Energy per lv · ล่าต่อ chance
+    markTurns: 3, markAmp: 0.05, markJumpRes: 8, killCd: [0.5, 0.75, 1], killCdCut: 1, killCdRes: 12, // หมายหัว per lv · ไล่ล่า Energy per lv · ล่าต่อ chance + Energy on kill
     execBelow: 0.25, execBig: 0.6, // ★ ศรประหาร: normal monster under 25% HP dies · boss / mini +60%
   },
   // v84 Swordsman web: ⚔️ จังหวะดาบ (under ทักษะ 1) + 🔨 ทลายเกราะ (under Ult), first guesses (design/skill-tree-swordsman.md v84).
@@ -129,13 +129,13 @@ export const KIT2 = {
     hpPct: 0.1, aspdPct: 0.05, hpDmg: 0.03, // 🐦 ขี่เปโก + ถึกเป็นแรง (spear skills add max HP share)
     brandCost: 20, brandCd: 3, brandMul: 1.5, brandTargets: 3, brandPush: 15, // 🌀 Brandish Spear
     pierceHits: 3, pierceBigHits: 4, pierceMul: 1.2, bashMul: 0.8, // 🎯 Pierce + Bowling Bash (boss / mini take one more hit)
-    boomerang: 0.8, chargeFirst: 3, guardShieldless: 0.5, // Spear Boomerang mul · ★ ทะยาน · Auto Guard without an off-hand
+    boomerang: 0.8, chargeFirst: 3, chargeFirstGauge: 35, chargeFirstRes: 15, guardShieldless: 0.5, // Spear Boomerang mul · ★ ทะยาน · Auto Guard without an off-hand
     mastery: { atkPct: 0.05, hit: 10 }, // spear
-    // v84 ใยชั้น 2: 🚩 ธงศึก + 🌀 กวาดทวน, first guesses (design/second-jobs-v1.md §4 v84). Per-lv = per OLD level (max 3).
+    // v84 ใยชั้น 2: 🚩 ธงศึก + 🌀 กวาดทวน (reworked Peco & Banner). Per-lv = per OLD level (max 3).
     tree: {
-      banner: 0.04, provokeAt: 0.5, provoke: 0.08, bannerKill: 0.02, // ปักธง wave-start shield/lv (tops up) · ข่มขวัญ: monster under 50% HP hits −/lv · ธงชัย: kill shield/lv
-      auraHeal: 0.04, auraRes: 6, auraGuard: 0.06, // ★ ธงอมตะ: every block heals + Mana/Rage · + Auto Guard chance
-      sweepEvery: 3, sweep: 0.3, sweepPush: 5, sweepGauge: 10, // ทวนวน: every Nth hero turn sweep all x P.ATK/lv (+ max HP share) · เหวี่ยง gauge −/lv · ทวนเร็ว hero gauge +/lv per sweep kill
+      banner: 0.08, provokeAt: 0.5, provoke: 0.1, bannerKill: 0.08, bannerKillRes: 10, bannerKillGauge: 20, // ปักธง wave-start shield/lv (stacks) · ข่มขวัญ: monster hits −5%/lv (x2 under 50% HP) · ธงชัย: kill shield/lv + gauge + res (half on block)
+      auraHeal: 0.05, auraRes: 10, auraGuard: 0.08, // ★ ธงอมตะ: every block heals + Mana/Rage · + Auto Guard chance
+      sweepEvery: 3, sweep: 0.3, sweepPush: 5, sweepGauge: 15, sweepHitGauge: 3, // ทวนวน: every Nth hero turn sweep all x P.ATK/lv (+ max HP share) · เหวี่ยง gauge −/lv · ทวนเร็ว hero gauge +/lv per sweep kill (+ hit)
       sweepBreak: 2, sweepStun: 0.25, // ★ พายุทวน: sweep breaks armor N turns + stun chance (boss / mini: gauge push)
     },
   },

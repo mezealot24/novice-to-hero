@@ -32,7 +32,7 @@ export const tree: ClassTree = {
     n('archer_c4', 'archer_c', 4, '🌫️', 'หมอกพิษ', 1, () => 'ตัวติดพิษตาย → พิษครึ่งหนึ่งลามไปตัวอื่น · ฝนธนู / กับดัก ติดพิษ +1 stack', () => ({ poisonSpread: 1, arPoisonS2: 1 })),
     n('archer_d1', 'archer_d', 1, '🏷️', 'หมายหัว', 3, (lv) => `ศรทะลวงหมายหัวเป้า ${A.markTurns} เทิร์น: โดนทุกฮิตแรงขึ้น +${pc(A.markAmp * lv)}`, (lv) => ({ arMark: A.markAmp * lv })),
     n('archer_d2', 'archer_d', 2, '⚡', 'ไล่ล่า', 3, (lv) => `ฆ่าตัวที่หมายหัว → Energy +${A.markJumpRes * lv} · หมายหัวกระโดดไปตัวหน้าสุด`, (lv) => ({ arMarkJump: A.markJumpRes * lv })),
-    n('archer_d3', 'archer_d', 3, '⏳', 'ล่าต่อ', 3, (lv) => `ฆ่าได้ ${pc(at(A.killCd, lv))} คูลดาวน์ ult −${A.killCdCut}`, (lv) => ({ arKillCd: at(A.killCd, lv) })),
+    n('archer_d3', 'archer_d', 3, '⏳', 'ล่าต่อ', 3, (lv) => `ฆ่าได้ ${pc(at(A.killCd, lv))} คูลดาวน์ ult −${A.killCdCut} + Energy +${A.killCdRes}`, (lv) => ({ arKillCd: at(A.killCd, lv) })),
     n('archer_d4', 'archer_d', 4, '💀', 'ศรประหาร', 1, () => `ศรทะลวงใส่ตัวที่ HP < ${pc(A.execBelow)}: มอนธรรมดาตายทันที · บอส/มินิ +${pc(A.execBig)}`, () => ({ arExecute: 1 })),
   ],
   talents: [
