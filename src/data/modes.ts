@@ -1,10 +1,19 @@
 // Game modes (design/game-modes-v1.md): every way to start a run is a GameMode that builds a RunConfig.
 // BattleScene only reads the RunConfig (rooms, scaling, mutators, events, HUD text); mode rules live here.
-import { DUNGEONS, HARD, hardMul, type DungeonDef, type MonsterKind, type RoomDef } from './game-data'
+import type { BiomeHazardId } from './biome-hazards'
+import { DUNGEONS, HARD, hardMul, MONSTERS, type DungeonDef, type MonsterKind, type RoomDef } from './game-data'
 import { MINI_POOL } from './relics'
 import { matName, matOf } from './materials'
 import { TAINT_MAT } from './taint'
-import { foldMutators, rng, rollMutators, type FoldedMutators, type MutatorDef } from './mutators'
+import { foldMutators, mutatorById, rng, rollMutators, type FoldedMutators, type MutatorDef } from './mutators'
+import { RIFT_MATS, RIFT_TUNING } from './rift'
+import {
+  buildRiftMonsterCatalogFromPacks,
+  deriveSubSeed,
+  generateRiftFloor,
+  getDailyRiftSeed,
+  type RiftFloorSpec,
+} from '../battle/rift-engine'
 import type { SaveData } from '../save'
 import { heroParts, matchScale, TOWER_POWER, towerDamp, type PowerParts } from './power'
 import { affixesAt, rollAffixes, type AffixId } from './affixes'
@@ -12,11 +21,31 @@ import { foldCorruptions, rollCorruptions, type FoldedCorruption } from './corru
 import { DEEP_ANCHOR, statNative } from './mon-stats'
 import { hellChance } from './hell'
 
-export type ModeId = 'dungeon' | 'hard' | 'tower' | 'daily' | 'bounty'
+export type ModeId = 'dungeon' | 'hard' | 'tower' | 'daily' | 'bounty' | 'rift'
 /** v87 tower checkpoint record: the in-run level (and whether a relic was held) the first time a run cleared that floor. */
 export interface TowerCp { lv: number; relic?: boolean }
-export interface ModeRecord { bestFloor?: number; clears: number; lastSeed?: number; lastDeepSeed?: number /* v118 🌌 deep daily */; cp?: Record<number, TowerCp> /* v87: tower checkpoints, keyed by floor (10, 20, ...) */ }
-export interface ModeArgs { mode?: ModeId; d?: number; hard?: boolean; hell?: boolean /* 😈 hell mode (D6-D10, needs hard) */; seed?: number; deep?: boolean /* v118: 🌌 deep daily (D6-D10) */; startFloor?: number /* tower starts at this floor (set by startRun from skipTo; bot / test may pass it directly, no gems) */; skipTo?: number /* v87: tower checkpoint S picked in the hub: pay S gems at run start, first fight is floor S+1 */ }
+export interface ModeRecord {
+  bestFloor?: number
+  bestDepth?: number
+  clears: number
+  lastSeed?: number
+  lastDeepSeed?: number /* v118 🌌 deep daily */
+  lastRiftDailySeed?: number
+  cp?: Record<number, TowerCp> /* v87: tower checkpoints, keyed by floor (10, 20, ...) */
+}
+export interface ModeArgs {
+  mode?: ModeId
+  d?: number
+  hard?: boolean
+  hell?: boolean /* 😈 hell mode (D6-D10, needs hard) */
+  seed?: number
+  deep?: boolean /* v118: 🌌 deep daily (D6-D10) */
+  startFloor?: number /* tower starts at this floor (set by startRun from skipTo; bot / test may pass it directly, no gems) */
+  skipTo?: number /* v87: tower checkpoint S picked in the hub: pay S gems at run start, first fight is floor S+1 */
+  riftSeed?: string
+  riftDaily?: boolean
+  resumeRift?: boolean
+}
 
 /** A room of a run: a dungeon room + where it sits in the tower + the dungeon its monsters scale from. */
 export interface RunRoom extends RoomDef {
@@ -66,6 +95,14 @@ export interface RunConfig {
   corrupt?: FoldedCorruption
   /** Tower: monsters enrage after this many hero turns in one fight (0 = never). */
   enrageAfter?(room: RunRoom): number
+  /** Void Rift: environmental hazard active in room i (data/biome-hazards.ts). */
+  biomeAt?(i: number, room: RunRoom): BiomeHazardId
+  /** Void Rift flag and run metadata. */
+  riftMode?: boolean
+  riftDepthBase?: number
+  riftSeed?: string
+  riftDaily?: boolean
+  riftFloorAt?(i: number): RiftFloorSpec | null
 }
 
 export interface RunResult { won: boolean; left: boolean; floor: number; /** v87: floors <= from were skipped (start floor - 1): they never count as cleared */ from?: number; bank: { zeny: number; mats: Record<string, number> } }
@@ -175,10 +212,12 @@ export function recordTowerCheckpoint(s: SaveData, floor: number, lv: number, re
   return true
 }
 
-const BOSSES: { kind: MonsterKind; src: string; turnLimit: number; title: string }[] = DUNGEONS.map((d) => {
-  const r = d.rooms.find((x) => x.boss)!
-  return { kind: r.spawn[0][0], src: d.id, turnLimit: r.turnLimit ?? 30, title: r.title }
-})
+const BOSSES: { kind: MonsterKind; src: string; turnLimit: number; title: string }[] = DUNGEONS
+  .filter((d) => d.rooms.some((x) => x.boss))
+  .map((d) => {
+    const r = d.rooms.find((x) => x.boss)!
+    return { kind: r.spawn[0][0], src: d.id, turnLimit: r.turnLimit ?? 30, title: r.title }
+  })
 const MINIS: { kind: MonsterKind; src: string; from: number }[] = [
   ...MINI_POOL.map((kind) => ({ kind, src: 'd3', from: 1 })),
   { kind: 'venomqueen', src: 'd4', from: 20 }, { kind: 'frostgiant', src: 'd4', from: 20 },
@@ -296,26 +335,37 @@ export function towerFloorLoot(f: number, lv: number, room?: RunRoom): { zeny: n
 }
 
 // ---------- 🎲 Daily Challenge ----------
+const deepDungeons = () => DUNGEONS.filter((d) => d.level)
+const isEndgameCleared = (s: SaveData, d: DungeonDef) => {
+  const num = Number(d.id.replace(/\D+/g, ''))
+  return !Number.isFinite(num) || num <= 10 || cleared(s, d.id)
+}
+
 export const DAILY = {
   unlock: 'd2', pool: ['d2', 'd3', 'd4', 'd5'], gems: 15, fortune: 25,
-  // v118 (research ①): 🌌 deep daily, the same idea on D6-D10 at their own level band. Opens after D10 so everyone who has it can play every pick.
-  deepUnlock: 'd10', deepPool: ['d6', 'd7', 'd8', 'd9', 'd10'], deepGems: 25, deepFortune: 25,
+  // v118 (research ①): 🌌 deep daily, the same idea on D6+ at their own level band. Opens after D10 and dynamically includes cleared D11-D13 once added.
+  deepUnlock: 'd10',
+  get deepPool(): string[] { return deepDungeons().map((d) => d.id) },
+  deepGems: 25, deepFortune: 25,
 }
 export const deepDailyOk = (s: SaveData) => cleared(s, DAILY.deepUnlock)
 export const dailySeed = (d = new Date()) => +d.toISOString().slice(0, 10).replace(/-/g, '')
 /** The day's challenge: the same for every player with the same seed. */
-export function dailyOf(seed: number, deep = false) {
+export function dailyOf(seed: number, deep = false, s?: SaveData) {
   const rand = rng(deep ? seed + 1 : seed) // v118: the deep daily draws its own stream (not the same rules as today's normal one)
-  const pool = deep ? DAILY.deepPool : DAILY.pool
-  const id = pool[Math.floor(rand() * pool.length)] // draw once (not inside find: that would re-roll per dungeon)
+  const pool = deep
+    ? (s ? deepDungeons().filter((d) => isEndgameCleared(s, d)).map((d) => d.id) : DAILY.deepPool)
+    : DAILY.pool
+  const activePool = pool.length > 0 ? pool : DAILY.deepPool
+  const id = activePool[Math.floor(rand() * activePool.length)] // draw once (not inside find: that would re-roll per dungeon)
   const dg = DUNGEONS.find((d) => d.id === id)!
   const n = 2 + Math.floor(rand() * 2)
   return { dg, mutators: rollMutators(rand, n) }
 }
 
-/** deep = 🌌 D6-D10: a level dungeon, so BattleScene builds its monsters at the room's level (statDef) with the mutators; scale() is not read. */
+/** deep = 🌌 D6+: a level dungeon, so BattleScene builds its monsters at the room's level (statDef) with the mutators; scale() is not read. */
 function dailyRun(s: SaveData, seed: number, deep = false): RunConfig {
-  const { dg, mutators } = dailyOf(seed, deep), mut = foldMutators(mutators), lv = s.baseLevel
+  const { dg, mutators } = dailyOf(seed, deep, s), mut = foldMutators(mutators), lv = s.baseLevel
   return {
     modeId: 'daily', seed, endless: false, ...(() => { const pp = heroParts(s); return { pp, power: pp.power } })(), affix: false, mutators, mut, tag: deep ? '🌌' : '🎲', tint: 0xb0a0ff, deepDaily: deep,
     roomAt: (i) => (dg.rooms[i] ? { ...dg.rooms[i], src: dg.id } : null),
@@ -331,7 +381,7 @@ function dailyRun(s: SaveData, seed: number, deep = false): RunConfig {
 // ---------- 🎯 Weekly Boss Bounty ----------
 export const BOUNTY = {
   unlock: 'd6',
-  pool: ['d6', 'd7', 'd8', 'd9', 'd10'],
+  get pool(): string[] { return deepDungeons().map((d) => d.id) },
   gems: 50,
   fortune: 50,
   taintCrystals: 5,
@@ -483,10 +533,298 @@ export const MODES: Record<ModeId, GameMode> = {
       }
     },
   },
+  rift: {
+    id: 'rift',
+    name: 'รอยแยกไร้สิ้นสุด',
+    icon: '🌀',
+    desc: `ดันเจี้ยนอเวจีแบบ Roguelike ไร้ขีดจำกัด · สุ่มภูมิประเทศ (D11–D13), กฎพิเศษ และพรประจำรัน\nบอสทุก ${RIFT_TUNING.bossEvery} ชั้น · ออกระหว่างชั้นรับรางวัลครบ · ล้มเสียรันปัจจุบันและเก็บส่วนหนึ่งเข้าบัญชีถาวร`,
+    unlock: (s) =>
+      riftOk(s)
+        ? { ok: true, why: '' }
+        : { ok: false, why: `ปลดล็อกหลังเคลียร์${dungeonName(RIFT_TUNING.unlock)}` },
+    record: (s) => {
+      const r = s.modes?.rift
+      const best = r?.bestDepth ?? r?.bestFloor ?? 0
+      const active = s.riftRun ? ` · 🌀 ค้างอยู่ชั้น ${s.riftRun.depth}` : ''
+      return best ? `ลึกสุด ชั้น ${best}${active}` : `ยังไม่เคยลงรอยแยก${active}`
+    },
+    buildRun: (s, a) => riftRun(s, a),
+    reward: (s, cfg, r) => {
+      const rec = modeRec(s, 'rift')
+      const before = rec.bestDepth ?? rec.bestFloor ?? 0
+      const fromFloor = r.from ?? cfg.riftDepthBase ?? 0
+      const clearedDepth = r.floor > fromFloor ? r.floor : 0
+      const keep = r.left ? 1 : RIFT_TUNING.fallKeep
+      const out: ModeReward = { ...none, mats: {}, lines: [] }
+
+      const hasBank = r.bank.zeny > 0 || Object.keys(r.bank.mats).length > 0
+      if (hasBank) {
+        out.zeny = Math.round(r.bank.zeny * keep)
+        for (const [id, n] of Object.entries(r.bank.mats)) {
+          const kept = Math.floor(n * keep)
+          if (kept > 0) out.mats[id] = kept
+        }
+      } else if (clearedDepth > 0) {
+        let sumZeny = 0
+        for (let d = fromFloor + 1; d <= clearedDepth; d++) {
+          const loot = riftFloorLoot(d)
+          sumZeny += loot.zeny
+          for (const [id, n] of Object.entries(loot.mats)) {
+            out.mats[id] = (out.mats[id] ?? 0) + n
+          }
+        }
+        out.zeny = Math.round(sumZeny * keep)
+        for (const id of Object.keys(out.mats)) {
+          const kept = Math.floor(out.mats[id] * keep)
+          if (kept > 0) out.mats[id] = kept
+          else delete out.mats[id]
+        }
+      }
+
+      // Talent wallet dust & medals settlement (70% dust kept on fall, 100% on safe exit)
+      s.talentWallet ??= {
+        zeny: 0,
+        runeDust: 0,
+        goldMedals: 0,
+        hellMedalPity: 0,
+        firstClearFlags: [],
+      }
+      let rawDust = 0
+      for (let d = fromFloor + 1; d <= clearedDepth; d++) {
+        rawDust += RIFT_TUNING.dustBase + RIFT_TUNING.dustPerDepth * d
+      }
+      const dustKeep = r.left ? 1 : RIFT_TUNING.deathDustKeep
+      const earnedDust = Math.floor(rawDust * dustKeep)
+      const earnedMedals = Math.max(
+        0,
+        Math.floor(clearedDepth / RIFT_TUNING.bossEvery) -
+          Math.floor(fromFloor / RIFT_TUNING.bossEvery)
+      )
+      if (earnedDust > 0) s.talentWallet.runeDust += earnedDust
+      if (earnedMedals > 0) s.talentWallet.goldMedals += earnedMedals
+
+      for (const [f, g] of RIFT_TUNING.gems) {
+        if (clearedDepth >= f && before < f) {
+          out.gems += g
+          out.lines.push(`🏆 พิชิตความลึกชั้น ${f} ครั้งแรก! +${g} เพชร`)
+        }
+      }
+
+      if (cfg.riftDaily && clearedDepth > 0 && rec.lastRiftDailySeed !== cfg.seed) {
+        rec.lastRiftDailySeed = cfg.seed
+        out.gems += RIFT_TUNING.dailyGems
+        out.fortune += RIFT_TUNING.dailyFortune
+        out.lines.push(
+          `🌀 เคลียร์รอยแยกประจำวัน! +${RIFT_TUNING.dailyGems} เพชร · 🍀 +${RIFT_TUNING.dailyFortune}`
+        )
+      }
+
+      if (clearedDepth > before) {
+        rec.bestDepth = clearedDepth
+        rec.bestFloor = clearedDepth
+        out.lines.push(`🌀 สถิติความลึกใหม่! ชั้น ${clearedDepth}`)
+      }
+      if (r.left && clearedDepth > 0) rec.clears++
+
+      if (earnedDust > 0 || earnedMedals > 0) {
+        out.lines.push(
+          `✨ กระเป๋ารูนถาวร: +${earnedDust} Rune Dust${earnedMedals > 0 ? ` · +${earnedMedals} เหรียญทอง` : ''}`
+        )
+      }
+      if (out.zeny > 0) {
+        out.lines.unshift(
+          `🌀 รางวัลรอยแยก: +${out.zeny} zeny${r.left ? '' : ` (ล้ม ได้ ${Math.round(keep * 100)}%)`}`
+        )
+      }
+
+      // Roguelike permanence rule: active Rift run checkpoint is always wiped upon settlement
+      delete s.riftRun
+      return out
+    },
+  },
+}
+
+// ---------- 🌀 Endless Void Rift ----------
+export const riftOk = (s: SaveData) => cleared(s, RIFT_TUNING.unlock)
+
+export function riftFloorLoot(depth: number): {
+  zeny: number
+  mats: Record<string, number>
+  dust: number
+  medals: number
+} {
+  const isBoss = depth % RIFT_TUNING.bossEvery === 0
+  const mats: Record<string, number> = {
+    [RIFT_MATS.common]: RIFT_TUNING.matBase + Math.floor(depth / RIFT_TUNING.matBossEvery),
+  }
+  if (isBoss) {
+    mats[RIFT_MATS.boss] = 1
+    mats[TAINT_MAT] = 1
+  }
+  return {
+    zeny: Math.round(RIFT_TUNING.zenyBase + RIFT_TUNING.zenyPerDepth * depth),
+    mats,
+    dust: RIFT_TUNING.dustBase + RIFT_TUNING.dustPerDepth * depth,
+    medals: isBoss ? 1 : 0,
+  }
+}
+
+function resolveRiftRoomKind(
+  monsterId: string,
+  isBoss: boolean,
+  dg: DungeonDef,
+  fallbackPool: DungeonDef[],
+  subSeed: number
+): MonsterKind {
+  if (Object.prototype.hasOwnProperty.call(MONSTERS, monsterId)) {
+    return monsterId as MonsterKind
+  }
+  const bossKinds = dg.rooms.filter((x) => x.boss).flatMap((x) => x.spawn.map(([k]) => k))
+  const miniKinds = dg.rooms.flatMap((x) => x.miniPool ?? [])
+  const waveKinds = dg.rooms.filter((x) => !x.boss && !x.mini).flatMap((x) => x.spawn.map(([k]) => k))
+  const pool = isBoss
+    ? bossKinds
+    : [...waveKinds, ...miniKinds]
+  if (pool.length > 0) {
+    return pool[subSeed % pool.length]
+  }
+  const alt = fallbackPool[subSeed % Math.max(1, fallbackPool.length)]
+  const altPool = alt?.rooms.flatMap((x) => x.spawn.map(([k]) => k)) ?? ['jellop']
+  return altPool[subSeed % altPool.length]
+}
+
+function riftRun(s: SaveData, a: ModeArgs = {}): RunConfig {
+  const utcDate = new Date().toISOString().slice(0, 10)
+  const isDaily = !!a.riftDaily || !!(a.resumeRift && s.riftRun?.daily)
+  const riftSeed =
+    a.resumeRift && s.riftRun
+      ? s.riftRun.seed
+      : a.riftSeed ??
+        (isDaily
+          ? getDailyRiftSeed(utcDate)
+          : a.seed != null
+            ? `RIFT-${a.seed}`
+            : `RIFT-${dailySeed()}-${Math.floor(Math.random() * 1e9)}`)
+  const depthBase =
+    a.startFloor != null
+      ? Math.max(0, a.startFloor - 1)
+      : a.resumeRift && s.riftRun
+        ? Math.max(0, s.riftRun.depth - 1)
+        : 0
+  const numericSeed = a.seed ?? deriveSubSeed(riftSeed, 'rift_mode', depthBase)
+
+  const deepPool = deepDungeons()
+  const clearedDeep = deepPool.filter((d) => cleared(s, d.id))
+  const themePool =
+    clearedDeep.length > 0 ? clearedDeep : deepPool.length > 0 ? deepPool : DUNGEONS
+  const catalog = buildRiftMonsterCatalogFromPacks()
+  const pp = heroParts(s)
+
+  const floorCache = new Map<number, RiftFloorSpec>()
+  const roomCache = new Map<number, RunRoom>()
+  const themeCache = new Map<number, DungeonDef>()
+
+  const getFloorData = (i: number) => {
+    let spec = floorCache.get(i)
+    let room = roomCache.get(i)
+    let dg = themeCache.get(i)
+    if (!spec || !room || !dg) {
+      const depth = depthBase + i + 1
+      const branch = i === 0 && a.resumeRift ? s.riftRun?.lastBranch : undefined
+      spec = generateRiftFloor(riftSeed, depth, catalog, branch).spec
+      const themeIdx = deriveSubSeed(riftSeed, 'rift_theme', depth) % themePool.length
+      dg = themePool[themeIdx]
+
+      const spawnMap = new Map<MonsterKind, number>()
+      spec.spawns.forEach((sp, idx) => {
+        const monSpec = catalog.get(sp.monsterId)
+        const isBossRank = monSpec?.rank === 'boss' || (spec!.isBossFloor && idx === 0)
+        const kind = resolveRiftRoomKind(
+          sp.monsterId,
+          isBossRank,
+          dg!,
+          themePool,
+          deriveSubSeed(riftSeed, 'rift_kind', depth, idx)
+        )
+        spawnMap.set(kind, (spawnMap.get(kind) ?? 0) + 1)
+      })
+
+      const refRoom =
+        dg.rooms.find((r) => (spec!.isBossFloor ? r.boss : !r.boss && !r.mini && r.spawn.length)) ??
+        dg.rooms[0]
+      room = {
+        title: `🌀 รอยแยก ชั้น ${depth}${spec.isBossFloor ? ' · บอสอเวจี' : ''} · ${dg.name}`,
+        spawn: Array.from(spawnMap.entries()),
+        boss: spec.isBossFloor,
+        floor: depth,
+        floorEnd: true,
+        src: dg.id,
+        turnLimit: refRoom?.turnLimit,
+        lv: refRoom?.lv ?? dg.level?.[1],
+      }
+      floorCache.set(i, spec)
+      roomCache.set(i, room)
+      themeCache.set(i, dg)
+    }
+    return { spec, room, dg }
+  }
+
+  const firstFloor = getFloorData(0).spec
+  const initialMutIds = Array.from(
+    new Set([
+      ...firstFloor.mutatorIds,
+      ...(a.resumeRift && s.riftRun ? s.riftRun.curses : []),
+    ])
+  ).filter((id) => !(firstFloor.biomeHazard === 'abyssal_pressure' && id === 'no_heal'))
+  const mutators = initialMutIds
+    .map((id) => mutatorById(id))
+    .filter((m): m is MutatorDef => !!m)
+  const mut = foldMutators(mutators)
+
+  return {
+    modeId: 'rift',
+    seed: numericSeed,
+    riftSeed,
+    riftDaily: isDaily,
+    riftMode: true,
+    riftDepthBase: depthBase,
+    endless: true,
+    affix: true,
+    mutators,
+    mut,
+    tag: isDaily ? '🌀🎲' : '🌀',
+    tint: 0x9b6dff,
+    power: pp.power,
+    pp,
+    roomAt: (i) => getFloorData(i).room,
+    themeAt: (i) => getFloorData(i).dg,
+    biomeAt: (i) => getFloorData(i).spec.biomeHazard,
+    riftFloorAt: (i) => getFloorData(i).spec,
+    scale: (r) => {
+      const d = Math.max(0, (r.floor ?? 1) - 1)
+      return {
+        hp: (1 + d * RIFT_TUNING.depthHpPer) * mut.monHp,
+        atk: (1 + d * RIFT_TUNING.depthAtkPer) * mut.monAtk,
+        hit: Math.round(d * RIFT_TUNING.depthHitPer),
+        speed: mut.monSpeed,
+      }
+    },
+    turnMul: (r) =>
+      Math.min(
+        RIFT_TUNING.turnMulMax,
+        (1 + RIFT_TUNING.turnMulPerDepth * Math.max(0, (r.floor ?? 1) - 1)) * mut.turnMul
+      ),
+    eventsAfter: () => 0,
+    relicAfter: () => true,
+    where: (i) => {
+      const { spec, dg } = getFloorData(i)
+      return `🌀 รอยแยกไร้สิ้นสุด · ชั้น ${spec.depth} · ${dg.name}`
+    },
+  }
 }
 
 /** dungeon / hard keep their old entry args ({ d, hard }); new modes pass { mode }. */
 export const modeOf = (a: ModeArgs): ModeId => a.mode ?? (a.hard ? 'hard' : 'dungeon')
 export const buildRun = (s: SaveData, a: ModeArgs) => MODES[modeOf(a)].buildRun(s, a)
 /** Modes listed in the 🎮 panel (dungeon / hard stay in the adventure list). */
-export const PANEL_MODES: ModeId[] = ['tower', 'daily', 'bounty']
+export const PANEL_MODES: ModeId[] = ['tower', 'daily', 'bounty', 'rift']

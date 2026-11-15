@@ -15,6 +15,8 @@ import {
 import type { RefineLine } from "./data/craft";
 import type { TaintRec } from "./data/taint";
 import type { ModeRecord } from "./data/modes";
+import type { RiftActiveRunState } from "./data/rift";
+import type { TalentWallet } from "./data/meta/talent-economy";
 import {
 	FREE_GEMS,
 	JOB_RULES,
@@ -108,6 +110,10 @@ export interface SaveData {
 	rerollCount?: Record<string, number>; // item id -> option-gacha rolls made (price +10% each, data/refine.ts rerollMul)
 	fodder?: Record<string, number>; // basic shop items kept as forge fodder, by item id (counts)
 	modes?: Record<string, ModeRecord>; // game modes v51 (data/modes.ts): tower bestFloor / clears, daily lastSeed (YYYYMMDD) / clears
+	imbue?: Record<string, string>; // crafted gear imbued Aspect ID (keyed by item id)
+	awakened?: Record<string, number>; // unique gear awakened count/flag (keyed by item id)
+	riftRun?: RiftActiveRunState; // active Void Rift checkpoint run state (wiped on death/exit)
+	talentWallet?: TalentWallet; // permanent Rune Dust, Gold Medals, Hell Pity & first-clear flags
 	fortune?: number; // Fortune meter 0..100 (data/events.ts FORTUNE), kept across runs: full = the next event is a JACKPOT
 	lastDaily: string; // yyyy-mm-dd of last free daily gems
 	muted: boolean;
@@ -204,6 +210,7 @@ export function load(): SaveData | null {
 		migrateSmashAuto(s);
 		migrateBeastmasterRework(s);
 		s.modes ??= {}; // v51 game modes: additive, old saves start with no records
+		normalizeEndgameFields(s);
 		delete (s as SaveData & { reroll?: unknown }).reroll; // v84 option gacha: no more pending keep-old / take-new (the old line stays)
 		cache = s;
 		return s;
@@ -854,6 +861,80 @@ export function addFodder(s: SaveData, id: string, n = 1) {
 	bag[id] = (bag[id] ?? 0) + n;
 	if (bag[id] <= 0) delete bag[id];
 }
+/** Normalize and guard optional endgame save fields (`imbue`, `awakened`, `riftRun`, `talentWallet`) against corrupt data. */
+export function normalizeEndgameFields(s: SaveData): void {
+	const isPlainObj = (v: unknown): v is Record<string, unknown> =>
+		typeof v === "object" && v !== null && !Array.isArray(v);
+
+	if (s.imbue !== undefined) {
+		if (!isPlainObj(s.imbue)) {
+			delete s.imbue;
+		} else {
+			for (const [k, v] of Object.entries(s.imbue)) {
+				if (typeof v !== "string" || !v) delete s.imbue[k];
+			}
+		}
+	}
+
+	if (s.awakened !== undefined) {
+		if (!isPlainObj(s.awakened)) {
+			delete s.awakened;
+		} else {
+			for (const [k, v] of Object.entries(s.awakened)) {
+				if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
+					delete s.awakened[k];
+				}
+			}
+		}
+	}
+
+	if (s.riftRun !== undefined) {
+		const r = s.riftRun as unknown;
+		if (
+			!isPlainObj(r) ||
+			typeof r.seed !== "string" ||
+			typeof r.depth !== "number" ||
+			!Number.isFinite(r.depth) ||
+			r.depth < 1 ||
+			!Array.isArray(r.boons) ||
+			!Array.isArray(r.curses) ||
+			!isPlainObj(r.bankMats)
+		) {
+			delete s.riftRun;
+		} else {
+			r.boons = r.boons.filter((x): x is string => typeof x === "string");
+			r.curses = r.curses.filter((x): x is string => typeof x === "string");
+			r.bankZeny =
+				typeof r.bankZeny === "number" && Number.isFinite(r.bankZeny)
+					? Math.max(0, r.bankZeny)
+					: 0;
+			r.startedAt =
+				typeof r.startedAt === "number" && Number.isFinite(r.startedAt)
+					? r.startedAt
+					: 0;
+		}
+	}
+
+	if (s.talentWallet !== undefined) {
+		const w = s.talentWallet as unknown;
+		if (!isPlainObj(w)) {
+			delete s.talentWallet;
+		} else {
+			const cleanNum = (v: unknown) =>
+				typeof v === "number" && Number.isFinite(v) ? Math.max(0, v) : 0;
+			s.talentWallet = {
+				zeny: cleanNum(w.zeny),
+				runeDust: cleanNum(w.runeDust),
+				goldMedals: cleanNum(w.goldMedals),
+				hellMedalPity: cleanNum(w.hellMedalPity),
+				firstClearFlags: Array.isArray(w.firstClearFlags)
+					? w.firstClearFlags.filter((x): x is string => typeof x === "string")
+					: [],
+			};
+		}
+	}
+}
+
 /** Forget every forge record of an item that leaves the bag (sold / turned into fodder). */
 export function forgetForge(s: SaveData, id: string) {
 	if (s.grade) delete s.grade[id];
@@ -863,4 +944,6 @@ export function forgetForge(s: SaveData, id: string) {
 	if (s.broken) s.broken = s.broken.filter((x) => x !== id);
 	if (s.rerollCount) delete s.rerollCount[id];
 	if (s.taint) delete s.taint[id]; // v89: a tainted item that leaves the bag is gone with its curse
+	if (s.imbue) delete s.imbue[id];
+	if (s.awakened) delete s.awakened[id];
 }
