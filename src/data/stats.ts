@@ -232,6 +232,7 @@ export interface Stats {
   j3On: number // 1 = Paladin is the active 3rd job (Prestige + Gospel Cross)
   j3Lk: number // 1 = Lord Knight is the active 3rd job (Aura Blade + Hundred Spear)
   j3Ch: number // 1 = Champion is the active 3rd job (Ki Translation + Supreme Asura)
+  j3Rn: number // 1 = Ranger is the active 3rd job (Camouflage + Primal Stampede)
   j3LegCross: number // ⚜️ รากกางเขน: Holy Cross / Grand Cross + this per point in the Crusader กางเขน branch (meta.ts multiplies, capped)
   j3LegGuard: number // ⚜️ โล่บรรพชน: Auto Guard + this per point in the โล่ศักดิ์สิทธิ์ branch
   j3LegHp: number // ⚜️ กายบรรพชน: max HP % + this per point in the อุทิศ branch
@@ -285,25 +286,50 @@ export interface Stats {
   j2HawkMul: number // Beastmaster: + hawk damage
   j2HawkHits: number // Beastmaster: + hawk targets per Blitz Beat
   j2HawkEvo: number // Beastmaster ★ เหยี่ยวทอง flag
+  j2MarkPierceFlee: number // Beastmaster bm_h1 / Hawk Stance: ignore share of enemy Flee on Prey Mark targets
+  j2HawkIntAdd: number // Beastmaster bm_h2 Steel Crow: + this * INT to Falcon Power
+  j2HawkDexToMatk: number // Beastmaster Hawk Stance: + floor(this * DEX) to Falcon Power
+  j2PreyMarkAdd: number // Beastmaster bm_h2 / Hawk Stance: + extra damage taken on Prey Mark
+  j2PreyTurns: number // Beastmaster bm_h2: + extra turns on Prey Mark duration
   j2BoarHp: number // Beastmaster ป่า: + boar HP (share of hero max HP)
   j2BoarMul: number // Beastmaster: + boar charge damage
   j2BoarShield: number // Beastmaster: boar charge also shields the hero (share of max HP)
   j2BoarEvo: number // Beastmaster ★ หมูป่าเกราะ flag
+  j2BoarShare: number // Beastmaster bm_b1 / Boar Stance: + extra damage share absorbed by boar
+  j2BoarCut: number // Beastmaster bm_b1: + extra damage cut on boar's absorbed damage
+  j2BoarRageK: number // Beastmaster bm_b2: + extra boar Grit/Rage gain factor
+  j2BoarGuardDr: number // Beastmaster bm_b3: physical DR while boar HP > 50%
+  j2BoarDownCut: number // Beastmaster bm_b4: reduces boar down turns + revive shield flag
   j2WolfMul: number // Beastmaster เขี้ยว: + wolf bite damage
   j2WolfBleed: number // Beastmaster: + bleed stacks per bite
   j2WolfSpeed: number // Beastmaster: + wolf speed (share of hero speed)
   j2Gust: number // Beastmaster 🪶 Razor Gust flag (bm_h3)
   j2WolfEvo: number // Beastmaster ★ ราชาหมาป่า flag (+ rework v1 🦷 Savage Crunch)
+  j2WolfPierceBleed: number // Beastmaster bm_w1: wolf bite ignores share of enemy P.DEF on Bleed targets
+  j2BleedDmg: number // Beastmaster bm_w2 / Wolf Stance: + Bleed DoT damage amplification
   j2Frenzy: number // Beastmaster 🩸 Bloodscent Frenzy: hero speed + per poison stack on the front monster (KIT2.beastmaster.frenzyCap)
   j2PetPow: number // v82 Beastmaster ใจเดียวกัน: + every pet's power
+  j2PetStatScale: number // Beastmaster bm_k1: + pet ATK bonus from hero's highest STR/DEX/AGI
   j2PetRes: number // v82 Beastmaster ประสานล่า: hero Energy per pet act
+  j2WolfRallyStep: number // Beastmaster bm_k2: hero basic attack advances wolf turn gauge
   j2CmdCut: number // v82 Beastmaster คำสั่งไว: สั่งลุย costs this much less
+  j2CmdHawkAdd: number // Beastmaster bm_k3: + extra Hawk Blitz Beat count during สั่งลุย
   j2Pack3: number // Beastmaster ★ ฝูงพันธมิตร flag: rework v1 = every pet +KIT2.beastmaster.tree.pack3Pow (Phase 4: Tri-Beast Harmony chain)
   j2PackLead: number // v82 Beastmaster ผู้นำฝูง: + hero damage per live pet
   j2PetHeal: number // v82 Beastmaster เลียแผล: heal (share of max HP) per pet act
+  j2PetHealLow: number // Beastmaster bm_s2: flag > 0 doubles j2PetHeal when hero HP < 35%
   j2Roar: number // v82 Beastmaster ขู่คำราม: wave start, every monster's gauge -this
-  j2CritPet: number // v82 Beastmaster ★ พรานแห่งป่า flag: a hero crit sends the main pet in again (once per hero turn)
-  j2HawkTrue: number // Beastmaster 🦅 IV talent: Blitz Beat deals True Damage (ignores DEF)
+  j2RoarWeaken: number // Beastmaster bm_s3: wave start weakens enemies' P.ATK for 2 turns
+  j2CritPet: number // v82 Beastmaster ★ พรานแห่งป่า flag: a hero crit sends the partner pet in again (once per hero turn)
+  j2UltAwakenAdd: number // Beastmaster bm_t2_ult: + extra hero turns on Primeval Awakening
+  j2HawkBonusHits: number // Beastmaster bm_t4_hawk Blitz Storm: + min & max Blitz Beat hits
+  j2HawkCritShare: number // Beastmaster bm_t4_hawk Blitz Storm: Falcon Crit rate share of hero crit on Prey Mark
+  j2HawkCapAdd: number // Beastmaster Hawk Stance: + extra Blitz Beat chance cap
+  j2StanceMarkCritDmg: number // Beastmaster Hawk Stance: + crit damage vs Prey Mark targets
+  j2StanceGritShield: number // Beastmaster Boar Stance: emergency shield share of Max HP on Rage 100
+  j2StanceWoundLeech: number // Beastmaster Wolf Stance: hero lifesteal vs targets with Bleed >= 3
+  j2FrenzyCapAdd: number // Beastmaster Wolf Stance: + extra Bloodscent Frenzy stack cap
+  j2HawkTrue: number // Beastmaster 🦅 IV talent (legacy): Blitz Beat deals True Damage (ignores DEF)
   j2WolfBleedPct: number // Beastmaster 🐺 IV talent: Bleed ticks deal +% target Max HP (capped vs boss)
   j2BoarStunAll: number // Beastmaster 🐗 IV talent: Boar charge stuns the entire enemy row
   j2Traps: number // Innovator กับดัก: + traps at wave start
@@ -361,9 +387,9 @@ export const PLAYER: Stats = {
   aspd: 1.6, range: 110, crit: 0, critMul: 1.4, /* Q: crit only from items, skill tree, talents (+ in-run cards) */ speed: 190,
   guard: 0, lifesteal: 0, regen: 0, fireEvery: 0, boltMul: 2, burnDps: 0, poison: 0, poisonDmg: 2,
   smashMul: 3, smashCd: 6000, smashCost: 0, revive: 0, counter: 0, combo: 0, dodgeHeal: 0, waveShield: 0,
-  thorns: 0, rageGain: 0, autoCostCut: 0, ctrAoe: 0, berserk: 0, pierce: 0, lockOn: 0, dodgeStrike: 0, doubleAtk: 0, thExecute: 0, poisonLeech: 0, killHeal: 0, bloodKing: 0, thUltAgi: 0, lightMax: 0, overload: 0, lightLuck: 0, burnCap: 0, autoBurn: 0, fireSpread: 0, chillPlus: 0, brittle: 0, comboCount: 0, comboDmg: 0, ignoreCombo: 0, ignoreCounter: 0, comboDR: 0, counterDR: 0, critDR: 0, vsBurn: 0, vsChill: 0, vsPoison: 0, chillWeak: 0, spearShield: 0, counterDmg: 0, basicDmg: 0, resTurn: 0, shatter: 0, reviveHp: 0, smiteTargets: 0, holyCounter: 0, overhealShield: 0, poisonCap: 0, poisonSpread: 0, fleeFloor: 0, waveDodge: 0, dodgeEnergy: 0, ultDodge: 0, ultHits: 0, ultPoison: 0, poisonAmp: 0, lightHits: 0, lightChain: 0, burnTick: 0, chillSlow: 0, iceBarrier: 0, boltHits: 0, boltCharge: 0, stormSet: 0, mgLightAmp: 0, mgFireAmp: 0, mgIceAmp: 0, mgFirstCard: 0, mgFireStack: 0, mgWaveBarrier: 0, resRegenCut: 0, mgUltAmp: 0, elemWheel: 0, mgBarrierCut: 0, barrierBoom: 0, mgEmergency: 0, mgStatic: 0, mgMolten: 0, mgGlacial: 0, mgHex: 0, mgAura: 0, mgDoubleCast: 0, mgUltCd: 0, mgUltMana: 0, mgOverflow: 0, cleaveAdd: 0, startRage: 0, rageOnHurtAdd: 0, spellVamp: 0, skillDmgCut: 0, ultMulAdd: 0, ultAmp: 0, ultPierce: 0, poise: 0, ultShieldAdd: 0, ultVsCharge: 0, ultCounters: 0, counterRage: 0, counterShield: 0, counterPct: 0, pickHpPct: 0, pickAtkPct: 0, pickMatkPct: 0, arDodgeShield: 0, arUltBreak: 0, arWaveDodge: 0, arSnipeLow: 0, arLowHpBonus: 0, arVolley: 0, arAim: 0, arAimCrit: 0, arUltSplash: 0, arUltDodge: 0, arUltMulCut: 0, arHawk: 0, arStartFull: 0, arTurnRes: 0, arCritRes: 0, arDodgeRes: 0, arPoisonArrow: 0, arRicochet: 0, arPoisonS2: 0, arMark: 0, arMarkJump: 0, arKillCd: 0, arExecute: 0, debuffRes: 0, healAt: 0, atone: 0, judge: 0, smiteMul: 0, smiteVamp: 0, healShield: 0, spearStart: 0, spearRate: 0, spearMul: 0, spearHeal: 0, ultRegen: 0, ultHoly: 0, ultChargeShield: 0, clDawn: 0, clDawnCrit: 0, clDawnHeal: 0, clDawnWis: 0, clDawnWisTurns: 0, clDawnUlt: 0, clInt: 0, clCoreBase: 0, clMindRegen: 0, clIntToStr: 0, clWisToVit: 0, clUltMana: 0, clManaGuard: 0, clManaHeal: 0, clManaShield: 0, bossShield: 0, lateDmg: 0, spellCrit: 0, spearLuck: 0, strToInt: 0, s1Pow: 0, ultPow: 0, s2Lv: 0, s2Star: 0, clUltAtk: 0, clUltLights: 0, clSpearShield: 0, clPurify: 0, s3Pow: 0, ult2Pow: 0, j2FrenzyMax: 0, j2BossCrit: 0, j2Duel: 0, j2DuelExec: 0, j2LowHp: 0, j2RageTurn: 0, j2IgnorePain: 0, j2HpDmg: 0, j2PierceHits: 0, j2Boomerang: 0, j2Spiral: 0, j2Guard: 0, j2DefAtk: 0, j2HpPct: 0, j2CounterCrit: 0, j2Charge: 0, j2ChargeFirst: 0, j2KnifeAdd: 0, j2KnifeMul: 0, j2KnifeCrit: 0, j2ExecAdd: 0, j2DebtX2: 0, j2ExecTurn: 0, j2DebuffTurns: 0, j2CrossAdd: 0, j2PayCut: 0, j2BlindAdd: 0, j2GcTwice: 0, j2GcLv: 0, j2GcAngel: 0, j2GcShield: 0, j2GcGuard: 0, j2HcVit: 0, j2ShieldBoom: 0, j2Reflect: 0, j2BlockShield: 0, j2BlockHeal: 0, j2GuardOver: 0, j2Martyr: 0, j2ChargeMax: 0, j2ThunderPer: 0, j2Es: 0, j2Chill: 0, j2Instill: 0, j2Dark: 0, j2NoLight: 0, u3Pow: 0, j3On: 0, j3Lk: 0, j3Ch: 0, j3LegCross: 0, j3LegGuard: 0, j3LegHp: 0, j3Heir: 0, j3VarMul: 0, j3GospelHeal: 0, j3AfterBless: 0, j3GospelFaith: 0, j3GospelField: 0, j3Press: 0, j3Banding: 0, j3EarthDrive: 0, j3Inspire: 0, // Novice: cooldown only (resources come with job change)
+  thorns: 0, rageGain: 0, autoCostCut: 0, ctrAoe: 0, berserk: 0, pierce: 0, lockOn: 0, dodgeStrike: 0, doubleAtk: 0, thExecute: 0, poisonLeech: 0, killHeal: 0, bloodKing: 0, thUltAgi: 0, lightMax: 0, overload: 0, lightLuck: 0, burnCap: 0, autoBurn: 0, fireSpread: 0, chillPlus: 0, brittle: 0, comboCount: 0, comboDmg: 0, ignoreCombo: 0, ignoreCounter: 0, comboDR: 0, counterDR: 0, critDR: 0, vsBurn: 0, vsChill: 0, vsPoison: 0, chillWeak: 0, spearShield: 0, counterDmg: 0, basicDmg: 0, resTurn: 0, shatter: 0, reviveHp: 0, smiteTargets: 0, holyCounter: 0, overhealShield: 0, poisonCap: 0, poisonSpread: 0, fleeFloor: 0, waveDodge: 0, dodgeEnergy: 0, ultDodge: 0, ultHits: 0, ultPoison: 0, poisonAmp: 0, lightHits: 0, lightChain: 0, burnTick: 0, chillSlow: 0, iceBarrier: 0, boltHits: 0, boltCharge: 0, stormSet: 0, mgLightAmp: 0, mgFireAmp: 0, mgIceAmp: 0, mgFirstCard: 0, mgFireStack: 0, mgWaveBarrier: 0, resRegenCut: 0, mgUltAmp: 0, elemWheel: 0, mgBarrierCut: 0, barrierBoom: 0, mgEmergency: 0, mgStatic: 0, mgMolten: 0, mgGlacial: 0, mgHex: 0, mgAura: 0, mgDoubleCast: 0, mgUltCd: 0, mgUltMana: 0, mgOverflow: 0, cleaveAdd: 0, startRage: 0, rageOnHurtAdd: 0, spellVamp: 0, skillDmgCut: 0, ultMulAdd: 0, ultAmp: 0, ultPierce: 0, poise: 0, ultShieldAdd: 0, ultVsCharge: 0, ultCounters: 0, counterRage: 0, counterShield: 0, counterPct: 0, pickHpPct: 0, pickAtkPct: 0, pickMatkPct: 0, arDodgeShield: 0, arUltBreak: 0, arWaveDodge: 0, arSnipeLow: 0, arLowHpBonus: 0, arVolley: 0, arAim: 0, arAimCrit: 0, arUltSplash: 0, arUltDodge: 0, arUltMulCut: 0, arHawk: 0, arStartFull: 0, arTurnRes: 0, arCritRes: 0, arDodgeRes: 0, arPoisonArrow: 0, arRicochet: 0, arPoisonS2: 0, arMark: 0, arMarkJump: 0, arKillCd: 0, arExecute: 0, debuffRes: 0, healAt: 0, atone: 0, judge: 0, smiteMul: 0, smiteVamp: 0, healShield: 0, spearStart: 0, spearRate: 0, spearMul: 0, spearHeal: 0, ultRegen: 0, ultHoly: 0, ultChargeShield: 0, clDawn: 0, clDawnCrit: 0, clDawnHeal: 0, clDawnWis: 0, clDawnWisTurns: 0, clDawnUlt: 0, clInt: 0, clCoreBase: 0, clMindRegen: 0, clIntToStr: 0, clWisToVit: 0, clUltMana: 0, clManaGuard: 0, clManaHeal: 0, clManaShield: 0, bossShield: 0, lateDmg: 0, spellCrit: 0, spearLuck: 0, strToInt: 0, s1Pow: 0, ultPow: 0, s2Lv: 0, s2Star: 0, clUltAtk: 0, clUltLights: 0, clSpearShield: 0, clPurify: 0, s3Pow: 0, ult2Pow: 0, j2FrenzyMax: 0, j2BossCrit: 0, j2Duel: 0, j2DuelExec: 0, j2LowHp: 0, j2RageTurn: 0, j2IgnorePain: 0, j2HpDmg: 0, j2PierceHits: 0, j2Boomerang: 0, j2Spiral: 0, j2Guard: 0, j2DefAtk: 0, j2HpPct: 0, j2CounterCrit: 0, j2Charge: 0, j2ChargeFirst: 0, j2KnifeAdd: 0, j2KnifeMul: 0, j2KnifeCrit: 0, j2ExecAdd: 0, j2DebtX2: 0, j2ExecTurn: 0, j2DebuffTurns: 0, j2CrossAdd: 0, j2PayCut: 0, j2BlindAdd: 0, j2GcTwice: 0, j2GcLv: 0, j2GcAngel: 0, j2GcShield: 0, j2GcGuard: 0, j2HcVit: 0, j2ShieldBoom: 0, j2Reflect: 0, j2BlockShield: 0, j2BlockHeal: 0, j2GuardOver: 0, j2Martyr: 0, j2ChargeMax: 0, j2ThunderPer: 0, j2Es: 0, j2Chill: 0, j2Instill: 0, j2Dark: 0, j2NoLight: 0, u3Pow: 0, j3On: 0, j3Lk: 0, j3Ch: 0, j3Rn: 0, j3LegCross: 0, j3LegGuard: 0, j3LegHp: 0, j3Heir: 0, j3VarMul: 0, j3GospelHeal: 0, j3AfterBless: 0, j3GospelFaith: 0, j3GospelField: 0, j3Press: 0, j3Banding: 0, j3EarthDrive: 0, j3Inspire: 0, // Novice: cooldown only (resources come with job change)
   j2MeteorMul: 0, j2Meteors: 0, j2LovMul: 0, j2LovStun: 0, j2LovHits: 0, j2GustMul: 0, j2QuickCast: 0, j2AutoChance: 0, j2AutoBolts: 0, j2Hindsight: 0, j2EndowTurns: 0, j2EndowAmp: 0, j2EndowWave: 0, j2MagicRod: 0, j2RodBlock: 0, // Phase 5 Wizard / Sage
-  j2HawkChance: 0, j2HawkMul: 0, j2HawkHits: 0, j2HawkEvo: 0, j2BoarHp: 0, j2BoarMul: 0, j2BoarShield: 0, j2BoarEvo: 0, j2WolfMul: 0, j2WolfBleed: 0, j2WolfSpeed: 0, j2WolfEvo: 0, j2Gust: 0, j2Frenzy: 0, j2PetPow: 0, j2PetRes: 0, j2CmdCut: 0, j2Pack3: 0, j2PackLead: 0, j2PetHeal: 0, j2Roar: 0, j2CritPet: 0, j2HawkTrue: 0, j2WolfBleedPct: 0, j2BoarStunAll: 0, j2Traps: 0, j2TrapMul: 0, j2Claymore: 0, j2BoxLuck: 0, j2BoxMul: 0, j2Reroll: 0, j2TurretMul: 0, j2TurretTurns: 0, j2TurretWave: 0, // Phase 4 Beastmaster / Innovator
+  j2HawkChance: 0, j2HawkMul: 0, j2HawkHits: 0, j2HawkEvo: 0, j2MarkPierceFlee: 0, j2HawkIntAdd: 0, j2HawkDexToMatk: 0, j2PreyMarkAdd: 0, j2PreyTurns: 0, j2BoarHp: 0, j2BoarMul: 0, j2BoarShield: 0, j2BoarEvo: 0, j2BoarShare: 0, j2BoarCut: 0, j2BoarRageK: 0, j2BoarGuardDr: 0, j2BoarDownCut: 0, j2WolfMul: 0, j2WolfBleed: 0, j2WolfSpeed: 0, j2WolfEvo: 0, j2WolfPierceBleed: 0, j2BleedDmg: 0, j2Gust: 0, j2Frenzy: 0, j2PetPow: 0, j2PetStatScale: 0, j2PetRes: 0, j2WolfRallyStep: 0, j2CmdCut: 0, j2CmdHawkAdd: 0, j2Pack3: 0, j2PackLead: 0, j2PetHeal: 0, j2PetHealLow: 0, j2Roar: 0, j2RoarWeaken: 0, j2CritPet: 0, j2UltAwakenAdd: 0, j2HawkBonusHits: 0, j2HawkCritShare: 0, j2HawkCapAdd: 0, j2StanceMarkCritDmg: 0, j2StanceGritShield: 0, j2StanceWoundLeech: 0, j2FrenzyCapAdd: 0, j2HawkTrue: 0, j2WolfBleedPct: 0, j2BoarStunAll: 0, j2Traps: 0, j2TrapMul: 0, j2Claymore: 0, j2BoxLuck: 0, j2BoxMul: 0, j2Reroll: 0, j2TurretMul: 0, j2TurretTurns: 0, j2TurretWave: 0, // Phase 4 Beastmaster / Innovator
   swFlow: 0, swFlowMana: 0, swFlowCrit: 0, swFlowStar: 0, swBreak: 0, swBreakLeech: 0, swBreakSpread: 0, swShatter: 0, // v84 Swordsman web
   clFaith: 0, clFaithOver: 0, clFaithHeal: 0, clOverBurst: 0, clUltWard: 0, clEmergency: 0, clUltMend: 0, clRevive: 0, // v84 Priest web
   j2Banner: 0, j2Provoke: 0, j2BannerKill: 0, j2BannerAura: 0, j2Sweep: 0, j2SweepPush: 0, j2SweepGauge: 0, j2SweepStar: 0, // v84 Knight ใยชั้น 2

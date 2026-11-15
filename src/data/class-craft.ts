@@ -312,6 +312,39 @@ export const JOB3_CRAFT_ITEMS: Item[] = [
     mod: { maxHp: 200, def: 24, j2Guard: 0.04, j3Press: 0.3, j2BlockShield: 0.04 },
     craft: { ...D10, bonus: [{ j3EarthDrive: 0.35 }, { j2Reflect: 0.08, j2BlockHeal: 0.02 }] },
   },
+  // 🪶 Ranger (Beastmaster -> Ranger): full D10 head / armor / acc / bow suite
+  {
+    id: 'cc_rn_helm', slot: 'head', name: 'หน้ากากปีกเหยี่ยวเรนเจอร์', icon: '🪶', price: 0, slots: 1,
+    jobs: AR, j2: ['beastmaster'], j3: ['ranger'], req: 'job3',
+    desc: 'ของคราฟเรนเจอร์ · หมวก: เหยี่ยวโฉบแรงขึ้น + เพิ่มรอบ Primal Stampede + พรหลังศึก',
+    base: { dex: 5, luk: 5, int: 4 },
+    mod: { maxHp: 130, atk: 14, matk: 14, hit: 16, j2HawkMul: 0.12, j3AfterBless: 0.04 },
+    craft: { ...D10, bonus: [{ j3GospelField: 1 }, { j3Banding: 0.01, critMul: 0.15 }] },
+  },
+  {
+    id: 'cc_rn_cloak', slot: 'armor', name: 'เสื้อคลุมพรานพงไพรไพรมัล', icon: '🧥', price: 0, slots: 1,
+    jobs: AR, j2: ['beastmaster'], j3: ['ranger'], req: 'job3',
+    desc: 'ของคราฟเรนเจอร์ · เกราะ: หมูป่าอึด Banding ลดดาเมจ เปิดฉาก Arrow Ambush + พรางตัว Camouflage',
+    base: { agi: 6, vit: 6, luk: 3 },
+    mod: { maxHp: 240, def: 18, flee: 14, tenacity: 0.12, j2BoarHp: 0.15, j3Banding: 0.02 },
+    craft: { ...D10, bonus: [{ j3EarthDrive: 0.3 }, { j3Inspire: 1, flee: 10 }] },
+  },
+  {
+    id: 'cc_rn_crest', slot: 'acc', name: 'เข็มกลัดจ้าวฝูงสรรพสัตว์', icon: '🐾', price: 0, slots: 1,
+    jobs: AR, j2: ['beastmaster'], j3: ['ranger'], req: 'job3',
+    desc: 'ของคราฟเรนเจอร์ · เครื่องประดับ: ซุ่มยิงเปิดเวฟ Primal Stampede ฮีล และพลังฝูงสัตว์',
+    base: { dex: 4, int: 4, agi: 4, luk: 4 },
+    mod: { atk: 16, matk: 16, maxHp: 100, crit: 0.04, j2Charge: 0.2, j3GospelHeal: 0.01 },
+    craft: { ...D10, bonus: [{ j3AfterBless: 0.05 }, { j2PetPow: 0.12, j2PetHeal: 0.004 }] },
+  },
+  {
+    id: 'cc_rn_bow', slot: 'weapon', wtype: 'bow', name: 'คันธนูพายุสรรพสัตว์เรนเจอร์', icon: '🏹', price: 0, slots: 2,
+    jobs: AR, j2: ['beastmaster'], j3: ['ranger'], req: 'job3',
+    desc: 'ของคราฟเรนเจอร์ · อาวุธ: พลังฝูงสัตว์สูงสุด เพิ่มรอบ Primal Stampede และดูดเลือดฮีลหมู่',
+    base: { dex: 7, luk: 6, int: 5, agi: 4 },
+    mod: { atk: 38, matk: 32, maxHp: 150, hit: 20, crit: 0.06, aspd: 0.14, pskill: 0.12, j2PetPow: 0.22 },
+    craft: { ...D10, bonus: [{ j3GospelField: 1 }, { j3GospelHeal: 0.015, pierce: 0.2 }] },
+  },
 ]
 
 export const CLASS_CRAFT_ITEMS: Item[] = [

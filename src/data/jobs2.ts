@@ -23,14 +23,15 @@ export interface Job2Def {
 }
 
 export const JOB2_RULES = { unlockJobLv: 40, unlockClear: 'd5', maxJobLevel: 50, repickGems: 30 }
-/** 🐺 Beastmaster companion (save.pet, picked in town, free to change). Rework v1: all 3 pets fight every wave; save.pet = the partner for ★ พรานแห่งป่า. */
+/** 🐺 Beastmaster companion (save.pet, picked in town, free to change). Rework v2.1: all 3 pets fight every wave; save.pet = Hero Passive Stance + crit counter for ★ พรานแห่งป่า. */
 export type PetId = 'hawk' | 'boar' | 'wolf'
 export const PETS: Record<PetId, { name: string; icon: string; evo: string; desc: string }> = {
-  hawk: { name: 'เหยี่ยว', icon: '🦅', evo: 'เหยี่ยวทอง', desc: 'ไม่โดนตี · ฮีโร่ตีธรรมดา มีโอกาส (LUK) ฟาด 1-3 ตัว ไม่พลาด' },
-  boar: { name: 'หมูป่า', icon: '🐗', evo: 'หมูป่าเกราะ', desc: 'HP ตาม VIT · ดึงมอนตี · พุ่งชนทุก 3 เทิร์น มอนเสียเทิร์น' },
-  wolf: { name: 'หมาป่า', icon: '🐺', evo: 'ราชาหมาป่า', desc: 'มีเทิร์นเองตาม AGI · กัดติดเลือดไหล · กัดตามตอนฮีโร่คอมโบ' },
+  hawk: { name: 'เหยี่ยว', icon: '🦅', evo: 'เหยี่ยวทอง', desc: 'ไม่โดนตี · โอกาสตาม LUK · แรงจาก INT (M.ATK) ทะลุ DEF/Flee · ท่ายืน +LUK/HIT/Crit' },
+  boar: { name: 'หมูป่า', icon: '🐗', evo: 'หมูป่าเกราะ', desc: 'HP ตาม VIT · แบ่งรับดาเมจ & แรงฮึด Grit · พุ่งชนทุก 3 เทิร์น · ท่ายืน +DEF/โล่' },
+  wolf: { name: 'หมาป่า', icon: '🐺', evo: 'ราชาหมาป่า', desc: 'มีเทิร์นเองตาม AGI · กัดติดเลือดไหล DoT · คลั่งความเร็ว · ท่ายืน +ATK/ดูดเลือด' },
 }
 export const PET_IDS = Object.keys(PETS) as PetId[]
+export { PET_DOSSIER_I18N, type PetDossierEntry } from './pet-dossier'
 
 const B = KIT2.berserker, K = KIT2.knight, R = KIT2.rogue, M = KIT2.mobster, C = KIT2.crusader, O = KIT2.monk
 const WZ = KIT2.wizard, SG = KIT2.sage, BM = KIT2.beastmaster, IN = KIT2.innovator
@@ -112,11 +113,11 @@ export const JOB2: Record<Job2Id, Job2Def> = {
   },
   // ----- Phase 4 Archer -----
   beastmaster: {
-    id: 'beastmaster', parent: 'archer', name: 'บีสต์มาสเตอร์', icon: '🐺', focus: 'DEX · AGI · LUK',
-    blurb: 'นักธนูคุมฝูง 🦅 เหยี่ยว + 🐗 หมูป่า + 🐺 หมาป่า สู้พร้อมกันทุกเวฟ · คู่หูในเมือง = ตัวที่ ★ พรานแห่งป่า ส่งไปตีซ้ำ · ★ ใยชั้น 2 วิวัฒน์สัตว์',
+    id: 'beastmaster', parent: 'archer', name: 'บีสต์มาสเตอร์', icon: '🐺', focus: 'DEX · INT · LUK / AGI',
+    blurb: 'จอมทัพพงไพร 🦅 เหยี่ยว (LUK+INT/M.ATK) + 🐗 หมูป่า + 🐺 หมาป่า สู้พร้อมกันทุกเวฟ · เลือกคู่หูพราน = ท่ายืนสเตตัส + เคาน์เตอร์เมื่อคริ · ★ วิวัฒน์สัตว์',
     mod: { hit: 5 },
     mastery: { weapon: 'ธนู', ok: (it) => it.wtype === 'bow', mod: { hit: BM.mastery.hit }, pct: { atk: BM.mastery.atkPct } },
-    signature: { name: 'คู่หู', icon: '🐾', desc: `สัตว์ 3 ตัวสู้ข้างฮีโร่ทุกเวฟ ตัวละ ${pc(BM.packPow)} (พลังตามสเตตัสฮีโร่ ไม่ดูดเลือด ไม่ติดคอมโบ) · 🦅 ฟาด ${pc(BM.hawkChance)} +${BM.hawkLuk * 100}%/LUK ${BM.hawkMul}x · 🐗 HP ${pc(BM.boarHp)} รับดาเมจแทน ${pc(BM.boarShare)} (ลด ${pc(BM.boarCut)}) เกจโกรธเต็ม/ทุก ${BM.boarEvery} เทิร์น พุ่งชน ${BM.boarMul}x · 🐺 เทิร์นเอง กัด ${BM.wolfMul}x + เลือดไหล ${BM.wolfBleed}` },
+    signature: { name: 'คู่หู', icon: '🐾', desc: `สัตว์ 3 ตัวสู้ข้างฮีโร่ทุกเวฟ ตัวละ ${pc(BM.packPow)} · 🦅 ฟาด ${pc(BM.hawkChance)} +${(BM.hawkLuk * 100).toFixed(1)}%/LUK แรง ${BM.hawkMul}x (หลักจาก M.ATK/INT ทะลุ DEF/Flee) · 🐗 HP ${pc(BM.boarHp)} รับแทน ${pc(BM.boarShare)} (-${pc(BM.boarCut)}) พุ่งชน ${BM.boarMul}x · 🐺 เทิร์นเอง กัด ${BM.wolfMul}x + เลือดไหล ${BM.wolfBleed}` },
     skill3: { name: 'สั่งลุย', icon: '📯', cost: BM.cmdCost, cd: BM.cmdCd, desc: `Energy ${BM.cmdCost} · คูลดาวน์ ${BM.cmdCd}: 🦅 ฟาด ${BM.cmdHawkHits} ครั้ง · 🐗 โล่ให้ฮีโร่ ${pc(BM.cmdBoarShield)} HP · 🐺 หอนเรียกฝูง ${BM.cmdPack} ตัว ${BM.cmdPackTurns} เทิร์น` },
     ult: { name: 'ปลุกพลังฝูง (Primeval Awakening)', icon: '🐾', cd: 4, desc: `คำรามล้างดีบัฟ + ปลุก/ฮีลหมูป่าเต็ม + Stun ทั้งแถว · แปลงร่าง ${BM.ultAwakenTurns} เทิร์น: 🐗 รับแทน ${pc(BM.ultBoarShare)} + สะท้อน · 🦅 โอกาส ×2 + 🏷️ ไม่หมด · 🐺 กัดตามทุกตีปกติ · จบ: 🛡️ โล่ตามดาเมจที่หมูป่ารับ` },
   },

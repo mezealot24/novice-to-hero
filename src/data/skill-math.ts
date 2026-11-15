@@ -41,6 +41,18 @@ export const auraAmp = (lv: number) => MAGE_PASSIVE.aura.ampPer * Math.max(0, lv
 export const mageAutoRatio = (st: Stats) => (st.matk * MAGE_AUTO_MIX.matk + st.atk * MAGE_AUTO_MIX.atk) / Math.max(1, magicPower(st))
 /** ลูกไฟระเบิด multiplier in Pm units (base `mul` x the 90 : 10 mix). */
 export const mageAutoMul = (st: Stats, mul: number) => mul * mageAutoRatio(st)
+/** RO Falconer Blitz Beat damage mix (v2.1): 85% M.ATK + 15% P.ATK (scales primarily with INT/M.ATK, ~5.67:1 INT:DEX ratio). */
+export const FALCON_MIX = { matk: 0.85, atk: 0.15 } as const
+/** Effective Falcon Power per Blitz Beat hit before multiplier: 85% M.ATK + 15% P.ATK + Steel Crow (INT) + Hawk Stance DEX resonance. */
+export const falconPower = (st: Stats, int: number, dex: number) =>
+  st.matk * FALCON_MIX.matk +
+  st.atk * FALCON_MIX.atk +
+  st.j2HawkIntAdd * Math.max(0, int) +
+  Math.floor(st.j2HawkDexToMatk * Math.max(0, dex))
+/** Multiplier converting `magicPower(st)` units into Falcon Power units for `BattleScene.strike()`. */
+export const falconRatio = (st: Stats, int: number, dex: number) => falconPower(st, int, dex) / Math.max(1, magicPower(st))
+/** Blitz Beat multiplier in `magicPower(st)` units (base `mul` x Falcon Power / Pm). */
+export const falconMul = (st: Stats, mul: number, int: number, dex: number) => mul * falconRatio(st, int, dex)
 /** v78: does a released chant use up the hero's turn? Base Mage / Sage yes, Wizard no (its edge). */
 export const castUsesTurn = (job2?: string) => job2 !== 'wizard'
 /** Chance one hit breaks the chant: 25% − 1.2%/DEX − tenacity, never below 0 (🧘 Poise = 0). */
@@ -173,26 +185,33 @@ export const KIT2 = {
   },
   // ----- Phase 4 Archer: Beastmaster / Innovator (Ally pets / traps / turrets: battle/allies.ts) -----
   beastmaster: {
-    packPow: 0.7, // rework v1 (Q 2026-11-14): all 3 pets every wave, each at this power (x ใจเดียวกัน, x ฝูงพันธมิตร)
-    hawkChance: 0.15, hawkLuk: 0.004, hawkCap: 0.6, hawkMul: 0.6, hawkHits: 1, hawkHitsMax: 3, // 🦅 Blitz Beat per hero swing: chance + per LUK (capped), 1..N random targets, never misses
+    packPow: 0.7, // rework v2.1: all 3 pets every wave, each at this power (x ใจเดียวกัน, x ฝูงพันธมิตร)
+    hawkChance: 0.05, hawkLuk: 0.004, hawkCap: 0.6, hawkMul: 0.6, hawkHits: 1, hawkHitsMax: 3, // 🦅 RO Blitz Beat per hero swing: 5% base + 0.4%/LUK (cap 60%, 75% in Hawk Stance)
     hawkEvoMul: 0.5, hawkEvoHits: 1, // ★ เหยี่ยวทอง
-    preyMark: 0.1, preyTurns: 2, // 🏷️ Prey Mark: every Blitz Beat hit marks (shares Archer huntMark: damage taken + max(arMark, this), its own turns) — Q2
-    gustEvery: 3, gustBlind: 2, // 🪶 Razor Gust (bm_h3): every Nth Blitz Beat also blinds what it hits (Crusader blind: Hit -KIT2.crusader.blindHit), turns
+    preyMark: 0.1, preyTurns: 2, // 🏷️ Prey Mark: every Blitz Beat hit marks (shares Archer huntMark: damage taken + max(arMark, this))
+    gustEvery: 3, gustBlind: 2, blindHit: 20, // 🪶 Razor Gust (bm_h3): every Nth Blitz Beat blinds targets for 2 hero turns (Hit -20)
     spotCrit: 0.05, // 👁️ ★ Apex Spotter (bm_h4): hero crit + · a newly marked target sends the wolf in now
-    boarHp: 0.6, boarEvery: 3, boarMul: 0.8, boarPush: 30, // 🐗 HP = share of hero max HP (VIT) · every N hero turns charges the front (loses its turn; boss: gauge push)
-    boarShare: 0.35, boarCut: 0.3, boarRageK: 140, boarDown: 3, // 🐗 Guardian: takes this share of every landed monster hit, -boarCut of it · Rage += taken / boar max HP x K, 100 = extra charge · 0 HP = down N hero turns, then back full + charges
-    boarEvoHp: 0.5, boarEvoEvery: 2, boarEvoShare: 0.1, boarEvoDown: 2, // ★ หมูป่าเกราะ: + HP share, charges more often, takes more, gets up sooner
-    wolfSpeed: 0.8, wolfMul: 0.7, wolfBleed: 2, // 🐺 own turn at this share of hero speed (AGI) · bite + bleed (poison stacks) · follows hero combo hits
+    boarHp: 0.6, boarEvery: 3, boarMul: 0.8, boarPush: 30, // 🐗 HP = share of hero max HP (VIT) · every N hero turns charges the front (boss: gauge push)
+    boarShare: 0.35, boarCut: 0.3, boarRageK: 140, boarRecoverTurns: 3, boarDown: 3, // 🐗 Guardian: share absorbed + cut + Grit Rage gain + down recovery turns
+    boarEvoHp: 0.5, boarEvoEvery: 2, boarEvoShare: 0.1, boarEvoDown: 2, boarReviveShield: 0.15, boarGuardHpPct: 0.5, // ★ หมูป่าเกราะ + Guard thresholds
+    wolfSpeed: 0.8, wolfMul: 0.7, wolfBleed: 2, // 🐺 own turn at this share of hero speed (AGI) · bite + bleed stacks · follows hero combo hits
     wolfEvoMul: 0.5, wolfEvoSpeed: 0.3, // ★ ราชาหมาป่า
-    frenzyCap: 5, frenzySpd: 0.01, // 🩸 Bloodscent Frenzy (bm_w3): hero speed (wolf follows) + this x Lv per poison stack on the front monster, counting up to cap stacks
-    crunchEvery: 3, crunchLow: 0.35, crunchHeal: 0.1, // 🦷 ★ Savage Crunch: every Nth bite / front has 🏷️ mark / front HP < low → sure crit, heals hero + boar this share of it (Q4: a heal, not lifesteal)
-    harmonyWolf: 0.25, harmonyBoarHeal: 0.08, // 🤝 ★ Tri-Beast Harmony (bm_k4): wolf deals +this vs 🏷️ marked target & heals boar this share of boar max HP
-    wolfBleedCap: 1.5, // 🐺 IV talent: % Max HP bleed tick cap = this × P.ATK
-    cmdCost: 30, cmdCd: 3, cmdHawkHits: 2, cmdBoarShield: 0.15, cmdPack: 2, cmdPackTurns: 2, cmdPackPow: 0.3, // 📯 สั่งลุย per pet · Q 2026-11-14: damage cut hard (hawk 3 → 2 hits, pack 0.6 → 0.3; shield unchanged)
-    ultAwakenTurns: 3, ultBoarShare: 0.7, ultReflect: 0.5, ultEndShield: 0.4, ultEndShieldMin: 0.1, // 🐾 Primeval Awakening (Q5): multi-turn stance (cleanse + revive/heal boar + stun all → 3 turns → end shield)
+    frenzyCap: 5, frenzySpd: 0.01, // 🩸 Bloodscent Frenzy (bm_w3): hero/wolf speed + this x Lv per bleed stack on front monster (capped at 5; 7 in Wolf Stance)
+    crunchEvery: 3, crunchLow: 0.35, crunchHeal: 0.1, // 🦷 ★ Savage Crunch: every 3rd bite / Prey Mark / < 35% HP -> sure crit, heals hero + boar 10% of dmg
+    harmonyWolf: 0.25, harmonyBoarHeal: 0.08, // 🤝 ★ Tri-Beast Harmony (bm_k4): wolf deals +25% vs Prey Mark & heals boar 8% boar max HP
+    wolfBleedCap: 1.5, // 🐺 IV talent: % Max HP bleed tick cap = this x P.ATK
+    cmdCost: 30, cmdMinCost: 10, cmdCd: 3, cmdHawkHits: 2, cmdBoarShield: 0.15, cmdPack: 2, cmdPackTurns: 2, cmdPackPow: 0.3, // 📯 สั่งลุย per pet
+    ultAwakenTurns: 3, ultBoarShare: 0.7, ultReflect: 0.5, ultEndShield: 0.4, ultEndShieldMin: 0.1, // 🐾 Primeval Awakening
+    petHealLowHp: 0.35, roarWeakenTurns: 2, // 🩹 emergency double heal < 35% HP · 🐺 opening weaken 2 monster turns
     mastery: { atkPct: 0.05, hit: 8 }, // bow
-    // v82 ใยชั้น 2: 🤝 ผูกพัน + 🌿 สัญชาตญาณ, first guesses (design/second-jobs-v1.md §4 v82)
-    tree: { petPow: 0.08, petRes: 1, cmdCut: 5, pack3Pow: 0.2, packLead: 0.04, petHeal: 0.005, roar: 10 },
+    tree: {
+      hawkChance: 0.05, hawkHit: 8, markPierceFlee: 0.15,
+      hawkMul: 0.15, hawkIntAdd: 0.5, preyMarkAdd: 0.03, preyTurnsAtLv: 3,
+      boarHp: 0.15, boarShare: 0.03, boarCut: 0.05, boarMul: 0.2, boarRageK: 20, boarShield: 0.05, boarGuardDr: 0.04, boarDownCut: 1,
+      wolfMul: 0.1, wolfPierceBleed: 0.1, wolfBleed: 1, bleedDmg: 0.08, wolfSpeed: 0.1,
+      petPow: 0.08, petStatScale: 0.1, petRes: 1, wolfRallyStep: 5, cmdCut: 5, cmdHawkLv: 3, pack3Pow: 0.2,
+      packLead: 0.04, petHeal: 0.005, petHealLow: 1, roar: 10, roarWeaken: 0.05,
+    },
   },
   innovator: {
     traps: 1, mineMul: 1.5, snarePush: 30, freezeMul: 0.6, freezeChill: 2, // 🧰 wave-start trap (random of 3) fires when a monster acts: 💣 Land Mine · 🕳️ Ankle Snare (boss: gauge -30) · ❄️ Freezing Trap
@@ -202,6 +221,58 @@ export const KIT2 = {
     mastery: { atkPct: 0.05, crit: 0.02 }, // bow
   },
 }
+
+/** Beastmaster Partner Passive Stances (`save.pet = 'hawk' | 'boar' | 'wolf'`, rework v2.1). */
+export const BM_STANCE = {
+  hawk: {
+    luk: 15,
+    capAdd: 0.15, // 60% -> 75% Auto-Blitz cap
+    hitFlat: 15,
+    hitPerDex: 0.25,
+    critBase: 0.06,
+    critPerLuk: 0.0005,
+    critCap: 0.15,
+    dexToMatk: 0.2, // floor(0.20 * DEX) bonus to Falcon Power
+    preyMarkAdd: 0.05,
+    markPierceFlee: 1.0, // ignore enemy Flee 100% on Prey Mark targets
+    markCritDmg: 0.18,
+  },
+  boar: {
+    defBasePct: 0.15,
+    defPerVit: 0.35,
+    shareAdd: 0.1, // 35% -> 45% base damage share
+    shieldAmp: 0.2,
+    gritShield: 0.08, // 8% Hero Max HP barrier when Boar Rage reaches 100
+  },
+  wolf: {
+    atkBasePct: 0.1,
+    atkPerAgi: 0.3,
+    bleedDmgAdd: 0.25,
+    woundLeech: 0.04, // 4% lifesteal when attacking Bleed >= woundMinStacks
+    woundMinStacks: 3,
+    frenzyCapAdd: 2, // 5 -> 7 max Bloodscent Frenzy stacks
+  },
+} as const
+
+/** Beastmaster `bm_s4` ★ Hunter's Instinct crit-counterattack constants per partner pet (rework v2.1). */
+export const BM_CRIT_COUNTER = {
+  hawk: { mul: 1.0, markTurns: 2 },
+  boar: { mul: 0.8, push: 20, shieldPct: 0.05, shieldTurns: 2 },
+  wolf: { mul: 0.7, bleed: 2, gaugeGain: 50 },
+} as const
+
+/** Beastmaster rework v2.1 shared derivation helpers (read by `battle/allies.ts`, `BattleScene.ts`, UI dossier, and tests). */
+export const hawkChance = (st: Stats, luk: number) =>
+  Math.min(KIT2.beastmaster.hawkCap + st.j2HawkCapAdd + (st.j3Rn > 0 ? KIT3.ranger.hawkCapAdd : 0), KIT2.beastmaster.hawkChance + KIT2.beastmaster.hawkLuk * Math.max(0, luk) + st.j2HawkChance)
+export const hawkBlitzMul = (st: Stats) =>
+  KIT2.beastmaster.hawkMul + st.j2HawkMul + (st.j2HawkEvo ? KIT2.beastmaster.hawkEvoMul : 0)
+export const frenzyCapOf = (st: Stats) => KIT2.beastmaster.frenzyCap + st.j2FrenzyCapAdd
+export const boarShareOf = (st: Stats) => KIT2.beastmaster.boarShare + st.j2BoarShare
+export const boarCutOf = (st: Stats) => KIT2.beastmaster.boarCut + st.j2BoarCut
+export const boarRageKOf = (st: Stats) => KIT2.beastmaster.boarRageK + st.j2BoarRageK
+export const boarRecoverTurnsOf = (st: Stats) => Math.max(1, KIT2.beastmaster.boarRecoverTurns - st.j2BoarDownCut)
+export const preyMarkOf = (st: Stats) => KIT2.beastmaster.preyMark + st.j2PreyMarkAdd
+export const preyTurnsOf = (st: Stats) => KIT2.beastmaster.preyTurns + st.j2PreyTurns
 
 /** Skill 2 linear "+" numbers: base + per x Stats.s2Lv. Plain numbers so the admin can tune them (skills `s2p.<key>.base|per`);
  *  the S2N functions below read them on every call. Defaults are the v83 values. */
@@ -280,6 +351,15 @@ export const KIT3 = {
     varA: { mul: 2.2, hp: 0.03, stunTurns: 1, per: 0.02, cap: 0.2, branch: 'mk_c' }, // 🐅 Tiger Knuckle: single heavy strike (boss first) + stun · +2% per คอมโบ point
     varB: { mul: 1.0, mdefHp: 0.04, per: 0.02, cap: 0.2, branch: 'mk_h' }, // 💥 Chain Crush: AoE true wave · +2% per หมัดแค้น point
     leg: { crossCap: 0.15, guardCap: 0.06, hpCap: 0.09, cross: 'mk_c', guard: 'mk_h', hp: 'mk_a' }, heirNeed: 6,
+  },
+  // 🪶 Ranger (Beastmaster Awakening, design/awakening-beastmaster-v1.md)
+  ranger: {
+    petPowAdd: 0.15, critAdd: 0.04, fleeAdd: 12, hawkCapAdd: 0.10, // 🎭 Camouflage signature
+    ultVolleys: 1, ultHawkMul: 0.90, ultHawkTargets: 2, ultBoarMul: 1.10, ultWolfMul: 1.35, ultWolfBleed: 2, // ✨ Primal Stampede
+    varA: { arrowMul: 0.85, blindTurns: 2, per: 0.02, cap: 0.20, branch: 'bm_h' as const }, // 🌩️ Arrow Storm
+    varB: { boltMul: 1.50, pierce: 0.50, wargMul: 1.10, bleedAdd: 3, boarPush: 20, per: 0.02, cap: 0.20, branch: 'bm_w' as const }, // 🎯 Aimed Warg
+    leg: { crossCap: 0.15, guardCap: 0.06, hpCap: 0.09, cross: 'bm_k' as const, guard: 'bm_b' as const, hp: 'bm_s' as const },
+    heirNeed: 6, gospelHealMax: 3,
   },
   /** shared by every 3rd job */
   common: { afterTurns: 2, bandingMax: 5, inspireAt: 0.3, inspireTurns: 3, inspireHeal: 0.03, inspireGuard: 0.5 },

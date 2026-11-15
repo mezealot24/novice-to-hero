@@ -164,9 +164,64 @@ export const AWAKEN_UNIQUES: Item[] = [
   },
 ]
 
+// 🪶 Ranger (Beastmaster Awakening): Falcon + Warg + Primal Stampede D10 uniques
+export const RANGER_UNIQUES: Item[] = [
+  {
+    id: 'u_rn_falconberet',
+    slot: 'head',
+    name: 'หมวกขนนกเหยี่ยวราชัน',
+    icon: '🦅',
+    price: 0,
+    slots: 1,
+    unique: { dg: 'd10' },
+    jobs: ['archer'],
+    j2: ['beastmaster'],
+    j3: ['ranger'],
+    req: 'job3',
+    desc: 'ยูนีคเรนเจอร์ · หมวก: Primal Stampede เพิ่มรอบ โฉบเหยี่ยวและพรหลังศึกแรงขึ้น แต่ DEF ลดลงนิด',
+    base: { int: 7, luk: 7, dex: 4 },
+    mod: { matk: 26, hit: 18, crit: 0.05, j3GospelField: 1, j2HawkMul: 0.20, j3AfterBless: 0.06, def: -8 },
+    pct: { maxHp: 0.06 },
+  },
+  {
+    id: 'u_rn_primalhide',
+    slot: 'armor',
+    name: 'เกราะหนังสัตว์บรรพกาล',
+    icon: '🐺',
+    price: 0,
+    slots: 1,
+    unique: { dg: 'd10' },
+    jobs: ['archer'],
+    j2: ['beastmaster'],
+    j3: ['ranger'],
+    req: 'job3',
+    desc: 'ยูนีคเรนเจอร์ · เกราะ: สัตว์ทุกตัวและหมาป่าไวขึ้น Banding หนา แต่ Hit ลดลงนิด',
+    base: { vit: 8, agi: 6, str: 4 },
+    mod: { maxHp: 260, def: 22, flee: 14, j2PetPow: 0.18, j3Banding: 0.02, j2WolfSpeed: 0.12, hit: -10 },
+    pct: { maxHp: 0.12 },
+  },
+  {
+    id: 'u_rn_wildheart',
+    slot: 'acc',
+    name: 'หัวใจแห่งพงไพรนิรันดร์',
+    icon: '🌿',
+    price: 0,
+    slots: 1,
+    unique: { dg: 'd10' },
+    jobs: ['archer'],
+    j2: ['beastmaster'],
+    j3: ['ranger'],
+    req: 'job3',
+    desc: 'ยูนีคเรนเจอร์ · เครื่องประดับ: Primal Stampede ฮีลแรง ฟื้น Energy เมื่อสัตว์ลงมือ แต่ Energy สูงสุดลดลงนิด',
+    base: { luk: 6, int: 5, agi: 5, dex: 4 },
+    mod: { atk: 18, matk: 18, critMul: 0.18, j3GospelHeal: 0.015, j3AfterBless: 0.08, j2Charge: 0.25, j2PetRes: 1, maxRes: -10 },
+  },
+]
+
 export const UNIQUE3_ITEMS: Item[] = [
   ...PALADIN_UNIQUES,
   ...LORDKNIGHT_UNIQUES,
+  ...RANGER_UNIQUES,
   ...AWAKEN_UNIQUES,
 ]
 
@@ -174,6 +229,7 @@ export const UNIQUE3_DROPS: Record<Job3Id, string[]> = {
   paladin: ['u_pl_aegiscrown', 'u_pl_sanctumplate', 'u_pl_gospelrelic', 'u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'],
   lordknight: ['u_lk_dragonhelm', 'u_lk_dragonscale', 'u_lk_warmedal', 'u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'],
   champion: ['u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'],
+  ranger: ['u_rn_falconberet', 'u_rn_primalhide', 'u_rn_wildheart', 'u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'],
 }
 
 /** Roll drop for 3rd Job uniques at D10.
