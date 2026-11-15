@@ -30,6 +30,8 @@ import * as runeCircle from '../vendor/pixelfx/fx/arcane/rune-circle.js'
 import * as arcaneMissiles from '../vendor/pixelfx/fx/arcane/arcane-missiles.js'
 import * as arcaneBeam from '../vendor/pixelfx/fx/arcane/arcane-beam.js'
 import * as starFall from '../vendor/pixelfx/fx/arcane/star-fall.js'
+// Loot
+import * as coinDrop from '../vendor/pixelfx/fx/spawn/coin-drop.js'
 // Archer
 import * as arrowShot from './fx/archer/arrow-shot'
 import * as arrowHit from './fx/archer/arrow-hit'
@@ -69,6 +71,17 @@ export const POISON_GREEN = ['#0b1a08', '#17380f', '#2b6a1a', '#4ca028', '#8ad83
 export const RICOCHET_LEAF = ['#27361a', '#46612b', '#6f9446', '#9cc46b', '#c9f2a0', '#ddf7c0', '#effce0', '#ffffff']
 /** Wolf roar (silver-blue, same family as the claw slash). */
 export const WOLF_SILVER = ['#0c1424', '#1c2c4a', '#34507a', '#5b82ad', '#8db4d4', '#c4dcec', '#eaf6ff', '#ffffff']
+
+/** coin-drop: seconds of its own time until every coin has settled on the floor (they wink out from 2.15 s on). */
+export const COIN_DROP_UNTIL = 1.35
+/** coin-drop (seeded, so always the same): where each coin lies at COIN_DROP_UNTIL, local px from the origin, left to
+ * right. The battle lifts its flying coins off from here so the swap from baked sheet to sprites doesn't jump.
+ * tests/coin-fx.test.ts re-measures them. */
+export const COIN_DROP_REST = {
+  3: [-55, 2, 37],
+  6: [-55, -41, -17, 9, 26, 53],
+  10: [-56, -48, -31, -22, -5, 7, 31, 38, 45, 50],
+} as const
 
 export const DEFS = {
   smite: { mod: smite, from: 0.45, until: 1.9 }, // holy light falling on one monster
@@ -116,6 +129,11 @@ export const DEFS = {
   boarGuard: { mod: boarGuard },
   beastRoar: { mod: beastRoar },
   stampede: { mod: stampede },
+  // Loot: a kill goes up in a poof and coins bounce out. Cut once they settle (~1.25 s); the battle then flies
+  // them to the zeny counter. One bake per coin count (the count is an option, not a palette).
+  coinDrop3: { mod: coinDrop, until: COIN_DROP_UNTIL, opts: { coins: 3 } },
+  coinDrop6: { mod: coinDrop, until: COIN_DROP_UNTIL, opts: { coins: 6 } },
+  coinDrop10: { mod: coinDrop, until: COIN_DROP_UNTIL, opts: { coins: 10 } },
 } satisfies Record<string, PfxDef>
 
 export type PfxId = keyof typeof DEFS
@@ -232,6 +250,10 @@ export function loopPfx(scene: Phaser.Scene, id: PfxId, x: number, y: number, o:
   made.spr.play({ key: made.key, repeat: -1 })
   return made.spr
 }
+
+/** The coin-drop bake for each coin count the battle uses. */
+export const COIN_DROP_IDS = { 3: 'coinDrop3', 6: 'coinDrop6', 10: 'coinDrop10' } as const satisfies Record<number, PfxId>
+export const COIN_PFX: PfxId[] = Object.values(COIN_DROP_IDS)
 
 /** Every effect the Cleric line (Cleric · Crusader · Monk · Paladin) can show. */
 export const CLERIC_PFX: PfxId[] = ['smite', 'pillar', 'healRing', 'feathers', 'blunt', 'critGold', 'critOrange', 'slam', 'zap']
