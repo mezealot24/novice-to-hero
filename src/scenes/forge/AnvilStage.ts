@@ -3,6 +3,7 @@
 import Phaser from 'phaser'
 import { FONT_UI } from '../../data/game-data'
 import { gradeCap, GRADE } from '../../data/craft'
+import { ASPECTS, describeItemEffects, itemConversionsOf, itemEffectsOf, type AspectId, type SaveExt } from '../../data/item-effects'
 import { gradeOf, isBroken, isTainted, refineOf, slotCount, SLOTS, socketed, type Item } from '../../data/meta'
 import { isWorn, save } from '../../save'
 import { sfx } from '../../sfx'
@@ -10,14 +11,14 @@ import { button, chip, itemIcon, panel, UI, type Btn, type Chip, type ItemIcon }
 import { crack, floatNum, hitStop, punch } from '../../ui-fx'
 import { fit } from '../../ui'
 import { CompareView, type CmpMode } from './CompareView'
-import { iconState, taintNote } from './state'
+import { iconState, itemSetOf, taintNote } from './state'
 import type { Preview, StageFx } from './types'
 
 export const STAGE_W = 368, STAGE_H = 376
 const ICON_X = STAGE_W / 2, ICON_Y = 80 // the icon's resting spot (a shake moves it and puts it back here)
 const ICON = 84, CX = STAGE_W / 2, TEXT_W = STAGE_W - 32
 // v115: icon / name moved up so the compare table gets the bottom third of the stage
-const NAME_Y = 188, SUB_Y = 214, CMP_Y = 236, CMP_H = STAGE_H - CMP_Y - 6
+const NAME_Y = 183, SUB_Y = 205, FX_Y = 221, CMP_Y = 239, CMP_H = STAGE_H - CMP_Y - 4
 
 /** v101: the anvil itself (spec 3.2 "ANVIL STAGE"): slab, waist and foot, drawn once under the icon. */
 function drawAnvil(g: Phaser.GameObjects.Graphics, y: number) {
@@ -34,6 +35,7 @@ export class AnvilStage implements StageFx {
   private icon: ItemIcon
   private nameT: Phaser.GameObjects.Text
   private subT: Phaser.GameObjects.Text
+  private fxT: Phaser.GameObjects.Text
   private tagT: Phaser.GameObjects.Text
   private wornChip: Chip
   private wornFrame: Phaser.GameObjects.Graphics
@@ -52,15 +54,16 @@ export class AnvilStage implements StageFx {
     this.icon = itemIcon(scene, ICON_X, ICON_Y, ICON, { id: '', slot: 'weapon', name: '', icon: '', price: 0, desc: '', mod: {} }, { grade: 1, refine: 0 })
     this.nameT = t(CX, NAME_Y, 20, UI.text, true, TEXT_W)
     this.subT = t(CX, SUB_Y, 13, UI.sub, false, TEXT_W)
+    this.fxT = t(CX, FX_Y, 11, '#d8c2ff', false, TEXT_W)
     this.wornFrame = scene.add.graphics()
     this.wornChip = chip(scene, 0, 26, '', '')
-    this.tagT = scene.add.text(STAGE_W - 12, 46, '', { fontFamily: FONT_UI, fontSize: '12px', fontStyle: 'bold', color: '#c9a8ff', align: 'right' }).setOrigin(1, 0)
+    this.tagT = scene.add.text(STAGE_W - 12, 46, '', { fontFamily: FONT_UI, fontSize: '11px', fontStyle: 'bold', color: '#c9a8ff', align: 'right', lineSpacing: 2, wordWrap: { width: 128 } }).setOrigin(1, 0)
     this.cmp = new CompareView(scene, 12, CMP_Y, STAGE_W - 24, CMP_H, cmpMode, onCmpMode)
     this.emptyT = t(CX, ICON_Y + 120, 15, UI.sub, false, TEXT_W)
     this.emptyT.setText('เลือกของจากรายการด้านซ้ายเพื่อวางบนทั่งค่ะ')
     // 🃏 shortcut (spec 3.4): cards are socketed on the equipment screen, not duplicated here
     this.cardBtn = button(scene, 62, 26, 100, 28, '', onCards, { size: 12, fill: 0x5a5f8a, color: UI.text })
-    this.root = scene.add.container(x, y, [panel(scene, 0, 0, STAGE_W, STAGE_H), this.wornFrame, this.glow, anvil, this.icon, this.nameT, this.subT, this.wornChip, this.tagT, this.cmp.container, this.emptyT, this.cardBtn])
+    this.root = scene.add.container(x, y, [panel(scene, 0, 0, STAGE_W, STAGE_H), this.wornFrame, this.glow, anvil, this.icon, this.nameT, this.subT, this.fxT, this.wornChip, this.tagT, this.cmp.container, this.emptyT, this.cardBtn])
   }
 
   get container() { return this.root }
@@ -70,8 +73,8 @@ export class AnvilStage implements StageFx {
 
   /** Repaint from the save (in place). */
   refresh() {
-    const it = this.it, s = save()
-    for (const o of [this.glow, this.icon, this.nameT, this.subT, this.tagT, this.wornChip, this.wornFrame]) o.setVisible(!!it)
+    const it = this.it, s = save() as SaveExt
+    for (const o of [this.glow, this.icon, this.nameT, this.subT, this.fxT, this.tagT, this.wornChip, this.wornFrame]) o.setVisible(!!it)
     this.emptyT.setVisible(!it)
     this.cardBtn.setVisible(false)
     this.cmp.show(it, this.preview, it && isTainted(s, it.id) ? taintNote(s, it) : '')
@@ -94,8 +97,20 @@ export class AnvilStage implements StageFx {
     this.wornChip.x = STAGE_W - 12 - this.wornChip.chipW
     this.wornFrame.clear()
     if (worn) this.wornFrame.lineStyle(3, 0x6fd08c, 0.9).strokeRoundedRect(1.5, 1.5, STAGE_W - 3, STAGE_H - 3, 14)
-    fit(this.subT, 20)
-    this.tagT.setText([it.unique ? '👑 ยูนีค' : '', tainted ? '🌑 ล็อก' : ''].filter(Boolean).join('\n'))
+    fit(this.subT, 16)
+    const fxLines = describeItemEffects(itemEffectsOf(s, it), itemConversionsOf(s, it))
+    this.fxT.setVisible(fxLines.length > 0).setText(fxLines.length ? `✨ ${fxLines.join(' · ')}` : '')
+    fit(this.fxT, 18)
+    const curAspId = s.imbue?.[it.id] as AspectId | undefined
+    const curAsp = curAspId ? ASPECTS[curAspId] : undefined
+    const setInfo = itemSetOf(it)
+    this.tagT.setText([
+      s.awakened?.[it.id] ? '🌟 ปลุกพลัง' : it.unique ? '👑 ยูนีค' : '',
+      curAsp ? `${curAsp.icon} ${curAsp.name}` : '',
+      setInfo ? `🧩 ${setInfo.name}` : '',
+      tainted ? '🌑 ล็อก' : '',
+    ].filter(Boolean).join('\n'))
+    fit(this.tagT, 88)
   }
 
   // ---------- fx (all tweens/timers belong to the scene and die with it; ui-fx restores timeScale on SHUTDOWN) ----------

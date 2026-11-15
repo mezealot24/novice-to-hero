@@ -1,18 +1,27 @@
 import Phaser from "phaser";
 import {
+	describeItemEffects,
+	itemConversionsOf,
+	type SaveExt,
+} from "../../data/item-effects";
+import {
 	BASE_STATS,
 	gearBase,
+	heroStats,
 	jobBonusBase,
 	STAT_RULES,
 	totalBase,
+	wornItems,
 	type BaseStat,
 } from "../../data/meta";
+import { setBonuses } from "../../data/sets";
 import { persist, save } from "../../save";
 import { JOBS, type JobId } from "../../data/jobs";
-import { statLines } from "../../data/statInfo";
+import { DERIVED_STAT_CAPS, statLines } from "../../data/statInfo";
 import {
 	button,
 	confirm,
+	fit,
 	panel,
 	toast,
 	txt,
@@ -49,14 +58,14 @@ export function statusTab(scene: CharacterScene) {
 		),
 	);
 	BASE_STATS.forEach((bs, i) => {
-		const y = 166 + i * 56;
-		b.add(panel(scene, 330, y, 600, 50, UI.panel, UI.line, 10));
-		b.add(txt(scene, 344, y + 6, bs.name, 19, UI.gold, true));
-		b.add(txt(scene, 344, y + 30, bs.role, 12, UI.sub));
+		const y = 160 + i * 48;
+		b.add(panel(scene, 330, y, 600, 44, UI.panel, UI.line, 10));
+		b.add(txt(scene, 344, y + 4, bs.name, 18, UI.gold, true));
+		b.add(txt(scene, 344, y + 26, bs.role, 11, UI.sub));
 		const gearB = gear[bs.id],
 			jobN = jobB[bs.id],
 			raceB = total[bs.id] - s.stats[bs.id] - gearB - jobN;
-		b.add(txt(scene, 404, y + 11, `${total[bs.id]}`, 22, UI.text, true));
+		b.add(txt(scene, 404, y + 9, `${total[bs.id]}`, 21, UI.text, true));
 		const tags: [string, string][] = [];
 		if (raceB)
 			tags.push([
@@ -65,13 +74,13 @@ export function statusTab(scene: CharacterScene) {
 			]);
 		if (gearB) tags.push([`+${gearB} ของ`, "#7fd7ff"]);
 		if (jobN) tags.push([`+${jobN} อาชีพ`, UI.gold]);
-		const step = tags.length > 2 ? 14 : 18;
+		const step = tags.length > 2 ? 13 : 16;
 		tags.forEach(([t, c], j) =>
 			b.add(
-				txt(scene, 436, y + (tags.length > 2 ? 4 : 8) + j * step, t, 10, c),
+				txt(scene, 436, y + (tags.length > 2 ? 2 : 6) + j * step, t, 10, c),
 			),
 		);
-		statDesc(scene, b, bs.id, s.job, total[bs.id], 482, y + 4, 322, 44);
+		statDesc(scene, b, bs.id, s.job, total[bs.id], 482, y + 3, 322, 38);
 		const add = (n: number) => {
 			n = Math.min(n, s.statPoints, STAT_RULES.max - s.stats[bs.id]);
 			if (n <= 0) return;
@@ -81,16 +90,83 @@ export function statusTab(scene: CharacterScene) {
 			scene.redraw();
 		};
 		b.add(
-			button(scene, 838, y + 25, 52, 36, "+1", () => add(1), {
+			button(scene, 838, y + 22, 52, 34, "+1", () => add(1), {
 				size: 16,
 			}).setEnabled(s.statPoints > 0),
 		);
 		b.add(
-			button(scene, 896, y + 25, 52, 36, "+5", () => add(5), {
+			button(scene, 896, y + 22, 52, 34, "+5", () => add(5), {
 				size: 16,
 			}).setEnabled(s.statPoints > 1),
 		);
 	});
+	const st = heroStats(s);
+	const worn = wornItems(s);
+	const setSum = setBonuses(worn);
+	const convs = [
+		...worn.flatMap((it) => itemConversionsOf(s as SaveExt, it)),
+		...setSum.conversions,
+	];
+	b.add(panel(scene, 330, 498, 600, 66, 0x181c36, UI.line, 10));
+	const penMetrics: [number, string, string][] = [
+		[
+			342,
+			`🗡️ เจาะกาย ${Math.round(st.physPen * 100)}% (ตัน ${Math.round(DERIVED_STAT_CAPS.physPen.cap * 100)}%)`,
+			"#ffbe88",
+		],
+		[
+			536,
+			`✨ เจาะเวท ${Math.round(st.magPen * 100)}% (ตัน ${Math.round(DERIVED_STAT_CAPS.magPen.cap * 100)}%)`,
+			"#9fd3ff",
+		],
+		[
+			730,
+			`🔥 ดาเมจธาตุ +${Math.round(st.elemDmg * 100)}% (ตัน +${Math.round(DERIVED_STAT_CAPS.elemDmg.cap * 100)}%)`,
+			"#ff9b9b",
+		],
+	];
+	for (const [px, label, color] of penMetrics) {
+		b.add(fit(txt(scene, px, 503, label, 12, color, true).setWordWrapWidth(188), 18));
+	}
+	const setSummary = setSum.active.length
+		? setSum.active
+				.map((a) => {
+					const maxP =
+						a.nextTier?.pieces ??
+						a.set.tiers[a.set.tiers.length - 1]?.pieces ??
+						a.count;
+					const latest = a.activeTiers[a.activeTiers.length - 1];
+					return `${a.set.icon}${a.set.name} ${a.count}/${maxP}${latest ? ` (${latest.label})` : ""}`;
+				})
+				.join(" · ")
+		: "ยังไม่มีโบนัสเซต (ใส่ของเซตเดียวกัน 2+ ชิ้น)";
+	b.add(
+		fit(
+			txt(
+				scene,
+				342,
+				524,
+				`🧩 เซต: ${setSummary}`,
+				11,
+				setSum.active.length ? UI.gold : UI.sub,
+			).setWordWrapWidth(576),
+			16,
+		),
+	);
+	const convLines = describeItemEffects(undefined, convs);
+	b.add(
+		fit(
+			txt(
+				scene,
+				342,
+				543,
+				`🔄 แปลงสเตตัส: ${convLines.length ? convLines.join(" · ") : "ยังไม่มีเอฟเฟกต์แปลงค่าพลัง"}`,
+				11,
+				convLines.length ? "#c9a8ff" : UI.sub,
+			).setWordWrapWidth(576),
+			16,
+		),
+	);
 	b.add(
 		button(
 			scene,

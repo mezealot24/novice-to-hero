@@ -14,6 +14,7 @@ import { OptionPanel } from './verbs/OptionPanel'
 import { RefinePanel } from './verbs/RefinePanel'
 import { RepairPanel } from './verbs/RepairPanel'
 import { TaintPanel } from './verbs/TaintPanel'
+import { AspectPanel } from './verbs/AspectPanel'
 
 // Forge, "anvil" layout (design/forge-ux-v1.md): pick an item on the rail, it sits on the anvil, every verb works on it.
 // Money rules are unchanged from the card layout (design/item-acquisition-v1.md): gems only repair / lock option lines / skip tower floors.
@@ -150,7 +151,7 @@ export class ForgeScene extends Phaser.Scene {
     this.stage = new AnvilStage(this, STAGE_X, STAGE_Y, () => { if (!this.isBusy()) go(this, 'character', { tab: 1, back: { key: 'forge', data: { item: this.itemId } } }) }, this.cmpMode, (m) => { this.cmpMode = m })
     this.modeObjs.push(this.stage.container)
     const slots = Array.from({ length: SLOT_COUNT }, (_, i) => VERB_TAB[slotVerb(i, false)])
-    this.verbTabs = iconTabs(this, VERB_X, VERB_Y, slots, (i) => { const it = this.item(); if (it) this.setVerb(slotVerb(i, isBroken(save(), it.id))) }, { w: 80, h: 52, start: -1, gate: () => !this.isBusy() })
+    this.verbTabs = iconTabs(this, VERB_X, VERB_Y, slots, (i) => { const it = this.item(); if (it) this.setVerb(slotVerb(i, isBroken(save(), it.id))) }, { w: 63, h: 52, start: -1, gate: () => !this.isBusy() })
     this.modeObjs.push(this.verbTabs)
     this.modeObjs.push(panel(this, BAR_X, BAR_Y, BAR_W, BAR_H, 0x262b52, UI.line, 12))
     this.strip = costStrip(this, STRIP_X, BAR_Y, STRIP_W)
@@ -228,6 +229,7 @@ export class ForgeScene extends Phaser.Scene {
       case 'repair': return new RepairPanel(this.ctx)
       case 'option': return new OptionPanel(this.ctx)
       case 'taint': return new TaintPanel(this.ctx)
+      case 'aspect': return new AspectPanel(this.ctx)
     }
   }
 

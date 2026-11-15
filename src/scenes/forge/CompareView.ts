@@ -4,10 +4,11 @@
 // Item-level numbers only (forged stats, the same ones the item card shows). Rows: changed first, ▲ green = better, ▼ red = worse.
 import Phaser from 'phaser'
 import { FONT_UI } from '../../data/game-data'
-import { forged, forgeTag, type Item } from '../../data/meta'
+import type { SaveExt } from '../../data/item-effects'
+import { forgeTag, type Item } from '../../data/meta'
 import { isWorn, save } from '../../save'
 import { button, fit, UI, type Btn } from '../../ui'
-import { compareRows, wornRival, type CmpRow } from './state'
+import { compareRows, forgedWithAspect, wornRival, type CmpRow } from './state'
 import type { Preview } from './types'
 
 export type CmpMode = 'next' | 'worn'
@@ -63,11 +64,11 @@ export class CompareView {
     this.bNext.setFill(mode === 'next' ? 0xf2b84b : 0x5a5f8a)
     this.bWorn.setLabel(worn ? '✅ ใส่อยู่แล้ว' : '🆚 เทียบที่ใส่').setEnabled(!worn)
     if (!worn) this.bWorn.setFill(mode === 'worn' ? 0xf2b84b : 0x5a5f8a)
-    const cur = forged(s, it)
+    const cur = forgedWithAspect(s as SaveExt, it)
     let rows: CmpRow[]
     if (mode === 'worn') {
       const rival = wornRival(s, it)
-      rows = compareRows(rival ? forged(s, rival) : null, cur)
+      rows = compareRows(rival ? forgedWithAspect(s as SaveExt, rival) : null, cur)
       this.head.setText(rival ? `ที่ใส่อยู่: ${rival.name}${forgeTag(s, rival.id)} → ชิ้นนี้` : 'ช่องนี้ยังว่าง → ชิ้นนี้').setColor(UI.gem)
     } else if (this.preview) {
       rows = compareRows(cur, this.preview.next)
@@ -97,9 +98,17 @@ export class CompareView {
   destroy() { this.root.destroy() }
 }
 
+const SHORT_CMP_LABEL: Record<string, string> = {
+  physPen: 'เจาะกาย',
+  magPen: 'เจาะเวท',
+  elemDmg: 'ธาตุ',
+}
+
 /** "P.ATK 22→23 ▲" (colour + arrow say better/worse; the delta is left out so a cell fits), or just "P.ATK 22" when nothing moved. */
 function cellText(r: CmpRow, single: boolean): string {
-  const name = `${r.curse ? '💀' : ''}${r.label}`
+  const rawKey = r.key.includes('.') ? r.key.split('.')[1] : r.key
+  const label = SHORT_CMP_LABEL[rawKey] ?? r.label
+  const name = `${r.curse ? '💀' : ''}${label}`
   if (single || r.d === 0) return `${name} ${r.next === '—' ? r.now : r.next}`
   return `${name} ${r.now}→${r.next} ${r.d > 0 ? '▲' : '▼'}`
 }

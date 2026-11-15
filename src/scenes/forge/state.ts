@@ -1,8 +1,11 @@
 // Pure helpers shared by the rail, the stage and the verb panels (no Phaser objects here). Rules live in src/data/*.
 import { gradeCost, REFINE } from '../../data/craft'
+import { ASPECT_LIST, ASPECTS, aspectModOf, type AspectId, type SaveExt } from '../../data/item-effects'
 import { matById } from '../../data/materials'
 import { canWearAs, EMPTY_ITEM, forged, gradeOf, isBroken, isTainted, itemStatLine, ITEMS, linesOf, refineOf, SLOTS, splitStatLine, statEntries, type Item, type StatEntry } from '../../data/meta'
 import { canAffordAuto, costGap, fodderToBuy, gradeCheck, lineText, refineCheck, refineCost, taintCheck, totalZeny, type ForgeCost, type TaintResult } from '../../data/refine'
+import { ITEM_SETS, setById, type ItemSet } from '../../data/sets'
+import type { Stats } from '../../data/stats'
 import { curseById } from '../../data/taint'
 import { isWorn, replaceSlot, type SaveData } from '../../save'
 import type { ItemIconState } from '../../ui'
@@ -46,28 +49,35 @@ export function verbLock(s: SaveData, it: Item, v: Verb): string | undefined {
       return isTainted(s, it.id) ? '🌑 ติดคำสาปแล้ว สุ่มค่าพิเศษไม่ได้อีกค่ะ' : undefined
     case 'taint':
       return taintCheck(s, it) === 'cant' ? 'ใส่คำสาปชิ้นนี้ไม่ได้ค่ะ' : undefined // 'tainted' stays open: it shows what the curse did
+    case 'aspect': {
+      const hasPower = Boolean(s.imbue?.[it.id] || s.awakened?.[it.id])
+      if (it.price === 0 && !it.craft && !it.unique) return 'ของเริ่มต้นใส่รูน/ปลุกพลังไม่ได้ค่ะ'
+      if (isTainted(s, it.id) && !hasPower) return '🌑 ติดคำสาปแล้ว ใส่รูน/ปลุกพลังไม่ได้อีกค่ะ'
+      return undefined
+    }
   }
 }
 
-/** The four tab slots. Slot 1 is ⚒️ ตีบวก, and 🔧 ซ่อม takes its place while the item is broken (spec 3.4). */
-export const SLOT_COUNT = 4
+/** The five tab slots. Slot 1 is ⚒️ ตีบวก, and 🔧 ซ่อม takes its place while the item is broken (spec 3.4). */
+export const SLOT_COUNT = 5
 export function slotVerb(slot: number, broken: boolean): Verb {
-  return (['grade', broken ? 'repair' : 'refine', 'option', 'taint'] as Verb[])[slot]
+  return (['grade', broken ? 'repair' : 'refine', 'option', 'taint', 'aspect'] as Verb[])[slot]
 }
-export const slotOf = (v: Verb) => (v === 'grade' ? 0 : v === 'refine' || v === 'repair' ? 1 : v === 'option' ? 2 : 3)
+export const slotOf = (v: Verb) => (v === 'grade' ? 0 : v === 'refine' || v === 'repair' ? 1 : v === 'option' ? 2 : v === 'taint' ? 3 : 4)
 export const VERB_TAB: Record<Verb, { icon: string; label: string }> = {
   grade: { icon: '⬆️', label: 'อัปขั้น' },
   refine: { icon: '⚒️', label: 'ตีบวก' },
   repair: { icon: '🔧', label: 'ซ่อม' },
   option: { icon: '🎲', label: 'ค่าพิเศษ' },
   taint: { icon: '🌑', label: 'Corrupt' },
+  aspect: { icon: '🔮', label: 'รูน/ปลุก' },
 }
 
 /** The verb to land on when the current one closes (broken -> repair, tainted -> taint note). */
 export function defaultVerb(s: SaveData, it: Item): Verb {
   if (isBroken(s, it.id)) return 'repair'
   if (isTainted(s, it.id)) return 'taint'
-  return (['refine', 'grade', 'taint'] as Verb[]).find((v) => !verbLock(s, it, v)) ?? 'taint'
+  return (['refine', 'grade', 'aspect', 'taint'] as Verb[]).find((v) => !verbLock(s, it, v)) ?? 'taint'
 }
 
 /** Verb to show when an item is picked: keep the current verb across items (spec 3.3) unless it is closed, or the new item is broken. */
@@ -91,6 +101,7 @@ const SMITH: Record<Verb, string> = {
   repair: 'แตกก็ซ่อมได้ จ่ายวัสดุถูกกว่าเพชรเสมอ',
   option: 'ค่าพิเศษสุ่มได้ ล็อกบรรทัดที่ชอบไว้ด้วยเพชรก็ได้',
   taint: 'คำสาปลุ้นทีเดียวแล้วล็อกของ ทำหลังสุดนะ',
+  aspect: 'ฝังรูนธาตุได้ชิ้นละ 1 อย่าง · ยูนีคปลุกพลังเพิ่มสเตตัสได้นะ',
 }
 
 /** The smith's line for the current state (pity / broken / max / short), falling back to the verb's hint. */
@@ -108,6 +119,10 @@ export function smithLine(s: SaveData, it: Item, v: Verb): string {
   }
   if (v === 'option' && !linesOf(s, it.id).some(Boolean)) return `ตีถึง +${REFINE.lineAt[0]} ก่อน ถึงจะมีค่าพิเศษให้สุ่มนะ`
   if (v === 'taint' && isTainted(s, it.id)) return 'ล็อกไปแล้ว ไม่มีทางกลับนะ'
+  if (v === 'aspect') {
+    if (isTainted(s, it.id)) return '🌑 ติดคำสาปแล้ว ฝังรูนหรือปลุกพลังไม่ได้อีกนะ'
+    if (s.imbue?.[it.id] && (!it.unique || s.awakened?.[it.id])) return '✨ ฝังรูนและปลุกพลังครบแล้วค่ะ'
+  }
   return SMITH[v]
 }
 
@@ -161,4 +176,49 @@ export function wornRival(s: SaveData, it: Item): Item | null {
   const id = s.equipped[replaceSlot(s.equipped, it.id)]
   if (!id || Object.values(EMPTY_ITEM).includes(id)) return null
   return ITEMS.find((x) => x.id === id) ?? null
+}
+
+/** Find the set definition an item belongs to (via explicit setId or memberIds lookup). */
+export function itemSetOf(it: Item): ItemSet | undefined {
+  return it.setId ? setById(it.setId) : ITEM_SETS.find((st) => st.memberIds?.includes(it.id))
+}
+
+function sameModStats(a: Partial<Stats> | undefined, b: Partial<Stats> | undefined): boolean {
+  const keys = new Set([...Object.keys(a ?? {}), ...Object.keys(b ?? {})]) as Set<keyof Stats>
+  for (const k of keys) if ((a?.[k] ?? 0) !== (b?.[k] ?? 0)) return false
+  return true
+}
+
+function addModToItem(base: Item, extra: Partial<Stats> | undefined): Item {
+  if (!extra) return base
+  const mod: Partial<Stats> = { ...base.mod }
+  for (const k of Object.keys(extra) as (keyof Stats)[]) {
+    const v = extra[k]
+    if (v) mod[k] = (mod[k] ?? 0) + v
+  }
+  return { ...base, mod }
+}
+
+/**
+ * Resolve an item's forged stats including its imbued Aspect (or a hypothetical next Aspect).
+ * Probes whether forged() already merges aspectModOf() so preview/compare stay exact before & after forge-state updates.
+ */
+export function forgedWithAspect(s: SaveExt, it: Item, nextAspectId?: AspectId): Item {
+  const targetSave: SaveExt = nextAspectId
+    ? { ...s, imbue: { ...(s.imbue ?? {}), [it.id]: nextAspectId } }
+    : s
+  const baseSave: SaveExt = { ...s, imbue: { ...(s.imbue ?? {}) } }
+  if (baseSave.imbue) delete baseSave.imbue[it.id]
+
+  const modProbe = ASPECT_LIST.find((a) => a.mod && Object.keys(a.mod).length > 0)
+  const noImbueItem = forged(baseSave, it)
+  let forgeAppliesAspect = false
+  if (modProbe) {
+    const probeSave: SaveExt = { ...baseSave, imbue: { ...(baseSave.imbue ?? {}), [it.id]: modProbe.id } }
+    forgeAppliesAspect = !sameModStats(noImbueItem.mod, forged(probeSave, it).mod)
+  }
+
+  if (forgeAppliesAspect) return forged(targetSave, it)
+  const aspMod = nextAspectId ? ASPECTS[nextAspectId]?.mod : aspectModOf(targetSave, it)
+  return addModToItem(noImbueItem, aspMod)
 }
