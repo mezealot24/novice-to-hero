@@ -5,6 +5,7 @@ export { nodeDetail } from "./character/node-detail";
 import {
 	type EquipSlot,
 } from "../data/meta";
+import type { PetId } from "../data/jobs2";
 import { save } from "../save";
 import {
 	type Btn,
@@ -41,8 +42,17 @@ export class CharacterScene extends Phaser.Scene {
 	bookDg = 0;
 	bookV2 = false;
 	skillBasic = false; // skill tab: false = unified 3-class skill web, true = Novice skills + certificates + job
-	selNode = "";
+	private _selNode = "";
+	selPet?: PetId; // Beastmaster Tier 2 pet partner dossier selected/hovered for the left sidebar
+	footerC?: Phaser.GameObjects.Container;
 	showDetail = false; // skill web: node detail modal open
+	get selNode() {
+		return this._selNode;
+	}
+	set selNode(id: string) {
+		this._selNode = id;
+		this.selPet = undefined;
+	}
 	modal?: Phaser.GameObjects.Container;
 	webScrollY = 0; // RO Mobile continuous vertical scroll offset
 	webMaxScroll = 0;
@@ -74,6 +84,7 @@ export class CharacterScene extends Phaser.Scene {
 		this.cameras.main.setBackgroundColor(UI.night);
 		this.cameras.main.fadeIn(160, 20, 23, 43);
 		this.tab = data?.tab ?? 0;
+		this.selPet = undefined;
 		this.showDetail = false;
 		this.showUlt = false;
 		this.input.keyboard?.on("keydown-ESC", () => {
@@ -117,6 +128,7 @@ export class CharacterScene extends Phaser.Scene {
 			112,
 			(i) => {
 				this.tab = i;
+				this.selPet = undefined;
 				this.redraw();
 			},
 			this.tab,
@@ -125,6 +137,7 @@ export class CharacterScene extends Phaser.Scene {
 
 	render() {
 		this.body?.destroy();
+		this.footerC = undefined;
 		this.modal?.destroy();
 		this.modal = undefined;
 		this.body = this.add.container(0, 0);

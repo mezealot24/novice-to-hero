@@ -1,3 +1,4 @@
+import type Phaser from "phaser";
 import { COLORS } from "../../data/game-data";
 import {
 	job2Lock,
@@ -25,6 +26,7 @@ import {
 	UI,
 } from "../../ui";
 import { clipW } from "./node-detail";
+import { equipPetPartner, renderSelectedNodeFooter } from "./node-footer";
 import {
 	drawEvolutionConduit,
 	drawSkillNode,
@@ -236,6 +238,7 @@ export function buildTier2(scene: CharacterScene, w: WebBuild) {
 			t2Unlocked && j2.id === "beastmaster" ? BRANCH_PET[br.id] : undefined;
 		if (pet) {
 			const cur = (s.pet ?? "hawk") === pet,
+				previewed = scene.selPet === pet,
 				evo = (t2[`${br.id}4`] ?? 0) > 0,
 				narrow = cw2 < 110;
 			const label = narrow
@@ -243,31 +246,45 @@ export function buildTier2(scene: CharacterScene, w: WebBuild) {
 				: cur
 					? `✅ คู่หูพราน: ${PETS[pet].icon} ${evo ? PETS[pet].evo : PETS[pet].name}`
 					: `🏹 ตั้งคู่หูพราน ${PETS[pet].icon}`;
-			scrollC.add(
-				button(
-					scene,
-					x + cw2 / 2,
-					curY + t2PanelH - 18,
-					cw2 - 10,
-					26,
-					label,
-					() => {
-						if (cur) return;
-						s.pet = pet;
-						persist();
-						toast(
-							scene,
-							`🏹 คู่หูพราน: ${PETS[pet].icon} ${PETS[pet].name} (★ พรานแห่งป่า: ฮีโร่คริ → ตัวนี้ตีซ้ำ) · สัตว์ทั้ง 3 ตัวสู้ทุกเวฟเสมอ`,
-						);
+			const petBtn = button(
+				scene,
+				x + cw2 / 2,
+				curY + t2PanelH - 18,
+				cw2 - 10,
+				26,
+				label,
+				() => {
+					if (cur) {
+						scene.selPet = pet;
+						renderSelectedNodeFooter(scene);
+						return;
+					}
+					if (scene.selPet !== pet) {
+						scene.selPet = pet;
 						scene.render();
-					},
-					{
-						size: 11,
-						fill: cur ? COLORS.gold : 0x4a5a8a,
-						color: cur ? UI.ink : UI.text,
-					},
-				),
+						return;
+					}
+					equipPetPartner(scene, pet);
+				},
+				{
+					size: 11,
+					fill: cur ? COLORS.gold : previewed ? 0x5d74b0 : 0x4a5a8a,
+					color: cur ? UI.ink : UI.text,
+				},
 			);
+			petBtn.on("pointerover", (p: Phaser.Input.Pointer) => {
+				if (
+					p.wasTouch ||
+					scene.webDrag?.moved ||
+					scene.showDetail ||
+					scene.showUlt ||
+					scene.selPet === pet
+				)
+					return;
+				scene.selPet = pet;
+				renderSelectedNodeFooter(scene);
+			});
+			scrollC.add(petBtn);
 		}
 	});
 

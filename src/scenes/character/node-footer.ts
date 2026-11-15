@@ -15,8 +15,25 @@ import {
 	type TreeNode,
 } from "../../data/tree";
 import { JOBS } from "../../data/jobs";
-import { JOB2, job2Of, type Job2Id } from "../../data/jobs2";
+import { JOB2, job2Of, PETS, type Job2Id, type PetId } from "../../data/jobs2";
 import { activeJob3, job3Of } from "../../data/jobs3";
+import { heroStats, totalBase } from "../../data/meta";
+import { PET_DOSSIER_I18N } from "../../data/pet-dossier";
+import {
+	BM_STANCE,
+	KIT2,
+	KIT3,
+	boarCutOf,
+	boarRageKOf,
+	boarRecoverTurnsOf,
+	boarShareOf,
+	falconPower,
+	frenzyCapOf,
+	hawkBlitzMul,
+	hawkChance,
+	preyMarkOf,
+	preyTurnsOf,
+} from "../../data/skill-math";
 import {
 	button,
 	panel,
@@ -29,7 +46,16 @@ import { nodeDetail, clipW } from "./node-detail";
 
 /** Evaluates the currently selected node across Tier 1, 2, or 3 and renders the bottom action drawer + downward point spending. */
 export function renderSelectedNodeFooter(scene: CharacterScene) {
+	scene.footerC?.destroy();
+	const fc = scene.add.container(0, 0);
+	scene.footerC = fc;
+	scene.body!.add(fc);
+
 	const s = save();
+	if (scene.selPet && s.job2 === "beastmaster") {
+		renderPetDossier(scene, fc, scene.selPet);
+		return;
+	}
 	const n = nodeById(scene.selNode) ?? nodeById(`${s.job}_s1p`)!;
 	const tier = nodeTierOf(n);
 	const j2Options = job2Of(s.job);
@@ -168,7 +194,7 @@ export function nodeFooter(
 	btnLabel = lv ? "+1" : "เรียน",
 	borrowed = false,
 ) {
-	const b = scene.body!,
+	const b = scene.footerC ?? scene.body!,
 		locked = !!why && why !== "เต็มแล้ว",
 		isMax = lv >= n.max;
 	const x = 28,
@@ -298,6 +324,277 @@ export function nodeFooter(
 	);
 	if (scene.showDetail)
 		nodeModal(scene, n, lv, why, tag, rootDesc, can, learn, tier2, btnLabel);
+}
+
+/** Live derived metrics for the Beastmaster Pet Partner Dossier numbers box (reads heroStats with the target pet active). */
+function petDossierNumRows(
+	s: ReturnType<typeof save>,
+	pet: PetId,
+): { label: string; value: string }[] {
+	const sim = { ...s, pet };
+	const stPet = heroStats(sim);
+	const basePet = totalBase(sim);
+	const B = KIT2.beastmaster;
+	const packScale =
+		B.packPow *
+		(1 + stPet.j2PetPow) *
+		(stPet.j2Pack3 > 0 ? 1 + B.tree.pack3Pow : 1);
+
+	if (pet === "hawk") {
+		const chance = hawkChance(stPet, basePet.luk);
+		const cap =
+			B.hawkCap +
+			stPet.j2HawkCapAdd +
+			(stPet.j3Rn > 0 ? KIT3.ranger.hawkCapAdd : 0);
+		const blitzDmg = Math.round(
+			falconPower(stPet, basePet.int, basePet.dex) *
+				hawkBlitzMul(stPet) *
+				packScale,
+		);
+		return [
+			{
+				label: `โอกาสโฉบ Blitz (LUK ${basePet.luk})`,
+				value: `${(chance * 100).toFixed(1)}% (เพดาน ${Math.round(cap * 100)}%)`,
+			},
+			{
+				label: "พลังโฉบ/ฮิต (INT+M.ATK True)",
+				value: `${blitzDmg} · 🏷️ Mark +${Math.round(preyMarkOf(stPet) * 100)}% (${preyTurnsOf(stPet)} เทิร์น)`,
+			},
+			{
+				label: "สถิตเหยี่ยว (HIT / คริ)",
+				value: `HIT ${Math.round(stPet.hit)} · คริ ${(stPet.crit * 100).toFixed(1)}%`,
+			},
+		];
+	}
+
+	if (pet === "boar") {
+		const boarHpPct =
+			B.boarHp + stPet.j2BoarHp + (stPet.j2BoarEvo > 0 ? B.boarEvoHp : 0);
+		const boarHp = Math.round(stPet.maxHp * boarHpPct);
+		return [
+			{
+				label: `HP หมูป่า (${Math.round(boarHpPct * 100)}% HP ฮีโร่)`,
+				value: `${boarHp} · รับแทน ${Math.round(boarShareOf(stPet) * 100)}% (−${Math.round(boarCutOf(stPet) * 100)}%)`,
+			},
+			{
+				label: "แรงฮึด Grit / ฟื้นสลบ",
+				value: `×${Math.round(boarRageKOf(stPet))} · ฟื้น ${boarRecoverTurnsOf(stPet)} เทิร์น`,
+			},
+			{
+				label: "สถิตหมูป่า (P.DEF / โล่แรง)",
+				value: `DEF ${Math.round(stPet.def)} · โล่ +${Math.round(stPet.shieldAmp * 100)}%`,
+			},
+		];
+	}
+
+	const wolfAtkMul =
+		(B.wolfMul + stPet.j2WolfMul + (stPet.j2WolfEvo > 0 ? B.wolfEvoMul : 0)) *
+		packScale;
+	const wolfHit = Math.round(stPet.atk * wolfAtkMul);
+	return [
+		{
+			label: `กัดต่อฮิต (${Math.round(wolfAtkMul * 100)}% P.ATK)`,
+			value: `${wolfHit} (P.ATK ${Math.round(stPet.atk)})`,
+		},
+		{
+			label: "เลือดไหล Bleed / คลั่ง Frenzy",
+			value: `+${B.wolfBleed + stPet.j2WolfBleed} ชั้น · สูงสุด ${frenzyCapOf(stPet)} ชั้น`,
+		},
+		{
+			label: `สถิตหมาป่า (ดูดเลือด Bleed ≥${BM_STANCE.wolf.woundMinStacks})`,
+			value: `${Math.round(BM_STANCE.wolf.woundLeech * 100)}% · เร็วฝูง +${Math.round(stPet.j2WolfSpeed * 100)}%`,
+		},
+	];
+}
+
+/** Equips a Beastmaster partner pet, saves, shows confirmation toast, and redraws CharacterScene. */
+export function equipPetPartner(scene: CharacterScene, pet: PetId) {
+	const s = save();
+	if ((s.pet ?? "hawk") === pet) return;
+	s.pet = pet;
+	persist();
+	scene.selPet = pet;
+	const petDef = PETS[pet];
+	const entry = PET_DOSSIER_I18N[pet];
+	toast(
+		scene,
+		`🏹 สถิตคู่หูพราน: ${petDef.icon} ${petDef.name} (${entry.stanceName})\nสัตว์ทั้ง 3 ตัวร่วมสู้ทุกเวฟเสมอ`,
+	);
+	scene.redraw();
+}
+
+/** Left sidebar Pet Partner Dossier card: header, active/inactive badge, Partner Stance, bm_s4 crit reaction, live numbers, and confirm button. */
+export function renderPetDossier(
+	scene: CharacterScene,
+	fc: Phaser.GameObjects.Container,
+	pet: PetId,
+) {
+	const s = save();
+	const entry = PET_DOSSIER_I18N[pet];
+	const petDef = PETS[pet];
+	const isActive = (s.pet ?? "hawk") === pet;
+	const hasS4 = (s.job2Tree?.bm_s4 ?? 0) > 0;
+	const evoNode = pet === "hawk" ? "bm_h4" : pet === "boar" ? "bm_b4" : "bm_w4";
+	const evo = (s.job2Tree?.[evoNode] ?? 0) > 0;
+	const x = 28,
+		w = 274,
+		top = 132,
+		btnY = 528;
+
+	// Header: partner name (with evo title if ★ unlocked), title, roleTag, and active/inactive badge
+	const headerTitle = evo ? `${entry.name} (${petDef.evo})` : entry.name;
+	fc.add(
+		clipW(
+			txt(scene, x, top, `${headerTitle} · ${entry.title}`, 15.5, UI.gold, true),
+			w,
+		),
+	);
+	fc.add(clipW(txt(scene, x, top + 21, entry.roleTag, 10.5, "#b8c0e8"), w));
+
+	const badgeG = scene.add.graphics();
+	badgeG
+		.fillStyle(isActive ? 0x1b3a28 : 0x1e2544, 0.95)
+		.fillRoundedRect(x - 2, top + 38, w + 4, 20, 5);
+	badgeG
+		.lineStyle(1, isActive ? 0x6fd08c : 0x4a5a8a, 0.9)
+		.strokeRoundedRect(x - 2, top + 38, w + 4, 20, 5);
+	fc.add(badgeG);
+	fc.add(
+		clipW(
+			txt(
+				scene,
+				x + 6,
+				top + 41,
+				isActive ? entry.activeBadge : entry.inactiveBadge,
+				10.5,
+				isActive ? UI.green : "#ffd984",
+				true,
+			),
+			w - 10,
+		),
+	);
+
+	// Dynamic numbers box above bottom buttons (respects numTop = btnY - 26 - numH)
+	const show = petDossierNumRows(s, pet).slice(0, 3);
+	const numH = show.length ? 22 + show.length * 34 : 0;
+	const numTop = btnY - 26 - numH;
+	if (show.length) {
+		const bg = scene.add.graphics();
+		bg.fillStyle(0x0d1020, 0.75).fillRoundedRect(x - 4, numTop - 2, w + 8, numH, 6);
+		fc.add(bg);
+		fc.add(
+			txt(
+				scene,
+				x + 2,
+				numTop + 2,
+				isActive ? "🔢 ค่าพลังคู่หูตอนนี้" : "🔢 ค่าพลังถ้าตั้งเป็นคู่หู",
+				11.5,
+				isActive ? UI.gold : UI.green,
+				true,
+			),
+		);
+		show.forEach((r, i) => {
+			const ry = numTop + 22 + i * 34;
+			fc.add(clipW(txt(scene, x + 2, ry, r.label, 10.5, "#b8c0e8"), w - 4));
+			fc.add(
+				clipW(
+					txt(
+						scene,
+						x + 2,
+						ry + 14,
+						r.value,
+						12,
+						isActive ? UI.text : UI.green,
+						true,
+					),
+					w - 4,
+				),
+			);
+		});
+	}
+
+	// Auto-shrinking dossier body above the numbers box
+	const secs: { head: string; body: string; color: string }[] = [
+		{
+			head: entry.stanceName,
+			body: entry.stanceDesc,
+			color: isActive ? UI.text : UI.green,
+		},
+		{
+			head: `⚡ เคาน์เตอร์คริ (★ พรานแห่งป่า · ${hasS4 ? "✅ เปิดใช้" : "🔒 ยังไม่เรียน"})`,
+			body: entry.critReaction,
+			color: hasS4 ? UI.text : UI.sub,
+		},
+		{
+			head: "🐾 บทบาทในฝูง (สู้ครบ 3 ตัวทุกเวฟ)",
+			body: entry.packContribution,
+			color: "#d8d4f0",
+		},
+	];
+	let size = 12.5,
+		made: Phaser.GameObjects.Text[] = [];
+	for (; ; size -= 0.5) {
+		made.forEach((m) => m.destroy());
+		made = [];
+		let ty = top + 64;
+		for (const sc of secs) {
+			const hd = txt(scene, x, ty, sc.head, size, UI.gold, true)
+				.setWordWrapWidth(w, true)
+				.setLineSpacing(2);
+			ty += hd.height + 1;
+			made.push(hd);
+			if (sc.body) {
+				const bd = txt(
+					scene,
+					x,
+					ty,
+					sc.body,
+					Math.max(8.5, size - 0.5),
+					sc.color,
+				)
+					.setWordWrapWidth(w, true)
+					.setLineSpacing(2);
+				ty += bd.height;
+				made.push(bd);
+			}
+			ty += 6;
+		}
+		if (ty <= numTop - 6 || size <= 9) break;
+	}
+	fc.add(made);
+
+	// Bottom action buttons: return to skill node OR confirm/equip partner
+	fc.add(
+		button(
+			scene,
+			x + 62,
+			btnY,
+			124,
+			40,
+			"← กลับดูสกิล",
+			() => {
+				scene.selPet = undefined;
+				scene.render();
+			},
+			{ size: 12.5, fill: 0x474c72, color: UI.text },
+		),
+	);
+	fc.add(
+		button(
+			scene,
+			x + w - 70,
+			btnY,
+			140,
+			40,
+			isActive ? "✅ ประจำการอยู่" : "🏹 ตั้งเป็นคู่หู",
+			() => equipPetPartner(scene, pet),
+			{
+				size: isActive ? 13 : 14.5,
+				fill: COLORS.gold,
+				color: UI.ink,
+			},
+		).setEnabled(!isActive),
+	);
 }
 
 /** Node detail modal (all 3 tiers): full text now / next level + Cumulative Ult evolution + real numbers (nodeDetail). */

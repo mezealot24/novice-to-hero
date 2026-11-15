@@ -4,7 +4,7 @@ import { JOB_LINES, LINES } from '../data/perks'
 import { BASE_JOBS, JOB_CHANGE, JOBS, type JobId } from '../data/jobs'
 import { RESOURCES } from '../data/meta'
 import { canRepickJob, changeJob, changeJob2, changeJob3, job3Lock, job3SwapCost, repickJob, save, setJob3Path, setJob3Variant } from '../save'
-import { activeJob3, JOB3_RULES, job3Of, type Job3Variant } from '../data/jobs3'
+import { activeJob3, JOB3_RULES, job3Of, type Job3Id, type Job3Variant } from '../data/jobs3'
 import { JOB2, JOB2_RULES, job2Of, type Job2Id } from '../data/jobs2'
 import { sfx } from '../sfx'
 import { backdrop, button, confirm, go, toast, txt, UI } from '../ui'
@@ -12,6 +12,13 @@ import { fitHeroScale, heroTex } from '../gfx/hero-visual'
 import { ftue, track } from '../analytics'
 
 const REPICK_BODY = `ใช้ 💎${JOB_CHANGE.repickGems} เปลี่ยนเป็นอาชีพอื่น\nคืนแต้มใยสกิลทั้งหมด · ล้างทาเลนต์ (ลงใหม่ได้ฟรี)\nเก็บไว้: Base Lv, Job Lv, สถานะ, ของ, การ์ด, zeny`
+
+const JOB3_PREVIEW_TINT: Record<Job3Id, number> = {
+  paladin: 0xffe7a0,
+  lordknight: 0xffe7a0,
+  champion: 0xffe7a0,
+  ranger: 0xc8ffb8,
+}
 
 /** 🔄 re-pick entry (Hub + character screen): gem check, then the job screen. Gems are paid only on the final pick. */
 export function askRepick(scene: Phaser.Scene) {
@@ -139,7 +146,7 @@ export class JobScene extends Phaser.Scene {
     const on = activeJob3(s) === d.id, why = job3Lock(s, d.id)
     txt(this, W / 2, 30, `${d.icon} ตื่นรู้: ${JOB2[d.parent].icon} ${JOB2[d.parent].name} → ${d.name}`, 28, UI.gold, true).setOrigin(0.5)
     txt(this, W / 2, 62, 'ใยชั้น 1 + ใยชั้น 2 + Ult เดิมอยู่ครบ · ชั้น 3 เพิ่มของใหม่ซ้อนขึ้นไป · ไม่ใช้เพชร', 15, UI.sub).setOrigin(0.5)
-    const spr = this.add.image(200, 220, heroTex(s)).setTint(0xffe7a0) // P0: mounted Knight + gold tint for LK until P1 adds hero_lordknight
+    const spr = this.add.image(200, 220, heroTex(s)).setTint(JOB3_PREVIEW_TINT[d.id]) // P0: Job3 preview tint per class
     spr.setScale(fitHeroScale(spr.width, spr.height, 2.2, 136))
     this.tweens.add({ targets: spr, y: 212, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
     txt(this, 330, 100, [
