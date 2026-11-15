@@ -116,9 +116,12 @@ export function heroRigSpec(s: HeroVisualInput): HeroRigSpec {
   }
 
   const tex = JOBS[job].tex
+  const isRanger = job === 'archer' && job3 === 'ranger'
   return {
     compositeTex: tex,
     bodyTex: tex,
+    auraTex: isRanger ? 'aura_gold' : undefined,
+    auraTint: isRanger ? 0x9fe08a : undefined,
     mountOffset: { x: 0, y: 0 },
     bodyOffset: { x: 0, y: 0 },
     weaponOffset: { x: 0, y: 0 },

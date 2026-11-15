@@ -3,7 +3,19 @@
 // Phase 3 MVP: hp / taunt / turns + an act on a trigger. Phase 4: own-turn gauge (speed), 'heroTurn' / 'monsterAct' triggers,
 // one-shot uses (traps), soak counts (rubber chicken). Power reads hero Stats (no pet levels) x ally.pow. Allies reset every wave.
 import type { Stats } from '../data/game-data'
-import { bellMdefMul, KIT2 } from '../data/skill-math'
+import {
+  bellMdefMul,
+  boarCutOf,
+  boarRageKOf,
+  boarRecoverTurnsOf,
+  boarShareOf,
+  falconMul,
+  frenzyCapOf,
+  hawkBlitzMul,
+  hawkChance as mathHawkChance,
+  KIT2,
+  magicPower,
+} from '../data/skill-math'
 
 export type AllyKind = 'pet' | 'turret' | 'trap' | 'object' | 'summon'
 /** ownTurn: own gauge in the turn queue (speed x hero speed) · heroBasic: every hero basic / combo swing · heroTurn: end of each hero turn · monsterAct: a monster starts its action (traps) */
@@ -12,14 +24,15 @@ export type AllyTrigger = 'ownTurn' | 'heroBasic' | 'heroTurn' | 'monsterAct'
 /** What an ally can do: the scene implements these. */
 export interface AllyCtx {
   ally: Ally; st: Stats; luk: number
+  int?: number; dex?: number; topStat?: number // Beastmaster Rework v2.1: INT/DEX for RO Falconer & highest STR/DEX/AGI for bm_k1
   combo: boolean // heroBasic: this swing is a combo hit
   awaken?: boolean // Primeval Awakening active: hawk chance x2, wolf follows every basic
   awakenPow?: number // Awakening power multiplier (1 + ult2Pow)
   hitAll: (mul: number, magic: boolean, color: string) => void
-  hitOne: (mul: number, magic: boolean, color: string, sure?: boolean, fx?: { mark?: boolean; blind?: number; pierce?: number }) => boolean // sure = never misses (Blitz Beat) · fx: 🏷️ Prey Mark / 🪶 blind / pierce (True Damage) · true = it was newly marked
+  hitOne: (mul: number, magic: boolean, color: string, sure?: boolean, fx?: { mark?: boolean; blind?: number; pierce?: number; falconCrit?: number }) => boolean // sure = never misses (Blitz Beat) · fx: 🏷️ Prey Mark / 🪶 blind / pierce (True Damage) / falconCrit · true = it was newly marked
   rally: (id: string) => void // 👁️ Apex Spotter: that ready ally acts at once (its own-turn gauge is filled)
-  hitFront: (mul: number, color: string, bleed?: number, crit?: boolean) => number // physical on the front monster, + bleed (poison stacks) · crit = sure crit · returns damage dealt
-  frontInfo: () => { hpPct: number; marked: boolean } | undefined // the front monster: HP share, 🏷️ huntMark on
+  hitFront: (mul: number, color: string, bleed?: number, crit?: boolean, pierce?: number) => number // physical on the front monster, + bleed (poison stacks) · crit = sure crit · pierce = DEF ignore · returns damage dealt
+  frontInfo: () => { hpPct: number; marked: boolean; bleed?: number } | undefined // the front monster: HP share, 🏷️ huntMark on, bleed stacks
   healPack: (n: number) => void // heal the hero + the 🐗 guardian (Savage Crunch: a heal, not lifesteal)
   healBoar: (share: number) => void // 🤝 Tri-Beast Harmony: heal the 🐗 guardian by share of its max HP
   hitFoe: (mul: number, color: string) => void // physical on the monster that set it off ('monsterAct'), else the front one
@@ -42,8 +55,8 @@ export interface AllyDef {
   onBreak?: (ctx: AllyCtx) => void // its hp hit 0
   // ----- Beastmaster rework v1 🐗 Guardian (docs/design/beastmaster-rework-gap.md §7.3) -----
   share?: (st: Stats) => number // takes this share of every landed monster hit on the hero (after DEF), no taunt roll
-  cut?: number // ... and shrugs off this much of its share
-  rageK?: number // Rage += taken / max HP x this; 100 = charge now
+  cut?: number | ((st: Stats) => number) // ... and shrugs off this much of its share
+  rageK?: number | ((st: Stats) => number) // Rage += taken / max HP x this; 100 = charge now
   recover?: (st: Stats) => number // 0 HP = down this many hero turns, then back at full HP + charge (none = gone for the wave)
   charge?: (ctx: AllyCtx) => void // its special move (Rage full / back up)
 }
@@ -81,11 +94,15 @@ export interface GuardHit { ally: Ally; hero: number; took: number; broke: boole
 export function guardHit(all: Ally[], n: number, st: Stats, share?: number): GuardHit | undefined {
   const a = all.find((x) => !x.dead && x.down <= 0 && x.hp > 0 && x.def.share)
   if (!a || n <= 0) return undefined
-  const part = Math.min(n, Math.floor(n * (share ?? a.def.share!(st))))
+  const s = share ?? Math.min(0.8, a.def.share!(st)) // non-Awakening guard share capped at 80%
+  const part = Math.min(n, Math.floor(n * s))
   if (part <= 0) return undefined
-  const took = Math.max(1, Math.round(part * (1 - (a.def.cut ?? 0))))
+  const rawCut = typeof a.def.cut === 'function' ? a.def.cut(st) : (a.def.cut ?? 0)
+  const cut = Math.min(0.9, Math.max(0, rawCut))
+  const took = Math.max(1, Math.round(part * (1 - cut)))
   a.hp = Math.max(0, a.hp - took)
-  a.rage = Math.min(100, a.rage + (took / a.maxHp) * (a.def.rageK ?? 0))
+  const rageK = typeof a.def.rageK === 'function' ? a.def.rageK(st) : (a.def.rageK ?? 0)
+  a.rage = Math.min(100, a.rage + (took / a.maxHp) * rageK)
   const broke = a.hp <= 0
   if (broke) {
     a.rage = 0
@@ -109,7 +126,7 @@ export function useAlly(a: Ally): boolean {
   return true
 }
 /** 🩸 Bloodscent Frenzy: hero speed multiplier from the front monster's poison stacks (wolf rides the hero step). */
-export const frenzyMul = (st: Stats, stacks: number) => 1 + st.j2Frenzy * Math.min(BM.frenzyCap, Math.max(0, stacks))
+export const frenzyMul = (st: Stats, stacks: number) => 1 + st.j2Frenzy * Math.min(frenzyCapOf(st), Math.max(0, stacks))
 /** Turn queue: own-turn allies fill their gauge alongside the hero (heroStep = the hero's gauge gain this step). */
 export function fillAllies(all: Ally[], st: Stats, heroStep: number) { for (const a of all) if (!a.dead && a.def.trigger === 'ownTurn') a.gauge += heroStep * (a.def.speed?.(st) ?? 1) }
 /** End of a hero turn: every ally ages; returns the ones that just expired. */
@@ -120,38 +137,45 @@ export function tickAllies(all: Ally[]): Ally[] {
 }
 
 const MK = KIT2.monk, BM = KIT2.beastmaster, IN = KIT2.innovator
+/** 🐾 Pack Resonance (bm_k1): physical pets gain bonus ATK equal to j2PetStatScale x highest hero STR/DEX/AGI. */
+export const petPhysScale = (st: Stats, topStat = 0) => 1 + (st.j2PetStatScale * Math.max(0, topStat)) / Math.max(1, st.atk)
+/** 🦅 RO Falconer Blitz Beat multiplier in magicPower(st) units, adding optional bm_k1 stat mirror bonus. */
+export const falconHitMul = (st: Stats, mul = hawkBlitzMul(st), int = 0, dex = 0, topStat = 0) =>
+  falconMul(st, mul, int, dex) + (st.j2PetStatScale > 0 && topStat > 0 ? (mul * st.j2PetStatScale * topStat) / Math.max(1, magicPower(st)) : 0)
 /** 🐗 charge: front monster + stun (+ ★ คุ้มกันนาย shield). Every N hero turns, on full Rage, on getting back up. */
 const boarCharge = (c: AllyCtx) => {
   c.say(c.st.j2BoarEvo ? '🐗🛡️ พุ่งชน!' : '🐗 พุ่งชน!', '#e0b07a')
-  c.hitFront((BM.boarMul + c.st.j2BoarMul) * c.ally.pow * (c.awakenPow ?? 1), '#e0b07a'); c.stun(c.st.j2BoarStunAll > 0)
+  c.hitFront((BM.boarMul + c.st.j2BoarMul) * petPhysScale(c.st, c.topStat) * c.ally.pow * (c.awakenPow ?? 1), '#e0b07a'); c.stun(c.st.j2BoarStunAll > 0)
   if (c.st.j2BoarShield > 0) c.shield(c.st.j2BoarShield * c.ally.pow)
 }
-export const hawkMul = (st: Stats) => BM.hawkMul + st.j2HawkMul + (st.j2HawkEvo ? BM.hawkEvoMul : 0)
-export const wolfMul = (st: Stats) => BM.wolfMul + st.j2WolfMul + (st.j2WolfEvo ? BM.wolfEvoMul : 0)
-export const hawkChance = (st: Stats, luk: number) => Math.min(BM.hawkCap, BM.hawkChance + BM.hawkLuk * luk + st.j2HawkChance)
+export const hawkMul = (st: Stats, int = 0, dex = 0, topStat = 0) => falconHitMul(st, hawkBlitzMul(st), int, dex, topStat)
+export const wolfMul = (st: Stats, topStat = 0) => (BM.wolfMul + st.j2WolfMul + (st.j2WolfEvo ? BM.wolfEvoMul : 0)) * petPhysScale(st, topStat)
+export const hawkChance = (st: Stats, luk: number) => mathHawkChance(st, luk)
 export const ALLIES = {
   // 👊 Monk Tempest Bell: soaks hits, rings on every hero swing, bursts when broken (HP scales with WIS & M.DEF)
   tempestBell: { id: 'tempestBell', name: 'Tempest Bell', icon: '🔔', kind: 'object', trigger: 'heroBasic',
     hp: (st) => st.maxHp * (MK.bellHp + (st.wis ?? 0) * (MK.bellWis ?? 0.008)) * bellMdefMul(st), taunt: MK.bellTaunt, turns: MK.bellTurns,
     act: (c) => c.hitAll(MK.bellRing * c.ally.pow * bellMdefMul(c.st), true, '#bfe6ff'),
     onBreak: (c) => { c.say('🔔 ระฆังแตก!', '#ffe08a'); c.hitAll(MK.bellBoom * c.ally.pow * bellMdefMul(c.st), true, '#ffe08a') } },
-  // ----- Phase 4 🐺 Beastmaster pets (rework v1: all 3 spawn every wave at KIT2.beastmaster.packPow, x ally.pow) · ★ evolutions read Stats flags -----
+  // ----- Phase 4 🐺 Beastmaster pets (rework v2.1: all 3 spawn every wave at KIT2.beastmaster.packPow, x ally.pow) · ★ evolutions read Stats flags -----
   hawk: { id: 'hawk', name: 'เหยี่ยว', icon: '🦅', kind: 'pet', trigger: 'heroBasic', // RO Blitz Beat: no HP, can't be hit
     act: (c) => {
       const st = c.st, evo = st.j2HawkEvo ? BM.hawkEvoHits : 0
       const chance = Math.min(1, hawkChance(st, c.luk) * (c.awaken ? 2 : 1))
       if (c.combo || Math.random() >= chance) return
-      const n = Math.min(BM.hawkHitsMax + evo, BM.hawkHits + st.j2HawkHits + evo + Math.floor(Math.random() * 3)) // 1-3 targets
+      const n = Math.min(BM.hawkHitsMax + evo + st.j2HawkBonusHits, BM.hawkHits + st.j2HawkHits + st.j2HawkBonusHits + evo + Math.floor(Math.random() * 3)) // 1-3 targets + Blitz Storm bonus hits
       const gust = st.j2Gust > 0 && ++c.ally.acts % BM.gustEvery === 0 // 🪶 Razor Gust
-      const pierce = st.j2HawkTrue > 0 ? 1 : 0 // 🦅 IV talent: True Damage
+      const pierce = 1 // 🦅 RO Falconer: True Misc Damage bypasses both DEF and MDEF
       c.say(gust ? '🦅🪶 Razor Gust!' : st.j2HawkEvo ? '🦅✨ Blitz Beat!' : '🦅 Blitz Beat!', '#f2d24b')
       let marked = false
-      for (let i = 0; i < n; i++) marked = c.hitOne(hawkMul(st) * c.ally.pow * (c.awakenPow ?? 1), false, '#f2d24b', true, { mark: true, blind: gust ? BM.gustBlind : 0, pierce }) || marked
+      const mul = hawkMul(st, c.int, c.dex, c.topStat) * c.ally.pow * (c.awakenPow ?? 1)
+      const falconCrit = st.j2HawkCritShare > 0 ? st.crit * st.j2HawkCritShare : 0
+      for (let i = 0; i < n; i++) marked = c.hitOne(mul, true, '#f2d24b', true, { mark: true, blind: gust ? BM.gustBlind : 0, pierce, falconCrit }) || marked
       if (marked && st.j2HawkEvo > 0) c.rally('wolf') // 👁️ ★ Apex Spotter
     } },
   boar: { id: 'boar', name: 'หมูป่า', icon: '🐗', kind: 'pet', trigger: 'heroTurn', hp: (st) => st.maxHp * (BM.boarHp + st.j2BoarHp + (st.j2BoarEvo ? BM.boarEvoHp : 0)),
-    share: (st) => BM.boarShare + (st.j2BoarEvo ? BM.boarEvoShare : 0), cut: BM.boarCut, rageK: BM.boarRageK,
-    recover: (st) => (st.j2BoarEvo ? BM.boarEvoDown : BM.boarDown),
+    share: (st) => boarShareOf(st) + (st.j2BoarEvo ? BM.boarEvoShare : 0), cut: (st) => boarCutOf(st), rageK: (st) => boarRageKOf(st),
+    recover: (st) => boarRecoverTurnsOf(st),
     act: (c) => { if (++c.ally.acts % (c.st.j2BoarEvo ? BM.boarEvoEvery : BM.boarEvery) === 0) boarCharge(c) }, // Q3: the timer stays, Rage adds extra charges
     charge: boarCharge },
   wolf: { id: 'wolf', name: 'หมาป่า', icon: '🐺', kind: 'pet', trigger: 'ownTurn', comboFollow: true,
@@ -162,13 +186,14 @@ export const ALLIES = {
       const harm = c.st.j2Pack3 > 0 && f.marked // 🤝 ★ Tri-Beast Harmony chain
       if (crunch) c.say('🐺🦷 ขย้ำปลิดชีพ!', '#ff6b6b')
       else if (harm) c.say('🤝 Harmony!', '#9fe08a')
-      const mul = wolfMul(c.st) * (harm ? 1 + BM.harmonyWolf : 1) * c.ally.pow * (c.awakenPow ?? 1)
-      const d = c.hitFront(mul, '#c9c9d6', BM.wolfBleed + c.st.j2WolfBleed, crunch)
+      const mul = wolfMul(c.st, c.topStat) * (harm ? 1 + BM.harmonyWolf : 1) * c.ally.pow * (c.awakenPow ?? 1)
+      const pierce = f.bleed && f.bleed > 0 ? Math.min(1, c.st.j2WolfPierceBleed) : 0
+      const d = c.hitFront(mul, '#c9c9d6', BM.wolfBleed + c.st.j2WolfBleed, crunch, pierce)
       if (crunch && d > 0) c.healPack(d * BM.crunchHeal)
       if (harm && d > 0) c.healBoar(BM.harmonyBoarHeal)
     } },
   pack: { id: 'pack', name: 'ฝูงหมาป่า', icon: '🐺', kind: 'summon', trigger: 'ownTurn', turns: BM.cmdPackTurns, speed: (st) => BM.wolfSpeed + st.j2WolfSpeed,
-    act: (c) => c.hitFront(wolfMul(c.st) * c.ally.pow, '#c9c9d6', 1) },
+    act: (c) => c.hitFront(wolfMul(c.st, c.topStat) * c.ally.pow, '#c9c9d6', 1) },
   // ----- Phase 4 🔧 Innovator: traps (one-shot, set off when a monster acts), robot turret, rubber chicken -----
   mine: { id: 'mine', name: 'Land Mine', icon: '💣', kind: 'trap', trigger: 'monsterAct', uses: 1,
     act: (c) => { c.say('💣 Land Mine!', '#ff8c42'); const k = (IN.mineMul + c.st.j2TrapMul) * c.ally.pow; if (c.st.j2Claymore) c.hitAll(k, false, '#ff8c42'); else c.hitFoe(k, '#ff8c42') } },
