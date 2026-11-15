@@ -19,7 +19,7 @@ import { askRepick } from './JobScene'
 import { backdrop, button, confirm, fullscreenButton, go, panel, toast, topBar, txt, UI } from '../ui'
 import { fitHeroScale, heroCostumeTint, heroTex } from '../gfx/hero-visual'
 import { ftue } from '../analytics'
-import { HELL, HELL_MODE, hellOpen } from '../data/hell'
+import { ENDLESS_HELL, HELL, HELL_MODE, hellOpen } from '../data/hell'
 
 const BIOME_BADGE: Record<Exclude<BiomeHazardId, 'none'>, { icon: string; label: string; color: string; bg: number; stroke: number }> = {
   clockwork_heat: { icon: '⚙️', label: 'เตาหลอมคลั่ง', color: '#ffbe7b', bg: 0x3a2012, stroke: 0xb86a2c },
@@ -251,7 +251,7 @@ export class HubScene extends Phaser.Scene {
 
       let body = m.desc
       if (id === 'tower') {
-        body = `${m.desc}\n⚡ พลังเรา ${heroPower(s)} · มอน Lv ≈ ${TOWER_LV.perFloor}/ชั้น (ชั้น 40 ≈ Lv ${towerMonLv(40)})\nธีม/${TOWER.themeEvery} · บอส/${TOWER.bossEvery} · กอนท์เล็ต/${TOWER.gauntletEvery} · คลั่ง ${TOWER_POWER.enrageWave}/${TOWER_POWER.enrageBoss} · ตกเก็บ ${Math.round(TOWER.fallKeep * 100)}%`
+        body = `${m.desc}\n⚡ พลังเรา ${heroPower(s)} · มอน Lv ≈ ${TOWER_LV.perFloor}/ชั้น (ชั้น 40 ≈ Lv ${towerMonLv(40)} · ชั้น ${ENDLESS_HELL.from}+ นรกทุกตัว)\nธีม/${TOWER.themeEvery} · บอส/${TOWER.bossEvery} · กอนท์เล็ต/${TOWER.gauntletEvery} · คลั่ง ${TOWER_POWER.enrageWave}/${TOWER_POWER.enrageBoss} · ตกเก็บ ${Math.round(TOWER.fallKeep * 100)}%`
       } else if (id === 'daily') {
         const seed = dailySeed(), d = dailyOf(seed)
         body = `วันนี้: ${d.dg.name} · ${d.mutators.map((x) => `${x.icon} ${x.name}`).join(' · ')}\nรางวัล: 💎${DAILY.gems} · 🍀${DAILY.fortune} (${m.desc})`

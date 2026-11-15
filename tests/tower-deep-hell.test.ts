@@ -1,40 +1,60 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DUNGEONS, MONSTERS, type MonSkill, type MonsterDef, type MonsterKind } from '../src/data/game-data'
-import { HELL, hellify, HELL_TRAITS } from '../src/data/hell'
+import { ENDLESS_HELL, HELL, hellify, HELL_TRAITS } from '../src/data/hell'
 import { deepAnchor, homeDungeon, legacyLevel, monPoints, monTier, restatAt, TOWER_LV, scaleOf, skillAtLv, skillMul, statNative, towerMonLv, withStats } from '../src/data/mon-stats'
-import { towerFloor, TOWER } from '../src/data/modes'
+import { ENDLESS_DUNGEONS, towerFloor } from '../src/data/modes'
 import { castLv, skillLvBonus } from '../src/data/mon-skill-scale'
 
 const DEEP = DUNGEONS.filter((d) => d.level)
 const kindsOf = (rooms: ReturnType<typeof towerFloor>) => rooms.flatMap((r) => [...r.spawn.map(([k]) => k), ...(r.miniPool ?? [])])
 
-test('below the deep floor: no D6+ monster and no Hell, even with every dungeon cleared', () => {
-  for (let i = 0; i < 200; i++) for (let f = 1; f < TOWER.deepFrom; f++) {
-    const rooms = towerFloor(f, 40, DEEP)
-    assert.ok(kindsOf(rooms).every((k) => !statNative(k)), `floor ${f}`)
+test('v125: every dungeon D1-D13 feeds the tower from floor 1 (no clear needed), and no Hell below floor 25', () => {
+  assert.deepEqual(ENDLESS_DUNGEONS.map((d) => d.id), Array.from({ length: 13 }, (_, i) => `d${i + 1}`))
+  const homes = new Set<string>()
+  for (let i = 0; i < 300; i++) for (let f = 1; f < HELL.from; f++) {
+    const rooms = towerFloor(f, 40)
+    for (const k of kindsOf(rooms)) { const h = homeDungeon(k); if (h) homes.add(h) }
     assert.ok(rooms.every((r) => !r.hell), `floor ${f} hell`)
   }
+  for (const d of ENDLESS_DUNGEONS) assert.ok(homes.has(d.id), `${d.id} never showed up below floor ${HELL.from}`)
 })
 
-test('no D6+ dungeon cleared: floors 25-60 never spawn a D6+ monster (the old D6 boss leak on 31+ is gone)', () => {
-  for (let i = 0; i < 60; i++) for (let f = 25; f <= 60; f++) assert.ok(kindsOf(towerFloor(f, 40, [])).every((k) => !statNative(k)), `floor ${f}`)
-})
-
-test('floors 25+: D6+ monsters only from cleared dungeons, and they do show up', () => {
+test('v125: a pool limited to D7 only spawns D7 kinds (waves, minis, bosses)', () => {
   const only = DEEP.filter((d) => d.id === 'd7')
-  let seen = 0
-  for (let i = 0; i < 80; i++) for (let f = 25; f <= 60; f++) for (const k of kindsOf(towerFloor(f, 40, only))) {
-    if (!statNative(k)) continue
-    seen++
-    assert.equal(homeDungeon(k), 'd7', `${k} on floor ${f}`)
-  }
-  assert.ok(seen > 0)
+  for (let i = 0; i < 40; i++) for (let f = 1; f <= 60; f++) for (const k of kindsOf(towerFloor(f, 40, only))) assert.equal(homeDungeon(k), 'd7', `${k} on floor ${f}`)
 })
 
-test('Hell marks: only D1-D5 kinds that are in the room, and they do show up', () => {
+test('v125 floor 100+: every kind in the room (D6+ too) is marked Hell', () => {
+  let deep = 0
+  for (let i = 0; i < 30; i++) for (let f = ENDLESS_HELL.from; f <= ENDLESS_HELL.from + 15; f++) for (const r of towerFloor(f, 40)) {
+    for (const k of new Set([...r.spawn.map(([x]) => x), ...(r.miniPool ?? [])])) { assert.ok(r.hell?.includes(k), `floor ${f}: ${k} not Hell`); if (statNative(k)) deep++ }
+  }
+  assert.ok(deep > 0)
+})
+
+test('v125 floor 99 -> 100 gets harder: hard stat points on HP / ATK for a D1-D5 and a D6+ kind', () => {
+  const d = MONSTERS.deathknight, home = withStats(d, 'deathknight', legacyLevel('deathknight', d, { id: 'd3' }))
+  const lv = towerMonLv(100) + HELL.lv, plain = restatAt(home, 'deathknight', lv, true), hard = restatAt(home, 'deathknight', lv, true, true)
+  assert.ok(hard.hp > plain.hp && hard.dmg > plain.dmg, `D3 boss hp ${hard.hp} vs ${plain.hp}`)
+  const k = (Object.keys(MONSTERS) as MonsterKind[]).find((x) => statNative(x) && homeDungeon(x) === 'd12' && !MONSTERS[x].passive && MONSTERS[x].ai !== 'boss')!
+  const base = deepAnchor(k), p = restatAt(base, k, lv, true), h = restatAt(base, k, lv, true, true)
+  assert.ok(h.hp > p.hp && Math.max(h.dmg, h.matk ?? 0) > Math.max(p.dmg, p.matk ?? 0), `${k} hp ${h.hp} vs ${p.hp}`)
+  assert.ok(towerMonLv(100) >= ENDLESS_HELL.minLv)
+})
+
+test('v125: with numbers, a D5 monster on floor 1 follows the tower Lv down (floors 1-5 at TOWER_LV.minLv)', () => {
+  const k = (Object.keys(MONSTERS) as MonsterKind[]).find((x) => homeDungeon(x) === 'd5' && monTier(MONSTERS[x]) === 'normal' && !MONSTERS[x].passive && MONSTERS[x].statAlloc)!
+  const home = withStats(MONSTERS[k], k, legacyLevel(k, MONSTERS[k], { id: 'd5' }))
+  assert.equal(towerMonLv(1), TOWER_LV.minLv)
+  const low = restatAt(home, k, towerMonLv(1), true)
+  assert.equal(low.lv, TOWER_LV.minLv)
+  assert.ok(low.hp < home.hp && low.dmg < home.dmg, `${k} hp ${low.hp} < ${home.hp}`)
+})
+
+test('Hell marks below floor 100: only D1-D5 kinds that are in the room, and they do show up', () => {
   let marked = 0
-  for (let i = 0; i < 80; i++) for (let f = 25; f <= 60; f++) for (const r of towerFloor(f, 40, DEEP)) {
+  for (let i = 0; i < 80; i++) for (let f = 25; f <= 60; f++) for (const r of towerFloor(f, 40)) {
     for (const k of r.hell ?? []) {
       marked++
       assert.ok(!statNative(k), k)
@@ -69,7 +89,7 @@ test('hellify: numbers, name, trait; the source def is untouched; bosses never g
 })
 
 test('floor 40+: every D1-D5 monster in the room is Hell (Q 2026-11-08)', () => {
-  for (let i = 0; i < 40; i++) for (let f = HELL.allFrom; f <= HELL.allFrom + 20; f++) for (const r of towerFloor(f, 40, DEEP)) {
+  for (let i = 0; i < 40; i++) for (let f = HELL.allFrom; f <= HELL.allFrom + 20; f++) for (const r of towerFloor(f, 40)) {
     const old = [...new Set([...r.spawn.map(([k]) => k), ...(r.miniPool ?? [])])].filter((k) => !statNative(k))
     for (const k of old) assert.ok(r.hell?.includes(k), `floor ${f}: ${k} not Hell`)
   }

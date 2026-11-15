@@ -163,6 +163,7 @@ test('rift-engine helpers: pickRiftBoons, applyRiftBranchChoice, and pack catalo
   const packCat = buildRiftMonsterCatalogFromPacks()
   assert.ok(packCat.has('mummy'))
   assert.ok(packCat.has('pharaoh'))
+  assert.ok(packCat.has('jellop') && packCat.get('jellop')!.minDepth === 1, 'v125: D1 monsters join the rift from depth 1')
   const catalog = buildRiftMonsterCatalog()
   const firstEndgameId = Array.from(catalog.keys())[0]
   assert.ok(firstEndgameId && packCat.has(firstEndgameId))
