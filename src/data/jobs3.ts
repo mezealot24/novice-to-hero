@@ -7,7 +7,7 @@
 // unlock also needs the Master Trial win (P2), so no real save can reach a 3rd job until then.
 import type { Job2Id } from './jobs2'
 
-export type Job3Id = 'paladin' | 'lordknight' | 'champion' | 'ranger' // Crusader -> Paladin · Knight -> Lord Knight · Monk -> Champion · Beastmaster -> Ranger. One 2nd job at a time.
+export type Job3Id = 'paladin' | 'lordknight' | 'champion' | 'ranger' | 'warlord' // Crusader -> Paladin · Knight -> Lord Knight · Monk -> Champion · Beastmaster -> Ranger · Berserker -> Warlord. One 2nd job at a time.
 export type Job3Path = 'pure' | 'hybrid' // pure: own ใยชั้น 3 to the top · hybrid: tier 1-2 of it + tier 1-2 of the sibling 2nd job's web
 export type Job3Variant = 'a' | 'b' // which Skill 3 variant is on (picked in town, free)
 
@@ -69,6 +69,17 @@ export const JOB3: Record<Job3Id, Job3Def> = {
     variants: {
       a: { name: 'Arrow Storm', icon: '🌩️', desc: 'สั่งลุยยิงฝนธนูใส่ทุกตัว + เหยี่ยว Blitz Storm แปะ 🏷️ + โล่หมูป่า + เรียกฝูง · แรงขึ้นตามแต้มสาย 🦅 ฟ้า' },
       b: { name: 'Aimed Warg', icon: '🎯', desc: 'สั่งลุยยิงเจาะเกราะ 50% ใส่ตัวหลัก (บอสก่อน) + หมาป่าขย้ำ Bleed + โล่หมูป่า · แรงขึ้นตามแต้มสาย 🐺 เขี้ยว' },
+    },
+  },
+  warlord: {
+    id: 'warlord', parent: 'berserker', sibling: 'knight', name: 'Warlord', icon: '🪓',
+    blurb: 'Berserker ที่ตื่นรู้ · จิตวิญญาณอมตะ + คลั่งไร้ขีดจำกัด · Rage แปรเป็นคริ/ดาเมจคริ · Ult อมตะไม่ตาย + ฟื้นเลือดจบศึก',
+    focus: 'จอมคลั่งอมตะ · Undying Bloodlust',
+    ultName: 'Undying Bloodlust', ultDesc: 'เติม Rage +30 + ล้างดีบัฟ 1 อย่าง + ฟาดทุกตัว → อมตะไม่ต่ำกว่า 1 HP นาน 3 เทิร์น (ตีเบิ้ล + คริ) · จบแล้วฟื้น HP ตาม Rage', rootDesc: 'บ้าระห่ำชั้น 3 แรง',
+    signature: { icon: '🪓', name: 'Undying Warlord', desc: 'Rage 1 แต้ม = คริ +0.25% และดาเมจคริ +0.25% · Aspect of Carnage ดาเมจ +15% (โดนแรง +10%) · Frenzy สูงสุด +2' },
+    variants: {
+      a: { name: 'Spinning Guillotine', icon: '⚔️', desc: 'คลื่นดาบเป็นฟันประหาร 2 ฮิต + ยิ่งมอนเลือดน้อยยิ่งแรง (สูงสุด +60%) · แรงขึ้นตามแต้มสาย 🪓 สับ' },
+      b: { name: "Warlord's Warcry", icon: '📣', desc: 'คลื่นดาบเป็นคำรามลดดาเมจมอน −25% + เกราะแตก + ผลักเกจ + ฟาดหมู่ + ได้ Rage/โล่ · แรงขึ้นตามแต้มสาย 👹 คลั่ง' },
     },
   },
 }

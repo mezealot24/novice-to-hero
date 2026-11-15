@@ -67,6 +67,8 @@ const NON_SCALING_UNIQUE_FLAGS = new Set<keyof Stats>([
 	"j3On",
 	"j3Lk",
 	"j3Ch",
+	"j3Rn",
+	"j3Wl",
 	"poison",
 ]);
 

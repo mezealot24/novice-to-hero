@@ -18,6 +18,7 @@ const JOB3_PREVIEW_TINT: Record<Job3Id, number> = {
   lordknight: 0xffe7a0,
   champion: 0xffe7a0,
   ranger: 0xc8ffb8,
+  warlord: 0xff8a7a,
 }
 
 /** 🔄 re-pick entry (Hub + character screen): gem check, then the job screen. Gems are paid only on the final pick. */

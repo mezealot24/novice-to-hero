@@ -5,7 +5,7 @@ import { CARDFORGE_EXPANSION_ITEMS, CARDFORGE_ITEMS } from "../cardforge";
 import { CRAFT_ITEMS } from "../craft";
 import { AWAKENED_CRAFT_ITEMS } from "../awakened-craft";
 import { UNIQUE_ITEMS } from "../uniques";
-import { CHAMPION_UNIQUES, CREATIVE_UNIQUES, UNIQUE3_ITEMS } from "../uniques3";
+import { CHAMPION_UNIQUES, CREATIVE_UNIQUES, UNIQUE3_ITEMS, WARLORD_UNIQUES } from "../uniques3";
 import { CLASS_GEAR } from "../class-gear";
 import { CLASS_CRAFT_ITEMS } from "../class-craft";
 import type { Item, ItemReq } from "./item-types";
@@ -27,6 +27,7 @@ export const ITEMS: Item[] = [
 	// ----- 3rd job Awakening uniques (data/uniques3.ts) -----
 	...UNIQUE3_ITEMS,
 	...CHAMPION_UNIQUES,
+	...WARLORD_UNIQUES,
 	...CREATIVE_UNIQUES,
 	// ----- 2nd / 3rd job headgear + accessories (data/class-gear.ts, v125): forge recipes with class-only grade bonuses -----
 	...CLASS_GEAR,

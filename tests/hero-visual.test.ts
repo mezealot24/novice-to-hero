@@ -109,3 +109,22 @@ test('heroRigSpec adds emerald-gold aura for active Ranger and clears it when pa
   assert.equal(parkedRanger.auraTint, undefined)
 })
 
+test('heroRigSpec adds crimson aura for active Warlord and clears it when parked', () => {
+  const warlord = heroRigSpec({
+    job: 'swordsman',
+    job2: 'berserker',
+    job3: 'warlord',
+  })
+  assert.equal(warlord.compositeTex, 'hero_swordsman')
+  assert.equal(warlord.auraTex, 'aura_gold')
+  assert.equal(warlord.auraTint, 0xff5a4e)
+
+  const parkedWarlord = heroRigSpec({
+    job: 'swordsman',
+    job2: 'knight',
+    job3: 'warlord',
+  })
+  assert.equal(parkedWarlord.auraTex, undefined)
+  assert.equal(parkedWarlord.auraTint, undefined)
+})
+

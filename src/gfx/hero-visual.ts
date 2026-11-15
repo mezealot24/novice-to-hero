@@ -97,11 +97,14 @@ export function heroRigSpec(s: HeroVisualInput): HeroRigSpec {
   }
 
   if (job === 'swordsman') {
+    const isWarlord = job3 === 'warlord'
     return {
       compositeTex: 'hero_swordsman',
       bodyTex: 'body_swordsman',
       weaponTex: 'wpn_sword',
       shieldTex: hasShield ? 'shd_buckler' : undefined,
+      auraTex: isWarlord ? 'aura_gold' : undefined,
+      auraTint: isWarlord ? 0xff5a4e : undefined,
       mountOffset: { x: 0, y: 0 },
       bodyOffset: { x: 0, y: 0 },
       weaponOffset: { x: 10, y: -21 },
@@ -110,8 +113,8 @@ export function heroRigSpec(s: HeroVisualInput): HeroRigSpec {
       isMounted: false,
       isTwoHand,
       isKnightLine: false,
-      afterimageTint: 0xffd27a,
-      slashPalette: [0xffffff, 0x9fe3ff, 0xffd34d],
+      afterimageTint: isWarlord ? 0xff6b5a : 0xffd27a,
+      slashPalette: isWarlord ? [0xffffff, 0xff8a7a, 0xff4d4d] : [0xffffff, 0x9fe3ff, 0xffd34d],
     }
   }
 

@@ -230,6 +230,59 @@ export const UNIQUE3_ITEMS: Item[] = [
   ...AWAKEN_UNIQUES,
 ]
 
+// 🪓 Warlord (Berserker Awakening): Tryndamere Undying Fury + PoE Warlord Carnage
+export const WARLORD_UNIQUES: Item[] = [
+  {
+    id: 'u_wl_bloodcrown',
+    slot: 'head',
+    name: 'มงกุฎราชันย์คลั่งไร้พ่าย',
+    icon: '🪓',
+    price: 0,
+    slots: 1,
+    unique: { dg: 'd10' },
+    jobs: ['swordsman'],
+    j2: ['berserker'],
+    j3: ['warlord'],
+    req: 'job3',
+    desc: 'ยูนีค Warlord · หมวก: Frenzy สูงสุด +2 ดาเมจคริและเจาะเกราะแรงขึ้น เพิ่มอมตะ +1 เทิร์น · P.DEF ลดเล็กน้อย',
+    base: { str: 8, vit: 6, agi: 5 },
+    mod: { atk: 24, crit: 0.06, critMul: 0.2, physPen: 0.1, j2FrenzyMax: 2, j3GospelField: 1, def: -8 },
+  },
+  {
+    id: 'u_wl_carnageplate',
+    slot: 'armor',
+    name: 'เกราะกระหายเลือดแอสเปกต์',
+    icon: '🩸',
+    price: 0,
+    slots: 1,
+    unique: { dg: 'd10' },
+    jobs: ['swordsman'],
+    j2: ['berserker'],
+    j3: ['warlord'],
+    req: 'job3',
+    desc: 'ยูนีค Warlord · เกราะ: แรงตอนเลือดน้อย Banding ลดดาเมจ จบอมตะฮีลแรงและดูดเลือดสูง · Flee ลด',
+    base: { vit: 10, str: 6 },
+    mod: { maxHp: 300, def: 22, lifesteal: 0.06, j2LowHp: 0.25, j3Banding: 0.02, j3GospelHeal: 0.04, flee: -12 },
+    pct: { maxHp: 0.12 },
+  },
+  {
+    id: 'u_wl_undyingcharm',
+    slot: 'acc',
+    name: 'ตราคำรามจ้าวสงคราม',
+    icon: '📣',
+    price: 0,
+    slots: 1,
+    unique: { dg: 'd10' },
+    jobs: ['swordsman'],
+    j2: ['berserker'],
+    j3: ['warlord'],
+    req: 'job3',
+    desc: 'ยูนีค Warlord · เครื่องประดับ: เติม Rage ไว ดวลบอสคริแรง จบ Ult ดาเมจพุ่ง และเพิ่มคริต่อขั้น Frenzy',
+    base: { str: 7, agi: 6, vit: 4 },
+    mod: { atk: 20, crit: 0.05, rageGain: 0.25, j2BossCrit: 0.18, j3AfterBless: 0.08, j3WlBlitz: 0.01 },
+  },
+]
+
 // 🥊 Champion (Monk Awakening): combo blitz, thunder orb & Asura burst
 export const CHAMPION_UNIQUES: Item[] = [
   {
@@ -362,6 +415,7 @@ export const CREATIVE_UNIQUES: Item[] = [
 export const ALL_UNIQUE3_ITEMS: Item[] = [
   ...UNIQUE3_ITEMS,
   ...CHAMPION_UNIQUES,
+  ...WARLORD_UNIQUES,
   ...CREATIVE_UNIQUES,
 ]
 
@@ -370,6 +424,7 @@ export const UNIQUE3_DROPS: Record<Job3Id, string[]> = {
   lordknight: ['u_lk_dragonhelm', 'u_lk_dragonscale', 'u_lk_warmedal', 'u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'],
   champion: ['u_ch_asuracrown', 'u_ch_ironrobe', 'u_ch_spiritband', 'u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'],
   ranger: ['u_rn_falconberet', 'u_rn_primalhide', 'u_rn_wildheart', 'u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'],
+  warlord: ['u_wl_bloodcrown', 'u_wl_carnageplate', 'u_wl_undyingcharm', 'u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'],
 }
 
 /** Roll drop for 3rd Job uniques at D10.

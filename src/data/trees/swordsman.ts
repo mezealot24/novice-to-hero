@@ -4,11 +4,12 @@
 import { node as n, talent as t, type ClassTree } from '../tree-types'
 import { KIT, KIT2 } from '../skill-math'
 
-// v84 (design/skill-tree-swordsman.md v84): numbers in KIT.swordTree, written per OLD level (max 3); data/tree.ts stretches them to 5.
-const T = KIT.swordTree, pc = (x: number) => `${+(x * 100).toFixed(1)}%`, r1 = (x: number) => +x.toFixed(1)
+// v84 (design/skill-tree-swordsman.md v84): numbers in KIT.swordTree / swordCore, written per OLD level (max 3); data/tree.ts stretches them to 5.
+const T = KIT.swordTree, C = KIT.swordCore, pc = (x: number) => `${+(x * 100).toFixed(1)}%`, r1 = (x: number) => +x.toFixed(1)
 
 export const tree: ClassTree = {
   branches: [
+    { id: 'swordsman_core', job: 'swordsman', name: 'แก่นป้องกัน', icon: '🛡️', blurb: 'VIT · P.DEF · M.DEF · ฟื้นตัว' },
     { id: 'swordsman_a', job: 'swordsman', name: 'ป้อมเหล็ก', icon: '🛡️', blurb: 'สวนกลับ · โล่รับแล้วสะท้อนคืน' },
     { id: 'swordsman_b', job: 'swordsman', name: 'โลหิต', icon: '🩸', blurb: 'Mana · ดูดเลือด · คลั่งตอนเลือดน้อย' },
     // v84: ATTACH in data/tree.ts: swordsman_c under ทักษะ 1, swordsman_d under Ult
@@ -16,6 +17,10 @@ export const tree: ClassTree = {
     { id: 'swordsman_d', job: 'swordsman', name: 'ทลายเกราะ', icon: '🔨', blurb: 'Ult ทุบเกราะ · ตีตัวเกราะแตกฮีล · แตกลาม · ★ ขัดชาร์จ' },
   ],
   nodes: [
+    // Core: 🛡️ แก่นป้องกัน — tier 0, always open at start so VIT-focused tanks survive phys + magic hits
+    n('swordsman_core1', 'swordsman_core', 0, '🪨', 'กายเหล็ก', 3, (lv) => `VIT +${Math.round(C.vitPer * lv)} · P.DEF +${r1(C.defPer * lv)} · Max HP +${pc(C.hpPctPer * lv)}`, (lv) => ({ swCoreVit: C.vitPer * lv, def: C.defPer * lv, swCoreHpPct: C.hpPctPer * lv })),
+    n('swordsman_core2', 'swordsman_core', 0, '💠', 'เกราะจิตอึด', 3, (lv) => `M.DEF +${pc(C.mdefPer * lv)} · ต้านทาน +${pc(C.tenacityPer * lv)} · VIT ทุก 1 แต้มเพิ่ม M.DEF +${pc(C.vitToMdefPer * lv)} (ส่วน VIT→M.DEF สูงสุด +${pc(C.vitToMdefCap)})`, (lv) => ({ mdef: C.mdefPer * lv, tenacity: C.tenacityPer * lv, swVitToMdef: C.vitToMdefPer * lv })),
+    n('swordsman_core3', 'swordsman_core', 0, '❤️‍🩹', 'ฟื้นฟูนักรบ', 3, (lv) => `ฟื้น HP/เทิร์น +${pc((C.regenPer * lv * 1.5) / 100)} · ฮีลแรง +${pc(C.healAmpPer * lv)} · เลือด < ${pc(C.lowHpAt)} Regen แรงขึ้น +${pc(C.lowHpRegenPer * lv)}`, (lv) => ({ regen: C.regenPer * lv, healAmp: C.healAmpPer * lv, swLowRegenAmp: C.lowHpRegenPer * lv })),
     n('swordsman_a1', 'swordsman_a', 1, '↩️', 'ท่าสวนชำนาญ', 3, (lv) => `สวนกลับ +${lv * 5}%`, (lv) => ({ counter: 0.05 * lv })),
     n('swordsman_a2', 'swordsman_a', 2, '🌵', 'โล่หนาม', 3, (lv) => `โล่รับดาเมจแล้วสะท้อนคืนตัวที่ตี ${lv * 15}%`, (lv) => ({ thorns: 0.15 * lv })),
     n('swordsman_a3', 'swordsman_a', 3, '🧱', 'ยืนหยัด', 3, (lv) => `P.DEF +${lv * 4} · ต้านทาน +${lv * 5}%`, (lv) => ({ def: 4 * lv, tenacity: 0.05 * lv })),
@@ -45,8 +50,8 @@ export const tree: ClassTree = {
     t('sw_t2b', 2, '💢', 'แค้นฝังใจ', 2, (r) => `โดนตีได้ Mana +${r === 1 ? 3 : 5}`, (r) => ({ rageOnHurtAdd: r === 1 ? 3 : 5 })),
     t('sw_t2c', 2, '🌪️', 'พายุโลหิต', 2, (r) => `ดูดเลือดสกิล +${r === 1 ? 15 : 25}% (ตีหลายตัวได้ 1/3) · แลกกับดาเมจสกิล/ult −30%`, (r) => ({ spellVamp: r === 1 ? 0.15 : 0.25, skillDmgCut: 0.3 })),
     // ----- row 3 · Job Lv 20 · ดาบพิทักษ์ (ult) -----
-    t('sw_t3a', 3, '🏰', 'ปราการ', 2, (r) => `ult: โล่ 15% → ${r === 1 ? 30 : 35}% · ดาเมจ 1.4x → 1.0x`, (r) => ({ ultShieldAdd: r === 1 ? 0.15 : 0.2, ultMulAdd: -0.4 })),
-    t('sw_t3b', 3, '💥', 'ฟันทลาย', 2, (r) => `ult: ดาเมจ 1.4x → ${r === 1 ? '2.2' : '2.6'}x · บอสที่กำลังชาร์จโดน x1.5 · โล่ 15% → 5%`, (r) => ({ ultMulAdd: r === 1 ? 0.8 : 1.2, ultShieldAdd: -0.1, ultVsCharge: 0.5 })),
+    t('sw_t3a', 3, '🏰', 'ปราการ', 2, (r) => `ult: โล่ 20% → ${r === 1 ? 35 : 40}% · ดาเมจ 1.2x → 1.0x`, (r) => ({ ultShieldAdd: r === 1 ? 0.15 : 0.2, ultMulAdd: -0.2 })),
+    t('sw_t3b', 3, '💥', 'ฟันทลาย', 2, (r) => `ult: ดาเมจ 1.2x → ${r === 1 ? '2.2' : '2.6'}x · บอสที่กำลังชาร์จโดน x1.5 · โล่ 20% → 5%`, (r) => ({ ultMulAdd: r === 1 ? 1.0 : 1.4, ultShieldAdd: -0.15, ultVsCharge: 0.5 })),
     t('sw_t3c', 3, '🔁', 'ท่าสวนพร้อม', 2, (r) => `หลังกด ult: โดนตี ${r === 1 ? 2 : 3} ครั้งถัดไป สวนกลับแน่นอน`, (r) => ({ ultCounters: r === 1 ? 2 : 3 })),
     // ----- row 4 · Job Lv 30 · keystone -----
     t('sw_t4a', 4, '💀', 'ไม่ยอมล้ม', 2, (r) => `ล้มครั้งแรกต่อรอบ ลุกขึ้นมาพร้อม HP ${r === 1 ? 40 : 60}%`, (r) => ({ revive: 1, reviveHp: r === 1 ? 0.4 : 0.6 })),

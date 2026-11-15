@@ -38,7 +38,7 @@ Object.assign(JOB2_K, { beastmaster: 1.15, innovator: 1.1 }) // Phase 4 Archer: 
  *  ≈ +20% Hero Power over the same 2nd job). Paladin 1.1 (P7 2026-11-08): the Stats see only ~+4% (legacy HP) while Gospel pulses,
  *  Faith, block amp, Shield Press / Banding are invisible; bot D10 🔥 n=4: Crusader 1/4, Paladin A 1/4 (deeper), B 2/4 at higher power.
  *  First guess from a small bot sample: re-check against Q's playtest before touching it again (bot plays worse than people). */
-export const JOB3_K: Partial<Record<Job3Id, number>> = { paladin: 1.28, lordknight: 1.32, champion: 1.32, ranger: 1.32 } // Job3 sqrt calibration (~+13-15% base + Job3 tree ~+15-20% total vs Job2, D11-D13 scale)
+export const JOB3_K: Partial<Record<Job3Id, number>> = { paladin: 1.28, lordknight: 1.32, champion: 1.32, ranger: 1.32, warlord: 1.32 } // Job3 sqrt calibration (~+13-15% base + Job3 tree ~+15-20% total vs Job2, D11-D13 scale)
 /** 2nd jobs that change the class magic share: Sage hits in melee (P.ATK) + Auto Spell / Endow (Pm 70/30), about half magic. */
 const MAGIC_SHARE2: Partial<Record<Job2Id, number>> = { sage: 0.5 }
 

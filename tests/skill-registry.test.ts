@@ -44,7 +44,7 @@ test('registry has no duplicate path inside a table and every class lists its th
 test('Skill 2 base/per numbers keep the v83 formulas (refactor guard)', () => {
   for (const lv of [0, 1, 2, 3, 3.6, 5]) {
     assert.equal(S2N.guardCut(lv), 0.4 + 0.05 * lv)
-    assert.equal(S2N.bloodVamp(lv), 0.15 + 0.05 * lv)
+    assert.equal(S2N.bloodVamp(lv), 0.2 + 0.05 * lv)
     assert.equal(S2N.tauntWeak(lv), 0.2 + 0.05 * lv)
     assert.equal(S2N.rainMul(lv), 0.8 + 0.15 * lv)
     assert.equal(S2N.hawkCrit(lv), 0.2 + 0.05 * lv)

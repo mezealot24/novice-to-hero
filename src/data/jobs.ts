@@ -37,7 +37,7 @@ export const SWORD_MANA = {
   ult: 25, // ดาบพิทักษ์ (plus its turn cooldown; booked ult waits for Mana like the Mage's)
   autoMul: 1.25, // ฟันพายุ x P.ATK (1.3 before the class rebalance 2026-11-03, 1.15 in v40, 1.25 after the lifesteal cut 2026-11-04)
   ultMul: 1.2, // ดาบพิทักษ์ x P.ATK (1.4 until the class rebalance)
-  ultShield: 0.15, // ดาบพิทักษ์ (0.1 in v40-v43, back to 0.15 after the lifesteal cut 2026-11-04) shield, share of max HP (0.25 in the Rage era; Q chose the armour trim 2026-11-03)
+  ultShield: 0.2, // ดาบพิทักษ์ shield, share of max HP (reworked 0.15 -> 0.20 so pumping VIT translates into a meaningful barrier)
 }
 
 /** Cleric kit numbers (class rebalance 2026-11-03: was heal 22%, ult shield 35% + heal 15%; gear/cards should make up the gap).
@@ -49,7 +49,7 @@ export const SWORD_MANA = {
 export const CLERIC_KIT = { heal: 0.7, smite: 1.4, basic: 1.1, ultAtk: 1.5, ultLights: 3, ultLight: 0.8, ultShield: 0.14, ultShieldTurns: 3, purifyHeal: 1, shieldTurns: 3, shieldCap: 0.5, ultMana: 30, ultManaLv: 0 } // ultMana: v86 Q 2026-11-06, the ult costs Mana like Mage / Swordsman · v102 nerf: +ultManaLv per Ult node Lv above 1 (30/35/40/45/50)
 
 /** Spell vamp (Q 2026-11-04): skill lifesteal, its own stat. AoE skills heal 1/3; Skill 2 เลือดเดือด trades skill damage for it. */
-export const SPELL_VAMP = { aoe: 1 / 3, bloodCut: 0.3 }
+export const SPELL_VAMP = { aoe: 1 / 3, bloodCut: 0.15 }
 
 export const JOBS: Record<JobId, JobDef> = {
   novice: {

@@ -190,6 +190,7 @@ const CLASS_LINES: { j2?: Job2Id; j3?: Job3Id; lines: [stat: string, vals: Vals]
   { j3: 'lordknight', lines: [['j2HpDmg', [0.005, 0.01, 0.015]], ['j3Banding', [0.01, 0.02, 0.03]], ['j3GospelHeal', [0.005, 0.01, 0.015]], ['j3AfterBless', [0.03, 0.05, 0.08]]] },
   { j3: 'champion', lines: [['j3Banding', [0.01, 0.02, 0.03]], ['j3GospelHeal', [0.005, 0.01, 0.015]], ['j3AfterBless', [0.03, 0.05, 0.08]]] },
   { j3: 'ranger', lines: [['j2PetPow', [0.05, 0.08, 0.12]], ['j3Banding', [0.01, 0.02, 0.03]], ['j3GospelHeal', [0.005, 0.01, 0.015]], ['j3AfterBless', [0.03, 0.05, 0.08]]] },
+  { j3: 'warlord', lines: [['j2LowHp', [0.06, 0.1, 0.15]], ['j3GospelHeal', [0.01, 0.015, 0.025]], ['j3AfterBless', [0.03, 0.05, 0.08]], ['j3WlBlitz', [0.005, 0.01, 0.015]]] },
 ]
 export const CLASS_LINE_POOL: LineDef[] = CLASS_LINES.flatMap((c) => c.lines.map(([stat, vals]): LineDef => ({
   stat, vals, kind: 'any', w: CLASS_LINE_W / c.lines.length, ...(c.j2 ? { j2: [c.j2] } : {}), ...(c.j3 ? { j3: [c.j3] } : {}),

@@ -345,6 +345,39 @@ export const JOB3_CRAFT_ITEMS: Item[] = [
     mod: { atk: 38, matk: 32, maxHp: 150, hit: 20, crit: 0.06, aspd: 0.14, pskill: 0.12, j2PetPow: 0.22 },
     craft: { ...D10, bonus: [{ j3GospelField: 1 }, { j3GospelHeal: 0.015, pierce: 0.2 }] },
   },
+  // 🪓 Warlord (Berserker -> Warlord): full D10 head / armor / acc / 2H axe suite
+  {
+    id: 'cc_wl_helm', slot: 'head', name: 'หมวกเขาจ้าวสงครามไร้พ่าย', icon: '🪓', price: 0, slots: 1,
+    jobs: SW, j2: ['berserker'], j3: ['warlord'], req: 'job3',
+    desc: 'ของคราฟวอร์ลอร์ด · หมวก: Frenzy สูงสุด +2 ดาเมจคริแรง + พรหลังศึก และยืดเวลาอมตะ',
+    base: { str: 7, agi: 5, vit: 4 },
+    mod: { atk: 20, maxHp: 130, crit: 0.05, critMul: 0.18, j2FrenzyMax: 2, j3AfterBless: 0.04 },
+    craft: { ...D10, bonus: [{ j3GospelField: 1 }, { physPen: 0.08, critMul: 0.15 }] },
+  },
+  {
+    id: 'cc_wl_plate', slot: 'armor', name: 'เกราะโลหิตแอสเปกต์', icon: '🩸', price: 0, slots: 1,
+    jobs: SW, j2: ['berserker'], j3: ['warlord'], req: 'job3',
+    desc: 'ของคราฟวอร์ลอร์ด · เกราะ: เลือดน้อยยิ่งแรง Banding ลดดาเมจ + เปิดฉากกู่คำราม',
+    base: { vit: 8, str: 6 },
+    mod: { maxHp: 260, def: 20, lifesteal: 0.05, j2LowHp: 0.2, j3Banding: 0.02 },
+    craft: { ...D10, bonus: [{ j3EarthDrive: 1.0 }, { j3Inspire: 1, def: 15 }] },
+  },
+  {
+    id: 'cc_wl_crest', slot: 'acc', name: 'เข็มกลัดกระหายเลือด', icon: '🔥', price: 0, slots: 1,
+    jobs: SW, j2: ['berserker'], j3: ['warlord'], req: 'job3',
+    desc: 'ของคราฟวอร์ลอร์ด · ประดับ: จบอมตะฮีลแรง เติม Rage ไว และเพิ่มคริต่อขั้น Frenzy',
+    base: { str: 6, agi: 5, vit: 4 },
+    mod: { atk: 20, maxHp: 100, crit: 0.04, rageGain: 0.2, j3GospelHeal: 0.03, j3WlBlitz: 0.01 },
+    craft: { ...D10, bonus: [{ j3AfterBless: 0.05 }, { j2BossCrit: 0.12, counter: 0.06 }] },
+  },
+  {
+    id: 'cc_wl_axe', wtype: 'twohand', twoHand: true, slot: 'weapon', name: 'ขวานยักษ์ทมิฬอันดายอิ้ง', icon: '🪓', price: 0, slots: 2,
+    jobs: SW, j2: ['berserker'], j3: ['warlord'], req: 'job3',
+    desc: 'ของคราฟวอร์ลอร์ด · อาวุธ 2 มือตื่นรู้: คริและดาเมจคริมหาศาล เจาะเกราะ + อมตะยืดเวลา',
+    base: { str: 9, vit: 6, agi: 5 },
+    mod: { atk: 46, def: 16, maxHp: 220, crit: 0.08, critMul: 0.25, physPen: 0.12, pskill: 0.15 },
+    craft: { ...D10, bonus: [{ j3GospelField: 1 }, { j3GospelHeal: 0.03, pierce: 0.25 }] },
+  },
 ]
 
 export const CLASS_CRAFT_ITEMS: Item[] = [

@@ -88,6 +88,12 @@ export const KIT = {
     stormHits: 2, // ★ พันดาบ: at max stacks ฟันพายุ swings this many times, sure crit, then stacks reset
     breakTurns: 3, breakAmp: 0.04, breakLeech: 0.02, breakSpreadRes: 4, shatterPush: 30, // ทุบเกราะ: ult breaks armor (Mon.armorBrk = DEF −KIT2.mobster.armorBrk) N turns + dmg taken/lv · ซ้ำรอย heal share/lv · ร้าวลาม Mana/lv · ★ หักท่า gauge push
   },
+  // Swordsman core column (swordsman_core, tier 0, always open): Defend VIT/DEF/M.DEF/Regen passives
+  swordCore: {
+    vitPer: 4, defPer: 3, hpPctPer: 0.02, // 🛡️ กายเหล็ก
+    mdefPer: 0.03, vitToMdefPer: 0.0008, vitToMdefCap: 0.25, tenacityPer: 0.03, // 💠 เกราะจิตอึด
+    regenPer: 0.2, healAmpPer: 0.05, lowHpAt: 0.5, lowHpRegenPer: 0.5 / 3, // ❤️‍🩹 ฟื้นฟูนักรบ
+  },
   // v84 Priest web: 🙏 ศรัทธา (under ทักษะ 1) + ⛪ ฟื้นคืน (under Ult), first guesses (design/skill-tree-priest.md v84)
   clericTree: {
     faithMax: 5, faithHeal: 2, faithCast: 1, faith: 0.4, faithHealAmp: 0.06, // v120 Q: each held Faith = heal +6% // สวดภาวนา: Skill 1 cast +1 / skill heal +2 Faith · full = burst every monster x Pm per lv
@@ -277,7 +283,7 @@ export const preyTurnsOf = (st: Stats) => KIT2.beastmaster.preyTurns + st.j2Prey
 /** Skill 2 linear "+" numbers: base + per x Stats.s2Lv. Plain numbers so the admin can tune them (skills `s2p.<key>.base|per`);
  *  the S2N functions below read them on every call. Defaults are the v83 values. */
 export const S2P = {
-  guardCut: { base: 0.4, per: 0.05 }, bloodVamp: { base: 0.15, per: 0.05 }, tauntWeak: { base: 0.2, per: 0.05 },
+  guardCut: { base: 0.4, per: 0.05 }, bloodVamp: { base: 0.2, per: 0.05 }, tauntWeak: { base: 0.2, per: 0.05 },
   rainMul: { base: 0.8, per: 0.15 }, hawkCrit: { base: 0.2, per: 0.05 }, trapPush: { base: 30, per: 10 },
   mshieldTake: { base: 0.4, per: 0.05 }, novaMul: { base: 0.8, per: 0.15 }, arcaneMul: { base: 0.6, per: 0.1 },
   renewHeal: { base: 0.3, per: 0.05 }, kyrieHp: { base: 0, per: 0.05 }, spearPlus: { base: 0, per: 0.03 },
@@ -288,8 +294,10 @@ const lin = (k: { base: number; per: number }, lv: number) => k.base + k.per * l
 /** Skill 2 numbers by "+" level (Stats.s2Lv) and ★ (Stats.s2Star). data/skill2.ts texts and BattleScene.castSkill2 read these. */
 export const S2N = {
   guardCut: (lv: number) => lin(S2P.guardCut, lv), guardTurns: (star: boolean) => (star ? 3 : 2), guardCounters: (star: boolean) => (star ? 2 : 1),
-  bloodVamp: (lv: number) => lin(S2P.bloodVamp, lv), bloodTurns: 3, bloodAtk: 0.15,
+  guardShield: (star: boolean) => (star ? 0.18 : 0.1),
+  bloodVamp: (lv: number) => lin(S2P.bloodVamp, lv), bloodTurns: 3, bloodAtk: 0.2,
   tauntWeak: (lv: number) => lin(S2P.tauntWeak, lv), tauntTurns: (star: boolean) => (star ? 3 : 2),
+  tauntBreakTurns: (star: boolean) => (star ? 2 : 1), tauntStarRes: 15, tauntStarShield: 0.08,
   rainMul: (lv: number) => lin(S2P.rainMul, lv), rainWaves: (star: boolean) => (star ? 2 : 1),
   hawkCrit: (lv: number) => lin(S2P.hawkCrit, lv), hawkTurns: 3, hawkCritDmg: 0.3,
   trapMul: 0.6, trapPush: (lv: number) => lin(S2P.trapPush, lv),
@@ -361,6 +369,15 @@ export const KIT3 = {
     varB: { boltMul: 1.50, pierce: 0.50, wargMul: 1.10, bleedAdd: 3, boarPush: 20, per: 0.02, cap: 0.20, branch: 'bm_w' as const }, // 🎯 Aimed Warg
     leg: { crossCap: 0.15, guardCap: 0.06, hpCap: 0.09, cross: 'bm_k' as const, guard: 'bm_b' as const, hp: 'bm_s' as const },
     heirNeed: 6, gospelHealMax: 3,
+  },
+  // 🪓 Warlord (Berserker Awakening: Tryndamere + Warlord + PoE Berserker)
+  warlord: {
+    frenzyMaxAdd: 2, rageCritPer: 0.0025, rageCritDmgPer: 0.0025, carnageDmg: 0.15, carnageTaken: 0.1, // 🪓 Undying Warlord signature
+    ultRageGain: 30, ultUndyingTurns: 3, ultBloodHealBase: 0.15, ultBloodHealPerRage: 0.0025, ultFuryCritRage: 5, ultFuryCritHeal: 0.02, // 🩸🔥 Undying Bloodlust
+    varA: { hits: 2, mul: 1.9, critAdd: 0.3, execMax: 0.6, splashShare: 0.5, per: 0.02, cap: 0.2, branch: 'bz_c' as const }, // ⚔️ Spinning Guillotine
+    varB: { mul: 1.6, weakPct: 0.25, weakTurns: 2, breakTurns: 2, push: 15, rage: 25, shield: 0.12, heirPush: 25, per: 0.02, cap: 0.2, branch: 'bz_r' as const }, // 📣 Warlord's Warcry
+    leg: { crossCap: 0.15, guardCap: 0.06, hpCap: 0.09, cross: 'bz_c' as const, guard: 'bz_d' as const, hp: 'bz_r' as const },
+    heirNeed: 6, warcryRage: 15,
   },
   /** shared by every 3rd job */
   common: { afterTurns: 2, bandingMax: 5, inspireAt: 0.3, inspireTurns: 3, inspireHeal: 0.03, inspireGuard: 0.5 },
@@ -550,9 +567,9 @@ export function skill2Info(k: Skill2Def, st: Stats): InfoRow[] {
   const out: InfoRow[] = [{ label: 'ใช้', value: `${resName(job)} ${k.cost} · คูลดาวน์ ${s2Cooldown(k, st)} เทิร์น` }]
   const add = (label: string, value: string) => out.push({ label, value })
   switch (k.id) {
-    case 'sw_guard': add('ดาเมจเข้าลด', `−${pct(S2N.guardCut(lv))} · ${S2N.guardTurns(star)} เทิร์น`); add('สวนกลับแน่นอน', `${S2N.guardCounters(star)} ครั้ง`); break
+    case 'sw_guard': add('โล่ทันที + ดาเมจเข้าลด', `${shield(st, st.maxHp * S2N.guardShield(star))} · −${pct(S2N.guardCut(lv))} · ${S2N.guardTurns(star)} เทิร์น`); add('สวนกลับแน่นอน', `${S2N.guardCounters(star)} ครั้ง`); break
     case 'sw_blood': add('ดูดเลือด + ดูดเลือดสกิล', `+${pct(S2N.bloodVamp(lv))} · ${S2N.bloodTurns} เทิร์น`); add('ดาเมจสกิล/ult', `−${pct(SPELL_VAMP.bloodCut)}${star ? ` · ATK +${pct(S2N.bloodAtk)}` : ''}`); break
-    case 'sw_taunt': add('มอนตีเบาลง', `${pct(S2N.tauntWeak(lv))} · ${S2N.tauntTurns(star)} เทิร์น`); break
+    case 'sw_taunt': add('มอนตีเบาลง + เกราะแตก', `${pct(S2N.tauntWeak(lv))} (${S2N.tauntTurns(star)} เทิร์น) · เกราะแตก ${S2N.tauntBreakTurns(star)} เทิร์น`); if (star) add('★ ท้าซ้ำ', `ฟื้น Resource +${S2N.tauntStarRes} · โล่ ${shield(st, st.maxHp * S2N.tauntStarShield)}`); break
     case 'ar_rain': add(`ดาเมจ/ตัว (ทุกตัว ×${S2N.rainWaves(star)} รอบ)`, hitText(st, S2N.rainMul(lv), false)); break
     case 'ar_hawk': add('คริเพิ่ม', `+${pct(S2N.hawkCrit(lv))} → รวม ${pct(st.crit + S2N.hawkCrit(lv))} · ${S2N.hawkTurns} เทิร์น`); if (star) add('ดาเมจคริ', `+${pct(S2N.hawkCritDmg)}`); break
     case 'ar_trap': add(star ? 'ดาเมจ/ตัว (ทุกตัว)' : 'ดาเมจตัวหน้า', hitText(st, S2N.trapMul, false)); add('ผลักเทิร์น', `${S2N.trapPush(lv)}`); break

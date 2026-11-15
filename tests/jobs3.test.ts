@@ -134,7 +134,7 @@ test('pure vs hybrid: pure cannot borrow Monk nodes; hybrid stops at tier 2 and 
   assert.deepEqual(mods.map((m) => Object.keys(m)[0]), ['combo'], 'tier-3 Paladin node off on hybrid, Monk node on')
   assert.equal(tree3Mods({ mk_c1: 3 }, 'paladin', 'pure').length, 0, 'borrowed node off on pure')
   assert.ok(heroStats({ ...s, job3Path: 'hybrid', job3Tree: { mk_c1: 3 } }).combo > heroStats(s).combo)
-  assert.ok(TREE3.every((n) => /^(paladin_u3p|lordknight_u3p|champion_u3p|ranger_u3p|pa_|lk_|ch_|rn_)/.test(n.id)), 'ids are save data')
+  assert.ok(TREE3.every((n) => /^(paladin_u3p|lordknight_u3p|champion_u3p|ranger_u3p|warlord_u3p|pa_|lk_|ch_|rn_|wl_)/.test(n.id)), 'ids are save data')
 })
 
 // ---------- 🐉 Lord Knight + retroactive trial (Q 2026-11-08) ----------
@@ -303,5 +303,55 @@ test('Ranger pure vs hybrid borrows Innovator tier 1-2 only', () => {
   assert.equal(lockReason3({ rn_g1: 3, rn_g2: 3 }, 'archer', rn3, 'ranger', 'pure'), '')
   assert.equal(lockReason3({}, 'archer', nodeById('mk_c1')!, 'ranger', 'hybrid'), 'ไม่ใช่ใยของอาชีพนี้')
   assert.deepEqual(tree3Mods({ in_t1: 3, rn_g3: 2 }, 'ranger', 'hybrid').map((m) => Object.keys(m)[0]), ['j2TrapMul'])
+})
+
+// ---------- 🪓 Warlord (Berserker Awakening: Tryndamere + PoE Berserker + Warlord) ----------
+function berserker(pts = 0, extra: Partial<SaveData> = {}): SaveData {
+  const s = newSave('t', 'human')
+  const fill = (ids: string[], n: number) => { const t: Record<string, number> = {}; for (const id of ids) { const k = Math.min(n, nodeById(id)!.max); t[id] = k; n -= k } return t }
+  Object.assign(s, { job: 'swordsman', jobLevel: 40, job2: 'berserker', job2Level: 50, job2Points: 0, gems: 100, clearsBy: { d1: 1, d5: 1, d10: 1 }, clears: 10,
+    job2Tree: { ...fill(['bz_c1', 'bz_c2', 'bz_c3'], pts), ...fill(['bz_d1', 'bz_d2', 'bz_d3'], pts), ...fill(['bz_r1', 'bz_r2', 'bz_r3'], pts) }, ...extra })
+  setSave(s)
+  return s
+}
+
+test('Berserker awakens into Warlord; Undying Warlord adds Frenzy cap and legacy reads Berserker branches with caps', () => {
+  assert.equal(J3.warlord.parent, 'berserker'); assert.equal(J3.warlord.sibling, 'knight')
+  assert.equal(j3Of('berserker')?.id, 'warlord')
+  const s = berserker()
+  assert.equal(job3Ready(s, 'warlord'), false)
+  s.job3Trial = { warlord: 1 }
+  assert.equal(job3Ready(s, 'warlord'), true)
+  assert.equal(changeJob3('warlord'), true)
+  assert.equal(activeJob3(s), 'warlord')
+
+  const bz = heroStats(berserker(5))
+  const wl = heroStats(berserker(5, { job3: 'warlord', job3Level: 30, job3Trial: { warlord: 1 }, job3Tree: {} }))
+  assert.equal(wl.j3Wl, 1)
+  assert.equal(wl.j2FrenzyMax - bz.j2FrenzyMax, KIT3.warlord.frenzyMaxAdd)
+
+  const legCross = (pts: number) => heroStats(berserker(pts, { job3: 'warlord', job3Trial: { warlord: 1 }, job3Tree: { wl_l1: 3 } })).ult2Pow
+    - heroStats(berserker(pts, { job3: 'warlord', job3Trial: { warlord: 1 }, job3Tree: {} })).ult2Pow
+  assert.ok(Math.abs(legCross(0)) < 1e-9)
+  assert.ok(Math.abs(legCross(5) - 0.075) < 1e-9)
+  assert.ok(legCross(99) <= KIT3.warlord.leg.crossCap + 1e-9)
+
+  const va = heroStats(berserker(5, { job3: 'warlord', job3Var: 'a', job3Trial: { warlord: 1 } }))
+  const vb = heroStats(berserker(5, { job3: 'warlord', job3Var: 'b', job3Trial: { warlord: 1 } }))
+  assert.ok(Math.abs(va.j3VarMul - 0.1) < 1e-9)
+  assert.ok(Math.abs(vb.j3VarMul - 0.1) < 1e-9)
+
+  setSave(s)
+  assert.equal(changeJob2('knight', 30), true)
+  assert.equal(activeJob3(s), undefined)
+})
+
+test('Warlord pure vs hybrid borrows Knight tier 1-2 only', () => {
+  const kn1 = nodeById('kn_p1')!, wl3 = nodeById('wl_u3')!
+  assert.equal(lockReason3({}, 'swordsman', kn1, 'warlord', 'pure'), 'เฉพาะสาย Hybrid')
+  assert.equal(lockReason3({}, 'swordsman', kn1, 'warlord', 'hybrid'), '')
+  assert.match(lockReason3({ wl_u1: 3, wl_u2: 3 }, 'swordsman', wl3, 'warlord', 'hybrid'), /Hybrid/)
+  assert.equal(lockReason3({ wl_u1: 3, wl_u2: 3 }, 'swordsman', wl3, 'warlord', 'pure'), '')
+  assert.deepEqual(tree3Mods({ kn_p1: 2, wl_u3: 2 }, 'warlord', 'hybrid').map((m) => Object.keys(m)[0]), ['j2HpDmg'])
 })
 

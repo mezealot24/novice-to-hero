@@ -2,6 +2,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { branches2Of, branchesOf, lockReason, nodesOf, TREE, TREE2, TREE_RULES, type TreeNode, type TreeSave } from '../src/data/tree'
 import { PLAYER, type Stats } from '../src/data/game-data'
+import { SPELL_VAMP, SWORD_MANA } from '../src/data/jobs'
+import { KIT, S2N } from '../src/data/skill-math'
+import { heroStats } from '../src/data/meta'
+
+const mem: Record<string, string> = {}
+;(globalThis as { localStorage?: unknown }).localStorage ??= {
+  getItem: (k: string) => mem[k] ?? null, setItem: (k: string, v: string) => { mem[k] = v }, removeItem: (k: string) => { delete mem[k] },
+}
+const { newSave } = await import('../src/save')
 
 // v84 point pools (plan): Swordsman 48 class points, Cleric 48, Knight 49 job2 points
 const SWORD_POOL = 48, CLERIC_POOL = 48, KNIGHT_POOL = 49
@@ -21,7 +30,7 @@ function spendable(nodes: TreeNode[]) {
 }
 
 test('spendable points stay above the pool (forced ★ choice)', () => {
-  assert.equal(spendable(swordNodes), 79)
+  assert.equal(spendable(swordNodes), 94) // +15 from swordsman_core defend passives (3 nodes x Lv 5)
   assert.equal(spendable(clericNodes), 90) // v86: + 💠 แก่นศรัทธา core column (5 + 3 + 5) · v102: ☀️ แสงแตก 5 -> 3
   assert.equal(spendable(knightNodes), 79)
   assert.ok(spendable(swordNodes) >= SWORD_POOL)
@@ -119,4 +128,39 @@ test('stretched levels: 3 -> 5, ★ stays 1', () => {
     const n = [...swordNodes, ...clericNodes, ...knightNodes].find((x) => x.id === id)!
     assert.equal(n.max, 1, id)
   }
+})
+
+test('swordsman_core defend passives unlock at tier 0 and scale VIT/DEF/HP%/MDEF/Tenacity/Regen', () => {
+  const coreNodes = swordNodes.filter((n) => n.branch === 'swordsman_core')
+  assert.deepEqual(coreNodes.map((n) => n.id), ['swordsman_core1', 'swordsman_core2', 'swordsman_core3'])
+  assert.equal(lockReason({}, 'swordsman', coreNodes[0]), '')
+  const baseSave = newSave('sw', 'human')
+  baseSave.job = 'swordsman'
+  baseSave.stats.vit = 30
+  const baseSt = heroStats(baseSave)
+  const coreSave = newSave('sw', 'human')
+  coreSave.job = 'swordsman'
+  coreSave.stats.vit = 30
+  coreSave.jobTree = { swordsman_core1: 5, swordsman_core2: 5, swordsman_core3: 5 }
+  const coreSt = heroStats(coreSave)
+  assert.ok(coreSt.maxHp > baseSt.maxHp + 80, 'Core 1 (+VIT & Max HP%) significantly boosts HP')
+  assert.ok(coreSt.def - baseSt.def >= 3 * 3, 'Core 1 adds P.DEF')
+  assert.ok(coreSt.mdef > baseSt.mdef + 0.14, 'Core 2 adds M.DEF + VIT->M.DEF conversion')
+  assert.ok(coreSt.tenacity - baseSt.tenacity >= 0.089, 'Core 2 adds Tenacity')
+  assert.ok(coreSt.regen - baseSt.regen >= 0.59, 'Core 3 adds HP Regen')
+  assert.ok(coreSt.healAmp - baseSt.healAmp >= 0.149, 'Core 3 adds Heal Amp')
+  assert.ok(coreSt.swLowRegenAmp >= KIT.swordCore.lowHpRegenPer * 3 - 1e-9, 'Core 3 adds low-HP regen amp')
+})
+
+test('Swordsman Skill 2 rework: Guard shield, Bloodlust vamp/ATK, Taunt break + resource restore', () => {
+  assert.equal(SWORD_MANA.ultShield, 0.2)
+  assert.equal(SPELL_VAMP.bloodCut, 0.15)
+  assert.equal(S2N.guardShield(false), 0.1)
+  assert.equal(S2N.guardShield(true), 0.18)
+  assert.equal(S2N.bloodVamp(0), 0.2)
+  assert.equal(S2N.bloodAtk, 0.2)
+  assert.equal(S2N.tauntBreakTurns(false), 1)
+  assert.equal(S2N.tauntBreakTurns(true), 2)
+  assert.equal(S2N.tauntStarRes, 15)
+  assert.equal(S2N.tauntStarShield, 0.08)
 })

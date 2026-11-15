@@ -167,6 +167,8 @@ const CLASS_STAT_LABEL: Partial<
 	j3GospelField: ["Ult ฮิตเพิ่ม", (n) => `+${n} ฮิต`],
 	j3EarthDrive: ["Earth Drive / Ignition Break", (n) => `${n}x`],
 	j3Inspire: ["Inspiration / Parrying", (n) => `${n}`],
+	j2BossCrit: ["คริใส่บอสแรงขึ้น", pc],
+	j3WlBlitz: ["Blitz Charges (คริ/ขั้น Frenzy)", pc],
 };
 /** "STR +3 · P.ATK +8 · ดูดเลือด +6%" */
 /** A stat line split in two: the upside, and the 💀 curse (every negative number). `force` defaults to "is a unique": plain gear has no curse. */

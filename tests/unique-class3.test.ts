@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { canWear, canWearAs, heroStats, itemById, ITEMS } from '../src/data/meta'
 import { gradeCap, matDungeon, refinable } from '../src/data/craft'
-import { UNIQUE3_ITEMS, UNIQUE3_DROPS, rollUnique3Drop, PALADIN_UNIQUES, LORDKNIGHT_UNIQUES, RANGER_UNIQUES, AWAKEN_UNIQUES } from '../src/data/uniques3'
+import { UNIQUE3_ITEMS, UNIQUE3_DROPS, rollUnique3Drop, PALADIN_UNIQUES, LORDKNIGHT_UNIQUES, RANGER_UNIQUES, WARLORD_UNIQUES, AWAKEN_UNIQUES } from '../src/data/uniques3'
 import { UNIQUE } from '../src/data/uniques'
 import { newSave, equip, type SaveData } from '../src/save'
 
@@ -22,6 +22,7 @@ test('unique class 3: item ids are unique across the whole game and every piece 
   const allIds = ITEMS.map((i) => i.id)
   assert.equal(new Set(allIds).size, allIds.length, 'no duplicate item IDs')
   assert.equal(UNIQUE3_ITEMS.length, 12, '3 Paladin + 3 Lord Knight + 3 Ranger + 3 Shared Awakening')
+  for (const it of WARLORD_UNIQUES) assert.equal(itemById(it.id), it)
 
   for (const it of UNIQUE3_ITEMS) {
     assert.equal(itemById(it.id), it)
@@ -33,11 +34,18 @@ test('unique class 3: item ids are unique across the whole game and every piece 
   }
 })
 
-test('unique class 3: Paladin, Lord Knight and Ranger have head, armor, and acc unique pieces', () => {
+test('unique class 3: Paladin, Lord Knight, Ranger and Warlord have head, armor, and acc unique pieces', () => {
   assert.deepEqual(PALADIN_UNIQUES.map((i) => i.slot).sort(), ['acc', 'armor', 'head'])
   assert.deepEqual(LORDKNIGHT_UNIQUES.map((i) => i.slot).sort(), ['acc', 'armor', 'head'])
   assert.deepEqual(RANGER_UNIQUES.map((i) => i.slot).sort(), ['acc', 'armor', 'head'])
+  assert.deepEqual(WARLORD_UNIQUES.map((i) => i.slot).sort(), ['acc', 'armor', 'head'])
   assert.deepEqual(AWAKEN_UNIQUES.map((i) => i.slot).sort(), ['acc', 'armor', 'head'])
+
+  for (const it of WARLORD_UNIQUES) {
+    assert.deepEqual(it.jobs, ['swordsman'])
+    assert.deepEqual(it.j2, ['berserker'])
+    assert.deepEqual(it.j3, ['warlord'])
+  }
 
   for (const it of PALADIN_UNIQUES) {
     assert.deepEqual(it.jobs, ['cleric'])
@@ -211,4 +219,24 @@ test('unique class 3: rollUnique3Drop rolls correct pool and handles duplicates'
   assert.ok(stRn.j2HawkMul >= 0.20, 'Ranger falcon beret adds Hawk Mul')
   assert.ok(stRn.j3GospelHeal >= 0.015, 'Ranger wildheart adds Gospel Heal')
   assert.ok(stRn.j2PetRes >= 1, 'Ranger wildheart adds pet energy return')
+
+  // Warlord roll + class lock + heroStats
+  const resWl = rollUnique3Drop('warlord', true, [], forceDrop)
+  assert.equal(resWl.kind, 'new')
+  assert.ok(UNIQUE3_DROPS.warlord.includes(resWl.id))
+  const wlCrown = itemById('u_wl_bloodcrown')
+  assert.equal(canWear(wlCrown, 'swordsman', 'berserker', 'warlord'), true)
+  assert.equal(canWear(wlCrown, 'swordsman', 'berserker'), false)
+  assert.equal(canWear(wlCrown, 'swordsman', 'knight', 'warlord'), false)
+
+  const sw = mkSave()
+  sw.job = 'swordsman'; sw.job2 = 'berserker'; sw.job3 = 'warlord'
+  sw.owned.push('u_wl_bloodcrown', 'u_wl_undyingcharm')
+  assert.equal(canWearAs(wlCrown, sw), true)
+  assert.equal(equip(sw, 'u_wl_bloodcrown'), true)
+  assert.equal(equip(sw, 'u_wl_undyingcharm'), true)
+  const stWl = heroStats(sw)
+  assert.ok(stWl.j3GospelField >= 1, 'Warlord blood crown extends Undying Bloodlust')
+  assert.ok(stWl.j3AfterBless >= 0.08, 'Warlord undying charm adds Bloodlust post-ult ATK boost')
+  assert.ok(stWl.j3WlBlitz >= 0.01, 'Warlord undying charm adds Blitz Frenzy crit')
 })

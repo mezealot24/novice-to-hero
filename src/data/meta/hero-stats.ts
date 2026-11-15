@@ -1,5 +1,5 @@
 import { COMBO, PLAYER, STAT_CAPS, softCapDiminish, type Stats } from "../game-data";
-import { BM_STANCE, KIT2, KIT3, S2N } from "../skill-math";
+import { BM_STANCE, KIT, KIT2, KIT3, S2N } from "../skill-math";
 import { COUNTER_RULES } from "../stack-math";
 import { branchPts, crossTierBonus, talent2Mods, talentMods, tree2Mods, tree3Mods, treeMods, type TalentSave, type TreeSave } from "../tree";
 import { JOB2, type Job2Id, type PetId } from "../jobs2";
@@ -171,6 +171,14 @@ export function totalBase(s: StatsInput): Record<BaseStat, number> {
 		jb = jobBonusBase(s);
 	for (const k of Object.keys(out) as BaseStat[])
 		out[k] = Math.max(1, out[k] + (bonus[k] ?? 0) + gear[k] + jb[k]);
+	if (s.job === "swordsman" && s.jobTree) {
+		// 🛡️ แก่นป้องกัน (swordsman_core1): flat VIT added before derived HP / DEF / Regen / Counter
+		let swVit = 0;
+		for (const m of treeMods(s.jobTree, "swordsman")) {
+			swVit += m.swCoreVit ?? 0;
+		}
+		out.vit += Math.round(swVit);
+	}
 	if (s.job === "cleric" && s.jobTree) {
 		// v86 💠 แก่นศรัทธา: จิตสงบ + STR / WIS · ศรัทธาสู่กาย INT -> STR (v102: + WIS -> VIT)
 		let flat = 0,
@@ -354,6 +362,10 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 				st.spellCrit += KIT3.ranger.critAdd;
 				st.flee += KIT3.ranger.fleeAdd;
 			} // 🪶 Camouflage + Primal Stampede
+			if (j3 === "warlord") {
+				st.j3Wl = 1;
+				st.j2FrenzyMax += KIT3.warlord.frenzyMaxAdd;
+			} // 🪓 Undying Warlord + Undying Bloodlust
 			for (const m of tree3Mods(s.job3Tree, j3, s.job3Path)) add(m);
 			const leg = Math.min(
 				P.leg.crossCap,
@@ -385,7 +397,7 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 	const bmPet = activeBeastmasterPet(s);
 	if (bmPet) applyBeastmasterStance(st, bmPet, b); // Partner Passive Stance ('hawk' | 'boar' | 'wolf') before % multipliers
 	const pct = {
-		maxHp: sets.pct.maxHp,
+		maxHp: sets.pct.maxHp + st.swCoreHpPct,
 		atk: sets.pct.atk,
 		matk: sets.pct.matk,
 	};
@@ -420,6 +432,9 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 		st.comboDR = Math.min(COMBO.defCap, st.comboDR + f.comboDR);
 		st.counterDR = Math.min(COMBO.defCap, st.counterDR + f.counterDR);
 		st.critDR = Math.min(COMBO.critDRCap, st.critDR + f.critDR);
+	}
+	if (st.swVitToMdef > 0) {
+		st.mdef += Math.min(KIT.swordCore.vitToMdefCap, b.vit * st.swVitToMdef);
 	}
 	const rawMdef = st.mdef;
 	const rawTenacity = st.tenacity;
