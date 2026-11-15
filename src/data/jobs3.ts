@@ -7,7 +7,7 @@
 // unlock also needs the Master Trial win (P2), so no real save can reach a 3rd job until then.
 import type { Job2Id } from './jobs2'
 
-export type Job3Id = 'paladin' | 'lordknight' | 'champion' // Crusader -> Paladin · Knight -> Lord Knight · Monk -> Champion. One 2nd job at a time.
+export type Job3Id = 'paladin' | 'lordknight' | 'champion' | 'ranger' // Crusader -> Paladin · Knight -> Lord Knight · Monk -> Champion · Beastmaster -> Ranger. One 2nd job at a time.
 export type Job3Path = 'pure' | 'hybrid' // pure: own ใยชั้น 3 to the top · hybrid: tier 1-2 of it + tier 1-2 of the sibling 2nd job's web
 export type Job3Variant = 'a' | 'b' // which Skill 3 variant is on (picked in town, free)
 
@@ -58,6 +58,17 @@ export const JOB3: Record<Job3Id, Job3Def> = {
     variants: {
       a: { name: 'Tiger Knuckle', icon: '🐅', desc: 'Falling Thunder เป็นพุ่งต่อยเดี่ยว (บอสก่อน) สตั๊น 1 เทิร์น · แรงขึ้นตามแต้มสาย 👊 คอมโบ' },
       b: { name: 'Chain Crush', icon: '💥', desc: 'Falling Thunder เป็นพายุหมัดคลื่นลมปราณใส่ทุกตัว True Dmg · แรงขึ้นตามแต้มสาย 🥊 หมัดแค้น' },
+    },
+  },
+  ranger: {
+    id: 'ranger', parent: 'beastmaster', sibling: 'innovator', name: 'Ranger', icon: '🪶',
+    blurb: 'Beastmaster ที่ตื่นรู้ · ฝูงสัตว์ทรงพลังยิ่งขึ้น · สั่งลุยแตกแขนง 2 สาย · ประสานพรานกับเหยี่ยวและหมาป่าไร้เทียมทาน',
+    focus: 'จ้าวฝูงพายุ · Primal Stampede',
+    ultName: 'Primal Stampede', ultDesc: 'Primeval Awakening ปลดปล่อยฝูงสัตว์โจมตีประสานตอนเริ่มและจบ Awakening (+1 รอบจาก ★)', rootDesc: 'ฝูงพายุชั้น 3 แรง',
+    signature: { icon: '🎭', name: 'Camouflage', desc: 'สัตว์ทุกตัวแรง +15% · คริ +4% · FLEE +12 · เพดาน Blitz Beat +10%' },
+    variants: {
+      a: { name: 'Arrow Storm', icon: '🌩️', desc: 'สั่งลุยยิงฝนธนูใส่ทุกตัว + เหยี่ยว Blitz Storm แปะ 🏷️ + โล่หมูป่า + เรียกฝูง · แรงขึ้นตามแต้มสาย 🦅 ฟ้า' },
+      b: { name: 'Aimed Warg', icon: '🎯', desc: 'สั่งลุยยิงเจาะเกราะ 50% ใส่ตัวหลัก (บอสก่อน) + หมาป่าขย้ำ Bleed + โล่หมูป่า · แรงขึ้นตามแต้มสาย 🐺 เขี้ยว' },
     },
   },
 }

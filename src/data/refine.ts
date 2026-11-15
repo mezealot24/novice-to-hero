@@ -189,6 +189,7 @@ const CLASS_LINES: { j2?: Job2Id; j3?: Job3Id; lines: [stat: string, vals: Vals]
   { j3: 'paladin', lines: [['j3Press', [0.15, 0.3, 0.45]], ['j3Banding', [0.01, 0.02, 0.03]], ['j3GospelHeal', [0.005, 0.01, 0.015]], ['j3AfterBless', [0.03, 0.05, 0.08]]] },
   { j3: 'lordknight', lines: [['j2HpDmg', [0.005, 0.01, 0.015]], ['j3Banding', [0.01, 0.02, 0.03]], ['j3GospelHeal', [0.005, 0.01, 0.015]], ['j3AfterBless', [0.03, 0.05, 0.08]]] },
   { j3: 'champion', lines: [['j3Banding', [0.01, 0.02, 0.03]], ['j3GospelHeal', [0.005, 0.01, 0.015]], ['j3AfterBless', [0.03, 0.05, 0.08]]] },
+  { j3: 'ranger', lines: [['j2PetPow', [0.05, 0.08, 0.12]], ['j3Banding', [0.01, 0.02, 0.03]], ['j3GospelHeal', [0.005, 0.01, 0.015]], ['j3AfterBless', [0.03, 0.05, 0.08]]] },
 ]
 export const CLASS_LINE_POOL: LineDef[] = CLASS_LINES.flatMap((c) => c.lines.map(([stat, vals]): LineDef => ({
   stat, vals, kind: 'any', w: CLASS_LINE_W / c.lines.length, ...(c.j2 ? { j2: [c.j2] } : {}), ...(c.j3 ? { j3: [c.j3] } : {}),
@@ -203,6 +204,9 @@ const BASES: BaseStat[] = ['str', 'vit', 'wis', 'dex', 'int', 'luk', 'agi']
 const INT_STATS = new Set<string>([...BASES, 'def', 'hit', 'flee', 'maxRes', 'j2DebuffTurns', 'j2MagicRod', 'j2ChargeMax', 'j2FrenzyMax', 'j2KnifeAdd'])
 const slotBias = (slot: Slot, kind: Kind) => (slot === 'weapon' ? (kind === 'atk' ? 2 : 1) : slot === 'acc' ? 1 : kind === 'def' ? 2 : 1)
 const jobBias = (off: JobId[] | undefined, job: JobId) => (off?.includes(job) ? 0.25 : 1)
+// RO Falconer (Beastmaster / Ranger) scales Falcon Blitz Beat off INT + M.ATK: un-penalize INT without affecting pure Archer / Innovator.
+const baseBias = (b: BaseStat, job: JobId, cls?: HeroClass) =>
+  b === 'int' && (cls?.job2 === 'beastmaster' || cls?.job3 === 'ranger') ? 1 : jobBias(BASE_OFF[b], job)
 
 function pickWeighted<T>(xs: T[], w: (x: T) => number, rnd: () => number): T {
   const total = xs.reduce((a, x) => a + w(x), 0)
@@ -214,7 +218,7 @@ function pickWeighted<T>(xs: T[], w: (x: T) => number, rnd: () => number): T {
 export function rollLine(it: Item, idx: number, job: JobId, rnd: () => number = Math.random, cls?: HeroClass): RefineLine {
   const pool = cls && (cls.job2 || cls.job3) ? [...LINE_POOL, ...CLASS_LINE_POOL] : LINE_POOL // class-only rows join only for a hero with a 2nd / 3rd job
   const def = pickWeighted(pool, (d) => (!classOpen(d, cls) || (d.slots && !d.slots.includes(it.slot)) ? 0 : d.w * slotBias(it.slot, d.kind) * jobBias(d.off, job)), rnd)
-  const stat = def.stat === 'base' ? pickWeighted(BASES, (b) => jobBias(BASE_OFF[b], job), rnd) : def.stat
+  const stat = def.stat === 'base' ? pickWeighted(BASES, (b) => baseBias(b, job, cls), rnd) : def.stat
   const gold = rnd() < REFINE.goldRate
   const v = def.vals[idx]
   const val = gold ? (INT_STATS.has(stat) ? Math.round(v * REFINE.goldMul) : Math.round(v * REFINE.goldMul * 1000) / 1000) : v

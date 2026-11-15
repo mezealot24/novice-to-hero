@@ -1,8 +1,8 @@
 import { COMBO, PLAYER, softCapDiminish, type Stats } from "../game-data";
-import { KIT2, KIT3, S2N } from "../skill-math";
+import { BM_STANCE, KIT2, KIT3, S2N } from "../skill-math";
 import { COUNTER_RULES } from "../stack-math";
 import { branchPts, crossTierBonus, talent2Mods, talentMods, tree2Mods, tree3Mods, treeMods, type TalentSave, type TreeSave } from "../tree";
-import { JOB2, type Job2Id } from "../jobs2";
+import { JOB2, type Job2Id, type PetId } from "../jobs2";
 import { activeJob3, type Job3Id, type Job3Path, type Job3Variant } from "../jobs3";
 import { JOBS, JOB_CHANGE, type JobId } from "../jobs";
 import type { RefineLine } from "../craft";
@@ -41,6 +41,53 @@ export interface StatsInput {
 	taint?: Record<string, TaintRec>;
 	tempBase?: Partial<Record<BaseStat, number>>;
 	crossSpent?: { j2In1?: number; j3In1?: number; j3In2?: number };
+	pet?: PetId;
+}
+
+function activeBeastmasterPet(
+	s: Pick<StatsInput, "job" | "job2" | "pet">,
+): PetId | undefined {
+	const job = JOBS[s.job ?? "novice"];
+	return s.job2 === "beastmaster" && JOB2.beastmaster.parent === job.id
+		? (s.pet ?? "hawk")
+		: undefined;
+}
+
+function applyBeastmasterStance(
+	st: Stats,
+	pet: PetId,
+	b: Record<BaseStat, number>,
+) {
+	if (pet === "hawk") {
+		const S = BM_STANCE.hawk;
+		const stanceCrit = Math.min(S.critCap, S.critBase + S.critPerLuk * b.luk);
+		st.hit += S.hitFlat + Math.floor(S.hitPerDex * b.dex);
+		st.crit += stanceCrit;
+		st.spellCrit += stanceCrit;
+		st.j2HawkCapAdd += S.capAdd;
+		st.j2HawkDexToMatk += S.dexToMatk;
+		st.j2PreyMarkAdd += S.preyMarkAdd;
+		st.j2MarkPierceFlee += S.markPierceFlee;
+		st.j2StanceMarkCritDmg += S.markCritDmg;
+		return;
+	}
+	if (pet === "boar") {
+		const S = BM_STANCE.boar;
+		st.def +=
+			Math.floor(S.defBasePct * st.def) + Math.floor(S.defPerVit * b.vit);
+		st.j2BoarShare += S.shareAdd;
+		st.shieldAmp += S.shieldAmp;
+		st.j2StanceGritShield += S.gritShield;
+		return;
+	}
+	if (pet === "wolf") {
+		const S = BM_STANCE.wolf;
+		st.atk +=
+			Math.floor(S.atkBasePct * st.atk) + Math.floor(S.atkPerAgi * b.agi);
+		st.j2BleedDmg += S.bleedDmgAdd;
+		st.j2StanceWoundLeech += S.woundLeech;
+		st.j2FrenzyCapAdd += S.frenzyCapAdd;
+	}
 }
 
 /** Base stats from gear only (shown as "+N ของ" on the status tab). */
@@ -115,6 +162,7 @@ export function totalBase(s: StatsInput): Record<BaseStat, number> {
 		if (per > 0) out.str += Math.floor(out.int / per);
 		if (perW > 0) out.vit += Math.floor(out.wis / perW); // WIS after จิตสงบ
 	}
+	if (activeBeastmasterPet(s) === "hawk") out.luk += BM_STANCE.hawk.luk; // Skyhunter Stance: +15 LUK (pre-derived for hero crit + Blitz Beat)
 	return out;
 }
 
@@ -271,6 +319,13 @@ export function heroStats(s: StatsInput): Stats {
 				st.j3Ch = 1;
 				st.j2ChargeMax += KIT3.champion.chargeMaxAdd;
 			} // 🥊 Ki Translation + Supreme Asura
+			if (j3 === "ranger") {
+				st.j3Rn = 1;
+				st.j2PetPow += KIT3.ranger.petPowAdd;
+				st.crit += KIT3.ranger.critAdd;
+				st.spellCrit += KIT3.ranger.critAdd;
+				st.flee += KIT3.ranger.fleeAdd;
+			} // 🪶 Camouflage + Primal Stampede
 			for (const m of tree3Mods(s.job3Tree, j3, s.job3Path)) add(m);
 			const leg = Math.min(
 				P.leg.crossCap,
@@ -278,10 +333,12 @@ export function heroStats(s: StatsInput): Stats {
 			);
 			if (j3 === "paladin") st.j2CrossAdd += leg;
 			else st.ult2Pow += leg; // the class's signature move
-			st.j2Guard += Math.min(
+			const legGuard = Math.min(
 				P.leg.guardCap,
 				st.j3LegGuard * branchPts(t2, P.leg.guard),
 			);
+			if (j3 === "ranger") st.j2BoarShare += legGuard; // Ranger routes legacy guard into Boar share rather than Auto Guard
+			else st.j2Guard += legGuard;
 			j2pct.maxHp += Math.min(
 				P.leg.hpCap,
 				st.j3LegHp * branchPts(t2, P.leg.hp),
@@ -295,6 +352,8 @@ export function heroStats(s: StatsInput): Stats {
 	for (const it of worn) add(it.mod);
 	const cards = wornCards(s);
 	for (const cd of cards) add(cd.mod);
+	const bmPet = activeBeastmasterPet(s);
+	if (bmPet) applyBeastmasterStance(st, bmPet, b); // Partner Passive Stance ('hawk' | 'boar' | 'wolf') before % multipliers
 	const pct = { maxHp: 0, atk: 0, matk: 0 };
 	for (const x of [...cards, ...worn])
 		for (const k of Object.keys(x.pct ?? {}) as (keyof typeof pct)[])
