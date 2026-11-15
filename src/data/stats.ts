@@ -353,7 +353,16 @@ export interface Stats {
   s2Lv: number // skill web: picked Skill 2's "+" node, 0..3 (v83: node Lv 1..5 x 3/5, so it can be fractional; Lv 5 = 3)
   s2Star: number // skill web: 1 = the picked Skill 2's ★ node
   spellCrit: number // 0..1 crit chance for magic hits (Q 2026-11-03: magic crits only via talent/item/card), uses critMul
+  physPen: number // 0..0.75 physical armor penetration fraction
+  magPen: number // 0..0.75 magic defense penetration fraction
+  elemDmg: number // bonus elemental damage multiplier (e.g. 0.15 = +15%)
 }
+
+export const STAT_CAPS = {
+  physPen: 0.75,
+  magPen: 0.75,
+  elemDmg: 2.0,
+} as const
 
 export const PLAYER: Stats = {
   maxHp: 140, atk: 13, minPct: 0.5, matk: 10, pskill: 0, def: 0, mdef: 0, tenacity: 0, healAmp: 0, shieldAmp: 0, wis: 0,
@@ -368,6 +377,7 @@ export const PLAYER: Stats = {
   clFaith: 0, clFaithOver: 0, clFaithHeal: 0, clOverBurst: 0, clUltWard: 0, clEmergency: 0, clUltMend: 0, clRevive: 0, // v84 Priest web
   j2Banner: 0, j2Provoke: 0, j2BannerKill: 0, j2BannerAura: 0, j2Sweep: 0, j2SweepPush: 0, j2SweepGauge: 0, j2SweepStar: 0, // v84 Knight ใยชั้น 2
   j2ComboRamp: 0, j2ComboFinish: 0, j2ThunderAtk: 0, j2ComboThunder: 0, j2BellMdef: 0, j2MdefDmg: 0, j2HpPunch: 0, j2GritRate: 0, j2HaymakerStar: 0, j2AsuraMdef: 0, j2AsuraPow: 0, j2Asura: 0, // Monk rework
+  physPen: 0, magPen: 0, elemDmg: 0,
 }
 
 export const RULES = {

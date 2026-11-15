@@ -102,6 +102,9 @@ const STAT_LABEL: Partial<
 	iceBarrier: ["บาเรียเวทน้ำแข็ง", pc],
 	chillPlus: ["เย็นนานขึ้น", (n) => `${n} เทิร์น`],
 	brittle: ["มอนที่เย็นโดนแรงขึ้น", pc],
+	physPen: ["เจาะเกราะกายภาพ", pc],
+	magPen: ["เจาะต้านเวท", pc],
+	elemDmg: ["ดาเมจธาตุ", pc],
 };
 /** Labels of the 2nd / 3rd job flags that gear and refine lines can carry (v125). Values are the same numbers the ใยชั้น 2 / 3 nodes give per level. */
 const CLASS_STAT_LABEL: Partial<
