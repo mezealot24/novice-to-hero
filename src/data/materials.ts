@@ -23,6 +23,9 @@ export const MATS: Mat[] = [
   ...PACKS.flatMap((p) => p.mats), // D7-D10 (v78, data/dungeons/dN.ts)
   // v89: used only for taint (data/taint.ts). Not tied to one dungeon's recipes.
   { id: TAINT_MAT, name: 'ผลึกโลกันตร์', icon: '🔻', dungeon: 'd6', boss: true, note: `บอสสุดท้ายของดัน D${TAINT.minDungeon} ขึ้นไป · ใช้ใส่คำสาป (🌑 ในแท็บตีบวก)` },
+  // Endless Void Rift exclusive materials
+  { id: 'm_rift', name: 'เศษผลึกรอยแยก', icon: '🌀', dungeon: 'rift', boss: false, note: 'รอยแยกไร้สิ้นสุด (Void Rift): ดรอปทุกชั้น' },
+  { id: 'b_rift', name: 'แก่นแท้อเวจี', icon: '💠', dungeon: 'rift', boss: true, note: 'รอยแยกไร้สิ้นสุด (Void Rift): ดรอปจากบอสทุก 5 ชั้น' },
 ]
 
 export const MAT_RULES = {

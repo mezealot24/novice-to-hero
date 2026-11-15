@@ -9,7 +9,21 @@ import {
   type EndgameMonsterSpec,
   ENDGAME_DUNGEONS_D11_D13,
 } from '../data/dungeons/endgame-dungeons';
+import { DUNGEONS, MONSTERS, type MonsterKind } from '../data/game-data';
 import type { TalentWallet } from '../data/meta/talent-economy';
+import { statMonster } from '../data/mon-stats';
+import type { RiftMutatorId } from '../data/mutators';
+import {
+  RIFT_BIOMES,
+  RIFT_BOONS,
+  RIFT_BOON_IDS,
+  RIFT_BRANCHES,
+  RIFT_TUNING,
+  type RiftActiveRunState,
+  type RiftBoonDef,
+  type RiftBranchDef,
+  type RiftBranchId,
+} from '../data/rift';
 
 export interface RiftFloorSpec {
   depth: number;
@@ -93,9 +107,9 @@ export function acceptRiftFloor(
     return { ok: false, reason: 'empty_spawns' };
   }
 
-  // กฎ Safe Start: ห้ามมีมอนสเตอร์เกิดใกล้จุดเริ่มต้นเกิน 6 ช่อง และห้ามมีตัวใช้ท่าสังหารทันทีในเทิร์นที่ 1
+  // กฎ Safe Start: ห้ามมีมอนสเตอร์เกิดใกล้จุดเริ่มต้นเกิน minSafeTiles ช่อง และห้ามมีตัวใช้ท่าสังหารทันทีในเทิร์นที่ 1
   for (const spawn of spec.spawns) {
-    if (spawn.spawnDistanceTiles < 6) {
+    if (spawn.spawnDistanceTiles < RIFT_TUNING.minSafeTiles) {
       return { ok: false, reason: 'spawn_too_close_to_start' };
     }
     const mon = monsterLookup.get(spawn.monsterId);
@@ -139,37 +153,118 @@ export function buildRiftMonsterCatalog(): Map<string, EndgameMonsterSpec> {
 }
 
 /**
- * 3. สร้างข้อมูลชั้นของ Endless Rift ด้วย Threat Budget + Out-of-depth Spikes (5%)
+ * รวมมอนสเตอร์จาก DUNGEONS D6+ จริงในเกม (และ D11-D13 เมื่อถูกผสานเข้า DUNGEONS)
+ * พร้อม fallback รวมกับ ENDGAME_DUNGEONS_D11_D13 สำหรับเชื่อมต่อกับ BattleScene
+ */
+export function buildRiftMonsterCatalogFromPacks(options?: {
+  minDungeonNum?: number;
+  includeEndgameD11ToD13?: boolean;
+}): Map<string, EndgameMonsterSpec> {
+  const minNum = options?.minDungeonNum ?? RIFT_TUNING.packMinDungeonNum;
+  const map = new Map<string, EndgameMonsterSpec>();
+
+  for (const dg of DUNGEONS) {
+    if (!dg.level) continue;
+    const dNum = Number(dg.id.replace(/\D+/g, ''));
+    if (!Number.isFinite(dNum) || dNum < minNum) continue;
+
+    const dungeonOffset = Math.max(0, dNum - minNum) * RIFT_TUNING.packDepthStepPerDungeon;
+
+    for (const room of dg.rooms) {
+      const kinds: MonsterKind[] = [
+        ...room.spawn.map(([k]) => k),
+        ...(room.miniPool ?? []),
+      ];
+      const lv = room.lv ?? dg.level[1];
+
+      for (const kind of kinds) {
+        const base = MONSTERS[kind];
+        if (!base) continue;
+
+        const rank: EndgameMonsterSpec['rank'] =
+          room.boss || base.ai === 'boss'
+            ? 'boss'
+            : room.mini || base.mini
+              ? 'miniboss'
+              : base.ai === 'dasher'
+                ? 'elite'
+                : 'normal';
+
+        const st = statMonster(base, lv);
+        const turnSpeed = st.speed ?? st.moveSpeed;
+        const speed: 50 | 100 | 200 =
+          turnSpeed >= RIFT_TUNING.fastSpeedThreshold
+            ? 200
+            : turnSpeed <= RIFT_TUNING.slowSpeedThreshold
+              ? 50
+              : 100;
+
+        const entry: EndgameMonsterSpec = {
+          id: kind,
+          name: base.name,
+          rank,
+          threatCost: RIFT_TUNING.rankThreatCost[rank],
+          minDepth: 1 + dungeonOffset + RIFT_TUNING.rankMinDepthOffset[rank],
+          hp: Math.max(1, Math.round(st.hp)),
+          atk: Math.max(1, Math.round(Math.max(st.dmg, st.matk ?? 0))),
+          def: Math.max(0, Math.round(st.def ?? 0)),
+          speed,
+        };
+
+        const prev = map.get(kind);
+        if (!prev || (rank === 'boss' && prev.rank !== 'boss')) {
+          map.set(kind, entry);
+        }
+      }
+    }
+  }
+
+  if (options?.includeEndgameD11ToD13 !== false) {
+    for (const dungeon of ENDGAME_DUNGEONS_D11_D13) {
+      for (const mon of dungeon.monsters) {
+        if (!map.has(mon.id)) {
+          map.set(mon.id, mon);
+        }
+      }
+    }
+  }
+
+  return map;
+}
+
+/**
+ * 3. สร้างข้อมูลชั้นของ Endless Rift ด้วย Threat Budget + Out-of-depth Spikes
  */
 export function generateRiftFloor(
   runSeed: string,
   depth: number,
-  catalog: ReadonlyMap<string, EndgameMonsterSpec> = buildRiftMonsterCatalog()
+  catalog: ReadonlyMap<string, EndgameMonsterSpec> = buildRiftMonsterCatalog(),
+  branchId?: RiftBranchId
 ): { spec: RiftFloorSpec; rejectedCount: number } {
   const allMonsters = Array.from(catalog.values());
   const normalAndElites = allMonsters.filter(
     (m) => m.rank === 'normal' || m.rank === 'elite' || m.rank === 'miniboss'
   );
   const bosses = allMonsters.filter((m) => m.rank === 'boss');
-  const isBossFloor = depth % 5 === 0;
+  const isBossFloor = depth % RIFT_TUNING.bossEvery === 0;
+  const threatMul = branchId ? RIFT_BRANCHES[branchId].threatMul : 1;
 
-  const biomes: BiomeHazardId[] = [
-    'clockwork_heat',
-    'abyssal_pressure',
-    'astral_eclipse',
-  ];
+  const biomes: BiomeHazardId[] = [...RIFT_BIOMES];
 
   let rejectedCount = 0;
 
-  for (let attempt = 0; attempt < 32; attempt++) {
+  for (let attempt = 0; attempt < RIFT_TUNING.maxAttempts; attempt++) {
     const floorSubSeed = deriveSubSeed(runSeed, 'rift_floor', depth, attempt);
     const rng = createSeededRng(floorSubSeed);
 
     // สุ่ม Biome
     const biomeHazard = biomes[Math.floor(rng() * biomes.length)];
 
-    // จำนวน Mutator เพิ่มขึ้นทุกๆ 10 ชั้น (สูงสุด 3 ชิ้น)
-    const mutatorCount = Math.min(3, 1 + Math.floor((depth - 1) / 10));
+    // จำนวน Mutator เพิ่มขึ้นทุกๆ mutatorStepDepth ชั้น (สูงสุด maxMutators ชิ้น)
+    const mutatorCount = Math.min(
+      RIFT_TUNING.maxMutators,
+      1 + Math.floor((depth - 1) / RIFT_TUNING.mutatorStepDepth)
+    );
     const mutatorIds: string[] = [];
     const poolCopy = [...ALL_RIFT_MUTATORS];
     for (let i = 0; i < mutatorCount && poolCopy.length > 0; i++) {
@@ -179,14 +274,18 @@ export function generateRiftFloor(
     }
 
     // คำนวณ Threat Budget ตามความลึกของชั้น
-    let remainingBudget = 10 + depth * 4;
+    const baseBudget = RIFT_TUNING.baseBudget + depth * RIFT_TUNING.budgetPerDepth;
+    let remainingBudget = branchId
+      ? Math.max(RIFT_TUNING.minSpawnCost, Math.round(baseBudget * threatMul))
+      : baseBudget;
     const spawns: RiftFloorSpec['spawns'] = [];
 
     if (isBossFloor && bosses.length > 0) {
       const boss = bosses[Math.floor(rng() * bosses.length)];
       spawns.push({
         monsterId: boss.id,
-        spawnDistanceTiles: 8 + Math.floor(rng() * 4), // ระยะปลอดภัย 8-11 ช่อง
+        spawnDistanceTiles:
+          RIFT_TUNING.bossSafeMin + Math.floor(rng() * RIFT_TUNING.bossSafeSpan),
         isOutOfDepth: false,
       });
       remainingBudget = Math.max(0, remainingBudget - boss.threatCost);
@@ -194,11 +293,11 @@ export function generateRiftFloor(
 
     // สุ่มมอนสเตอร์เข้าชั้นตามงบที่เหลือ
     let guard = 0;
-    while (remainingBudget >= 4 && guard < 12) {
+    while (remainingBudget >= RIFT_TUNING.minSpawnCost && guard < RIFT_TUNING.maxSpawns) {
       guard++;
-      // โอกาส 5% ที่จะเกิด Out-of-depth spawn (ดึงมอนสเตอร์ที่ลึกกว่าปัจจุบันไม่เกิน 3 ชั้น)
-      const isOutOfDepth = rng() < 0.05;
-      const maxAllowedDepth = isOutOfDepth ? depth + 3 : depth;
+      // โอกาสเกิด Out-of-depth spawn
+      const isOutOfDepth = rng() < RIFT_TUNING.outOfDepthChance;
+      const maxAllowedDepth = isOutOfDepth ? depth + RIFT_TUNING.outOfDepthMax : depth;
 
       const eligible = normalAndElites.filter(
         (m) => m.minDepth <= maxAllowedDepth && m.threatCost <= remainingBudget
@@ -213,7 +312,8 @@ export function generateRiftFloor(
       const chosen = fallbackPool[Math.floor(rng() * fallbackPool.length)];
       spawns.push({
         monsterId: chosen.id,
-        spawnDistanceTiles: 6 + Math.floor(rng() * 6), // ระยะปลอดภัย 6-11 ช่องเสมอ
+        spawnDistanceTiles:
+          RIFT_TUNING.minSafeTiles + Math.floor(rng() * RIFT_TUNING.safeSpan),
         isOutOfDepth,
       });
       remainingBudget -= chosen.threatCost;
@@ -241,6 +341,108 @@ export function generateRiftFloor(
 }
 
 /**
+ * 3.5 Roguelike Boon Picker & Branch Transition Helpers
+ */
+export function pickRiftBoons(
+  runSeed: string,
+  depth: number,
+  ownedBoons: readonly string[],
+  count: number = RIFT_TUNING.boonOfferCount
+): RiftBoonDef[] {
+  const owned = new Set(ownedBoons);
+  const rng = createSeededRng(deriveSubSeed(runSeed, 'rift_boon', depth));
+  const unownedPool = RIFT_BOON_IDS.filter((id) => !owned.has(id));
+  const fallbackPool = RIFT_BOON_IDS.filter((id) => owned.has(id));
+  const picked: RiftBoonDef[] = [];
+
+  while (picked.length < count && unownedPool.length > 0) {
+    const idx = Math.floor(rng() * unownedPool.length);
+    const [id] = unownedPool.splice(idx, 1);
+    picked.push(RIFT_BOONS[id]);
+  }
+  while (picked.length < count && fallbackPool.length > 0) {
+    const idx = Math.floor(rng() * fallbackPool.length);
+    const [id] = fallbackPool.splice(idx, 1);
+    picked.push(RIFT_BOONS[id]);
+  }
+  return picked;
+}
+
+function isMutatorCompatibleWith(
+  candidate: string,
+  activeIds: readonly string[],
+  biomeHazard: BiomeHazardId
+): boolean {
+  if (biomeHazard === 'abyssal_pressure' && candidate === 'no_heal') return false;
+  for (const active of activeIds) {
+    if (active === candidate) return false;
+    for (const [mA, mB] of INCOMPATIBLE_MUTATOR_PAIRS) {
+      if ((mA === candidate && mB === active) || (mB === candidate && mA === active)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+export function applyRiftBranchChoice(
+  runState: RiftActiveRunState,
+  branchId: RiftBranchId,
+  catalog: ReadonlyMap<string, EndgameMonsterSpec> = buildRiftMonsterCatalog(),
+  targetDepth = runState.depth + 1
+): {
+  branch: RiftBranchDef;
+  floor: RiftFloorSpec;
+  rejectedCount: number;
+  boonChoices: RiftBoonDef[];
+  addedCurse?: RiftMutatorId;
+  healFrac: number;
+  threatMul: number;
+  rewardMul: number;
+} {
+  const branch = RIFT_BRANCHES[branchId];
+  runState.lastBranch = branchId;
+
+  const { spec: floor, rejectedCount } = generateRiftFloor(
+    runState.seed,
+    targetDepth,
+    catalog,
+    branchId
+  );
+
+  let addedCurse: RiftMutatorId | undefined;
+  if (branch.addsCurse) {
+    const curseRng = createSeededRng(deriveSubSeed(runState.seed, 'rift_curse', targetDepth));
+    const activeIds = [...floor.mutatorIds, ...runState.curses];
+    const eligibleCurses = ALL_RIFT_MUTATORS.filter((id) =>
+      isMutatorCompatibleWith(id, activeIds, floor.biomeHazard)
+    );
+    if (eligibleCurses.length > 0) {
+      addedCurse = eligibleCurses[Math.floor(curseRng() * eligibleCurses.length)];
+      runState.curses.push(addedCurse);
+    }
+  }
+
+  const boonChoices = pickRiftBoons(
+    runState.seed,
+    targetDepth,
+    runState.boons,
+    branch.boonChoices
+  );
+
+  return {
+    branch,
+    floor,
+    rejectedCount,
+    boonChoices,
+    addedCurse,
+    healFrac: branch.healFrac,
+    threatMul: branch.threatMul,
+    rewardMul: branch.rewardMul,
+  };
+}
+
+/**
  * 4. Energy Turn Scheduler (Standard Roguelike Pattern)
  * ให้พลังงานในรอบแยกต่างหาก เพื่อไม่ให้ตัวละครลำดับแรกแย่งเทิร์นตัวอื่นที่ความเร็วเท่ากัน
  */
@@ -250,7 +452,7 @@ export interface ScheduledActor {
   energy: number;
 }
 
-export const TURN_ENERGY_COST = 100;
+export const TURN_ENERGY_COST = RIFT_TUNING.turnEnergyCost;
 
 export function nextReadyActor(
   actors: ScheduledActor[],
@@ -302,7 +504,7 @@ export function finalizeRiftRunOnDeath(
   runSave: RiftRunSaveState,
   profileSave: ProfileMetaSaveState
 ): { savedDust: number; savedMedals: number; newRecordDepth: boolean } {
-  const savedDust = Math.floor(runSave.pendingRuneDust * 0.7);
+  const savedDust = Math.floor(runSave.pendingRuneDust * RIFT_TUNING.deathDustKeep);
   const savedMedals = runSave.pendingGoldMedals;
   const newRecordDepth =
     runSave.currentDepth > profileSave.maxRiftDepthReached;
