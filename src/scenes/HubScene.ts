@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { COLORS, DUNGEONS, H, HARD, W } from '../data/game-data'
+import type { BiomeHazardId } from '../data/biome-hazards'
 import { levelDropMul, TOWER_LV, towerMonLv } from '../data/mon-stats'
 import { foldCorruptions, rollCorruptions } from '../data/corruptions'
 import { HARD_POWER, heroParts, heroPower, matchScale, overpowerMul, powerHint, recPower, TOWER_POWER } from '../data/power'
@@ -8,7 +9,10 @@ import { canChangeJob, canChangeJob2, persist, save, today, ultMode, wipe, job3R
 import { activeJob3, job3Of } from '../data/jobs3'
 import { JOB_CHANGE, JOBS } from '../data/jobs'
 import { JOB2, JOB2_RULES, job2Of } from '../data/jobs2'
-import { bountyOf, DAILY, dailyOf, dailySeed, deepDailyOk, MODES, PANEL_MODES, TOWER, towerCatchUp, towerCheckpoints, towerSkipCheck, towerSkipGems, weeklySeed } from '../data/modes'
+import { BOUNTY, bountyOf, DAILY, dailyOf, dailySeed, deepDailyOk, MODES, PANEL_MODES, TOWER, towerCatchUp, towerCheckpoints, towerSkipCheck, towerSkipGems, weeklySeed, type ModeArgs } from '../data/modes'
+import { matName } from '../data/materials'
+import { TAINT_MAT } from '../data/taint'
+import { RIFT_TUNING } from '../data/rift'
 import { cloudEnabled } from '../cloud'
 import { setMuted } from '../sfx'
 import { askRepick } from './JobScene'
@@ -16,6 +20,12 @@ import { backdrop, button, confirm, fullscreenButton, go, panel, toast, topBar, 
 import { fitHeroScale, heroCostumeTint, heroTex } from '../gfx/hero-visual'
 import { ftue } from '../analytics'
 import { HELL, HELL_MODE, hellOpen } from '../data/hell'
+
+const BIOME_BADGE: Record<Exclude<BiomeHazardId, 'none'>, { icon: string; label: string; color: string; bg: number; stroke: number }> = {
+  clockwork_heat: { icon: '⚙️', label: 'เตาหลอมคลั่ง', color: '#ffbe7b', bg: 0x3a2012, stroke: 0xb86a2c },
+  abyssal_pressure: { icon: '🌊', label: 'แรงดันห้วงลึก', color: '#8ad8ff', bg: 0x102a42, stroke: 0x2f7aa8 },
+  astral_eclipse: { icon: '🌑', label: 'สุริยคราสมิติ', color: '#e2b8ff', bg: 0x26143d, stroke: 0x8048b8 },
+}
 
 // Town / main menu. Everything branches from here and every run comes back here.
 export class HubScene extends Phaser.Scene {
@@ -101,17 +111,54 @@ export class HubScene extends Phaser.Scene {
       const lockMsg = d.unlock === 'job' ? '🔒 ปลดล็อกหลังเปลี่ยนอาชีพ' : `🔒 ปลดล็อกหลังเคลียร์${prevName(d.unlock)}`
       const status = locked ? (compact ? '🔒 ล็อก' : lockMsg) : n ? `เคลียร์แล้ว ${n} ครั้ง` : compact ? `ครั้งแรก 💎${FREE_GEMS.firstClear}` : `เคลียร์ครั้งแรกได้เพชร ${FREE_GEMS.firstClear}`
       const nameT = txt(this, 452, y, `${i + 1}. ${d.name}${d.tier >= 4 ? ' 💀' : ''}`, compact ? 15 : 17, locked ? UI.sub : UI.text, true)
+      const maxRight = n > 0 ? 718 : 786
       if (d.level) { // D6+: fixed monster level instead of Hero Power (data/mon-stats.ts)
         const dm = levelDropMul(s.baseLevel, d.level), low = s.baseLevel < d.level[0]
-        txt(this, nameT.x + nameT.width + 8, y + 2, `มอน Lv${d.level[0]}-${d.level[1]}${dm < 1 ? ` · ดรอป x${dm.toFixed(2)}` : ''}`, 12, low ? '#ff7a7a' : dm < 1 ? '#9fd0ff' : '#9fe3a0', true)
+        const lvColor = low ? '#ff7a7a' : dm < 1 ? '#9fd0ff' : '#9fe3a0'
+        const lvX = nameT.x + nameT.width + 8
+        const lvT = txt(this, lvX, y + 2, `มอน Lv${d.level[0]}-${d.level[1]}${dm < 1 ? ` · ดรอป x${dm.toFixed(2)}` : ''}`, 12, lvColor, true)
+        if (lvX + lvT.width > maxRight) {
+          lvT.setText(`Lv${d.level[0]}-${d.level[1]}${dm < 1 ? ` · x${dm.toFixed(2)}` : ''}`)
+          if (lvX + lvT.width > maxRight) lvT.setFontSize(11)
+        }
       } else {
         const ph = powerHint(power, d.id), dm = overpowerMul(power, d.id)
-        txt(this, nameT.x + nameT.width + 8, y + 2, `แนะนำ ⚡${ph.rec}${dm < 1 ? ` · ดรอป x${dm.toFixed(2)}` : ''}`, 12, ph.color, true)
+        const pwX = nameT.x + nameT.width + 8
+        const pwT = txt(this, pwX, y + 2, `แนะนำ ⚡${ph.rec}${dm < 1 ? ` · ดรอป x${dm.toFixed(2)}` : ''}`, 12, ph.color, true)
+        if (pwX + pwT.width > maxRight) pwT.setFontSize(11)
       }
       const hb = (s.hardClearsBy ?? {})[d.id] ?? 0, hl = (s.hellClearsBy ?? {})[d.id] ?? 0, hellOn = hellOpen(s, d) // 😈 D6-D10 hell mode
-      if (compact) txt(this, 452, y + 19, `${hb ? `🔥${hb} ` : ''}${hl ? `😈${hl} ` : ''}${info} · ${status}`, 11, locked ? '#ff9a9a' : n ? UI.sub : UI.gem).setWordWrapWidth(n ? 270 : 320).setMaxLines(1) // counts first: a long line is cut, not spilled into the next row
-      else {
-        txt(this, 452, y + 22, info, 13, UI.sub)
+      const hazard = d.hazard && d.hazard !== 'none' ? BIOME_BADGE[d.hazard] : undefined
+      if (compact) {
+        let lineX = 452
+        if (hazard) {
+          const pill = this.add.graphics()
+          const badgeT = txt(this, lineX + 5, y + 19, `${hazard.icon} ${hazard.label}`, 10, hazard.color, true)
+          if (locked) badgeT.setAlpha(0.65)
+          const pillW = Math.ceil(badgeT.width) + 10
+          pill.fillStyle(hazard.bg, locked ? 0.45 : 0.95)
+          pill.lineStyle(1, hazard.stroke, locked ? 0.45 : 0.9)
+          pill.fillRoundedRect(lineX, y + 17, pillW, 16, 4)
+          pill.strokeRoundedRect(lineX, y + 17, pillW, 16, 4)
+          lineX += pillW + 6
+        }
+        const counts = `${hb ? `🔥${hb} ` : ''}${hl ? `😈${hl} ` : ''}`
+        const line2 = hazard ? `${counts}${status} · ${info}` : `${counts}${info} · ${status}`
+        txt(this, lineX, y + 19, line2, 11, locked ? '#ff9a9a' : n ? UI.sub : UI.gem).setWordWrapWidth(Math.max(80, maxRight - lineX)).setMaxLines(1) // counts first: a long line is cut, not spilled into the next row
+      } else {
+        let infoX = 452
+        if (hazard) {
+          const pill = this.add.graphics()
+          const badgeT = txt(this, infoX + 6, y + 23, `${hazard.icon} ${hazard.label}`, 11, hazard.color, true)
+          if (locked) badgeT.setAlpha(0.65)
+          const pillW = Math.ceil(badgeT.width) + 12
+          pill.fillStyle(hazard.bg, locked ? 0.45 : 0.95)
+          pill.lineStyle(1, hazard.stroke, locked ? 0.45 : 0.9)
+          pill.fillRoundedRect(infoX, y + 21, pillW, 18, 4)
+          pill.strokeRoundedRect(infoX, y + 21, pillW, 18, 4)
+          infoX += pillW + 6
+        }
+        txt(this, infoX, y + 22, info, 13, UI.sub)
         txt(this, 452, y + 40, status, 13, locked ? '#ff9a9a' : n ? UI.sub : UI.gem)
       }
       const b = button(this, 856, y + (compact ? 18 : 26), 130, compact ? 34 : 50, locked ? '🔒' : 'ลุย!', () => {
@@ -165,7 +212,7 @@ export class HubScene extends Phaser.Scene {
       toast(this, `ได้เพชรฟรี +${FREE_GEMS.daily}`, UI.gem)
       this.time.delayedCall(500, () => this.scene.restart())
     })
-    tile(5, '🎮', 'โหมด', 'หอคอย · รายวัน · ล่าค่าหัว', 0x7a3a6a, () => this.modes())
+    tile(5, '🎮', 'โหมด', 'หอคอย · รายวัน · ค่าหัว · รอยแยก', 0x7a3a6a, () => this.modes())
     tile(4, '⚙️', 'ตั้งค่า', s.muted ? 'เสียง: ปิด' : 'เสียง: เปิด', 0x4a4e6e, () => this.settings())
 
     ftue('hub_first')
@@ -182,46 +229,88 @@ export class HubScene extends Phaser.Scene {
     }
   }
 
-  /** 🎮 mode select (design/game-modes-v1.md §5): one row per mode, unlock state + best record. */
+  /** 🎮 mode select (2x2 grid inside 800x520 modal): unlock state, record & launch actions. */
   private modes() {
     const s = save()
     const c = this.add.container(0, 0).setDepth(40000)
     c.add(this.add.rectangle(W / 2, H / 2, W, H, UI.night, 0.8).setInteractive())
     c.add(panel(this, W / 2 - 400, H / 2 - 260, 800, 520, UI.panelHi, COLORS.gold))
-    c.add(txt(this, W / 2, H / 2 - 244, '🎮 โหมดท้าทาย', 26, UI.gold, true).setOrigin(0.5, 0))
+    c.add(txt(this, W / 2, H / 2 - 246, '🎮 โหมดท้าทาย', 24, UI.gold, true).setOrigin(0.5, 0))
+    const cols = 2, cardW = 374, cardH = 202, gapX = 16, gapY = 10
+    const gridX = W / 2 - (cols * cardW + (cols - 1) * gapX) / 2
+    const gridY = H / 2 - 212
+    const launch = (args: ModeArgs) => go(this, 'battle', args)
+
     PANEL_MODES.forEach((id, i) => {
-      const m = MODES[id], y = H / 2 - 204 + i * 144, u = m.unlock(s)
-      c.add(panel(this, W / 2 - 380, y, 760, 136, 0x2a3358))
-      c.add(txt(this, W / 2 - 360, y + 10, `${m.icon} ${m.name}`, 20, u.ok ? UI.text : UI.sub, true))
-      c.add(txt(this, W / 2 + 200, y + 14, u.ok ? m.record(s) : `🔒 ${u.why}`, 13, u.ok ? UI.gold : '#ff9a9a').setOrigin(1, 0))
+      const m = MODES[id], u = m.unlock(s)
+      const col = i % cols, row = Math.floor(i / cols)
+      const cx = gridX + col * (cardW + gapX), cy = gridY + row * (cardH + gapY)
+      c.add(panel(this, cx, cy, cardW, cardH, 0x2a3358))
+      c.add(txt(this, cx + 14, cy + 10, `${m.icon} ${m.name}`, 17, u.ok ? UI.text : UI.sub, true))
+      c.add(txt(this, cx + 14, cy + 31, u.ok ? m.record(s) : `🔒 ${u.why}`, 12, u.ok ? UI.gold : '#ff9a9a', true).setWordWrapWidth(cardW - 28).setMaxLines(1))
+
       let body = m.desc
-      if (id === 'tower') body = `${m.desc}\n⚡ พลังเรา ${heroPower(s)} · มอน Lv ≈ ${TOWER_LV.perFloor} × ชั้น (ชั้น 40 ≈ Lv ${towerMonLv(40)}) · สู้นานเกิน ${TOWER_POWER.enrageWave} เทิร์น (บอส ${TOWER_POWER.enrageBoss}) มอนคลั่ง`
-      if (id === 'daily') {
+      if (id === 'tower') {
+        body = `${m.desc}\n⚡ พลังเรา ${heroPower(s)} · มอน Lv ≈ ${TOWER_LV.perFloor}/ชั้น (ชั้น 40 ≈ Lv ${towerMonLv(40)})\nธีม/${TOWER.themeEvery} · บอส/${TOWER.bossEvery} · กอนท์เล็ต/${TOWER.gauntletEvery} · คลั่ง ${TOWER_POWER.enrageWave}/${TOWER_POWER.enrageBoss} · ตกเก็บ ${Math.round(TOWER.fallKeep * 100)}%`
+      } else if (id === 'daily') {
         const seed = dailySeed(), d = dailyOf(seed)
-        body = `วันนี้: ${d.dg.name} · ${d.mutators.map((x) => `${x.icon} ${x.name} (${x.desc})`).join(' · ')}\n${m.desc}`
-        if (deepDailyOk(s)) { // v118 🌌 deep daily: names only (the panel row is short)
-          const dd = dailyOf(seed, true)
+        body = `วันนี้: ${d.dg.name} · ${d.mutators.map((x) => `${x.icon} ${x.name}`).join(' · ')}\nรางวัล: 💎${DAILY.gems} · 🍀${DAILY.fortune} (${m.desc})`
+        if (deepDailyOk(s)) {
+          const dd = dailyOf(seed, true, s)
           body += `\n🌌 รายวันลึก: ${dd.dg.name} · ${dd.mutators.map((x) => `${x.icon} ${x.name}`).join(' ')} · 💎${DAILY.deepGems}`
         }
-      }
-      if (id === 'bounty') {
+      } else if (id === 'bounty') {
         const seed = weeklySeed(), b = bountyOf(seed, s)
-        body = `สัปดาห์นี้ (${String(seed).slice(4)}): ${b.dg.name} (${b.dg.boss}) · ${b.mutators.map((x) => `${x.icon} ${x.name} (${x.desc})`).join(' · ')}\n${m.desc}`
+        body = `สัปดาห์ (${String(seed).slice(4)}): ${b.dg.name} (บอส ${b.dg.boss})\nรางวัล: 💎${BOUNTY.gems} · 🍀${BOUNTY.fortune} · ${matName(TAINT_MAT)}×${BOUNTY.taintCrystals}\n${b.mutators.map((x) => `${x.icon} ${x.name} (${x.desc})`).join(' · ')}`
+      } else if (id === 'rift') {
+        const rr = s.riftRun, w = s.talentWallet
+        const walletLine = `เศษรูน ${w?.runeDust ?? 0} · เหรียญทอง ${w?.goldMedals ?? 0}`
+        if (rr) {
+          const curseTxt = rr.curses.length ? ` · คำสาป ${rr.curses.length}` : ''
+          body = `▶️ รันค้าง: ชั้น ${rr.depth}${rr.daily ? ' (ประจำวัน)' : ''} · พร ${rr.boons.length}${curseTxt} · เงินฝาก ${rr.bankZeny}z\nบอสทุก ${RIFT_TUNING.bossEvery} ชั้น · พลาดเก็บเศษรูน ${Math.round(RIFT_TUNING.deathDustKeep * 100)}%\n${walletLine}`
+        } else {
+          body = `${m.desc}\nบอสทุก ${RIFT_TUNING.bossEvery} ชั้น · ประจำวัน 💎${RIFT_TUNING.dailyGems} + 🍀${RIFT_TUNING.dailyFortune}\n${walletLine}`
+        }
       }
-      c.add(txt(this, W / 2 - 360, y + 36, body, 12, UI.sub).setWordWrapWidth(550).setLineSpacing(3))
-      const startIt = () => go(this, 'battle', { mode: id })
-      const hasSub = (id === 'tower' && towerCheckpoints(s.modes?.tower?.bestFloor ?? 0).length > 0) || (id === 'daily' && u.ok && deepDailyOk(s))
-      const btnY = hasSub ? y + 34 : y + 46, btnH = hasSub ? 44 : 50
-      c.add(button(this, W / 2 + 290, btnY, 130, btnH, u.ok ? (id === 'bounty' ? '🎯 ล่า!' : 'ลุย!') : '🔒', () => {
-        if (!u.ok) { confirm(this, `${m.name} ยังล็อกอยู่`, `${u.why} (โหมดทดสอบ: ลองได้)`, 'ลองเลย', startIt); return }
-        startIt()
-      }, { size: 18, fill: u.ok ? (id === 'bounty' ? 0x8a3a3a : undefined) : 0x4a4e6e, color: u.ok ? undefined : UI.sub }))
-      if (id === 'tower' && towerCheckpoints(s.modes?.tower?.bestFloor ?? 0).length) // v87: skip to a checkpoint (gems)
-        c.add(button(this, W / 2 + 290, y + 88, 130, 32, '⏭️ ข้ามชั้น', () => { c.destroy(); this.towerSkip() }, { size: 14, fill: 0x8a6fd1, color: UI.text }))
-      if (id === 'daily' && u.ok && deepDailyOk(s)) // v118 🌌 deep daily (D6-D10), opens after D10
-        c.add(button(this, W / 2 + 290, y + 88, 130, 32, '🌌 รายวันลึก', () => go(this, 'battle', { mode: 'daily', deep: true }), { size: 14, fill: 0x4a3a8a, color: UI.text }))
+
+      c.add(txt(this, cx + 14, cy + 49, body, 11, UI.sub).setWordWrapWidth(cardW - 28).setLineSpacing(2).setMaxLines(6))
+
+      const btnY = cy + cardH - 28, btnH = 34
+      const tryStart = (args: ModeArgs) => {
+        if (!u.ok) { confirm(this, `${m.name} ยังล็อกอยู่`, `${u.why} (โหมดทดสอบ: ลองได้)`, 'ลองเลย', () => launch(args)); return }
+        launch(args)
+      }
+
+      if (id === 'tower') {
+        const hasSkip = towerCheckpoints(s.modes?.tower?.bestFloor ?? 0).length > 0
+        if (hasSkip) {
+          c.add(button(this, cx + 98, btnY, 164, btnH, u.ok ? '⚔️ ลุยชั้น 1' : '🔒', () => tryStart({ mode: 'tower' }), { size: 14, fill: u.ok ? undefined : 0x4a4e6e, color: u.ok ? undefined : UI.sub }))
+          c.add(button(this, cx + 276, btnY, 164, btnH, '⏭️ ข้ามชั้น', () => { c.destroy(); this.towerSkip() }, { size: 14, fill: 0x8a6fd1, color: UI.text }))
+        } else {
+          c.add(button(this, cx + cardW / 2, btnY, 220, btnH, u.ok ? '⚔️ ลุย!' : '🔒', () => tryStart({ mode: 'tower' }), { size: 15, fill: u.ok ? undefined : 0x4a4e6e, color: u.ok ? undefined : UI.sub }))
+        }
+      } else if (id === 'daily') {
+        if (u.ok && deepDailyOk(s)) {
+          c.add(button(this, cx + 98, btnY, 164, btnH, '📅 รายวัน', () => tryStart({ mode: 'daily' }), { size: 14 }))
+          c.add(button(this, cx + 276, btnY, 164, btnH, '🌌 รายวันลึก', () => launch({ mode: 'daily', deep: true }), { size: 14, fill: 0x4a3a8a, color: UI.text }))
+        } else {
+          c.add(button(this, cx + cardW / 2, btnY, 220, btnH, u.ok ? '📅 ลุยรายวัน' : '🔒', () => tryStart({ mode: 'daily' }), { size: 15, fill: u.ok ? undefined : 0x4a4e6e, color: u.ok ? undefined : UI.sub }))
+        }
+      } else if (id === 'bounty') {
+        c.add(button(this, cx + cardW / 2, btnY, 220, btnH, u.ok ? '🎯 ล่า!' : '🔒', () => tryStart({ mode: 'bounty' }), { size: 15, fill: u.ok ? 0x8a3a3a : 0x4a4e6e, color: u.ok ? undefined : UI.sub }))
+      } else if (id === 'rift') {
+        const rr = s.riftRun
+        if (rr) {
+          c.add(button(this, cx + 83, btnY, 140, btnH, `▶️ ต่อชั้น ${rr.depth}`, () => tryStart({ mode: 'rift', resumeRift: true }), { size: 13, fill: 0x2d7a64, color: UI.text }))
+          c.add(button(this, cx + 208, btnY, 98, btnH, '🔄 เริ่มใหม่', () => confirm(this, 'เริ่มรอยแยกใหม่?', `รันค้างชั้น ${rr.depth} จะถูกแทนที่ (เงินและของที่ฝากไว้จะหาย)`, 'เริ่มใหม่', () => launch({ mode: 'rift' })), { size: 12, fill: 0x4a5588, color: UI.text }))
+          c.add(button(this, cx + 312, btnY, 98, btnH, '🎲 ประจำวัน', () => confirm(this, 'ลงรอยแยกประจำวัน?', `รันค้างชั้น ${rr.depth} จะถูกแทนที่`, 'ลงประจำวัน', () => launch({ mode: 'rift', riftDaily: true })), { size: 12, fill: 0x68489c, color: UI.text }))
+        } else {
+          c.add(button(this, cx + 98, btnY, 168, btnH, u.ok ? '🌀 ลงรอยแยก' : '🔒 ลงรอยแยก', () => tryStart({ mode: 'rift' }), { size: 14, fill: u.ok ? undefined : 0x4a4e6e, color: u.ok ? undefined : UI.sub }))
+          c.add(button(this, cx + 276, btnY, 168, btnH, u.ok ? '🎲 รอยแยกประจำวัน' : '🎲 ประจำวัน 🔒', () => tryStart({ mode: 'rift', riftDaily: true }), { size: 13, fill: u.ok ? 0x68489c : 0x4a4e6e, color: u.ok ? UI.text : UI.sub }))
+        }
+      }
     })
-    c.add(button(this, W / 2, H / 2 + 232, 200, 40, 'ปิด', () => c.destroy(), { size: 16, fill: 0x5a5f8a, color: UI.text }))
+    c.add(button(this, W / 2, H / 2 + 232, 200, 38, 'ปิด', () => c.destroy(), { size: 16, fill: 0x5a5f8a, color: UI.text }))
   }
 
   /** v87 🗼 floor skip picker (design/unique-taint-tower-skip-v1.md §1): pick a checkpoint, see the gem price and the level you start with, confirm. */
