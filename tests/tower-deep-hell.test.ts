@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DUNGEONS, MONSTERS, type MonSkill, type MonsterDef, type MonsterKind } from '../src/data/game-data'
 import { ENDLESS_HELL, HELL, hellify, HELL_TRAITS } from '../src/data/hell'
-import { deepAnchor, homeDungeon, legacyLevel, monPoints, monTier, restatAt, TOWER_LV, scaleOf, skillAtLv, skillMul, statNative, towerMonLv, withStats } from '../src/data/mon-stats'
+import { deepAnchor, homeDungeon, homeLv, legacyLevel, monPoints, monTier, restatAt, TOWER_LV, scaleOf, skillAtLv, skillMul, statNative, towerMonLv, withStats } from '../src/data/mon-stats'
 import { ENDLESS_DUNGEONS, towerFloor } from '../src/data/modes'
 import { castLv, skillLvBonus } from '../src/data/mon-skill-scale'
 
@@ -153,4 +153,11 @@ test('v123/v124 tower: ดาบมรณะ Lv78 is cast at Lv7 = base pow x 1.
   assert.equal(cast.lv, 7)
   assert.ok(Math.abs((cast.pow ?? 0) - (h.pow ?? 0) * 1.6) < 1e-9)
   assert.ok(skillMul(up, scaleOf(u)) >= skillMul(home, scaleOf(h)))
+})
+
+test('v125 homeLv: D6+ = band start, D1-D5 = LEGACY Lv (tower / rift pay gate)', () => {
+  const k13 = (Object.keys(MONSTERS) as MonsterKind[]).find((x) => homeDungeon(x) === 'd13' && !MONSTERS[x].passive)!
+  assert.equal(homeLv(k13), DUNGEONS.find((d) => d.id === 'd13')!.level![0])
+  assert.equal(homeLv('jellop'), legacyLevel('jellop', MONSTERS.jellop, { id: 'd1' }))
+  assert.ok(towerMonLv(1) < homeLv(k13), 'a D13 kind on floor 1 is below its home Lv (pays less)')
 })

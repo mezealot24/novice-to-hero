@@ -26,7 +26,7 @@ import { rollUnique3Drop } from '../data/uniques3'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
 import { HARD_POWER, matchScale, overpowerMul, TOWER_POWER } from '../data/power'
-import { deepAnchor, homeDungeon, legacyLevel, levelDropMul, restatAt, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, statNative, towerMonLv, withStats } from '../data/mon-stats'
+import { deepAnchor, homeDungeon, homeLv, legacyLevel, levelDropMul, restatAt, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, statNative, towerMonLv, withStats } from '../data/mon-stats'
 import { ENDLESS_HELL, endlessHell, HELL, HELL_MODE, hellify } from '../data/hell'
 import { foldAffixes } from '../data/affixes'
 import { PACKS } from '../data/dungeons'
@@ -3149,8 +3149,15 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Equipment card drop (design/equipment-cards.md): base rate x LUK, guaranteed after `pity` kills of that monster. */
+  /** v125 tower / rift: a kind rebuilt below its home Lv (a D13 monster on floor 1) pays EXP / zeny x Lv / homeLv, and drops no card
+   *  and none of its own dungeon's mats (the theme's instead). 1 everywhere else. */
+  private endlessPay(m: Mon): number {
+    if (this.run.modeId !== 'tower' && !this.run.riftMode) return 1
+    const home = homeLv(m.kind)
+    return home > 0 && m.def.lv ? Math.min(1, m.def.lv / home) : 1
+  }
   private rollCard(m: Mon) {
-    if (m.revived) return
+    if (m.revived || this.endlessPay(m) < 1) return
     const pity = (save().cardPity ??= {})
     for (const cd of cardsOfMonster(m.kind)) {
       const n = (pity[cd.id] ?? 0) + 1
@@ -3166,7 +3173,7 @@ export class BattleScene extends Phaser.Scene {
   /** Forge materials (design/item-acquisition-v1.md): this dungeon's common one from normal monsters, its boss one from minis / bosses. Summons (no card) drop nothing. */
   private rollMat(m: Mon) {
     if (m.revived || !cardsOfMonster(m.kind).length) return
-    const dg = (!this.dg.level && statNative(m.kind) && homeDungeon(m.kind)) || this.dg.id, got: [string, number][] = [] // v114: a D6+ monster in the tower drops its own dungeon's mats
+    const dg = (!this.dg.level && statNative(m.kind) && this.endlessPay(m) >= 1 && homeDungeon(m.kind)) || this.dg.id, got: [string, number][] = [] // v114: a D6+ monster in the tower drops its own dungeon's mats
     if (m.def.ai === 'boss' && !m.def.mini) {
       got.push([matOf(dg, true), MAT_RULES.boss.boss], [matOf(dg, false), MAT_RULES.boss.common])
       if ((this.run.modeId === 'dungeon' || this.run.modeId === 'hard' || this.run.modeId === 'bounty') && this.roomDef(this.room)?.boss && taintDrop(dg)) got.push([TAINT_MAT, taintDrop(dg) + (this.hell ? HELL_MODE.taintAdd : 0)]) // v89 ผลึกโลกันตร์: D6+ final boss only
@@ -3230,10 +3237,11 @@ export class BattleScene extends Phaser.Scene {
         this.callout(`🧬 ${m.def.name}แยกร่าง!`, SLOT_X[sl] ?? W / 2, GROUND - 140)
       }
     }
-    this.runXp += m.def.xp
-    this.gainXp(m.def.xp)
+    const pay = this.endlessPay(m), xp = Math.max(1, Math.round(m.def.xp * pay))
+    this.runXp += xp
+    this.gainXp(xp)
     const [a, b] = m.def.zeny
-    this.coinsFly(m.spr.x, m.spr.y - 20, Math.round(Phaser.Math.Between(a, b) * (1 + this.zenyWave))) // Innovator 🧲 แม่เหล็ก
+    this.coinsFly(m.spr.x, m.spr.y - 20, Math.round(Phaser.Math.Between(a, b) * pay * (1 + this.zenyWave))) // Innovator 🧲 แม่เหล็ก
     this.rollCard(m)
     this.rollMat(m)
     this.rollUnique(m)

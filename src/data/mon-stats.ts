@@ -163,6 +163,13 @@ export function homeDungeon(kind: MonsterKind): string | undefined {
 /** Duel pool of a dungeon without its own miniPool (data/relics.ts MINI_POOL); kept here to avoid an import cycle. */
 const MINI_POOL_KINDS: MonsterKind[] = ['duelist', 'hunter', 'gunner', 'drainer']
 
+/** v125: lowest Lv a kind is met at home (D6+: its dungeon's band start, D1-D5: LEGACY Lv). The tower / rift pay a kind's own
+ *  EXP / mats / cards only at or above it, so a D13 monster rebuilt at Lv 8 on floor 1 pays like a Lv 8 monster. */
+export function homeLv(kind: MonsterKind): number {
+  const home = homeDungeon(kind), dg = home ? DUNGEONS.find((d) => d.id === home) : undefined
+  return dg?.level ? dg.level[0] : legacyLevel(kind, MONSTERS[kind], { id: home ?? '' })
+}
+
 /** Level of an old (non-statAlloc) monster: its home dungeon's band, else the dungeon it is fought in. */
 export function legacyLevel(kind: MonsterKind, d: MonsterDef, here: { id: string; level?: [number, number] }): number {
   const home = homeDungeon(kind), top = (home ? LEGACY.lv[home] : undefined) ?? LEGACY.lv[here.id] ?? here.level?.[0] ?? 5
