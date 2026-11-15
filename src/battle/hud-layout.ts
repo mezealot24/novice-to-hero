@@ -1,5 +1,6 @@
 // Battle HUD layout rules (pure, no Phaser): status chips, chip grid, stage pill text, float-text lanes, theme tokens.
 // BattleScene draws them; tests/hud-layout.test.ts checks them.
+import { HAZARD_TUNING, type BiomeCombatState, type BiomeHazardId } from '../data/biome-hazards'
 
 /** Shared look for the battle HUD and the pause menu (glass panels on an 8px grid). */
 export const HUD_THEME = {
@@ -70,4 +71,57 @@ export function stagePill(s: StageIn): { text: string; warn: boolean } {
 /** Float text lanes: how many recent texts sit near (x, y), so a new one stacks above them instead of on top. */
 export function floatLane(recent: { x: number; y: number; t: number }[], x: number, y: number, now: number, ms = 650, dx = 60, dy = 40): number {
   return recent.filter((r) => now - r.t < ms && Math.abs(r.x - x) <= dx && Math.abs(r.y - y) <= dy).length
+}
+
+export type HazardBadgeTone = 'neutral' | 'sweet' | 'warn' | 'stagger'
+export interface HazardHudBadge {
+  hazard: BiomeHazardId
+  icon: string
+  name: string
+  gauge: string
+  sub: string
+  text: string
+  tone: HazardBadgeTone
+  x: number
+  y: number
+}
+
+/** Top-centre biome hazard indicator below the turn queue & monster affix pill (x = w/2, y = 118; never overlaps bars/chips/buttons). */
+export function hazardHudBadge(state: BiomeCombatState | undefined | null, w = 960): HazardHudBadge | null {
+  if (!state || state.hazard === 'none') return null
+  const x = Math.round(w / 2), y = 118
+  if (state.hazard === 'clockwork_heat') {
+    const cfg = HAZARD_TUNING.clockwork_heat
+    const heat = Math.round(state.heat)
+    const sil = state.overheatedSilenceTurns
+    const sweet = heat >= cfg.sweetMin && heat <= cfg.sweetMax
+    const icon = '⚙️🔥', name = 'ความร้อนจักรกล', gauge = `${heat}/${cfg.overheatAt}`
+    const sub = sil > 0
+      ? `โอเวอร์ฮีต! ใบ้ ${sil} เทิร์น`
+      : sweet
+        ? `Sweet Spot! สกิล x${cfg.sweetSkillMul} · คริ +${Math.round(cfg.sweetCritDmg * 100)}%`
+        : `สกิล +${cfg.heatPerSkill} · พัก -${cfg.coolPerTurn}`
+    const tone: HazardBadgeTone = sil > 0 || heat > cfg.sweetMax ? 'warn' : sweet ? 'sweet' : 'neutral'
+    return { hazard: state.hazard, icon, name, gauge, sub, text: `${icon} ${name} ${gauge} · ${sub}`, tone, x, y }
+  }
+  if (state.hazard === 'abyssal_pressure') {
+    const cfg = HAZARD_TUNING.abyssal_pressure
+    const used = !!state.pressureWaveUsedThisTurn
+    const icon = '🌊🛡️', name = 'แรงดันก้นสมุทร', gauge = `ฮีล ${Math.round(cfg.healMul * 100)}%`
+    const sub = used ? 'ปล่อยคลื่นแรงดันแล้วเทิร์นนี้' : 'โล่/บล็อก = คลื่นกระแทก True DMG'
+    const tone: HazardBadgeTone = used ? 'sweet' : 'neutral'
+    return { hazard: state.hazard, icon, name, gauge, sub, text: `${icon} ${name} (${gauge}) · ${sub}`, tone, x, y }
+  }
+  const cfg = HAZARD_TUNING.astral_eclipse
+  const layers = Object.values(state.monsterAstralLayers)
+  const staggers = Object.values(state.monsterStaggerTurns)
+  const maxLayer = layers.length ? Math.max(...layers) : 0
+  const maxStagger = staggers.length ? Math.max(...staggers) : 0
+  const icon = '🌑✨', name = 'สุริยุปราคาดารา'
+  const gauge = maxStagger > 0 ? `Stagger ${maxStagger}T` : `ม่านดารา ${maxLayer} ชั้น`
+  const sub = maxStagger > 0
+    ? `เกราะแตก! รับดาเมจ x${cfg.staggerDmgMul}`
+    : `ลดดาเมจ ${Math.round(Math.min(cfg.drCap, maxLayer * cfg.drPerLayer) * 100)}% (-1 ชั้น/ฮิต)`
+  const tone: HazardBadgeTone = maxStagger > 0 ? 'stagger' : maxLayer > 0 ? 'warn' : 'neutral'
+  return { hazard: state.hazard, icon, name, gauge, sub, text: `${icon} ${name} · ${gauge} · ${sub}`, tone, x, y }
 }

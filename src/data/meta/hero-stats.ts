@@ -1,17 +1,19 @@
-import { COMBO, PLAYER, softCapDiminish, type Stats } from "../game-data";
+import { COMBO, PLAYER, STAT_CAPS, softCapDiminish, type Stats } from "../game-data";
 import { BM_STANCE, KIT2, KIT3, S2N } from "../skill-math";
 import { COUNTER_RULES } from "../stack-math";
 import { branchPts, crossTierBonus, talent2Mods, talentMods, tree2Mods, tree3Mods, treeMods, type TalentSave, type TreeSave } from "../tree";
 import { JOB2, type Job2Id, type PetId } from "../jobs2";
-import { activeJob3, type Job3Id, type Job3Path, type Job3Variant } from "../jobs3";
+import { activeJob3, JOB3_RULES, type Job3Id, type Job3Path, type Job3Variant } from "../jobs3";
 import { JOBS, JOB_CHANGE, type JobId } from "../jobs";
 import type { RefineLine } from "../craft";
+import { itemConversionsOf, itemEffectsOf, type ItemEffectSpec, type StatConvert } from "../item-effects";
+import { setBonuses, type SetBonusSummary } from "../sets";
 import type { TaintRec } from "../taint";
 import type { EquipSlot } from "./item-types";
 import { itemById } from "./items";
 import { SKILLS, smashLv, type SkillId } from "./novice";
 import { RACES, type RaceId } from "./races";
-import { JOB2_BONUS_STATS, JOB_BONUS, JOB_BONUS_STATS, PER_POINT, STAT_RULES, type BaseStat } from "./stat-spec";
+import { JOB2_BONUS_STATS, JOB3_BONUS, JOB3_BONUS_STATS, JOB_BONUS, JOB_BONUS_STATS, PER_POINT, STAT_RULES, type BaseStat } from "./stat-spec";
 import { wornCards, wornItems } from "./worn";
 
 // ---------- combine everything into the hero's starting stats ----------
@@ -39,6 +41,8 @@ export interface StatsInput {
 	broken?: string[];
 	refineLines?: Record<string, RefineLine[]>;
 	taint?: Record<string, TaintRec>;
+	awakened?: Record<string, number>;
+	imbue?: Record<string, string>;
 	tempBase?: Partial<Record<BaseStat, number>>;
 	crossSpent?: { j2In1?: number; j3In1?: number; j3In2?: number };
 	pet?: PetId;
@@ -90,6 +94,14 @@ function applyBeastmasterStance(
 	}
 }
 
+export interface HeroBuildSummary {
+	stats: Stats;
+	sets: SetBonusSummary;
+	effects: ItemEffectSpec[];
+	conversions: StatConvert[];
+	conversionGains: Partial<Record<keyof Stats, number>>;
+}
+
 /** Base stats from gear only (shown as "+N ของ" on the status tab). */
 export function gearBase(s: StatsInput): Record<BaseStat, number> {
 	const out = { str: 0, vit: 0, wis: 0, dex: 0, int: 0, luk: 0, agi: 0 };
@@ -100,11 +112,11 @@ export function gearBase(s: StatsInput): Record<BaseStat, number> {
 }
 /** 📈 Base stats from Job Lv (shown as "+N อาชีพ" on the status tab). */
 export function jobBonusBase(
-	s: Pick<StatsInput, "job" | "jobLevel" | "job2" | "job2Level">,
+	s: Pick<StatsInput, "job" | "jobLevel" | "job2" | "job2Level" | "job3" | "job3Level">,
 ): Record<BaseStat, number> {
 	const out = { str: 0, vit: 0, wis: 0, dex: 0, int: 0, luk: 0, agi: 0 };
-	const add = (keys: readonly BaseStat[], lv: number) => {
-		const n = Math.floor(lv / JOB_BONUS.every);
+	const add = (keys: readonly BaseStat[], lv: number, every = JOB_BONUS.every, perStep = 1) => {
+		const n = Math.floor(lv / every) * perStep;
 		for (const k of keys) out[k] += n;
 	};
 	if (s.job && s.job !== "novice")
@@ -113,27 +125,43 @@ export function jobBonusBase(
 			Math.min(s.jobLevel ?? 1, JOB_CHANGE.classMaxJobLevel),
 		);
 	if (s.job2) add(JOB2_BONUS_STATS[s.job2], s.job2Level ?? 1);
+	const j3 = activeJob3(s);
+	const j3Keys = j3 ? (JOB3_BONUS_STATS as Partial<Record<Job3Id, readonly BaseStat[]>>)[j3] : undefined;
+	if (j3Keys)
+		add(
+			j3Keys,
+			Math.min(s.job3Level ?? 1, JOB3_RULES.maxJobLevel),
+			JOB3_BONUS.every,
+			JOB3_BONUS.perStep,
+		);
 	return out;
 }
-/** Level-up line for the result screen: the Job Lv that counts (Job2 Lv once there is a 2nd job) + any job bonus just gained. */
+/** Level-up line for the result screen: the Job Lv that counts (Job3/Job2 Lv once unlocked) + any job bonus just gained. */
 export function jobUpText(
-	s: Pick<StatsInput, "job" | "jobLevel" | "job2" | "job2Level">,
+	s: Pick<StatsInput, "job" | "jobLevel" | "job2" | "job2Level" | "job3" | "job3Level">,
 	ups: number,
 ): string {
-	const lv = s.job2 ? (s.job2Level ?? 1) : (s.jobLevel ?? 1);
-	const keys = s.job2
-		? JOB2_BONUS_STATS[s.job2]
-		: s.job && s.job !== "novice"
-			? JOB_BONUS_STATS[s.job]
-			: [];
+	const j3 = activeJob3(s);
+	const j3Keys = j3 ? (JOB3_BONUS_STATS as Partial<Record<Job3Id, readonly BaseStat[]>>)[j3] : undefined;
+	const lv = j3 ? (s.job3Level ?? 1) : s.job2 ? (s.job2Level ?? 1) : (s.jobLevel ?? 1);
+	const every = j3Keys ? JOB3_BONUS.every : JOB_BONUS.every;
+	const perStep = j3Keys ? JOB3_BONUS.perStep : 1;
+	const keys = j3Keys
+		? j3Keys
+		: s.job2
+			? JOB2_BONUS_STATS[s.job2]
+			: s.job && s.job !== "novice"
+				? JOB_BONUS_STATS[s.job]
+				: [];
 	const n =
-		Math.floor(lv / JOB_BONUS.every) -
-		Math.floor(Math.max(0, lv - ups) / JOB_BONUS.every);
+		(Math.floor(lv / every) -
+			Math.floor(Math.max(0, lv - ups) / every)) *
+		perStep;
 	const bonus =
 		n > 0 && keys.length
 			? ` · 📈 ${keys.map((k) => k.toUpperCase()).join(" ")} +${n}`
 			: "";
-	return `✨ ${s.job2 ? "Job2" : "Job"} Lv ${lv}! ได้แต้มสกิลเพิ่ม${bonus}`;
+	return `✨ ${j3 ? "Job3" : s.job2 ? "Job2" : "Job"} Lv ${lv}! ได้แต้มสกิลเพิ่ม${bonus}`;
 }
 /** Spent points + race + gear + job bonus: what every derived stat is computed from. */
 export function totalBase(s: StatsInput): Record<BaseStat, number> {
@@ -234,7 +262,7 @@ export function blessBase(
 	};
 }
 
-export function heroStats(s: StatsInput): Stats {
+export function heroBuild(s: StatsInput): HeroBuildSummary {
 	const st: Stats = { ...PLAYER };
 	const b = totalBase(s);
 	for (const k of Object.keys(s.tempBase ?? {}) as BaseStat[])
@@ -349,12 +377,18 @@ export function heroStats(s: StatsInput): Stats {
 		j2pct.maxHp += st.j2HpPct; // after 3rd-job/Hybrid tree so borrowed j2HpPct nodes (e.g. mk_h2) apply to maxHp
 	}
 	const worn = wornItems(s);
+	const sets = setBonuses(worn);
 	for (const it of worn) add(it.mod);
+	add(sets.mod);
 	const cards = wornCards(s);
 	for (const cd of cards) add(cd.mod);
 	const bmPet = activeBeastmasterPet(s);
 	if (bmPet) applyBeastmasterStance(st, bmPet, b); // Partner Passive Stance ('hawk' | 'boar' | 'wolf') before % multipliers
-	const pct = { maxHp: 0, atk: 0, matk: 0 };
+	const pct = {
+		maxHp: sets.pct.maxHp,
+		atk: sets.pct.atk,
+		matk: sets.pct.matk,
+	};
 	for (const x of [...cards, ...worn])
 		for (const k of Object.keys(x.pct ?? {}) as (keyof typeof pct)[])
 			pct[k] += x.pct![k]!; // refine lines: HP / ATK / M.ATK %
@@ -376,14 +410,6 @@ export function heroStats(s: StatsInput): Stats {
 			add(sk.mod(s.skills[sk.id]));
 	if (job.id === "novice")
 		add(SKILLS.find((x) => x.id === "smash")!.mod(smashLv(s.jobLevel ?? 1))); // v86: ทุบ = Job Lv
-	st.smashCd = Math.max(2500, st.smashCd);
-	st.aspd = Math.max(0.6, st.aspd);
-	st.minPct = Math.min(0.95, st.minPct);
-	st.mdef = softCapDiminish(st.mdef);
-	st.tenacity = softCapDiminish(st.tenacity);
-	st.luckyDodge = Math.min(0.25, st.luckyDodge);
-	st.counter = Math.min(COMBO.rateCap, Math.max(COUNTER_RULES.min, st.counter)); // every class counters at least COUNTER_RULES.min (run picks multiply it) · counter rework: may pass 100% vs Ignore Counter (was 60%)
-	st.combo = Math.min(COMBO.rateCap, st.combo);
 	{
 		const f = baseDefence(b); // hero combo / counter / crit defence (Q 2026-11-04)
 		st.ignoreCombo = Math.min(COMBO.defCap, st.ignoreCombo + f.ignoreCombo);
@@ -395,11 +421,60 @@ export function heroStats(s: StatsInput): Stats {
 		st.counterDR = Math.min(COMBO.defCap, st.counterDR + f.counterDR);
 		st.critDR = Math.min(COMBO.critDRCap, st.critDR + f.critDR);
 	}
-	st.lifesteal = Math.min(0.4, st.lifesteal);
-	st.spellVamp = Math.min(0.4, st.spellVamp);
-	st.skillDmgCut = Math.min(0.9, st.skillDmgCut);
-	st.dodgeHeal = Math.min(0.1, st.dodgeHeal);
-	st.fleeFloor = Math.min(0.2, st.fleeFloor); // Thief: monsters still hit at least 60%
-	st.waveShield = Math.min(0.2, st.waveShield);
-	return st;
+	const rawMdef = st.mdef;
+	const rawTenacity = st.tenacity;
+	const clampLinearCaps = () => {
+		st.smashCd = Math.max(2500, st.smashCd);
+		st.aspd = Math.max(0.6, st.aspd);
+		st.minPct = Math.min(0.95, st.minPct);
+		st.luckyDodge = Math.min(0.25, st.luckyDodge);
+		st.counter = Math.min(COMBO.rateCap, Math.max(COUNTER_RULES.min, st.counter));
+		st.combo = Math.min(COMBO.rateCap, st.combo);
+		st.lifesteal = Math.min(0.4, st.lifesteal);
+		st.spellVamp = Math.min(0.4, st.spellVamp);
+		st.skillDmgCut = Math.min(0.9, st.skillDmgCut);
+		st.dodgeHeal = Math.min(0.1, st.dodgeHeal);
+		st.fleeFloor = Math.min(0.2, st.fleeFloor);
+		st.waveShield = Math.min(0.2, st.waveShield);
+		st.physPen = Math.max(0, Math.min(STAT_CAPS.physPen, st.physPen));
+		st.magPen = Math.max(0, Math.min(STAT_CAPS.magPen, st.magPen));
+		st.elemDmg = Math.max(0, Math.min(STAT_CAPS.elemDmg, st.elemDmg));
+	};
+	clampLinearCaps();
+	st.mdef = softCapDiminish(rawMdef);
+	st.tenacity = softCapDiminish(rawTenacity);
+
+	// Deterministic single-pass StatConvert evaluation: read strictly from pre-conversion snapshot (never chains or loops)
+	const effects: ItemEffectSpec[] = [
+		...worn.flatMap((it) => itemEffectsOf(s, it)),
+		...sets.effects,
+	];
+	const conversions: StatConvert[] = [
+		...worn.flatMap((it) => itemConversionsOf(s, it)),
+		...sets.conversions,
+	];
+	const conversionGains: Partial<Record<keyof Stats, number>> = {};
+	if (conversions.length) {
+		const snap: Stats = { ...st };
+		for (const c of conversions) {
+			const srcVal = Math.max(0, snap[c.from] ?? 0);
+			const rawGain = srcVal * Math.max(0, c.ratio);
+			const gain = c.cap !== undefined ? Math.min(c.cap, rawGain) : rawGain;
+			if (gain > 0) {
+				st[c.to] += gain;
+				conversionGains[c.to] = (conversionGains[c.to] ?? 0) + gain;
+			}
+		}
+		if (conversionGains.maxHp) st.maxHp = Math.max(1, Math.round(st.maxHp));
+		if (conversionGains.mdef)
+			st.mdef = softCapDiminish(rawMdef + conversionGains.mdef);
+		if (conversionGains.tenacity)
+			st.tenacity = softCapDiminish(rawTenacity + conversionGains.tenacity);
+		clampLinearCaps();
+	}
+	return { stats: st, sets, effects, conversions, conversionGains };
+}
+
+export function heroStats(s: StatsInput): Stats {
+	return heroBuild(s).stats;
 }

@@ -50,6 +50,7 @@ export const UNIQUE_AWAKEN = {
   bossMats: 6,
   zeny: 5000,
   statScaleBonus: 0.2,
+  curseReduction: 0.5,
 } as const
 
 const BOSS_CARD_BY_DG: Record<string, string> = {
@@ -308,17 +309,19 @@ export function imbueAspect(s: SaveExt, it: Item, id: AspectId): boolean {
   return true
 }
 
-function getImbuedAspect(s: SaveExt | undefined, it: Item): AspectDef | undefined {
+export type ImbueAwakenRef = Pick<SaveExt, 'imbue' | 'awakened'>
+
+function getImbuedAspect(s: ImbueAwakenRef | undefined, it: Item): AspectDef | undefined {
   const raw = s?.imbue?.[it.id]
   if (!raw) return undefined
   return (ASPECTS as Partial<Record<string, AspectDef>>)[raw]
 }
 
-export function aspectModOf(s: SaveExt | undefined, it: Item): Partial<Stats> | undefined {
+export function aspectModOf(s: ImbueAwakenRef | undefined, it: Item): Partial<Stats> | undefined {
   return getImbuedAspect(s, it)?.mod
 }
 
-export function itemEffectsOf(s: SaveExt | undefined, it: Item): ItemEffectSpec[] {
+export function itemEffectsOf(s: ImbueAwakenRef | undefined, it: Item): ItemEffectSpec[] {
   const base = it.effects ?? []
   const asp = getImbuedAspect(s, it)?.effects ?? []
   const merged = [...base, ...asp]
@@ -329,7 +332,7 @@ export function itemEffectsOf(s: SaveExt | undefined, it: Item): ItemEffectSpec[
   }))
 }
 
-export function itemConversionsOf(s: SaveExt | undefined, it: Item): StatConvert[] {
+export function itemConversionsOf(s: ImbueAwakenRef | undefined, it: Item): StatConvert[] {
   const base = it.conversions ?? []
   const asp = getImbuedAspect(s, it)?.conversions ?? []
   const merged = [...base, ...asp]
