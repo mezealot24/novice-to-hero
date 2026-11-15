@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { chipGrid, floatLane, stagePill, statusChips, type HeroBuffs, type HeroDebuffs } from '../src/battle/hud-layout'
+import { chipGrid, floatLane, hazardHudBadge, stagePill, statusChips, type HeroBuffs, type HeroDebuffs } from '../src/battle/hud-layout'
+import { createBiomeCombatState } from '../src/data/biome-hazards'
 
 const noDebuff: HeroDebuffs = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0, web: 0, slow: 0, thorn: 0, venomTurns: 0 }
 const noBuff: HeroBuffs = { dawnWis: 0, bless: 0, kyrieHits: 0, gloria: false, guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, s2Icon: '🙏', s2Name: 'พรแสง' }
@@ -47,4 +48,27 @@ test('stage pill: level, mods, where, turns; warns at 3 turns left', () => {
 test('float lanes: only recent texts near the same spot count', () => {
   const recent = [{ x: 220, y: 280, t: 1000 }, { x: 225, y: 290, t: 1200 }, { x: 700, y: 280, t: 1200 }, { x: 220, y: 280, t: 100 }]
   assert.equal(floatLane(recent, 220, 280, 1300), 2)
+})
+
+test('hazardHudBadge: returns null for none and formats D11-D13 hazards in a non-overlapping slot', () => {
+  assert.equal(hazardHudBadge(null), null)
+  assert.equal(hazardHudBadge(createBiomeCombatState('none', ['m0'])), null)
+
+  const d11 = createBiomeCombatState('clockwork_heat', ['m0'])
+  d11.heat = 60
+  const b11 = hazardHudBadge(d11, 960)!
+  assert.equal(b11.tone, 'sweet')
+  assert.equal(b11.x, 480)
+  assert.equal(b11.y, 118)
+  assert.match(b11.text, /60\/100.*Sweet Spot/)
+
+  const d12 = createBiomeCombatState('abyssal_pressure', ['m0'])
+  const b12 = hazardHudBadge(d12, 960)!
+  assert.equal(b12.tone, 'neutral')
+  assert.match(b12.text, /แรงดันก้นสมุทร.*ฮีล 70%/)
+
+  const d13 = createBiomeCombatState('astral_eclipse', ['m0'], new Set(['m0']))
+  const b13 = hazardHudBadge(d13, 960)!
+  assert.equal(b13.tone, 'warn')
+  assert.match(b13.text, /ม่านดารา 6 ชั้น/)
 })

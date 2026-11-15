@@ -65,17 +65,20 @@ test('path swap: free once a week (web points back), else 💎30; variant swap i
 })
 
 test('an awakened Paladin counts in Hero Power (JOB3_K); a parked one does not', () => {
-  const s = crusader(), before = heroPower(s)
+  const s = crusader(), before = heroPower(s), jbBefore = jobBonusBase(s)
   Object.assign(s, { job3: 'paladin', job3Level: 30, job3Trial: { paladin: 1 } })
-  const on = heroPower(s)
-  assert.ok(on > before && on < before * 1.25, `${before} -> ${on}`)
+  const on = heroPower(s), jbOn = jobBonusBase(s)
+  // JOB3_K (1.28) + JOB3_BONUS (+6 STR/VIT/INT at Lv 30) on bare Lv 1 fixture (58 -> 93)
+  assert.ok(on > before && on < before * 1.75, `${before} -> ${on}`)
+  assert.equal(jbOn.str, jbBefore.str + 6)
   s.job2 = 'monk'
   assert.equal(activeJob3(s), undefined)
+  assert.equal(jobBonusBase(s).str, jbBefore.str - 5 + 5, 'parked Paladin does not grant JOB3_BONUS when job2 is monk')
 })
 
 // ---------- P2-P6 (design/awakening-crusader-v1.md §3-§5) ----------
 import { trialWin } from '../src/save'
-import { heroStats } from '../src/data/meta'
+import { heroStats, jobBonusBase } from '../src/data/meta'
 import { KIT2, KIT3, gcPulses } from '../src/data/skill-math'
 import { lockReason3, nodeById, tree3Mods, TREE3 } from '../src/data/tree'
 
