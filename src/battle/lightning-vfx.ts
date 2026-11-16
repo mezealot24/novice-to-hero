@@ -33,7 +33,7 @@ export interface ChainLightningFxParams {
 
 const PIXEL_SCALE = 2
 const RENDER_FPS = 30
-const DEFAULT_SPEED = 1.35
+const DEFAULT_SPEED = 0.78
 const DEFAULT_DEPTH = 9003
 const PAD_X = 64
 const PAD_TOP = 92
