@@ -1147,7 +1147,7 @@ export class BattleScene extends Phaser.Scene {
     this.burst(m.spr.x, m.spr.y - 20, 0xff7038, 22, 260)
     this.shake(140, 0.008)
     sfx.slam()
-    const dmg = ablazeBlastDmg(m.maxHp, this.st.matk, m.def.ai === 'boss')
+    const dmg = ablazeBlastDmg(m.def.hp, this.st.matk, m.def.ai === 'boss')
     for (const o of [...this.alive()]) {
       if (this.maidenGuarded(o)) continue
       o.hp = Math.max(0, o.hp - dmg)
