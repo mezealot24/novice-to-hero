@@ -1166,11 +1166,10 @@ export class BattleScene extends Phaser.Scene {
   private hawkTurn = 0
   private ultFiring = false // archer: ult hits a charging boss harder (ทะลวงเกราะ / ศรบั่น)
 
-  private lastHitCrit = false
   /** One physical/magic hit. RO-style crit: physical only, rolled first; a crit always hits (skips flee) and ignores DEF.
    *  Magic never misses and never crits. Returns damage dealt. */
   private strike(m: Mon, mul: number, magic = false, color?: string, pierce = 0, falconCrit = 0): number {
-    if (m.dead || this.hp <= 0) { this.lastHitCrit = false; return 0 }
+    if (m.dead || this.hp <= 0) return 0
     if (this.j3Bless > 0) mul *= 1 + this.st.j3AfterBless // ⚜️ พรหลังศึก
     if (magic && !ELEM_SRC.has(this.src)) mul *= 1 + this.st.elemDmg
     const canFalconCrit = falconCrit > 0 && m.huntMark > 0
@@ -1178,7 +1177,6 @@ export class BattleScene extends Phaser.Scene {
     const physCritAdd = (this.buf.hawk > 0 ? S2N.hawkCrit(this.st.s2Lv) : 0) + this.critAdd + this.biomeCritAdd + (this.rampage > 0 ? KIT2.berserker.ultCrit : 0) + wlCrit
     const critRate = canFalconCrit ? falconCrit : this.critRateFor(magic, physCritAdd, m)
     const crit = this.forceCrit || (!this.petNoCrit && this.critAllowed() && Math.random() < critRate) // magic crits only with spellCrit (or Falcon Crit on Marked targets) · Skill 2 ตาเหยี่ยว · 2nd job
-    this.lastHitCrit = crit
     const effFlee = m.huntMark > 0 ? (m.def.flee ?? 5) * Math.max(0, 1 - this.st.j2MarkPierceFlee) : (m.def.flee ?? 5)
     const noFlee = m.huntMark > 0 && this.st.j2MarkPierceFlee >= 1
     if (!magic && !crit && !this.sureHit && !noFlee && this.zenTurns <= 0 && Math.random() > hitChance(this.st.hit, effFlee)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
