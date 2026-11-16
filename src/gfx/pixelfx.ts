@@ -22,7 +22,7 @@ import * as iceLance from '../vendor/pixelfx/fx/ice/ice-lance.js'
 import * as iceSpikes from '../vendor/pixelfx/fx/ice/ice-spikes.js'
 // Lightning
 import * as lightningStrike from '../vendor/pixelfx/fx/lightning/lightning-strike.js'
-import * as chainLightning from '../vendor/pixelfx/fx/lightning/chain-lightning.js'
+import * as chainLightning from './chain-arc'
 import * as thunderclap from '../vendor/pixelfx/fx/lightning/thunderclap.js'
 // Arcane
 import * as magicCircleCast from '../vendor/pixelfx/fx/arcane/magic-circle-cast.js'
@@ -107,7 +107,7 @@ export const DEFS = {
   iceSpikes: { mod: iceSpikes, until: 2.4 },
   // Lightning
   lightningStrike: { mod: lightningStrike, from: 0.45, until: 2.2 },
-  chainLightning: { mod: chainLightning, from: 0.05, until: 1.5 },
+  chainLightning: { mod: chainLightning },
   thunderclap: { mod: thunderclap, from: 0.2, until: 1.6 },
   // Arcane
   magicCircle: { mod: magicCircleCast, from: 0.5, until: 3.2 },

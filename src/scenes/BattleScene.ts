@@ -46,7 +46,8 @@ import { CombatLog, deathText, recapLines, saveDeath, type DeathRec, type HitOut
 import { ftue, track } from '../analytics'
 import { HeroRig } from '../battle/hero-rig'
 import { fitHeroScale, heroCostumeTint, heroRigSpec, heroTex, type HeroRigSpec } from '../gfx/hero-visual'
-import { ARCHER_PFX, BEAST_PFX, CLERIC_PFX, COIN_DROP_IDS, COIN_DROP_REST, COIN_PFX, MAGE_PFX, POISON_GREEN, RICOCHET_LEAF, playPfx, preloadPfx } from '../gfx/pixelfx'
+import { ARCHER_PFX, BEAST_PFX, CLERIC_PFX, COIN_DROP_IDS, COIN_DROP_REST, COIN_PFX, MAGE_PFX, POISON_GREEN, RICOCHET_LEAF, ZAP_YELLOW, ZAP_YELLOW_SPARKS, playPfx, preloadPfx } from '../gfx/pixelfx'
+import { pickChainTargets, playChainLightningFx } from '../battle/lightning-vfx'
 import { RANGER_FX, arrowImpactFx, arrowProjectile, arrowRainFx, beastRoarFx, boarGuardFx, eagleEyeFx, huntMarkOn, petHitFx, type PetKind, pierceShotFx, snareTrapFx, stampedeFx, wolfRoarPalette } from '../battle/ranger-vfx'
 import { blockShieldFx, bowlingBashFx, brandishSweepFx, chargeOpenerFx, comboSlashFx, guardianUltFx, pierceHitFx, skill2AuraFx, spearBoomerangFx, whirlwindFx } from '../battle/sword-vfx'
 
@@ -2485,39 +2486,45 @@ export class BattleScene extends Phaser.Scene {
     }
   }
   /** 📖 Sage Auto Spell + On-Hit Elemental Perks (basic swing, Skill 1 Spellstrike, ★ Hindsight combo & counter, ★ Magic Rod). */
-  private sageSpell(target?: Mon, guaranteed = false, hitMul = 1) {
+  private sageSpell(target?: Mon, guaranteed = false, hitMul = 1, swingHit = true) {
     if (this.j2?.id !== 'sage' || this.hp <= 0) return
     const S = KIT2.sage, endowed = this.endow > 0
+    const prevLs = this.lsMul
+    this.lsMul = 0
     this.autoSpelling = true
+    let autoHit = false
     try {
-      if (guaranteed || Math.random() < sageAutoChance(this.st, this.sageInt, endowed)) {
+      if (guaranteed || (swingHit && Math.random() < sageAutoChance(this.st, this.sageInt, endowed))) {
         const el = this.element
         this.floatText(HERO_X, GROUND - 150, `📖 Auto Spell ${ELEMENTS[el].icon}`, '#c9a8ff')
         for (let i = 0; i < 1 + this.st.j2AutoBolts; i++) {
           const t = target && !target.dead ? target : this.front()[0]
           if (!t) break
           const boltMul = (S.autoMul + this.st.j2AutoMul) * hitMul
+          let dealt = 0
           if (el === 'lightning') {
             playPfx(this, 'lightningStrike', t.spr.x, GROUND, { scale: 1.1, speed: 1.8 })
-            this.withSrc('other', () => this.zap(t, boltMul, '#bfe6ff', false))
+            dealt = this.withSrc('other', () => this.zap(t, boltMul, '#bfe6ff', false))
           } else if (el === 'arcane') {
             playPfx(this, 'arcaneMissiles', t.spr.x, GROUND, { scale: 1.1, speed: 1.6 })
-            this.withSrc('other', () => this.strike(t, boltMul, true, '#c9a8ff'))
+            dealt = this.withSrc('other', () => this.strike(t, boltMul, true, '#c9a8ff'))
           } else if (el === 'ice') {
             playPfx(this, 'iceLance', t.spr.x, t.spr.y - t.spr.displayHeight * 0.4, { scale: 1.1, speed: 1.6 })
-            this.withSrc('other', () => this.strike(t, boltMul, true, '#9fe3ff'))
+            dealt = this.withSrc('other', () => this.strike(t, boltMul, true, '#9fe3ff'))
           } else {
             playPfx(this, 'fireball', t.spr.x, t.spr.y - t.spr.displayHeight * 0.4, { scale: 1.1, speed: 1.6 })
-            this.withSrc('other', () => this.strike(t, boltMul, true, '#ff8c42'))
+            dealt = this.withSrc('other', () => this.strike(t, boltMul, true, '#ff8c42'))
           }
+          if (dealt > 0) autoHit = true
           if (t.dead) continue
           if (el === 'fire') { t.burnStacks = Math.min(this.burnMax(), t.burnStacks + 1); t.burnStackTurns = 3 }
           else if (el === 'ice') { t.chill = Math.max(t.chill, 1); if (!t.charging) t.spr.setTint(0x9fe3ff) }
           this.dotIcon(t)
         }
       }
-      this.sageElementalPerks(target, hitMul, endowed)
+      if (swingHit || autoHit) this.sageElementalPerks(target, hitMul, endowed)
     } finally {
+      this.lsMul = prevLs
       this.autoSpelling = false
     }
   }
@@ -2554,15 +2561,13 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.j2LightPerk > 0 && Math.random() < sageLightChance(this.st, this.sageInt, el, endowed)) {
       const ben = sageElementBenefit('lightning', el)
       const jumps = Math.min(this.alive().length, P.lightTargetsBase + (this.st.j2LightPerk >= 3 && ben >= 1 ? 1 : 0))
-      const first = target && !target.dead ? target : this.front()[0]
-      if (first && jumps > 0) {
-        const chain: Mon[] = [first]
-        for (const m of this.alive()) if (chain.length < jumps && m !== first) chain.push(m)
+      const { chain, originDead } = pickChainTargets(target, this.alive(), jumps, (m) => this.maidenGuarded(m))
+      if (chain.length > 0) {
+        const first = chain[0]
         let curMul = (P.lightMul + this.st.j2LightDmg) * ben * hitMul, anyCrit = false
         for (let i = 0; i < chain.length; i++) {
           const m = chain[i]
           if (m.dead) continue
-          playPfx(this, i === 0 ? 'lightningStrike' : 'zapBolt', m.spr.x, GROUND, { scale: 1.05, speed: 1.7, flip: i % 2 === 1 })
           this.withSrc('other', () => this.strike(m, curMul, true, '#bfe6ff'))
           if (this.lastHitCrit) anyCrit = true
           if (!m.dead && this.st.j2LightStun > 0 && Math.random() < this.st.j2LightStun * ben) {
@@ -2571,11 +2576,17 @@ export class BattleScene extends Phaser.Scene {
           }
           curMul *= 1 - P.lightDecay
         }
-        if (anyCrit && this.st.j2LightStar > 0 && !first.dead) {
+        const overload = anyCrit && this.st.j2LightStar > 0
+        const overloadEcho = overload && !first.dead
+        playChainLightningFx(this, { chain, originDead, overloadBack: overloadEcho })
+        if (overload) {
           this.gainRes(P.lightCritMana)
-          this.floatText(first.spr.x, first.spr.y - first.spr.displayHeight - 36, `🌩️ Overload +${P.lightCritMana}💧`, '#bfe6ff')
-          playPfx(this, 'zapBolt', first.spr.x, GROUND, { scale: 1.2, speed: 1.8 })
-          this.withSrc('other', () => this.strike(first, (P.lightMul + this.st.j2LightDmg) * ben * hitMul, true, '#fff07a'))
+          const fxX = !first.dead ? first.spr.x : HERO_X
+          const fxY = !first.dead ? first.spr.y - first.spr.displayHeight - 36 : GROUND - 165
+          this.floatText(fxX, fxY, `🌩️ Overload +${P.lightCritMana}💧`, '#bfe6ff')
+          if (overloadEcho) {
+            this.withSrc('other', () => this.strike(first, (P.lightMul + this.st.j2LightDmg) * ben * hitMul, true, '#fff07a'))
+          }
         }
       }
     }
@@ -2823,7 +2834,6 @@ export class BattleScene extends Phaser.Scene {
     this.stayIn = extra > 0 || this.rampage > 0
     await this.basicOnce()
     this.comboKnives(false) // Rogue ★: crit knives from the first swing
-    this.sageSpell(target, this.sageInfusePow > 0, this.sageInfusePow > 0 ? this.sageInfusePow : 1) // 📖 Sage Auto Spell & On-Hit Perks (guaranteed when Mana-infused)
     if (this.rampage > 0 && this.alive().length) { this.floatText(HERO_X, GROUND - 150, '👹', '#ff5a4e'); await this.basicOnce() } // Berserker บ้าระห่ำ: every swing hits twice
     if (this.alive().length && await this.procs('basic') > 0) await this.wait(120) // พร v2: on-basic-attack cards
     if (this.immortal === 'angel' && this.fightTurns <= IMMORTAL_RULES.angelTurns && this.hp > 0) { // 🌈 พรนางฟ้า
@@ -2839,7 +2849,6 @@ export class BattleScene extends Phaser.Scene {
       sfx.combo(n + 2)
       await this.basicOnce()
       this.comboKnives(true) // Rogue มีดบิน
-      if (this.st.j2Hindsight > 0) this.sageSpell(this.front()[0], false, this.sageInfusePow > 0 ? this.sageInfusePow : 1) // Sage ★ Hindsight
       hits++
     }
     this.sageInfusePow = 0
@@ -2899,12 +2908,16 @@ export class BattleScene extends Phaser.Scene {
     }
     else if (kind === 'mage' && this.j2?.id === 'sage') await this.lunge(f, () => {
       const inf = this.sageInfusePow > 0 ? KIT2.sage.s1InfuseBonus * (1 + this.st.s1Pow) : 0
-      this.strike(f, KIT2.sage.basicMul + inf)
+      const hitDmg = this.strike(f, KIT2.sage.basicMul + inf)
       if (this.sageInfusePow > 0 && !f.dead) {
         if (this.st.mgHex > 0) { f.weakPct = Math.max(f.weakTurns > 0 ? f.weakPct : 0, this.st.mgHex); f.weakTurns = Math.max(f.weakTurns, MAGE_PASSIVE.hex.turns); this.dotIcon(f) }
         if (this.st.autoBurn > 0 && this.element === 'fire') { f.burnStacks = Math.min(this.burnMax(), f.burnStacks + this.st.autoBurn); f.burnStackTurns = 3; this.dotIcon(f) }
       }
-    }) // 📖 Sage: melee x P.ATK (+ Passive Skill 1 Mana infusion)
+      const isFirstSwing = this.comboLevel === 0
+      if (isFirstSwing || this.st.j2Hindsight > 0) {
+        this.sageSpell(f, isFirstSwing && this.sageInfusePow > 0, this.sageInfusePow > 0 ? this.sageInfusePow : 1, hitDmg > 0)
+      }
+    }) // 📖 Sage: melee x P.ATK (+ Passive Skill 1 Mana infusion + on-impact Auto Spell & Perks)
     else if (kind === 'mage') await this.shoot(f, 0x9f7bff, () => { if (this.strike(f, MAGE_SPELL.basicMul, true, '#c9a8ff') > 0) this.gainRes(MAGE_CAST.boltMana) }) // weak free magic bolt (v78: + Mana on hit); real damage = Mana spells
     else if (kind === 'thief') await this.lunge(f, () => { this.strike(f, 0.6); this.strike(f, 0.6); this.doubleAttack(f, 0.6) })
     else if (kind === 'cleric') {
@@ -2950,8 +2963,11 @@ export class BattleScene extends Phaser.Scene {
         const pow = cl?.power ?? rbCl?.effect.power ?? 0.4
         const targets = rbCl?.effect.secondary ?? 2
         this.floatText(f.spr.x, f.spr.y - f.spr.displayHeight - 26, '⚡ สายฟ้าชิ่ง!', '#bfe6ff')
-        const chainRow = this.alive().slice(0, targets)
-        this.withSrc('zap', () => { for (const cm of chainRow) this.zap(cm, pow, '#bfe6ff', false) })
+        const { chain: chainRow, originDead } = pickChainTargets(f, this.alive(), targets, (m) => this.maidenGuarded(m))
+        if (chainRow.length > 0) {
+          playChainLightningFx(this, { chain: chainRow, originDead, palette: ZAP_YELLOW, sparks: ZAP_YELLOW_SPARKS })
+          this.withSrc('zap', () => { for (const cm of chainRow) this.zap(cm, pow, '#bfe6ff', false) })
+        }
       }
     }
     if (this.j2?.id === 'monk') this.monkSwing(f)
@@ -3540,7 +3556,7 @@ export class BattleScene extends Phaser.Scene {
         this.strike(o, RELIC_RULES.superbolt.splash, true, txt)
       }
     }
-    this.strike(m, mul, true, txt)
+    const dealt = this.strike(m, mul, true, txt)
     if (proc && fork && this.pk.chain > 0 && Math.random() < this.pk.chain) { // legend ฟ้าแตกแขนง: never chains again
       const l = this.alive(); if (l.length) this.zap(l[Phaser.Math.Between(0, l.length - 1)], mul, txt, false)
     } else if (fork && this.element === 'lightning' && this.st.lightChain > 0 && Math.random() < this.st.lightChain) { // tree "ฟ้าแตกแขนง": never chains again
@@ -3550,6 +3566,7 @@ export class BattleScene extends Phaser.Scene {
         this.zap(tgt, mul, txt, false)
       }
     }
+    return dealt
   }
 
   /** Mage lightning ult: 6+ hits on one target (boss, else highest HP), 0.3–1.2x each; leftovers jump if it dies. */
@@ -3943,9 +3960,9 @@ export class BattleScene extends Phaser.Scene {
     const magic = this.job.attack === 'magic' || this.st.holyCounter > 0 // tree: "ศรัทธาสวน"
     const hit = () => this.withSrc('counter', () => {
       this.forceCrit = this.st.j2CounterCrit > 0 && !magic // Knight ★ Counter Attack
-      this.strike(m, BATTLE.counterMul, magic, magic ? '#c9a8ff' : undefined)
+      const dmg = this.strike(m, BATTLE.counterMul, magic, magic ? '#c9a8ff' : undefined)
       this.forceCrit = false
-      if (this.st.j2Hindsight > 0) this.sageSpell(m) // Sage ★ Hindsight
+      if (this.st.j2Hindsight > 0 && dmg > 0) this.sageSpell(m, false, 1, true) // Sage ★ Hindsight
       if (this.st.ctrAoe > 0) for (const o of this.alive()) if (o !== m) this.strike(o, 0.5, magic) // tree: "สวนพายุ"
     })
     if (this.job.attack !== 'melee') { await this.shoot(m, magic ? 0x9f7bff : 0xf6eedc, hit, this.job.id === 'archer' && !magic ? {} : undefined); return }
@@ -3979,7 +3996,8 @@ export class BattleScene extends Phaser.Scene {
           this.heroRig.playStrike(2, this.rigSpec.isKnightLine)
           this.heroSlashFx(m.spr.x - 10, GROUND - 40, this.rigSpec.isKnightLine)
           sfx.swing()
-          this.withSrc('counter', () => this.strike(m, BATTLE.counterMul))
+          const dmg = this.withSrc('counter', () => this.strike(m, BATTLE.counterMul))
+          if (this.st.j2Hindsight > 0 && dmg > 0) this.sageSpell(m, false, 1, true)
           this.shake(60, 0.004)
         }
         this.tweens.add({ targets: this.heroSpr, x: HERO_X, duration: step * 0.3, ease: 'Quad.easeOut' })
