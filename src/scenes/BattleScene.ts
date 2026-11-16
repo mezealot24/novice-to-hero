@@ -3539,7 +3539,7 @@ export class BattleScene extends Phaser.Scene {
     const proc = this.src === 'zap' // card lightning (not the Mage ult)
     const superHit = proc && fork && this.relic === 'superbolt' && Math.random() < RELIC_RULES.superbolt.chance
     if (proc) {
-      playPfx(this, 'zapYellow', m.spr.x, GROUND, { scale: superHit ? 1.45 : 1.2, speed: 1.4, flip: this.zapCount % 2 === 1 })
+      playPfx(this, 'zapYellow', m.spr.x + Phaser.Math.Between(-8, 8), GROUND, { scale: superHit ? 1.45 : 1.2, speed: 1.9, flip: Math.random() < 0.5 })
     }
     const n = this.zapTurn.get(m) ?? 0
     this.zapTurn.set(m, n + 1)
@@ -3552,7 +3552,7 @@ export class BattleScene extends Phaser.Scene {
       mul *= RELIC_RULES.superbolt.mul
       this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 46, '⚡ อสนีเทพ!', '#fff07a')
       for (const o of this.alive().filter((x) => x !== m).slice(0, 2)) {
-        playPfx(this, 'zapYellow', o.spr.x, GROUND, { scale: 1.05, speed: 1.4, flip: true })
+        playPfx(this, 'zapYellow', o.spr.x + Phaser.Math.Between(-8, 8), GROUND, { scale: 1.05, speed: 1.9, flip: Math.random() < 0.5 })
         this.strike(o, RELIC_RULES.superbolt.splash, true, txt)
       }
     }
@@ -3562,7 +3562,7 @@ export class BattleScene extends Phaser.Scene {
     } else if (fork && this.element === 'lightning' && this.st.lightChain > 0 && Math.random() < this.st.lightChain) { // tree "ฟ้าแตกแขนง": never chains again
       const l = this.alive(); if (l.length) {
         const tgt = l[Phaser.Math.Between(0, l.length - 1)]
-        playPfx(this, 'zapBolt', tgt.spr.x, GROUND, { scale: 1.15, speed: 1.4, flip: true })
+        playPfx(this, 'zapBolt', tgt.spr.x + Phaser.Math.Between(-8, 8), GROUND, { scale: 1.15, speed: 1.9, flip: Math.random() < 0.5 })
         this.zap(tgt, mul, txt, false)
       }
     }
@@ -5233,7 +5233,7 @@ export class BattleScene extends Phaser.Scene {
     for (let i = 0; i < S.bolts; i++) {
       const t = this.alive(); if (!t.length) break
       const m = t[Phaser.Math.Between(0, t.length - 1)]
-      playPfx(this, 'zapYellow', m.spr.x, GROUND, { scale: 1.25, speed: 1.4, flip: i % 2 === 1 })
+      playPfx(this, 'zapYellow', m.spr.x + Phaser.Math.Between(-8, 8), GROUND, { scale: 1.25, speed: 1.9, flip: Math.random() < 0.5 })
       this.withSrc('zap', () => this.damageMon(m, Math.max(1, Math.round(this.magicPow() * Phaser.Math.FloatBetween(0.9, 1.1) * S.mul)), false, '#fff08a')) // magic: no crit (RO rule)
       sfx.hit()
       await this.wait(70)
