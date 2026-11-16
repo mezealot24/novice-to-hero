@@ -36,10 +36,10 @@ export const tree2: ClassTree = {
     n('sg_f4', 'sg_f', 4, '💥', 'Inferno Overdrive', 1, () => `Fire Bolt ยิงครบ ${P.fireMaxBolts} ลูกใน 1 เทิร์น → ปะทุทุกตัว ${P.fireNovaMul}x Pm + เผา ${P.fireNovaBurn}`, () => ({ j2FireStar: 1 })),
 
     // ⚡ Branch 3: On-Hit Perk — Chain Lightning
-    n('sg_l1', 'sg_l', 1, '⚡', 'Chain Lightning on Hit', 3, (lv) => `ทุกฮิตมีโอกาส ${Math.round((P.lightChance + P.lightPerLv * (lv - 1)) * 100)}% สายฟ้าชิ่ง ${P.lightTargetsBase + (lv >= 3 ? 1 : 0)} เป้า (ธาตุหลัก ⚡ 100% / อื่น ${pc(P.offMul)})`, (lv) => ({ j2LightPerk: lv })),
+    n('sg_l1', 'sg_l', 1, '⚡', 'Chain Lightning on Hit', 3, (lv) => `ทุกฮิตมีโอกาส ${Math.round((P.lightChance + P.lightPerLv * (lv - 1)) * 100)}% สายฟ้าชิ่ง ${P.lightTargetsBase + (lv >= 3 ? 1 : 0)} เป้า (เป้าเดียว ×4 · ธาตุหลัก ⚡ 100% / อื่น ${pc(P.offMul)})`, (lv) => ({ j2LightPerk: lv })),
     n('sg_l2', 'sg_l', 2, '🌩️', 'กระแสแรงสูง', 3, (lv) => `Chain Lightning แรง +${lv * 12}% · ความเร็วโจมตี +${lv * 4}%`, (lv) => ({ j2LightDmg: 0.12 * lv, aspd: 0.064 * lv })),
     n('sg_l3', 'sg_l', 3, '💫', 'สายฟ้าช็อตมึน', 3, (lv) => `ชิ่งแต่ละเป้ามีโอกาสมึน +${lv * 3}% (บอส: ผลักเกจ -${P.lightPush}) · สกิลคริ +${lv * 2}%`, (lv) => ({ j2LightStun: P.lightStunPerLv * lv, skillCrit: 0.02 * lv })),
-    n('sg_l4', 'sg_l', 4, '🌩️', 'Overload Tempest', 1, () => `Chain Lightning คริ → ฟื้น Mana +${P.lightCritMana} และชิ่งกลับตัวแรก 100%`, () => ({ j2LightStar: 1 })),
+    n('sg_l4', 'sg_l', 4, '🌩️', 'Overload Tempest', 1, () => 'ดาเมจสายฟ้าทุกชนิดฟื้น Mana +1/ฮิต · สายฟ้าคริสร้างดาเมจเวท 4% ของ HP ปัจจุบันศัตรู', () => ({ j2LightStar: 1 })),
 
     // ❄️ Branch 4: On-Hit Perk — Permafrost (Sejuani E)
     n('sg_i1', 'sg_i', 1, '❄️', 'Permafrost on Hit', 3, (lv) => `ทุกฮิตมีโอกาส ${Math.min(100, Math.round((P.iceChance + P.icePerLv * (lv - 1)) * 100))}% ซ้อนเยือกแข็ง (ครบ ${P.iceMax} ขั้น แตก+แช่แข็ง · ธาตุหลัก ❄️ 100% / อื่น ${pc(P.offMul)})`, (lv) => ({ j2IcePerk: lv })),

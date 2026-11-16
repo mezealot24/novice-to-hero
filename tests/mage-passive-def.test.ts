@@ -18,12 +18,12 @@ test('rank 0 is a no-op for every mage passive', () => {
 })
 
 test('doc formulas at rank 1 and 5', () => {
-  near(staticCounterMul(1), 0.28); near(staticCounterMul(5), 0.6)
-  near(staticShockChance(1), 0.25); near(staticShockChance(5), 0.45)
-  near(moltenThornsMul(1), 0.35); near(moltenThornsMul(5), 0.75)
-  near(glacialNovaMul(1), 0.4); near(glacialNovaMul(5), 0.8)
-  assert.equal(glacialBarrierMax(1, 1000, 100), 85) // 1000x6% + 100x25%
-  assert.equal(glacialBarrierMax(5, 1000, 100), 425)
+  near(staticCounterMul(1), 0.47); near(staticCounterMul(5), 0.95)
+  near(staticShockChance(1), 0.37); near(staticShockChance(5), 0.65)
+  near(moltenThornsMul(1), 0.55); near(moltenThornsMul(5), 1.15)
+  near(glacialNovaMul(1), 0.6); near(glacialNovaMul(5), 1.2)
+  assert.equal(glacialBarrierMax(1, 1000, 100), 120) // 1000x8% + 100x40%
+  assert.equal(glacialBarrierMax(5, 1000, 100), 600)
 })
 
 test('rank is clamped to 0..5', () => {
@@ -31,10 +31,10 @@ test('rank is clamped to 0..5', () => {
   assert.equal(glacialBarrierMax(-3, 1000, 100), 0)
 })
 
-test('Flame Ward: 5% M.ATK per rank, whole shield capped at 25% max HP', () => {
-  assert.equal(moltenWardGain(2, 100, 1000, 0), 10)
-  assert.equal(moltenWardGain(5, 100, 1000, 240), 10) // room left = 250 - 240
-  assert.equal(moltenWardGain(5, 100, 1000, 250), 0)
+test('Flame Ward: 8% M.ATK per rank, whole shield capped at 35% max HP', () => {
+  assert.equal(moltenWardGain(2, 100, 1000, 0), 16)
+  assert.equal(moltenWardGain(5, 100, 1000, 330), 20) // room left = 350 - 330
+  assert.equal(moltenWardGain(5, 100, 1000, 350), 0)
   assert.equal(moltenWardGain(5, 100, 1000, 900), 0) // never negative
 })
 
@@ -117,15 +117,15 @@ test('scaling: scaled values grow, Flame Ward still respects the shield cap', ()
   assert.ok(glacialNovaMul(3, p.dmg) > glacialNovaMul(3))
   assert.ok(glacialBarrierMax(3, 1000, 100, p.shield) > glacialBarrierMax(3, 1000, 100))
   assert.ok(moltenWardGain(3, 100, 1000, 0, p.shield) > moltenWardGain(3, 100, 1000, 0))
-  assert.equal(moltenWardGain(5, 100000, 1000, 240, p.shield), 10) // room left = 250 - 240
+  assert.equal(moltenWardGain(5, 100000, 1000, 340, p.shield), 10) // room left = 350 - 340
 })
 
 test('passives ride on the T1 node of each element line: shown level = passive rank (after the v83 stretch)', () => {
   assert.ok(!TREE.some((x) => x.branch === 'mage_def'), 'no separate mage_def branch')
   const rows = [
     ['mage_l1', 'mgStatic', null, 0],
-    ['mage_f1', 'mgMolten', 'guard', 0.02],
-    ['mage_i1', 'mgGlacial', 'mdef', 0.04],
+    ['mage_f1', 'mgMolten', 'guard', 0.03],
+    ['mage_i1', 'mgGlacial', 'mdef', 0.05],
   ] as const
   for (const [id, key, stat, per] of rows) {
     const nd = TREE.find((x) => x.id === id)!

@@ -16,9 +16,8 @@ export const tree: ClassTree = {
     { id: 'mage_i', job: 'mage', name: 'น้ำแข็ง', icon: '❄️', blurb: 'ช้า · บาเรียหนา · หักบอส' },
   ],
   nodes: [
-    n('mage_core1', 'mage_core', 0, '🔷', 'แก่นเวท', 3, (lv) => `Max Mana +${lv * 8}`, (lv) => ({ maxRes: 8 * lv })), // v21: was Mana Shield (removed)
-    n('mage_core2', 'mage_core', 0, '🧘', 'สมาธิ', 3, (lv) => `ฟื้น Mana +${lv * 2}/เทิร์น`, (lv) => ({ resRegen: (2 / 3) * lv })),
-    n('mage_core3', 'mage_core', 0, '💪', 'กายสู่เวท', 3, (lv) => `STR ${Math.round(lvAt([0.3, 0.6, 1], lv) * 100)}% นับเป็น INT ด้วย (M.ATK + Max Mana)`, (lv) => ({ strToInt: lvAt([0.3, 0.6, 1], lv) })), // Q 2026-11-03: off-stat STR is useful for Mage
+    n('mage_core1', 'mage_core', 0, '🔷', 'แก่นเวท', 3, (lv) => `Max Mana +${Math.round(lv * 10)} · ฟื้น Mana +${+(lv * 1).toFixed(1)}/เทิร์น`, (lv) => ({ maxRes: 10 * lv, resRegen: lv })),
+    n('mage_core3', 'mage_core', 0, '💪', 'กายสู่เวท', 3, (lv) => `ทุกๆ 10 STR: ฟื้น Mana +${pr(lv)}% ของ Max Mana/เทิร์น · M.ATK +${pr(lv) * 3}`, (lv) => ({ strToInt: 0.01 * pr(lv) })),
     // 2026-11-13: two always-on passives in the core column (no pick, take both): a debuff and a buff. Both only touch ลูกไฟระเบิด / ult.
     n('mage_core4', 'mage_core', 0, '🕯️', 'มนต์ถดถอย', 3, (lv) => `Debuff: ลูกไฟระเบิดทำให้มอนที่โดนอ่อนแรง ตีเบาลง ${pc(hexWeak(lv))} นาน ${MAGE_PASSIVE.hex.turns} เทิร์นของมัน (ไม่ซ้อน)`, (lv) => ({ mgHex: hexWeak(lv) })),
     n('mage_core5', 'mage_core', 0, '🔮', 'ออร่าเวท', 3, (lv) => `Buff: ${MAGE_PASSIVE.aura.turns} เทิร์นแรกของทุกเวฟ ลูกไฟระเบิดและ ult แรง +${pc(auraAmp(lv))} (บาเรีย/ฮีลไม่เพิ่ม)`, (lv) => ({ mgAura: auraAmp(lv) })),
@@ -26,7 +25,7 @@ export const tree: ClassTree = {
       (lv) => `ult สายฟ้า +${lv} ฮิต · 🛡️ อาภรณ์อัสนี: เริ่มทุกเวฟ หลบแน่นอน ${staticDodgeCharges(pr(lv))} ครั้ง · โดนตี/หลบสำเร็จ ช็อตสวน ${pc(staticCounterMul(pr(lv)))} ของเวท ${pc(staticShockChance(pr(lv)))} ทำศัตรูชะงัก (${D.static.icdTurns} ครั้ง/เทิร์น) · สเกลตาม INT/WIS/Base Lv`,
       (lv) => ({ lightHits: lv, mgStatic: pr(lv) })),
     n('mage_l2', 'mage_l', 2, '🌩️', 'ฟ้าแตกแขนง', 3, (lv) => `ทุกฮิตสายฟ้า ${lv * 8}% แตกเป็นฮิตเพิ่มใส่ตัวสุ่ม`, (lv) => ({ lightChain: 0.08 * lv })),
-    n('mage_l3', 'mage_l', 3, '✴️', 'ประจุ', 3, (lv) => `M.ATK +${lv * 4}`, (lv) => ({ matk: 4 * lv })),
+    n('mage_l3', 'mage_l', 3, '✴️', 'ประจุ', 3, (lv) => { const r = lvAt([1, 2, 3], lv); return `ทุกครั้งที่สร้างดาเมจสายฟ้า: สะสมประจุ +${2 + r}% คริเวท/ฮิต (สูงสุด 5 ขั้น) · ครบ 5 ขั้น: คริเวทแรง +${r * 20}% แล้วนับใหม่` }, (lv) => ({ lightChargeLv: lvAt([1, 2, 3], lv) })),
     n('mage_l4', 'mage_l', 4, '🔱', 'ฟ้าลิขิต', 1, () => 'ทุกฮิตสายฟ้าทอย 2 ครั้ง เอาค่าสูง · ฮิต ≥1x คืน Mana 3', () => ({ lightLuck: 1, overload: 3 })),
     n('mage_f1', 'mage_f', 1, '🌲', 'เชื้อเพลิง', 3,
       (lv) => `เพดานเผา +${lv * 2} stack · 🛡️ เกราะเพลิงผลาญ: ลดดาเมจ ${pc(D.molten.guardPer * pr(lv))} · โดนตี สะท้อนไฟ ${pc(moltenThornsMul(pr(lv)))} ของเวท + เผา ${D.molten.burnStacks} stack · เผาศัตรูได้เกราะ ${pc(D.molten.wardPer * pr(lv))} M.ATK (รวมไม่เกิน ${pc(D.molten.wardCap)} HP) · สเกลตาม INT/WIS/Base Lv`,

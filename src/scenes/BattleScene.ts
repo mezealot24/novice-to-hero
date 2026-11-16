@@ -1108,7 +1108,7 @@ export class BattleScene extends Phaser.Scene {
     if (r <= 0 || !src || src.dead || !icdReady(this.fightTurns, this.mdLast.shock, MAGE_DEF.static.icdTurns)) return
     this.mdLast.shock = this.fightTurns
     playPfx(this, 'zapYellow', src.spr.x, src.spr.y - src.spr.displayHeight * 0.4, { scale: 1.1, speed: 1.4 })
-    this.withSrc('other', () => this.strike(src, staticCounterMul(r, this.mdPower.dmg), true, '#ffe94a'))
+    this.withLightning(() => this.withSrc('other', () => this.strike(src, staticCounterMul(r, this.mdPower.dmg), true, '#ffe94a')))
     if (!src.dead && Math.random() < staticShockChance(r, this.mdPower.shockAdd)) { src.gauge -= MAGE_DEF.static.shockPush; this.floatText(src.spr.x, src.spr.y - src.spr.displayHeight - 20, '⚡ ชะงัก!', '#ffe94a') }
   }
   /** 🔥 Molten Mantle + ❄️ Glacial Aegis on-hit parts (the hit landed, before the shield soaks it). */
@@ -1193,7 +1193,8 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.arLowHpBonus > 0 && m.hp < m.def.hp * 0.5) mul *= 1 + this.st.arLowHpBonus // archer talent เก็บตัวเปราะ r2
     if (crit && this.st.thExecute > 0 && m.hp < m.def.hp * 0.3) mul *= 1.5 // Thief ★ เพชฌฆาต
     if (crit && this.st.arCritRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arCritRes) // archer talent ลมหายใจนักล่า
-    const critDmgAdd = (falconCrit > 0 && m.huntMark > 0 ? Math.max(0, 1.5 - this.st.critMul) : 0) + (m.huntMark > 0 ? this.st.j2StanceMarkCritDmg : 0) + (!magic && this.st.j3Wl > 0 ? this.res * KIT3.warlord.rageCritDmgPer : 0) + (this.isProcHit() ? this.st.procCritMul : 0)
+    const chargeDmgAdd = (magic || this.isProcHit()) && this.st.lightChargeLv > 0 && this.lightChargeStacks >= 5 ? this.st.lightChargeLv * 0.2 : 0
+    const critDmgAdd = (falconCrit > 0 && m.huntMark > 0 ? Math.max(0, 1.5 - this.st.critMul) : 0) + (m.huntMark > 0 ? this.st.j2StanceMarkCritDmg : 0) + (!magic && this.st.j3Wl > 0 ? this.res * KIT3.warlord.rageCritDmgPer : 0) + (this.isProcHit() ? this.st.procCritMul : 0) + chargeDmgAdd
     const r = this.roll(mul, magic, crit, critDmgAdd), up = this.src === 'ult' ? this.st.ultPierce : 0 // v78 บดกระดูก: ult pierce
     const awPierce = !magic && !crit && this.st.j3Rn > 0 && (this.awakenTurns > 0 || this.stampedeFiring) ? this.st.j2Spiral : 0
     const sunder = (m.sunderTurns ?? 0) > 0 ? Math.max(0, 1 - (m.sunder ?? 0)) : 1
@@ -1253,7 +1254,25 @@ export class BattleScene extends Phaser.Scene {
     }
     if (this.j2?.id === 'mobster') this.mobExec(m)
     if (r.crit && this.st.j2CritPet > 0 && !this.allyHitting && !this.critPetUsed && this.hp > 0) this.critPet(m) // v82 Beastmaster ★ พรานแห่งป่า
+    if (this.st.j2LightStar > 0 && this.lightningHitting && this.hp > 0) {
+      this.gainRes(1)
+      if (r.crit && !m.dead) {
+        const hpDmg = Math.max(1, Math.round(m.hp * 0.04 * (1 - (m.def.mdef ?? 0) * Math.max(0, 1 - this.st.magPen))))
+        this.damageMon(m, hpDmg, false, '#fff07a')
+      }
+    }
+    if (this.st.lightChargeLv > 0 && this.lightningHitting) {
+      if (this.lightChargeStacks >= 5) this.lightChargeStacks = 0
+      else this.lightChargeStacks++
+    }
     return r.dmg
+  }
+  private lightChargeStacks = 0
+  private lightningHitting = false
+  private withLightning<T>(fn: () => T): T {
+    const prev = this.lightningHitting
+    this.lightningHitting = true
+    try { return fn() } finally { this.lightningHitting = prev }
   }
 
   // ===== 2nd jobs (design/second-jobs-v1.md, data/jobs2.ts, numbers skill-math KIT2) =====
@@ -2560,34 +2579,24 @@ export class BattleScene extends Phaser.Scene {
     // ⚡ Chain Lightning
     if (this.st.j2LightPerk > 0 && Math.random() < sageLightChance(this.st, this.sageInt, el, endowed)) {
       const ben = sageElementBenefit('lightning', el)
-      const jumps = Math.min(this.alive().length, P.lightTargetsBase + (this.st.j2LightPerk >= 3 && ben >= 1 ? 1 : 0))
+      const aliveCount = this.alive().length
+      const jumps = Math.min(aliveCount, P.lightTargetsBase + (this.st.j2LightPerk >= 3 && ben >= 1 ? 1 : 0))
       const { chain, originDead } = pickChainTargets(target, this.alive(), jumps, (m) => this.maidenGuarded(m))
       if (chain.length > 0) {
-        const first = chain[0]
-        let curMul = (P.lightMul + this.st.j2LightDmg) * ben * hitMul, anyCrit = false
-        for (let i = 0; i < chain.length; i++) {
-          const m = chain[i]
-          if (m.dead) continue
-          this.withSrc('other', () => this.strike(m, curMul, true, '#bfe6ff'))
-          if (this.lastHitCrit) anyCrit = true
-          if (!m.dead && this.st.j2LightStun > 0 && Math.random() < this.st.j2LightStun * ben) {
-            if (m.def.ai === 'boss') m.gauge -= P.lightPush
-            else this.stunMon(m)
+        let curMul = (P.lightMul + this.st.j2LightDmg) * ben * hitMul * (aliveCount === 1 ? 4 : 1)
+        this.withLightning(() => {
+          for (let i = 0; i < chain.length; i++) {
+            const m = chain[i]
+            if (m.dead) continue
+            this.withSrc('other', () => this.strike(m, curMul, true, '#bfe6ff'))
+            if (!m.dead && this.st.j2LightStun > 0 && Math.random() < this.st.j2LightStun * ben) {
+              if (m.def.ai === 'boss') m.gauge -= P.lightPush
+              else this.stunMon(m)
+            }
+            curMul *= 1 - P.lightDecay
           }
-          curMul *= 1 - P.lightDecay
-        }
-        const overload = anyCrit && this.st.j2LightStar > 0
-        const overloadEcho = overload && !first.dead
-        playChainLightningFx(this, { chain, originDead, overloadBack: overloadEcho })
-        if (overload) {
-          this.gainRes(P.lightCritMana)
-          const fxX = !first.dead ? first.spr.x : HERO_X
-          const fxY = !first.dead ? first.spr.y - first.spr.displayHeight - 36 : GROUND - 165
-          this.floatText(fxX, fxY, `🌩️ Overload +${P.lightCritMana}💧`, '#bfe6ff')
-          if (overloadEcho) {
-            this.withSrc('other', () => this.strike(first, (P.lightMul + this.st.j2LightDmg) * ben * hitMul, true, '#fff07a'))
-          }
-        }
+        })
+        playChainLightningFx(this, { chain, originDead })
       }
     }
     // ❄️ Permafrost (Sejuani E: stack 1..4 -> shatter + freeze)
@@ -2648,10 +2657,11 @@ export class BattleScene extends Phaser.Scene {
     const spellCap = this.j2?.id === 'sage' ? CRIT_RULES.sageSpellCap : C.spellCrit
     const burnBonus = target && target.burnStacks > 0 ? this.st.j2FireCrit : 0
     const iceBonus = target && (target.chill > 0 || target.frozen) ? (this.st.j2IcePerk > 0 ? KIT2.sage.perk.iceCritBonus : 0) + this.st.j2IceCrit : 0
-    if (this.isProcHit()) return Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus)
+    const chargeCrit = (magic || this.isProcHit()) && this.st.lightChargeLv > 0 && this.lightChargeStacks > 0 ? this.lightChargeStacks * (0.02 + this.st.lightChargeLv * 0.01) : 0
+    if (this.isProcHit()) return Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit)
     const skill = this.src === 'skill' || this.src === 'ult' || (this.skillSlot !== null && this.src === 'other')
-    if (skill) return Math.min(C.skillCrit, this.st.skillCrit + iceBonus + (magic ? this.st.spellCrit : (this.st.crit + physAdd) * CRIT_RULES.skillFromCrit))
-    return magic ? Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus) : Math.min(C.crit, this.st.crit + physAdd)
+    if (skill) return Math.min(C.skillCrit, this.st.skillCrit + iceBonus + (magic ? this.st.spellCrit + chargeCrit : (this.st.crit + physAdd) * CRIT_RULES.skillFromCrit))
+    return magic ? Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit) : Math.min(C.crit, this.st.crit + physAdd)
   }
   /** Share of the crit bonus a skill hit keeps (admin: same `crit.<class>.<slot>` number; 1 = full). Sure crits and element procs always keep all of it. */
   private critPow() {
@@ -3556,7 +3566,7 @@ export class BattleScene extends Phaser.Scene {
         this.strike(o, RELIC_RULES.superbolt.splash, true, txt)
       }
     }
-    const dealt = this.strike(m, mul, true, txt)
+    const dealt = this.withLightning(() => this.strike(m, mul, true, txt))
     if (proc && fork && this.pk.chain > 0 && Math.random() < this.pk.chain) { // legend ฟ้าแตกแขนง: never chains again
       const l = this.alive(); if (l.length) this.zap(l[Phaser.Math.Between(0, l.length - 1)], mul, txt, false)
     } else if (fork && this.element === 'lightning' && this.st.lightChain > 0 && Math.random() < this.st.lightChain) { // tree "ฟ้าแตกแขนง": never chains again

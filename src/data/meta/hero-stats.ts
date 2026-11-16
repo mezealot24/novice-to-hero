@@ -289,10 +289,12 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 		const sti = treeMods(s.jobTree, "mage").reduce(
 			(a, m) => a + (m.strToInt ?? 0),
 			0,
-		); // node กายสู่เวท
-		const extra = Math.floor(sti * d("str"));
-		st.matk += P.int.matk * extra;
-		st.maxRes += P.int.maxRes * extra;
+		); // node กายสู่เวท: per 10 STR -> +1..5% maxRes regen/turn & +3..15 M.ATK
+		if (sti > 0) {
+			const strSteps = Math.floor(Math.max(0, b.str) / 10);
+			st.resRegen += st.maxRes * sti * strSteps;
+			st.matk += Math.round(sti * 300) * strSteps;
+		}
 	}
 	if (job.id === "cleric")
 		st.spearLuck = Math.min(P.luk.spearCap, P.luk.spear * b.luk); // v37 Q: LUK -> light spear chance

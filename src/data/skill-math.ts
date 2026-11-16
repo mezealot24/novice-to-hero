@@ -31,8 +31,8 @@ export const MAGE_AUTO_MIX = { matk: 0.9, atk: 0.1 }
 /** 2026-11-13 Mage core passives (the "แก่นเวท" column, always on, no pick): 🕯️ มนต์ถดถอย (debuff) · 🔮 ออร่าเวท (buff). Numbers are first guesses.
  *  Node levels are per OLD level (max 3); data/tree.ts stretches them to 5 and calls the formula with lv x 3/5, so Lv 5 = `x3` below. */
 export const MAGE_PASSIVE = {
-  hex: { weakPer: 0.07, cap: 0.35, turns: 2 }, // ลูกไฟระเบิด hit -> the monster's own hits lose weakPer x lv (cap) for `turns` of its turns (the stronger / longer one wins, never stacks)
-  aura: { ampPer: 0.1, turns: 4 }, // first `turns` hero turns of every wave: ลูกไฟระเบิด + ult damage +ampPer x lv (not shields)
+  hex: { weakPer: 0.12, cap: 0.45, turns: 3 }, // ลูกไฟระเบิด hit -> the monster's own hits lose weakPer x lv (cap) for `turns` of its turns (the stronger / longer one wins, never stacks)
+  aura: { ampPer: 0.15, turns: 5 }, // first `turns` hero turns of every wave: ลูกไฟระเบิด + ult damage +ampPer x lv (not shields)
 }
 /** 🕯️ share of damage a hexed monster loses. */
 export const hexWeak = (lv: number) => Math.min(MAGE_PASSIVE.hex.cap, MAGE_PASSIVE.hex.weakPer * Math.max(0, lv))
@@ -184,26 +184,26 @@ export const KIT2 = {
   },
   sage: {
     basicMul: 1, // 📖 melee basic x P.ATK (base Mage: 0.6x magic bolt)
-    s1Cost: 12, s1InfuseBonus: 0.35, // 📖 Spellstrike (passive Skill 1): basic/combo hits spend Mana to deal +35% melee & guarantee Auto Spell + On-Hit Perks
-    autoChance: 0.3, autoInt: 0.0025, autoCap: 0.65, autoMul: 0.75, // Auto Spell per basic: chance + per INT (capped), a run-element bolt x Pm
+    s1Cost: 12, s1InfuseBonus: 0.5, // 📖 Spellstrike (passive Skill 1): basic/combo hits spend Mana to deal +50% melee & guarantee Auto Spell + On-Hit Perks
+    autoChance: 0.38, autoInt: 0.0025, autoCap: 0.75, autoMul: 0.9, // Auto Spell per basic: chance + per INT (capped), a run-element bolt x Pm
     endowCost: 22, endowCd: 5, endowTurns: 3, endowAmp: 0.25, endowPerkChance: 0.1, // 🗡️ Endow: melee + Auto Spell + Perks +25% & +10% proc chance
     ultCost: 25, ultAtk: 2.2, ultPm: 1.2, ultMana: 20, ultBreakTurns: 2, // 🚫 Dispell + Spell Breaker
-    rodBlockMana: 18, rodVitMana: 0.25, rodVitShield: 1.5, // 🛡️ Magic Rod + VIT scaling (Mana + small ward)
+    rodBlockMana: 24, rodVitMana: 0.35, rodVitShield: 2.2, // 🛡️ Magic Rod + VIT scaling (Mana + ward)
     dexSkillCrit: 0.0025, dexSkillCritCap: 0.15, dexCombo: 0.002, dexComboCap: 0.12, // DEX -> skillCrit + combo
     wisElemDmg: 0.003, wisElemCap: 0.3, // WIS -> elemental dmg
     lukProcCritMul: 0.006, lukProcCritCap: 0.6, // LUK -> extra proc/Auto Spell crit dmg
     perk: {
-      offMul: 0.5, // off-element perk benefit (main runElement = 1.0)
-      fireChance: 0.28, firePerLv: 0.07, fireInt: 0.002, fireCap: 0.85,
-      fireMul: 0.55, fireDmgPerLv: 0.12, fireBurn: 1, fireMaxBolts: 3,
-      fireNovaMul: 1.2, fireNovaBurn: 2, // ★ Inferno Overdrive
-      lightChance: 0.28, lightPerLv: 0.07, lightInt: 0.002, lightCap: 0.85,
-      lightMul: 0.7, lightDmgPerLv: 0.12, lightDecay: 0.25,
+      offMul: 0.65, // off-element perk benefit (main runElement = 1.0)
+      fireChance: 0.35, firePerLv: 0.07, fireInt: 0.002, fireCap: 0.85,
+      fireMul: 0.7, fireDmgPerLv: 0.12, fireBurn: 1, fireMaxBolts: 3,
+      fireNovaMul: 1.5, fireNovaBurn: 2, // ★ Inferno Overdrive
+      lightChance: 0.35, lightPerLv: 0.07, lightInt: 0.002, lightCap: 0.85,
+      lightMul: 0.85, lightDmgPerLv: 0.12, lightDecay: 0.2,
       lightTargetsBase: 2, lightStunPerLv: 0.03, lightPush: 12,
-      lightCritMana: 4, // ★ Overload Tempest
-      iceChance: 0.5, icePerLv: 0.15, iceMax: 4, // Permafrost (Sejuani E): 4 stacks -> freeze + burst
-      iceMul: 1.35, iceDmgPerLv: 0.15, iceCritBonus: 0.2, iceCritPerLv: 0.05,
-      iceBossPush: 25, iceStarPush: 25, iceStarMul: 1, // ★ Absolute Permafrost
+      lightCritMana: 6, // ★ Overload Tempest
+      iceChance: 0.6, icePerLv: 0.15, iceMax: 4, // Permafrost (Sejuani E): 4 stacks -> freeze + burst
+      iceMul: 1.65, iceDmgPerLv: 0.15, iceCritBonus: 0.2, iceCritPerLv: 0.05,
+      iceBossPush: 25, iceStarPush: 25, iceStarMul: 1.3, // ★ Absolute Permafrost
     },
     mastery: { atkPct: 0.05, matk: 8 }, // book / staff
   },
@@ -670,9 +670,9 @@ export function skill2Info(k: Skill2Def, st: Stats): InfoRow[] {
 // Counter multipliers are x the hero magic hit (Pm), like every other hero magic proc. Numbers are first guesses.
 export const MAGE_DEF = {
   maxRank: 5,
-  static: { dodgeCharges: [1, 1, 2, 2, 3], counterBase: 0.2, counterPer: 0.08, shockBase: 0.2, shockPer: 0.05, shockPush: 25, icdTurns: 1 }, // shock = gauge push (micro-stun) · 1 proc per hero turn
-  molten: { guardPer: 0.02, thornsBase: 0.25, thornsPer: 0.1, burnStacks: 1, wardPer: 0.05, wardCap: 0.25 }, // ward: shield from burn ticks, total shield capped at 25% max HP
-  glacial: { mdefPer: 0.04, defPer: 2, barrierHpPer: 0.06, barrierMatkPer: 0.25, every: 3, chillTurns: 1, novaBase: 0.3, novaPer: 0.1, novaIcdTurns: 3, freezePush: 25 }, // barrier every `every` hero turns · nova ICD in hero turns
+  static: { dodgeCharges: [1, 1, 2, 2, 3], counterBase: 0.35, counterPer: 0.12, shockBase: 0.3, shockPer: 0.07, shockPush: 32, icdTurns: 1 }, // shock = gauge push (micro-stun) · 1 proc per hero turn
+  molten: { guardPer: 0.03, thornsBase: 0.4, thornsPer: 0.15, burnStacks: 2, wardPer: 0.08, wardCap: 0.35 }, // ward: shield from burn ticks, total shield capped at 35% max HP
+  glacial: { mdefPer: 0.05, defPer: 4, barrierHpPer: 0.08, barrierMatkPer: 0.4, every: 3, chillTurns: 1, novaBase: 0.45, novaPer: 0.15, novaIcdTurns: 3, freezePush: 32 }, // barrier every `every` hero turns · nova ICD in hero turns
   // Stat scaling (round 3, first guesses): soft curve max x stat/(stat+K), same shape as WIS->M.DEF. INT -> counter damage · WIS -> barrier / ward / shock chance · Base Lv -> a small flat bonus to all three.
   scale: { intK: 150, intMax: 0.6, wisK: 150, wisMax: 0.6, shockWisMax: 0.25, shockCap: 0.9, lvMax: 0.2 },
 } as const
