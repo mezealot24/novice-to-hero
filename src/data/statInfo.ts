@@ -3,10 +3,10 @@
 // A line gets the stat's total (b) and points above the start (d) so it can show what the hero gets right now.
 import { PER_POINT, type BaseStat } from './meta'
 import type { JobId } from './jobs'
-import { breakChance, MAGE_CAST } from './skill-math'
+import { breakChance, KIT2, MAGE_CAST } from './skill-math'
 
 type Line = string | ((b: number, d: number) => string)
-export interface StatInfo { generic: Line[]; byClass: Partial<Record<JobId, Line[]>> }
+export interface StatInfo { generic: Line[]; byClass: Partial<Record<JobId, Line[]>>; byJob2?: Partial<Record<string, Line[]>> }
 
 const P = PER_POINT
 const f1 = (n: number) => (Math.round(n * 10) / 10).toString()
@@ -27,10 +27,12 @@ export const STAT_INFO: Record<BaseStat, StatInfo> = {
   vit: {
     generic: [`HP +${P.vit.maxHp} และ +${f1(P.vit.maxHpPct * 100)}%/แต้ม`, `P.DEF +${P.vit.def}/แต้ม`, `ฟื้น HP เล็กน้อย`, (_b, d) => `สวนกลับ ${pctK(d, P.vit.counterK)}`],
     byClass: { cleric: ['โล่นักบวชคิดจาก Max HP (อยู่ 3 เทิร์น รวมไม่เกิน 50% HP)'] },
+    byJob2: { sage: [(_b) => `Magic Rod ดูดเวทคืน Mana เพิ่ม +${f1(KIT2.sage.rodVitMana)}/VIT + โล่ ${f1(KIT2.sage.rodVitShield)}/VIT`] },
   },
   wis: {
     generic: [(b) => `ฮีล/โล่แรง +${f1(P.wis.healAmp * 100)}%/แต้ม (ตอนนี้ +${Math.round(P.wis.healAmp * 100 * b)}%)`, (b) => `M.DEF ${pctK(b, P.wis.mdefK)} · ต้านทาน ${pctK(b, P.wis.tenacityK)}`],
     byClass: { swordsman: [manaRegen], mage: [manaRegen], cleric: [manaRegen, 'ฮีลทุกท่าคิดจาก M.ATK แล้วคูณฮีลแรงนี้'] },
+    byJob2: { sage: [(_b, d) => `ดาเมจธาตุ +${f1(KIT2.sage.wisElemDmg * 100)}%/แต้ม (สูงสุด +${Math.round(KIT2.sage.wisElemCap * 100)}%, ตอนนี้ +${f1(Math.min(KIT2.sage.wisElemCap, KIT2.sage.wisElemDmg * d) * 100)}%)`] },
   },
   dex: {
     generic: [`Hit +${P.dex.hit}/แต้ม`, `P.ATK ขั้นต่ำ +${f1(P.dex.minPct * 100)}%/แต้ม (ดาเมจนิ่งขึ้น)`],
@@ -40,6 +42,7 @@ export const STAT_INFO: Record<BaseStat, StatInfo> = {
       cleric: [(_b, d) => `หอกแสง +${P.off.clericDexSpear}x M.ATK/แต้ม (ตอนนี้ +${(P.off.clericDexSpear * d).toFixed(2)}x)`],
       mage: [(b) => `ลดโอกาสร่ายแตก ${f1(MAGE_CAST.breakDex * 100)}%/แต้ม (ตอนนี้แตก ${f1(breakChance(b, 0) * 100)}% ต่อครั้งที่โดนตีแรง ≥ ${f1(MAGE_CAST.breakMinHp * 100)}% HP ก่อนต้านทาน · เฉพาะ ult)`],
     },
+    byJob2: { sage: [(_b, d) => `สกิลคริ +${f1(KIT2.sage.dexSkillCrit * 100)}%/แต้ม (สูงสุด ${Math.round(KIT2.sage.dexSkillCritCap * 100)}%) · คอมโบ +${f1(KIT2.sage.dexCombo * 100)}%/แต้ม`] },
   },
   int: {
     generic: [(_b, d) => `M.ATK +${P.int.matk}/แต้ม (ตอนนี้ +${P.int.matk * d})`],
@@ -47,6 +50,7 @@ export const STAT_INFO: Record<BaseStat, StatInfo> = {
       swordsman: [maxMana], mage: [maxMana, 'ดาเมจเวททุกท่ามาจาก M.ATK'], cleric: [maxMana, 'เวท + ฮีลทั้งหมดใช้ M.ATK: หอกแสง · ฮีล · ฟื้นฟู · ไฟชำระ'],
       thief: [(_b, d) => `ดาเมจพิษ +0.1/stack/แต้ม (ตอนนี้ +${f1(0.1 * d)})`],
     },
+    byJob2: { sage: [(b) => `Auto Spell +${f1(KIT2.sage.autoInt * 100)}%/INT · On-Hit Perk +${f1(KIT2.sage.perk.fireInt * 100)}%/INT (ตอน ${b} INT)`] },
   },
   luk: {
     generic: [`หลบโชคดี · พรตำนาน · อีเวนต์หายาก · ดรอปหายาก`, `เวทคริ (หอก/สายฟ้า/ไฟ/น้ำแข็ง) ได้จากของ · perk · tree เท่านั้น LUK ช่วยเฉพาะ Mage`],
@@ -58,6 +62,7 @@ export const STAT_INFO: Record<BaseStat, StatInfo> = {
       mage: [(b) => `คริเวท +1% ต่อ 6 แต้ม (ตอนนี้ ${f1(P.off.mageLukSpellCrit * 100 * b)}%)`],
       cleric: [(b) => `คริ +1% ต่อ 3 แต้ม (ตอนนี้ ${f1(P.luk.crit * 100 * b)}%)`, (b) => `เรียกหอกแสง ${f1(P.luk.spear * 100)}%/แต้ม ต่อเทิร์น (ตอนนี้ ${f1(Math.min(P.luk.spearCap, P.luk.spear * b) * 100)}%, สูงสุด ${P.luk.spearCap * 100}%)`],
     },
+    byJob2: { sage: [(_b, d) => `คริ On-hit/Auto Spell แรง +${f1(KIT2.sage.lukProcCritMul * 100)}%/แต้ม (สูงสุด +${Math.round(KIT2.sage.lukProcCritCap * 100)}%, ตอนนี้ +${f1(Math.min(KIT2.sage.lukProcCritCap, KIT2.sage.lukProcCritMul * d) * 100)}%)`] },
   },
   agi: {
     generic: [`ความเร็วเทิร์น +${f1(P.agi.aspdPct * 100)}%/แต้ม (ตีบ่อยขึ้น)`, `Flee +${P.agi.flee}/แต้ม`, (_b, d) => `คอมโบ ${pctK(d, P.agi.comboK)}`],
@@ -73,8 +78,9 @@ export const DERIVED_STAT_CAPS = {
 } as const
 
 /** Lines for this stat and class, already filled with the hero's numbers. */
-export function statLines(stat: BaseStat, job: JobId, total: number) {
+export function statLines(stat: BaseStat, job: JobId, total: number, job2?: string) {
   const info = STAT_INFO[stat], d = Math.max(0, total - 1)
   const fill = (l: Line) => (typeof l === 'string' ? l : l(total, d))
-  return { generic: info.generic.map(fill), cls: (info.byClass[job] ?? []).map(fill) }
+  const j2Lines = job2 && info.byJob2?.[job2] ? info.byJob2[job2]!.map(fill) : []
+  return { generic: info.generic.map(fill), cls: [...(info.byClass[job] ?? []).map(fill), ...j2Lines] }
 }

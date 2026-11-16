@@ -206,8 +206,12 @@ const INT_STATS = new Set<string>([...BASES, 'def', 'hit', 'flee', 'maxRes', 'j2
 const slotBias = (slot: Slot, kind: Kind) => (slot === 'weapon' ? (kind === 'atk' ? 2 : 1) : slot === 'acc' ? 1 : kind === 'def' ? 2 : 1)
 const jobBias = (off: JobId[] | undefined, job: JobId) => (off?.includes(job) ? 0.25 : 1)
 // RO Falconer (Beastmaster / Ranger) scales Falcon Blitz Beat off INT + M.ATK: un-penalize INT without affecting pure Archer / Innovator.
+// Sage (battle mage): un-penalize STR and DEX (melee P.ATK, skillCrit, combo).
 const baseBias = (b: BaseStat, job: JobId, cls?: HeroClass) =>
-  b === 'int' && (cls?.job2 === 'beastmaster' || cls?.job3 === 'ranger') ? 1 : jobBias(BASE_OFF[b], job)
+  (b === 'int' && (cls?.job2 === 'beastmaster' || cls?.job3 === 'ranger')) ||
+  ((b === 'str' || b === 'dex') && cls?.job2 === 'sage')
+    ? 1
+    : jobBias(BASE_OFF[b], job)
 
 function pickWeighted<T>(xs: T[], w: (x: T) => number, rnd: () => number): T {
   const total = xs.reduce((a, x) => a + w(x), 0)

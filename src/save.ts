@@ -78,6 +78,7 @@ export interface SaveData {
 	stretch?: 1; // v83: webs refunded once for the node-level stretch (data/tree.ts TREE_RULES.stretch)
 	stretchRefund?: { skill: number; job2: number }; // points that migration gave back, shown once in town
 	bmRework?: 1 | 2; // Beastmaster rework v1 (1) / v2.1 (2): 1-time free job2Tree reset for existing Beastmasters
+	sageRework?: 1; // Sage rework v1 (Beta): 1-time free job2Tree + talent reset & point refund for existing Sages
 	job2Talents?: Record<string, { id: string; rank: number }>; // v119 ทาเลนต์ชั้น 2: same shape, Talent Points from Job2 Lv; cleared when the 2nd job changes
 	jobTalents?: Record<string, { id: string; rank: number }>; // talent row "1".."4" -> pick + rank; Talent Points are derived from Job Lv (data/tree.ts)
 	stats: Record<BaseStat, number>;
@@ -136,6 +137,7 @@ export function newSave(name: string, race: RaceId): SaveData {
 		web: 1,
 		stretch: 1,
 		bmRework: 2,
+		sageRework: 1,
 		name,
 		race,
 		baseLevel: 1,
@@ -210,6 +212,7 @@ export function load(): SaveData | null {
 		migrateNovicePool(s);
 		migrateSmashAuto(s);
 		migrateBeastmasterRework(s);
+		migrateSageRework(s);
 		if (
 			s.pet !== undefined &&
 			s.pet !== "hawk" &&
@@ -466,6 +469,23 @@ export function migrateBeastmasterRework(s: SaveData) {
 		s.job2Tree === null
 	)
 		return;
+	const back = resetTree2(s);
+	if (back > 0) {
+		const cur =
+			typeof s.job2Points === "number" && Number.isFinite(s.job2Points)
+				? s.job2Points
+				: 0;
+		s.job2Points = cur + back;
+	}
+}
+/** Sage rework v1 (Beta): reset Sage job2Tree + job2Talents once and refund skill points. */
+export function migrateSageRework(s: SaveData) {
+	if (!s || typeof s !== "object") return;
+	if (typeof s.sageRework === "number" && Number.isFinite(s.sageRework) && s.sageRework >= 1) return;
+	s.sageRework = 1;
+	if (s.job2 !== "sage") return;
+	s.job2Talents = {};
+	if (s.job2Tree === undefined || s.job2Tree === null) return;
 	const back = resetTree2(s);
 	if (back > 0) {
 		const cur =

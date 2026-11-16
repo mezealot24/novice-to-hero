@@ -4,6 +4,7 @@
 // พร v2 (Q 2026-11-04, design/skills-v2.md): every hero magic HIT uses magic power Pm = 70% M.ATK + 30% P.ATK
 // (LoL feel: physical builds still get something from magic procs). Heals and shields stay on M.ATK.
 import { BATTLE, PLAYER, type MonsterKind, type Stats } from './game-data'
+import { CRIT_RULES } from './battle-rules'
 import { CLERIC_KIT, JOBS, MAGE_SPELL, SPELL_VAMP, SWORD_MANA, type JobDef, type JobId } from './jobs'
 import type { Skill2Def } from './skill2'
 import { PACKS } from './dungeons'
@@ -183,11 +184,28 @@ export const KIT2 = {
   },
   sage: {
     basicMul: 1, // 📖 melee basic x P.ATK (base Mage: 0.6x magic bolt)
-    autoChance: 0.25, autoInt: 0.002, autoCap: 0.6, autoMul: 0.7, // Auto Spell per basic: chance + per INT (capped), a run-element bolt x Pm
-    endowCost: 25, endowCd: 5, endowTurns: 3, endowAmp: 0.25, // 🗡️ Endow: basic + Auto Spell +25%
-    ultCost: 25, ultAtk: 2, ultPm: 1, ultMana: 20, // 🚫 Dispell + Spell Breaker: strip buffs, steal Mana, hit 2x P.ATK + 1x Pm
-    rodBlockMana: 15, // 🛡️ ★ Magic Rod: Mana from the absorbed spell
-    mastery: { atkPct: 0.05, matk: 6 }, // book / staff
+    s1Cost: 12, s1Hits: 2, s1AtkMul: 0.75, // 📖 Spellstrike (replaces Mage Skill 1): 2 melee strikes + guaranteed Auto Spell & On-Hit Perks
+    autoChance: 0.3, autoInt: 0.0025, autoCap: 0.65, autoMul: 0.75, // Auto Spell per basic: chance + per INT (capped), a run-element bolt x Pm
+    endowCost: 22, endowCd: 5, endowTurns: 3, endowAmp: 0.25, endowPerkChance: 0.1, // 🗡️ Endow: melee + Auto Spell + Perks +25% & +10% proc chance
+    ultCost: 25, ultAtk: 2.2, ultPm: 1.2, ultMana: 20, ultBreakTurns: 2, // 🚫 Dispell + Spell Breaker
+    rodBlockMana: 18, rodVitMana: 0.25, rodVitShield: 1.5, // 🛡️ Magic Rod + VIT scaling (Mana + small ward)
+    dexSkillCrit: 0.0025, dexSkillCritCap: 0.15, dexCombo: 0.002, dexComboCap: 0.12, // DEX -> skillCrit + combo
+    wisElemDmg: 0.003, wisElemCap: 0.3, // WIS -> elemental dmg
+    lukProcCritMul: 0.006, lukProcCritCap: 0.6, // LUK -> extra proc/Auto Spell crit dmg
+    perk: {
+      offMul: 0.5, // off-element perk benefit (main runElement = 1.0)
+      fireChance: 0.28, firePerLv: 0.07, fireInt: 0.002, fireCap: 0.85,
+      fireMul: 0.55, fireDmgPerLv: 0.12, fireBurn: 1, fireMaxBolts: 3,
+      fireNovaMul: 1.2, fireNovaBurn: 2, // ★ Inferno Overdrive
+      lightChance: 0.28, lightPerLv: 0.07, lightInt: 0.002, lightCap: 0.85,
+      lightMul: 0.7, lightDmgPerLv: 0.12, lightDecay: 0.25,
+      lightTargetsBase: 2, lightStunPerLv: 0.03, lightPush: 12,
+      lightCritMana: 4, // ★ Overload Tempest
+      iceChance: 0.5, icePerLv: 0.15, iceMax: 4, // Permafrost (Sejuani E): 4 stacks -> freeze + burst
+      iceMul: 1.35, iceDmgPerLv: 0.15, iceCritBonus: 0.2, iceCritPerLv: 0.05,
+      iceBossPush: 25, iceStarPush: 25, iceStarMul: 1, // ★ Absolute Permafrost
+    },
+    mastery: { atkPct: 0.05, matk: 8 }, // book / staff
   },
   // ----- Phase 4 Archer: Beastmaster / Innovator (Ally pets / traps / turrets: battle/allies.ts) -----
   beastmaster: {
@@ -431,9 +449,44 @@ export interface InfoRow { label: string; value: string }
 const r = Math.round
 const pct = (n: number) => `${r(n * 100)}%`
 const range = (lo: number, hi: number) => (r(lo) === r(hi) ? `${r(hi)}` : `${r(lo)}–${r(hi)}`)
-/** Damage of one hit at `mul`, before monster DEF: "lo–hi (คริ X)". Magic crits only with spellCrit. */
-export function hitText(st: Stats, mul: number, magic: boolean) {
-  const b = hitBase(st, magic), c = magic ? st.spellCrit : st.crit
+export const SAGE_S1 = { name: 'ศาสตราวุธธาตุ', icon: '📖' } as const
+export type SagePerkElement = 'fire' | 'lightning' | 'ice'
+/** Main run element gets 100% benefit; off-element perks get KIT2.sage.perk.offMul (50%). */
+export const sageElementBenefit = (perkEl: SagePerkElement, runEl?: string | null) =>
+  perkEl === runEl ? 1 : KIT2.sage.perk.offMul
+export const sageAutoChance = (st: Stats, int: number, endowed = false) => {
+  const S = KIT2.sage
+  return Math.min(1, Math.min(S.autoCap, S.autoChance + S.autoInt * Math.max(0, int)) + st.j2AutoChance + (endowed ? S.endowPerkChance : 0))
+}
+export const sageFireChance = (st: Stats, int: number, runEl?: string | null, endowed = false) => {
+  if (st.j2FirePerk <= 0) return 0
+  const P = KIT2.sage.perk
+  const raw = Math.min(P.fireCap, P.fireChance + P.firePerLv * (st.j2FirePerk - 1) + P.fireInt * Math.max(0, int) + (endowed ? KIT2.sage.endowPerkChance : 0))
+  return raw * sageElementBenefit('fire', runEl)
+}
+export const sageLightChance = (st: Stats, int: number, runEl?: string | null, endowed = false) => {
+  if (st.j2LightPerk <= 0) return 0
+  const P = KIT2.sage.perk
+  const raw = Math.min(P.lightCap, P.lightChance + P.lightPerLv * (st.j2LightPerk - 1) + P.lightInt * Math.max(0, int) + (endowed ? KIT2.sage.endowPerkChance : 0))
+  return raw * sageElementBenefit('lightning', runEl)
+}
+export const sageIceChance = (st: Stats, runEl?: string | null, endowed = false) => {
+  if (st.j2IcePerk <= 0) return 0
+  const P = KIT2.sage.perk
+  const raw = Math.min(1, P.iceChance + P.icePerLv * (st.j2IcePerk - 1) + (endowed ? KIT2.sage.endowPerkChance : 0))
+  return raw * sageElementBenefit('ice', runEl)
+}
+export const sageRodGain = (st: Stats, vit: number) => {
+  const S = KIT2.sage
+  const mana = st.j2MagicRod > 0 ? st.j2MagicRod + Math.floor(Math.max(0, vit) * S.rodVitMana) : 0
+  const shield = st.j2MagicRod > 0 ? Math.round(Math.max(0, vit) * S.rodVitShield) : 0
+  return { mana, shield }
+}
+
+/** Damage of one hit at `mul`, before monster DEF: "lo–hi (คริ X)". Uses CRIT_RULES split when `skill` is true. */
+export function hitText(st: Stats, mul: number, magic: boolean, skill = false) {
+  const b = hitBase(st, magic)
+  const c = skill ? Math.min(CRIT_RULES.cap.skillCrit, st.skillCrit + (magic ? st.spellCrit : st.crit * CRIT_RULES.skillFromCrit)) : (magic ? st.spellCrit : st.crit)
   return `${range(b.lo * mul, b.hi * mul)}${c > 0 ? ` (คริ ${r(b.hi * mul * st.critMul)})` : ''}`
 }
 const heal = (st: Stats, n: number) => r(n * (1 + st.healAmp))
@@ -441,8 +494,20 @@ const shield = (st: Stats, n: number) => r(n * (1 + st.shieldAmp))
 const resName = (job: JobDef) => (job.resource === 'energy' ? 'Energy' : job.resource === 'rage' ? 'Rage' : 'Mana')
 
 /** ทักษะ 1 (the auto skill) with these stats. */
-export function autoInfo(jobId: JobId, st: Stats): InfoRow[] {
+export function autoInfo(jobId: JobId, st: Stats, job2?: string): InfoRow[] {
   const job = JOBS[jobId], pow = 1 + st.s1Pow
+  if (jobId === 'mage' && job2 === 'sage') {
+    const S = KIT2.sage, sgJob = { ...job, auto: { ...job.auto, cost: S.s1Cost } }
+    const rows: InfoRow[] = [
+      { label: 'ใช้', value: `Mana ${autoCost(sgJob, st)}` },
+      { label: `ฟาดหนังสือ ${S.s1Hits} ฮิต (P.ATK · สกิลคริ)`, value: hitText(st, S.s1AtkMul * pow * (1 + st.pskill), false, true) },
+      { label: 'Auto Spell (ร่ายฟรีตามธาตุ)', value: `${hitText(st, (S.autoMul + st.j2AutoMul) * pow * (st.mgOverflow > 0 ? st.mgOverflow : 1), true)} ×${1 + st.j2AutoBolts}` },
+    ]
+    if (st.j2FirePerk > 0) rows.push({ label: '🔥 On-Hit: Fire Bolt ×hit', value: `สูงสุด ${S.perk.fireMaxBolts} ลูก (ธาตุหลัก 100% / อื่น ${pct(S.perk.offMul)})` })
+    if (st.j2LightPerk > 0) rows.push({ label: '⚡ On-Hit: Chain Lightning', value: `ชิ่ง ${S.perk.lightTargetsBase + (st.j2LightPerk >= 3 ? 1 : 0)} เป้า (ธาตุหลัก 100% / อื่น ${pct(S.perk.offMul)})` })
+    if (st.j2IcePerk > 0) rows.push({ label: '❄️ On-Hit: Permafrost', value: `ครบ ${S.perk.iceMax} ขั้น แตก+แช่แข็ง (ธาตุหลัก 100% / อื่น ${pct(S.perk.offMul)})` })
+    return rows
+  }
   const out: InfoRow[] = [{ label: 'ใช้', value: `${resName(job)} ${autoCost(job, st)}` }]
   switch (jobId) {
     case 'swordsman': out.push({ label: 'ดาเมจ/ตัว (ทุกตัว)', value: hitText(st, SWORD_MANA.autoMul * pow * (1 + st.pskill), false) }); break
@@ -488,6 +553,15 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
       out.push({ label: 'หลบแน่นอน', value: `${1 + st.arUltDodge} ครั้ง` })
       break
     case 'mage': {
+      if (job2 === 'sage') {
+        const S = KIT2.sage, k = hitPow * (1 + st.ult2Pow)
+        out[0] = { label: 'คูลดาวน์', value: `${ultCooldown(job, st)} เทิร์น · Mana ${S.ultCost}` }
+        out.push({ label: '🚫 Dispell + ขโมย Mana', value: `ลบบัฟทุกตัว · Mana +${S.ultMana + st.j2UltMana}` })
+        out.push({ label: 'ฟาด Spell Breaker (P.ATK)', value: hitText(st, (S.ultAtk + st.ultMulAdd) * k * (1 + st.pskill), false, true) })
+        out.push({ label: 'ฟาด Spell Breaker (พลังเวท)', value: hitText(st, S.ultPm * k, true, true) })
+        if (st.j2UltBreak > 0) out.push({ label: 'ทำลายเกราะ', value: `${st.j2UltBreak} เทิร์น` })
+        break
+      }
       const amp = (x: number) => hitPow * MAGE_CAST.ultMul * (1 + st.mgUltAmp + x) * (st.mgDoubleCast > 0 ? st.mgDoubleCast : 1)
       const twice = st.mgDoubleCast > 0 ? ' ×2 รอบ' : ''
       out.push({ label: 'ร่าย', value: `1 เทิร์น + เทิร์นที่ปล่อย · แรง ×${MAGE_CAST.ultMul} · แตกเมื่อโดนตีแรง ≥ ${pct(MAGE_CAST.breakMinHp)} HP (${pct(MAGE_CAST.breakBase)} − ${(MAGE_CAST.breakDex * 100).toFixed(1)}%/DEX · พิษ/ไฟไม่ทำให้แตก) · แตก = คืน Mana ${pct(MAGE_CAST.breakRefund)} + คูลดาวน์เหลือ ${MAGE_CAST.brokenUltCd} เทิร์น + ร่ายครั้งหน้าไม่แตก` })

@@ -5,7 +5,7 @@ import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LI
 import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
 import { blessBase, FREE_GEMS, heroBuild, heroStats, jobUpText, itemById, PER_POINT, RESOURCES, splitStatLine, totalBase, type BaseStat, type HeroBuildSummary } from '../data/meta'
-import { COIN_FX, RESIST_RULES, coinTier, splitZeny } from '../data/battle-rules'
+import { COIN_FX, CRIT_RULES, RESIST_RULES, coinTier, splitZeny } from '../data/battle-rules'
 import { type ItemEffectId, type ItemEffectSpec } from '../data/item-effects'
 import { createBiomeCombatState, HAZARD_TUNING, modifyHeroDirectHealBiome, onHeroShieldOrBlockBiome, onHeroSkillCastBiome, onMonsterHitBiome, onTurnEndBiome, type BiomeCombatState } from '../data/biome-hazards'
 import { RIFT_BRANCHES, riftBoonById, type RiftBoonDef, type RiftBranchDef } from '../data/rift'
@@ -21,7 +21,7 @@ import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/ski
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf } from '../data/skill-math'
 import { branchPts } from '../data/tree'
-import { asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
+import { asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -93,6 +93,7 @@ interface Mon {
   wet: number // Innovator ☁️ เมฆฝน: turns of +KIT2.innovator.wetAmp damage taken
   huntMark: number // v82 Archer หมายหัว: turns of +st.arMark damage taken (ticks with its turns)
   stunTurns?: number // Champion Tiger Knuckle extra stun turns left
+  permafrost?: number // Sage ❄️ Permafrost stacks (0..4, Sejuani E style)
   sunder?: number // void_sunder DEF/M.DEF shred share
   sunderTurns?: number // void_sunder turns left
   chargeHits?: number // multi_hit_break hits landed while charging
@@ -371,10 +372,10 @@ export class BattleScene extends Phaser.Scene {
     else if (this.st.arHawk > 0) preloadPfx(this, ['hawkDive']) // archer talent เหยี่ยวคู่ใจ
     preloadPfx(this, ['zapYellow', 'zapBolt'])
     preloadPfx(this, COIN_PFX) // kill loot: every job sees it
-    if (this.j2) this.job = { ...this.job, resource: this.j2.resource ?? this.job.resource, auto: { ...this.job.auto, cost: this.j2.autoCost ?? this.job.auto.cost }, ult: { ...this.job.ult, ...this.j2.ult, ...(this.j2.id === 'monk' && this.st.j2Asura > 0 ? { icon: '💥', name: 'อาชูร่าสไตรก์' } : {}) } } // Berserker: Rage · Ult วิวัฒน์ · Monk ★ Asura Strike
+    if (this.j2) this.job = { ...this.job, resource: this.j2.resource ?? this.job.resource, auto: { ...this.job.auto, ...(this.j2.id === 'sage' ? { name: SAGE_S1.name, icon: SAGE_S1.icon, cost: KIT2.sage.s1Cost } : { cost: this.j2.autoCost ?? this.job.auto.cost }) }, ult: { ...this.job.ult, ...this.j2.ult, ...(this.j2.id === 'monk' && this.st.j2Asura > 0 ? { icon: '💥', name: 'อาชูร่าสไตรก์' } : {}) } } // Berserker: Rage · Sage: Spellstrike Skill 1 · Ult วิวัฒน์ · Monk ★ Asura Strike
     if (this.j2?.id === 'sage') this.job = { ...this.job, attack: 'melee' } // 📖 Sage: melee basic + counters (P.ATK)
     const tb = totalBase(s)
-    this.sageInt = tb.int; this.heroDex = tb.dex; this.heroWis = tb.wis; this.mdPower = mageDefPower(tb.int, tb.wis, s.baseLevel); this.casts = []; this.steady = false; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
+    this.sageInt = tb.int; this.heroVit = tb.vit; this.heroDex = tb.dex; this.heroWis = tb.wis; this.mdPower = mageDefPower(tb.int, tb.wis, s.baseLevel); this.casts = []; this.steady = false; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
     this.heroLuk = tb.luk; this.heroTopStat = Math.max(tb.str, tb.dex, tb.agi); this.pet = s.pet ?? 'hawk' // Phase 4 Archer: hawk / gadget odds read base LUK · bm_k1 highest STR/DEX/AGI
     { const wpn = itemById(s.equipped.weapon ?? ''); this.j2Weapon = !!this.j2?.mastery.ok(wpn); this.hasShield = !wpn.twoHand && !!s.equipped.offhand && s.equipped.offhand !== 'none_off'; this.dualKnife = this.hasShield && itemById(s.equipped.offhand ?? '').wtype === 'dagger' }
     this.frenzy = 0; this.frenzyAt = 0; this.s3Cd = 0; this.rampage = 0; this.charges = 0; this.monkGrit = 0; this.asuraExhaust = 0; this.allies = []; this.allyTxt.clear(); this.chargeTxt = undefined
@@ -709,7 +710,7 @@ export class BattleScene extends Phaser.Scene {
     this.inspireUsed = false; this.inspire = 0; this.earthDone = false // ⚜️ Paladin: once per fight
     this.clearBookings() // v86: booked Skill 1-3 do not carry into the next wave (the ult booking does)
     this.zenyWave = 0; this.mirror = false; this.waveAllies() // Phase 4 Archer: pets / traps every wave
-    this.casts = []; this.castFx(false); this.zenTurns = 0; this.endow = 0; this.rodUsed = false // Phase 5 Mage: a charge never carries into the next wave
+    this.casts = []; this.castFx(false); this.zenTurns = 0; this.endow = 0; this.rodUsed = false; this.sageFireBoltsTurn = 0; this.sageFireNovaUsed = false // Phase 5 Mage: a charge never carries into the next wave
     if (this.st.j2ChargeFirst > 0) this.heroGauge = Math.max(this.heroGauge, 100) // Knight ★ ทะยาน: the hero acts first
     this.flow = 0; this.clEmerUsed = false; this.sweepTurn = 0 // v84: momentum and ฉุกเฉิน are per wave, the sweep counts this wave's hero turns
     if (this.st.j2Banner > 0) { // v84 Knight ปักธง: wave-start shield (stacks)
@@ -1008,6 +1009,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.smashCdLeft > 0) this.smashCdLeft--
     if (this.relic === 'storm' && this.fightTurns % RELIC_RULES.storm.every === 0) { await this.lightningWrath(); if (!this.alive().length) return }
     // resource tick
+    this.sageFireBoltsTurn = 0; this.sageFireNovaUsed = false
     if (this.job.resource === 'mana' && this.asuraExhaust <= 0) this.res = Math.min(this.resMax(), this.res + this.st.resRegen * RES_RULES.manaPerTurnMul * (1 - this.st.resRegenCut))
     this.overflow = this.st.mgOverflow > 0 && this.job.resource === 'mana' && this.res >= this.resMax() * 0.9 // mage talent พลังล้น
     this.auraNow = this.auraLeft > 0 ? this.st.mgAura : 0; if (this.auraLeft > 0) this.auraLeft-- // Mage core passive 🔮 ออร่าเวท: this turn's bonus, then one turn used up
@@ -1163,16 +1165,19 @@ export class BattleScene extends Phaser.Scene {
   private hawkTurn = 0
   private ultFiring = false // archer: ult hits a charging boss harder (ทะลวงเกราะ / ศรบั่น)
 
+  private lastHitCrit = false
   /** One physical/magic hit. RO-style crit: physical only, rolled first; a crit always hits (skips flee) and ignores DEF.
    *  Magic never misses and never crits. Returns damage dealt. */
   private strike(m: Mon, mul: number, magic = false, color?: string, pierce = 0, falconCrit = 0): number {
-    if (m.dead || this.hp <= 0) return 0
+    if (m.dead || this.hp <= 0) { this.lastHitCrit = false; return 0 }
     if (this.j3Bless > 0) mul *= 1 + this.st.j3AfterBless // ⚜️ พรหลังศึก
     if (magic && !ELEM_SRC.has(this.src)) mul *= 1 + this.st.elemDmg
     const canFalconCrit = falconCrit > 0 && m.huntMark > 0
     const wlCrit = !magic && this.st.j3Wl > 0 ? this.res * KIT3.warlord.rageCritPer + this.frenzy * this.st.j3WlBlitz : 0
-    const critRate = canFalconCrit ? falconCrit : magic ? this.st.spellCrit : this.st.crit + (this.buf.hawk > 0 ? S2N.hawkCrit(this.st.s2Lv) : 0) + this.critAdd + this.biomeCritAdd + (this.rampage > 0 ? KIT2.berserker.ultCrit : 0) + wlCrit
+    const physCritAdd = (this.buf.hawk > 0 ? S2N.hawkCrit(this.st.s2Lv) : 0) + this.critAdd + this.biomeCritAdd + (this.rampage > 0 ? KIT2.berserker.ultCrit : 0) + wlCrit
+    const critRate = canFalconCrit ? falconCrit : this.critRateFor(magic, physCritAdd, m)
     const crit = this.forceCrit || (!this.petNoCrit && this.critAllowed() && Math.random() < critRate) // magic crits only with spellCrit (or Falcon Crit on Marked targets) · Skill 2 ตาเหยี่ยว · 2nd job
+    this.lastHitCrit = crit
     const effFlee = m.huntMark > 0 ? (m.def.flee ?? 5) * Math.max(0, 1 - this.st.j2MarkPierceFlee) : (m.def.flee ?? 5)
     const noFlee = m.huntMark > 0 && this.st.j2MarkPierceFlee >= 1
     if (!magic && !crit && !this.sureHit && !noFlee && this.zenTurns <= 0 && Math.random() > hitChance(this.st.hit, effFlee)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
@@ -1187,7 +1192,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.arLowHpBonus > 0 && m.hp < m.def.hp * 0.5) mul *= 1 + this.st.arLowHpBonus // archer talent เก็บตัวเปราะ r2
     if (crit && this.st.thExecute > 0 && m.hp < m.def.hp * 0.3) mul *= 1.5 // Thief ★ เพชฌฆาต
     if (crit && this.st.arCritRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arCritRes) // archer talent ลมหายใจนักล่า
-    const critDmgAdd = (falconCrit > 0 && m.huntMark > 0 ? Math.max(0, 1.5 - this.st.critMul) : 0) + (m.huntMark > 0 ? this.st.j2StanceMarkCritDmg : 0) + (!magic && this.st.j3Wl > 0 ? this.res * KIT3.warlord.rageCritDmgPer : 0)
+    const critDmgAdd = (falconCrit > 0 && m.huntMark > 0 ? Math.max(0, 1.5 - this.st.critMul) : 0) + (m.huntMark > 0 ? this.st.j2StanceMarkCritDmg : 0) + (!magic && this.st.j3Wl > 0 ? this.res * KIT3.warlord.rageCritDmgPer : 0) + (this.isProcHit() ? this.st.procCritMul : 0)
     const r = this.roll(mul, magic, crit, critDmgAdd), up = this.src === 'ult' ? this.st.ultPierce : 0 // v78 บดกระดูก: ult pierce
     const awPierce = !magic && !crit && this.st.j3Rn > 0 && (this.awakenTurns > 0 || this.stampedeFiring) ? this.st.j2Spiral : 0
     const sunder = (m.sunderTurns ?? 0) > 0 ? Math.max(0, 1 - (m.sunder ?? 0)) : 1
@@ -2001,7 +2006,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.j2LowHp > 0) k *= 1 + this.st.j2LowHp * Math.max(0, 1 - this.hp / this.st.maxHp) // คลั่ง
     if (big && this.j2?.id === 'mobster' && m.hp < m.def.hp * this.execLine(m)) k *= KIT2.mobster.bossExecMul // สมุดหนี้ vs boss / mini
     if (this.j2?.id === 'crusader' && KIT2.crusader.holyFoes.includes(m.kind)) k *= 1 + KIT2.crusader.holyVs // ศรัทธา vs undead / demons
-    if (this.endow > 0 && (this.autoSpelling || this.src === 'basic' || this.src === 'combo')) k *= 1 + KIT2.sage.endowAmp + this.st.j2EndowAmp // Sage Endow
+    if (this.endow > 0 && (this.autoSpelling || this.src === 'basic' || this.src === 'combo' || (this.j2?.id === 'sage' && this.src === 'skill'))) k *= 1 + KIT2.sage.endowAmp + this.st.j2EndowAmp // Sage Endow
     if (m.wet > 0) k *= 1 + KIT2.innovator.wetAmp // Innovator ☁️ เมฆฝน
     if (this.st.j2PackLead > 0 && !this.allyHitting) k *= 1 + this.st.j2PackLead * this.livePets() // v82 Beastmaster ผู้นำฝูง (hero hits only)
     if (!magic && this.st.j2MdefDmg > 0) k *= 1 + this.st.mdef * this.st.j2MdefDmg // Monk ปราณเหล็กใน (+ Paladin Hybrid)
@@ -2302,9 +2307,12 @@ export class BattleScene extends Phaser.Scene {
   private steady = false // v85: the last chant broke, so the NEXT one can't
   private castRing?: Phaser.GameObjects.Ellipse // magic circle under the hero while a big spell charges
   private endow = 0 // Sage Endow turns left
-  private autoSpelling = false // a Sage Auto Spell bolt is landing (Endow applies)
+  private autoSpelling = false // a Sage Auto Spell / On-Hit Perk bolt is landing (Endow + procCritMul apply)
   private rodUsed = false // Sage ★ Magic Rod: the wave's spell already absorbed
-  private sageInt = 0 // total INT (Auto Spell chance)
+  private sageInt = 0 // total INT (Auto Spell / On-Hit Perk chance)
+  private heroVit = 0 // total VIT (Sage Magic Rod scaling)
+  private sageFireBoltsTurn = 0 // Sage 🔥 Fire Bolt counter this turn (x hit ramp + Inferno Overdrive)
+  private sageFireNovaUsed = false
   private heroDex = 0 // total DEX (v78 chant break)
   private heroWis = 0 // total WIS (v86 💠 มานาพิทักษ์)
   private zenTurns = 0 // v78 เปิดฉากเต็มแรง: hero turns of Zen left (no miss, crit damage +)
@@ -2397,11 +2405,13 @@ export class BattleScene extends Phaser.Scene {
     this.callout(n > 0 ? `🚫 Dispell! ลบ ${n} อย่าง` : '🚫 Dispell!', W / 2, 170)
     this.cameras.main.flash(120, 201, 168, 255)
     playPfx(this, 'magicCircle', 700, GROUND, { scale: 1.3, speed: 1.5 })
-    this.gainRes(S.ultMana); this.floatText(HERO_X, GROUND - 165, `🔷 Mana +${S.ultMana}`, '#5aa0ff')
+    const manaGain = S.ultMana + this.st.j2UltMana
+    this.gainRes(manaGain); this.floatText(HERO_X, GROUND - 165, `🔷 Mana +${manaGain}`, '#5aa0ff')
     if (t && !t.dead) await this.lunge(t, () => {
       playPfx(this, 'arcaneBeam', t.spr.x - 30, GROUND, { scale: 1.2, speed: 1.5 })
       this.strike(t, (S.ultAtk + this.st.ultMulAdd) * h2 * (1 + this.st.pskill))
       this.strike(t, S.ultPm * h2, true, '#c9a8ff')
+      if (!t.dead && this.st.j2UltBreak > 0) { t.armorBrk = Math.max(t.armorBrk, this.st.j2UltBreak); this.dotIcon(t) }
     })
   }
   /** Sage Dispell on one monster: shield, war cry, reflect / absorb, vengeance, a charge. Returns how many it stripped. */
@@ -2473,36 +2483,138 @@ export class BattleScene extends Phaser.Scene {
       await this.wait(110)
     }
   }
-  /** 📖 Sage Auto Spell: a basic swing (★ Hindsight: combo hits, counters) may cast a free run-element bolt. No lifesteal. */
-  private sageSpell(target?: Mon) {
+  /** 📖 Sage Auto Spell + On-Hit Elemental Perks (basic swing, Skill 1 Spellstrike, ★ Hindsight combo & counter, ★ Magic Rod). */
+  private sageSpell(target?: Mon, guaranteed = false, hitMul = 1) {
     if (this.j2?.id !== 'sage' || this.hp <= 0) return
-    const S = KIT2.sage
-    if (Math.random() >= Math.min(S.autoCap, S.autoChance + S.autoInt * this.sageInt) + this.st.j2AutoChance) return
-    const el = this.element
-    this.floatText(HERO_X, GROUND - 150, `📖 Auto Spell ${ELEMENTS[el].icon}`, '#c9a8ff')
+    const S = KIT2.sage, endowed = this.endow > 0
     this.autoSpelling = true
-    for (let i = 0; i < 1 + this.st.j2AutoBolts; i++) {
-      const t = target && !target.dead ? target : this.front()[0]
-      if (!t) break
-      if (el === 'lightning') {
-        playPfx(this, 'lightningStrike', t.spr.x, GROUND, { scale: 1.1, speed: 1.8 })
-        this.withSrc('other', () => this.zap(t, S.autoMul, '#bfe6ff', false))
-      } else if (el === 'arcane') {
-        playPfx(this, 'arcaneMissiles', t.spr.x, GROUND, { scale: 1.1, speed: 1.6 })
-        this.withSrc('other', () => this.strike(t, S.autoMul, true, '#c9a8ff'))
-      } else if (el === 'ice') {
-        playPfx(this, 'iceLance', t.spr.x, t.spr.y - t.spr.displayHeight * 0.4, { scale: 1.1, speed: 1.6 })
-        this.withSrc('other', () => this.strike(t, S.autoMul, true, '#9fe3ff'))
-      } else {
-        playPfx(this, 'fireball', t.spr.x, t.spr.y - t.spr.displayHeight * 0.4, { scale: 1.1, speed: 1.6 })
-        this.withSrc('other', () => this.strike(t, S.autoMul, true, '#ff8c42'))
+    try {
+      if (guaranteed || Math.random() < sageAutoChance(this.st, this.sageInt, endowed)) {
+        const el = this.element
+        this.floatText(HERO_X, GROUND - 150, `📖 Auto Spell ${ELEMENTS[el].icon}`, '#c9a8ff')
+        for (let i = 0; i < 1 + this.st.j2AutoBolts; i++) {
+          const t = target && !target.dead ? target : this.front()[0]
+          if (!t) break
+          const boltMul = (S.autoMul + this.st.j2AutoMul) * hitMul
+          if (el === 'lightning') {
+            playPfx(this, 'lightningStrike', t.spr.x, GROUND, { scale: 1.1, speed: 1.8 })
+            this.withSrc('other', () => this.zap(t, boltMul, '#bfe6ff', false))
+          } else if (el === 'arcane') {
+            playPfx(this, 'arcaneMissiles', t.spr.x, GROUND, { scale: 1.1, speed: 1.6 })
+            this.withSrc('other', () => this.strike(t, boltMul, true, '#c9a8ff'))
+          } else if (el === 'ice') {
+            playPfx(this, 'iceLance', t.spr.x, t.spr.y - t.spr.displayHeight * 0.4, { scale: 1.1, speed: 1.6 })
+            this.withSrc('other', () => this.strike(t, boltMul, true, '#9fe3ff'))
+          } else {
+            playPfx(this, 'fireball', t.spr.x, t.spr.y - t.spr.displayHeight * 0.4, { scale: 1.1, speed: 1.6 })
+            this.withSrc('other', () => this.strike(t, boltMul, true, '#ff8c42'))
+          }
+          if (t.dead) continue
+          if (el === 'fire') { t.burnStacks = Math.min(this.burnMax(), t.burnStacks + 1); t.burnStackTurns = 3 }
+          else if (el === 'ice') { t.chill = Math.max(t.chill, 1); if (!t.charging) t.spr.setTint(0x9fe3ff) }
+          this.dotIcon(t)
+        }
       }
-      if (t.dead) continue
-      if (el === 'fire') { t.burnStacks = Math.min(this.burnMax(), t.burnStacks + 1); t.burnStackTurns = 3 }
-      else if (el === 'ice') { t.chill = Math.max(t.chill, 1); if (!t.charging) t.spr.setTint(0x9fe3ff) }
-      this.dotIcon(t)
+      this.sageElementalPerks(target, hitMul, endowed)
+    } finally {
+      this.autoSpelling = false
     }
-    this.autoSpelling = false
+  }
+
+  /** 📖 Sage On-Hit Elemental Perks: Fire Bolt xhit · Chain Lightning · Permafrost (main runElement = 100%, others = offMul 50%). */
+  private sageElementalPerks(target: Mon | undefined, hitMul: number, endowed: boolean) {
+    const P = KIT2.sage.perk, el = this.element
+    // 🔥 Fire Bolt × hit
+    if (this.st.j2FirePerk > 0 && Math.random() < sageFireChance(this.st, this.sageInt, el, endowed)) {
+      const ben = sageElementBenefit('fire', el)
+      this.sageFireBoltsTurn++
+      const bolts = ben >= 1 ? Math.min(P.fireMaxBolts, this.sageFireBoltsTurn) : 1
+      const mul = (P.fireMul + this.st.j2FireDmg) * ben * hitMul
+      for (let i = 0; i < bolts; i++) {
+        const t = target && !target.dead ? target : this.front()[0]
+        if (!t) break
+        playPfx(this, 'fireball', t.spr.x, t.spr.y - t.spr.displayHeight * 0.4, { scale: 1.05, speed: 1.7 })
+        this.withSrc('other', () => this.strike(t, mul, true, '#ff8c42'))
+        if (!t.dead && (ben >= 1 || Math.random() < P.offMul)) {
+          t.burnStacks = Math.min(this.burnMax(), t.burnStacks + P.fireBurn); t.burnStackTurns = 3; this.dotIcon(t)
+        }
+      }
+      if (this.st.j2FireStar > 0 && this.sageFireBoltsTurn >= P.fireMaxBolts && !this.sageFireNovaUsed && this.alive().length) {
+        this.sageFireNovaUsed = true
+        this.floatText(HERO_X, GROUND - 170, '💥 Inferno Overdrive!', '#ff7a42')
+        playPfx(this, 'fireTornado', 700, GROUND, { scale: 1.25, speed: 1.6 })
+        for (const m of this.alive()) {
+          this.withSrc('other', () => this.strike(m, P.fireNovaMul * ben * hitMul, true, '#ff7a42'))
+          if (!m.dead) { m.burnStacks = Math.min(this.burnMax(), m.burnStacks + P.fireNovaBurn); m.burnStackTurns = 3; this.dotIcon(m) }
+        }
+      }
+    }
+    // ⚡ Chain Lightning
+    if (this.st.j2LightPerk > 0 && Math.random() < sageLightChance(this.st, this.sageInt, el, endowed)) {
+      const ben = sageElementBenefit('lightning', el)
+      const jumps = Math.min(this.alive().length, P.lightTargetsBase + (this.st.j2LightPerk >= 3 && ben >= 1 ? 1 : 0))
+      const first = target && !target.dead ? target : this.front()[0]
+      if (first && jumps > 0) {
+        const chain: Mon[] = [first]
+        for (const m of this.alive()) if (chain.length < jumps && m !== first) chain.push(m)
+        let curMul = (P.lightMul + this.st.j2LightDmg) * ben * hitMul, anyCrit = false
+        for (let i = 0; i < chain.length; i++) {
+          const m = chain[i]
+          if (m.dead) continue
+          playPfx(this, i === 0 ? 'lightningStrike' : 'zapBolt', m.spr.x, GROUND, { scale: 1.05, speed: 1.7, flip: i % 2 === 1 })
+          this.withSrc('other', () => this.strike(m, curMul, true, '#bfe6ff'))
+          if (this.lastHitCrit) anyCrit = true
+          if (!m.dead && this.st.j2LightStun > 0 && Math.random() < this.st.j2LightStun * ben) {
+            if (m.def.ai === 'boss') m.gauge -= P.lightPush
+            else this.stunMon(m)
+          }
+          curMul *= 1 - P.lightDecay
+        }
+        if (anyCrit && this.st.j2LightStar > 0 && !first.dead) {
+          this.gainRes(P.lightCritMana)
+          this.floatText(first.spr.x, first.spr.y - first.spr.displayHeight - 36, `🌩️ Overload +${P.lightCritMana}💧`, '#bfe6ff')
+          playPfx(this, 'zapBolt', first.spr.x, GROUND, { scale: 1.2, speed: 1.8 })
+          this.withSrc('other', () => this.strike(first, (P.lightMul + this.st.j2LightDmg) * ben * hitMul, true, '#fff07a'))
+        }
+      }
+    }
+    // ❄️ Permafrost (Sejuani E: stack 1..4 -> shatter + freeze)
+    if (this.st.j2IcePerk > 0 && Math.random() < sageIceChance(this.st, el, endowed)) {
+      const t = target && !target.dead ? target : this.front()[0]
+      if (t) {
+        const ben = sageElementBenefit('ice', el)
+        t.permafrost = (t.permafrost ?? 0) + 1
+        t.chill = Math.max(t.chill, 1)
+        if (!t.charging) t.spr.setTint(0x9fe3ff)
+        if (t.permafrost >= P.iceMax) {
+          t.permafrost = 0
+          this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 36, '❄️ Permafrost Shatter!', '#9fe3ff')
+          playPfx(this, 'frostNova', t.spr.x, GROUND, { scale: 1.2, speed: 1.6 })
+          this.withSrc('other', () => {
+            if (this.st.j2IceStar > 0) this.forceCrit = true
+            this.strike(t, (P.iceMul + this.st.j2IceDmg) * ben * hitMul, true, '#9fe3ff')
+            this.forceCrit = false
+          })
+          if (!t.dead) {
+            if (t.def.ai === 'boss') t.gauge -= P.iceBossPush * ben + (this.st.j2IceStar > 0 ? P.iceStarPush : 0)
+            else if (!t.frozen) { t.frozen = true; this.freezeCount++; this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 20, 'แช่แข็ง!', '#9fe3ff') }
+          }
+          if (this.st.j2IceStar > 0) {
+            for (const o of this.alive()) if (o !== t) {
+              playPfx(this, 'iceSpikes', o.spr.x, GROUND, { scale: 1, speed: 1.7 })
+              this.withSrc('other', () => {
+                this.forceCrit = true
+                this.strike(o, P.iceStarMul * ben * hitMul, true, '#9fe3ff')
+                this.forceCrit = false
+              })
+            }
+          }
+        } else {
+          this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 28, `💠 ${t.permafrost}/${P.iceMax}`, '#9fe3ff')
+        }
+        if (!t.dead) this.dotIcon(t)
+      }
+    }
   }
 
   /** Q 2026-11-03: lifesteal works only on basic attacks + combo hits (1), the D.Strike extra hit (0.33); skills, actives and passives 0. */
@@ -2515,6 +2627,19 @@ export class BattleScene extends Phaser.Scene {
   private critAllowed() {
     if (this.skillSlot === null || ELEM_SRC.has(this.src)) return true
     return canRollCrit(this.job.id, this.skillSlot)
+  }
+  /** On-hit proc (zap / fire / ice / spear / light ...) or a Sage Auto Spell bolt: rolls spellCrit (CRIT_RULES). */
+  private isProcHit() { return this.autoSpelling || ELEM_SRC.has(this.src) }
+  /** Sage rework v1 crit split (data/battle-rules.ts CRIT_RULES): basic -> crit · skill/Ult -> skillCrit · proc -> spellCrit. */
+  private critRateFor(magic: boolean, physAdd: number, target?: Mon): number {
+    const C = CRIT_RULES.cap
+    const spellCap = this.j2?.id === 'sage' ? CRIT_RULES.sageSpellCap : C.spellCrit
+    const burnBonus = target && target.burnStacks > 0 ? this.st.j2FireCrit : 0
+    const iceBonus = target && (target.chill > 0 || target.frozen) ? (this.st.j2IcePerk > 0 ? KIT2.sage.perk.iceCritBonus : 0) + this.st.j2IceCrit : 0
+    if (this.isProcHit()) return Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus)
+    const skill = this.src === 'skill' || this.src === 'ult' || (this.skillSlot !== null && this.src === 'other')
+    if (skill) return Math.min(C.skillCrit, this.st.skillCrit + iceBonus + (magic ? this.st.spellCrit : (this.st.crit + physAdd) * CRIT_RULES.skillFromCrit))
+    return magic ? Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus) : Math.min(C.crit, this.st.crit + physAdd)
   }
   /** Share of the crit bonus a skill hit keeps (admin: same `crit.<class>.<slot>` number; 1 = full). Sure crits and element procs always keep all of it. */
   private critPow() {
@@ -2687,7 +2812,7 @@ export class BattleScene extends Phaser.Scene {
     this.stayIn = extra > 0 || this.rampage > 0
     await this.basicOnce()
     this.comboKnives(false) // Rogue ★: crit knives from the first swing
-    this.sageSpell() // 📖 Sage Auto Spell
+    this.sageSpell(target) // 📖 Sage Auto Spell & On-Hit Perks
     if (this.rampage > 0 && this.alive().length) { this.floatText(HERO_X, GROUND - 150, '👹', '#ff5a4e'); await this.basicOnce() } // Berserker บ้าระห่ำ: every swing hits twice
     if (this.alive().length && await this.procs('basic') > 0) await this.wait(120) // พร v2: on-basic-attack cards
     if (this.immortal === 'angel' && this.fightTurns <= IMMORTAL_RULES.angelTurns && this.hp > 0) { // 🌈 พรนางฟ้า
@@ -2703,7 +2828,7 @@ export class BattleScene extends Phaser.Scene {
       sfx.combo(n + 2)
       await this.basicOnce()
       this.comboKnives(true) // Rogue มีดบิน
-      if (this.st.j2Hindsight > 0) this.sageSpell() // Sage ★ Hindsight
+      if (this.st.j2Hindsight > 0) this.sageSpell(this.front()[0]) // Sage ★ Hindsight
       hits++
     }
     this.comboLevel = 0
@@ -3002,7 +3127,8 @@ export class BattleScene extends Phaser.Scene {
         }
         break
       case 'mage':
-        await this.mageFire(pow + this.auraNow, mageAutoMul(this.st, this.j2?.id === 'wizard' ? MAGE_SPELL.autoMul : MAGE_CAST.fireMul)) // 2026-11-13: 90% M.ATK : 10% P.ATK · v85: instant for every Mage (Mage / Sage MAGE_CAST.fireMul · Wizard MAGE_SPELL.autoMul)
+        if (this.j2?.id === 'sage') await this.sageSpellstrike(pow + this.auraNow)
+        else await this.mageFire(pow + this.auraNow, mageAutoMul(this.st, this.j2?.id === 'wizard' ? MAGE_SPELL.autoMul : MAGE_CAST.fireMul)) // 2026-11-13: 90% M.ATK : 10% P.ATK · v85: instant for every Mage
         break
       case 'cleric':
         if (this.hp < this.st.maxHp * (KIT.clericHealBelow - this.st.healAt)) { this.skillHeal(this.st.matk * CLERIC_KIT.heal * pow); playPfx(this, 'healRing', HERO_X, GROUND, { scale: 1, speed: 1.6 }) }
@@ -3024,6 +3150,23 @@ export class BattleScene extends Phaser.Scene {
         await this.lunge(live[0], () => { const m = live[0]; this.strike(m, KIT.thiefAuto * pow); this.doubleAttack(m, KIT.thiefAuto * pow); if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + KIT.thiefAutoPoison); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) } })
         break
     }
+  }
+
+  /** 📖 Sage Skill 1 replacement: ศาสตราวุธธาตุ — 2 melee strikes (skillCrit) + guaranteed Auto Spell & On-Hit Perks. */
+  private async sageSpellstrike(pow: number) {
+    const f = this.front()[0]
+    if (!f) return
+    const S = KIT2.sage, over = this.overflow ? this.st.mgOverflow : 1
+    await this.lunge(f, () => {
+      for (let h = 0; h < S.s1Hits; h++) {
+        const t = !f.dead ? f : this.front()[0]
+        if (!t) break
+        this.strike(t, S.s1AtkMul * pow * over * (1 + this.st.pskill), false, '#e6d4ff')
+        if (!t.dead && this.st.mgHex > 0) { t.weakPct = Math.max(t.weakTurns > 0 ? t.weakPct : 0, this.st.mgHex); t.weakTurns = Math.max(t.weakTurns, MAGE_PASSIVE.hex.turns); this.dotIcon(t) }
+        if (!t.dead && this.st.autoBurn > 0 && this.element === 'fire') { t.burnStacks = Math.min(this.burnMax(), t.burnStacks + this.st.autoBurn); t.burnStackTurns = 3; this.dotIcon(t) }
+      }
+      this.sageSpell(f, true, pow * over)
+    })
   }
 
   /** ลูกไฟระเบิด: fire on every monster at `mul` x Pm (Mage / Sage: MAGE_CAST.fireMul · Wizard: MAGE_SPELL.autoMul). */
@@ -3435,7 +3578,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** RO-style crit: physical only, uses max ATK (no low roll) x critMul (base 1.4 + crit-damage bonuses). Caller skips DEF on a crit. */
-  private roll(mul = 1, magic = false, crit = Math.random() < (magic ? this.st.spellCrit : this.st.crit), critDmgAdd = 0) { // magic crit: spellCrit only, max M.ATK roll
+  private roll(mul = 1, magic = false, crit = Math.random() < this.critRateFor(magic, 0), critDmgAdd = 0) { // crit split: CRIT_RULES via critRateFor
     const hb = hitBase(this.st, magic) // data/skill-math.ts: the one place the hit base (and the coming 70/30 magic rule) lives
     const base = (crit ? hb.hi : Phaser.Math.FloatBetween(hb.lo, hb.hi)) * (this.berserking() ? 1.4 : 1) * this.atkMul()
     return { dmg: Math.max(1, Math.round(base * mul * (crit ? scaleCritMul(this.st.critMul + critDmgAdd + (this.buf.hawk > 0 && this.st.s2Star ? S2N.hawkCritDmg : 0) + (this.zenTurns > 0 ? FOCUS_RULES.zenCritDmg : 0), this.critPow()) : 1))), crit } // Skill 2 ★ เล็งจุดตาย · v78 Zen · Skyhunter / Falcon Crit
@@ -4020,9 +4163,21 @@ export class BattleScene extends Phaser.Scene {
     if (!sure && Math.random() < this.st.luckyDodge) return dodged('LUCKY!', '#6fd08c')
     if (!sure && Math.random() > hitChance(monHit, this.st.flee, 0.8 - this.st.fleeFloor)) return dodged('EVADE!', '#9fe3ff') // Thief เงาบาง lowers the floor
     if (!magic && (this.st.j2Guard > 0 || this.inspire > 0) && Math.random() < (this.inspire > 0 ? KIT3.common.inspireGuard : this.st.j2Guard + (this.gc ? this.st.j2GcGuard : 0)) * (this.hasShield || this.j2?.id === 'monk' || this.inspire > 0 ? 1 : KIT2.knight.guardShieldless)) { this.hitOut = 'block'; this.floatText(HERO_X, GROUND - 120, '🛡️ BLOCK!', '#9fe3ff'); sfx.hit(); this.onBlock(src); return false } // Knight / Crusader / Champion / Warlord Auto Guard
-    if (magic && this.j2?.id === 'sage') { // 🛡️ Sage Magic Rod
-      if (this.st.j2RodBlock > 0 && !this.rodUsed) { this.rodUsed = true; this.hitOut = 'rod'; this.gainRes(KIT2.sage.rodBlockMana); this.floatText(HERO_X, GROUND - 120, '🔮 Magic Rod! ดูดเวท', '#c9a8ff'); return false }
-      if (this.st.j2MagicRod > 0) this.gainRes(this.st.j2MagicRod)
+    if (magic && this.j2?.id === 'sage') { // 🛡️ Sage Magic Rod (+ VIT scaling)
+      const rod = sageRodGain(this.st, this.heroVit)
+      if (this.st.j2RodBlock > 0 && !this.rodUsed) {
+        this.rodUsed = true; this.hitOut = 'rod'
+        const blockMana = KIT2.sage.rodBlockMana + Math.floor(Math.max(0, this.heroVit) * KIT2.sage.rodVitMana)
+        this.gainRes(blockMana)
+        if (rod.shield > 0) this.addShield(rod.shield, true)
+        this.floatText(HERO_X, GROUND - 120, `🔮 Magic Rod! +${blockMana}💧`, '#c9a8ff')
+        if (src && !src.dead) this.sageSpell(src, true) // ★ Magic Rod เต็มขั้น: counter-cast Auto Spell
+        return false
+      }
+      if (rod.mana > 0) {
+        this.gainRes(rod.mana)
+        if (rod.shield > 0) this.addShield(rod.shield, true)
+      }
     }
     const ab = this.hx.armorBreak > 0 ? BATTLE.armorBreakMul : 1 // เกราะแตก: P.DEF / M.DEF count half
     const effMdef = Math.min(RESIST_RULES.hardCap, this.st.mdef * ab + (this.st.j3Ch > 0 && this.monkGrit > 0 ? KIT3.champion.gritMdefBonus : 0))
@@ -4138,7 +4293,7 @@ export class BattleScene extends Phaser.Scene {
   private dotIcon(m: Mon) {
     if (m.dead || !m.spr.active) return // a DoT tick or card can land after the kill: its icon text is already gone (page error 'drawImage' of null)
     if (!m.dotTxt) m.dotTxt = this.add.text(0, 0, '', { fontSize: '14px' }).setOrigin(0.5).setDepth(9500)
-    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${m.armorBrk > 0 ? '🦴' : ''}${(m.sunderTurns ?? 0) > 0 ? '🕳️' : ''}${m.blind > 0 ? '🙈' : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${m.reflect > 0 ? '🔁' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
+    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${(m.permafrost ?? 0) > 0 ? '💠' + m.permafrost : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${m.armorBrk > 0 ? '🦴' : ''}${(m.sunderTurns ?? 0) > 0 ? '🕳️' : ''}${m.blind > 0 ? '🙈' : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${m.reflect > 0 ? '🔁' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
   }
 
   // ---------- xp / perks ----------
@@ -4166,7 +4321,7 @@ export class BattleScene extends Phaser.Scene {
       if (k === 'pickMatkPct') { this.st.matk = Math.round(this.st.matk * (1 + v)); continue }
       if (k === 'fireEvery') { this.st.fireEvery = this.st.fireEvery === 0 ? Math.max(1, v) : Math.max(1, this.st.fireEvery + v); continue }
       this.st[k] += v
-      if (k === 'crit') this.st.spellCrit += v // card/relic crit also counts for magic (Q rule)
+      if (k === 'crit' && this.job.id === 'mage') { this.st.crit -= v; this.st.skillCrit += v } // Sage rework v1: Mage crit -> skillCrit (no spellCrit leak)
       if (k === 'lifesteal') this.st.lifesteal = Math.min(0.4, this.st.lifesteal) // Q: lifesteal cap 40%
       if (k === 'mdef') this.st.mdef = softCapDiminish(this.st.mdef) // soft-cap diminish up to hardCap
       if (k === 'tenacity') this.st.tenacity = softCapDiminish(this.st.tenacity)

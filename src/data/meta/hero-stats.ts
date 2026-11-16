@@ -67,7 +67,6 @@ function applyBeastmasterStance(
 		const stanceCrit = Math.min(S.critCap, S.critBase + S.critPerLuk * b.luk);
 		st.hit += S.hitFlat + Math.floor(S.hitPerDex * b.dex);
 		st.crit += stanceCrit;
-		st.spellCrit += stanceCrit;
 		st.j2HawkCapAdd += S.capAdd;
 		st.j2HawkDexToMatk += S.dexToMatk;
 		st.j2PreyMarkAdd += S.preyMarkAdd;
@@ -306,11 +305,13 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 		if (per > 0) st.resRegen += (per * Math.min(b.str, b.wis)) / 10;
 	}
 	st.maxHp = Math.round(st.maxHp);
-	// Q: crit from talents/items/cards/tree also counts for magic (spellCrit); LUK crit above stays physical only
+	// Sage rework v1 crit split (CRIT_RULES): `crit` no longer leaks into spellCrit.
+	// A Mage's `crit` mods (gear / card / tree / talent) count as skillCrit; other classes keep basic `crit`.
+	const isMage = job.id === "mage";
 	const add = (mod: Partial<Stats>) => {
 		for (const k of Object.keys(mod) as (keyof Stats)[]) {
-			st[k] += mod[k]!;
-			if (k === "crit") st.spellCrit += mod[k]!;
+			if (k === "crit" && isMage) st.skillCrit += mod[k]!;
+			else st[k] += mod[k]!;
 		}
 	};
 	add(RACES[s.race].traitMod);
@@ -322,6 +323,14 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 	const j2pct = { maxHp: 0, aspd: 0, atk: 0 };
 	if (j2) {
 		add(j2.mod);
+		if (j2.id === "sage") {
+			// Sage rework v1: every base stat matters (DEX -> skillCrit & combo, WIS -> elemDmg, LUK -> procCritMul; VIT -> Magic Rod & INT -> Auto Spell/Perks in BattleScene)
+			const SG = KIT2.sage;
+			st.skillCrit += Math.min(SG.dexSkillCritCap, SG.dexSkillCrit * d("dex"));
+			st.combo += Math.min(SG.dexComboCap, SG.dexCombo * d("dex"));
+			st.elemDmg += Math.min(SG.wisElemCap, SG.wisElemDmg * d("wis"));
+			st.procCritMul += Math.min(SG.lukProcCritCap, SG.lukProcCritMul * d("luk"));
+		}
 		for (const m of tree2Mods(s.job2Tree, j2.id)) add(m);
 		const csPts =
 			(s.crossSpent?.j2In1 ?? 0) +
@@ -359,7 +368,6 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 				st.j3Rn = 1;
 				st.j2PetPow += KIT3.ranger.petPowAdd;
 				st.crit += KIT3.ranger.critAdd;
-				st.spellCrit += KIT3.ranger.critAdd;
 				st.flee += KIT3.ranger.fleeAdd;
 			} // 🪶 Camouflage + Primal Stampede
 			if (j3 === "warlord") {

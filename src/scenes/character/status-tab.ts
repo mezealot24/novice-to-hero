@@ -214,7 +214,7 @@ export function statDesc(
 	w: number,
 	h: number,
 ) {
-	const { generic, cls } = statLines(stat, job, total);
+	const { generic, cls } = statLines(stat, job, total, save().job2);
 	for (const size of [12, 11, 10, 9]) {
 		const g = txt(scene, x, y, generic.join(" · "), size, "#d8d4f0")
 			.setWordWrapWidth(w)

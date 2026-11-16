@@ -4,6 +4,7 @@ import { derivedRows } from "../../data/stat-rows";
 import {
 	autoInfo,
 	dawnInfo,
+	SAGE_S1,
 	skill2Info,
 	ultInfo,
 	type InfoRow,
@@ -47,8 +48,11 @@ export function nodeDetail(
 		skill2Picked(tier2 ? (s.jobTree ?? {}) : tree, job);
 	const secs: Sec[] = [
 		{
-			name: `${JOBS[job].auto.icon} ทักษะ 1: ${JOBS[job].auto.name}`,
-			info: (st) => autoInfo(job, st),
+			name:
+				s.job2 === "sage"
+					? `${SAGE_S1.icon} ทักษะ 1: ${SAGE_S1.name}`
+					: `${JOBS[job].auto.icon} ทักษะ 1: ${JOBS[job].auto.name}`,
+			info: (st) => autoInfo(job, st, s.job2),
 			all: line === "s1",
 		},
 		...(job === "cleric"

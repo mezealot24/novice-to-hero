@@ -15,7 +15,7 @@ export function derivedRows(st: Stats): [string, string][] {
     ['เจาะเกราะ กาย / เวท', `${pct(physPen)} / ${pct(magPen)} (สูงสุด ${pct(STAT_CAPS.physPen)})`],
     ['P.DEF / M.DEF', `${Math.round(st.def)}(${Math.round(100 - 10000 / (100 + st.def))}%) / ${pct(st.mdef)}`],
     ['Hit / Flee / ต้านทาน', `${Math.round(st.hit)} / ${Math.round(st.flee)} / ${pct(st.tenacity)}`], // v94: ต้านทาน moved here so the crit row can show physical / magic crit
-    ['คริ กาย / เวท', `${(st.crit * 100).toFixed(1)}% / ${(st.spellCrit * 100).toFixed(1)}%`], // v94: physical crit (basic, smash, skills) / magic crit (spears, card spells, Dawn Light bonus): see docs/design/crit-mechanic.md
+    ['คริ ตี / สกิล / เวท', `${(st.crit * 100).toFixed(1)}% / ${(st.skillCrit * 100).toFixed(1)}% / ${(st.spellCrit * 100).toFixed(1)}%`], // Sage rework v1: basic / skill (skillCrit, CRIT_RULES) / proc+magic. v94: physical crit (basic, smash, skills) / magic crit (spears, card spells, Dawn Light bonus): see docs/design/crit-mechanic.md
     ['สวนกลับ / คอมโบ', `${pct(st.counter)} / ${pct(st.combo)} ต่อ${COMBO.baseCount + st.comboCount}${st.comboDmg ? ` ดาเมจ+${pct(st.comboDmg)}` : ''}`], // combo rework: chain length + Combo DMG%
     ['ความเร็วเทิร์น', `${(st.aspd / 1.6 * 10).toFixed(1)}`],
     ['ฟื้น HP / ฮีลแรง', `${(st.regen * 1.5).toFixed(2)}%/เทิร์น · +${pct(st.healAmp)}`],

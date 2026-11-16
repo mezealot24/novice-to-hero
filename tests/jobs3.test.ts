@@ -258,7 +258,7 @@ test('Beastmaster awakens into Ranger (Camouflage, legacy routing into j2BoarSha
   assert.equal(rn.j3Rn, 1)
   assert.ok(Math.abs(rn.j2PetPow - bm.j2PetPow - KIT3.ranger.petPowAdd) < 1e-9)
   assert.ok(Math.abs(rn.crit - bm.crit - KIT3.ranger.critAdd) < 1e-9)
-  assert.ok(Math.abs(rn.spellCrit - bm.spellCrit - KIT3.ranger.critAdd) < 1e-9)
+  assert.ok(Math.abs(rn.spellCrit - bm.spellCrit) < 1e-9) // Sage rework v1 crit split: basic crit no longer leaks into spellCrit
   assert.equal(rn.flee - bm.flee, KIT3.ranger.fleeAdd)
 
   // Legacy rn_l1 -> ult2Pow (bm_k), rn_l2 -> j2BoarShare (NEVER j2Guard, bm_b), rn_l3 -> maxHp (bm_s)

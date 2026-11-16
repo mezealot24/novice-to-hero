@@ -30,7 +30,7 @@ const MAGIC_SHARE: Partial<Record<JobId, number>> = { mage: 1, cleric: 0.35 }
 /** 2nd jobs (design/second-jobs-v1.md): what the derived Stats miss — Berserker Frenzy / บ้าระห่ำ double swings,
  *  Knight ถึกเป็นแรง (HP share in skills) + Auto Guard + Pierce. Multiplies the class K. First guess, recheck with the bot (JOB2=). */
 export const JOB2_K: Partial<Record<Job2Id, number>> = { berserker: 1.15, knight: 1, rogue: 1.1, mobster: 1.1, crusader: 1.05, monk: 1.1 } // rogue / mobster / monk: first guess, no bot run yet · crusader 1.05 kept after a bot check (2026-11-08, D6 HARD n=6: 6/6 wins, minHp 21%, vs Knight K=1 5/6, 35%; within noise) · bot D6 shop gear: fresh Knight counts +25% power but wins like the base class (HP is overcounted)
-Object.assign(JOB2_K, { wizard: 1.1, sage: 1 }) // Phase 5 Mage: first guess, no bot run yet (Wizard: big AoE blasts · Sage: Auto Spell on top of melee)
+Object.assign(JOB2_K, { wizard: 1.1, sage: 1.1 }) // Phase 5 Mage (Wizard: big AoE blasts · Sage rework v1: Spellstrike + On-Hit Perks + Perk Crit)
 Object.assign(JOB2_K, { beastmaster: 1.15, innovator: 1.1 }) // Phase 4 Archer: first guess, no bot run yet (allies the Stats miss: pet hits / boar soaking hits · traps, gadgets, turret)
 // v82: Archer (archer_c/d) and Beastmaster (bm_k/s) webs got more spendable points (53 / 54 vs pool 48 / 49): archer CLASS_K and beastmaster JOB2_K may need lowering after playtest.
 // v84: Swordsman / Cleric (swordsman_c/d, cleric_c/d) and Knight (kn_o/kn_r) got 2 new branches each (79 / 79 / 79 spendable vs pool 48 / 48 / 49): no K change yet, recheck swordsman 0.8 / cleric 1.8 / knight 1 after playtest.
@@ -48,7 +48,7 @@ export function powerParts(st: Stats, job: JobId = 'novice', job2?: Job2Id, job3
   const R = POWER_REF, m = (job2 ? MAGIC_SHARE2[job2] : undefined) ?? MAGIC_SHARE[job] ?? 0
   // ---- offense ----
   const phys = afterDef(st.atk * (1 + st.minPct) / 2, R.def) * hitChance(st.hit, R.flee) * (1 + Math.min(1, st.crit) * (st.critMul - 1))
-  const magic = st.matk * (1 + Math.min(1, st.spellCrit) * (st.critMul - 1))
+  const magic = st.matk * (1 + Math.min(1, st.spellCrit + 0.5 * st.skillCrit) * (st.critMul - 1)) // crit split: skills ~half of magic hits
   const perHit = phys * (1 - m) + magic * m
   const chain = (1 + comboExtra(st.combo, COMBO.baseCount + st.comboCount) * (1 + st.comboDmg)) * (1 + doubleAtkChance(st.doubleAtk))
   const j3Off = 0.25 * (st.u3Pow + st.ult2Pow + st.j3VarMul) + 0.1 * st.j3Press * Math.max(0.2, st.j2Guard)

@@ -30,6 +30,17 @@ export const COMBO = {
   defK: 400, defCap: 0.3, critDRCap: 0.5,
 }
 
+/** Crit split (design/sage-rework-v1.md §1). Three separate rates:
+ *  - `crit`      basic / combo / counter (physical)
+ *  - `skillCrit` active skills / Ult (physical skills also borrow `skillFromCrit` of `crit`; magic skills add `spellCrit`)
+ *  - `spellCrit` magic basics + on-hit procs (zap / fire / ice / spear / light ...) + Sage Auto Spell
+ *  `crit` no longer leaks into `spellCrit`. A Mage's `crit` mods (gear / card / tree / talent) go to `skillCrit`. */
+export const CRIT_RULES = {
+  skillFromCrit: 0.5, // physical skills: share of basic `crit` that also counts for skills (nerf: was 100%)
+  cap: { crit: 1, skillCrit: 0.6, spellCrit: 0.6 }, // basic crit uncapped (feedback was skill / perk crit only)
+  sageSpellCap: 0.75, // Sage: higher spellCrit cap (perk-crit identity)
+} as const
+
 /** Diminishing returns above soft cap: smoothly scales up to hard cap using x/(x+K). */
 export const RESIST_RULES = {
   softCap: 0.70,
