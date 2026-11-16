@@ -217,7 +217,7 @@ const J2_LABEL: Record<string, string> = {
   'wizard.lovPush': '⚡ LoV: ผลักเกจบอส/มินิ', 'wizard.iceBarrier': '❄️ บาเรียน้ำแข็งเพิ่ม × M.ATK',
   'wizard.mastery.matk': 'ชำนาญไม้เท้า: M.ATK +', 'wizard.mastery.spellCrit': 'ชำนาญไม้เท้า: เวทคริ +',
   // 📖 Sage
-  'sage.basicMul': '📖 ตีธรรมดาประชิด × P.ATK', 'sage.s1Hits': '📖 ทักษะ 1: จำนวนฮิตฟาดหนังสือ', 'sage.s1AtkMul': '📖 ทักษะ 1: ฟาด × P.ATK',
+  'sage.basicMul': '📖 ตีธรรมดาประชิด × P.ATK', 'sage.s1InfuseBonus': '📖 ทักษะ 1 (ติดตัว): โบนัสดาเมจตีประชิดเมื่อจ่าย Mana',
   'sage.autoChance': '📖 Auto Spell: โอกาสพื้นฐาน', 'sage.autoInt': '📖 Auto Spell: โอกาสเพิ่มต่อ 1 INT',
   'sage.autoCap': '📖 Auto Spell: เพดานโอกาสสูงสุด', 'sage.autoMul': '📖 Auto Spell: ดาเมจ Bolt × พลังเวท',
   'sage.endowTurns': '🗡️ Endow: นาน (เทิร์น)', 'sage.endowAmp': '🗡️ Endow: เพิ่มแรงตี/Auto/Perk',

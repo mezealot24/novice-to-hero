@@ -1,4 +1,5 @@
 import { COLORS } from "../../data/game-data";
+import { SAGE_S1 } from "../../data/skill-math";
 import {
 	persist,
 	resetTree,
@@ -98,7 +99,7 @@ export function buildTier1(scene: CharacterScene, w: WebBuild) {
 		});
 		groups1.push({ name, from, to: cols1.length - 1, isUlt: line === "ult" });
 	};
-	lineCols1("s1", `${job.auto.icon} ทักษะ 1`);
+	lineCols1("s1", s.job2 === "sage" ? `${SAGE_S1.icon} ทักษะ 1 (ติดตัว)` : `${job.auto.icon} ทักษะ 1`);
 	{
 		const from = cols1.length;
 		const s2 = nodesOf(`${s.job}_s2`),
@@ -223,6 +224,7 @@ export function buildTier1(scene: CharacterScene, w: WebBuild) {
 			open = !why || why === "เต็มแล้ว";
 		const star = n.tier === 4 || n.kind === "s2star",
 			sel = id === scene.selNode;
+		const viewNode = s.job2 === "sage" && id === "mage_s1p" ? { ...n, icon: SAGE_S1.icon, name: SAGE_S1.name } : n;
 		drawSkillNode(
 			scene,
 			scrollC,
@@ -230,7 +232,7 @@ export function buildTier1(scene: CharacterScene, w: WebBuild) {
 			p.y,
 			cw1,
 			nh,
-			n,
+			viewNode,
 			lv,
 			open,
 			star,

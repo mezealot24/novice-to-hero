@@ -107,7 +107,7 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     blurb: 'battle mage On-Hit · เปลี่ยนทักษะ 1 เป็น ศาสตราวุธธาตุ + เลือกสาย Perk ธาตุ (Fire Bolt ×hit / Chain Lightning / Permafrost) · เด่น Skill & Perk Crit',
     mod: { maxHp: 35, def: 5, spellCrit: 0.05 },
     mastery: { weapon: 'หนังสือ / ไม้เท้า', ok: (it) => it.wtype === 'book' || it.wtype === 'staff', mod: { matk: SG.mastery.matk }, pct: { atk: SG.mastery.atkPct } },
-    signature: { name: 'Auto Spell & On-Hit Perk', icon: '📖', desc: `ทักษะ 1 เปลี่ยนเป็น ศาสตราวุธธาตุ (ฟาด ${SG.s1Hits} ฮิต + ร่าย Auto Spell & Perk ธาตุทันที) · ตีธรรมดา ${SG.basicMul}x P.ATK มีโอกาส ${pc(SG.autoChance)} (+${SG.autoInt * 100}%/INT สูงสุด ${pc(SG.autoCap)}) ร่าย Bolt ${SG.autoMul}x Pm · ธาตุหลักได้ผล Perk 100% ธาตุอื่น ${pc(SG.perk.offMul)}` },
+    signature: { name: 'Auto Spell & On-Hit Perk', icon: '📖', desc: `ทักษะ 1 เปลี่ยนเป็นติดตัว ศาสตราวุธธาตุ (ตีปกติใช้ Mana ${SG.s1Cost} เสริมแรง +${pc(SG.s1InfuseBonus)} และการันตี Auto Spell · ไม่แย่ง Auto Attack) · ธาตุหลักได้ผล Perk 100% ธาตุอื่น ${pc(SG.perk.offMul)}` },
     skill3: { name: 'Endow', icon: '🗡️', cost: SG.endowCost, cd: SG.endowCd, desc: `Mana ${SG.endowCost} · คูลดาวน์ ${SG.endowCd}: ติดธาตุอาวุธ ${SG.endowTurns} เทิร์น · ตีประชิด / Auto Spell / On-Hit Perk แรง +${pc(SG.endowAmp)} และโอกาสติด +${pc(SG.endowPerkChance)}` },
     ult: { name: 'Dispell + Spell Breaker', icon: '🚫', cd: 4, cost: SG.ultCost, desc: `Mana ${SG.ultCost}: ลบบัฟ/โล่/โล่สะท้อนของมอนทุกตัว + ขัดบอสที่กำลังชาร์จ · ขโมย Mana ${SG.ultMana} · ฟาดตัวที่ชาร์จ (ไม่งั้นตัวหน้า) ${SG.ultAtk}x P.ATK + ${SG.ultPm}x Pm` },
   },

@@ -184,7 +184,7 @@ export const KIT2 = {
   },
   sage: {
     basicMul: 1, // 📖 melee basic x P.ATK (base Mage: 0.6x magic bolt)
-    s1Cost: 12, s1Hits: 2, s1AtkMul: 0.75, // 📖 Spellstrike (replaces Mage Skill 1): 2 melee strikes + guaranteed Auto Spell & On-Hit Perks
+    s1Cost: 12, s1InfuseBonus: 0.35, // 📖 Spellstrike (passive Skill 1): basic/combo hits spend Mana to deal +35% melee & guarantee Auto Spell + On-Hit Perks
     autoChance: 0.3, autoInt: 0.0025, autoCap: 0.65, autoMul: 0.75, // Auto Spell per basic: chance + per INT (capped), a run-element bolt x Pm
     endowCost: 22, endowCd: 5, endowTurns: 3, endowAmp: 0.25, endowPerkChance: 0.1, // 🗡️ Endow: melee + Auto Spell + Perks +25% & +10% proc chance
     ultCost: 25, ultAtk: 2.2, ultPm: 1.2, ultMana: 20, ultBreakTurns: 2, // 🚫 Dispell + Spell Breaker
@@ -499,9 +499,9 @@ export function autoInfo(jobId: JobId, st: Stats, job2?: string): InfoRow[] {
   if (jobId === 'mage' && job2 === 'sage') {
     const S = KIT2.sage, sgJob = { ...job, auto: { ...job.auto, cost: S.s1Cost } }
     const rows: InfoRow[] = [
-      { label: 'ใช้', value: `Mana ${autoCost(sgJob, st)}` },
-      { label: `ฟาดหนังสือ ${S.s1Hits} ฮิต (P.ATK · สกิลคริ)`, value: hitText(st, S.s1AtkMul * pow * (1 + st.pskill), false, true) },
-      { label: 'Auto Spell (ร่ายฟรีตามธาตุ)', value: `${hitText(st, (S.autoMul + st.j2AutoMul) * pow * (st.mgOverflow > 0 ? st.mgOverflow : 1), true)} ×${1 + st.j2AutoBolts}` },
+      { label: 'รูปแบบ (ติดตัว)', value: `ตีปกติใช้ Mana ${autoCost(sgJob, st)} อัตโนมัติ (ไม่แย่งเทิร์นตี)` },
+      { label: `เสริมแรงตีประชิด (+${pct(S.s1InfuseBonus * pow)})`, value: hitText(st, (S.basicMul + S.s1InfuseBonus * pow) * (1 + st.pskill), false) },
+      { label: 'การันตี Auto Spell (ร่ายฟรี)', value: `${hitText(st, (S.autoMul + st.j2AutoMul) * pow * (st.mgOverflow > 0 ? st.mgOverflow : 1), true)} ×${1 + st.j2AutoBolts}` },
     ]
     if (st.j2FirePerk > 0) rows.push({ label: '🔥 On-Hit: Fire Bolt ×hit', value: `สูงสุด ${S.perk.fireMaxBolts} ลูก (ธาตุหลัก 100% / อื่น ${pct(S.perk.offMul)})` })
     if (st.j2LightPerk > 0) rows.push({ label: '⚡ On-Hit: Chain Lightning', value: `ชิ่ง ${S.perk.lightTargetsBase + (st.j2LightPerk >= 3 ? 1 : 0)} เป้า (ธาตุหลัก 100% / อื่น ${pct(S.perk.offMul)})` })

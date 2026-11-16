@@ -23,6 +23,7 @@ import {
 	BM_STANCE,
 	KIT2,
 	KIT3,
+	SAGE_S1,
 	boarCutOf,
 	boarRageKOf,
 	boarRecoverTurnsOf,
@@ -116,12 +117,20 @@ export function renderSelectedNodeFooter(scene: CharacterScene) {
 		n.branch.endsWith("_u3") ||
 		BRANCHES.find((b) => b.id === n.branch)?.line === "ult";
 	// tier-1 roots (ทักษะ 1 / Ult): show what the base skill actually does (e.g. Cleric's heal OR smite 2 front)
+	const isSageS1 = s.job2 === "sage" && n.branch.endsWith("_s1") && n.kind === "pow";
 	const sk1 =
 		tier === 1 && n.kind === "pow"
 			? n.branch.endsWith("_s1")
-				? JOBS[s.job].auto
+				? isSageS1
+					? {
+							icon: SAGE_S1.icon,
+							name: `${SAGE_S1.name} (ติดตัว)`,
+							desc: `ตีปกติ + คอมโบได้ทุกเทิร์น (ไม่แย่ง Auto Attack) · ถ้ามี Mana ≥ ${KIT2.sage.s1Cost} จะจ่ายอัตโนมัติเพื่อเสริมแรงตี +${Math.round(KIT2.sage.s1InfuseBonus * 100)}% และกระตุ้น Auto Spell + On-Hit Perk ทันที`,
+						}
+					: JOBS[s.job].auto
 				: JOBS[s.job].ult
 			: undefined;
+	const displayNode = isSageS1 ? { ...n, icon: SAGE_S1.icon, name: `${SAGE_S1.name} (ติดตัว)` } : n;
 	const rootDesc = sk1
 		? `${sk1.icon} ${sk1.name}: ${sk1.desc}`
 		: tier === 3 && n.kind === "pow3" && j3Def
@@ -143,7 +152,7 @@ export function renderSelectedNodeFooter(scene: CharacterScene) {
 
 	nodeFooter(
 		scene,
-		n,
+		displayNode,
 		lv,
 		why,
 		tag,

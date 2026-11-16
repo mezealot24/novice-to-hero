@@ -1058,7 +1058,7 @@ export class BattleScene extends Phaser.Scene {
       await this.faithBurst() // v84 ศรัทธา: full Faith bursts after the turn's actions
       return
     }
-    if (this.job.resource && s1Ok && !ultWaiting && this.res >= cost && this.alive().length) {
+    if (this.job.resource && this.j2?.id !== 'sage' && s1Ok && !ultWaiting && this.res >= cost && this.alive().length) {
       await castS1()
       return
     }
@@ -2313,6 +2313,7 @@ export class BattleScene extends Phaser.Scene {
   private heroVit = 0 // total VIT (Sage Magic Rod scaling)
   private sageFireBoltsTurn = 0 // Sage 🔥 Fire Bolt counter this turn (x hit ramp + Inferno Overdrive)
   private sageFireNovaUsed = false
+  private sageInfusePow = 0 // >0 when Sage's passive Skill 1 (ศาสตราวุธธาตุ) spent Mana for this basic/combo turn
   private heroDex = 0 // total DEX (v78 chant break)
   private heroWis = 0 // total WIS (v86 💠 มานาพิทักษ์)
   private zenTurns = 0 // v78 เปิดฉากเต็มแรง: hero turns of Zen left (no miss, crit damage +)
@@ -2805,6 +2806,16 @@ export class BattleScene extends Phaser.Scene {
   /** Basic attack, then combo: each success chains one more (COMBO.baseCount + st.comboCount). */
   private async basicAttack() {
     const target = this.front()[0]
+    // 📖 Sage Passive Skill 1 (ศาสตราวุธธาตุ): never skips basicAttack; spends Mana alongside the swing to empower + guarantee Auto Spell
+    this.sageInfusePow = 0
+    if (this.j2?.id === 'sage' && target) {
+      const cost = autoCost(this.job, this.st)
+      if (this.res >= cost && this.hx.silence <= 0) {
+        this.spendRes(cost)
+        this.popSkill('s1')
+        this.sageInfusePow = (1 + this.st.s1Pow + this.auraNow) * (this.overflow ? this.st.mgOverflow : 1)
+      }
+    }
     this.comboSum = { on: true, per: new Map() } // RO-style: each hit shows its own white number, the chain total pops big + yellow at the end
     let extra = 0 // roll the chain first (same odds as before) so the hero knows to stay at the monster between hits
     const rate = this.comboChance() - (target ? this.monCombo(target).ignore : 0), count = COMBO.baseCount + this.st.comboCount + (this.relic === 'wolf' ? RELIC_RULES.wolf.comboCount : 0)
@@ -2812,7 +2823,7 @@ export class BattleScene extends Phaser.Scene {
     this.stayIn = extra > 0 || this.rampage > 0
     await this.basicOnce()
     this.comboKnives(false) // Rogue ★: crit knives from the first swing
-    this.sageSpell(target) // 📖 Sage Auto Spell & On-Hit Perks
+    this.sageSpell(target, this.sageInfusePow > 0, this.sageInfusePow > 0 ? this.sageInfusePow : 1) // 📖 Sage Auto Spell & On-Hit Perks (guaranteed when Mana-infused)
     if (this.rampage > 0 && this.alive().length) { this.floatText(HERO_X, GROUND - 150, '👹', '#ff5a4e'); await this.basicOnce() } // Berserker บ้าระห่ำ: every swing hits twice
     if (this.alive().length && await this.procs('basic') > 0) await this.wait(120) // พร v2: on-basic-attack cards
     if (this.immortal === 'angel' && this.fightTurns <= IMMORTAL_RULES.angelTurns && this.hp > 0) { // 🌈 พรนางฟ้า
@@ -2828,9 +2839,10 @@ export class BattleScene extends Phaser.Scene {
       sfx.combo(n + 2)
       await this.basicOnce()
       this.comboKnives(true) // Rogue มีดบิน
-      if (this.st.j2Hindsight > 0) this.sageSpell(this.front()[0]) // Sage ★ Hindsight
+      if (this.st.j2Hindsight > 0) this.sageSpell(this.front()[0], false, this.sageInfusePow > 0 ? this.sageInfusePow : 1) // Sage ★ Hindsight
       hits++
     }
+    this.sageInfusePow = 0
     this.comboLevel = 0
     this.comboSum.on = false
     let best: { dmg: number, x: number, y: number } | undefined // total for the monster that took the most (cleave splash shows only its own numbers)
@@ -2885,7 +2897,14 @@ export class BattleScene extends Phaser.Scene {
       }
       await this.shoot(f, 0xf6eedc, () => this.strike(f, mul), {})
     }
-    else if (kind === 'mage' && this.j2?.id === 'sage') await this.lunge(f, () => { this.strike(f, KIT2.sage.basicMul) }) // 📖 Sage: melee x P.ATK
+    else if (kind === 'mage' && this.j2?.id === 'sage') await this.lunge(f, () => {
+      const inf = this.sageInfusePow > 0 ? KIT2.sage.s1InfuseBonus * (1 + this.st.s1Pow) : 0
+      this.strike(f, KIT2.sage.basicMul + inf)
+      if (this.sageInfusePow > 0 && !f.dead) {
+        if (this.st.mgHex > 0) { f.weakPct = Math.max(f.weakTurns > 0 ? f.weakPct : 0, this.st.mgHex); f.weakTurns = Math.max(f.weakTurns, MAGE_PASSIVE.hex.turns); this.dotIcon(f) }
+        if (this.st.autoBurn > 0 && this.element === 'fire') { f.burnStacks = Math.min(this.burnMax(), f.burnStacks + this.st.autoBurn); f.burnStackTurns = 3; this.dotIcon(f) }
+      }
+    }) // 📖 Sage: melee x P.ATK (+ Passive Skill 1 Mana infusion)
     else if (kind === 'mage') await this.shoot(f, 0x9f7bff, () => { if (this.strike(f, MAGE_SPELL.basicMul, true, '#c9a8ff') > 0) this.gainRes(MAGE_CAST.boltMana) }) // weak free magic bolt (v78: + Mana on hit); real damage = Mana spells
     else if (kind === 'thief') await this.lunge(f, () => { this.strike(f, 0.6); this.strike(f, 0.6); this.doubleAttack(f, 0.6) })
     else if (kind === 'cleric') {
@@ -3127,8 +3146,7 @@ export class BattleScene extends Phaser.Scene {
         }
         break
       case 'mage':
-        if (this.j2?.id === 'sage') await this.sageSpellstrike(pow + this.auraNow)
-        else await this.mageFire(pow + this.auraNow, mageAutoMul(this.st, this.j2?.id === 'wizard' ? MAGE_SPELL.autoMul : MAGE_CAST.fireMul)) // 2026-11-13: 90% M.ATK : 10% P.ATK · v85: instant for every Mage
+        await this.mageFire(pow + this.auraNow, mageAutoMul(this.st, this.j2?.id === 'wizard' ? MAGE_SPELL.autoMul : MAGE_CAST.fireMul)) // 2026-11-13: 90% M.ATK : 10% P.ATK · v85: instant for every Mage (Sage uses Passive Skill 1 inside basicAttack)
         break
       case 'cleric':
         if (this.hp < this.st.maxHp * (KIT.clericHealBelow - this.st.healAt)) { this.skillHeal(this.st.matk * CLERIC_KIT.heal * pow); playPfx(this, 'healRing', HERO_X, GROUND, { scale: 1, speed: 1.6 }) }
@@ -3152,24 +3170,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  /** 📖 Sage Skill 1 replacement: ศาสตราวุธธาตุ — 2 melee strikes (skillCrit) + guaranteed Auto Spell & On-Hit Perks. */
-  private async sageSpellstrike(pow: number) {
-    const f = this.front()[0]
-    if (!f) return
-    const S = KIT2.sage, over = this.overflow ? this.st.mgOverflow : 1
-    await this.lunge(f, () => {
-      for (let h = 0; h < S.s1Hits; h++) {
-        const t = !f.dead ? f : this.front()[0]
-        if (!t) break
-        this.strike(t, S.s1AtkMul * pow * over * (1 + this.st.pskill), false, '#e6d4ff')
-        if (!t.dead && this.st.mgHex > 0) { t.weakPct = Math.max(t.weakTurns > 0 ? t.weakPct : 0, this.st.mgHex); t.weakTurns = Math.max(t.weakTurns, MAGE_PASSIVE.hex.turns); this.dotIcon(t) }
-        if (!t.dead && this.st.autoBurn > 0 && this.element === 'fire') { t.burnStacks = Math.min(this.burnMax(), t.burnStacks + this.st.autoBurn); t.burnStackTurns = 3; this.dotIcon(t) }
-      }
-      this.sageSpell(f, true, pow * over)
-    })
-  }
-
-  /** ลูกไฟระเบิด: fire on every monster at `mul` x Pm (Mage / Sage: MAGE_CAST.fireMul · Wizard: MAGE_SPELL.autoMul). */
+  /** ลูกไฟระเบิด: fire on every monster at `mul` x Pm (Mage / Wizard). */
   private async mageFire(pow: number, mul: number) {
     playPfx(this, 'fireTornado', 700, GROUND, { scale: 1.4, speed: 1.4 })
     this.burst(700, GROUND - 30, 0xff8c42, 30, 300)
@@ -5929,8 +5930,8 @@ export class BattleScene extends Phaser.Scene {
     const manual = !this.autoUlt, silent = this.hx.silence > 0, exhaust = this.asuraExhaust > 0, ri = resourceIcon(this.job.resource)
     const money = (n: number) => (n > 0 ? `${ri}${Math.round(n)}` : '')
     if (slot === 's1') {
-      const cost = autoCost(this.job, this.st)
-      return { in: { cdLeft: 0, cdMax: 0, cost, res: this.res, booked: this.book.s1, manual, blocked: exhaust }, icon: this.job.auto.icon, name: this.job.auto.name, costTxt: money(cost) }
+      const cost = autoCost(this.job, this.st), isSage = this.j2?.id === 'sage'
+      return { in: { cdLeft: 0, cdMax: 0, cost, res: this.res, booked: isSage ? false : this.book.s1, manual, blocked: exhaust }, icon: this.job.auto.icon, name: isSage ? `${this.job.auto.name} (ติดตัว: ตีใช้ Mana)` : this.job.auto.name, costTxt: money(cost) }
     }
     if (slot === 's2' && this.s2) {
       const k = this.s2
@@ -5950,7 +5951,7 @@ export class BattleScene extends Phaser.Scene {
     const chant = this.casts.some((c) => c.kind === 'ult')
     for (const v of this.skillBtns) {
       const sp = this.skillSpec(v.slot), s = skillButtonState(sp.in)
-      const tag = s.booked ? 'จอง' : v.slot === 'ult' && !sp.in.manual && s.ready ? 'ออโต้' : ''
+      const tag = v.slot === 's1' && this.j2?.id === 'sage' ? 'ติดตัว' : s.booked ? 'จอง' : v.slot === 'ult' && !sp.in.manual && s.ready ? 'ออโต้' : ''
       const spin = v.slot === 'ult' && chant
       const sig = `${s.ready}|${s.short}|${s.greyed}|${s.sweep.toFixed(2)}|${s.turns}|${tag}|${sp.icon}|${sp.costTxt}|${spin}`
       if (sig === v.sig) continue
@@ -5998,6 +5999,7 @@ export class BattleScene extends Phaser.Scene {
   private tapSkill(slot: SkillSlot) {
     if (this.over || this.paused) return
     if (slot === 'ult') { this.queueSmash(); return }
+    if (slot === 's1' && this.j2?.id === 'sage') { this.floatText(W - 210, H - 215, `📖 ติดตัว: ตีใช้ Mana ${autoCost(this.job, this.st)} เสริม On-Hit`, '#c9a8ff'); return }
     if (tapAction(!this.autoUlt) === 'hint') { this.floatText(W - 200, H - 215, 'โหมดออโต้ — สลับเป็นกดเอง เพื่อจอง', '#a9a6c7'); return }
     this.book[slot] = !this.book[slot]
     if (this.book[slot]) sfx.pop()
