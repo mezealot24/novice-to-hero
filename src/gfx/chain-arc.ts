@@ -65,7 +65,7 @@ export const meta = {
   tags: ['lightning', 'electric', 'chain', 'spell', 'combat', 'one-shot'],
   size: [200, 96] as number[],
   origin: [40, 74] as number[],
-  duration: 0.85,
+  duration: 0.5,
   loop: false,
   fps: 30,
   bg: 'dark',
@@ -78,11 +78,11 @@ const DEFAULT_NODES: ChainNode[] = [
   { x: 108, y: -19, groundY: 0 },
 ]
 
-const LEAP = 0.045
-const GAP = 0.055
-const HOLD = 0.32
-const BREAK = 0.11
-const TRACE_FADE = 0.16
+const LEAP = 0.025
+const GAP = 0.03
+const HOLD = 0.16
+const BREAK = 0.07
+const TRACE_FADE = 0.1
 const ASH = hex('#5b5566')
 
 function floorAt(nodes: ChainNode[], x: number): number {
@@ -115,13 +115,13 @@ export function create(o: ChainArcOpts = {}) {
   const seed = o.seed ?? 3
   const R = new Rng(seed)
 
-  const targetNodes = (o.nodes && o.nodes.length > 0 ? o.nodes : DEFAULT_NODES).map((n) => ({
-    x: n.x,
-    y: n.y,
+  const targetNodes = (o.nodes && o.nodes.length > 0 ? o.nodes : DEFAULT_NODES).map((n, idx) => ({
+    x: n.x + (idx === 0 ? R.range(-2, 2) : R.range(-4, 4)),
+    y: n.y + R.range(-4, 4),
     groundY: n.groundY ?? 0,
   }))
   const originNode = o.originNode
-    ? { x: o.originNode.x, y: o.originNode.y, groundY: o.originNode.groundY ?? targetNodes[0].groundY }
+    ? { x: o.originNode.x + R.range(-2, 2), y: o.originNode.y + R.range(-3, 3), groundY: o.originNode.groundY ?? targetNodes[0].groundY }
     : undefined
 
   // Node sequence for visual links:
@@ -129,10 +129,10 @@ export function create(o: ChainArcOpts = {}) {
   // - Otherwise targetNodes[0] is the struck target itself: it ignites immediately at t = 0 and links leap outward.
   const pts: Array<{ x: number; y: number; groundY: number }> = originNode ? [originNode, ...targetNodes] : targetNodes
   const linksCount = Math.max(0, pts.length - 1)
-  const firstOffset = originNode ? 0 : 0.015
+  const firstOffset = originNode ? 0 : 0.01
   const linkStart = (i: number) => firstOffset + i * GAP
   const linkOn = (i: number) => linkStart(i) + LEAP
-  const linkOff = (i: number) => HOLD + i * 0.035
+  const linkOff = (i: number) => HOLD + i * 0.02
 
   const nodeOn = (idx: number) => (idx === 0 ? 0 : linkOn(idx - 1))
   const nodeOff = (idx: number) => {
@@ -150,9 +150,9 @@ export function create(o: ChainArcOpts = {}) {
   const hasOverload = !!o.overloadBack
   const firstSurvIdx = originNode ? 1 : 0
   const lastIdx = pts.length - 1
-  const ovStart = (linksCount > 0 ? linkOn(linksCount - 1) : 0.04) + 0.05
+  const ovStart = (linksCount > 0 ? linkOn(linksCount - 1) : 0.025) + 0.03
   const ovOn = ovStart + LEAP
-  const ovOff = HOLD + Math.max(1, linksCount) * 0.035
+  const ovOff = HOLD + Math.max(1, linksCount) * 0.02
 
   const ps = new Particles({ rng: R, ground: (x: number) => floorAt(allForFloor, x), sparks: sparkRamp })
   const hot = new Particles({ rng: R, ground: (x: number) => floorAt(allForFloor, x) })
@@ -165,26 +165,28 @@ export function create(o: ChainArcOpts = {}) {
 
   const linkShape = (ax: number, ay: number, bx: number, by: number, i: number, f: number, bowMul = 1, salt = 0): BoltShape => {
     const r = rng(seed, 31 + salt, i, f)
+    const rCast = rng(seed, 71 + salt, i, 0)
     const L = Math.hypot(bx - ax, by - ay)
-    // Bow upward regardless of left-to-right or right-to-left direction
-    const upwardSign = bx >= ax ? -1 : 1
-    return bowed(r, ax, ay, bx, by, upwardSign * L * r.range(0.06, 0.16) * bowMul, 0.2, 0.09) as unknown as BoltShape
+    // Bow upward most of the time, with per-cast arc height & occasional flatter/lower curve so repeated hits don't stack
+    const upwardSign = (bx >= ax ? -1 : 1) * (rCast.chance(0.8) ? 1 : -0.45)
+    const arcScale = rCast.range(0.75, 1.35)
+    return bowed(r, ax, ay, bx, by, upwardSign * L * r.range(0.07, 0.18) * bowMul * arcScale, 0.24, 0.11) as unknown as BoltShape
   }
 
   const spawnBurst = (x: number, y: number, dir: number, count: number) => {
-    lights.add(x, y, 52, C[4], 0.85, 0.2)
-    lights.add(x, y, 16, WHITE, 0.7, 0.08)
+    lights.add(x, y, 52, C[4], 0.85, 0.14)
+    lights.add(x, y, 16, WHITE, 0.7, 0.06)
     for (let j = 0; j < count; j++) {
       const a = R.chance(0.55) ? dir + R.range(-1.1, 1.1) : R.range(0, TAU)
       const sp = R.range(65, 210)
-      ps.spawn(P.SPARK, x, y, Math.cos(a) * sp, Math.sin(a) * sp - 35, R.range(0.14, 0.36))
+      ps.spawn(P.SPARK, x, y, Math.cos(a) * sp, Math.sin(a) * sp - 35, R.range(0.1, 0.22))
     }
     for (let j = 0; j < 4; j++) {
-      hot.spawn(P.SPARK, x + R.range(-2, 2), y + 2, R.range(-45, 45), R.range(-55, 20), R.range(0.24, 0.42))
+      hot.spawn(P.SPARK, x + R.range(-2, 2), y + 2, R.range(-45, 45), R.range(-55, 20), R.range(0.16, 0.26))
     }
-    ps.spawn(P.STAR, x + R.range(-4, 4), y - R.range(3, 7), 0, -6, R.range(0.2, 0.32), C[6], R.range(1.5, 2.4))
+    ps.spawn(P.STAR, x + R.range(-4, 4), y - R.range(3, 7), 0, -6, R.range(0.14, 0.22), C[6], R.range(1.5, 2.4))
     for (let j = 0; j < 2; j++) {
-      ps.spawn(P.SMOKE, x + R.range(-4, 4), y + R.range(-2, 3), R.range(-6, 6), -R.range(8, 16), R.range(0.32, 0.48), mix(ASH, C[2], 0.35), R.range(2, 3.2), R.range(0.03, 0.1))
+      ps.spawn(P.SMOKE, x + R.range(-4, 4), y + R.range(-2, 3), R.range(-6, 6), -R.range(8, 16), R.range(0.18, 0.28), mix(ASH, C[2], 0.35), R.range(2, 3.2), R.range(0.02, 0.06))
     }
   }
 
@@ -211,7 +213,7 @@ export function create(o: ChainArcOpts = {}) {
             ps.spawn(P.SPARK, groundX[i], n.groundY - 1, R.range(-65, 65), -R.range(40, 130), R.range(0.12, 0.24))
           }
           if (R.chance(2.5 * dt)) {
-            hot.spawn(P.SPARK, n.x + R.range(-3, 3), n.y + 3, R.range(-30, 30), R.range(-30, 10), R.range(0.24, 0.38))
+            hot.spawn(P.SPARK, n.x + R.range(-3, 3), n.y + 3, R.range(-30, 30), R.range(-30, 10), R.range(0.14, 0.22))
           }
         }
         if (!nodePopped[i] && t >= offT + BREAK) {
@@ -219,22 +221,22 @@ export function create(o: ChainArcOpts = {}) {
           for (let j = 0; j < 6; j++) {
             const a = R.range(0, TAU)
             const sp = R.range(35, 125)
-            ps.spawn(P.SPARK, n.x, n.y, Math.cos(a) * sp, Math.sin(a) * sp - 25, R.range(0.1, 0.2))
+            ps.spawn(P.SPARK, n.x, n.y, Math.cos(a) * sp, Math.sin(a) * sp - 25, R.range(0.08, 0.14))
           }
-          ps.spawn(P.SMOKE, n.x, n.y, R.range(-4, 4), -R.range(10, 16), R.range(0.16, 0.24), mix(ASH, C[2], 0.35), R.range(2.2, 3.2))
-          lights.add(n.x, n.y, 28, C[4], 0.5, 0.12)
+          ps.spawn(P.SMOKE, n.x, n.y, R.range(-4, 4), -R.range(10, 16), R.range(0.12, 0.16), mix(ASH, C[2], 0.35), R.range(2.2, 3.2))
+          lights.add(n.x, n.y, 28, C[4], 0.5, 0.08)
         }
       }
 
       if (hasOverload && !ovHit && t >= ovOn) {
         ovHit = true
         const dst = pts[firstSurvIdx]
-        lights.add(dst.x, dst.y, 64, COv[4], 0.9, 0.22)
-        lights.add(dst.x, dst.y, 20, WHITE, 0.85, 0.1)
+        lights.add(dst.x, dst.y, 64, COv[4], 0.9, 0.14)
+        lights.add(dst.x, dst.y, 20, WHITE, 0.85, 0.08)
         for (let j = 0; j < 14; j++) {
           const a = R.range(0, TAU)
           const sp = R.range(60, 190)
-          ps.spawn(P.SPARK, dst.x, dst.y, Math.cos(a) * sp, Math.sin(a) * sp - 30, R.range(0.14, 0.26), COv[5])
+          ps.spawn(P.SPARK, dst.x, dst.y, Math.cos(a) * sp, Math.sin(a) * sp - 30, R.range(0.1, 0.18), COv[5])
         }
       }
 
@@ -248,8 +250,8 @@ export function create(o: ChainArcOpts = {}) {
         const a = t - nodeOn(i)
         if (a < 0) continue
         const offT = nodeOff(i)
-        const T0 = Math.min(1, a / 0.14) * Math.pow(clamp(1 - (t - offT) / 0.4), 1.3) * 0.9
-        scorch(p, groundX[i], pts[i].groundY, 7, T0, 1 - smooth(0.48, 0.72, t))
+        const T0 = Math.min(1, a / 0.08) * Math.pow(clamp(1 - (t - offT) / 0.25), 1.3) * 0.9
+        scorch(p, groundX[i], pts[i].groundY, 7, T0, 1 - smooth(0.28, 0.44, t))
       }
       ps.draw(p, 'back')
       hot.draw(p, 'back')
@@ -257,7 +259,7 @@ export function create(o: ChainArcOpts = {}) {
 
     draw(p: PainterLike) {
       const f = Math.floor(t * 30 + 1e-4)
-      const f2 = f >> 1
+      const f2 = f
 
       // Draw chain links between consecutive targets
       for (let i = 0; i < linksCount; i++) {
