@@ -33,6 +33,12 @@ export const MAGE_AUTO_MIX = { matk: 0.9, atk: 0.1 }
 export const MAGE_PASSIVE = {
   hex: { weakPer: 0.12, cap: 0.45, turns: 3 }, // ลูกไฟระเบิด hit -> the monster's own hits lose weakPer x lv (cap) for `turns` of its turns (the stronger / longer one wins, never stacks)
   aura: { ampPer: 0.15, turns: 5 }, // first `turns` hero turns of every wave: ลูกไฟระเบิด + ult damage +ampPer x lv (not shields)
+  ablaze: { stacksNeeded: 3, consumeStacks: 3, spreadStacks: 1, hpPct: 0.08, matkMul: 1.2, bossCapMul: 6, manaGain: 12 }, // Brand-style 3-stack detonation + Mana on blast/burn-kill
+}
+/** ☄️ Brand-style Ablaze detonation damage: 8% target Max HP + 1.2x M.ATK (capped at 6x M.ATK vs bosses). */
+export const ablazeBlastDmg = (targetMaxHp: number, matk: number, isBoss: boolean) => {
+  const raw = targetMaxHp * MAGE_PASSIVE.ablaze.hpPct + matk * MAGE_PASSIVE.ablaze.matkMul
+  return Math.max(1, Math.round(isBoss ? Math.min(raw, matk * MAGE_PASSIVE.ablaze.bossCapMul) : raw))
 }
 /** 🕯️ share of damage a hexed monster loses. */
 export const hexWeak = (lv: number) => Math.min(MAGE_PASSIVE.hex.cap, MAGE_PASSIVE.hex.weakPer * Math.max(0, lv))

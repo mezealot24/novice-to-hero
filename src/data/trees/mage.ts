@@ -32,7 +32,7 @@ export const tree: ClassTree = {
       (lv) => ({ burnCap: 2 * lv, guard: D.molten.guardPer * pr(lv), mgMolten: pr(lv) })),
     n('mage_f2', 'mage_f', 2, '🔥', 'ลูกไฟติดเชื้อ', 3, (lv) => `ลูกไฟระเบิด (สกิลออโต้) ติดเผา ${lv} stack`, (lv) => ({ autoBurn: lv })),
     n('mage_f3', 'mage_f', 3, '♨️', 'เปลวร้อน', 3, (lv) => `เผาแรงขึ้น +${lv}% M.ATK ต่อ stack`, (lv) => ({ burnTick: 0.01 * lv })),
-    n('mage_f4', 'mage_f', 4, '☄️', 'เถ้าลุกลาม', 1, () => 'มอนตาย: stack เผาครึ่งหนึ่งลามไปทุกตัว', () => ({ fireSpread: 1 })),
+    n('mage_f4', 'mage_f', 4, '☄️', 'เถ้าลุกลาม', 1, () => `เผาครบ ${MAGE_PASSIVE.ablaze.stacksNeeded} stack: ระเบิด ${pc(MAGE_PASSIVE.ablaze.hpPct)} Max HP+${MAGE_PASSIVE.ablaze.matkMul}x M.ATK (ลด ${MAGE_PASSIVE.ablaze.consumeStacks} stack · ลาม +${MAGE_PASSIVE.ablaze.spreadStacks} · Mana +${MAGE_PASSIVE.ablaze.manaGain}) · มอนเผาตาย: ลามครึ่งหนึ่ง + Mana +${MAGE_PASSIVE.ablaze.manaGain}`, () => ({ fireSpread: 1 })),
     n('mage_i1', 'mage_i', 1, '🧊', 'หนาวลึก', 3,
       (lv) => `มอนที่ช้าอยู่ ช้าลงอีก ${lv * 5}% · 🛡️ เกราะน้ำแข็งนิรันดร์: M.DEF +${pc(D.glacial.mdefPer * pr(lv))} · P.DEF +${D.glacial.defPer * pr(lv)} · บาเรียน้ำแข็ง ${pc(D.glacial.barrierHpPer * pr(lv))} HP + ${pc(D.glacial.barrierMatkPer * pr(lv))} M.ATK ทุก ${D.glacial.every} เทิร์น · ศัตรูที่ตีโดนบาเรียติดหนาว · บาเรียแตก = ระเบิด ${pc(glacialNovaMul(pr(lv)))} + แช่แข็ง · สเกลตาม INT/WIS/Base Lv`,
       (lv) => ({ chillSlow: 0.05 * lv, mdef: D.glacial.mdefPer * pr(lv), def: D.glacial.defPer * pr(lv), mgGlacial: pr(lv) })),

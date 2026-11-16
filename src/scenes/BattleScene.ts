@@ -21,7 +21,7 @@ import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/ski
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf } from '../data/skill-math'
 import { branchPts } from '../data/tree'
-import { asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
+import { ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -1133,6 +1133,31 @@ export class BattleScene extends Phaser.Scene {
       if (m.def.ai === 'boss') m.gauge -= MAGE_DEF.glacial.freezePush
       else { m.frozen = true; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 20, 'แช่แข็ง!', '#9fe3ff') }
       m.chill = Math.max(m.chill, MAGE_DEF.glacial.chillTurns); this.dotIcon(m)
+    }
+  }
+  /** ☄️ Brand-style Ablaze detonation when burnStacks reaches threshold (mage_f4). */
+  private tryAblazeDetonate(m: Mon) {
+    const A = MAGE_PASSIVE.ablaze
+    if (this.st.fireSpread <= 0 || m.dead || m.burnStacks < A.stacksNeeded) return
+    m.burnStacks = Math.max(0, m.burnStacks - A.consumeStacks)
+    if (m.burnStacks === 0) m.burnStackTurns = 0
+    this.dotIcon(m)
+    this.resGain(A.manaGain)
+    this.callout('☄️ เปลวไฟระเบิด!', m.spr.x, m.spr.y - 130, '#ff8b47')
+    this.burst(m.spr.x, m.spr.y - 20, 0xff7038, 22, 260)
+    this.shake(140, 0.008)
+    sfx.slam()
+    const dmg = ablazeBlastDmg(m.maxHp, this.st.matk, m.def.ai === 'boss')
+    for (const o of [...this.alive()]) {
+      if (this.maidenGuarded(o)) continue
+      o.hp = Math.max(0, o.hp - dmg)
+      this.floatText(o.spr.x, o.spr.y - o.spr.displayHeight - 16, `🔥 -${dmg}`, '#ff9457')
+      if (o.hp <= 0) { this.killMon(o); continue }
+      if (o !== m) {
+        o.burnStacks = Math.min(this.burnMax(), o.burnStacks + A.spreadStacks)
+        o.burnStackTurns = Math.max(o.burnStackTurns, 3)
+        this.dotIcon(o)
+      }
     }
   }
   private firstOffer = true
@@ -2921,7 +2946,7 @@ export class BattleScene extends Phaser.Scene {
       const hitDmg = this.strike(f, KIT2.sage.basicMul + inf)
       if (this.sageInfusePow > 0 && !f.dead) {
         if (this.st.mgHex > 0) { f.weakPct = Math.max(f.weakTurns > 0 ? f.weakPct : 0, this.st.mgHex); f.weakTurns = Math.max(f.weakTurns, MAGE_PASSIVE.hex.turns); this.dotIcon(f) }
-        if (this.st.autoBurn > 0 && this.element === 'fire') { f.burnStacks = Math.min(this.burnMax(), f.burnStacks + this.st.autoBurn); f.burnStackTurns = 3; this.dotIcon(f) }
+        if (this.st.autoBurn > 0 && this.element === 'fire') { f.burnStacks = Math.min(this.burnMax(), f.burnStacks + this.st.autoBurn); f.burnStackTurns = 3; this.dotIcon(f); this.tryAblazeDetonate(f) }
       }
       const isFirstSwing = this.comboLevel === 0
       if (isFirstSwing || this.st.j2Hindsight > 0) {
@@ -3776,7 +3801,10 @@ export class BattleScene extends Phaser.Scene {
     }
     if (this.st.lockOn > 0 && this.lockTarget === m && this.dodgeCharges < 1) { this.dodgeCharges = 1; this.floatText(HERO_X, GROUND - 100, '💨 ถอยตั้งหลัก', '#c9c9d6') } // archer ★ ล็อกเป้า: kill the locked target -> 1 sure dodge
     const others = this.alive()
-    if (this.st.fireSpread > 0 && m.burnStacks > 0) for (const o of others) { o.burnStacks = Math.min(this.burnMax(), o.burnStacks + Math.ceil(m.burnStacks / 2)); o.burnStackTurns = 3; this.dotIcon(o) } // tree
+    if (this.st.fireSpread > 0 && m.burnStacks > 0) {
+      for (const o of others) { o.burnStacks = Math.min(this.burnMax(), o.burnStacks + Math.ceil(m.burnStacks / 2)); o.burnStackTurns = 3; this.dotIcon(o) } // tree
+      this.resGain(MAGE_PASSIVE.ablaze.manaGain)
+    }
     if (this.st.poisonSpread > 0 && m.poison > 0) for (const o of others) { o.poison = Math.min(this.poisonMax(), o.poison + Math.ceil(m.poison / 2)); o.poisonDmg = Math.max(o.poisonDmg, m.poisonDmg); this.dotIcon(o) } // tree
     this.archerKill(m, others)
     if (m.armorBrk > 0 && this.st.swBreakSpread > 0 && others.length) { // v84 Swordsman ร้าวลาม
