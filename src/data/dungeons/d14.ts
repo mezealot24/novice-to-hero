@@ -2,6 +2,8 @@
 // Bio-lab clone dungeon: every monster is a lab-grown clone of a hero class and fights with that class's own trick
 // (Swordsman counters, Archer multi-shot, Mage burst, Cleric heals / revives the party, Thief evades + poisons).
 // Waves come as mixed "parties", so the hard part is target order, not bigger numbers.
+// v125 (Q 2026-11-17 "Monster ใน D14 ได้รับสกิลทั้งหมดของคลาสนั้นๆ"): each class clone also casts EVERY hero skill of its class (heroKit { cls }),
+// at HERO_KIT_RULES.classLv (min Lv 1, one knob in data/hero-skill-book.ts). Its own `skills` below stay as the fallback.
 // Only `import type` here (see dungeons/pack.ts).
 import type { MonSkill } from '../game-data'
 import type { DungeonPack } from './pack'
@@ -36,18 +38,21 @@ export const D14: DungeonPack<D14Kind> = {
   monsters: {
     // ----- normals: one clone per 1st class + the failed experiment -----
     clonesword: {
+      heroKit: { cls: 'swordsman', style: 'guardian' }, // every swordsman hero skill (classKit, Lv HERO_KIT_RULES.classLv)
       name: 'โคลนนักดาบ #S-01', tex: 'clonesword',
       statAlloc: { str: 4, vit: 4, dex: 1, agi: 1 }, hp: 1, dmg: 1, xp: 38, ai: 'dasher', moveSpeed: 420, radius: 16, zeny: [29, 39], idleMs: [600, 1000],
       bodyMul: { hp: 2.35, dmg: 2.05 }, def: 120, counter: 0.3, combo: 0.12,
       skills: [{ kind: 'strike', every: 3, hits: 2, pow: 0.75, name: '⚔️ Bash ทุบเกราะ', fx: { armorBreak: 1 } }],
     },
     clonearcher: {
+      heroKit: { cls: 'archer', style: 'aggressive' }, // every archer hero skill (classKit, Lv HERO_KIT_RULES.classLv)
       name: 'โคลนนักธนู #A-02', tex: 'clonearcher',
       statAlloc: { dex: 5, agi: 3, luk: 2 }, hp: 1, dmg: 1, xp: 37, ai: 'dasher', moveSpeed: 520, radius: 15, zeny: [28, 38], idleMs: [500, 900],
       bodyMul: { hp: 2.0, dmg: 2.2 }, shots: 3, crit: 0.14, trueSight: { after: 2, turns: 2 },
       skills: [{ kind: 'strike', every: 3, hits: 3, pow: 0.5, name: '🏹 Arrow Shower', fx: { slow: 1 } }],
     },
     clonemage: {
+      heroKit: { cls: 'mage', style: 'aggressive' }, // every mage hero skill (classKit, Lv HERO_KIT_RULES.classLv)
       name: 'โคลนจอมเวท #M-03', tex: 'clonemage',
       statAlloc: { int: 5, wis: 3, dex: 2 }, hp: 1, dmg: 1, xp: 38, ai: 'dasher', moveSpeed: 460, radius: 15, zeny: [29, 39], idleMs: [550, 950], magic: true,
       bodyMul: { hp: 1.75, matk: 2.15 },
@@ -57,6 +62,7 @@ export const D14: DungeonPack<D14Kind> = {
       ],
     },
     clonecleric: {
+      heroKit: { cls: 'cleric', style: 'support' }, // every cleric hero skill (classKit, Lv HERO_KIT_RULES.classLv)
       name: 'โคลนนักบวช #C-04', tex: 'clonecleric',
       statAlloc: { wis: 4, int: 3, vit: 3 }, hp: 1, dmg: 1, xp: 39, ai: 'dasher', moveSpeed: 430, radius: 15, zeny: [30, 40], idleMs: [600, 1000], magic: true,
       bodyMul: { hp: 2.1, matk: 1.6 }, def: 60,
@@ -67,6 +73,7 @@ export const D14: DungeonPack<D14Kind> = {
       ],
     },
     clonethief: {
+      heroKit: { cls: 'thief', style: 'aggressive' }, // every thief hero skill (classKit, Lv HERO_KIT_RULES.classLv)
       name: 'โคลนโจร #T-05', tex: 'clonethief',
       statAlloc: { agi: 5, luk: 3, str: 2 }, hp: 1, dmg: 1, xp: 37, ai: 'dasher', moveSpeed: 640, radius: 15, zeny: [28, 38], idleMs: [400, 800],
       bodyMul: { hp: 2.2, dmg: 2.05 }, fixedFlee: 0.3, combo: 0.3, crit: 0.1, onHit: { poison: 1 },
@@ -78,6 +85,7 @@ export const D14: DungeonPack<D14Kind> = {
     },
     // ----- minis: 2nd-class prototypes (duel: one of the two) -----
     cloneknight: {
+      heroKit: { cls: 'knight', style: 'guardian' }, // every knight hero skill (classKit, Lv HERO_KIT_RULES.classLv)
       name: 'โคลนอัศวิน K-07', title: 'ต้นแบบนักรบขี่เปโก', tex: 'cloneknight',
       statAlloc: { str: 4, vit: 3, dex: 2, agi: 1 }, hp: 1, dmg: 1, xp: 66, ai: 'boss', mini: 'cloneknight',
       moveSpeed: 300, radius: 38, zeny: [300, 380], idleMs: [550, 850],
@@ -88,6 +96,7 @@ export const D14: DungeonPack<D14Kind> = {
       phases: [{ at: 0.5, name: 'ปลดล็อกแม่แบบ! เร็วขึ้น + เรียกโคลนนักดาบ 2 ตัว', speed: 1.2, summon: ['clonesword', 2] }],
     },
     clonewizard: {
+      heroKit: { cls: 'wizard', style: 'aggressive' }, // every wizard hero skill (classKit, Lv HERO_KIT_RULES.classLv)
       name: 'โคลนวิซาร์ด W-09', title: 'ต้นแบบนักเวทพายุ', tex: 'clonewizard',
       statAlloc: { int: 5, wis: 3, dex: 2 }, hp: 1, dmg: 1, xp: 66, ai: 'boss', mini: 'clonewizard',
       moveSpeed: 260, radius: 38, zeny: [300, 380], idleMs: [600, 900],

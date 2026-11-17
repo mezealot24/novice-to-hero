@@ -47,6 +47,10 @@ export const HERO_KIT_RULES = {
   ultAfter: 3, // its Ult never comes before this many of its own turns (a fight never opens on a nuke)
   jitter: 0.6, // random 0..jitter added to every score: same kit, not the same script every fight
   cost: { s1: 12, s2: 22, s3: 28, ult: 45 } as Record<HeroSlot, number>,
+  // Q 2026-11-17 "Monster ใน D14 ได้รับสกิลทั้งหมดของคลาสนั้นๆ อย่างละเลเวลขั้นต่ำ (สามารถแก้ได้ใน Engine)": a class kit ({ cls }) casts every
+  // skill of its class at this Lv. 1 = the minimum (the skill as written). Raise it here to buff every class-kit monster at once.
+  classLv: 1,
+  classLvBonus: false, // class kits ignore the monster-level skill bonus (+1 Lv / 10 monster Lv), so classLv really is the Lv they cast at
   healBelow: 0.75, // heal only when some monster is under this share of max HP (BattleScene heals under 0.8)
   shieldBelow: 0.9, // shield only when it has no shield and is under this share of max HP
 }
@@ -68,7 +72,12 @@ export interface HeroKit {
   lv?: number // skill Lv of every step (mon-stats skillAtLv; the monster's level bonus still adds on top)
   ultAfter?: number; jitter?: number
   cdMul?: number // x every cooldown (0.5 = a frantic clone)
+  lvBonus?: boolean // false = steps cast at `lv` exactly, without the monster-level skill bonus (default true)
 }
+/** Every skill of one class (MonsterDef.heroKit = { cls: 'cleric' }): resolved by classKit() at spawn, Lv HERO_KIT_RULES.classLv unless set. */
+export type ClassKit = Omit<HeroKit, 'skills'> & { cls: BaseClass | Job2Id }
+/** What MonsterDef.heroKit accepts: a hand-picked loadout, a whole class, or 'mirror' (the player's own kit). */
+export type HeroKitSpec = HeroKit | ClassKit | 'mirror'
 
 // ---------- the book ----------
 type Spec = { role: SkillRole; steps: HeroStep[]; gain?: number }
@@ -193,4 +202,22 @@ export function mirrorKit(job: JobId, s2?: Skill2Id, job2?: Job2Id, more: Partia
   if (j2) skills.push(`${j2}.s3`)
   skills.push(j2 ? `${j2}.ult` : `${base}.ult`)
   return { skills, style: MIRROR_STYLE[base], ...more }
+}
+
+/** Every skill a class has as a hero: ทักษะ 1 + all three ทักษะ 2 + Ult (a 2nd job: its parent's ทักษะ 1 / 2 + its own ทักษะ 3 + Ult วิวัฒน์). */
+export function classSkills(cls: BaseClass | Job2Id): HeroSkillId[] {
+  const j2 = isJob2(cls) ? cls : undefined
+  const base = (j2 ? JOB2[j2].parent : cls) as BaseClass
+  const s2 = SKILL2.filter((x) => x.job === base).map((x) => x.id)
+  return j2 ? [`${base}.s1`, ...s2, `${j2}.s3`, `${j2}.ult`] : [`${base}.s1`, ...s2, `${base}.ult`]
+}
+/** A class kit as a loadout: all its skills at HERO_KIT_RULES.classLv, no monster-level bonus (both overridable per monster). */
+export function classKit(spec: ClassKit): HeroKit {
+  const { cls, ...rest } = spec
+  return { lv: HERO_KIT_RULES.classLv, lvBonus: HERO_KIT_RULES.classLvBonus, ...rest, skills: classSkills(cls) }
+}
+/** MonsterDef.heroKit -> the loadout a spawned monster uses (`mirror` needs the player's class). */
+export function resolveHeroKit(spec: HeroKitSpec, me: { job: JobId; s2?: Skill2Id; job2?: Job2Id }): HeroKit {
+  if (spec === 'mirror') return mirrorKit(me.job, me.s2, me.job2)
+  return 'cls' in spec ? classKit(spec) : spec
 }

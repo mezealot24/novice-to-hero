@@ -20,7 +20,12 @@ clonemage2: {
   heroKit: { skills: ['mage.s1', 'mg_nova', 'wizard.s3', 'wizard.ult'], style: 'aggressive' },
 },
 protomirror: { /* D18 boss */ heroKit: 'mirror' }, // copies the player's s1 + picked s2 + 2nd-job s3 + current Ult
+cloneacolyte: { heroKit: { cls: 'cleric', style: 'support' } }, // EVERY skill of the class (s1 + all three s2 + Ult; 2nd job: + s3 + Ult วิวัฒน์)
 ```
+
+**Class kits** (`{ cls }`, Q 2026-11-17, used by every D14 class clone): all skills of the class at `HERO_KIT_RULES.classLv`
+(default **1 = the minimum**) with the monster-level skill bonus off (`classLvBonus: false`). Raise `classLv` in
+`src/data/hero-skill-book.ts` to buff every class-kit monster at once, or set `lv` on one monster: `{ cls: 'mage', lv: 3 }`.
 
 Optional `HeroKit` fields: `mana`, `startMana`, `regen`, `lv` (skill Lv), `ultAfter`, `jitter`, `cdMul`.
 Defaults live in `HERO_KIT_RULES`. `heroSkillsOf('knight')` lists what a class can use.
@@ -47,4 +52,4 @@ Defaults live in `HERO_KIT_RULES`. `heroSkillsOf('knight')` lists what a class c
 ## Not in v1
 
 - Hero-only mechanics with no monster equivalent (dodge charges, crit buffs, gauge push on the hero, Mana Shield) are approximated with shield / warcry / freeze.
-- No monster uses a kit yet: D14 (PR #117) stays on its data-only MonSkill kits; D15–D18 build on this.
+- D14 class clones use class kits (their own `skills` stay as the fallback). Prototype Zero and the failed clone have no class, so no kit.

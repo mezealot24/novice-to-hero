@@ -12,7 +12,7 @@ import {
   type D14Kind, type D14Mini,
 } from './dungeons'
 import type { SkillFormula } from './mon-skill-scale'
-import type { HeroKit } from './hero-skill-book'
+import type { HeroKitSpec } from './hero-skill-book'
 
 export type MonsterKind = 'jellop' | 'wolf' | 'king' | 'minijellop' | 'bat' | 'shroom' | 'boar' | 'shadowwolf' | 'alpha'
   | 'skeleton' | 'wisp' | 'gargoyle' | 'duelist' | 'hunter' | 'gunner' | 'drainer' | 'deathknight'
@@ -120,7 +120,7 @@ export interface MonsterDef {
   onHit?: HitFx // every landed hit also puts this on the hero
   slamFx?: HitFx // boss: the charged attack also puts this on the hero
   skills?: MonSkill[]
-  heroKit?: HeroKit | 'mirror' // v125 hero skills (data/hero-skill-book.ts, battle/hero-skill-engine.ts): mana + cooldown utility AI, tried before `skills` · 'mirror' = the player's own class kit
+  heroKit?: HeroKitSpec // v125 hero skills (data/hero-skill-book.ts, battle/hero-skill-engine.ts): mana + cooldown utility AI, tried before `skills` · { cls } = every skill of a class · 'mirror' = the player's own class kit
   reflect?: number // reflects this share of every direct hit (strike / Smash) back as magic damage
   absorb?: number // stores this share of every direct hit; the charged attack fires it back as Soul Strike bolts (Q 2026-11-03, Mirage)
   deathBlast?: number // explodes on death: (dmg) x monDmgMul x this as magic (Flee / lucky dodge / shield all work)
