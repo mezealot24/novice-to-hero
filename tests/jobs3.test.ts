@@ -134,7 +134,7 @@ test('pure vs hybrid: pure cannot borrow Monk nodes; hybrid stops at tier 2 and 
   assert.deepEqual(mods.map((m) => Object.keys(m)[0]), ['combo'], 'tier-3 Paladin node off on hybrid, Monk node on')
   assert.equal(tree3Mods({ mk_c1: 3 }, 'paladin', 'pure').length, 0, 'borrowed node off on pure')
   assert.ok(heroStats({ ...s, job3Path: 'hybrid', job3Tree: { mk_c1: 3 } }).combo > heroStats(s).combo)
-  assert.ok(TREE3.every((n) => /^(paladin_u3p|lordknight_u3p|champion_u3p|ranger_u3p|warlord_u3p|pa_|lk_|ch_|rn_|wl_)/.test(n.id)), 'ids are save data')
+  assert.ok(TREE3.every((n) => /^(paladin_u3p|lordknight_u3p|champion_u3p|ranger_u3p|warlord_u3p|professor_u3p|pa_|lk_|ch_|rn_|wl_|pf_)/.test(n.id)), 'ids are save data')
 })
 
 // ---------- 🐉 Lord Knight + retroactive trial (Q 2026-11-08) ----------
@@ -355,3 +355,92 @@ test('Warlord pure vs hybrid borrows Knight tier 1-2 only', () => {
   assert.deepEqual(tree3Mods({ kn_p1: 2, wl_u3: 2 }, 'warlord', 'hybrid').map((m) => Object.keys(m)[0]), ['j2HpDmg'])
 })
 
+
+// ---------- 🎓 Professor (Sage Awakening: element marks + reactions) ----------
+import { doubleCastReady, foresightCdCut, profLegacy, profOffMul, reactionMul, reactionOf, sageElementBenefit, soulBurst, soulChangeShield } from '../src/data/skill-math'
+import { PLAYER } from '../src/data/game-data'
+
+function sage(pts = 0, extra: Partial<SaveData> = {}): SaveData {
+  const s = newSave('t', 'human')
+  const fill = (ids: string[], n: number) => { const t: Record<string, number> = {}; for (const id of ids) { const k = Math.min(n, nodeById(id)!.max); t[id] = k; n -= k } return t }
+  Object.assign(s, { job: 'mage', jobLevel: 40, job2: 'sage', job2Level: 50, job2Points: 0, gems: 100, clearsBy: { d1: 1, d5: 1, d10: 1 }, clears: 10,
+    job2Tree: { ...fill(['sg_a1', 'sg_a2', 'sg_a3'], pts), ...fill(['sg_f1', 'sg_f2', 'sg_f3'], pts), ...fill(['sg_l1', 'sg_l2', 'sg_l3'], pts), ...fill(['sg_i1', 'sg_i2', 'sg_i3'], pts) }, ...extra })
+  setSave(s)
+  return s
+}
+const st0 = (o: Partial<typeof PLAYER> = {}) => ({ ...PLAYER, ...o })
+
+test('Sage awakens into Professor (activeJob3 only on Sage); Double Casting lifts the off-element share', () => {
+  assert.equal(J3.professor.parent, 'sage'); assert.equal(J3.professor.sibling, 'wizard')
+  assert.equal(j3Of('sage')?.id, 'professor')
+  const s = sage()
+  assert.equal(job3Ready(s, 'professor'), false)
+  s.job3Trial = { professor: 1 }
+  assert.equal(changeJob3('professor'), true)
+  assert.equal(activeJob3(s), 'professor')
+  assert.equal(activeJob3({ job2: 'wizard', job3: 'professor' }), undefined, 'parked on Wizard')
+  const pf = heroStats(sage(3, { job3: 'professor', job3Trial: { professor: 1 } }))
+  assert.equal(pf.j3Pf, 1)
+  assert.equal(heroStats(sage(3)).j3Pf, 0)
+  assert.equal(profOffMul(st0()), KIT2.sage.perk.offMul)
+  assert.equal(profOffMul(st0({ j3Pf: 1 })), KIT3.professor.offMulJ3)
+  assert.equal(sageElementBenefit('fire', 'ice', st0({ j3Pf: 1 })), 0.85)
+  assert.equal(sageElementBenefit('fire', 'fire', st0({ j3Pf: 1 })), 1)
+  assert.ok(heroPower(sage(3, { job3: 'professor', job3Trial: { professor: 1 } })) > heroPower(sage(3)), 'JOB3_K raises Hero Power')
+})
+
+test('reactionOf: the three pairs, same element / no mark / arcane = none', () => {
+  assert.equal(reactionOf('fire', 'ice'), 'vaporize'); assert.equal(reactionOf('ice', 'fire'), 'vaporize')
+  assert.equal(reactionOf('fire', 'lightning'), 'overload'); assert.equal(reactionOf('lightning', 'fire'), 'overload')
+  assert.equal(reactionOf('lightning', 'ice'), 'superconduct'); assert.equal(reactionOf('ice', 'lightning'), 'superconduct')
+  assert.equal(reactionOf('fire', 'fire'), null)
+  assert.equal(reactionOf(null, 'fire'), null)
+  assert.equal(reactionOf('fire', 'arcane'), null); assert.equal(reactionOf('arcane', 'ice'), null)
+  assert.equal(reactionMul('vaporize', true), KIT3.professor.vapMul * KIT3.professor.vapFrozen)
+  assert.equal(reactionMul('overload'), KIT3.professor.ovlMul)
+})
+
+test('Double Casting: below 70% no echo, at 70% yes (needs Mana to pay); Double Casting ลึก lowers the bar', () => {
+  const pf = st0({ j3Pf: 1 })
+  assert.equal(doubleCastReady(pf, 69, 100), false)
+  assert.equal(doubleCastReady(pf, 70, 100), true)
+  assert.equal(doubleCastReady(st0(), 100, 100), false, 'Sage has no Double Casting')
+  assert.equal(doubleCastReady(pf, 5, 7), false, 'cannot pay dcCost')
+  assert.equal(doubleCastReady(st0({ j3Pf: 1, j3PfDcAt: 0.2 }), 50, 100), true)
+})
+
+test('Soul Burst grows with Mana burnt; Foresight keeps 30% and cuts the CD only at >= 90%', () => {
+  const a = soulBurst(st0(), 40, 200), b = soulBurst(st0(), 160, 200)
+  assert.equal(a.burnt, 40); assert.equal(a.left, 0)
+  assert.ok(b.pmMul > a.pmMul)
+  const f = soulBurst(st0({ j3PfForesight: 1 }), 200, 200)
+  assert.equal(f.left, 60); assert.equal(f.burnt, 140)
+  assert.equal(soulBurst(st0({ j3PfForesight: 1 }), 20, 200).left, 20, 'never keeps more than it has')
+  assert.equal(foresightCdCut(st0({ j3PfForesight: 1 }), 180, 200), 1)
+  assert.equal(foresightCdCut(st0({ j3PfForesight: 1 }), 170, 200), 0)
+  assert.equal(foresightCdCut(st0(), 200, 200), 0)
+})
+
+test('Professor legacy + Soul Change: node Lv caps, Sage branch points feed', () => {
+  const st = st0({ j3PfLegFire: 3, j3PfLegLight: 2, j3PfLegIce: 1 })
+  assert.deepEqual(profLegacy(st, { f: 9, l: 8, i: 9 }), { burn: 3, chain: 2, ice: 1 })
+  assert.deepEqual(profLegacy(st, { f: 5, l: 3, i: 0 }), { burn: 1, chain: 0, ice: 0 })
+  assert.equal(soulChangeShield(st0(), 20), 0)
+  assert.equal(soulChangeShield(st0({ j3PfSoulChange: 2 }), -5), 0)
+  assert.ok(soulChangeShield(st0({ j3PfSoulChange: 2 }), 20) > soulChangeShield(st0({ j3PfSoulChange: 1 }), 20))
+})
+
+test('ใย pf_*: no node gives a raw stat; variant B power reads the best Sage perk branch', () => {
+  const RAW = ['atk', 'matk', 'maxHp', 'def', 'mdef', 'crit', 'spellCrit', 'skillCrit', 'aspd', 'hit', 'flee']
+  const pf = TREE3.filter((n) => n.id.startsWith('pf_'))
+  assert.equal(pf.length, 12)
+  for (const n of pf) for (let lv = 1; lv <= n.max; lv++) for (const k of Object.keys(n.mod(lv))) assert.ok(!RAW.includes(k), `${n.id} gives raw ${k}`)
+  const va = heroStats(sage(5, { job3: 'professor', job3Var: 'a', job3Trial: { professor: 1 } }))
+  const vb = heroStats(sage(5, { job3: 'professor', job3Var: 'b', job3Trial: { professor: 1 } }))
+  assert.ok(Math.abs(va.j3VarMul - 0.1) < 1e-9)
+  assert.ok(Math.abs(vb.j3VarMul - 0.1) < 1e-9)
+  const leg = heroStats(sage(9, { job3: 'professor', job3Trial: { professor: 1 }, job3Tree: { pf_l1: 3 } }))
+  const bare = heroStats(sage(9, { job3: 'professor', job3Trial: { professor: 1 }, job3Tree: {} }))
+  assert.ok(Math.abs(leg.ult2Pow - bare.ult2Pow) < 1e-9, 'legacy caps 0: no raw Ult power')
+  assert.equal(leg.j3PfLegFire, 3)
+})

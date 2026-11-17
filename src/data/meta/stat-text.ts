@@ -183,6 +183,19 @@ const CLASS_STAT_LABEL: Partial<
 	j3Inspire: ["Inspiration / Parrying", (n) => `${n}`],
 	j2BossCrit: ["คริใส่บอสแรงขึ้น", pc],
 	j3WlBlitz: ["Blitz Charges (คริ/ขั้น Frenzy)", pc],
+	j3PfLegFire: ["ตำราเพลิง (เผาเพิ่มสูงสุด)", (n) => `+${n}`],
+	j3PfLegLight: ["ตำราอัสนี (ชิ่งเพิ่มสูงสุด)", (n) => `+${n}`],
+	j3PfLegIce: ["ตำราเยือกแข็ง (Permafrost สูงสุด)", (n) => `+${n}`],
+	j3PfMarkTurns: ["ตราธาตุนานขึ้น", (n) => `+${n} เทิร์น`],
+	j3PfResidue: ["ตราไม่หายหลังจุด", pc],
+	j3PfChain: ["ลูกโซ่ธาตุ (ส่งตรา)", () => "เปิด"],
+	j3PfCritMana: ["reaction คริคืน Mana", (n) => `+${n}`],
+	j3PfTrinity: ["สมการตรีธาตุ", () => "เปิด"],
+	j3PfSoulChange: ["Soul Change", (n) => `Lv ${n}`],
+	j3PfMemorize: ["Memorize", (n) => `Lv ${n}`],
+	j3PfDcAt: ["เกณฑ์ Double Casting ลดลง", pc],
+	j3PfDcMul: ["Double Casting ยิงซ้ำแรง", pc],
+	j3PfForesight: ["Foresight", () => "เปิด"],
 };
 /** "STR +3 · P.ATK +8 · ดูดเลือด +6%" */
 /** A stat line split in two: the upside, and the 💀 curse (every negative number). `force` defaults to "is a unique": plain gear has no curse. */

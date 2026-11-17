@@ -403,6 +403,25 @@ export const KIT3 = {
     leg: { crossCap: 0.15, guardCap: 0.06, hpCap: 0.09, cross: 'bz_c' as const, guard: 'bz_d' as const, hp: 'bz_r' as const },
     heirNeed: 6, warcryRage: 15,
   },
+  // 🎓 Professor (Sage Awakening, design/awakening-professor-v1.md): no raw-stat nodes, every number is a mechanic on the Sage kit
+  professor: {
+    offMulJ3: 0.85, // 🎓 off-element perk benefit (Sage KIT2.sage.perk.offMul 0.65)
+    markTurns: 2, // 🏷️ element mark lasts this many monster turns
+    dcAt: 0.7, dcCost: 6, dcMul: 0.5, // 🔁 Double Casting: Mana share needed · Mana per echo · echo power share
+    vapMul: 2.0, vapFrozen: 1.5, // ♨️ Vaporize 🔥+❄️: one target x Pm · x this more on a frozen target (shatters the freeze)
+    ovlMul: 0.9, ovlBreak: 1, // 💥 Overload 🔥+⚡: every monster x Pm + armor break turns
+    supMul: 1.0, supShred: 0.25, supTurns: 2, supPush: 15, // 🧲 Superconduct ⚡+❄️: x Pm + DEF/M.DEF shred (sunder) + boss gauge push
+    burstAtk: 2.2, burstPerMana: 0.04, // 💎 Soul Burst: P.ATK smash + (this x Mana burnt) x Pm
+    varA: { hits: 3, per: 0.02, cap: 0.2, branch: 'sg_a' as const }, // 👊 Spell Fist: the next N basic swings rotate 🔥→⚡→❄️
+    varB: { turns: 3, per: 0.02, cap: 0.2, branch: 'byEndow' as const }, // 🌋 Elemental Field: N hero turns, marks every monster each turn start · branch = the Endow element's perk branch (battle)
+    fieldBranch: { fire: 'sg_f', lightning: 'sg_l', ice: 'sg_i' } as const,
+    leg: { crossCap: 0, guardCap: 0, hpCap: 0, cross: 'sg_f' as const, guard: 'sg_l' as const, hp: 'sg_i' as const }, // ⚔️ ตำนาน here is mechanics, not raw stats: caps 0 keep the shared loop inert
+    legFireStep: 3, legLightStep: 4, legIceStep: 3, // ⚔️ legacy: +1 burn / +1 chain / +1 Permafrost per this many points in sg_f / sg_l / sg_i
+    heirNeed: 6, convergeMul: 1.2, convergeAmp: 0.3, // 👑 สืบสาน · 🔺 Convergence: all monsters x Pm + reactions x(1 + amp) for the rest of the wave
+    foresightKeep: 0.3, foresightAt: 0.9, // 🔮 Foresight: Soul Burst keeps this Mana share · cast at >= this share = Ult CD -1
+    soulChangePer: 0.5, // 💧 Soul Change: Mana past max -> ward of overflow x KIT2.sage.rodVitShield x this x Lv
+    chainSpread: 1, // 💥 ลูกโซ่ธาตุ: a monster killed by a reaction hands its mark to this many neighbours
+  },
   /** shared by every 3rd job */
   common: { afterTurns: 2, bandingMax: 5, inspireAt: 0.3, inspireTurns: 3, inspireHeal: 0.03, inspireGuard: 0.5 },
 }
@@ -457,9 +476,57 @@ const pct = (n: number) => `${r(n * 100)}%`
 const range = (lo: number, hi: number) => (r(lo) === r(hi) ? `${r(hi)}` : `${r(lo)}–${r(hi)}`)
 export const SAGE_S1 = { name: 'ศาสตราวุธธาตุ', icon: '📖' } as const
 export type SagePerkElement = 'fire' | 'lightning' | 'ice'
-/** Main run element gets 100% benefit; off-element perks get KIT2.sage.perk.offMul (50%). */
-export const sageElementBenefit = (perkEl: SagePerkElement, runEl?: string | null) =>
-  perkEl === runEl ? 1 : KIT2.sage.perk.offMul
+/** 🎓 off-element perk share: Sage 65%, Professor (Double Casting) 85%. */
+export const profOffMul = (st?: Pick<Stats, 'j3Pf'>) => (st && st.j3Pf > 0 ? KIT3.professor.offMulJ3 : KIT2.sage.perk.offMul)
+/** Main run element gets 100% benefit; off-element perks get profOffMul (Sage 65% / Professor 85%). */
+export const sageElementBenefit = (perkEl: SagePerkElement, runEl?: string | null, st?: Pick<Stats, 'j3Pf'>) =>
+  perkEl === runEl ? 1 : profOffMul(st)
+
+// ----- 🎓 Professor: element marks + reactions (pure, BattleScene calls these) -----
+export type ProfReaction = 'vaporize' | 'overload' | 'superconduct'
+const PROF_ELS: readonly string[] = ['fire', 'lightning', 'ice']
+/** The reaction a hit of element `el` sets off on a monster carrying `mark` (same element / arcane / no mark = none). */
+export function reactionOf(mark: string | null | undefined, el: string | null | undefined): ProfReaction | null {
+  if (!mark || !el || mark === el || !PROF_ELS.includes(mark) || !PROF_ELS.includes(el)) return null
+  const pair = new Set([mark, el])
+  if (pair.has('fire') && pair.has('ice')) return 'vaporize'
+  if (pair.has('fire') && pair.has('lightning')) return 'overload'
+  return 'superconduct'
+}
+/** Reaction power x Pm (before the Convergence amp / Endow amp, which BattleScene applies). */
+export function reactionMul(kind: ProfReaction, frozen = false) {
+  const P = KIT3.professor
+  if (kind === 'vaporize') return P.vapMul * (frozen ? P.vapFrozen : 1)
+  return kind === 'overload' ? P.ovlMul : P.supMul
+}
+/** 🔁 Double Casting threshold (pf_p3 lowers it). */
+export const doubleCastAt = (st: Pick<Stats, 'j3PfDcAt'>) => Math.max(0, KIT3.professor.dcAt - st.j3PfDcAt)
+/** 🔁 Can this reaction echo? Professor only, Mana share >= threshold and enough Mana to pay. */
+export const doubleCastReady = (st: Pick<Stats, 'j3Pf' | 'j3PfDcAt'>, mana: number, maxMana: number) =>
+  st.j3Pf > 0 && maxMana > 0 && mana >= KIT3.professor.dcCost && mana / maxMana >= doubleCastAt(st)
+/** 🔁 Echo power share (pf_p3 adds). */
+export const doubleCastMul = (st: Pick<Stats, 'j3PfDcMul'>) => KIT3.professor.dcMul + st.j3PfDcMul
+/** 💎 Soul Burst: Mana burnt (Foresight keeps a share) and the two smash multipliers (P.ATK hit · magic hit add-on x Pm). */
+export function soulBurst(st: Pick<Stats, 'j3PfForesight'>, mana: number, maxMana: number) {
+  const P = KIT3.professor, keep = st.j3PfForesight > 0 ? Math.min(Math.round(mana), Math.round(maxMana * P.foresightKeep)) : 0
+  const burnt = Math.max(0, Math.round(mana) - keep)
+  return { burnt, left: Math.round(mana) - burnt, atkMul: P.burstAtk, pmMul: P.burstPerMana * burnt }
+}
+/** 🔮 Foresight: Soul Burst cast with this much Mana (before paying the Ult) takes 1 turn off the Ult cooldown. */
+export const foresightCdCut = (st: Pick<Stats, 'j3PfForesight'>, manaBefore: number, maxMana: number) =>
+  st.j3PfForesight > 0 && maxMana > 0 && manaBefore / maxMana >= KIT3.professor.foresightAt ? 1 : 0
+/** ⚔️ Professor legacy: extra burn / chain / Permafrost a reaction with that element adds (node Lv caps it, Sage web points feed it). */
+export function profLegacy(st: Pick<Stats, 'j3PfLegFire' | 'j3PfLegLight' | 'j3PfLegIce'>, pts: { f: number; l: number; i: number }) {
+  const P = KIT3.professor
+  return {
+    burn: Math.min(st.j3PfLegFire, Math.floor(pts.f / P.legFireStep)),
+    chain: Math.min(st.j3PfLegLight, Math.floor(pts.l / P.legLightStep)),
+    ice: Math.min(st.j3PfLegIce, Math.floor(pts.i / P.legIceStep)),
+  }
+}
+/** 💧 Soul Change ward from Mana that would spill past max. */
+export const soulChangeShield = (st: Pick<Stats, 'j3PfSoulChange'>, overflow: number) =>
+  st.j3PfSoulChange > 0 && overflow > 0 ? Math.round(overflow * KIT2.sage.rodVitShield * KIT3.professor.soulChangePer * st.j3PfSoulChange) : 0
 export const sageAutoChance = (st: Stats, int: number, endowed = false) => {
   const S = KIT2.sage
   return Math.min(1, Math.min(S.autoCap, S.autoChance + S.autoInt * Math.max(0, int)) + st.j2AutoChance + (endowed ? S.endowPerkChance : 0))
@@ -468,19 +535,19 @@ export const sageFireChance = (st: Stats, int: number, runEl?: string | null, en
   if (st.j2FirePerk <= 0) return 0
   const P = KIT2.sage.perk
   const raw = Math.min(P.fireCap, P.fireChance + P.firePerLv * (st.j2FirePerk - 1) + P.fireInt * Math.max(0, int) + (endowed ? KIT2.sage.endowPerkChance : 0))
-  return raw * sageElementBenefit('fire', runEl)
+  return raw * sageElementBenefit('fire', runEl, st)
 }
 export const sageLightChance = (st: Stats, int: number, runEl?: string | null, endowed = false) => {
   if (st.j2LightPerk <= 0) return 0
   const P = KIT2.sage.perk
   const raw = Math.min(P.lightCap, P.lightChance + P.lightPerLv * (st.j2LightPerk - 1) + P.lightInt * Math.max(0, int) + (endowed ? KIT2.sage.endowPerkChance : 0))
-  return raw * sageElementBenefit('lightning', runEl)
+  return raw * sageElementBenefit('lightning', runEl, st)
 }
 export const sageIceChance = (st: Stats, runEl?: string | null, endowed = false) => {
   if (st.j2IcePerk <= 0) return 0
   const P = KIT2.sage.perk
   const raw = Math.min(1, P.iceChance + P.icePerLv * (st.j2IcePerk - 1) + (endowed ? KIT2.sage.endowPerkChance : 0))
-  return raw * sageElementBenefit('ice', runEl)
+  return raw * sageElementBenefit('ice', runEl, st)
 }
 export const sageRodGain = (st: Stats, vit: number) => {
   const S = KIT2.sage
@@ -509,9 +576,9 @@ export function autoInfo(jobId: JobId, st: Stats, job2?: string): InfoRow[] {
       { label: `เสริมแรงตีประชิด (+${pct(S.s1InfuseBonus * pow)})`, value: hitText(st, (S.basicMul + S.s1InfuseBonus * pow) * (1 + st.pskill), false) },
       { label: 'การันตี Auto Spell (ร่ายฟรี)', value: `${hitText(st, (S.autoMul + st.j2AutoMul) * pow * (st.mgOverflow > 0 ? st.mgOverflow : 1), true)} ×${1 + st.j2AutoBolts}` },
     ]
-    if (st.j2FirePerk > 0) rows.push({ label: '🔥 On-Hit: Fire Bolt ×hit', value: `สูงสุด ${S.perk.fireMaxBolts} ลูก (ธาตุหลัก 100% / อื่น ${pct(S.perk.offMul)})` })
-    if (st.j2LightPerk > 0) rows.push({ label: '⚡ On-Hit: Chain Lightning', value: `ชิ่ง ${S.perk.lightTargetsBase + (st.j2LightPerk >= 3 ? 1 : 0)} เป้า (ธาตุหลัก 100% / อื่น ${pct(S.perk.offMul)})` })
-    if (st.j2IcePerk > 0) rows.push({ label: '❄️ On-Hit: Permafrost', value: `ครบ ${S.perk.iceMax} ขั้น แตก+แช่แข็ง (ธาตุหลัก 100% / อื่น ${pct(S.perk.offMul)})` })
+    if (st.j2FirePerk > 0) rows.push({ label: '🔥 On-Hit: Fire Bolt ×hit', value: `สูงสุด ${S.perk.fireMaxBolts} ลูก (ธาตุหลัก 100% / อื่น ${pct(profOffMul(st))})` })
+    if (st.j2LightPerk > 0) rows.push({ label: '⚡ On-Hit: Chain Lightning', value: `ชิ่ง ${S.perk.lightTargetsBase + (st.j2LightPerk >= 3 ? 1 : 0)} เป้า (ธาตุหลัก 100% / อื่น ${pct(profOffMul(st))})` })
+    if (st.j2IcePerk > 0) rows.push({ label: '❄️ On-Hit: Permafrost', value: `ครบ ${S.perk.iceMax} ขั้น แตก+แช่แข็ง (ธาตุหลัก 100% / อื่น ${pct(profOffMul(st))})` })
     return rows
   }
   const out: InfoRow[] = [{ label: 'ใช้', value: `${resName(job)} ${autoCost(job, st)}` }]

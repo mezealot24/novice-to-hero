@@ -376,6 +376,7 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 				st.j3Wl = 1;
 				st.j2FrenzyMax += KIT3.warlord.frenzyMaxAdd;
 			} // 🪓 Undying Warlord + Undying Bloodlust
+			if (j3 === "professor") st.j3Pf = 1; // 🎓 Double Casting (marks + reactions) + Soul Burst
 			for (const m of tree3Mods(s.job3Tree, j3, s.job3Path)) add(m);
 			const leg = Math.min(
 				P.leg.crossCap,
@@ -394,7 +395,12 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 				st.j3LegHp * branchPts(t2, P.leg.hp),
 			);
 			const V = s.job3Var === "b" ? P.varB : P.varA;
-			st.j3VarMul = Math.min(V.cap, V.per * branchPts(t2, V.branch));
+			// 🎓 Elemental Field reads the perk branch of the Endow element (BattleScene); Hero Power takes the best of the three
+			const vPts =
+				V.branch === "byEndow"
+					? Math.max(...Object.values(KIT3.professor.fieldBranch).map((b) => branchPts(t2, b)))
+					: branchPts(t2, V.branch);
+			st.j3VarMul = Math.min(V.cap, V.per * vPts);
 		}
 		j2pct.maxHp += st.j2HpPct; // after 3rd-job/Hybrid tree so borrowed j2HpPct nodes (e.g. mk_h2) apply to maxHp
 	}

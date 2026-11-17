@@ -19,7 +19,7 @@ import { ALLIES, falconHitMul, fillAllies, frenzyMul, gadgetById, guardHit, hawk
 import type { Skill2Def } from '../data/skill2'
 import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/skill-registry'
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
-import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf } from '../data/skill-math'
+import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
 import { ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, trialWin, ultMode } from '../save'
@@ -95,12 +95,23 @@ interface Mon {
   huntMark: number // v82 Archer หมายหัว: turns of +st.arMark damage taken (ticks with its turns)
   stunTurns?: number // Champion Tiger Knuckle extra stun turns left
   permafrost?: number // Sage ❄️ Permafrost stacks (0..4, Sejuani E style)
+  mark?: ProfMark | null; markTurns?: number; markLayers?: number // 🎓 Professor 🏷️ element mark (monster turns left · charges before it is used up)
   sunder?: number // void_sunder DEF/M.DEF shred share
   sunderTurns?: number // void_sunder turns left
   chargeHits?: number // multi_hit_break hits landed while charging
   instanceId?: string // biome hazard target id
 }
 type Element = 'lightning' | 'fire' | 'ice' | 'arcane'
+type ProfMark = 'fire' | 'lightning' | 'ice'
+const PROF_ORDER: readonly ProfMark[] = ['fire', 'lightning', 'ice'] // 👊 Spell Fist rotation · Soul Burst igniter fallback
+const isProfMark = (e: string | null | undefined): e is ProfMark => e === 'fire' || e === 'lightning' || e === 'ice'
+const PROF_ICON: Record<ProfMark, string> = { fire: '🔥', lightning: '⚡', ice: '❄️' }
+const FIELD_NAME: Record<ProfMark, string> = { fire: '🌋 Volcano', lightning: '🌪️ Violent Gale', ice: '🌊 Deluge' }
+const REACTION_UI: Record<ProfReaction, { name: string; color: string; tint: number }> = {
+  vaporize: { name: '♨️ Vaporize', color: '#ffb08a', tint: 0xffb08a },
+  overload: { name: '💥 Overload', color: '#ffd36b', tint: 0xffd36b },
+  superconduct: { name: '🧲 Superconduct', color: '#a8c8ff', tint: 0xa8c8ff },
+}
 /** v78 / v85 chant entry: `paid` = Mana spent (partly refunded on a break) · `safe` = the steady pity chant (can't break). */
 type Cast = { kind: 'gust' | 'ult'; pow: number; hit: number; paid: number; safe?: boolean }
 const ELEMENTS: Record<Element, { icon: string; name: string; sub: string }> = {
@@ -373,7 +384,7 @@ export class BattleScene extends Phaser.Scene {
     else if (this.st.arHawk > 0) preloadPfx(this, ['hawkDive']) // archer talent เหยี่ยวคู่ใจ
     preloadPfx(this, ['zapYellow', 'zapBolt'])
     preloadPfx(this, COIN_PFX) // kill loot: every job sees it
-    if (this.j2) this.job = { ...this.job, resource: this.j2.resource ?? this.job.resource, auto: { ...this.job.auto, ...(this.j2.id === 'sage' ? { name: SAGE_S1.name, icon: SAGE_S1.icon, cost: KIT2.sage.s1Cost } : { cost: this.j2.autoCost ?? this.job.auto.cost }) }, ult: { ...this.job.ult, ...this.j2.ult, ...(this.j2.id === 'monk' && this.st.j2Asura > 0 ? { icon: '💥', name: 'อาชูร่าสไตรก์' } : {}) } } // Berserker: Rage · Sage: Spellstrike Skill 1 · Ult วิวัฒน์ · Monk ★ Asura Strike
+    if (this.j2) this.job = { ...this.job, resource: this.j2.resource ?? this.job.resource, auto: { ...this.job.auto, ...(this.j2.id === 'sage' ? { name: SAGE_S1.name, icon: SAGE_S1.icon, cost: KIT2.sage.s1Cost } : { cost: this.j2.autoCost ?? this.job.auto.cost }) }, ult: { ...this.job.ult, ...this.j2.ult, ...(this.j2.id === 'monk' && this.st.j2Asura > 0 ? { icon: '💥', name: 'อาชูร่าสไตรก์' } : {}), ...(this.j2.id === 'sage' && this.st.j3Pf > 0 ? { icon: '💎', name: 'Soul Burst' } : {}) } } // Berserker: Rage · Sage: Spellstrike Skill 1 · Ult วิวัฒน์ · Monk ★ Asura Strike
     if (this.j2?.id === 'sage') this.job = { ...this.job, attack: 'melee' } // 📖 Sage: melee basic + counters (P.ATK)
     const tb = totalBase(s)
     this.sageInt = tb.int; this.heroVit = tb.vit; this.heroDex = tb.dex; this.heroWis = tb.wis; this.mdPower = mageDefPower(tb.int, tb.wis, s.baseLevel); this.casts = []; this.steady = false; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
@@ -411,7 +422,7 @@ export class BattleScene extends Phaser.Scene {
     }
     this.runElement = null
     if (this.job.id === 'mage') {
-      const els = Object.keys(ELEMENTS) as Element[]
+      const els = this.runElements() // 📖 Sage / 🎓 Professor: 🔥⚡❄️ only (no ✨ Arcane)
       const c = await this.choose({ name: 'เลือกธาตุท่าไม้ตาย', icon: '🔮', desc: 'รอบนี้ "เวทธาตุ" จะใช้ธาตุไหน?' },
         els.map((e) => ({ label: `${ELEMENTS[e].icon} ${ELEMENTS[e].name}`, sub: ELEMENTS[e].sub })))
       if (id !== this.runId) return
@@ -712,6 +723,12 @@ export class BattleScene extends Phaser.Scene {
     this.clearBookings() // v86: booked Skill 1-3 do not carry into the next wave (the ult booking does)
     this.zenyWave = 0; this.mirror = false; this.waveAllies() // Phase 4 Archer: pets / traps every wave
     this.casts = []; this.castFx(false); this.zenTurns = 0; this.endow = 0; this.rodUsed = false; this.sageFireBoltsTurn = 0; this.sageFireNovaUsed = false // Phase 5 Mage: a charge never carries into the next wave
+    this.pfSet.clear(); this.pfConverged = false; this.pfFist = 0; this.pfField = 0; this.pfFreeEndow = false // 🎓 Professor: reactions / variant are per wave
+    if (this.st.j3Pf > 0 && this.st.j3PfMemorize > 0 && this.alive().some((m) => m.def.ai === 'boss')) { // 📜 Memorize: boss wave opens with a free Endow (no CD)
+      this.endow = Math.max(this.endow, KIT2.sage.endowTurns + this.st.j2EndowTurns)
+      this.pfFreeEndow = this.st.j3PfMemorize >= 2
+      this.floatText(HERO_X, GROUND - 160, `📜 Memorize: Endow ${ELEMENTS[this.element].icon}${this.pfFreeEndow ? ' · ไม่ใช้ Mana ทั้งเวฟ' : ''}`, '#c9a8ff')
+    }
     if (this.st.j2ChargeFirst > 0) this.heroGauge = Math.max(this.heroGauge, 100) // Knight ★ ทะยาน: the hero acts first
     this.flow = 0; this.clEmerUsed = false; this.sweepTurn = 0 // v84: momentum and ฉุกเฉิน are per wave, the sweep counts this wave's hero turns
     if (this.st.j2Banner > 0) { // v84 Knight ปักธง: wave-start shield (stacks)
@@ -892,6 +909,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.rampage > 0) this.rampage--
     if (this.awakenTurns > 0 && --this.awakenTurns === 0) this.endAwakening()
     if (this.asuraExhaust > 0 && --this.asuraExhaust === 0) this.floatText(HERO_X, GROUND - 150, '💪 ฟื้นจากง่อยแดก!', '#6fd08c')
+    if (this.pfField > 0 && this.alive().length && this.hp > 0) { this.pfField--; this.profFieldPulse() } // 🎓 🌋 Elemental Field: marks every monster at the turn start
     if (this.endow > 0 && !this.st.j2EndowWave) this.endow-- // Sage Endow (★ อาวุธธาตุ: whole wave)
     if (this.ignorePainTurns > 0) {
       this.ignorePainTurns--
@@ -1011,7 +1029,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.relic === 'storm' && this.fightTurns % RELIC_RULES.storm.every === 0) { await this.lightningWrath(); if (!this.alive().length) return }
     // resource tick
     this.sageFireBoltsTurn = 0; this.sageFireNovaUsed = false
-    if (this.job.resource === 'mana' && this.asuraExhaust <= 0) this.res = Math.min(this.resMax(), this.res + this.st.resRegen * RES_RULES.manaPerTurnMul * (1 - this.st.resRegenCut))
+    if (this.job.resource === 'mana' && this.asuraExhaust <= 0) this.gainRes(this.st.resRegen * RES_RULES.manaPerTurnMul * (1 - this.st.resRegenCut)) // same cap as before (+ 🎓 Soul Change)
     this.overflow = this.st.mgOverflow > 0 && this.job.resource === 'mana' && this.res >= this.resMax() * 0.9 // mage talent พลังล้น
     this.auraNow = this.auraLeft > 0 ? this.st.mgAura : 0; if (this.auraLeft > 0) this.auraLeft-- // Mage core passive 🔮 ออร่าเวท: this turn's bonus, then one turn used up
     if (this.alive().length && (await this.procs('turn')) + (await this.procs('every2')) > 0) { await this.wait(160); if (!this.alive().length) return } // พร v2: every-turn cards
@@ -1174,7 +1192,14 @@ export class BattleScene extends Phaser.Scene {
     this.res -= n
     if (this.st.clManaHeal > 0 && this.job.resource === 'mana' && this.hp > 0) this.heal(n * this.st.clManaHeal, true)
   }
-  private gainRes(n: number) { if (this.job.resource && this.job.resource !== 'rage') this.res = Math.min(this.resMax(), this.res + n) }
+  private gainRes(n: number) { if (this.job.resource && this.job.resource !== 'rage') { this.soulChange(this.res + n - this.resMax()); this.res = Math.min(this.resMax(), this.res + n) } }
+  /** 🎓 💧 Soul Change: Mana that would spill past max becomes a ward. */
+  private soulChange(over: number) {
+    const w = soulChangeShield(this.st, over)
+    if (w <= 0) return
+    this.addShield(w, true)
+    this.floatText(HERO_X, GROUND - 110, `💧 Soul Change +${w}`, '#9fe3ff')
+  }
   /** v78 focus: resource gain for any job; returns the share (0..1) that didn't fit (no resource = all of it). */
   private resGain(n: number) {
     const r = this.job.resource
@@ -1217,7 +1242,7 @@ export class BattleScene extends Phaser.Scene {
     if (crit && this.st.thExecute > 0 && m.hp < m.def.hp * 0.3) mul *= 1.5 // Thief ★ เพชฌฆาต
     if (crit && this.st.arCritRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arCritRes) // archer talent ลมหายใจนักล่า
     const chargeDmgAdd = (magic || this.isProcHit()) && this.st.lightChargeLv > 0 && this.lightChargeStacks >= 5 ? this.st.lightChargeLv * 0.2 : 0
-    const critDmgAdd = (falconCrit > 0 && m.huntMark > 0 ? Math.max(0, 1.5 - this.st.critMul) : 0) + (m.huntMark > 0 ? this.st.j2StanceMarkCritDmg : 0) + (!magic && this.st.j3Wl > 0 ? this.res * KIT3.warlord.rageCritDmgPer : 0) + (this.isProcHit() ? this.st.procCritMul : 0) + chargeDmgAdd
+    const critDmgAdd = (falconCrit > 0 && m.huntMark > 0 ? Math.max(0, 1.5 - this.st.critMul) : 0) + (m.huntMark > 0 ? this.st.j2StanceMarkCritDmg : 0) + (!magic && this.st.j3Wl > 0 ? this.res * KIT3.warlord.rageCritDmgPer : 0) + (this.isProcHit() && (!this.reacting || this.st.j3PfCritMana > 0) ? this.st.procCritMul : 0) + chargeDmgAdd // 🎓 reactions take procCritMul only with 🎯 จุดอ่อนธาตุ
     const r = this.roll(mul, magic, crit, critDmgAdd), up = this.src === 'ult' ? this.st.ultPierce : 0 // v78 บดกระดูก: ult pierce
     const awPierce = !magic && !crit && this.st.j3Rn > 0 && (this.awakenTurns > 0 || this.stampedeFiring) ? this.st.j2Spiral : 0
     const sunder = (m.sunderTurns ?? 0) > 0 ? Math.max(0, 1 - (m.sunder ?? 0)) : 1
@@ -1230,6 +1255,7 @@ export class BattleScene extends Phaser.Scene {
       r.dmg = Math.max(1, Math.round(r.dmg * (1 - T.dr)))
     }
     const broken = m.armorBrk > 0
+    this.lastCrit = r.crit
     this.damageMon(m, r.dmg, r.crit, color)
     if (r.crit && !this.killHealCritUsed && this.st.killHeal > 0 && (m.def.ai === 'boss' || !!m.def.mini) && this.hp > 0) {
       this.killHealCritUsed = true
@@ -2416,6 +2442,7 @@ export class BattleScene extends Phaser.Scene {
     playPfx(this, 'runeCircle', HERO_X, GROUND, { scale: 1.2, speed: 1.5 })
     this.burst(HERO_X, GROUND - 40, 0xc9a8ff, 18, 160)
     this.floatText(HERO_X, GROUND - 160, `🗡️ Endow ${ELEMENTS[this.element].icon} +${Math.round((S.endowAmp + this.st.j2EndowAmp) * 100)}%`, '#c9a8ff')
+    if (this.st.j3Pf > 0) this.profVariant() // 🎓 Professor: Endow stays, the Skill 3 variant rides on top
     await this.wait(BATTLE.stepMs * 0.3)
   }
   /** ❄️ Storm Gust: every monster, N hits x Pm; the last hit freezes (boss / mini: chill + gauge push). */
@@ -2444,6 +2471,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.j2!.id === 'wizard') { if (!this.charge({ kind: 'ult', pow: p2, hit: h2, paid: 0 }, this.res + this.ultCost())) await this.wizUlt(p2, h2); return }
     // 🚫 Dispell + Spell Breaker: strip every monster, steal Mana, smash the caster (charging one first)
     const S = KIT2.sage, t = this.alive().find((m) => m.charging) ?? live[0]
+    const manaBefore = this.res + this.ultCost() // 🔮 Foresight reads the Mana the cast started with
     let n = 0
     for (const m of this.alive()) n += this.dispell(m)
     this.callout(n > 0 ? `🚫 Dispell! ลบ ${n} อย่าง` : '🚫 Dispell!', W / 2, 170)
@@ -2451,6 +2479,7 @@ export class BattleScene extends Phaser.Scene {
     playPfx(this, 'magicCircle', 700, GROUND, { scale: 1.3, speed: 1.5 })
     const manaGain = S.ultMana + this.st.j2UltMana
     this.gainRes(manaGain); this.floatText(HERO_X, GROUND - 165, `🔷 Mana +${manaGain}`, '#5aa0ff')
+    if (this.st.j3Pf > 0) { await this.soulBurstUlt(t, h2, manaBefore); return } // 🎓 Professor: Soul Burst replaces Spell Breaker
     if (t && !t.dead) await this.lunge(t, () => {
       playPfx(this, 'arcaneBeam', t.spr.x - 30, GROUND, { scale: 1.2, speed: 1.5 })
       this.strike(t, (S.ultAtk + this.st.ultMulAdd) * h2 * (1 + this.st.pskill))
@@ -2478,7 +2507,15 @@ export class BattleScene extends Phaser.Scene {
     for (let c = 0; c < (dbl ? 2 : 1) && this.alive().length; c++) await this.wizBlast(el, h2 * amp * (dbl ? this.st.mgDoubleCast : 1))
     this.addShield(this.st.matk * (MAGE_SPELL.barrier + (el === 'ice' ? this.st.iceBarrier : 0)) * p2 * (el === 'ice' ? Z.iceBarrier : 1) * (1 - this.st.mgBarrierCut))
     if (this.st.mgUltMana > 0) this.res = Math.min(this.resMax(), this.res + this.st.mgUltMana)
-    if (this.st.elemWheel > 0) { const els = Object.keys(ELEMENTS) as Element[]; this.element = els[(els.indexOf(el) + 1) % els.length]; this.floatText(HERO_X, GROUND - 180, `🔄 ถัดไป ${ELEMENTS[this.element].icon}`, '#c9a8ff') }
+    if (this.st.elemWheel > 0) this.wheelElement(el)
+  }
+  /** Elements this run can pick: Sage / Professor skip ✨ Arcane (their perks are 🔥⚡❄️). */
+  private runElements() { return (Object.keys(ELEMENTS) as Element[]).filter((e) => this.j2?.id !== 'sage' || e !== 'arcane') }
+  /** talent วงล้อธาตุ: the next element after `el` (Sage skips Arcane). */
+  private wheelElement(el: Element) {
+    const els = this.runElements()
+    this.element = els[(els.indexOf(el) + 1) % els.length]
+    this.floatText(HERO_X, GROUND - 180, `🔄 ถัดไป ${ELEMENTS[this.element].icon}`, '#c9a8ff')
   }
   private async wizBlast(el: Element, pow: number) {
     const Z = KIT2.wizard
@@ -2557,7 +2594,7 @@ export class BattleScene extends Phaser.Scene {
             playPfx(this, 'fireball', t.spr.x, t.spr.y - t.spr.displayHeight * 0.4, { scale: 1.1, speed: 1.6 })
             dealt = this.withSrc('other', () => this.strike(t, boltMul, true, '#ff8c42'))
           }
-          if (dealt > 0) autoHit = true
+          if (dealt > 0) { autoHit = true; this.profApply(t, el) } // 🎓 Auto Spell marks / reacts
           if (t.dead) continue
           if (el === 'fire') { t.burnStacks = Math.min(this.burnMax(), t.burnStacks + 1); t.burnStackTurns = 3 }
           else if (el === 'ice') { t.chill = Math.max(t.chill, 1); if (!t.charging) t.spr.setTint(0x9fe3ff) }
@@ -2576,7 +2613,7 @@ export class BattleScene extends Phaser.Scene {
     const P = KIT2.sage.perk, el = this.element
     // 🔥 Fire Bolt × hit
     if (this.st.j2FirePerk > 0 && Math.random() < sageFireChance(this.st, this.sageInt, el, endowed)) {
-      const ben = sageElementBenefit('fire', el)
+      const ben = sageElementBenefit('fire', el, this.st)
       this.sageFireBoltsTurn++
       const bolts = ben >= 1 ? Math.min(P.fireMaxBolts, this.sageFireBoltsTurn) : 1
       const mul = (P.fireMul + this.st.j2FireDmg) * ben * hitMul
@@ -2584,8 +2621,8 @@ export class BattleScene extends Phaser.Scene {
         const t = target && !target.dead ? target : this.front()[0]
         if (!t) break
         playPfx(this, 'fireball', t.spr.x, t.spr.y - t.spr.displayHeight * 0.4, { scale: 1.05, speed: 1.7 })
-        this.withSrc('other', () => this.strike(t, mul, true, '#ff8c42'))
-        if (!t.dead && (ben >= 1 || Math.random() < P.offMul)) {
+        if (this.withSrc('other', () => this.strike(t, mul, true, '#ff8c42')) > 0) this.profApply(t, 'fire') // 🎓
+        if (!t.dead && (ben >= 1 || Math.random() < profOffMul(this.st))) {
           t.burnStacks = Math.min(this.burnMax(), t.burnStacks + P.fireBurn); t.burnStackTurns = 3; this.dotIcon(t)
         }
       }
@@ -2601,17 +2638,18 @@ export class BattleScene extends Phaser.Scene {
     }
     // ⚡ Chain Lightning
     if (this.st.j2LightPerk > 0 && Math.random() < sageLightChance(this.st, this.sageInt, el, endowed)) {
-      const ben = sageElementBenefit('lightning', el)
+      const ben = sageElementBenefit('lightning', el, this.st)
       const aliveCount = this.alive().length
       const jumps = Math.min(aliveCount, P.lightTargetsBase + (this.st.j2LightPerk >= 3 && ben >= 1 ? 1 : 0))
       const { chain, originDead } = pickChainTargets(target, this.alive(), jumps, (m) => this.maidenGuarded(m))
       if (chain.length > 0) {
         let curMul = (P.lightMul + this.st.j2LightDmg) * ben * hitMul * (aliveCount === 1 ? 4 : 1)
+        const zapped: Mon[] = [] // 🎓 marked after the chain (reactions stay out of the lightning-hit window)
         this.withLightning(() => {
           for (let i = 0; i < chain.length; i++) {
             const m = chain[i]
             if (m.dead) continue
-            this.withSrc('other', () => this.strike(m, curMul, true, '#bfe6ff'))
+            if (this.withSrc('other', () => this.strike(m, curMul, true, '#bfe6ff')) > 0) zapped.push(m)
             if (!m.dead && this.st.j2LightStun > 0 && Math.random() < this.st.j2LightStun * ben) {
               if (m.def.ai === 'boss') m.gauge -= P.lightPush
               else this.stunMon(m)
@@ -2620,13 +2658,14 @@ export class BattleScene extends Phaser.Scene {
           }
         })
         playChainLightningFx(this, { chain, originDead })
+        for (const m of zapped) this.profApply(m, 'lightning')
       }
     }
     // ❄️ Permafrost (Sejuani E: stack 1..4 -> shatter + freeze)
     if (this.st.j2IcePerk > 0 && Math.random() < sageIceChance(this.st, el, endowed)) {
       const t = target && !target.dead ? target : this.front()[0]
       if (t) {
-        const ben = sageElementBenefit('ice', el)
+        const ben = sageElementBenefit('ice', el, this.st)
         t.permafrost = (t.permafrost ?? 0) + 1
         t.chill = Math.max(t.chill, 1)
         if (!t.charging) t.spr.setTint(0x9fe3ff)
@@ -2656,9 +2695,173 @@ export class BattleScene extends Phaser.Scene {
         } else {
           this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 28, `💠 ${t.permafrost}/${P.iceMax}`, '#9fe3ff')
         }
+        this.profApply(t, 'ice') // 🎓
         if (!t.dead) this.dotIcon(t)
       }
     }
+  }
+
+  // ===== 🎓 Professor (Sage Awakening): 🏷️ element marks + ⚗️ reactions (numbers KIT3.professor · pure math in skill-math.ts) =====
+  private reacting = false // a reaction is resolving: its own hits never mark / react again (no loops)
+  private lastCrit = false // the last strike() rolled a crit (🎯 จุดอ่อนธาตุ Mana)
+  private pfSet = new Set<ProfReaction>() // reactions set off this wave (🔺 สมการตรีธาตุ)
+  private pfConverged = false
+  private pfFist = 0 // 👊 Spell Fist swings left
+  private pfFistIdx = 0
+  private pfFistHeir = false // 👑 สืบสาน: the 3rd swing's reaction is a sure crit
+  private pfField = 0 // 🌋 Elemental Field turn-start pulses left
+  private pfLayers = 1 // 🌋 + 👑 สืบสาน: Field marks carry 2 charges
+  private pfVarMul = 0 // power of the Skill 3 variant that is on (Field: the Endow element's perk branch)
+  private pfFreeEndow = false // 📜 Memorize Lv 2: Endow costs no Mana this boss wave
+  private pfForce = false // the next reaction is a sure crit
+  private pfVarLive = false // a Spell Fist swing / Field pulse is resolving: its reactions take the variant power
+
+  private pfPts(branch: string) { return branchPts(save().job2Tree, branch) }
+  private clearMark(m: Mon) { m.mark = null; m.markTurns = 0; m.markLayers = 0 }
+  /** A hit of element `el` landed on `m`: mark it, refresh it, or set off a reaction (different element). */
+  private profApply(m: Mon | undefined, el: string | null | undefined, layers = 1) {
+    if (!m || m.dead || this.st.j3Pf <= 0 || this.reacting || this.hp <= 0 || !isProfMark(el)) return
+    const kind = reactionOf(m.mark, el)
+    if (kind) { this.fireReaction(m, kind, el); return }
+    const same = m.mark === el
+    m.mark = el
+    m.markTurns = KIT3.professor.markTurns + this.st.j3PfMarkTurns
+    m.markLayers = Math.max(same ? m.markLayers ?? 1 : 1, layers)
+    this.dotIcon(m)
+  }
+  /** Spend the mark (layers / 🏷️ residue), hit, 🔁 Double Casting echo, 🔺 Convergence, 💥 hand the mark on. */
+  private fireReaction(m: Mon, kind: ProfReaction, el: ProfMark) {
+    const ui = REACTION_UI[kind], layers = (m.markLayers ?? 1) - 1
+    if (layers > 0) m.markLayers = layers
+    else if (Math.random() < this.st.j3PfResidue) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 62, '🏷️ ตราติดทน', '#c9a8ff')
+    else this.clearMark(m)
+    this.pfSet.add(kind)
+    this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 48, `${ui.name}!`, ui.color)
+    this.reactionHit(m, kind, 1)
+    if (this.alive().length && doubleCastReady(this.st, this.res, this.resMax())) { // 🔁 Double Casting (an echo never echoes again)
+      this.spendRes(KIT3.professor.dcCost)
+      this.floatText(HERO_X, GROUND - 175, `🔁 Double Casting ${ui.name}`, '#c9a8ff')
+      this.reactionHit(m.dead ? this.front()[0] : m, kind, doubleCastMul(this.st))
+    }
+    if (this.st.j3PfTrinity > 0 && !this.pfConverged && this.pfSet.size >= 3 && this.alive().length) this.convergence()
+    if (m.dead && this.st.j3PfChain > 0) { // 💥 ลูกโซ่ธาตุ: the mark jumps to the next monsters (may chain-react)
+      for (const o of this.front().slice(0, KIT3.professor.chainSpread)) this.profApply(o, el)
+    } else this.dotIcon(m)
+  }
+  /** One reaction's damage + effect at `share` power (1 = the reaction, < 1 = a Double Casting echo). */
+  private reactionHit(t: Mon | undefined, kind: ProfReaction, share: number) {
+    if (!t || t.dead || this.hp <= 0) return
+    const P = KIT3.professor, ui = REACTION_UI[kind]
+    const amp = share * (this.pfConverged ? 1 + P.convergeAmp : 1) * (this.endow > 0 ? 1 + KIT2.sage.endowAmp + this.st.j2EndowAmp : 1) * (this.pfVarLive ? 1 + this.pfVarMul : 1)
+    const leg = profLegacy(this.st, { f: this.pfPts('sg_f'), l: this.pfPts('sg_l'), i: this.pfPts('sg_i') })
+    const prev = { ls: this.lsMul, auto: this.autoSpelling, force: this.forceCrit }
+    this.reacting = true; this.lsMul = 0; this.autoSpelling = false // the Endow amp is applied once above, not again via autoSpelling
+    let crit = false
+    const hit = (m: Mon, k: number) => {
+      if (m.dead) return
+      this.forceCrit = prev.force || this.pfForce
+      this.lastCrit = false // a MISS / dodge returns before strike() sets it
+      this.withSrc('other', () => this.strike(m, k, true, ui.color))
+      crit ||= this.lastCrit
+    }
+    try {
+      if (kind === 'overload') { // 💥 every monster + armor break
+        playPfx(this, 'thunderclap', 700, GROUND, { scale: 1.3, speed: 1.6 })?.setTint(ui.tint)
+        this.cameras.main.flash(70, 255, 211, 107)
+        for (const o of this.alive()) { hit(o, reactionMul(kind) * amp); if (!o.dead) { o.armorBrk = Math.max(o.armorBrk, P.ovlBreak); this.dotIcon(o) } }
+      } else {
+        const tgts = [t]
+        if (kind === 'superconduct' && leg.chain > 0) tgts.push(...this.front().filter((o) => o !== t).slice(0, leg.chain)) // ⚡ ตำราอัสนี: bounces
+        for (const o of tgts) {
+          if (o.dead) continue
+          const frozen = o.frozen
+          if (kind === 'vaporize') { playPfx(this, 'fireball', o.spr.x, o.spr.y - o.spr.displayHeight * 0.4, { scale: 1.3, speed: 1.6 })?.setTint(ui.tint); playPfx(this, 'frostNova', o.spr.x, GROUND, { scale: 0.9, speed: 1.8 })?.setTint(ui.tint) }
+          else playPfx(this, 'lightningStrike', o.spr.x, GROUND, { scale: 1.15, speed: 1.7 })?.setTint(ui.tint)
+          hit(o, reactionMul(kind, frozen) * amp)
+          if (o.dead) continue
+          if (kind === 'vaporize' && frozen) { o.frozen = false; o.stunTurns = 0; if (!o.charging) o.spr.clearTint(); this.floatText(o.spr.x, o.spr.y - o.spr.displayHeight - 30, '💨 ตีแตก!', '#ffb08a') }
+          if (kind === 'superconduct') {
+            o.sunder = Math.max(o.sunder ?? 0, P.supShred); o.sunderTurns = Math.max(o.sunderTurns ?? 0, P.supTurns)
+            if (o.def.ai === 'boss') o.gauge -= P.supPush
+          }
+          this.dotIcon(o)
+        }
+      }
+      // ⚔️ legacy: 🔥 reactions leave burn · ❄️ reactions add Permafrost (never past the shatter, which stays the perk's job)
+      if (kind !== 'superconduct' && leg.burn > 0) for (const o of kind === 'overload' ? this.alive() : [t]) if (!o.dead) { o.burnStacks = Math.min(this.burnMax(), o.burnStacks + leg.burn); o.burnStackTurns = 3; this.dotIcon(o) }
+      if (kind !== 'overload' && leg.ice > 0 && !t.dead) { t.permafrost = Math.min(KIT2.sage.perk.iceMax - 1, (t.permafrost ?? 0) + leg.ice); this.dotIcon(t) }
+      if (crit && this.st.j3PfCritMana > 0) this.gainRes(this.st.j3PfCritMana) // 🎯 จุดอ่อนธาตุ
+    } finally {
+      this.reacting = false; this.lsMul = prev.ls; this.autoSpelling = prev.auto; this.forceCrit = prev.force
+    }
+  }
+  /** 🔺 สมการตรีธาตุ: all 3 reactions this wave -> Convergence on every monster, reactions stronger until the wave ends. */
+  private convergence() {
+    const P = KIT3.professor
+    this.pfConverged = true
+    this.callout('🔺 Convergence! สมการตรีธาตุ', W / 2, 170, '#c9a8ff')
+    playPfx(this, 'magicCircle', 700, GROUND, { scale: 1.4, speed: 1.5 })?.setTint(0xc9a8ff)
+    const prev = { r: this.reacting, auto: this.autoSpelling, ls: this.lsMul }
+    this.reacting = true; this.autoSpelling = false; this.lsMul = 0
+    try { for (const o of this.alive()) this.withSrc('other', () => this.strike(o, P.convergeMul, true, '#c9a8ff')) } finally { this.reacting = prev.r; this.autoSpelling = prev.auto; this.lsMul = prev.ls }
+  }
+  /** A melee swing landed: 👊 Spell Fist rotates 🔥→⚡→❄️, otherwise an Endowed swing carries the Endow element. */
+  private profSwing(f: Mon) {
+    if (this.st.j3Pf <= 0 || f.dead) return
+    if (this.pfFist > 0) {
+      const el = PROF_ORDER[this.pfFistIdx % PROF_ORDER.length]
+      this.pfFistIdx++; this.pfFist--
+      this.pfForce = this.pfFistHeir && this.pfFistIdx % PROF_ORDER.length === 0 // 👑 the round's 3rd swing
+      this.floatText(f.spr.x, f.spr.y - f.spr.displayHeight - 56, `👊 ${PROF_ICON[el]}`, '#c9a8ff')
+      this.pfVarLive = true
+      try { this.profApply(f, el) } finally { this.pfForce = false; this.pfVarLive = false }
+      return
+    }
+    if (this.endow > 0) this.profApply(f, this.element)
+  }
+  /** Skill 3 variant on top of Endow: 👊 Spell Fist (A) or 🌋 Elemental Field (B). */
+  private profVariant() {
+    const P = KIT3.professor, el: ProfMark = isProfMark(this.element) ? this.element : 'fire'
+    if (save().job3Var === 'b') {
+      const pts = this.pfPts(P.fieldBranch[el])
+      this.pfVarMul = Math.min(P.varB.cap, P.varB.per * pts)
+      this.pfLayers = this.st.j3Heir > 0 && pts >= P.heirNeed ? 2 : 1
+      this.pfField = P.varB.turns - 1 // this cast is pulse 1
+      this.callout(`${FIELD_NAME[el]}! (${P.varB.turns} เทิร์น)`, W / 2, 200, '#c9a8ff')
+      this.profFieldPulse()
+      return
+    }
+    this.pfVarMul = this.st.j3VarMul // sg_a points (hero-stats)
+    this.pfFistHeir = this.st.j3Heir > 0 && this.pfPts(P.varA.branch) >= P.heirNeed
+    this.pfFist = P.varA.hits; this.pfFistIdx = 0
+    this.floatText(HERO_X, GROUND - 185, `👊 Spell Fist ${PROF_ORDER.map((e) => PROF_ICON[e]).join('→')}`, '#c9a8ff')
+  }
+  /** 🌋 one Field pulse: the Endow element on every monster (different marks react). */
+  private profFieldPulse() {
+    const el: ProfMark = isProfMark(this.element) ? this.element : 'fire', tint = el === 'fire' ? 0xff8c42 : el === 'ice' ? 0x9fe3ff : 0xbfe6ff
+    playPfx(this, 'runeCircle', 700, GROUND, { scale: 1.4, speed: 1.4 })?.setTint(tint)
+    this.pfVarLive = true
+    try { for (const m of [...this.alive()]) this.profApply(m, el, this.pfLayers) } finally { this.pfVarLive = false }
+  }
+  /** 💎 Soul Burst (Ult วิวัฒน์ 2): burn all Mana into the front smash, then ignite every mark at once. */
+  private async soulBurstUlt(t: Mon | undefined, h2: number, manaBefore: number) {
+    const S = KIT2.sage, sb = soulBurst(this.st, this.res, this.resMax()), k3 = 1 + this.st.u3Pow
+    const cdCut = foresightCdCut(this.st, manaBefore, this.resMax())
+    this.res = sb.left
+    this.callout(`💎 Soul Burst! เผา Mana ${sb.burnt}`, W / 2, 205, '#c9a8ff')
+    if (t && !t.dead) await this.lunge(t, () => {
+      playPfx(this, 'arcaneBeam', t.spr.x - 30, GROUND, { scale: 1.3, speed: 1.5 })?.setTint(0xc9a8ff)
+      this.strike(t, (sb.atkMul + this.st.ultMulAdd) * h2 * (1 + this.st.pskill) * k3)
+      this.strike(t, (S.ultPm + sb.pmMul) * h2 * k3, true, '#c9a8ff')
+      if (!t.dead && this.st.j2UltBreak > 0) { t.armorBrk = Math.max(t.armorBrk, this.st.j2UltBreak); this.dotIcon(t) }
+    })
+    const endowEl: ProfMark = isProfMark(this.element) ? this.element : 'fire'
+    for (const m of [...this.alive()]) { // ignite: marked -> react with the Endow element (or the next one if it is the same) · unmarked -> Endow mark
+      if (m.dead) continue
+      const ign = !m.mark || m.mark !== endowEl ? endowEl : PROF_ORDER[(PROF_ORDER.indexOf(m.mark) + 1) % PROF_ORDER.length]
+      this.profApply(m, ign)
+    }
+    if (cdCut > 0) { this.smashCdLeft = Math.max(0, this.smashCdLeft - cdCut); this.floatText(HERO_X, GROUND - 185, '🔮 Foresight: คูลดาวน์ −1', '#c9a8ff') }
   }
 
   /** Q 2026-11-03: lifesteal works only on basic attacks + combo hits (1), the D.Strike extra hit (0.33); skills, actives and passives 0. */
@@ -2673,7 +2876,7 @@ export class BattleScene extends Phaser.Scene {
     return canRollCrit(this.job.id, this.skillSlot)
   }
   /** On-hit proc (zap / fire / ice / spear / light ...) or a Sage Auto Spell bolt: rolls spellCrit (CRIT_RULES). */
-  private isProcHit() { return this.autoSpelling || ELEM_SRC.has(this.src) }
+  private isProcHit() { return this.autoSpelling || this.reacting || ELEM_SRC.has(this.src) } // 🎓 reactions roll spellCrit (Sage cap)
   /** Sage rework v1 crit split (data/battle-rules.ts CRIT_RULES): basic -> crit · skill/Ult -> skillCrit · proc -> spellCrit. */
   private critRateFor(magic: boolean, physAdd: number, target?: Mon): number {
     const C = CRIT_RULES.cap
@@ -2946,6 +3149,7 @@ export class BattleScene extends Phaser.Scene {
         if (this.st.mgHex > 0) { f.weakPct = Math.max(f.weakTurns > 0 ? f.weakPct : 0, this.st.mgHex); f.weakTurns = Math.max(f.weakTurns, MAGE_PASSIVE.hex.turns); this.dotIcon(f) }
         if (this.st.autoBurn > 0 && this.element === 'fire') { f.burnStacks = Math.min(this.burnMax(), f.burnStacks + this.st.autoBurn); f.burnStackTurns = 3; this.dotIcon(f); this.tryAblazeDetonate(f) }
       }
+      if (hitDmg > 0) this.profSwing(f) // 🎓 Endow / 👊 Spell Fist: the melee hit carries an element
       const isFirstSwing = this.comboLevel === 0
       if (isFirstSwing || this.st.j2Hindsight > 0) {
         this.sageSpell(f, isFirstSwing && this.sageInfusePow > 0, this.sageInfusePow > 0 ? this.sageInfusePow : 1, hitDmg > 0)
@@ -3282,7 +3486,7 @@ export class BattleScene extends Phaser.Scene {
         await this.mageUlt(el, hitPow * amp * dc, pow * amp * dc) // v78 fix: damage on hitPow (ultAmp / บดกระดูก), barrier stays on pow
         if (this.st.mgDoubleCast > 0) await this.mageUlt(el, hitPow * amp * dc, 0)
         if (this.st.mgUltMana > 0) this.res = Math.min(this.resMax(), this.res + this.st.mgUltMana)
-        if (this.st.elemWheel > 0) { const els = Object.keys(ELEMENTS) as Element[]; this.element = els[(els.indexOf(el) + 1) % els.length]; this.floatText(HERO_X, GROUND - 180, `🔄 ถัดไป ${ELEMENTS[this.element].icon}`, '#c9a8ff') } // talent วงล้อธาตุ
+        if (this.st.elemWheel > 0) this.wheelElement(el) // talent วงล้อธาตุ
         break
       }
       case 'cleric':
@@ -3904,6 +4108,7 @@ export class BattleScene extends Phaser.Scene {
     m.parry = false
     if (!m.dead && (m.duelHealTurns ?? 0) > 0) { m.duelHealTurns!--; this.healMon(m, m.duelHeal ?? 0) }
     if (!m.dead && (m.sunderTurns ?? 0) > 0) { if (--m.sunderTurns! <= 0) m.sunder = 0; this.dotIcon(m) }
+    if (!m.dead && (m.markTurns ?? 0) > 0) { if (--m.markTurns! <= 0) this.clearMark(m); this.dotIcon(m) } // 🎓 🏷️ element mark fades
     if (!m.dead && m.chill > 0) { m.chill--; if (!m.chill && !m.charging) m.spr.clearTint(); this.dotIcon(m) }
     if (!m.dead && m.frozen) {
       if ((m.stunTurns ?? 0) > 0) m.stunTurns!--
@@ -4348,7 +4553,7 @@ export class BattleScene extends Phaser.Scene {
   private dotIcon(m: Mon) {
     if (m.dead || !m.spr.active) return // a DoT tick or card can land after the kill: its icon text is already gone (page error 'drawImage' of null)
     if (!m.dotTxt) m.dotTxt = this.add.text(0, 0, '', { fontSize: '14px' }).setOrigin(0.5).setDepth(9500)
-    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${(m.permafrost ?? 0) > 0 ? '💠' + m.permafrost : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${m.armorBrk > 0 ? '🦴' : ''}${(m.sunderTurns ?? 0) > 0 ? '🕳️' : ''}${m.blind > 0 ? '🙈' : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${m.reflect > 0 ? '🔁' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
+    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${(m.permafrost ?? 0) > 0 ? '💠' + m.permafrost : ''}${m.mark ? `[${PROF_ICON[m.mark]}${(m.markLayers ?? 1) > 1 ? '×' + m.markLayers : ''}]` : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${m.armorBrk > 0 ? '🦴' : ''}${(m.sunderTurns ?? 0) > 0 ? '🕳️' : ''}${m.blind > 0 ? '🙈' : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${m.reflect > 0 ? '🔁' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
   }
 
   // ---------- xp / perks ----------
@@ -5929,7 +6134,7 @@ export class BattleScene extends Phaser.Scene {
 
   // ---------- v86 MOBA-style skill buttons (docs/design/skill-buttons-v86.md) ----------
   private clearBookings() { this.book = { s1: false, s2: false, s3: false } }
-  private s3Cost() { return Math.max(0, (this.j2?.skill3.cost ?? 0) - this.st.j2CmdCut) } // v82 Beastmaster คำสั่งไว
+  private s3Cost() { return this.pfFreeEndow && this.j2?.id === 'sage' ? 0 : Math.max(0, (this.j2?.skill3.cost ?? 0) - this.st.j2CmdCut) } // 🎓 📜 Memorize Lv 2: free Endow this boss wave // v82 Beastmaster คำสั่งไว
 
   /** (Re)build the cluster for the current job. The Novice keeps the old long smash button. */
   private buildSkillHud() {

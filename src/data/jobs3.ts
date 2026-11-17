@@ -7,7 +7,7 @@
 // unlock also needs the Master Trial win (P2), so no real save can reach a 3rd job until then.
 import type { Job2Id } from './jobs2'
 
-export type Job3Id = 'paladin' | 'lordknight' | 'champion' | 'ranger' | 'warlord' // Crusader -> Paladin · Knight -> Lord Knight · Monk -> Champion · Beastmaster -> Ranger · Berserker -> Warlord. One 2nd job at a time.
+export type Job3Id = 'paladin' | 'lordknight' | 'champion' | 'ranger' | 'warlord' | 'professor' // Crusader -> Paladin · Knight -> Lord Knight · Monk -> Champion · Beastmaster -> Ranger · Berserker -> Warlord · Sage -> Professor. One 2nd job at a time.
 export type Job3Path = 'pure' | 'hybrid' // pure: own ใยชั้น 3 to the top · hybrid: tier 1-2 of it + tier 1-2 of the sibling 2nd job's web
 export type Job3Variant = 'a' | 'b' // which Skill 3 variant is on (picked in town, free)
 
@@ -80,6 +80,17 @@ export const JOB3: Record<Job3Id, Job3Def> = {
     variants: {
       a: { name: 'Spinning Guillotine', icon: '⚔️', desc: 'คลื่นดาบเป็นฟันประหาร 2 ฮิต + ยิ่งมอนเลือดน้อยยิ่งแรง (สูงสุด +60%) · แรงขึ้นตามแต้มสาย 🪓 สับ' },
       b: { name: "Warlord's Warcry", icon: '📣', desc: 'คลื่นดาบเป็นคำรามลดดาเมจมอน −25% + เกราะแตก + ผลักเกจ + ฟาดหมู่ + ได้ Rage/โล่ · แรงขึ้นตามแต้มสาย 👹 คลั่ง' },
+    },
+  },
+  professor: {
+    id: 'professor', parent: 'sage', sibling: 'wizard', name: 'Professor', icon: '🎓',
+    blurb: 'Sage ที่ตื่นรู้ · ตีแล้วแปะ 🏷️ ตราธาตุ · ธาตุต่างชนกัน = ⚗️ Reaction ระเบิด · Mana ล้นใช้ร่ายซ้ำ',
+    focus: 'นักปราชญ์ธาตุผสาน · Soul Burst',
+    ultName: 'Soul Burst', ultDesc: 'Dispell + ขโมย Mana → เผา Mana ทั้งหมดฟาดตัวหน้า (ยิ่ง Mana เยอะยิ่งแรง) · จุดตราธาตุทุกตัวพร้อมกัน (ตัวไม่มีตราได้ตราธาตุ Endow)', rootDesc: 'Soul Burst ชั้น 3',
+    signature: { icon: '🎓', name: 'Double Casting', desc: 'ปลดระบบ 🏷️ ตราธาตุ + ⚗️ Reaction (♨️ Vaporize 🔥❄️ · 💥 Overload 🔥⚡ · 🧲 Superconduct ⚡❄️) · perk ธาตุรองแรง 65% → 85% · Mana > 70%: reaction จ่าย Mana 6 ยิงซ้ำ 50%' },
+    variants: {
+      a: { name: 'Spell Fist', icon: '👊', desc: 'Endow + ตีปกติ 3 ครั้งถัดไปหมุนธาตุ 🔥→⚡→❄️ (แปะตรา/จุด reaction ใส่ตัวเดียวได้เอง เก่งบอส) · แรงขึ้นตามแต้มสาย 📖 Auto Spell' },
+      b: { name: 'Elemental Field', icon: '🌋', desc: 'Endow + ทุ่งธาตุ 3 เทิร์น แปะตราธาตุ Endow ให้มอนทุกตัวต้นเทิร์น (reaction หมู่ เก่งเคลียร์เวฟ) · แรงขึ้นตามแต้มสาย perk ธาตุที่ Endow' },
     },
   },
 }

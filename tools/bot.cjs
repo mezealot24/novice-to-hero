@@ -101,12 +101,13 @@ if (process.env.JOB2) {
   if (o && o !== '0') { save.owned.push(o); save.equipped.offhand = o }
   if (process.env.PET) save.pet = process.env.PET
 }
-// 3rd job (design/awakening-crusader-v1.md): JOB3=paladin|lordknight|champion|ranger (needs JOB2 = its parent) · J3LV=n (default 30) · J3P=pure|hybrid · J3V=a|b · J3T='{"node":lv}' (or J3T=0 empty)
+// 3rd job (design/awakening-crusader-v1.md): JOB3=paladin|lordknight|champion|ranger|warlord|professor (needs JOB2 = its parent) · J3LV=n (default 30) · J3P=pure|hybrid · J3V=a|b · J3T='{"node":lv}' (or J3T=0 empty)
 // sets the Master Trial win + ดัน 10 clear so the save is a legal Awakening
 if (process.env.JOB3) {
   const j3 = process.env.JOB3
   const preset3 = {
     ranger: { ranger_u3p: 5, rn_l1: 3, rn_l2: 3, rn_l3: 3, rn_l4: 1, rn_g1: 3, rn_g2: 3, rn_g3: 2, rn_g4: 1, rn_r1: 3, rn_r2: 2 }, // 29 pts, max 2 ★
+    professor: { professor_u3p: 5, pf_l1: 3, pf_l2: 2, pf_l3: 3, pf_l4: 1, pf_r1: 3, pf_r2: 1, pf_r3: 3, pf_r4: 1, pf_p1: 3, pf_p2: 2, pf_p3: 2 }, // 29 pts, 2 ★ (needs Sage perk points in J2T for reactions)
   }[j3] || {}
   const t3 = process.env.J3T === '0' ? {} : process.env.J3T ? JSON.parse(process.env.J3T) : preset3
   Object.assign(save, { job3: j3, job3Level: +(process.env.J3LV || 30), job3Xp: 0, job3Points: 0, job3Tree: t3,

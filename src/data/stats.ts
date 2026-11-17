@@ -236,6 +236,20 @@ export interface Stats {
   j3Rn: number // 1 = Ranger is the active 3rd job (Camouflage + Primal Stampede)
   j3Wl: number // 1 = Warlord is the active 3rd job (Undying Warlord + Undying Bloodlust)
   j3WlBlitz: number // Warlord Blitz Charges: + crit chance per Frenzy stack
+  j3Pf: number // 1 = Professor is the active 3rd job (Double Casting: element marks + reactions · Soul Burst)
+  j3PfLegFire: number // 🎓 ⚔️ ตำราเพลิง: max extra burn a 🔥 reaction leaves (1 per KIT3.professor.legFireStep sg_f points)
+  j3PfLegLight: number // 🎓 ⚔️ ตำราอัสนี: max extra bounces a ⚡ reaction makes (1 per legLightStep sg_l points)
+  j3PfLegIce: number // 🎓 ⚔️ ตำราเยือกแข็ง: max extra Permafrost stacks a ❄️ reaction adds (1 per legIceStep sg_i points)
+  j3PfMarkTurns: number // 🎓 🏷️ ตราฝังลึก: + mark turns
+  j3PfResidue: number // 🎓 🏷️ ตราฝังลึก: chance the mark stays after a reaction
+  j3PfChain: number // 🎓 💥 ลูกโซ่ธาตุ: a reaction kill hands the mark to a neighbour
+  j3PfCritMana: number // 🎓 🎯 จุดอ่อนธาตุ: reactions use procCritMul · a reaction crit gives this Mana
+  j3PfTrinity: number // 🎓 🔺 สมการตรีธาตุ: all 3 reactions in one wave -> Convergence
+  j3PfSoulChange: number // 🎓 💧 Soul Change Lv: Mana past max -> ward
+  j3PfMemorize: number // 🎓 📜 Memorize Lv: boss wave starts with a free Endow (Lv 2: Endow costs no Mana that wave)
+  j3PfDcAt: number // 🎓 🔁 Double Casting threshold cut (0.7 - this)
+  j3PfDcMul: number // 🎓 🔁 Double Casting echo power +
+  j3PfForesight: number // 🎓 🔮 Foresight: Soul Burst keeps Mana · high-Mana cast cuts the Ult CD
   j3LegCross: number // ⚜️ รากกางเขน: Holy Cross / Grand Cross + this per point in the Crusader กางเขน branch (meta.ts multiplies, capped)
   j3LegGuard: number // ⚜️ โล่บรรพชน: Auto Guard + this per point in the โล่ศักดิ์สิทธิ์ branch
   j3LegHp: number // ⚜️ กายบรรพชน: max HP % + this per point in the อุทิศ branch
@@ -430,6 +444,7 @@ export const PLAYER: Stats = {
   j2ComboRamp: 0, j2ComboFinish: 0, j2ThunderAtk: 0, j2ComboThunder: 0, j2BellMdef: 0, j2MdefDmg: 0, j2HpPunch: 0, j2GritRate: 0, j2HaymakerStar: 0, j2AsuraMdef: 0, j2AsuraPow: 0, j2Asura: 0, // Monk rework
   physPen: 0, magPen: 0, elemDmg: 0,
   j3Wl: 0, j3WlBlitz: 0,
+  j3Pf: 0, j3PfLegFire: 0, j3PfLegLight: 0, j3PfLegIce: 0, j3PfMarkTurns: 0, j3PfResidue: 0, j3PfChain: 0, j3PfCritMana: 0, j3PfTrinity: 0, j3PfSoulChange: 0, j3PfMemorize: 0, j3PfDcAt: 0, j3PfDcMul: 0, j3PfForesight: 0, // 🎓 Professor
 }
 
 export const RULES = {

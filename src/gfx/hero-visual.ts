@@ -120,11 +120,12 @@ export function heroRigSpec(s: HeroVisualInput): HeroRigSpec {
 
   const tex = JOBS[job].tex
   const isRanger = job === 'archer' && job3 === 'ranger'
+  const isProfessor = job === 'mage' && job3 === 'professor' // 🎓 MVP: violet aura + afterimage (own costume = later)
   return {
     compositeTex: tex,
     bodyTex: tex,
-    auraTex: isRanger ? 'aura_gold' : undefined,
-    auraTint: isRanger ? 0x9fe08a : undefined,
+    auraTex: isRanger || isProfessor ? 'aura_gold' : undefined,
+    auraTint: isRanger ? 0x9fe08a : isProfessor ? 0xc9a8ff : undefined,
     mountOffset: { x: 0, y: 0 },
     bodyOffset: { x: 0, y: 0 },
     weaponOffset: { x: 0, y: 0 },
@@ -133,8 +134,8 @@ export function heroRigSpec(s: HeroVisualInput): HeroRigSpec {
     isMounted: false,
     isTwoHand,
     isKnightLine: false,
-    afterimageTint: 0xffd27a,
-    slashPalette: [0xffffff, 0xffe08a, 0xffd34d],
+    afterimageTint: isProfessor ? 0xc9a8ff : 0xffd27a,
+    slashPalette: isProfessor ? [0xffffff, 0xc9a8ff, 0x9fe3ff] : [0xffffff, 0xffe08a, 0xffd34d],
   }
 }
 
