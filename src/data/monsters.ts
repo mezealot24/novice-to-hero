@@ -9,6 +9,7 @@ import {
   type D11Kind, type D11Mini,
   type D12Kind, type D12Mini,
   type D13Kind, type D13Mini,
+  type D14Kind, type D14Mini,
 } from './dungeons'
 import type { SkillFormula } from './mon-skill-scale'
 
@@ -19,10 +20,10 @@ export type MonsterKind = 'jellop' | 'wolf' | 'king' | 'minijellop' | 'bat' | 's
   | 'dewsprite' | 'bonepriest'
   | 'mummy' | 'jackal' | 'sandscorp' | 'dunewraith' | 'scarab' | 'sunpriest' | 'sphinx' | 'jackallord' | 'pharaoh' // D6
   | 'maiden' // drainer's Summon Maiden (Q 2026-11-04)
-  | D7Kind | D8Kind | D9Kind | D10Kind | D11Kind | D12Kind | D13Kind // v78+: D7-D13 packs (data/dungeons/dN.ts)
+  | D7Kind | D8Kind | D9Kind | D10Kind | D11Kind | D12Kind | D13Kind | D14Kind // v78+: D7-D13 packs (data/dungeons/dN.ts)
   | 'mimic' | 'mimicking' | 'goldjellop' // event monsters (design/roadmap-and-events-v1.md): stats scale with the dungeon tier at spawn
 export type MiniKind = 'duelist' | 'hunter' | 'gunner' | 'drainer' | 'venomqueen' | 'frostgiant' | 'mirage' | 'warlord' | 'sphinx' | 'jackallord'
-  | D7Mini | D8Mini | D9Mini | D10Mini | D11Mini | D12Mini | D13Mini
+  | D7Mini | D8Mini | D9Mini | D10Mini | D11Mini | D12Mini | D13Mini | D14Mini
 
 // ----- Dungeon 4-5 (design/dungeon-4-5-brutal.md): data-driven monster skills, debuffs on the hero, boss phases -----
 /** What a landed monster hit (or a skill / charged attack) puts on the hero. Turns count hero turns. */
@@ -277,7 +278,7 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
     phases: [{ at: 0.6, name: 'ตื่นจากโลง! โล่ทรายทอง + มัมมี่องครักษ์', shield: 0.12, summon: ['mummy', 2] },
       { at: 0.3, name: 'สุริยคราส! เร็วขึ้น ชาร์จถี่', speed: 1.25, dmg: 1.15, chargeEvery: 2, cleanse: true, slamFx: { burn: 3, armorBreak: 3, silence: 1 } }] },
   // ----- D7-D13 (v78+): one pack per dungeon, data/dungeons/dN.ts -----
-  ...Object.assign({}, ...PACKS.map((p) => p.monsters)) as Record<D7Kind | D8Kind | D9Kind | D10Kind | D11Kind | D12Kind | D13Kind, MonsterDef>,
+  ...Object.assign({}, ...PACKS.map((p) => p.monsters)) as Record<D7Kind | D8Kind | D9Kind | D10Kind | D11Kind | D12Kind | D13Kind | D14Kind, MonsterDef>,
 }
 
 // ===== v49 monster kits (Q 2026-11-04: "ให้แต่ละตัวมี stat combo, counter, cri, สกิลโหดๆ"): merged into MONSTERS below =====
