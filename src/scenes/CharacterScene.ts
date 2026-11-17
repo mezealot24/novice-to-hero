@@ -17,6 +17,7 @@ import {
 import { statusTab } from "./character/status-tab";
 import { talentTab } from "./character/talent-tab";
 import { ultModal } from "./character/ult-modal";
+import { sageGuideModal } from "./character/sage-guide";
 import { drawPreview } from "./character/preview";
 import { cardTab } from "./character/cards-tab";
 import { equipTab } from "./character/equip-tab";
@@ -75,6 +76,7 @@ export class CharacterScene extends Phaser.Scene {
 	tierOffsets: [number, number, number] = [0, 380, 760]; // Y anchors for Tier 1, Tier 2, Tier 3
 	previewJob2Idx = 0; // when still Class 1, toggle which Class 2 branch to preview in the continuous tree
 	showUlt = false; // skill web: 🔥 รวมผล Ult popup (was the left sidebar; left side is now the node detail panel)
+	showSageGuide?: "sage" | "professor"; // Sage / Professor interactive playstyle & reaction guide modal
 	talent2 = false; // v119 talent tab: show ทาเลนต์ชั้น 2
 	constructor() {
 		super("character");
@@ -87,10 +89,12 @@ export class CharacterScene extends Phaser.Scene {
 		this.selPet = undefined;
 		this.showDetail = false;
 		this.showUlt = false;
+		this.showSageGuide = undefined;
 		this.input.keyboard?.on("keydown-ESC", () => {
-			if (this.showDetail || this.showUlt) {
+			if (this.showDetail || this.showUlt || this.showSageGuide) {
 				this.showDetail = false;
 				this.showUlt = false;
+				this.showSageGuide = undefined;
 				this.render();
 			}
 		});
@@ -150,6 +154,7 @@ export class CharacterScene extends Phaser.Scene {
 				: unifiedWebTab(this);
 		else talentTab(this);
 		if (this.showUlt && this.tab === 3) ultModal(this);
+		if (this.showSageGuide && this.tab === 3) sageGuideModal(this);
 	}
 
 	redraw() {

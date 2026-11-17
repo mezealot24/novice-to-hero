@@ -93,7 +93,7 @@ export class AnvilStage implements StageFx {
     this.subT.setText([`★${g}/${gradeCap(it)} ${GRADE.names[g] ?? ''}`, broken ? '💔 แตก (ไม่ให้ค่าพลังจนกว่าจะซ่อม)' : ''].filter(Boolean).join(' · '))
     // v115: worn or in the bag, said loud: a chip top-right + a green frame round the whole stage
     const worn = isWorn(s, it.id), sl = SLOTS.find((q) => q.id === it.slot)
-    this.wornChip.set(worn ? '✅' : '🎒', worn ? `ใส่อยู่ · ${sl?.icon ?? ''} ${sl?.name ?? ''}` : 'ในกระเป๋า', worn ? 'gain' : 'ok')
+    this.wornChip.set(worn ? '✅' : '🎒', `${worn ? 'ใส่อยู่' : 'ในกระเป๋า'} · ${sl?.icon ?? ''} ${sl?.name ?? ''}`, worn ? 'gain' : 'ok')
     this.wornChip.x = STAGE_W - 12 - this.wornChip.chipW
     this.wornFrame.clear()
     if (worn) this.wornFrame.lineStyle(3, 0x6fd08c, 0.9).strokeRoundedRect(1.5, 1.5, STAGE_W - 3, STAGE_H - 3, 14)

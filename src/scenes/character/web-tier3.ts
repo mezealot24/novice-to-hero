@@ -129,6 +129,23 @@ export function buildTier3(scene: CharacterScene, w: WebBuild) {
 				).setEnabled(spent3 > 0),
 			);
 		} else {
+			if (j3Def.id === "professor") {
+				scrollC.add(
+					button(
+						scene,
+						x0 + wAll - 166,
+						curY + 15,
+						92,
+						22,
+						"⚗️ คู่มือธาตุ",
+						() => {
+							scene.showSageGuide = "professor";
+							scene.render();
+						},
+						{ size: 10, fill: 0x3b667d, color: UI.text },
+					),
+				);
+			}
 			scrollC.add(
 				button(
 					scene,

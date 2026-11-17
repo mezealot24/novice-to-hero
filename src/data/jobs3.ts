@@ -84,13 +84,13 @@ export const JOB3: Record<Job3Id, Job3Def> = {
   },
   professor: {
     id: 'professor', parent: 'sage', sibling: 'wizard', name: 'Professor', icon: '🎓',
-    blurb: 'Sage ที่ตื่นรู้ · ตีแล้วแปะ 🏷️ ตราธาตุ · ธาตุต่างชนกัน = ⚗️ Reaction ระเบิด · Mana ล้นใช้ร่ายซ้ำ',
+    blurb: 'Sage ขั้นตื่นรู้ · ตีแล้วแปะ 🏷️ ตราธาตุ · เมื่อ 2 ธาตุชนกัน = ⚗️ ปฏิกิริยาธาตุระเบิด! · Mana เยอะใช้ร่ายซ้ำอัตโนมัติ',
     focus: 'นักปราชญ์ธาตุผสาน · Soul Burst',
-    ultName: 'Soul Burst', ultDesc: 'Dispell + ขโมย Mana → เผา Mana ทั้งหมดฟาดตัวหน้า (ยิ่ง Mana เยอะยิ่งแรง) · จุดตราธาตุทุกตัวพร้อมกัน (ตัวไม่มีตราได้ตราธาตุ Endow)', rootDesc: 'Soul Burst ชั้น 3',
-    signature: { icon: '🎓', name: 'Double Casting', desc: 'ปลดระบบ 🏷️ ตราธาตุ + ⚗️ Reaction (♨️ Vaporize 🔥❄️ · 💥 Overload 🔥⚡ · 🧲 Superconduct ⚡❄️) · perk ธาตุรองแรง 65% → 85% · Mana > 70%: reaction จ่าย Mana 6 ยิงซ้ำ 50%' },
+    ultName: 'Soul Burst', ultDesc: 'Dispell ลบบัฟ + ขโมย Mana → เผา Mana ทั้งหมดฟาดตัวหน้า (ยิ่ง Mana เยอะยิ่งแรง) · จุดปฏิกิริยาทุกตัวที่มีตราธาตุพร้อมกัน (ตัวไม่มีตราจะได้ตราธาตุ Endow)', rootDesc: 'Soul Burst ชั้น 3',
+    signature: { icon: '🎓', name: 'Double Casting', desc: 'ปลดล็อก 🏷️ ตราธาตุ + ⚗️ ปฏิกิริยา (♨️ ระเหย 🔥❄️ · 💥 โอเวอร์โหลด 🔥⚡ · 🧲 ซูเปอร์คอนดักต์ ⚡❄️) · ธาตุรองแรงขึ้น 65%→85% · Mana > 70%: จ่าย Mana 6 ยิงซ้ำ 50%' },
     variants: {
-      a: { name: 'Spell Fist', icon: '👊', desc: 'Endow + ตีปกติ 3 ครั้งถัดไปหมุนธาตุ 🔥→⚡→❄️ (แปะตรา/จุด reaction ใส่ตัวเดียวได้เอง เก่งบอส) · แรงขึ้นตามแต้มสาย 📖 Auto Spell' },
-      b: { name: 'Elemental Field', icon: '🌋', desc: 'Endow + ทุ่งธาตุ 3 เทิร์น แปะตราธาตุ Endow ให้มอนทุกตัวต้นเทิร์น (reaction หมู่ เก่งเคลียร์เวฟ) · แรงขึ้นตามแต้มสาย perk ธาตุที่ Endow' },
+      a: { name: 'Spell Fist', icon: '👊', desc: 'ใช้ Endow + ตีปกติ 3 ครั้งถัดไปสลับธาตุ 🔥→⚡→❄️ (แปะตราและจุดปฏิกิริยาใส่ตัวเดียวได้เอง เหมาะสู้บอส) · แรงขึ้นตามแต้มสาย 📖 Auto Spell' },
+      b: { name: 'Elemental Field', icon: '🌋', desc: 'ใช้ Endow + กางทุ่งธาตุ 3 เทิร์น แปะตราธาตุ Endow ใส่มอนทุกตัวต้นเทิร์น (ปฏิกิริยาหมู่ เคลียร์เวฟไว) · แรงขึ้นตามแต้มสายธาตุที่ Endow' },
     },
   },
 }

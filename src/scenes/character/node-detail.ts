@@ -4,7 +4,18 @@ import { derivedRows } from "../../data/stat-rows";
 import {
 	autoInfo,
 	dawnInfo,
+	doubleCastAt,
+	doubleCastMul,
+	KIT2,
+	KIT3,
+	magicPower,
+	profOffMul,
 	SAGE_S1,
+	sageAutoChance,
+	sageFireChance,
+	sageIceChance,
+	sageLightChance,
+	sageRodGain,
 	skill2Info,
 	ultInfo,
 	type InfoRow,
@@ -12,8 +23,9 @@ import {
 import { skill2ById } from "../../data/skill2";
 import { heroStats, totalBase } from "../../data/meta";
 import { save } from "../../save";
-import { BRANCHES, skill2Picked, type TreeNode } from "../../data/tree";
+import { BRANCHES, branchPts, skill2Picked, type TreeNode } from "../../data/tree";
 import { JOBS } from "../../data/jobs";
+import { activeJob3, JOB3 } from "../../data/jobs3";
 
 type DetailRow = {
 	label: string;
@@ -93,6 +105,161 @@ export function nodeDetail(
 			},
 		},
 	];
+	const isSageBranch =
+		n.id.startsWith("sg_") ||
+		n.id.startsWith("pf_") ||
+		n.branch.startsWith("sage_");
+	if (isSageBranch) {
+		const S = KIT2.sage,
+			P3 = KIT3.professor;
+		const bNow = totalBase(s);
+		const pc = (x: number) => `${Math.round(x * 100)}%`;
+		if (n.branch === "sage_s3" || n.id === "pf_l4" || n.id === "pf_p2") {
+			secs.push({
+				name:
+					activeJob3(s) === "professor"
+						? `${JOB3.professor.variants[s.job3Var ?? "a"].icon} ทักษะ 3: ${JOB3.professor.variants[s.job3Var ?? "a"].name}`
+						: "🗡️ ทักษะ 3: Endow",
+				all: true,
+				info: (st) => [
+					{
+						label: "ใช้ · คูลดาวน์",
+						value: `Mana ${S.endowCost} · ${S.endowCd} เทิร์น`,
+					},
+					{
+						label: "ระยะเวลา",
+						value:
+							st.j2EndowWave > 0
+								? "ทั้งเวฟ (ถาวร)"
+								: `${S.endowTurns + st.j2EndowTurns} เทิร์น`,
+					},
+					{
+						label: "เสริมแรงตี/Auto/เวทเสริม",
+						value: `+${pc(S.endowAmp + st.j2EndowAmp)} · โอกาสติด +${pc(S.endowPerkChance)}`,
+					},
+				],
+			});
+		}
+		if (n.branch === "sg_a") {
+			secs.push({
+				name: "📖 Auto Spell",
+				all: true,
+				info: (st) => [
+					{
+						label: "โอกาสติดเมื่อตีปกติ",
+						value: `${pc(sageAutoChance(st, bNow.int, false))} (Endow: ${pc(sageAutoChance(st, bNow.int, true))})`,
+					},
+					{
+						label: "จำนวนลูก · แรง",
+						value: `${1 + st.j2AutoBolts} ลูก · ${pc(S.autoMul + st.j2AutoMul)} พลังเวท`,
+					},
+					{
+						label: "คริเวทเสริม (Auto/On-Hit)",
+						value: `โอกาส ${pc(st.spellCrit)} · ดาเมจคริ +${pc(st.procCritMul)}`,
+					},
+				],
+			});
+		}
+		if (n.branch === "sg_f") {
+			secs.push({
+				name: "🔥 Fire Bolt on Hit",
+				all: true,
+				info: (st) =>
+					st.j2FirePerk > 0
+						? [
+								{
+									label: "โอกาสติด (ธาตุหลัก / รอง)",
+									value: `${pc(sageFireChance(st, bNow.int, "fire", false))} / ${pc(sageFireChance(st, bNow.int, "ice", false))}`,
+								},
+								{
+									label: "โบนัสความแรง Fire Bolt",
+									value: `+${pc(st.j2FireDmg)} (สูงสุด ${S.perk.fireMaxBolts} ลูก)`,
+								},
+							]
+						: [{ label: "สถานะ", value: "ยังไม่เรียน" }],
+			});
+		}
+		if (n.branch === "sg_l") {
+			secs.push({
+				name: "⚡ Chain Lightning on Hit",
+				all: true,
+				info: (st) =>
+					st.j2LightPerk > 0
+						? [
+								{
+									label: "โอกาสติด (ธาตุหลัก / รอง)",
+									value: `${pc(sageLightChance(st, bNow.int, "lightning", false))} / ${pc(sageLightChance(st, bNow.int, "fire", false))}`,
+								},
+								{
+									label: "จำนวนเป้า · โบนัสแรง",
+									value: `${S.perk.lightTargetsBase + (st.j2LightPerk >= 3 ? 1 : 0)} เป้า (เดี่ยว ×4) · +${pc(st.j2LightDmg)}`,
+								},
+							]
+						: [{ label: "สถานะ", value: "ยังไม่เรียน" }],
+			});
+		}
+		if (n.branch === "sg_i") {
+			secs.push({
+				name: "❄️ Permafrost on Hit",
+				all: true,
+				info: (st) =>
+					st.j2IcePerk > 0
+						? [
+								{
+									label: "โอกาสติด (ธาตุหลัก / รอง)",
+									value: `${pc(sageIceChance(st, "ice", false))} / ${pc(sageIceChance(st, "fire", false))}`,
+								},
+								{
+									label: "โบนัสแรงแตก",
+									value: `+${pc(st.j2IceDmg)} (ครบ ${S.perk.iceMax} ขั้น แตก+แช่แข็ง)`,
+								},
+							]
+						: [{ label: "สถานะ", value: "ยังไม่เรียน" }],
+			});
+		}
+		if (n.branch === "sg_r") {
+			secs.push({
+				name: "🛡️ Magic Rod",
+				all: true,
+				info: (st) => {
+					const rod = sageRodGain(st, bNow.vit);
+					return st.j2MagicRod > 0
+						? [
+								{
+									label: "ดูดเวทเป็น Mana / โล่",
+									value: `+${rod.mana} Mana · +${rod.shield} โล่`,
+								},
+							]
+						: [{ label: "สถานะ", value: "ยังไม่เรียน" }];
+				},
+			});
+		}
+		if (n.id.startsWith("pf_")) {
+			const t2 = s.job2Tree ?? {};
+			const fPts = branchPts(t2, "sg_f"),
+				lPts = branchPts(t2, "sg_l"),
+				iPts = branchPts(t2, "sg_i"),
+				aPts = branchPts(t2, "sg_a");
+			secs.push({
+				name: "🎓 ปฏิกิริยาธาตุ & ตำนานขั้น 2",
+				all: true,
+				info: (st) => [
+					{
+						label: "Double Casting",
+						value: `Mana ≥ ${pc(doubleCastAt(st))} · ยิงซ้ำ ${pc(doubleCastMul(st))} (ธาตุรอง ${pc(profOffMul(st))})`,
+					},
+					{
+						label: "พลังเวทปฏิกิริยา (ฐาน)",
+						value: `~${Math.round(magicPower(st) * P3.vapMul)} (♨️) / ~${Math.round(magicPower(st) * P3.ovlMul)} (💥) / ~${Math.round(magicPower(st) * P3.supMul)} (🧲)`,
+					},
+					{
+						label: "แต้มขั้น 2 ปัจจุบัน",
+						value: `🔥${fPts} · ⚡${lPts} · ❄️${iPts} · 📖${aPts}`,
+					},
+				],
+			});
+		}
+	}
 	const rows: DetailRow[] = [];
 	for (const sec of secs) {
 		const a = sec.info(stNow, nowT),

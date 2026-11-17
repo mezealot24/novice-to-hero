@@ -71,6 +71,7 @@ export function buildTier2(scene: CharacterScene, w: WebBuild) {
 	scrollC.add(t2Header);
 
 	if (t2Unlocked) {
+		const isSage = j2.id === "sage";
 		scrollC.add(
 			clipW(
 				txt(
@@ -82,9 +83,26 @@ export function buildTier2(scene: CharacterScene, w: WebBuild) {
 					UI.gold,
 					true,
 				),
-				410,
+				isSage ? 326 : 410,
 			),
 		);
+		if (isSage) {
+			scrollC.add(
+				button(
+					scene,
+					x0 + wAll - 230,
+					curY + 15,
+					74,
+					22,
+					"📖 คู่มือเซจ",
+					() => {
+						scene.showSageGuide = "sage";
+						scene.render();
+					},
+					{ size: 10, fill: 0x3b667d, color: UI.text },
+				),
+			);
+		}
 		scrollC.add(
 			button(
 				scene,
@@ -117,6 +135,7 @@ export function buildTier2(scene: CharacterScene, w: WebBuild) {
 		);
 	} else {
 		const lockTxt = job2Lock(s);
+		const isSage = j2.id === "sage";
 		scrollC.add(
 			clipW(
 				txt(
@@ -128,9 +147,26 @@ export function buildTier2(scene: CharacterScene, w: WebBuild) {
 					"#ffd984",
 					true,
 				),
-				420,
+				isSage ? 380 : 420,
 			),
 		);
+		if (isSage) {
+			scrollC.add(
+				button(
+					scene,
+					x0 + wAll - 168,
+					curY + 15,
+					76,
+					22,
+					"📖 คู่มือเซจ",
+					() => {
+						scene.showSageGuide = "sage";
+						scene.render();
+					},
+					{ size: 10, fill: 0x3b667d, color: UI.text },
+				),
+			);
+		}
 		if (j2Options.length > 1) {
 			const other = j2Options[(scene.previewJob2Idx + 1) % j2Options.length];
 			scrollC.add(

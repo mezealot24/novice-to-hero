@@ -68,7 +68,7 @@ export class ForgeScene extends Phaser.Scene {
     const host = { wallet: () => this.refreshWallet(), say: (t: string) => this.say(t), changed: () => this.changed() }
     this.recipe = new RecipeView(this, host)
     this.stash = new StashView(this, host)
-    this.bubble = txt(this, 566, 62, '', 13, UI.sub).setWordWrapWidth(378)
+    this.bubble = txt(this, 570, 62, '', 13, UI.sub).setWordWrapWidth(374)
     this.ctx = {
       scene: this,
       fx: { success: (l, n, t) => this.stage?.success(l, n, t), anticipate: (h) => this.stage?.anticipate(h) ?? Promise.resolve(), fail: (l) => this.stage?.fail(l), mend: () => this.stage?.mend(), shine: (l) => this.stage?.shine(l), burst: (k, l) => this.stage?.burst(k, l) },
@@ -87,7 +87,7 @@ export class ForgeScene extends Phaser.Scene {
     }, { size: 20, color: UI.text })
     const paintFast = () => fastBtn.setFill(save().forgeFast ? 0xf2b84b : 0x5a5f8a)
     paintFast()
-    tabs(this, 24, 80, ['⚒️ ทั่ง', '📜 สูตร', '🎒 คลัง'], 150, (i) => this.setMode((['anvil', 'recipe', 'stash'] as Mode[])[i]), 0)
+    tabs(this, 24, 80, ['⚒️ ทั่ง', '📜 สูตร', '🎒 คลัง', '♻️ หลอม'], 114, (i) => this.setMode((['anvil', 'recipe', 'stash', 'salvage'] as Mode[])[i]), 0)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.alive = false // first: DisplayList / Clock are already shut down, a late release() -> syncBottom() would touch destroyed Text
       const p = this.panel
@@ -139,7 +139,8 @@ export class ForgeScene extends Phaser.Scene {
     this.mode = m
     this.refreshWallet()
     if (m === 'anvil') { this.buildAnvil(); return }
-    if (m === 'recipe') { this.say('สูตรตีของจากวัตถุดิบดัน · ตีเสร็จแล้วอัปขั้น/ตีบวกที่ ⚒️ ทั่ง'); this.recipe.show(); return }
+    if (m === 'recipe') { this.say('สูตรตีของจากวัตถุดิบดัน · ตีเสร็จแล้วอัปขั้น/ตีบวกที่ ⚒️ ทั่ง'); this.recipe.show(false); return }
+    if (m === 'salvage') { this.say('♻️ หลอมคืน: ละลายของที่ตีเองหรือของที่ติดคำสาป ได้วัตถุดิบคืนครึ่งหนึ่ง'); this.recipe.show(true); return }
     this.stash.show()
   }
 
@@ -259,7 +260,7 @@ export class ForgeScene extends Phaser.Scene {
   /** The save changed: refresh everything in place. Rebuilds only when the item has to land on a different verb. */
   private changed() {
     this.refreshWallet()
-    if (this.mode === 'recipe') { this.recipe.show(); return }
+    if (this.mode === 'recipe' || this.mode === 'salvage') { this.recipe.show(this.mode === 'salvage'); return }
     if (this.mode === 'stash') { this.stash.show(); return }
     const it = this.item(), s = save()
     this.rail?.refresh()

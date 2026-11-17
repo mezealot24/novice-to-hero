@@ -131,15 +131,18 @@ export function renderSelectedNodeFooter(scene: CharacterScene) {
 				: JOBS[s.job].ult
 			: undefined;
 	const displayNode = isSageS1 ? { ...n, icon: SAGE_S1.icon, name: `${SAGE_S1.name} (ติดตัว)` } : n;
+	const isSageS3 = n.branch === "sage_s3";
 	const rootDesc = sk1
 		? `${sk1.icon} ${sk1.name}: ${sk1.desc}`
 		: tier === 3 && n.kind === "pow3" && j3Def
 			? `✨ ${j3Def.ultName}: ${j3Def.ultDesc} (รวมผล Ult ขั้น 1+2 ทั้งหมด)`
 			: root2
 				? `${root2.icon} ${root2.name}: ${root2.desc}${!s3 ? " (รวมผล Ult ขั้น 1 ทั้งหมด)" : ""}`
-				: isUltNode
-					? "🔥 สาย Ultimate: ส่งผลสะสมต่อเนื่องตั้งแต่คลาส 1 ถึงคลาสปัจจุบัน"
-					: "";
+				: isSageS3
+					? `${j2.skill3.icon} ${j2.skill3.name}: ${j2.skill3.desc}`
+					: isUltNode
+						? "🔥 สาย Ultimate: ส่งผลสะสมต่อเนื่องตั้งแต่คลาส 1 ถึงคลาสปัจจุบัน"
+						: "";
 
 	const tier2Arg: boolean | 3 = tier === 3 ? 3 : tier === 2;
 	const btnLabel = !lv
@@ -211,14 +214,35 @@ export function nodeFooter(
 		top = 132,
 		btnY = 528;
 
+	const isSageOrProf =
+		n.id.startsWith("sg_") ||
+		n.id.startsWith("pf_") ||
+		n.branch.startsWith("sage_");
 	// name + tier tag + level bar
 	b.add(clipW(txt(scene, x, top, `${n.icon} ${n.name}`, 17, UI.gold, true), w));
 	b.add(
 		clipW(
 			txt(scene, x, top + 24, `Lv ${lv}/${n.max}${tag ? ` · ${tag}` : ""}`, 11.5, UI.sub, true),
-			w,
+			isSageOrProf ? w - 84 : w,
 		),
 	);
+	if (isSageOrProf) {
+		b.add(
+			button(
+				scene,
+				x + w - 40,
+				top + 30,
+				78,
+				20,
+				n.id.startsWith("pf_") ? "⚗️ คู่มือธาตุ" : "📖 คู่มือเซจ",
+				() => {
+					scene.showSageGuide = n.id.startsWith("pf_") ? "professor" : "sage";
+					scene.render();
+				},
+				{ size: 10, fill: 0x3b667d, color: UI.text },
+			),
+		);
+	}
 	const bar = scene.add.graphics();
 	bar.fillStyle(0x0f1220, 1).fillRoundedRect(x, top + 44, w, 7, 3);
 	if (lv > 0)

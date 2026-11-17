@@ -7,51 +7,51 @@ const pc = (x: number) => `${Math.round(x * 100)}%`
 
 export const tree2: ClassTree = {
   branches: [
-    { id: 'sg_a', job: 'mage', job2: 'sage', name: 'Auto Spell', icon: '📖', blurb: 'Auto Spell · Perk Crit · ★ Hindsight' },
-    { id: 'sg_f', job: 'mage', job2: 'sage', name: 'Fire Bolt ×hit', icon: '🔥', blurb: 'On-Hit ยิง Fire Bolt ซ้ำตามคอมโบ · ★ Inferno Overdrive' },
-    { id: 'sg_l', job: 'mage', job2: 'sage', name: 'Chain Lightning', icon: '⚡', blurb: 'On-Hit สายฟ้าชิ่ง 3 เป้า + มึน · ★ Overload Tempest' },
-    { id: 'sg_i', job: 'mage', job2: 'sage', name: 'Permafrost', icon: '❄️', blurb: 'On-Hit สะสม 4 ขั้นแตกแช่แข็ง + คริ · ★ Absolute Permafrost' },
-    { id: 'sg_r', job: 'mage', job2: 'sage', name: 'Magic Rod', icon: '🛡️', blurb: 'ดูดเวทเป็น Mana/โล่ · กายปราชญ์ · ★ Magic Rod เต็มขั้น' },
+    { id: 'sg_a', job: 'mage', job2: 'sage', name: 'Auto Spell', icon: '📖', blurb: 'เพิ่มโอกาสร่าย Auto Spell · คริเวทแรงขึ้น · ★ ร่ายตอนสวนกลับ/คอมโบ' },
+    { id: 'sg_f', job: 'mage', job2: 'sage', name: 'Fire Bolt ×hit', icon: '🔥', blurb: 'ตีโดนมีโอกาสยิง Fire Bolt ซ้ำหลายลูก + เผา · ★ ระเบิดไฟหมู่' },
+    { id: 'sg_l', job: 'mage', job2: 'sage', name: 'Chain Lightning', icon: '⚡', blurb: 'ตีโดนปล่อยสายฟ้าชิ่งหลายเป้า + มึน · ★ ฟื้น Mana & ดาเมจ %HP' },
+    { id: 'sg_i', job: 'mage', job2: 'sage', name: 'Permafrost', icon: '❄️', blurb: 'ตีโดนสะสมน้ำแข็ง 4 ขั้นแล้วแตกแช่แข็ง · ★ แตกใส่ทุกตัวคริ 100%' },
+    { id: 'sg_r', job: 'mage', job2: 'sage', name: 'Magic Rod', icon: '🛡️', blurb: 'โดนเวทแล้วดูดเป็น Mana + โล่เวท · เพิ่มถึก · ★ ดูดเวทแรกของเวฟฟรี' },
   ],
   nodes: [
     // 🗡️ Under ทักษะ 3 (Endow)
-    n('sg_e1', 'sage_s3', 1, '⏳', 'ธาตุติดทน', 2, (lv) => `Endow นาน +${lv} เทิร์น`, (lv) => ({ j2EndowTurns: lv })),
-    n('sg_e2', 'sage_s3', 2, '🗡️', 'ธาตุคม', 3, (lv) => `Endow เพิ่มแรงตี/Auto/Perk +${lv * 6}% · P.ATK +${lv * 5}`, (lv) => ({ j2EndowAmp: 0.06 * lv, atk: 5 * lv })),
-    n('sg_e3', 'sage_s3', 3, '♾️', 'อาวุธธาตุนิรันดร์', 1, () => 'Endow อยู่ทั้งเวฟ (ไม่ต้องร่ายซ้ำ)', () => ({ j2EndowWave: 1 })),
+    n('sg_e1', 'sage_s3', 1, '⏳', 'ธาตุติดทน', 2, (lv) => `Endow อยู่นานขึ้น +${lv} เทิร์น`, (lv) => ({ j2EndowTurns: lv })),
+    n('sg_e2', 'sage_s3', 2, '🗡️', 'ธาตุคม', 3, (lv) => `ระหว่างมี Endow: ฟัน/Auto Spell/เวทเสริมแรงขึ้น +${lv * 6}% · P.ATK +${lv * 5}`, (lv) => ({ j2EndowAmp: 0.06 * lv, atk: 5 * lv })),
+    n('sg_e3', 'sage_s3', 3, '♾️', 'อาวุธธาตุนิรันดร์', 1, () => 'Endow อยู่ถาวรทั้งเวฟ (ไม่ต้องกดร่ายซ้ำ)', () => ({ j2EndowWave: 1 })),
 
     // 🚫 Under Ult วิวัฒน์ (Dispell + Spell Breaker)
-    n('sg_u1', 'sage_u2', 1, '🚫', 'ขโมยอาคม', 3, (lv) => `Spell Breaker ขโมย Mana +${lv * 6} · สกิลคริ +${lv * 3}%`, (lv) => ({ j2UltMana: 6 * lv, skillCrit: 0.03 * lv })),
+    n('sg_u1', 'sage_u2', 1, '🚫', 'ขโมยอาคม', 3, (lv) => `Spell Breaker ขโมย Mana +${lv * 6} · คริสกิล +${lv * 3}%`, (lv) => ({ j2UltMana: 6 * lv, skillCrit: 0.03 * lv })),
     n('sg_u2', 'sage_u2', 2, '💥', 'ทลายเกราะเวท', 2, (lv) => `Spell Breaker เจาะเกราะ +${lv * 15}% · ทำลายเกราะ ${lv} เทิร์น`, (lv) => ({ ultPierce: 0.15 * lv, j2UltBreak: lv })),
 
     // 📖 Branch 1: Auto Spell & Perk Crit
-    n('sg_a1', 'sg_a', 1, '📖', 'ร่ายไว', 3, (lv) => `Auto Spell โอกาส +${lv * 5}% · สกิลคริ +${lv * 2}%`, (lv) => ({ j2AutoChance: 0.05 * lv, skillCrit: 0.02 * lv })),
-    n('sg_a2', 'sg_a', 2, '🎯', 'ปราชญ์เจาะจุดตาย', 3, (lv) => `เวทคริ +${Math.round(lv * 2.5)}% · ดาเมจคริ On-Hit/Auto +${lv * 12}%`, (lv) => ({ spellCrit: 0.025 * lv, procCritMul: 0.12 * lv })),
-    n('sg_a3', 'sg_a', 3, '✨', 'Bolt คู่', 1, () => 'Auto Spell ยิง +1 ลูก · แรง +15%', () => ({ j2AutoBolts: 1, j2AutoMul: 0.15 })),
-    n('sg_a4', 'sg_a', 4, '👁️', 'Hindsight', 1, () => 'Auto Spell & On-Hit Perk ติดได้ทั้งตอนคอมโบและสวนกลับ', () => ({ j2Hindsight: 1 })),
+    n('sg_a1', 'sg_a', 1, '📖', 'ร่ายไว', 3, (lv) => `โอกาสติด Auto Spell +${lv * 5}% · คริสกิล +${lv * 2}%`, (lv) => ({ j2AutoChance: 0.05 * lv, skillCrit: 0.02 * lv })),
+    n('sg_a2', 'sg_a', 2, '🎯', 'ปราชญ์เจาะจุดตาย', 3, (lv) => `คริเวท +${(lv * 2.5).toFixed(lv % 2 === 1 ? 1 : 0)}% · ดาเมจคริของ Auto Spell/เวทเสริม +${lv * 12}%`, (lv) => ({ spellCrit: 0.025 * lv, procCritMul: 0.12 * lv })),
+    n('sg_a3', 'sg_a', 3, '✨', 'Bolt คู่', 1, () => 'Auto Spell ยิงเพิ่ม +1 ลูก · แรงขึ้น +15%', () => ({ j2AutoBolts: 1, j2AutoMul: 0.15 })),
+    n('sg_a4', 'sg_a', 4, '👁️', 'Hindsight', 1, () => 'Auto Spell และเวทเสริมธาตุ ติดได้ทั้งตอนคอมโบและตอนสวนกลับ', () => ({ j2Hindsight: 1 })),
 
     // 🔥 Branch 2: On-Hit Perk — Fire Bolt × hit
-    n('sg_f1', 'sg_f', 1, '🔥', 'Fire Bolt on Hit', 3, (lv) => `ทุกฮิตมีโอกาส ${Math.round((P.fireChance + P.firePerLv * (lv - 1)) * 100)}% ยิง Fire Bolt + เผา (ธาตุหลัก 🔥 100% / อื่น ${pc(P.offMul)})`, (lv) => ({ j2FirePerk: lv })),
-    n('sg_f2', 'sg_f', 2, '☄️', 'เพลิงทวีคูณ', 3, (lv) => `Fire Bolt แรง +${lv * 12}% · เวทคริ +${lv * 2}%`, (lv) => ({ j2FireDmg: 0.12 * lv, spellCrit: 0.02 * lv })),
-    n('sg_f3', 'sg_f', 3, '🔥', 'ไฟลามจุดตาย', 3, (lv) => `เวทคริ vs เป้าติดเผา +${lv * 4}% · เพดานเผา +${lv * 2}`, (lv) => ({ j2FireCrit: 0.04 * lv, burnCap: 2 * lv })),
-    n('sg_f4', 'sg_f', 4, '💥', 'Inferno Overdrive', 1, () => `Fire Bolt ยิงครบ ${P.fireMaxBolts} ลูกใน 1 เทิร์น → ปะทุทุกตัว ${P.fireNovaMul}x Pm + เผา ${P.fireNovaBurn}`, () => ({ j2FireStar: 1 })),
+    n('sg_f1', 'sg_f', 1, '🔥', 'Fire Bolt on Hit', 3, (lv) => `เมื่อตีโดนมีโอกาส ${Math.round((P.fireChance + P.firePerLv * (lv - 1)) * 100)}% ยิง Fire Bolt ซ้ำ (สูงสุด ${P.fireMaxBolts} ลูก) + เผา · ธาตุหลัก 🔥 100% / รอง ${pc(P.offMul)}`, (lv) => ({ j2FirePerk: lv })),
+    n('sg_f2', 'sg_f', 2, '☄️', 'เพลิงทวีคูณ', 3, (lv) => `Fire Bolt แรงขึ้น +${lv * 12}% · คริเวท +${lv * 2}%`, (lv) => ({ j2FireDmg: 0.12 * lv, spellCrit: 0.02 * lv })),
+    n('sg_f3', 'sg_f', 3, '🔥', 'ไฟลามจุดตาย', 3, (lv) => `คริเวทใส่เป้าติดเผา +${lv * 4}% · ซ้อนเผาสูงสุด +${lv * 2} ชั้น`, (lv) => ({ j2FireCrit: 0.04 * lv, burnCap: 2 * lv })),
+    n('sg_f4', 'sg_f', 4, '💥', 'Inferno Overdrive', 1, () => `Fire Bolt ยิงครบ ${P.fireMaxBolts} ลูกใน 1 เทิร์น → ระเบิดไฟใส่ทุกตัว ${P.fireNovaMul}x พลังเวท + เผา ${P.fireNovaBurn} ชั้น`, () => ({ j2FireStar: 1 })),
 
     // ⚡ Branch 3: On-Hit Perk — Chain Lightning
-    n('sg_l1', 'sg_l', 1, '⚡', 'Chain Lightning on Hit', 3, (lv) => `ทุกฮิตมีโอกาส ${Math.round((P.lightChance + P.lightPerLv * (lv - 1)) * 100)}% สายฟ้าชิ่ง ${P.lightTargetsBase + (lv >= 3 ? 1 : 0)} เป้า (เป้าเดียว ×4 · ธาตุหลัก ⚡ 100% / อื่น ${pc(P.offMul)})`, (lv) => ({ j2LightPerk: lv })),
-    n('sg_l2', 'sg_l', 2, '🌩️', 'กระแสแรงสูง', 3, (lv) => `Chain Lightning แรง +${lv * 12}% · ความเร็วโจมตี +${lv * 4}%`, (lv) => ({ j2LightDmg: 0.12 * lv, aspd: 0.064 * lv })),
-    n('sg_l3', 'sg_l', 3, '💫', 'สายฟ้าช็อตมึน', 3, (lv) => `ชิ่งแต่ละเป้ามีโอกาสมึน +${lv * 3}% (บอส: ผลักเกจ -${P.lightPush}) · สกิลคริ +${lv * 2}%`, (lv) => ({ j2LightStun: P.lightStunPerLv * lv, skillCrit: 0.02 * lv })),
-    n('sg_l4', 'sg_l', 4, '🌩️', 'Overload Tempest', 1, () => 'ดาเมจสายฟ้าทุกชนิดฟื้น Mana +1/ฮิต · สายฟ้าคริสร้างดาเมจเวท 4% ของ HP ปัจจุบันศัตรู', () => ({ j2LightStar: 1 })),
+    n('sg_l1', 'sg_l', 1, '⚡', 'Chain Lightning on Hit', 3, (lv) => `เมื่อตีโดนมีโอกาส ${Math.round((P.lightChance + P.lightPerLv * (lv - 1)) * 100)}% ปล่อยสายฟ้าชิ่ง ${P.lightTargetsBase + (lv >= 3 ? 1 : 0)} เป้า (เหลือศัตรู 1 ตัว = แรง ×4) · ธาตุหลัก ⚡ 100% / รอง ${pc(P.offMul)}`, (lv) => ({ j2LightPerk: lv })),
+    n('sg_l2', 'sg_l', 2, '🌩️', 'กระแสแรงสูง', 3, (lv) => `Chain Lightning แรงขึ้น +${lv * 12}% · ความเร็วโจมตี +${lv * 4}%`, (lv) => ({ j2LightDmg: 0.12 * lv, aspd: 0.064 * lv })),
+    n('sg_l3', 'sg_l', 3, '💫', 'สายฟ้าช็อตมึน', 3, (lv) => `สายฟ้าชิ่งแต่ละเป้ามีโอกาสมึน +${lv * 3}% (บอส: ดันเกจ -${P.lightPush}) · คริสกิล +${lv * 2}%`, (lv) => ({ j2LightStun: P.lightStunPerLv * lv, skillCrit: 0.02 * lv })),
+    n('sg_l4', 'sg_l', 4, '🌩️', 'Overload Tempest', 1, () => 'ดาเมจสายฟ้าทุกชนิดฟื้น Mana +1/ฮิต · สายฟ้าคริสร้างดาเมจเวทเสริม 4% ของ HP ปัจจุบันศัตรู', () => ({ j2LightStar: 1 })),
 
     // ❄️ Branch 4: On-Hit Perk — Permafrost (Sejuani E)
-    n('sg_i1', 'sg_i', 1, '❄️', 'Permafrost on Hit', 3, (lv) => `ทุกฮิตมีโอกาส ${Math.min(100, Math.round((P.iceChance + P.icePerLv * (lv - 1)) * 100))}% ซ้อนเยือกแข็ง (ครบ ${P.iceMax} ขั้น แตก+แช่แข็ง · ธาตุหลัก ❄️ 100% / อื่น ${pc(P.offMul)})`, (lv) => ({ j2IcePerk: lv })),
-    n('sg_i2', 'sg_i', 2, '🧊', 'น้ำแข็งแตกร้าว', 3, (lv) => `Permafrost แตกแรง +${lv * 15}% · เป้าหนาวช้าลงอีก +${lv * 5}%`, (lv) => ({ j2IceDmg: P.iceDmgPerLv * lv, chillSlow: 0.05 * lv })),
-    n('sg_i3', 'sg_i', 3, '🎯', 'จุดเยือกแข็งเปราะ', 3, (lv) => `ตีเป้าหนาว/แช่แข็ง: คริเวท+สกิล +${lv * 5}% · เจาะเวท +${lv * 4}%`, (lv) => ({ j2IceCrit: P.iceCritPerLv * lv, magPen: 0.04 * lv })),
-    n('sg_i4', 'sg_i', 4, '❄️', 'Absolute Permafrost', 1, () => `Permafrost แตกใส่ทุกตัว ${P.iceStarMul}x Pm · การันตีคริ 100% · ดันเกจบอส -${P.iceStarPush}`, () => ({ j2IceStar: 1 })),
+    n('sg_i1', 'sg_i', 1, '❄️', 'Permafrost on Hit', 3, (lv) => `เมื่อตีโดนมีโอกาส ${Math.min(100, Math.round((P.iceChance + P.icePerLv * (lv - 1)) * 100))}% สะสมน้ำแข็ง (ครบ ${P.iceMax} ขั้น แตก+แช่แข็ง) · ธาตุหลัก ❄️ 100% / รอง ${pc(P.offMul)}`, (lv) => ({ j2IcePerk: lv })),
+    n('sg_i2', 'sg_i', 2, '🧊', 'น้ำแข็งแตกร้าว', 3, (lv) => `Permafrost แตกแรงขึ้น +${lv * 15}% · ศัตรูที่ติดหนาวช้าลงอีก +${lv * 5}%`, (lv) => ({ j2IceDmg: P.iceDmgPerLv * lv, chillSlow: 0.05 * lv })),
+    n('sg_i3', 'sg_i', 3, '🎯', 'จุดเยือกแข็งเปราะ', 3, (lv) => `ตีเป้าที่หนาว/แช่แข็ง: คริเวทและคริสกิล +${lv * 5}% · เจาะเกราะเวท +${lv * 4}%`, (lv) => ({ j2IceCrit: P.iceCritPerLv * lv, magPen: 0.04 * lv })),
+    n('sg_i4', 'sg_i', 4, '❄️', 'Absolute Permafrost', 1, () => `Permafrost แตกใส่ทุกตัว ${P.iceStarMul}x พลังเวท · การันตีคริ 100% · ดันเกจบอส -${P.iceStarPush}`, () => ({ j2IceStar: 1 })),
 
     // 🛡️ Branch 5: Magic Rod & Battle-Sage
-    n('sg_r1', 'sg_r', 1, '🔮', 'Magic Rod', 3, (lv) => `โดนเวท = Mana +${lv * 3} (+VIT) + โล่เวท`, (lv) => ({ j2MagicRod: 3 * lv })),
+    n('sg_r1', 'sg_r', 1, '🔮', 'Magic Rod', 3, (lv) => `เมื่อโดนเวทโจมตี: ดูดเป็น Mana +${lv * 3} (+โบนัสจาก VIT) และสร้างโล่เวท`, (lv) => ({ j2MagicRod: 3 * lv })),
     n('sg_r2', 'sg_r', 2, '🛡️', 'กายปราชญ์', 3, (lv) => `M.DEF +${lv * 3}% · HP สูงสุด +${lv * 35}`, (lv) => ({ mdef: 0.03 * lv, maxHp: 35 * lv })),
     n('sg_r3', 'sg_r', 3, '⚔️', 'แขนนักปราชญ์', 3, (lv) => `P.ATK +${lv * 5} · M.ATK +${lv * 5} · ต้านดีบัฟ +${lv * 4}%`, (lv) => ({ atk: 5 * lv, matk: 5 * lv, tenacity: 0.04 * lv })),
-    n('sg_r4', 'sg_r', 4, '🌀', 'Magic Rod เต็มขั้น', 1, () => `เวทลูกแรกของทุกเวฟถูกดูดหาย + Mana ${S.rodBlockMana} (+VIT) และสวนกลับ Auto Spell`, () => ({ j2RodBlock: 1 })),
+    n('sg_r4', 'sg_r', 4, '🌀', 'Magic Rod เต็มขั้น', 1, () => `เวทลูกแรกของทุกเวฟถูกดูดหายไร้ผล + ได้ Mana ${S.rodBlockMana} (+VIT) และสวนกลับ Auto Spell ทันที`, () => ({ j2RodBlock: 1 })),
   ],
   talents: [
     // v119 ทาเลนต์ชั้น 2 · I stats · II Ult วิวัฒน์ · III ทักษะ 3 & 1 · IV ตัวตน

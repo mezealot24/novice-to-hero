@@ -4,7 +4,7 @@ import type { Item } from '../../data/meta'
 import type { ForgeCost } from '../../data/refine'
 
 export type Verb = 'grade' | 'refine' | 'repair' | 'option' | 'taint' | 'aspect'
-export type Mode = 'anvil' | 'recipe' | 'stash'
+export type Mode = 'anvil' | 'recipe' | 'stash' | 'salvage'
 
 /** What the stage plays when a verb resolves. Panels call these; they never touch stage objects directly. */
 export interface StageFx {
