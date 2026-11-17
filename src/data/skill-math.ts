@@ -85,6 +85,16 @@ export const KIT = {
   thiefUltAgi: 0.02, // เงาพริ้ว +this share of damage per AGI point over the start (was hardcoded 2%)
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
   // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
+  // 💰 Thief ทักษะ 2 ล้วงกระเป๋า (Q 2026-11-18, GW2 Steal): what you steal depends on the front monster's top stat. admin `kit` · thiefSteal.*
+  thiefSteal: {
+    turns: 3, // hero turns the stolen buff lasts (ATK / crit)
+    atk: 0.2, // STR monster (bruiser): P.ATK +20%
+    res: 20, // AGI monster (skirmisher): Energy back at once
+    poison: 4, // INT monster (caster): steals a vial -> poison stacks on it
+    brkTurns: 2, // VIT monster (tank): armor break turns (DEF −KIT2.mobster.armorBrk)
+    heal: 0.08, // WIS monster (support): heal share of max HP
+    crit: 0.15, // LUK / DEX monster: crit +15%
+  },
   poison: {
     atkPer: 0.04, // + P.ATK share per stack (Lv100 P.ATK ~400 -> +16/stack)
     matkPer: 0.04, // + M.ATK share per stack (Q 2026-11-17: INT / M.ATK from gear, cards, buffs also feed poison)

@@ -31,3 +31,15 @@ test('admin kit table exposes poison.* and thiefUltAgi knobs', () => {
     assert.equal(thiefPoisonPerStack({ poisonDmg: 3, atk: 500, matk: 200 }), 3, 'atkPer + matkPer 0 = old flat poison')
   } finally { r.revert() }
 })
+
+test('ล้วงกระเป๋า steals by the monster top stat', async () => {
+  const { topStats, ARCHETYPES } = await import('../src/data/mon-stats')
+  const { MONSTERS } = await import('../src/data/game-data')
+  const fake = (statAlloc: unknown) => ({ ...Object.values(MONSTERS)[0], base: undefined, statAlloc }) as never
+  assert.equal(topStats(fake('caster'))[0], 'int')
+  assert.equal(topStats(fake('tank'))[0], 'vit')
+  assert.equal(topStats(fake({ luk: 5, str: 1 }))[0], 'luk')
+  assert.deepEqual(topStats(fake('bruiser')).slice(0, 2), ['str', 'vit'])
+  assert.ok(ARCHETYPES.support.wis! > 0)
+  for (const p of ['thiefSteal.atk', 'thiefSteal.res', 'thiefSteal.poison', 'thiefSteal.brkTurns', 'thiefSteal.heal', 'thiefSteal.crit', 'thiefSteal.turns']) assert.ok(fieldFor('kit', p), p)
+})

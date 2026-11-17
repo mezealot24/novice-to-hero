@@ -4,7 +4,7 @@
 // ready, the resource covers the cost and its condition holds. BattleScene.castSkill2() runs the effect.
 // Its "+" node (max 5 since v83; Stats.s2Lv = Lv x 3/5, so Lv 5 = the old Lv 3) sets Stats.s2Lv, its ★ node sets Stats.s2Star (one Skill 2 per class, so the keys are shared).
 import type { JobId } from './jobs'
-import { S2N } from './skill-math'
+import { KIT, S2N } from './skill-math'
 
 export type Skill2Id =
   | 'sw_guard' | 'sw_blood' | 'sw_taunt'
@@ -57,8 +57,8 @@ export const SKILL2: Skill2Def[] = [
   // 🗡️ Thief (Energy)
   s('th_smoke', 'thief', '💨', 'ม่านควัน', 40, 4, 'หลบการโจมตีถัดไปแน่นอน 1 ครั้ง',
     { icon: '🌫️', name: 'ควันหอม', desc: (lv) => `ร่ายแล้วฟื้น ${lv * 3}% HP` }, { icon: '👥', name: 'ควันหนา', desc: 'หลบแน่นอน 2 ครั้ง' }),
-  s('th_pick', 'thief', '💰', 'ล้วงกระเป๋า', 30, 3, 'แทงตัวหน้า 1x + คืน Energy 15',
-    { icon: '💰', name: 'มือไว', desc: (lv) => `คืน Energy ${15 + lv * 5}` }, { icon: '🎭', name: 'จอมโจร', desc: 'แทงแรง 1.6x + ติดพิษ 3 stack' }),
+  s('th_pick', 'thief', '💰', 'ล้วงกระเป๋า', 30, 3, `แทงตัวหน้า 1x + คืน Energy 15 + ขโมยตาม stat เด่นของมอน: STR→P.ATK +${Math.round(KIT.thiefSteal.atk * 100)}% · AGI→Energy +${KIT.thiefSteal.res} · INT→พิษ ${KIT.thiefSteal.poison} stack · VIT→เกราะแตก ${KIT.thiefSteal.brkTurns} เทิร์น · WIS→ฮีล ${Math.round(KIT.thiefSteal.heal * 100)}% · LUK/DEX→คริ +${Math.round(KIT.thiefSteal.crit * 100)}% (บัฟ ${KIT.thiefSteal.turns} เทิร์น)`,
+    { icon: '💰', name: 'มือไว', desc: (lv) => `คืน Energy ${15 + lv * 5}` }, { icon: '🎭', name: 'จอมโจร', desc: 'แทงแรง 1.6x + ติดพิษ 3 stack + ขโมย 2 อย่าง (stat เด่นอันดับ 1 และ 2)' }),
   s('th_wound', 'thief', '🩸', 'แผลลึก', 35, 3, 'แทงตัวหน้า 1.2x ทะลุ DEF + พิษ 4 stack',
     { icon: '🔪', name: 'แผลฉีก', desc: (lv) => `พิษ ${S2N.woundPoison(lv)} stack` }, { icon: '⚰️', name: 'แผลมรณะ', desc: 'แทงแรง 2x ทะลุ DEF' }),
 ]

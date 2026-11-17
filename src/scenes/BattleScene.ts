@@ -34,7 +34,7 @@ import { rollEndgameUniqueDrop, rollUnique3Drop } from '../data/uniques3'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
 import { HARD_POWER, matchScale, overpowerMul, TOWER_POWER } from '../data/power'
-import { deepAnchor, homeDungeon, homeLv, legacyLevel, levelDropMul, restatAt, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, statNative, towerMonLv, withStats } from '../data/mon-stats'
+import { deepAnchor, homeDungeon, homeLv, legacyLevel, levelDropMul, restatAt, topStats, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, statNative, towerMonLv, withStats } from '../data/mon-stats'
 import { ENDLESS_HELL, endlessHell, HELL, HELL_MODE, hellify } from '../data/hell'
 import { foldAffixes } from '../data/affixes'
 import { PACKS } from '../data/dungeons'
@@ -397,7 +397,7 @@ export class BattleScene extends Phaser.Scene {
     { const wpn = itemById(s.equipped.weapon ?? ''); this.j2Weapon = !!this.j2?.mastery.ok(wpn); this.hasShield = !wpn.twoHand && !!s.equipped.offhand && s.equipped.offhand !== 'none_off'; this.dualKnife = this.hasShield && itemById(s.equipped.offhand ?? '').wtype === 'dagger' }
     this.frenzy = 0; this.frenzyAt = 0; this.s3Cd = 0; this.rampage = 0; this.charges = 0; this.monkGrit = 0; this.asuraExhaust = 0; this.allies = []; this.allyTxt.clear(); this.chargeTxt = undefined
     this.s2 = this.job.id === 'novice' ? undefined : skill2Picked(s.jobTree, this.job.id); this.s2Cd = 0
-    this.buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, bless: 0, dawnWis: 0 }; this.s2Count = 0
+    this.buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, bless: 0, dawnWis: 0, lootAtk: 0, lootCrit: 0 }; this.s2Count = 0
     this.hcVit = { n: 0, turns: 0, amt: 0, delta: {} } // v119 💪 Holy Cross VIT stacks
     this.dawnWisAmt = 0; this.dawnWisDelta = {}; this.dawnCount = 0; this.gc = null // v102 ☀️ แสงแตก · v108 🌄 hit counter · v111 ✨ pulses
     this.blessOn = false; this.blessDelta = undefined; this.kyrie = { hp: 0, hits: 0 } // v77 พรแสง
@@ -1095,7 +1095,7 @@ export class BattleScene extends Phaser.Scene {
   // ----- skill web v1: Skill 2 (data/skill2.ts, design/skill-web-v1.md) -----
   private s2?: Skill2Def
   private s2Cd = 0 // hero turns until Skill 2 can cast again
-  private buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, bless: 0, dawnWis: 0 } // hero turns left on Skill 2 buffs (+ v102 ☀️ แสงแตก WIS)
+  private buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, bless: 0, dawnWis: 0, lootAtk: 0, lootCrit: 0 } // hero turns left on Skill 2 buffs (+ v102 ☀️ แสงแตก WIS)
   private kyrie = { hp: 0, hits: 0 } // v77 พรแสง "+" Kyrie Eleison: barrier HP + hits left (gone with the blessing)
   private s2Count = 0 // casts this run (bot/debug)
   private book = { s1: false, s2: false, s3: false } // v86 manual mode: skills the player booked (the ult uses smashQueued)
@@ -1216,6 +1216,16 @@ export class BattleScene extends Phaser.Scene {
     return overflowShare(add, room)
   }
   private poisonMax() { return poisonCapOf(this.st) }
+  /** 💰 ล้วงกระเป๋า: one loot by the monster's stat (KIT.thiefSteal). */
+  private stealFrom(m: Mon, k: string) {
+    const T = KIT.thiefSteal, say = (t: string, c: string) => this.floatText(HERO_X, GROUND - 150, `💰 ${t}`, c)
+    if (k === 'str') { this.buf.lootAtk = T.turns; say(`ขโมยแรง! P.ATK +${Math.round(T.atk * 100)}%`, '#ffb36b') }
+    else if (k === 'agi') { this.res = Math.min(this.resMax(), this.res + T.res); say(`ขโมยจังหวะ! Energy +${T.res}`, '#8fe3ff') }
+    else if (k === 'int') { if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + T.poison); m.poisonDmg = Math.max(m.poisonDmg, this.myPoisonDmg()); this.dotIcon(m) } say(`ขโมยขวดยา! พิษ +${T.poison}`, '#b48aff') }
+    else if (k === 'vit') { if (!m.dead) { m.armorBrk = Math.max(m.armorBrk, T.brkTurns); this.dotIcon(m) } say('ขโมยเกราะ! เกราะแตก', '#d9c7a0') }
+    else if (k === 'wis') { this.heal(this.st.maxHp * T.heal); say('ขโมยยาฮีล!', '#7dff9a') }
+    else { this.buf.lootCrit = T.turns; say(`ขโมยดวง! คริ +${Math.round(T.crit * 100)}%`, '#ffe08a') }
+  }
   /** ☠️ poison per stack this hero applies: Thief line flat + KIT.poison.atkPer x P.ATK · other jobs flat Stats.poisonDmg */
   private myPoisonDmg() { return this.job.id === 'thief' ? thiefPoisonPerStack(this.st) : this.st.poisonDmg }
   private burnMax() { return 10 + this.st.burnCap }
@@ -1233,7 +1243,7 @@ export class BattleScene extends Phaser.Scene {
     if (magic && !ELEM_SRC.has(this.src)) mul *= 1 + this.st.elemDmg
     const canFalconCrit = falconCrit > 0 && m.huntMark > 0
     const wlCrit = !magic && this.st.j3Wl > 0 ? this.res * KIT3.warlord.rageCritPer + this.frenzy * this.st.j3WlBlitz : 0
-    const physCritAdd = (this.buf.hawk > 0 ? S2N.hawkCrit(this.st.s2Lv) : 0) + this.critAdd + this.biomeCritAdd + (this.rampage > 0 ? KIT2.berserker.ultCrit : 0) + wlCrit
+    const physCritAdd = (this.buf.hawk > 0 ? S2N.hawkCrit(this.st.s2Lv) : 0) + (this.buf.lootCrit > 0 ? KIT.thiefSteal.crit : 0) + this.critAdd + this.biomeCritAdd + (this.rampage > 0 ? KIT2.berserker.ultCrit : 0) + wlCrit
     const critRate = canFalconCrit ? falconCrit : this.critRateFor(magic, physCritAdd, m)
     const crit = this.forceCrit || (!this.petNoCrit && this.critAllowed() && Math.random() < critRate) // magic crits only with spellCrit (or Falcon Crit on Marked targets) · Skill 2 ตาเหยี่ยว · 2nd job
     const effFlee = m.huntMark > 0 ? (m.def.flee ?? 5) * Math.max(0, 1 - this.st.j2MarkPierceFlee) : (m.def.flee ?? 5)
@@ -3235,7 +3245,7 @@ export class BattleScene extends Phaser.Scene {
   private async skill2Turn() {
     const B = this.buf
     if (B.renew > 0) { B.renew--; this.heal(this.st.matk * S2N.renewHeal(this.st.s2Lv)) } // Priest heals = x M.ATK
-    for (const k of ['guard', 'blood', 'hawk', 'mshield'] as const) if (B[k] > 0) B[k]--
+    for (const k of ['guard', 'blood', 'hawk', 'mshield', 'lootAtk', 'lootCrit'] as const) if (B[k] > 0) B[k]--
     this.heroRig.setGuardAura(B.guard > 0)
     if (B.bless > 0 && --B.bless === 0) this.syncBless()
     if (B.dawnWis > 0 && --B.dawnWis === 0) this.syncDawnWis(0)
@@ -3336,6 +3346,7 @@ export class BattleScene extends Phaser.Scene {
         await this.lunge(m, () => {
           this.strike(m, S2N.pickMul(star))
           if (star && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + S2N.pickPoison); m.poisonDmg = Math.max(m.poisonDmg, this.myPoisonDmg()); this.dotIcon(m) }
+          for (const k of topStats(m.def).slice(0, star ? 2 : 1)) this.stealFrom(m, k) // 💰 GW2-style steal by the monster's top stat
         })
         this.res = Math.min(this.resMax(), this.res + S2N.pickRes(lv))
         break
@@ -5113,7 +5124,7 @@ export class BattleScene extends Phaser.Scene {
   /** พร v2: relic magic (Hellfire, Lightning Wrath) = magic power x the run's ATK buffs. */
   private magicPow() { return magicPower(this.st) * this.atkMul() }
   private atkMul() {
-    return (this.relic === 'trinity' ? 1 + RELIC_RULES.trinity.atkPct : 1) * (1 + this.harvest * RELIC_RULES.harvest.perKill) * (this.buf.blood > 0 && this.st.s2Star ? 1 + S2N.bloodAtk : 1)
+    return (this.relic === 'trinity' ? 1 + RELIC_RULES.trinity.atkPct : 1) * (1 + this.harvest * RELIC_RULES.harvest.perKill) * (this.buf.blood > 0 && this.st.s2Star ? 1 + S2N.bloodAtk : 1) * (this.buf.lootAtk > 0 ? 1 + KIT.thiefSteal.atk : 1) // 💰 ล้วงกระเป๋า loot
       * (this.hx.weaken > 0 ? BATTLE.weakenMul : 1) * (this.hx.thorn > 0 ? 1 - BATTLE.iceSkin.dmgCut : 1) * (this.relic === 'aegis' && this.shield > 0 ? 1 + RELIC_RULES.aegis.dmg : 1)
       * (1 + Math.min(this.pk.comboAtkCap, this.pk.comboAtk * this.comboAtkN)) * (1 + Math.min(this.pk.veteranCap, this.pk.veteran * this.fightTurns)) // legends เชี่ยวชาญคอมโบ / ทหารผ่านศึก
       * (1 + IMMORTAL_RULES.eggStep * this.eggN) // 🌈 ไข่ทองคำ

@@ -105,6 +105,7 @@ export function explainTableGroup(t: TableId, key: string): { title: string; des
       cleric: { title: '✝️ cleric · ตัวคูณและโล่หลัก (Cleric)', desc: 'ค่าร่าย Ult, ฮีล, แสงตก, โล่ และเพดานโล่พระ' },
       clericTree: { title: '🕸️ clericTree · ใยแมงมุมพระ (รุ่งอรุณ / แก่นศรัทธา)', desc: 'ตัวเลขโนดในสกิลทรีของนักบวช' },
       mageCore: { title: '💪 mageCore · กายสู่เวท (Mage)', desc: 'STR แปลงเป็นฟื้น Mana และ M.ATK' },
+      thiefSteal: { title: '💰 thiefSteal · ล้วงกระเป๋า (Thief ทักษะ 2)', desc: 'ของที่ขโมยได้ตาม stat เด่นของมอน' },
       poison: { title: '☠️ poison · พิษสายโจร (Thief / Rogue / Mafia)', desc: 'ดาเมจพิษต่อ stack ตาม P.ATK, INT, เพดาน stack และพิษที่เหลือหลังทวงหนี้' },
     },
     skills: {
