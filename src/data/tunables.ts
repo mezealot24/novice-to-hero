@@ -144,7 +144,7 @@ const HARD_FIELDS: [string, FieldDef][] = [
 ]
 
 const KIT_INTS = 'archerAutoShots|archerVolleyShots|mageFireStacks|mageIceChill|mageLightHits|clericSmiteTargets|clericJudgeEvery|clericWarmLightLv|spearMax|thiefAutoPoison|thiefUltHits|thiefUltDodge'
-const KIT_NUMS = 'archerAuto|archerUlt|mageFire|mageIce|mageLightLo|mageLightHi|clericHealBelow|clericJudge|clericUltAtkLv|clericWarmCounterLv|clericSpearShieldLv|spearBase|thiefAuto|thiefUlt'
+const KIT_NUMS = 'archerAuto|archerUlt|mageFire|mageIce|mageLightLo|mageLightHi|clericHealBelow|clericJudge|clericUltAtkLv|clericWarmCounterLv|clericSpearShieldLv|spearBase|thiefAuto|thiefUlt|thiefUltAgi'
 
 export const TABLES: Record<TableId, TableDef> = {
   monsters: { id: 'monsters', label: 'Monsters / mini bosses / bosses', target: () => MONSTERS, fields: pre('*', MONSTER_FIELDS) },
@@ -193,7 +193,8 @@ export const TABLES: Record<TableId, TableDef> = {
       ['cleric.heal|smite|basic|ultAtk|ultLight|purifyHeal', num(0, 20)], ['cleric.ultShield|shieldCap', num(0, 1)], ['cleric.ultLights|ultShieldTurns|shieldTurns', int(0, 20)], ['cleric.ultMana', int(0, 200)], // v86 CLERIC_KIT
       ['cleric.ultManaLv', int(0, 100)], ['clericTree.dawn.matk|share|heal|crit|weak', num(0, 20)], ['clericTree.dawn.wis.*', num(0, 5)], ['clericTree.dawn.wisTurns.*', int(0, 20)], ['clericTree.dawn.every', int(1, 20)], // v107 Cleric web
       ['clericTree.core.base|regen|guard|wisAmp|heal|shield', num(0, 50)], ['clericTree.core.intPer.*', int(1, 50)],
-      ['mageCore.regenStep|matkStep', int(1, 100)], ['mageCore.regenMissing', int(0, 1)], ['mageCore.matkPer', num(0, 1000)]], // 💪 กายสู่เวท
+      ['mageCore.regenStep|matkStep', int(1, 100)], ['mageCore.regenMissing', int(0, 1)], ['mageCore.matkPer', num(0, 1000)], // 💪 กายสู่เวท
+      ['poison.atkPer|matkPer|intPer|burstKeep|defPer|defCap', num(0, 1)], ['poison.baseCap', int(1, 50)]], // ☠️ Thief-line poison (Q 2026-11-17)
   },
   // Class skills (skill-registry.ts): costs / cooldowns / Skill 2 numbers / per-skill crit switch. Exact paths, built from the registry.
   // Class kit numbers that are already in `kit` stay there (one path = one table): the admin "⚔️ สกิลอาชีพ" tab shows both.

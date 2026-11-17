@@ -5,7 +5,7 @@
 // Job2 Lv 1..50 has its own web points (job2Points). Numbers live in skill-math.ts KIT2.
 import type { Resource, Stats } from './game-data'
 import type { JobId, JobSkill } from './jobs'
-import { KIT2 } from './skill-math'
+import { KIT, KIT2 } from './skill-math'
 
 export type Job2Id = 'berserker' | 'knight' | 'rogue' | 'mobster' | 'crusader' | 'monk' | 'wizard' | 'sage' | 'beastmaster' | 'innovator' // Phase 1 Swordsman · 2 Thief · 3 Priest · 4 Archer · 5 Mage
 export type WeaponType = 'sword' | 'twohand' | 'spear' | 'dagger' | 'bow' | 'staff' | 'mace' | 'fist' | 'book'
@@ -72,7 +72,7 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     mastery: { weapon: 'มีด', ok: (it) => it.wtype === 'dagger', mod: { poisonDmg: M.mastery.poisonDmg }, pct: { atk: M.mastery.atkPct } },
     signature: { name: 'สมุดหนี้', icon: '📒', desc: `ดีบัฟ 1 ชนิดบนมอน (พิษ ไฟ ช้า อ่อนแรง ตราบาป เกราะแตก) = หนี้ 1 · HP ต่ำกว่า ${pc(M.execBase)} + ${pc(M.execPer)}/หนี้ = ⚰️ ตายทันที · บอส/มินิ: ดาเมจ x${M.bossExecMul} แทน` },
     skill3: { name: 'ตัดเส้นเอ็น', icon: '⛓️', cost: M.cutCost, cd: M.cutCd, desc: `Energy ${M.cutCost} · คูลดาวน์ ${M.cutCd}: ฟันตัวหน้า (บอสก่อน) ${M.cutMul}x · เกราะแตก DEF -${pc(M.armorBrk)} + ช้า ${M.cutTurns} เทิร์น` },
-    ult: { name: 'ทวงหนี้', icon: '💀', cd: 4, desc: `ฟันทุกตัว ${M.ultSlash}x แล้วจุดระเบิดพิษ (ดาเมจพิษ ${M.burstTurns} เทิร์น x${M.burstMul} ออกทันที แล้วล้างพิษ) → เช็ก Execute · เก็บได้ = ult คูลดาวน์ -${M.ultCdRefund}` },
+    ult: { name: 'ทวงหนี้', icon: '💀', cd: 4, desc: `ฟันทุกตัว ${M.ultSlash}x แล้วจุดระเบิดพิษ (ดาเมจพิษ ${M.burstTurns} เทิร์น x${M.burstMul} ออกทันที แล้ว${KIT.poison.burstKeep > 0 ? `พิษเหลือ ${pc(KIT.poison.burstKeep)}` : 'ล้างพิษ'}) → เช็ก Execute · เก็บได้ = ult คูลดาวน์ -${M.ultCdRefund}` },
   },
   crusader: {
     id: 'crusader', parent: 'cleric', name: 'ครูเซเดอร์', icon: '✝️', focus: 'STR · VIT · INT',

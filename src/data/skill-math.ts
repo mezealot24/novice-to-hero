@@ -82,6 +82,17 @@ export const KIT = {
   clericWarmCounterLv: 0.025, clericWarmLightLv: 1, clericSpearShieldLv: 0.02,
   spearBase: 0.3, spearMax: 8, spearSplash: 0.5, // v120 Q 2026-11-11: หอกแสง = random target (Priest lights: their own target) + the monster on each side x spearSplash
   thiefAuto: 1.6, thiefAutoPoison: 3, thiefUlt: 0.7, thiefUltHits: 4, thiefUltDodge: 2,
+  thiefUltAgi: 0.02, // เงาพริ้ว +this share of damage per AGI point over the start (was hardcoded 2%)
+  // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
+  // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
+  poison: {
+    atkPer: 0.04, // + P.ATK share per stack (Lv100 P.ATK ~400 -> +16/stack)
+    matkPer: 0.04, // + M.ATK share per stack (Q 2026-11-17: INT / M.ATK from gear, cards, buffs also feed poison)
+    intPer: 0.1, // Thief flat poison +this per INT point over the start (was hardcoded)
+    baseCap: 12, // max stacks before poisonCap nodes / gear
+    defPer: 0.01, defCap: 0.4, // 🦴 Q 2026-11-17: each poison stack on a monster = its DEF −defPer vs Thief-line hits, at most defCap
+    burstKeep: 0.5, // 💀 Mobster ทวงหนี้: share of stacks left after the burst (0 = cleared, the old rule)
+  },
   // v82 Archer web: 🧪 ศรพิษ (under ทักษะ 1) + 🏷️ ล่าหัว (under Ult), first guesses (design/skill-tree-archer.md v82)
   archerTree: {
     poisonArrow: [0.2, 0.35, 0.5], poisonArrowStacks: 1, vsPoison: 0.06, ricochet: [0.5, 0.7, 0.9], // ศรอาบพิษ chance per arrow · ซ้ำแผล per lv · ศรเด้ง shot mul
@@ -127,6 +138,14 @@ export const KIT = {
     reviveHp: 0.5, reviveShield: 0.2, // ★ คืนชีพ: 1/run lethal hit -> back at 50% HP + 20% shield, debuffs cleared
   },
 }
+
+/** ☠️ Thief-line poison damage per stack per monster turn: flat Stats.poisonDmg + atkPer x P.ATK + matkPer x M.ATK. */
+export const thiefPoisonPerStack = (st: Pick<Stats, 'poisonDmg' | 'atk' | 'matk'>) =>
+  st.poisonDmg + KIT.poison.atkPer * Math.max(0, st.atk) + KIT.poison.matkPer * Math.max(0, st.matk)
+/** 🦴 Thief-line poison DEF shred: share of the monster's DEF removed by its poison stacks (KIT.poison.defPer per stack, capped at defCap). */
+export const poisonDefCut = (stacks: number) => Math.min(KIT.poison.defCap, KIT.poison.defPer * Math.max(0, stacks))
+/** Max poison stacks on a monster (KIT.poison.baseCap + Stats.poisonCap). */
+export const poisonCapOf = (st: Pick<Stats, 'poisonCap'>) => KIT.poison.baseCap + st.poisonCap
 
 /** 2nd jobs (design/second-jobs-v1.md, data/jobs2.ts): signature / ทักษะ 3 / Ult วิวัฒน์ numbers. BattleScene + jobs2 texts read these. */
 export const KIT2 = {
@@ -610,7 +629,7 @@ export function autoInfo(jobId: JobId, st: Stats, job2?: string): InfoRow[] {
       break
     case 'thief':
       out.push({ label: 'แทง 1 ที', value: hitText(st, KIT.thiefAuto * pow, false) })
-      out.push({ label: 'พิษ', value: `+${KIT.thiefAutoPoison} stack (${(st.poisonDmg).toFixed(1)}/stack/เทิร์น)` })
+      out.push({ label: 'พิษ', value: `+${KIT.thiefAutoPoison} stack (${thiefPoisonPerStack(st).toFixed(1)}/stack/เทิร์น)` })
       break
     default: return []
   }
@@ -738,7 +757,7 @@ export function skill2Info(k: Skill2Def, st: Stats): InfoRow[] {
     case 'cl_spear': add(`หอกแสง ${S2N.spearCount(star)} เล่ม ตัวสุ่ม /เล่ม (ข้างๆ 50%)`, hitText(st, spearMul(st, k), true)); break
     case 'th_smoke': add('หลบแน่นอน', `${S2N.smokeDodges(star)} ครั้ง`); if (lv) add('ฟื้น HP', `${heal(st, st.maxHp * S2N.smokeHeal(lv))}`); break
     case 'th_pick': add('แทงตัวหน้า', hitText(st, S2N.pickMul(star), false)); add('คืน Energy', `${S2N.pickRes(lv)}`); if (star) add('พิษ', `+${S2N.pickPoison} stack`); break
-    case 'th_wound': add('แทงทะลุ DEF', hitText(st, S2N.woundMul(star), false)); add('พิษ', `+${S2N.woundPoison(lv)} stack (${st.poisonDmg.toFixed(1)}/stack/เทิร์น)`); break
+    case 'th_wound': add('แทงทะลุ DEF', hitText(st, S2N.woundMul(star), false)); add('พิษ', `+${S2N.woundPoison(lv)} stack (${thiefPoisonPerStack(st).toFixed(1)}/stack/เทิร์น)`); break
   }
   return out
 }
