@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { HERO_SKILL_BOOK, heroSkillSteps, mirrorKit, type HeroKit } from '../data/hero-skill-book'
+import { HERO_SKILL_BOOK, heroSkillSteps, resolveHeroKit, type HeroKit } from '../data/hero-skill-book'
 import { chooseHeroSkill, newKitState, spendKit, tickKit, type KitCtx, type KitState } from '../battle/hero-skill-engine'
 import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, softCapDiminish, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats } from '../data/game-data'
 import { counterRate, shieldGain } from '../data/stack-math'
@@ -553,7 +553,7 @@ export class BattleScene extends Phaser.Scene {
     const affix = (this.hard || this.run.affix) && def.ai === 'boss' ? this.lastAffix : undefined
     const m: Mon = { kind, def, spr, shadow, hp: def.hp, gauge: gauge ?? Phaser.Math.Between(0, 40), dead: false, slot, turns: 0, charging: false, summoned: false, burnStacks: 0, burnStackTurns: 0, chill: 0, frozen: false, burn: 0, burnTurns: 0, poison: 0, poisonDmg: 0, parry: false, ice: 0, iceChance: 0, iced: false, hell: 0, harvestMark: 0, huntMark: 0,
       shield: 0, atkUp: 0, atkUpTurns: 0, phase: 0, speedMul: 1, dmgMul: 1, reflect: def.reflect ?? 0, absorb: def.absorb ?? 0, stored: 0, chargeEvery: def.chargeEvery ?? BATTLE.slamEvery, skills: def.skills ?? [], onHit: def.onHit, slamFx: def.slamFx, revived: false, weakTurns: 0, weakPct: 0, armorBrk: 0, blind: 0, wet: 0, affix, instanceId: `${kind}_${++this.monSeq}` }
-    const hk = def.heroKit === 'mirror' ? mirrorKit(this.job.id, this.s2?.id, this.j2?.id) : def.heroKit
+    const hk = def.heroKit && resolveHeroKit(def.heroKit, { job: this.job.id, s2: this.s2?.id, job2: this.j2?.id })
     if (hk?.skills.length) { m.heroKit = hk; m.kit = newKitState(hk) }
     if (this.biomeState?.hazard === 'astral_eclipse' && m.instanceId) {
       this.biomeState.monsterAstralLayers[m.instanceId] = big ? HAZARD_TUNING.astral_eclipse.bossLayers : HAZARD_TUNING.astral_eclipse.normalLayers
@@ -5605,9 +5605,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** v125: one monster skill (or one step of a hero skill). Returns true when it had a use and happened. */
-  private async castMonSkill(m: Mon, raw: MonSkill): Promise<boolean> {
+  private async castMonSkill(m: Mon, raw: MonSkill, lvBonus = true): Promise<boolean> {
     const picked = raw.pick ? raw.pick[Phaser.Math.Between(0, raw.pick.length - 1)] : raw // spell rotation
-    const sk = skillAtLv(picked, castLv(picked.lv ?? raw.lv ?? 1, skillLvBonus(m.kind, m.def.lv ?? 1, m.def))) // v81 skill Lv (RO style over-level ok) · v124 + 1 per 10 monster Lv
+    const sk = skillAtLv(picked, castLv(picked.lv ?? raw.lv ?? 1, lvBonus ? skillLvBonus(m.kind, m.def.lv ?? 1, m.def) : 0)) // v81 skill Lv (RO style over-level ok) · v124 + 1 per 10 monster Lv
     if (sk.big) { this.callout(`${m.def.name}: ${sk.name}!`, W / 2, 190, '#ff7ad0'); this.cameras.main.flash(220, 200, 80, 255); await this.wait(350) }
     const allies = this.alive()
     let done = false
@@ -5659,7 +5659,7 @@ export class BattleScene extends Phaser.Scene {
     let cast = false
     for (const step of heroSkillSteps(id, kit.lv)) {
       if (m.dead || this.hp <= 0) break
-      if (await this.castMonSkill(m, step)) cast = true
+      if (await this.castMonSkill(m, step, kit.lvBonus !== false)) cast = true
     }
     if (cast) spendKit(st, kit, id)
     return cast

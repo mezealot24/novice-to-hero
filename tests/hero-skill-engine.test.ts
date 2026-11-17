@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MONSTERS } from '../src/data/game-data'
-import { HERO_KIT_RULES, HERO_SKILL_BOOK, HERO_SKILL_IDS, heroSkillsOf, heroSkillSteps, isHeroSkillId, mirrorKit, type HeroKit } from '../src/data/hero-skill-book'
+import { classKit, classSkills, HERO_KIT_RULES, HERO_SKILL_BOOK, HERO_SKILL_IDS, heroSkillsOf, heroSkillSteps, isHeroSkillId, mirrorKit, resolveHeroKit, type HeroKit } from '../src/data/hero-skill-book'
 import { JOBS } from '../src/data/jobs'
 import { JOB2 } from '../src/data/jobs2'
 import { SKILL2 } from '../src/data/skill2'
@@ -90,7 +90,34 @@ test('mirrorKit: the player kit (s1 + picked s2 + 2nd-job s3 + the Ult they have
 
 test('MonsterDef.heroKit entries only name real hero skills', () => {
   for (const [kind, d] of Object.entries(MONSTERS)) {
-    if (!d.heroKit || d.heroKit === 'mirror') continue
-    for (const id of d.heroKit.skills) assert.ok(isHeroSkillId(id), `${kind}: ${id}`)
+    if (!d.heroKit) continue
+    const k = resolveHeroKit(d.heroKit, { job: 'mage' })
+    assert.ok(k.skills.length > 0, kind)
+    for (const id of k.skills) assert.ok(isHeroSkillId(id), `${kind}: ${id}`)
+  }
+})
+
+test('class kit: every skill of the class, at the classLv knob, no monster-level bonus', () => {
+  assert.deepEqual(classSkills('cleric'), ['cleric.s1', 'cl_renew', 'cl_bless', 'cl_spear', 'cleric.ult'])
+  assert.deepEqual(classSkills('knight'), ['swordsman.s1', 'sw_guard', 'sw_blood', 'sw_taunt', 'knight.s3', 'knight.ult'])
+  const k = classKit({ cls: 'mage', style: 'aggressive' })
+  assert.equal(k.lv, HERO_KIT_RULES.classLv)
+  assert.equal(k.lvBonus, HERO_KIT_RULES.classLvBonus)
+  assert.equal(k.style, 'aggressive')
+  assert.equal(classKit({ cls: 'mage', lv: 5 }).lv, 5) // per-monster override
+  assert.deepEqual(resolveHeroKit('mirror', { job: 'thief', s2: 'th_wound' }).skills, ['thief.s1', 'th_wound', 'thief.ult'])
+})
+
+test('D14: every class clone carries its whole class kit', () => {
+  const want: Record<string, string[]> = {
+    clonesword: classSkills('swordsman'), clonearcher: classSkills('archer'), clonemage: classSkills('mage'),
+    clonecleric: classSkills('cleric'), clonethief: classSkills('thief'), cloneknight: classSkills('knight'), clonewizard: classSkills('wizard'),
+  }
+  for (const [kind, ids] of Object.entries(want)) {
+    const d = MONSTERS[kind as keyof typeof MONSTERS]
+    assert.ok(d.heroKit, kind)
+    const k = resolveHeroKit(d.heroKit!, { job: 'mage' })
+    assert.deepEqual(k.skills, ids, kind)
+    assert.equal(k.lv, HERO_KIT_RULES.classLv, kind)
   }
 })
