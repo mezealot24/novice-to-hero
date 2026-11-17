@@ -4,7 +4,7 @@ import { COUNTER_RULES } from "../stack-math";
 import { branchPts, crossTierBonus, talent2Mods, talentMods, tree2Mods, tree3Mods, treeMods, type TalentSave, type TreeSave } from "../tree";
 import { JOB2, type Job2Id, type PetId } from "../jobs2";
 import { activeJob3, JOB3_RULES, type Job3Id, type Job3Path, type Job3Variant } from "../jobs3";
-import { JOBS, JOB_CHANGE, type JobId } from "../jobs";
+import { JOBS, JOB_CHANGE, RES_RULES, type JobId } from "../jobs";
 import type { RefineLine } from "../craft";
 import { itemConversionsOf, itemEffectsOf, type ItemEffectSpec, type StatConvert } from "../item-effects";
 import { setBonuses, type SetBonusSummary } from "../sets";
@@ -292,7 +292,7 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 		); // node กายสู่เวท: per 10 STR -> +1..5% maxRes regen/turn & +3..15 M.ATK
 		if (sti > 0) {
 			const strSteps = Math.floor(Math.max(0, b.str) / 10);
-			st.resRegen += st.maxRes * sti * strSteps;
+			st.resRegen += (st.maxRes * sti * strSteps) / RES_RULES.manaPerTurnMul; // resRegen is per second (x manaPerTurnMul per turn): the node promises % per TURN
 			st.matk += Math.round(sti * 300) * strSteps;
 		}
 	}

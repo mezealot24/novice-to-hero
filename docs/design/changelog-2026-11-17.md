@@ -8,3 +8,7 @@
 - Sage / Professor element pick drops ✨ Arcane
 - MVP only: no own uniques / class-craft / costume yet
 - Doc: `docs/design/awakening-professor-v1.md` · tests: `tests/jobs3.test.ts`
+
+## 🐛 fix(mage): กายสู่เวท regen was 3x its own text
+- `strToInt` added "% of Max Mana per turn" into `resRegen`, which is per second and x3 per hero turn -> 3x too much (Q's Lv 99 Sage: 759 Mana/turn on 989 max, always full -> Double Casting / Soul Change always on, Hero Power blind to it)
+- Now divided by `RES_RULES.manaPerTurnMul` so it matches the node text
