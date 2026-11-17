@@ -48,7 +48,8 @@ import { CombatLog, deathText, recapLines, saveDeath, type DeathRec, type HitOut
 import { ftue, track } from '../analytics'
 import { HeroRig } from '../battle/hero-rig'
 import { fitHeroScale, heroCostumeTint, heroRigSpec, heroTex, type HeroRigSpec } from '../gfx/hero-visual'
-import { ARCHER_PFX, BEAST_PFX, CLERIC_PFX, COIN_DROP_IDS, COIN_DROP_REST, COIN_PFX, MAGE_PFX, POISON_GREEN, RICOCHET_LEAF, ZAP_YELLOW, ZAP_YELLOW_SPARKS, playPfx, preloadPfx } from '../gfx/pixelfx'
+import { ARCHER_PFX, BEAST_PFX, CLERIC_PFX, COIN_DROP_IDS, COIN_DROP_REST, COIN_PFX, MAGE_PFX, POISON_GREEN, RICOCHET_LEAF, THIEF_PFX, ZAP_YELLOW, ZAP_YELLOW_SPARKS, playPfx, preloadPfx } from '../gfx/pixelfx'
+import { backstabFx, daggerCrossFx, shadowSlashFx, smokeBombFx, venomStabFx } from '../battle/thief-vfx'
 import { pickChainTargets, playChainLightningFx } from '../battle/lightning-vfx'
 import { RANGER_FX, arrowImpactFx, arrowProjectile, arrowRainFx, beastRoarFx, boarGuardFx, eagleEyeFx, huntMarkOn, petHitFx, type PetKind, pierceShotFx, snareTrapFx, stampedeFx, wolfRoarPalette } from '../battle/ranger-vfx'
 import { blockShieldFx, bowlingBashFx, brandishSweepFx, chargeOpenerFx, comboSlashFx, guardianUltFx, pierceHitFx, skill2AuraFx, spearBoomerangFx, whirlwindFx } from '../battle/sword-vfx'
@@ -383,6 +384,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.job.id === 'cleric') preloadPfx(this, CLERIC_PFX) // bake the pixelfx sheets now, not on the first cast
     if (this.job.id === 'mage') preloadPfx(this, MAGE_PFX)
     if (this.job.id === 'archer') preloadPfx(this, ARCHER_PFX)
+    if (this.job.id === 'thief') preloadPfx(this, THIEF_PFX)
     if (this.j2?.id === 'beastmaster') preloadPfx(this, BEAST_PFX)
     else if (this.st.arHawk > 0) preloadPfx(this, ['hawkDive']) // archer talent เหยี่ยวคู่ใจ
     preloadPfx(this, ['zapYellow', 'zapBolt'])
@@ -2171,7 +2173,7 @@ export class BattleScene extends Phaser.Scene {
         }
       } else if (j2.id === 'rogue') { // 🗡️ Back Stab: sure crit on the highest-HP monster
         const t = this.alive().sort((a, b) => b.hp - a.hp)[0]
-        if (t) { this.forceCrit = true; await this.lunge(t, () => this.strike(t, KIT2.rogue.stabMul * pow * (1 + this.st.pskill), false, '#ffd36b')); this.forceCrit = false }
+        if (t) { this.forceCrit = true; await this.lunge(t, () => { backstabFx(this, t.spr); this.strike(t, KIT2.rogue.stabMul * pow * (1 + this.st.pskill), false, '#ffd36b') }, true, true); this.forceCrit = false }
       } else if (j2.id === 'mobster') { // ⛓️ ตัดเส้นเอ็น: boss first, DEF break + chill
         const M = KIT2.mobster, t = this.bossTarget() ?? live[0], turns = M.cutTurns + this.st.j2DebuffTurns
         if (t) await this.lunge(t, () => {
@@ -2242,7 +2244,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (this.j2!.id === 'mobster') { // 💀 ทวงหนี้: slash all, burst every poison stack, then collect
       const M = KIT2.mobster
-      if (live[0]) await this.lunge(live[0], () => live.forEach((m) => this.strike(m, M.ultSlash * h2 * (1 + this.st.pskill), false, '#c9a8ff')))
+      if (live[0]) await this.lunge(live[0], () => live.forEach((m, i) => { shadowSlashFx(this, m.spr, i); this.strike(m, M.ultSlash * h2 * (1 + this.st.pskill), false, '#c9a8ff') }), false, true)
       let kills = 0
       for (const m of live) {
         if (!m.dead && m.poison > 0) {
@@ -3325,7 +3327,7 @@ export class BattleScene extends Phaser.Scene {
       case 'th_smoke':
         this.dodgeCharges = Math.max(this.dodgeCharges, S2N.smokeDodges(star))
         if (lv > 0) this.heal(this.st.maxHp * S2N.smokeHeal(lv))
-        this.burst(HERO_X, GROUND - 40, 0xc9c9d6, 16, 180)
+        smokeBombFx(this, HERO_X, GROUND)
         break
       case 'th_pick': {
         const m = front(); if (!m) break
@@ -3339,9 +3341,10 @@ export class BattleScene extends Phaser.Scene {
       case 'th_wound': {
         const m = front(); if (!m) break
         await this.lunge(m, () => {
+          venomStabFx(this, m.spr)
           this.strike(m, S2N.woundMul(star), false, '#ff7a7a', 1)
           if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + S2N.woundPoison(lv)); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) }
-        })
+        }, true, true)
         break
       }
     }
@@ -3423,7 +3426,7 @@ export class BattleScene extends Phaser.Scene {
         await this.wait(BATTLE.stepMs * 0.4)
         break
       case 'thief':
-        await this.lunge(live[0], () => { const m = live[0]; this.strike(m, KIT.thiefAuto * pow); this.doubleAttack(m, KIT.thiefAuto * pow); if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + KIT.thiefAutoPoison); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) } })
+        await this.lunge(live[0], () => { const m = live[0]; venomStabFx(this, m.spr); this.strike(m, KIT.thiefAuto * pow); this.doubleAttack(m, KIT.thiefAuto * pow); if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + KIT.thiefAutoPoison); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) } }, true, true)
         break
     }
   }
@@ -3712,9 +3715,10 @@ export class BattleScene extends Phaser.Scene {
       const m = t[Phaser.Math.Between(0, t.length - 1)]
       this.heroSpr.setAlpha(0.4)
       await this.lunge(m, () => {
+        shadowSlashFx(this, m.spr, i) // เงาพริ้ว: a shadow cut per dart
         this.strike(m, KIT.thiefUlt * hitPow * (1 + this.st.thUltAgi)) // Q: scales with AGI
         if (this.st.ultPoison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.ultPoison); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) } // talent: มีดอาบพิษ
-      })
+      }, false, true)
     }
     this.stayIn = false
     this.heroSpr.setAlpha(1)
@@ -6435,6 +6439,7 @@ export class BattleScene extends Phaser.Scene {
       else comboSlashFx(this, x, y, Math.max(1, this.comboLevel), this.rigSpec.slashPalette)
       return
     }
+    if (this.job.id === 'thief') { daggerCrossFx(this, x, y, this.hits, this.j2?.id === 'mobster' ? 'mobster' : 'thief'); return } // ฟันไขว้คู่
     this.slashFx(x, y)
   }
 

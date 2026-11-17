@@ -46,6 +46,11 @@ import * as boarCharge from './fx/beast/boar-charge'
 import * as boarGuard from './fx/beast/boar-guard'
 import * as beastRoar from './fx/beast/beast-roar'
 import * as stampede from './fx/beast/stampede'
+// Thief line (Thief · Rogue · Mobster)
+import * as daggerCross from './fx/thief/dagger-cross'
+import * as shadowSlash from './fx/thief/shadow-slash'
+import * as venomStab from './fx/thief/venom-stab'
+import * as smokeBomb from './fx/thief/smoke-bomb'
 import { WOOD_GOLD } from './fx/archer/arrow-shot'
 export { WOOD_GOLD }
 
@@ -129,6 +134,11 @@ export const DEFS = {
   boarGuard: { mod: boarGuard },
   beastRoar: { mod: beastRoar },
   stampede: { mod: stampede },
+  // Thief line
+  daggerCross: { mod: daggerCross },
+  shadowSlash: { mod: shadowSlash },
+  venomStab: { mod: venomStab },
+  smokeBomb: { mod: smokeBomb },
   // Loot: a kill goes up in a poof and coins bounce out. Cut once they settle (~1.25 s); the battle then flies
   // them to the zeny counter. One bake per coin count (the count is an option, not a palette).
   coinDrop3: { mod: coinDrop, until: COIN_DROP_UNTIL, opts: { coins: 3 } },
@@ -290,6 +300,21 @@ export const ARCHER_PFX: PfxPreloadEntry[] = [
   'snareTrap',
   'huntMark',
   { id: 'huntMark', palette: WOOD_GOLD },
+]
+
+/** Rogue Back Stab: the shadow slash in gold (matches its '#ffd36b' damage text). */
+export const ROGUE_GOLD = ['#1e1204', '#4a2e08', '#8a5a12', '#c88a1e', '#ffd36b', '#ffe8a8', '#fff8e0', '#ffffff']
+/** Mobster: the dagger cross in its lilac (matches its '#c9a8ff' damage text). */
+export const MOB_LILAC = ['#0d0818', '#24163e', '#47306e', '#7454a8', '#a888dc', '#c9a8ff', '#ece0ff', '#ffffff']
+
+/** Every effect the Thief line (Thief · Rogue · Mobster) can show. */
+export const THIEF_PFX: PfxPreloadEntry[] = [
+  'daggerCross',
+  { id: 'daggerCross', palette: MOB_LILAC },
+  'shadowSlash',
+  { id: 'shadowSlash', palette: ROGUE_GOLD },
+  'venomStab',
+  'smokeBomb',
 ]
 
 /** Every effect the Beastmaster line can show. */
