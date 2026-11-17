@@ -1,4 +1,6 @@
 import Phaser from 'phaser'
+import { HERO_SKILL_BOOK, heroSkillSteps, mirrorKit, type HeroKit } from '../data/hero-skill-book'
+import { chooseHeroSkill, newKitState, spendKit, tickKit, type KitCtx, type KitState } from '../battle/hero-skill-engine'
 import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, softCapDiminish, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats } from '../data/game-data'
 import { counterRate, shieldGain } from '../data/stack-math'
 import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, nextZapTarget, PERKS_V2, OFFER_RULES, OUTSIDE_CAP, overflowShare, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type OutsideKey, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
@@ -86,6 +88,7 @@ interface Mon {
   phase: number // boss phases entered so far
   speedMul: number; dmgMul: number; affix?: string; reflect: number; absorb: number; stored: number; chargeEvery: number
   skills: MonSkill[]; onHit?: HitFx; slamFx?: HitFx
+  heroKit?: HeroKit; kit?: KitState // v125 hero skills the monster casts (resolved: 'mirror' -> the player's kit)
   revived: boolean // came back once (necro): can't be raised again
   clone?: boolean; evaded?: number; trueTurns?: number // v56 trueSight: hero evades counted, then 🎯 its physical hits always land
   weakTurns: number; weakPct: number // hero Skill 2 ท้าทาย: hits weaker for its next N turns
@@ -550,6 +553,8 @@ export class BattleScene extends Phaser.Scene {
     const affix = (this.hard || this.run.affix) && def.ai === 'boss' ? this.lastAffix : undefined
     const m: Mon = { kind, def, spr, shadow, hp: def.hp, gauge: gauge ?? Phaser.Math.Between(0, 40), dead: false, slot, turns: 0, charging: false, summoned: false, burnStacks: 0, burnStackTurns: 0, chill: 0, frozen: false, burn: 0, burnTurns: 0, poison: 0, poisonDmg: 0, parry: false, ice: 0, iceChance: 0, iced: false, hell: 0, harvestMark: 0, huntMark: 0,
       shield: 0, atkUp: 0, atkUpTurns: 0, phase: 0, speedMul: 1, dmgMul: 1, reflect: def.reflect ?? 0, absorb: def.absorb ?? 0, stored: 0, chargeEvery: def.chargeEvery ?? BATTLE.slamEvery, skills: def.skills ?? [], onHit: def.onHit, slamFx: def.slamFx, revived: false, weakTurns: 0, weakPct: 0, armorBrk: 0, blind: 0, wet: 0, affix, instanceId: `${kind}_${++this.monSeq}` }
+    const hk = def.heroKit === 'mirror' ? mirrorKit(this.job.id, this.s2?.id, this.j2?.id) : def.heroKit
+    if (hk?.skills.length) { m.heroKit = hk; m.kit = newKitState(hk) }
     if (this.biomeState?.hazard === 'astral_eclipse' && m.instanceId) {
       this.biomeState.monsterAstralLayers[m.instanceId] = big ? HAZARD_TUNING.astral_eclipse.bossLayers : HAZARD_TUNING.astral_eclipse.normalLayers
       this.biomeState.monsterStaggerTurns[m.instanceId] = 0
@@ -4068,6 +4073,7 @@ export class BattleScene extends Phaser.Scene {
   // ---------- monster turn ----------
   private async monTurn(m: Mon) {
     m.turns++
+    if (m.kit && m.heroKit) tickKit(m.kit, m.heroKit)
     if (m.atkUpTurns > 0 && --m.atkUpTurns === 0) { m.atkUp = 0; this.dotIcon(m) }
     if (m.weakTurns > 0 && --m.weakTurns === 0) this.dotIcon(m)
     if ((m.trueTurns ?? 0) > 0 && --m.trueTurns! === 0) this.dotIcon(m)
@@ -5590,46 +5596,73 @@ export class BattleScene extends Phaser.Scene {
 
   /** A skill instead of an attack, on every `every`-th turn when it has a use. Returns true if one was used. */
   private async useSkill(m: Mon) {
+    if (m.kit && m.heroKit && await this.useHeroSkill(m, m.heroKit, m.kit)) return true // v125 hero skills first
     for (const raw of m.skills) {
       if (m.turns % raw.every) continue
-      const picked = raw.pick ? raw.pick[Phaser.Math.Between(0, raw.pick.length - 1)] : raw // spell rotation
-      const sk = skillAtLv(picked, castLv(picked.lv ?? raw.lv ?? 1, skillLvBonus(m.kind, m.def.lv ?? 1, m.def))) // v81 skill Lv (RO style over-level ok) · v124 + 1 per 10 monster Lv
-      if (sk.big) { this.callout(`${m.def.name}: ${sk.name}!`, W / 2, 190, '#ff7ad0'); this.cameras.main.flash(220, 200, 80, 255); await this.wait(350) }
-      const allies = this.alive()
-      let done = false
-      if (sk.kind === 'heal') {
-        const t = sk.self ? m : allies.filter((a) => a.hp < a.def.hp * 0.8).sort((a, b) => a.hp / a.def.hp - b.hp / b.def.hp)[0]
-        if (t && t.hp < t.def.hp * 0.8) { this.healMon(t, t.def.hp * this.skPow(m, sk, 0.15)); done = true }
-      } else if (sk.kind === 'shield') {
-        for (const t of sk.self ? [m] : allies) { t.shield = Math.max(t.shield, Math.round(t.def.hp * this.skPow(m, sk, 0.1))); this.dotIcon(t) }
-        done = true
-      } else if (sk.kind === 'warcry') {
-        if (sk.self) { m.atkUp += this.skPow(m, sk, 0.2); m.atkUpTurns = sk.turns ?? 3 }
-        else for (const t of allies) { t.atkUp = Math.max(t.atkUp, this.skPow(m, sk, 0.2)); t.atkUpTurns = Math.max(t.atkUpTurns, (sk.turns ?? 3) + (t === m ? 1 : 0)); this.dotIcon(t) }
-        this.dotIcon(m); done = true
-      } else if (sk.kind === 'haste') { for (const t of allies) if (t !== m) t.gauge += this.skPow(m, sk, 30); done = true }
-      else if (sk.kind === 'curse' && sk.fx) { this.applyFx(sk.fx, m); done = true }
-      else if (sk.kind === 'bolt') { await this.monBolt(m, sk); done = true }
-      else if (sk.kind === 'strike') { await this.monStrike(m, sk); done = true }
-      else if (sk.kind === 'summon' && sk.summon) done = this.summonAdds(sk.summon[0], sk.summon[1]) > 0
-      else if (sk.kind === 'revive') {
-        const corpse = this.mons.slice(this.roomStart).find((x) => x.dead && !x.revived && x.def.ai !== 'boss' && x !== m)
-        const slot = this.freeSlots()[0]
-        if (corpse && slot !== undefined) {
-          corpse.revived = true
-          const r = this.addMon(corpse.kind, slot, 0)
-          r.revived = true; r.hp = Math.round(r.def.hp * Math.min(1, this.skPow(m, sk, 0.5)))
-          done = true
-        }
-      }
-      if (!done) continue
-      this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10, `✦ ${sk.name}`, sk.kind === 'curse' || sk.kind === 'bolt' || sk.kind === 'strike' ? '#ffb0e0' : '#b0ffc8')
-      this.tweens.add({ targets: m.spr, scaleY: m.spr.scaleY * 1.12, duration: 140, yoyo: true })
-      this.burst(m.spr.x, m.spr.y - 40, sk.kind === 'curse' || sk.kind === 'bolt' || sk.kind === 'strike' ? 0xc03070 : 0x6fd08c, 12, 140)
-      await this.wait(BATTLE.stepMs)
-      return true
+      if (await this.castMonSkill(m, raw)) return true
     }
     return false
+  }
+
+  /** v125: one monster skill (or one step of a hero skill). Returns true when it had a use and happened. */
+  private async castMonSkill(m: Mon, raw: MonSkill): Promise<boolean> {
+    const picked = raw.pick ? raw.pick[Phaser.Math.Between(0, raw.pick.length - 1)] : raw // spell rotation
+    const sk = skillAtLv(picked, castLv(picked.lv ?? raw.lv ?? 1, skillLvBonus(m.kind, m.def.lv ?? 1, m.def))) // v81 skill Lv (RO style over-level ok) · v124 + 1 per 10 monster Lv
+    if (sk.big) { this.callout(`${m.def.name}: ${sk.name}!`, W / 2, 190, '#ff7ad0'); this.cameras.main.flash(220, 200, 80, 255); await this.wait(350) }
+    const allies = this.alive()
+    let done = false
+    if (sk.kind === 'heal') {
+      const t = sk.self ? m : allies.filter((a) => a.hp < a.def.hp * 0.8).sort((a, b) => a.hp / a.def.hp - b.hp / b.def.hp)[0]
+      if (t && t.hp < t.def.hp * 0.8) { this.healMon(t, t.def.hp * this.skPow(m, sk, 0.15)); done = true }
+    } else if (sk.kind === 'shield') {
+      for (const t of sk.self ? [m] : allies) { t.shield = Math.max(t.shield, Math.round(t.def.hp * this.skPow(m, sk, 0.1))); this.dotIcon(t) }
+      done = true
+    } else if (sk.kind === 'warcry') {
+      if (sk.self) { m.atkUp += this.skPow(m, sk, 0.2); m.atkUpTurns = sk.turns ?? 3 }
+      else for (const t of allies) { t.atkUp = Math.max(t.atkUp, this.skPow(m, sk, 0.2)); t.atkUpTurns = Math.max(t.atkUpTurns, (sk.turns ?? 3) + (t === m ? 1 : 0)); this.dotIcon(t) }
+      this.dotIcon(m); done = true
+    } else if (sk.kind === 'haste') { for (const t of allies) if (t !== m) t.gauge += this.skPow(m, sk, 30); done = true }
+    else if (sk.kind === 'curse' && sk.fx) { this.applyFx(sk.fx, m); done = true }
+    else if (sk.kind === 'bolt') { await this.monBolt(m, sk); done = true }
+    else if (sk.kind === 'strike') { await this.monStrike(m, sk); done = true }
+    else if (sk.kind === 'summon' && sk.summon) done = this.summonAdds(sk.summon[0], sk.summon[1]) > 0
+    else if (sk.kind === 'revive') {
+      const corpse = this.mons.slice(this.roomStart).find((x) => x.dead && !x.revived && x.def.ai !== 'boss' && x !== m)
+      const slot = this.freeSlots()[0]
+      if (corpse && slot !== undefined) {
+        corpse.revived = true
+        const r = this.addMon(corpse.kind, slot, 0)
+        r.revived = true; r.hp = Math.round(r.def.hp * Math.min(1, this.skPow(m, sk, 0.5)))
+        done = true
+      }
+    }
+    if (!done) return false
+    this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10, `✦ ${sk.name}`, sk.kind === 'curse' || sk.kind === 'bolt' || sk.kind === 'strike' ? '#ffb0e0' : '#b0ffc8')
+    this.tweens.add({ targets: m.spr, scaleY: m.spr.scaleY * 1.12, duration: 140, yoyo: true })
+    this.burst(m.spr.x, m.spr.y - 40, sk.kind === 'curse' || sk.kind === 'bolt' || sk.kind === 'strike' ? 0xc03070 : 0x6fd08c, 12, 140)
+    await this.wait(BATTLE.stepMs)
+    return true
+  }
+
+  /** v125 (Q 2026-11-17): a hero skill from the monster's kit (battle/hero-skill-engine.ts picks it, its steps cast as monster skills). */
+  private async useHeroSkill(m: Mon, kit: HeroKit, st: KitState): Promise<boolean> {
+    const live = this.alive()
+    const ctx: KitCtx = {
+      turn: m.turns, selfHp: m.hp / m.def.hp, selfShield: m.shield > 0, selfBuffed: m.atkUpTurns > 0,
+      lowestHp: Math.min(1, ...live.map((a) => a.hp / a.def.hp)), heroHp: this.hp / this.st.maxHp,
+      heroFx: { poison: this.hx.poison, burn: this.hx.burn, weaken: this.hx.weaken, armorBreak: this.hx.armorBreak, silence: this.hx.silence, web: this.hx.web, slow: this.hx.slow },
+    }
+    const id = chooseHeroSkill(kit, st, ctx)
+    if (!id) return false
+    const e = HERO_SKILL_BOOK[id]
+    this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 34, `🧬 ${e.icon} ${e.name}`, '#7fe3c4')
+    let cast = false
+    for (const step of heroSkillSteps(id, kit.lv)) {
+      if (m.dead || this.hp <= 0) break
+      if (await this.castMonSkill(m, step)) cast = true
+    }
+    if (cast) spendKit(st, kit, id)
+    return cast
   }
 
   /** Boss phase: heal / shield / adds on entering, then faster, harder, new tricks. */
