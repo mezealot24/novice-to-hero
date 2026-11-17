@@ -84,9 +84,10 @@ export const KIT = {
   thiefAuto: 1.6, thiefAutoPoison: 3, thiefUlt: 0.7, thiefUltHits: 4, thiefUltDodge: 2,
   thiefUltAgi: 0.02, // เงาพริ้ว +this share of damage per AGI point over the start (was hardcoded 2%)
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
-  // + atkPer x P.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
+  // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
   poison: {
     atkPer: 0.04, // + P.ATK share per stack (Lv100 P.ATK ~400 -> +16/stack)
+    matkPer: 0.04, // + M.ATK share per stack (Q 2026-11-17: INT / M.ATK from gear, cards, buffs also feed poison)
     intPer: 0.1, // Thief flat poison +this per INT point over the start (was hardcoded)
     baseCap: 12, // max stacks before poisonCap nodes / gear
     burstKeep: 0.5, // 💀 Mobster ทวงหนี้: share of stacks left after the burst (0 = cleared, the old rule)
@@ -137,8 +138,9 @@ export const KIT = {
   },
 }
 
-/** ☠️ Thief-line poison damage per stack per monster turn: flat Stats.poisonDmg + KIT.poison.atkPer x P.ATK. */
-export const thiefPoisonPerStack = (st: Pick<Stats, 'poisonDmg' | 'atk'>) => st.poisonDmg + KIT.poison.atkPer * Math.max(0, st.atk)
+/** ☠️ Thief-line poison damage per stack per monster turn: flat Stats.poisonDmg + atkPer x P.ATK + matkPer x M.ATK. */
+export const thiefPoisonPerStack = (st: Pick<Stats, 'poisonDmg' | 'atk' | 'matk'>) =>
+  st.poisonDmg + KIT.poison.atkPer * Math.max(0, st.atk) + KIT.poison.matkPer * Math.max(0, st.matk)
 /** Max poison stacks on a monster (KIT.poison.baseCap + Stats.poisonCap). */
 export const poisonCapOf = (st: Pick<Stats, 'poisonCap'>) => KIT.poison.baseCap + st.poisonCap
 

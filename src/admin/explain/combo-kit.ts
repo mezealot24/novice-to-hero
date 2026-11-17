@@ -255,6 +255,7 @@ export const KIT_EXPLAIN: Record<string, FieldExplain> = {
   thiefUltDodge: { label: 'Thief · Ult: โควตาหลบแน่นอน (ครั้ง)', effect: 'เพิ่ม = หลังกด Ult โจรจะหลบการโจมตีของมอนได้ชัวร์หลายครั้งขึ้น' },
   thiefUltAgi: { label: 'Thief · Ult: ดาเมจ +ต่อ AGI 1 แต้ม', effect: 'เพิ่ม = เงาพริ้วแรงขึ้นตาม AGI (0.02 = +2%/AGI) · ลด = AGI สูงไม่ทำให้ Ult แรงเกิน' },
   'poison.atkPer': { label: 'Poison · ดาเมจ/stack +× P.ATK (สายโจร)', effect: 'เพิ่ม = พิษโตตาม P.ATK แรงขึ้นช่วงเลท · 0 = พิษ flat แบบเดิม' },
+  'poison.matkPer': { label: 'Poison · ดาเมจ/stack +× M.ATK (สายโจร)', effect: 'เพิ่ม = INT / M.ATK จากของ การ์ด บัฟ ทำให้พิษแรงขึ้นด้วย · 0 = ปิด' },
   'poison.intPer': { label: 'Poison · ดาเมจ/stack + ต่อ INT 1 แต้ม (Thief)', effect: 'เพิ่ม = INT ทำให้พิษโจรแรงขึ้น (0.1 = +1/stack ทุก INT 10)' },
   'poison.baseCap': { label: 'Poison · เพดาน stack ตั้งต้น', effect: 'เพิ่ม = มอนติดพิษได้หนาขึ้นก่อนบวกโนด/ของ (เดิม 12)' },
   'poison.burstKeep': { label: 'Poison · ทวงหนี้: stack ที่เหลือหลังระเบิด', effect: 'เพิ่ม = หลังทวงหนี้พิษยังเหลือกัดต่อ (0.5 = เหลือครึ่ง · 0 = ล้างหมดแบบเดิม)' },
