@@ -90,6 +90,7 @@ export const KIT = {
     matkPer: 0.04, // + M.ATK share per stack (Q 2026-11-17: INT / M.ATK from gear, cards, buffs also feed poison)
     intPer: 0.1, // Thief flat poison +this per INT point over the start (was hardcoded)
     baseCap: 12, // max stacks before poisonCap nodes / gear
+    defPer: 0.01, defCap: 0.4, // 🦴 Q 2026-11-17: each poison stack on a monster = its DEF −defPer vs Thief-line hits, at most defCap
     burstKeep: 0.5, // 💀 Mobster ทวงหนี้: share of stacks left after the burst (0 = cleared, the old rule)
   },
   // v82 Archer web: 🧪 ศรพิษ (under ทักษะ 1) + 🏷️ ล่าหัว (under Ult), first guesses (design/skill-tree-archer.md v82)
@@ -141,6 +142,8 @@ export const KIT = {
 /** ☠️ Thief-line poison damage per stack per monster turn: flat Stats.poisonDmg + atkPer x P.ATK + matkPer x M.ATK. */
 export const thiefPoisonPerStack = (st: Pick<Stats, 'poisonDmg' | 'atk' | 'matk'>) =>
   st.poisonDmg + KIT.poison.atkPer * Math.max(0, st.atk) + KIT.poison.matkPer * Math.max(0, st.matk)
+/** 🦴 Thief-line poison DEF shred: share of the monster's DEF removed by its poison stacks (KIT.poison.defPer per stack, capped at defCap). */
+export const poisonDefCut = (stacks: number) => Math.min(KIT.poison.defCap, KIT.poison.defPer * Math.max(0, stacks))
 /** Max poison stacks on a monster (KIT.poison.baseCap + Stats.poisonCap). */
 export const poisonCapOf = (st: Pick<Stats, 'poisonCap'>) => KIT.poison.baseCap + st.poisonCap
 

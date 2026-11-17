@@ -13,7 +13,7 @@ const s2Gate = n('thief_core1', 'thief_s2', 0, '🗡️', 'D.Strike', 5, (lv) =>
 export const tree: ClassTree = {
   s2Gate,
   branches: [
-    { id: 'thief_a', job: 'thief', name: 'พิษ', icon: '☠️', blurb: 'พิษซ้อนหนา ล้มบอสช้าแต่ชัวร์ · ระเบิดพิษ' },
+    { id: 'thief_a', job: 'thief', name: 'พิษ', icon: '☠️', blurb: `พิษซ้อนหนา ล้มบอสช้าแต่ชัวร์ · พิษ 1 stack = DEF มอน −${Math.round(KIT.poison.defPer * 100)}% (สูงสุด −${Math.round(KIT.poison.defCap * 100)}%) · ระเบิดพิษ` },
     { id: 'thief_b', job: 'thief', name: 'เงา', icon: '👤', blurb: 'หลบ · หลบแล้วฟื้น · หลบแล้วสวน' },
     // Q 2026-11-03 rework: two new core columns (no ATTACH in data/tree.ts)
     { id: 'thief_crit', job: 'thief', name: 'คริ', icon: '🎯', blurb: 'คริบ่อย คริแรง · เก็บตัวใกล้ตาย' },
