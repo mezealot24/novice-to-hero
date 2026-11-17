@@ -192,7 +192,8 @@ export const TABLES: Record<TableId, TableDef> = {
     fields: [[KIT_INTS, int(0, 50)], [KIT_NUMS, num(0, 20)], ['cast.breakBase|breakDex|breakMinHp|breakRefund', num(0, 1)], ['cast.fireMul|ultMul', num(0, 20)], ['cast.brokenUltCd|boltMana', int(0, 50)], // v78 / v85 MAGE_CAST
       ['cleric.heal|smite|basic|ultAtk|ultLight|purifyHeal', num(0, 20)], ['cleric.ultShield|shieldCap', num(0, 1)], ['cleric.ultLights|ultShieldTurns|shieldTurns', int(0, 20)], ['cleric.ultMana', int(0, 200)], // v86 CLERIC_KIT
       ['cleric.ultManaLv', int(0, 100)], ['clericTree.dawn.matk|share|heal|crit|weak', num(0, 20)], ['clericTree.dawn.wis.*', num(0, 5)], ['clericTree.dawn.wisTurns.*', int(0, 20)], ['clericTree.dawn.every', int(1, 20)], // v107 Cleric web
-      ['clericTree.core.base|regen|guard|wisAmp|heal|shield', num(0, 50)], ['clericTree.core.intPer.*', int(1, 50)]],
+      ['clericTree.core.base|regen|guard|wisAmp|heal|shield', num(0, 50)], ['clericTree.core.intPer.*', int(1, 50)],
+      ['mageCore.regenStep|matkStep', int(1, 100)], ['mageCore.regenMissing', int(0, 1)], ['mageCore.matkPer', num(0, 1000)]], // 💪 กายสู่เวท
   },
   // Class skills (skill-registry.ts): costs / cooldowns / Skill 2 numbers / per-skill crit switch. Exact paths, built from the registry.
   // Class kit numbers that are already in `kit` stay there (one path = one table): the admin "⚔️ สกิลอาชีพ" tab shows both.

@@ -289,11 +289,14 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 		const sti = treeMods(s.jobTree, "mage").reduce(
 			(a, m) => a + (m.strToInt ?? 0),
 			0,
-		); // node กายสู่เวท: per 10 STR -> +1..5% maxRes regen/turn & +3..15 M.ATK
+		); // node กายสู่เวท: per KIT.mageCore.regenStep STR -> +1..5% Mana regen/turn (missing or max, KIT.mageCore.regenMissing) · per matkStep STR -> M.ATK
 		if (sti > 0) {
-			const strSteps = Math.floor(Math.max(0, b.str) / 10);
-			st.resRegen += (st.maxRes * sti * strSteps) / RES_RULES.manaPerTurnMul; // resRegen is per second (x manaPerTurnMul per turn): the node promises % per TURN
-			st.matk += Math.round(sti * 300) * strSteps;
+			const MC = KIT.mageCore,
+				str = Math.max(0, b.str);
+			const regenSteps = Math.floor(str / Math.max(1, MC.regenStep));
+			if (MC.regenMissing > 0) st.strManaMiss += sti * regenSteps; // BattleScene: + this share of MISSING Mana each hero turn
+			else st.resRegen += (st.maxRes * sti * regenSteps) / RES_RULES.manaPerTurnMul; // resRegen is per second (x manaPerTurnMul per turn): the node promises % per TURN
+			st.matk += Math.round(sti * MC.matkPer) * Math.floor(str / Math.max(1, MC.matkStep));
 		}
 	}
 	if (job.id === "cleric")

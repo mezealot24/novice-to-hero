@@ -101,6 +101,12 @@ export const KIT = {
     mdefPer: 0.03, vitToMdefPer: 0.0008, vitToMdefCap: 0.25, tenacityPer: 0.03, // 💠 เกราะจิตอึด
     regenPer: 0.2, healAmpPer: 0.05, lowHpAt: 0.5, lowHpRegenPer: 0.5 / 3, // ❤️‍🩹 ฟื้นฟูนักรบ
   },
+  // 💪 Mage กายสู่เวท (mage_core3, node gives % per step via Stats.strToInt): admin table `kit` · mageCore.*
+  mageCore: {
+    regenStep: 20, // STR per step for the Mana regen part
+    regenMissing: 1, // 1 = % of MISSING Mana per turn (Q 2026-11-17 nerf) · 0 = % of Max Mana per turn (old)
+    matkStep: 10, matkPer: 300, // STR per step for the M.ATK part · M.ATK = node share x this per step (Lv 3 = +15)
+  },
   // v84 Priest web: 🙏 ศรัทธา (under ทักษะ 1) + ⛪ ฟื้นคืน (under Ult), first guesses (design/skill-tree-priest.md v84)
   clericTree: {
     faithMax: 5, faithHeal: 2, faithCast: 1, faith: 0.4, faithHealAmp: 0.06, // v120 Q: each held Faith = heal +6% // สวดภาวนา: Skill 1 cast +1 / skill heal +2 Faith · full = burst every monster x Pm per lv

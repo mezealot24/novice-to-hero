@@ -2,7 +2,7 @@
 // Spec: design/skill-tree-mage.md. Node ids are save data: never rename or remove a shipped id.
 // Element nodes only matter on runs with that ult element (BattleScene reads them inside the element's code).
 import { lvAt, node as n, talent as t, type ClassTree } from '../tree-types'
-import { MAGE_DEF as D, MAGE_PASSIVE, auraAmp, hexWeak, glacialNovaMul, moltenThornsMul, staticCounterMul, staticDodgeCharges, staticShockChance } from '../skill-math'
+import { KIT, MAGE_DEF as D, MAGE_PASSIVE, auraAmp, hexWeak, glacialNovaMul, moltenThornsMul, staticCounterMul, staticDodgeCharges, staticShockChance } from '../skill-math'
 
 const pc = (x: number) => `${Math.round(x * 100)}%`
 /** Passive rank 0-5 from a T1 node level. Class nodes are written per OLD level (max 3); data/tree.ts stretches them to 5 and calls us with lv x 3/5, so this is the shown level. */
@@ -17,7 +17,7 @@ export const tree: ClassTree = {
   ],
   nodes: [
     n('mage_core1', 'mage_core', 0, '🔷', 'แก่นเวท', 3, (lv) => `Max Mana +${Math.round(lv * 10)} · ฟื้น Mana +${+(lv * 1).toFixed(1)}/เทิร์น`, (lv) => ({ maxRes: 10 * lv, resRegen: lv })),
-    n('mage_core3', 'mage_core', 0, '💪', 'กายสู่เวท', 3, (lv) => `ทุกๆ 10 STR: ฟื้น Mana +${pr(lv)}% ของ Max Mana/เทิร์น · M.ATK +${pr(lv) * 3}`, (lv) => ({ strToInt: 0.01 * pr(lv) })),
+    n('mage_core3', 'mage_core', 0, '💪', 'กายสู่เวท', 3, (lv) => `ทุกๆ ${KIT.mageCore.regenStep} STR: ฟื้น Mana +${pr(lv)}% ของ${KIT.mageCore.regenMissing > 0 ? 'Mana ที่หายไป' : ' Max Mana'}/เทิร์น · ทุกๆ ${KIT.mageCore.matkStep} STR: M.ATK +${Math.round(pr(lv) * KIT.mageCore.matkPer / 100)}`, (lv) => ({ strToInt: 0.01 * pr(lv) })),
     // 2026-11-13: two always-on passives in the core column (no pick, take both): a debuff and a buff. Both only touch ลูกไฟระเบิด / ult.
     n('mage_core4', 'mage_core', 0, '🕯️', 'มนต์ถดถอย', 3, (lv) => `Debuff: ลูกไฟระเบิดทำให้มอนที่โดนอ่อนแรง ตีเบาลง ${pc(hexWeak(lv))} นาน ${MAGE_PASSIVE.hex.turns} เทิร์นของมัน (ไม่ซ้อน)`, (lv) => ({ mgHex: hexWeak(lv) })),
     n('mage_core5', 'mage_core', 0, '🔮', 'ออร่าเวท', 3, (lv) => `Buff: ${MAGE_PASSIVE.aura.turns} เทิร์นแรกของทุกเวฟ ลูกไฟระเบิดและ ult แรง +${pc(auraAmp(lv))} (บาเรีย/ฮีลไม่เพิ่ม)`, (lv) => ({ mgAura: auraAmp(lv) })),

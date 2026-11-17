@@ -1034,7 +1034,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.relic === 'storm' && this.fightTurns % RELIC_RULES.storm.every === 0) { await this.lightningWrath(); if (!this.alive().length) return }
     // resource tick
     this.sageFireBoltsTurn = 0; this.sageFireNovaUsed = false
-    if (this.job.resource === 'mana' && this.asuraExhaust <= 0) this.gainRes(this.st.resRegen * RES_RULES.manaPerTurnMul * (1 - this.st.resRegenCut)) // same cap as before (+ 🎓 Soul Change)
+    if (this.job.resource === 'mana' && this.asuraExhaust <= 0) this.gainRes((this.st.resRegen * RES_RULES.manaPerTurnMul + Math.max(0, this.resMax() - this.res) * this.st.strManaMiss) * (1 - this.st.resRegenCut)) // + 💪 กายสู่เวท missing-Mana share (+ 🎓 Soul Change)
     this.overflow = this.st.mgOverflow > 0 && this.job.resource === 'mana' && this.res >= this.resMax() * 0.9 // mage talent พลังล้น
     this.auraNow = this.auraLeft > 0 ? this.st.mgAura : 0; if (this.auraLeft > 0) this.auraLeft-- // Mage core passive 🔮 ออร่าเวท: this turn's bonus, then one turn used up
     if (this.alive().length && (await this.procs('turn')) + (await this.procs('every2')) > 0) { await this.wait(160); if (!this.alive().length) return } // พร v2: every-turn cards

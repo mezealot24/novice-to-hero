@@ -12,3 +12,8 @@
 ## 🐛 fix(mage): กายสู่เวท regen was 3x its own text
 - `strToInt` added "% of Max Mana per turn" into `resRegen`, which is per second and x3 per hero turn -> 3x too much (Q's Lv 99 Sage: 759 Mana/turn on 989 max, always full -> Double Casting / Soul Change always on, Hero Power blind to it)
 - Now divided by `RES_RULES.manaPerTurnMul` so it matches the node text
+
+## ⚖️ balance(mage): กายสู่เวท -> % of MISSING Mana per 20 STR (tunable)
+- New `KIT.mageCore` (admin table `kit`): `regenStep` 20 · `regenMissing` 1 (0 = old % of Max) · `matkStep` 10 · `matkPer` 300
+- Missing mode: `Stats.strManaMiss` = node share x steps, BattleScene adds it x (max - current Mana) each hero turn · stat row shows "+N% ที่หาย"
+- Q's Lv 99 Sage (STR 61, Max 989): 297/turn flat -> 15% of missing (0 full · 45 at 70% · 148 empty)

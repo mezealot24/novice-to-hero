@@ -236,6 +236,7 @@ export interface Stats {
   j3Rn: number // 1 = Ranger is the active 3rd job (Camouflage + Primal Stampede)
   j3Wl: number // 1 = Warlord is the active 3rd job (Undying Warlord + Undying Bloodlust)
   j3WlBlitz: number // Warlord Blitz Charges: + crit chance per Frenzy stack
+  strManaMiss: number // 💪 Mage กายสู่เวท (missing mode): share of MISSING Mana regained each hero turn
   j3Pf: number // 1 = Professor is the active 3rd job (Double Casting: element marks + reactions · Soul Burst)
   j3PfLegFire: number // 🎓 ⚔️ ตำราเพลิง: max extra burn a 🔥 reaction leaves (1 per KIT3.professor.legFireStep sg_f points)
   j3PfLegLight: number // 🎓 ⚔️ ตำราอัสนี: max extra bounces a ⚡ reaction makes (1 per legLightStep sg_l points)
@@ -444,7 +445,7 @@ export const PLAYER: Stats = {
   j2ComboRamp: 0, j2ComboFinish: 0, j2ThunderAtk: 0, j2ComboThunder: 0, j2BellMdef: 0, j2MdefDmg: 0, j2HpPunch: 0, j2GritRate: 0, j2HaymakerStar: 0, j2AsuraMdef: 0, j2AsuraPow: 0, j2Asura: 0, // Monk rework
   physPen: 0, magPen: 0, elemDmg: 0,
   j3Wl: 0, j3WlBlitz: 0,
-  j3Pf: 0, j3PfLegFire: 0, j3PfLegLight: 0, j3PfLegIce: 0, j3PfMarkTurns: 0, j3PfResidue: 0, j3PfChain: 0, j3PfCritMana: 0, j3PfTrinity: 0, j3PfSoulChange: 0, j3PfMemorize: 0, j3PfDcAt: 0, j3PfDcMul: 0, j3PfForesight: 0, // 🎓 Professor
+  strManaMiss: 0, j3Pf: 0, j3PfLegFire: 0, j3PfLegLight: 0, j3PfLegIce: 0, j3PfMarkTurns: 0, j3PfResidue: 0, j3PfChain: 0, j3PfCritMana: 0, j3PfTrinity: 0, j3PfSoulChange: 0, j3PfMemorize: 0, j3PfDcAt: 0, j3PfDcMul: 0, j3PfForesight: 0, // 🎓 Professor
 }
 
 export const RULES = {
