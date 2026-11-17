@@ -23,7 +23,7 @@ import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/ski
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
-import { ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
+import { thiefPoisonPerStack, poisonCapOf, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -1215,7 +1215,9 @@ export class BattleScene extends Phaser.Scene {
     this.res = Math.min(this.resMax(), this.res + add)
     return overflowShare(add, room)
   }
-  private poisonMax() { return 12 + this.st.poisonCap }
+  private poisonMax() { return poisonCapOf(this.st) }
+  /** ☠️ poison per stack this hero applies: Thief line flat + KIT.poison.atkPer x P.ATK · other jobs flat Stats.poisonDmg */
+  private myPoisonDmg() { return this.job.id === 'thief' ? thiefPoisonPerStack(this.st) : this.st.poisonDmg }
   private burnMax() { return 10 + this.st.burnCap }
   private berserking() { return this.st.berserk > 0 && this.hp < this.st.maxHp * 0.3 }
   private lockTarget?: Mon
@@ -1272,7 +1274,7 @@ export class BattleScene extends Phaser.Scene {
     if (m.def.toxicSkin && this.hp > 0) this.applyFx({ poison: BATTLE.toxicSkin.poison }) // every landed hit poisons the hero
     if (m.def.iceSkin && this.hp > 0) { if (!this.hx.thorn) this.floatText(HERO_X + 30, GROUND - 150, '❄️ หนามน้ำแข็ง! DMG -15%', '#9fe3ff'); this.hx.thorn = BATTLE.iceSkin.turns }
     if (this.skillHits) { this.skillHits.dmg += r.dmg; this.skillHits.mons.add(m) }
-    if (!magic && this.st.poison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.poison); m.poisonDmg = this.st.poisonDmg; this.dotIcon(m) }
+    if (!magic && this.st.poison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.poison); m.poisonDmg = this.myPoisonDmg(); this.dotIcon(m) }
     if (this.relic === 'hellfire' && !m.dead) { m.hell++; this.dotIcon(m) }
     const woundLs = !magic && m.poison >= BM_STANCE.wolf.woundMinStacks ? this.st.j2StanceWoundLeech : 0
     const ls = this.st.lifesteal + woundLs + (this.buf.blood > 0 ? S2N.bloodVamp(this.st.s2Lv) : 0) // Skill 2 เลือดเดือด · Wolf Bloodpack Stance wound leech
@@ -2251,7 +2253,7 @@ export class BattleScene extends Phaser.Scene {
           const dmg = Math.max(1, Math.round(m.poison * m.poisonDmg * M.burstTurns * M.burstMul * h2 * this.dotMul()))
           this.burst(m.spr.x, m.spr.y - 30, 0xa77be0, 14, 200)
           this.withSrc('poison', () => this.damageMon(m, dmg, false, '#a77be0', true))
-          m.poison = 0; this.dotIcon(m)
+          m.poison = Math.floor(m.poison * KIT.poison.burstKeep); this.dotIcon(m) // kit poison.burstKeep (0 = cleared)
         }
         if (m.dead || this.mobExec(m)) kills++
       }
@@ -3333,7 +3335,7 @@ export class BattleScene extends Phaser.Scene {
         const m = front(); if (!m) break
         await this.lunge(m, () => {
           this.strike(m, S2N.pickMul(star))
-          if (star && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + S2N.pickPoison); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) }
+          if (star && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + S2N.pickPoison); m.poisonDmg = Math.max(m.poisonDmg, this.myPoisonDmg()); this.dotIcon(m) }
         })
         this.res = Math.min(this.resMax(), this.res + S2N.pickRes(lv))
         break
@@ -3343,7 +3345,7 @@ export class BattleScene extends Phaser.Scene {
         await this.lunge(m, () => {
           venomStabFx(this, m.spr)
           this.strike(m, S2N.woundMul(star), false, '#ff7a7a', 1)
-          if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + S2N.woundPoison(lv)); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) }
+          if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + S2N.woundPoison(lv)); m.poisonDmg = Math.max(m.poisonDmg, this.myPoisonDmg()); this.dotIcon(m) }
         }, true, true)
         break
       }
@@ -3426,7 +3428,7 @@ export class BattleScene extends Phaser.Scene {
         await this.wait(BATTLE.stepMs * 0.4)
         break
       case 'thief':
-        await this.lunge(live[0], () => { const m = live[0]; venomStabFx(this, m.spr); this.strike(m, KIT.thiefAuto * pow); this.doubleAttack(m, KIT.thiefAuto * pow); if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + KIT.thiefAutoPoison); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) } }, true, true)
+        await this.lunge(live[0], () => { const m = live[0]; venomStabFx(this, m.spr); this.strike(m, KIT.thiefAuto * pow); this.doubleAttack(m, KIT.thiefAuto * pow); if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + KIT.thiefAutoPoison); m.poisonDmg = Math.max(m.poisonDmg, this.myPoisonDmg()); this.dotIcon(m) } }, true, true)
         break
     }
   }
@@ -3717,7 +3719,7 @@ export class BattleScene extends Phaser.Scene {
       await this.lunge(m, () => {
         shadowSlashFx(this, m.spr, i) // เงาพริ้ว: a shadow cut per dart
         this.strike(m, KIT.thiefUlt * hitPow * (1 + this.st.thUltAgi)) // Q: scales with AGI
-        if (this.st.ultPoison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.ultPoison); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) } // talent: มีดอาบพิษ
+        if (this.st.ultPoison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.ultPoison); m.poisonDmg = Math.max(m.poisonDmg, this.myPoisonDmg()); this.dotIcon(m) } // talent: มีดอาบพิษ
       }, false, true)
     }
     this.stayIn = false
@@ -4892,7 +4894,7 @@ export class BattleScene extends Phaser.Scene {
   }
   private addPoison(m: Mon, n: number) {
     if (m.dead || n <= 0) return
-    m.poison = Math.min(this.poisonMax(), m.poison + n); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m)
+    m.poison = Math.min(this.poisonMax(), m.poison + n); m.poisonDmg = Math.max(m.poisonDmg, this.myPoisonDmg()); this.dotIcon(m)
   }
   /** Ice spike: chill 2 turns; a chilled normal monster may freeze (10%, หนาวลึก higher); สัมผัสมรณะ may execute one under 30%. */
   private iceHit(m: Mon, pow: number, sureFreeze: boolean) {

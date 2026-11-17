@@ -253,4 +253,13 @@ export const KIT_EXPLAIN: Record<string, FieldExplain> = {
   thiefUlt: { label: 'Thief · Ult: ดาเมจต่อฮิต × P.ATK', effect: 'เพิ่ม = แต่ละทีในชุดรัวมีด (Ult) แรงขึ้น' },
   thiefUltHits: { label: 'Thief · Ult: จำนวนทีแทง', effect: 'เพิ่ม = รัวแทงหลายฮิตมากขึ้นต่อ 1 Ult (เพิ่มโอกาสทริกเกอร์พิษ/คริ/หลบ)' },
   thiefUltDodge: { label: 'Thief · Ult: โควตาหลบแน่นอน (ครั้ง)', effect: 'เพิ่ม = หลังกด Ult โจรจะหลบการโจมตีของมอนได้ชัวร์หลายครั้งขึ้น' },
+  thiefUltAgi: { label: 'Thief · Ult: ดาเมจ +ต่อ AGI 1 แต้ม', effect: 'เพิ่ม = เงาพริ้วแรงขึ้นตาม AGI (0.02 = +2%/AGI) · ลด = AGI สูงไม่ทำให้ Ult แรงเกิน' },
+  'poison.atkPer': { label: 'Poison · ดาเมจ/stack +× P.ATK (สายโจร)', effect: 'เพิ่ม = พิษโตตาม P.ATK แรงขึ้นช่วงเลท · 0 = พิษ flat แบบเดิม' },
+  'poison.intPer': { label: 'Poison · ดาเมจ/stack + ต่อ INT 1 แต้ม (Thief)', effect: 'เพิ่ม = INT ทำให้พิษโจรแรงขึ้น (0.1 = +1/stack ทุก INT 10)' },
+  'poison.baseCap': { label: 'Poison · เพดาน stack ตั้งต้น', effect: 'เพิ่ม = มอนติดพิษได้หนาขึ้นก่อนบวกโนด/ของ (เดิม 12)' },
+  'poison.burstKeep': { label: 'Poison · ทวงหนี้: stack ที่เหลือหลังระเบิด', effect: 'เพิ่ม = หลังทวงหนี้พิษยังเหลือกัดต่อ (0.5 = เหลือครึ่ง · 0 = ล้างหมดแบบเดิม)' },
+  'mageCore.regenStep': { label: 'Mage · กายสู่เวท: STR ต่อขั้นฟื้น Mana', effect: 'ลดเลข = ทุก STR น้อยลงก็ได้ขั้นฟื้น Mana แล้ว' },
+  'mageCore.regenMissing': { label: 'Mage · กายสู่เวท: ฟื้นจาก Mana ที่หายไป (1) / Max Mana (0)', effect: '1 = ฟื้น % ของ Mana ที่หายไป (เบาลงตอน Mana เกือบเต็ม) · 0 = % ของ Max Mana แบบเดิม' },
+  'mageCore.matkStep': { label: 'Mage · กายสู่เวท: STR ต่อขั้น M.ATK', effect: 'ลดเลข = STR แปลงเป็น M.ATK ถี่ขึ้น' },
+  'mageCore.matkPer': { label: 'Mage · กายสู่เวท: M.ATK ต่อขั้น', effect: 'เพิ่ม = แต่ละขั้น STR ได้ M.ATK มากขึ้น' },
 }

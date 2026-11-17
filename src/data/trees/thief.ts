@@ -4,6 +4,7 @@
 // Node and talent ids are save data: never rename or remove a shipped id (retire it by leaving it out of the UI instead).
 import { node as n, talent as t, type ClassTree } from '../tree-types'
 import { doubleAtkChance } from '../game-data'
+import { KIT } from '../skill-math'
 
 // Q 2026-11-03: RO style Double Strike gates ทักษะ 2 (max 5, Lv 5 = 60%; the extra hit CAN crit, unlike RO).
 // Must be 5/5 before picking ม่านควัน / ล้วงกระเป๋า / แผลลึก. Id kept from v36 (was a 10-level core node; save.ts refunds the extra).
@@ -20,8 +21,8 @@ export const tree: ClassTree = {
   ],
   nodes: [
     n('thief_a1', 'thief_a', 1, '🧪', 'เคลือบพิษ', 3, (lv) => `พิษ +${lv} stack ต่อ hit`, (lv) => ({ poison: lv })),
-    n('thief_a2', 'thief_a', 2, '☠️', 'พิษเข้มข้น', 3, (lv) => `ดาเมจพิษ +${lv}/stack (INT ทุก 10 แต้มก็ +1/stack)`, (lv) => ({ poisonDmg: lv })),
-    n('thief_a3', 'thief_a', 3, '🏺', 'พิษสะสม', 3, (lv) => `เพดานพิษ 12 → ${12 + lv * 3} stack`, (lv) => ({ poisonCap: 3 * lv })),
+    n('thief_a2', 'thief_a', 2, '☠️', 'พิษเข้มข้น', 3, (lv) => `ดาเมจพิษ +${lv}/stack (+${Math.round(KIT.poison.intPer * 10 * 10) / 10}/stack ทุก INT 10 · พิษโจร +${Math.round(KIT.poison.atkPer * 100)}% P.ATK/stack)`, (lv) => ({ poisonDmg: lv })),
+    n('thief_a3', 'thief_a', 3, '🏺', 'พิษสะสม', 3, (lv) => `เพดานพิษ ${KIT.poison.baseCap} → ${KIT.poison.baseCap + lv * 3} stack`, (lv) => ({ poisonCap: 3 * lv })),
     n('thief_a4', 'thief_a', 4, '💣', 'ระเบิดพิษ', 1, () => 'มอนตาย: พิษครึ่งหนึ่งกระจายไปทุกตัวที่เหลือ', () => ({ poisonSpread: 1 })),
     n('thief_b1', 'thief_b', 1, '🌫️', 'ย่องเบา', 3, (lv) => `Flee +${lv * 4} · มอนตีโดนขั้นต่ำ −${lv * 2}%`, (lv) => ({ flee: 4 * lv, fleeFloor: 0.02 * lv })),
     n('thief_b2', 'thief_b', 2, '🌙', 'หายใจในเงา', 3, (lv) => `หลบได้แล้วฟื้น ${lv * 2}% HP สูงสุด`, (lv) => ({ dodgeHeal: 0.02 * lv })),
