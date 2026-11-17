@@ -19,7 +19,7 @@ export interface DungeonDef {
   tier: number // event rewards scale with this
   sky: [number, number] // gradient top, bottom
   hills: number // tint on the far hills / trees
-  unlock: 'none' | 'job' | 'd2' | 'd3' | 'd4' | 'd5' | 'd6' | 'd7' | 'd8' | 'd9' | 'd10' | 'd11' | 'd12' // 'job' = after the first job change, 'dN' = after clearing dungeon N
+  unlock: 'none' | 'job' | 'd2' | 'd3' | 'd4' | 'd5' | 'd6' | 'd7' | 'd8' | 'd9' | 'd10' | 'd11' | 'd12' | 'd13' // 'job' = after the first job change, 'dN' = after clearing dungeon N
   rooms: RoomDef[]
   level?: [number, number] // D6+: fixed monster level band; its stat monsters use data/mon-stats.ts (no Hero Power scaling)
   hazard?: BiomeHazardId // D11+: optional dungeon biome hazard rule

@@ -67,6 +67,7 @@ const BOSS_CARD_BY_DG: Record<string, string> = {
   d11: 'card_chronotitan',
   d12: 'card_leviathan',
   d13: 'card_seraph',
+  d14: 'card_protozero',
 }
 
 export const bossCardOfDungeon = (dg: string): string | undefined => BOSS_CARD_BY_DG[dg]

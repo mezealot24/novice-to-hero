@@ -31,6 +31,7 @@ export const CARDFORGE_ZENY: Record<string, number> = {
   d11: 12300,
   d12: 14100,
   d13: 16500,
+  d14: 17200,
   rift: 18000,
 }
 

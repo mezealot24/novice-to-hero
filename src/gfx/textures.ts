@@ -11,6 +11,7 @@ import { drawD10 } from './tex/d10'
 import { drawD11 } from './tex/d11'
 import { drawD12 } from './tex/d12'
 import { drawD13 } from './tex/d13'
+import { drawD14 } from './tex/d14'
 
 type G = Phaser.GameObjects.Graphics
 /** v78 D7-D10 packs (gfx/tex/dN.ts): draw one texture under `key`, w x h px. */
@@ -647,7 +648,7 @@ export function makeTextures(scene: Phaser.Scene) {
 
   // ----- D7-D10 (v78): one file per dungeon, gfx/tex/dN.ts -----
   const mk: MakeFn = (key, w, h, draw) => make(scene, key, w, h, draw)
-  drawD7(mk, eyes); drawD8(mk, eyes); drawD9(mk, eyes); drawD10(mk, eyes); drawD11(mk, eyes); drawD12(mk, eyes); drawD13(mk, eyes)
+  drawD7(mk, eyes); drawD8(mk, eyes); drawD9(mk, eyes); drawD10(mk, eyes); drawD11(mk, eyes); drawD12(mk, eyes); drawD13(mk, eyes); drawD14(mk, eyes)
 
   // --- particles / pickups
   make(scene, 'dot', 8, 8, (g) => { g.fillStyle(0xffffff).fillCircle(4, 4, 4) })
