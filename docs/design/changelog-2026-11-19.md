@@ -51,3 +51,8 @@
 - พายุมีด v2 `knifeStorm()` gets `ultKnifeJ2Share × j2KnifeMul` · Back Stab keeps main's Combo Points + `backstabFx`, adds lucky-dodge pierce + ★ crit knife
 - ทวงหนี้: main's `poison.burstKeep` kept; `debtBursting` stops ระเบิดพิษ re-spreading on a debt kill (main's chain blast made it matter more)
 - แทงพิษ `(1 + pskill)` on main's `venomStabFx` line
+
+## ⚖️ balance(thief): Ratio AGI pool floor (Lv 4 hit the cap)
+- Q playtest: Lv 4, AGI 18 (race +2, gear +4) showed เงาพริ้ว +227% — free AGI filled a 12-point pool, near the ×3.4 cap
+- Share now divides by `max(KIT.thiefUltAgiPoolMin 60, 3 × Base Lv)` (60 = Lv 20's points) · Lv 4 AGI 18 → +57% (pre-P1: +34%) · Lv 20+ unchanged
+- New admin key `thiefUltAgiPoolMin` (kit table, int 0–300, Thai label)

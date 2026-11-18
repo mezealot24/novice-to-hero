@@ -6,8 +6,15 @@ import { KIT } from '../src/data/skill-math'
 // Q 2026-11-19 Ratio AGI: เงาพริ้ว bonus = K x (AGI above start / stat pool), share capped. Same all-in bonus at every Base Lv.
 const P = STAT_RULES.pointsPerLevel
 
-test('all-in AGI gives K at every Base Lv (early not weaker, late not runaway)', () => {
-  for (const lv of [10, 20, 40, 80, 99]) assert.equal(thiefUltAgiBonus(P * lv, P * lv), KIT.thiefUltAgiK, `Lv ${lv}`)
+test('all-in AGI gives K from the pool floor up (Lv 20+), late not runaway', () => {
+  for (const lv of [20, 40, 80, 99]) assert.equal(thiefUltAgiBonus(P * lv, P * lv), KIT.thiefUltAgiK, `Lv ${lv}`)
+})
+
+test("pool floor: Q's Lv 4 (AGI 18 with race + gear) no longer hits the share cap", () => {
+  const b = thiefUltAgiBonus(17, P * 4)
+  assert.ok(Math.abs(b - KIT.thiefUltAgiK * 17 / KIT.thiefUltAgiPoolMin) < 1e-9)
+  assert.ok(b < 0.6, `Lv 4 bonus ${b}`)
+  assert.ok(thiefUltAgiBonus(P * 10, P * 10) < KIT.thiefUltAgiK, 'Lv 10 all-in ramps toward K')
 })
 
 test('half AGI = half bonus · no AGI = 0 · share capped (gear AGI past the pool)', () => {

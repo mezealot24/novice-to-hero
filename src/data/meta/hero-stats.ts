@@ -284,7 +284,7 @@ export function statPool(s: StatsInput): number {
 /** Thief เงาพริ้ว bonus from AGI (Q 2026-11-19 Ratio AGI): K x the share of the stat pool that is AGI (gear / race / job AGI count too),
  *  share capped. Same all-in bonus at every Base Lv, so early Thieves are not weak and Lv 80+ AGI stacks do not run away. */
 export function thiefUltAgiBonus(agiAboveStart: number, pool: number): number {
-	const share = Math.max(0, agiAboveStart) / Math.max(STAT_RULES.pointsPerLevel, pool);
+	const share = Math.max(0, agiAboveStart) / Math.max(KIT.thiefUltAgiPoolMin, STAT_RULES.pointsPerLevel, pool); // pool floor: early race / gear AGI cannot fill the share alone
 	return KIT.thiefUltAgiK * Math.min(KIT.thiefUltAgiShareCap, share);
 }
 
