@@ -124,12 +124,6 @@ export function roomLevel(level: [number, number], rooms: { lv?: number; boss?: 
   return Math.round(level[0] + ((level[1] - 2 - level[0]) * i) / Math.max(1, n - 1))
 }
 
-/** 🟢 normal level dungeon: a hero far above the band earns less (replaces the Hero Power cut there). */
-export const LEVEL_GAP = { free: 10, per: 0.1, min: 0.4 }
-export const levelDropMul = (baseLv: number, level: [number, number]) => {
-  const over = baseLv - (level[1] + LEVEL_GAP.free)
-  return over <= 0 ? 1 : Math.max(LEVEL_GAP.min, 1 - LEVEL_GAP.per * over)
-}
 
 // ===== v126 (Q 2026-11-19 "ปรับบาลานซ์มอน d1-d5 ให้ใช้ระบบเดียวกับ d6+ ยกเลิก legacy") =====
 // D1-D5 have a level band too (DungeonDef.level) and every monster is built by statMonster at its room's Lv, like D6+.

@@ -24,7 +24,7 @@ import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepA
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
 import { thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost } from '../data/skill-math'
-import { addCard, addMat, addXp, persist, save, trialWin, ultMode } from '../save'
+import { addCard, addMat, addXp, loseXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
 import { TAINT_MAT } from '../data/taint'
@@ -33,9 +33,9 @@ import { rollUniqueDrop, UNIQUE } from '../data/uniques'
 import { rollEndgameUniqueDrop, rollUnique3Drop } from '../data/uniques3'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
-import { HARD_POWER, overpowerMul, TOWER_POWER } from '../data/power'
+import { HARD_POWER, TOWER_POWER } from '../data/power'
 import { escalate, escalationAt } from '../data/hard-escalation'
-import { deepAnchor, deepKind, homeDungeon, homeLv, levelDropMul, monTier, restatAt, topStats, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, towerMonLv } from '../data/mon-stats'
+import { deepAnchor, deepKind, homeDungeon, homeLv, monTier, restatAt, topStats, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, towerMonLv } from '../data/mon-stats'
 import { ENDLESS_HELL, endlessHell, HELL, HELL_MODE, hellify } from '../data/hell'
 import { foldAffixes } from '../data/affixes'
 import { PACKS } from '../data/dungeons'
@@ -220,7 +220,6 @@ export class BattleScene extends Phaser.Scene {
   hell = false // 😈 hell mode (D6-D10): a hard run where every monster is a Hell copy (data/hell.ts HELL_MODE)
   /** v59: hard-mode monster multiplier from Hero Power (HUD shows it), normal-dungeon drop share when over-geared. */
   hardK = { hp: 1, atk: 1 }
-  dropMul = 1
   /** v59 tower: affixes live on the current floor (folded), monsters enraged this fight (bots read enrageCount). */
   private aff = foldAffixes([])
   enrageCount = 0
@@ -379,7 +378,6 @@ export class BattleScene extends Phaser.Scene {
     this.towerFloor = 0; this.bank = { zeny: 0, mats: {} }; this.leftTower = false
     this.clog.reset() // v120 combat log: one run
     this.hardK = this.hard ? { hp: HARD_POWER.target, atk: HARD_POWER.target } : { hp: 1, atk: 1 } // fixed level (v126: every dungeon): reward = HARD.reward x corruption
-    this.dropMul = this.run.modeId === 'dungeon' ? (this.dg.level ? levelDropMul(s.baseLevel, this.dg.level) : overpowerMul(this.run.power, this.dg.id)) : 1
     this.aff = foldAffixes(this.run.corrupt?.affixes ?? []); this.enrageCount = 0
     this.hp = this.st.maxHp; this.smashCdLeft = 0; this.heroGauge = 0; this.zapCount = 0; this.emergencyUsed = false; this.firstOffer = true
     this.job = JOBS[s.job ?? 'novice']
@@ -4215,7 +4213,7 @@ export class BattleScene extends Phaser.Scene {
     const pity = (save().cardPity ??= {})
     for (const cd of cardsOfMonster(m.kind)) {
       const n = (pity[cd.id] ?? 0) + 1
-      if (Math.random() < cardRate(cd) * this.cardLuck * this.dropMul || n >= cardPityMax(cd)) {
+      if (Math.random() < cardRate(cd) * this.cardLuck * (this.hell && monTier(m.def) !== 'normal' ? HELL_MODE.bossCardMul : 1) || n >= cardPityMax(cd)) {
         pity[cd.id] = 0
         this.runCards.push(cd.id)
         this.callout(`🃏 ได้${cardName(cd)}!`, m.spr.x, m.spr.y - 130 - (cd.v2 ? 40 : 0))
@@ -4234,7 +4232,7 @@ export class BattleScene extends Phaser.Scene {
       if ((this.run.modeId === 'dungeon' || this.run.modeId === 'hard' || this.run.modeId === 'bounty') && this.roomDef(this.room)?.boss && taintDrop(dg)) got.push([TAINT_MAT, taintDrop(dg) + (this.hell ? HELL_MODE.taintAdd : 0)]) // v89 ผลึกโลกันตร์: D6+ final boss only
     }
     else if (m.def.ai === 'boss') got.push([matOf(dg, true), MAT_RULES.mini.boss])
-    else if (Math.random() < MAT_RULES.normalRate * this.dropMul) got.push([matOf(dg, false), 1])
+    else if (Math.random() < MAT_RULES.normalRate) got.push([matOf(dg, false), 1])
     got.forEach(([id, n], i) => {
       this.runMats[id] = (this.runMats[id] ?? 0) + n
       this.floatText(m.spr.x + 40, m.spr.y - 40 - i * 24, `${matName(id)} +${n}`, '#e8d9a8')
@@ -6165,7 +6163,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   // ---------- results ----------
-  private settle(won: boolean): string {
+  private settle(won: boolean, died = false): string {
     if (this.settled) return ''
     this.settled = true
     const s = save()
@@ -6180,7 +6178,7 @@ export class BattleScene extends Phaser.Scene {
         for (const id of Object.keys(this.runMats)) this.runMats[id] = Math.ceil(this.runMats[id] * HELL_MODE.mats)
       }
     }
-    this.zeny = Math.round(this.zeny * this.run.mut.zenyMul * this.dropMul) // daily mutators · v59 over-geared normal dungeon
+    this.zeny = Math.round(this.zeny * this.run.mut.zenyMul) // daily mutators · v128: no level / Hero Power drop cut any more (Q 2026-11-19)
     const dxx = this.run.modeId === 'dungeon' || this.run.modeId === 'hard', xpFull = this.runXp
     this.runXp = bankedRunXp(this.runXp, won, dxx) // 💀 lost Dxx run: Base / Job EXP x RULES.failXpMul (zeny / loot unchanged)
     const mode = MODES[this.run.modeId].reward(s, this.run, { won, left: this.leftTower, floor: this.towerFloor, from: Math.max(0, (this.modeArgs.startFloor ?? 1) - 1), bank: this.bank })
@@ -6199,6 +6197,7 @@ export class BattleScene extends Phaser.Scene {
     const before = s.gems
     const lv0 = { base: s.baseLevel, job: s.jobLevel, job2: s.job2Level ?? 1, job3: s.job3Level ?? 1 }
     const ups = addXp(this.runXp)
+    const hellLoss = this.hell && died ? loseXp(RULES.hellDeathBase, RULES.hellDeathJob) : null // 😈 v128: dying in hell costs 5% Base / 10% Job of the current bar
     track({ e: 'run_end', mode: this.hell ? 'hell' : this.run.modeId, dungeon: this.dg.id, won, room: this.room, zeny: this.zeny, xp: this.runXp })
     if (won) ftue('run1_win')
     if (won && this.run.modeId === 'dungeon' && this.dg.id === 'd1') ftue('d1_clear')
@@ -6218,6 +6217,7 @@ export class BattleScene extends Phaser.Scene {
     ]
     const lines = [...uniq, ...(mode?.lines ?? []), `+${this.zeny} zeny · +${this.runXp} EXP${s.gems > before ? ` · +${s.gems - before} เพชร` : ''}`]
     if (this.runXp < xpFull) lines.push(`💀 ล้มเหลว: ได้ EXP แค่ ${Math.round(RULES.failXpMul * 100)}% (เต็ม ${xpFull}) · zeny กับของได้ครบ`)
+    if (hellLoss) lines.push(`😈 ตายในนรก: เสีย Base EXP ${hellLoss.base} · Job EXP ${hellLoss.job} (${Math.round(RULES.hellDeathBase * 100)}% / ${Math.round(RULES.hellDeathJob * 100)}% ของหลอด · ไม่ลดเลเวล)`)
     if (ups.base) lines.push(`🎉 Base Lv ${s.baseLevel}! ได้แต้มสถานะเพิ่ม`)
     if (ups.job) lines.push(jobUpText(s, ups.job))
     if (trial) lines.unshift(`⚔️ ผ่าน Master Trial! ตื่นรู้เป็น ${JOB3[trial].icon} ${JOB3[trial].name} ได้ที่ 🏠 เมือง › อาชีพ`)
@@ -6262,7 +6262,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private showGameOver() {
-    const rewards = this.settle(false)
+    const rewards = this.settle(false, !this.timedOut)
     const d = this.deathRec()
     saveDeath(d)
     const recap = this.timedOut ? [] : recapLines(d)

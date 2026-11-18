@@ -615,6 +615,25 @@ export function addXp(n: number): { base: number; job: number } {
 	return { base: ups, job: jobUps };
 }
 
+/** 😈 v128 hell death: loses a share of the CURRENT level's bar (RO style), floored at 0, never de-levels. Returns what was lost. */
+export function loseXp(baseFrac: number, jobFrac: number): { base: number; job: number } {
+	const s = save();
+	const base = Math.min(s.baseXp, Math.round(baseFrac * STAT_RULES.baseXpNeed(s.baseLevel)));
+	s.baseXp -= base;
+	let job = 0;
+	if (activeJob3(s)) {
+		job = Math.min(s.job3Xp ?? 0, Math.round(jobFrac * JOB_RULES.jobXpNeed(s.job3Level ?? 1)));
+		s.job3Xp = (s.job3Xp ?? 0) - job;
+	} else if (s.job2) {
+		job = Math.min(s.job2Xp ?? 0, Math.round(jobFrac * JOB_RULES.jobXpNeed(s.job2Level ?? 1)));
+		s.job2Xp = (s.job2Xp ?? 0) - job;
+	} else {
+		job = Math.min(s.jobXp, Math.round(jobFrac * JOB_RULES.jobXpNeed(s.jobLevel)));
+		s.jobXp -= job;
+	}
+	return { base, job };
+}
+
 export const today = () => new Date().toISOString().slice(0, 10);
 
 export const canChangeJob = (s: SaveData) =>

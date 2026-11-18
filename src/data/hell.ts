@@ -52,6 +52,7 @@ export const HELL_MODE = {
   lv: 10, // room Lv + this (same gap as tower Hell copies)
   reward: 1.5, mats: 1.5, // on top of the hard-mode reward
   uniqueRate: 0.2, // final-boss unique chance (hard 10%)
+  bossCardMul: 2, // v128 (Q 2026-11-19): MVP / mini boss card drop rate x this
   taintAdd: 1, // + ผลึกโลกันตร์ from the final boss
   turnMul: 1.15, // a bit more time: Hell monsters are tankier
 }

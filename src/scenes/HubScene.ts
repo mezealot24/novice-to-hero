@@ -1,9 +1,9 @@
 import Phaser from 'phaser'
 import { COLORS, DUNGEONS, H, HARD, W } from '../data/game-data'
 import type { BiomeHazardId } from '../data/biome-hazards'
-import { levelDropMul, TOWER_LV, towerMonLv } from '../data/mon-stats'
+import { TOWER_LV, towerMonLv } from '../data/mon-stats'
 import { foldCorruptions, rollCorruptions } from '../data/corruptions'
-import { heroPower, overpowerMul, powerHint, TOWER_POWER } from '../data/power'
+import { heroPower, TOWER_POWER } from '../data/power'
 import { FREE_GEMS, isBroken, itemById, JOB_RULES, noviceLeft, RACES, STAT_RULES } from '../data/meta'
 import { canChangeJob, canChangeJob2, persist, save, today, ultMode, wipe, job3Ready } from '../save'
 import { activeJob3, job3Of } from '../data/jobs3'
@@ -114,20 +114,10 @@ export class HubScene extends Phaser.Scene {
       const status = locked ? (compact ? '🔒 ล็อก' : lockMsg) : n ? `เคลียร์แล้ว ${n} ครั้ง` : compact ? `ครั้งแรก 💎${FREE_GEMS.firstClear}` : `เคลียร์ครั้งแรกได้เพชร ${FREE_GEMS.firstClear}`
       const nameT = txt(this, 452, y, `${i + 1}. ${d.name}${d.tier >= 4 ? ' 💀' : ''}`, compact ? 15 : 17, locked ? UI.sub : UI.text, true)
       const maxRight = n > 0 ? 718 : 786
-      if (d.level) { // fixed monster level instead of Hero Power (data/mon-stats.ts; v126: D1-D5 too)
-        const dm = levelDropMul(s.baseLevel, d.level), low = s.baseLevel < d.level[0]
-        const lvColor = low ? '#ff7a7a' : dm < 1 ? '#9fd0ff' : '#9fe3a0'
-        const lvX = nameT.x + nameT.width + 8
-        const lvT = txt(this, lvX, y + 2, `มอน Lv${d.level[0]}-${d.level[1]}${dm < 1 ? ` · ดรอป x${dm.toFixed(2)}` : ''}`, 12, lvColor, true)
-        if (lvX + lvT.width > maxRight) {
-          lvT.setText(`Lv${d.level[0]}-${d.level[1]}${dm < 1 ? ` · x${dm.toFixed(2)}` : ''}`)
-          if (lvX + lvT.width > maxRight) lvT.setFontSize(11)
-        }
-      } else {
-        const ph = powerHint(power, d.id), dm = overpowerMul(power, d.id)
-        const pwX = nameT.x + nameT.width + 8
-        const pwT = txt(this, pwX, y + 2, `แนะนำ ⚡${ph.rec}${dm < 1 ? ` · ดรอป x${dm.toFixed(2)}` : ''}`, 12, ph.color, true)
-        if (pwX + pwT.width > maxRight) pwT.setFontSize(11)
+      if (d.level) { // fixed monster level (data/mon-stats.ts; v126: D1-D5 too) · v128: no drop cut for a high hero any more
+        const low = s.baseLevel < d.level[0], lvX = nameT.x + nameT.width + 8
+        const lvT = txt(this, lvX, y + 2, `มอน Lv${d.level[0]}-${d.level[1]}`, 12, low ? '#ff7a7a' : '#9fe3a0', true)
+        if (lvX + lvT.width > maxRight) lvT.setFontSize(11)
       }
       const hb = (s.hardClearsBy ?? {})[d.id] ?? 0, hl = (s.hellClearsBy ?? {})[d.id] ?? 0, hellOn = hellOpen(s, d) // 😈 D6-D10 hell mode
       const hazard = d.hazard && d.hazard !== 'none' ? BIOME_BADGE[d.hazard] : undefined

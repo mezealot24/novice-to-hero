@@ -2,7 +2,7 @@
 // NEVER add COSTUMES.price / SUPPORTER_PRICE / GEM_PACKS (server SKU prices) or tints. Bump CONFIG_SCHEMA if a path's meaning changes.
 import { BATTLE, COMBO, HARD, HARD_PASSIVES, HARD_SKILLS, MONSTERS, RULES } from './game-data'
 import { JOB_RULES, STAT_RULES } from './meta'
-import { ARCHETYPES, LEVEL_GAP, MON_STAT, SKILL_SCALE } from './mon-stats'
+import { ARCHETYPES, MON_STAT, SKILL_SCALE } from './mon-stats'
 import { skillRoot, skillTableFields } from './skill-registry'
 import { KIT } from './skill-math'
 import { DUNGEON_DAYS } from './dungeon-days'
@@ -158,8 +158,8 @@ export const TABLES: Record<TableId, TableDef> = {
     fields: [['*.lifesteal|reflect', num(0, 1, true)], ['*.speed|enrage', num(0.1, 10, true)], ['*.def', num(0, 5000, true)], ...pre('*.onHit', HIT_FX)],
   },
   monStat: {
-    id: 'monStat', label: 'Stat monsters (MON_STAT, LEVEL_GAP)',
-    target: () => ({ monStat: MON_STAT, levelGap: LEVEL_GAP }),
+    id: 'monStat', label: 'Stat monsters (MON_STAT)',
+    target: () => ({ monStat: MON_STAT }),
     fields: [
       // MON_STAT.pointsPerLv is a getter on STAT_RULES.pointsPerLevel: tune it in `progression`.
       ['monStat.tierPct.normal|mini|boss', num(0, 10)],
@@ -168,8 +168,6 @@ export const TABLES: Record<TableId, TableDef> = {
       ['monStat.body.normal|mini|boss', num(0.1, 100)],
       ['monStat.mdefCap|luckyCap', num(0, 1)],
       ['monStat.rateCap', num(0, 5)],
-      ['levelGap.free', int(0, 99)],
-      ['levelGap.per|min', num(0, 1)],
     ],
   },
   archetypes: { id: 'archetypes', label: 'Monster archetypes (stat weights)', target: () => ARCHETYPES, fields: [[`*.${BASE7}`, num(0, 20, true)]] },
@@ -184,6 +182,7 @@ export const TABLES: Record<TableId, TableDef> = {
       ['run.runXpBase|runXpStep', int(1, 1000)],
       ['run.xpOnClear', int(0, 1000)],
       ['run.failXpMul', num(0, 1)],
+      ['run.hellDeathBase|hellDeathJob', num(0, 1)],
       ['run.healOnClear|healOnLevel', num(0, 1)],
       // ☀️ dungeon days (data/dungeon-days.ts, Q 2026-11-18): run length / echo monsters / day-end fights
       ['days.on|returnMini', int(0, 1)],

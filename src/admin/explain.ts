@@ -86,7 +86,6 @@ export function explainTableGroup(t: TableId, key: string): { title: string; des
     },
     monStat: {
       monStat: { title: '📐 monStat · สูตรสเตตัสมอน (ทุกดัน)', desc: 'สัดส่วนแต้ม stat, levelBase, ตัวคูณ body และเพดาน' },
-      levelGap: { title: '⚖️ levelGap · ลดรางวัลเมื่อเวลเกินดัน', desc: 'ชะลอการฟาร์มดันต่ำกว่าตัวเกินควรใน D6+' },
     },
     skillScale: {
       fx: { title: '💫 fx · สกิลพิเศษในเฟส / Blood Razor', desc: 'ตัวคูณเพิ่มเติมตาม WIS (เฟสบอส) และ INT (Blood Razor)' },
