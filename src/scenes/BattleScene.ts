@@ -3587,7 +3587,7 @@ export class BattleScene extends Phaser.Scene {
         await this.wait(BATTLE.stepMs * 0.4)
         break
       case 'thief':
-        await this.lunge(live[0], () => { const m = live[0]; venomStabFx(this, m.spr); this.strike(m, KIT.thiefAuto * pow); this.doubleAttack(m, KIT.thiefAuto * pow); if (!m.dead) { this.addPoison(m, KIT.thiefAutoPoison) } }, true, true)
+        await this.lunge(live[0], () => { const m = live[0], mul = KIT.thiefAuto * pow * (1 + this.st.pskill); venomStabFx(this, m.spr); this.strike(m, mul); this.doubleAttack(m, mul); if (!m.dead) { this.addPoison(m, KIT.thiefAutoPoison) } }, true, true)
         break
     }
   }
