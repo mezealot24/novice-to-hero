@@ -2,6 +2,7 @@
 // of the poison cap, Exposed / Wound, talents th_t4a / th_t1c, ม่านควัน / แผลลึก numbers. Run: node tools/test.mjs thief-p2b
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { nodeById, TALENTS } from '../src/data/tree'
 import { debuffKinds, KIT, poisonAt, poisonCapOf, S2N, S2P, takenAmp, type DebuffFlags, type TakenIn } from '../src/data/skill-math'
 
 const near = (a: number, b: number, msg = '') => assert.ok(Math.abs(a - b) < 1e-9, `${msg} ${a} != ${b}`)
@@ -52,4 +53,11 @@ test('Skill 2 numbers: ม่านควัน / แผลลึก plain numbe
   assert.ok('smokeRes' in S2P && 'woundMax' in S2P)
   assert.equal(typeof S2N.pickMul, 'function', "th_pick = main's steal (not touched)")
   for (const k of ['pickBase', 'pickStarMul', 'pickZeny', 'plunderRes']) assert.ok(!(k in S2N), k)
+})
+
+test('status layer: thief_c1 counts Wound / Exposed kinds, th_t2b counts poison + Wound stacks (texts say so)', () => {
+  const c1 = nodeById('thief_c1'), t2b = TALENTS.find((t) => t.id === 'th_t2b')
+  assert.ok(c1 && t2b)
+  assert.match(c1.desc(1), /Wound/); assert.match(c1.desc(1), /Exposed/)
+  assert.match(t2b.desc(1), /พิษ \+ Wound/)
 })

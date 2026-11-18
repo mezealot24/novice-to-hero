@@ -55,3 +55,9 @@
 - 18 plain `S2N` numbers: Shroud (`smokeTurns` 2 · `smokeFlee` 0.25 · `smokeSkillCrit` 0.15 · ★ `smokeCritDmg` 0.25) · Sightless Raid `raidMul` 1.2 · Exposed 0.2 / ★ 0.3, 2 turns · Blind 2 turns · Wound 2 / ★ 3 stacks, 3 hero turns, D.Strike 50% · Blade's End at 3 Wound, 1.8x, heal cut 40% 2 turns · Privileged +12%
 - All in admin `skills` (Thai labels in `S2N_TH` / `S2P_TH`) · ล้วงกระเป๋า untouched (main's steal)
 - Numbers only: skill texts + behavior land with the ม่านควัน / แผลลึก commits
+
+## 🔧 feat(thief): P2'b monster statuses Exposed / Wound / heal cut
+- New monster fields: 👁️ Exposed (monster turns + B1 share) · 🩸 Wound (stacks, **hero** turns, ticks before Skill 2) · Blade's End heal cut + once-per-turn flag
+- `healCut()` takes the bigger of burn / hellfire / Blade's End cut (never stacked) · Toxic Skin does not speed up Wound / Exposed
+- thief_c1 คมเลือด status kinds = poison / Wound / Exposed / chill (`debuffKinds`) · th_t2b จุดบอดซ้อนพิษ counts poison + Wound stacks (texts updated)
+- No source of Wound / Exposed yet (ม่านควัน / แผลลึก commits)

@@ -423,7 +423,7 @@ export const autoCost = (job: JobDef, st: Stats) => Math.max(job.id === 'thief' 
 // ---------- P2'a Thief pure helpers (numbers only, no Mon / Phaser: tests call them directly) ----------
 /** สลับคม: after แทงพิษ the next hero turn is a basic attack · Q3: not inside 👤 ร่างเงา (free Skill 1 spam stays). */
 export const thiefS1Woven = (jobId: string, weave: boolean, inShadow: boolean): boolean => jobId === 'thief' && weave && !inShadow
-/** th_t2b: crit / skillCrit from poison stacks on the target (counts up to KIT.thiefStackCritTalMax). */
+/** th_t2b: crit / skillCrit from poison + Wound stacks on the target (counts up to KIT.thiefStackCritTalMax). */
 export const thiefStackCritAdd = (st: Stats, stacks: number): number => st.thStackCritTal * Math.min(Math.max(0, stacks), KIT.thiefStackCritTalMax)
 /** thief_c1: lifesteal from status kinds on the target. */
 export const thiefCondLeechAdd = (st: Stats, kinds: number): number =>

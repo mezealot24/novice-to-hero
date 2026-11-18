@@ -23,7 +23,7 @@ import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/ski
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
-import { thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, ultCooldown, ultCost } from '../data/skill-math'
+import { thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -95,7 +95,11 @@ interface Mon {
   clone?: boolean; evaded?: number; trueTurns?: number // v56 trueSight: hero evades counted, then 🎯 its physical hits always land
   weakTurns: number; weakPct: number // hero Skill 2 ท้าทาย: hits weaker for its next N turns
   armorBrk: number // Mobster ตัดเส้นเอ็น: turns of DEF -KIT2.mobster.armorBrk
-  blind: number // Crusader Holy Cross: turns of Hit -KIT2.crusader.blindHit
+  blind: number // Crusader Holy Cross: turns of Hit -KIT2.crusader.blindHit (Thief ม่านควัน Sightless Raid shares it)
+  exposed: number; exposedPct: number // P2'b Thief ม่านควัน: monster turns of Exposed · its B1 damage-taken share (hits only, not dot)
+  wound: number; woundTurns: number // P2'b Thief แผลลึก: Wound stacks · hero turns left (refreshed on every add)
+  woundCut: number; woundCutTurns: number // P2'b Blade's End heal cut share · monster turns left (healCut() takes the max with burn / hellfire)
+  bladeSpent?: boolean // P2'b Blade's End already went off on this monster this hero turn
   wet: number // Innovator ☁️ เมฆฝน: turns of +KIT2.innovator.wetAmp damage taken
   huntMark: number // v82 Archer หมายหัว: turns of +st.arMark damage taken (ticks with its turns)
   stunTurns?: number // Champion Tiger Knuckle extra stun turns left
@@ -561,7 +565,7 @@ export class BattleScene extends Phaser.Scene {
     else if (this.run.affix && def.ai === 'boss') spr.setTint(HARD.tint)
     const affix = (this.hard || this.run.affix) && def.ai === 'boss' ? this.lastAffix : undefined
     const m: Mon = { kind, def, spr, shadow, hp: def.hp, gauge: gauge ?? Phaser.Math.Between(0, 40), dead: false, slot, turns: 0, charging: false, summoned: false, burnStacks: 0, burnStackTurns: 0, chill: 0, frozen: false, burn: 0, burnTurns: 0, poison: 0, poisonDmg: 0, parry: false, ice: 0, iceChance: 0, iced: false, hell: 0, harvestMark: 0, huntMark: 0,
-      shield: 0, atkUp: 0, atkUpTurns: 0, phase: 0, speedMul: 1, dmgMul: 1, reflect: def.reflect ?? 0, absorb: def.absorb ?? 0, stored: 0, chargeEvery: def.chargeEvery ?? BATTLE.slamEvery, skills: def.skills ?? [], onHit: def.onHit, slamFx: def.slamFx, revived: false, weakTurns: 0, weakPct: 0, armorBrk: 0, blind: 0, wet: 0, affix, instanceId: `${kind}_${++this.monSeq}` }
+      shield: 0, atkUp: 0, atkUpTurns: 0, phase: 0, speedMul: 1, dmgMul: 1, reflect: def.reflect ?? 0, absorb: def.absorb ?? 0, stored: 0, chargeEvery: def.chargeEvery ?? BATTLE.slamEvery, skills: def.skills ?? [], onHit: def.onHit, slamFx: def.slamFx, revived: false, weakTurns: 0, weakPct: 0, armorBrk: 0, blind: 0, exposed: 0, exposedPct: 0, wound: 0, woundTurns: 0, woundCut: 0, woundCutTurns: 0, wet: 0, affix, instanceId: `${kind}_${++this.monSeq}` }
     const hk = def.heroKit && resolveHeroKit(def.heroKit, { job: this.job.id, s2: this.s2?.id, job2: this.j2?.id })
     if (hk?.skills.length) { m.heroKit = hk; m.kit = newKitState(hk) }
     if (this.biomeState?.hazard === 'astral_eclipse' && m.instanceId) {
@@ -1080,6 +1084,10 @@ export class BattleScene extends Phaser.Scene {
   private async heroAct() {
     this.execTurnUsed = false; this.critPetUsed = false; this.killHealCritUsed = false
     if (this.dodgeCdIcd > 0) this.dodgeCdIcd-- // P2'a th_t2a ICD counts hero turns
+    for (const m of this.alive()) { // P2'b: Blade's End once per hero turn per monster · Wound counts hero turns (ticks before skill2Turn)
+      m.bladeSpent = false
+      if (m.woundTurns > 0 && --m.woundTurns === 0) { m.wound = 0; this.dotIcon(m) }
+    }
     if (this.st.regen > 0) {
       const lowAmp = this.st.swLowRegenAmp > 0 && this.hp < this.st.maxHp * KIT.swordCore.lowHpAt ? 1 + this.st.swLowRegenAmp : 1
       this.heal(this.st.maxHp * this.st.regen * BATTLE.regenPerTurn / 100 * lowAmp, true)
@@ -3063,13 +3071,17 @@ export class BattleScene extends Phaser.Scene {
     else return
     this.dodgeCdIcd = this.st.thDodgeCdIcd
   }
-  /** P2'a: status kinds on a monster (thief_c1): poison + chill (🐌 พิษชา counts). P2'b adds Wound / Exposed here. */
-  private statusKinds(m: Mon): number { return (m.poison > 0 ? 1 : 0) + (m.chill > 0 ? 1 : 0) }
+  /** P2'b: the debuffs one monster carries, for the pure debuffKinds() (stabMark: P3 Rogue). */
+  private debuffFlags(m: Mon): DebuffFlags {
+    return { poison: m.poison > 0, wound: m.wound > 0, exposed: m.exposed > 0, chill: m.chill > 0, stabMark: false, blind: m.blind > 0, armorBrk: m.armorBrk > 0, weak: m.weakTurns > 0 }
+  }
+  /** Status kinds on a monster for thief_c1: poison / Wound / Exposed / chill (🐌 พิษชา counts). */
+  private statusKinds(m: Mon): number { return debuffKinds(this.debuffFlags(m), false) }
   /** P2'a thief_c4 ★ ราชันย์โลหิต active right now. */
   private bloodKingOn(): boolean { return thiefBloodKingOn(this.st, this.hp, this.st.maxHp) }
   private critRateFor(magic: boolean, physAdd: number, target?: Mon): number {
     const C = CRIT_RULES.cap
-    const sc = target && !magic ? thiefStackCritAdd(this.st, target.poison) : 0 // P2'a th_t2b: physical crit / skillCrit per poison stack (P2'b adds Wound)
+    const sc = target && !magic ? thiefStackCritAdd(this.st, target.poison + target.wound) : 0 // th_t2b: physical crit / skillCrit per poison + Wound stack
     const spellCap = this.j2?.id === 'sage' ? CRIT_RULES.sageSpellCap : C.spellCrit
     const burnBonus = target && target.burnStacks > 0 ? this.st.j2FireCrit : 0
     const iceBonus = target && (target.chill > 0 || target.frozen) ? (this.st.j2IcePerk > 0 ? KIT2.sage.perk.iceCritBonus : 0) + this.st.j2IceCrit : 0
@@ -4290,7 +4302,9 @@ export class BattleScene extends Phaser.Scene {
     if (m.armorBrk > 0 && --m.armorBrk === 0) this.dotIcon(m)
     if (m.blind > 0 && --m.blind === 0) this.dotIcon(m)
     if (m.wet > 0 && --m.wet === 0) this.dotIcon(m)
-    if (m.def.toxicSkin) { // Toxic Skin tenacity: debuffs on it wear off twice as fast
+    if (m.exposed > 0 && --m.exposed === 0) { m.exposedPct = 0; this.dotIcon(m) } // P2'b Exposed counts monster turns
+    if (m.woundCutTurns > 0 && --m.woundCutTurns === 0) m.woundCut = 0 // P2'b Blade's End heal cut
+    if (m.def.toxicSkin) { // Toxic Skin tenacity: debuffs on it wear off twice as fast (P2'b: never Wound / Exposed, design Rev 3 §2.4)
       if (m.chill > 0) m.chill--; if (m.burnTurns > 0) m.burnTurns--; if (m.burnStackTurns > 0) m.burnStackTurns--; if (m.poison > 0) m.poison--
       if (m.weakTurns > 0 && --m.weakTurns === 0) this.dotIcon(m); if ((m.marked ?? 0) > 0) m.marked!--; if (this.awakenTurns <= 0 && m.huntMark > 0 && --m.huntMark === 0) this.dotIcon(m); if (m.armorBrk > 0 && --m.armorBrk === 0) this.dotIcon(m)
     }
@@ -4771,7 +4785,7 @@ export class BattleScene extends Phaser.Scene {
   private dotIcon(m: Mon) {
     if (m.dead || !m.spr.active) return // a DoT tick or card can land after the kill: its icon text is already gone (page error 'drawImage' of null)
     if (!m.dotTxt) m.dotTxt = this.add.text(0, 0, '', { fontSize: '14px' }).setOrigin(0.5).setDepth(9500)
-    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${(m.permafrost ?? 0) > 0 ? '💠' + m.permafrost : ''}${m.mark ? `[${PROF_ICON[m.mark]}${(m.markLayers ?? 1) > 1 ? '×' + m.markLayers : ''}]` : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${m.armorBrk > 0 ? '🦴' : ''}${(m.sunderTurns ?? 0) > 0 ? '🕳️' : ''}${m.blind > 0 ? '🙈' : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${this.thMarkMon === m ? '🔻' + this.malice : ''}${m.reflect > 0 ? '🔁' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
+    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${(m.permafrost ?? 0) > 0 ? '💠' + m.permafrost : ''}${m.mark ? `[${PROF_ICON[m.mark]}${(m.markLayers ?? 1) > 1 ? '×' + m.markLayers : ''}]` : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${m.armorBrk > 0 ? '🦴' : ''}${(m.sunderTurns ?? 0) > 0 ? '🕳️' : ''}${m.blind > 0 ? '🙈' : ''}${m.exposed > 0 ? '👁️' : ''}${m.wound > 0 ? '🩸' + m.wound : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${this.thMarkMon === m ? '🔻' + this.malice : ''}${m.reflect > 0 ? '🔁' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
   }
 
   // ---------- xp / perks ----------
@@ -5424,11 +5438,11 @@ export class BattleScene extends Phaser.Scene {
     return k * m.dmgMul * (m.atkUpTurns > 0 ? 1 + m.atkUp : 1) * (m.weakTurns > 0 ? 1 - m.weakPct : 1) * (1 + this.flags.curseDmg) * (m.chill > 0 ? 1 - this.px('chillWeak') : 1) // card กัดเย็น
   }
 
-  /** Heal cut on a monster: Hellfire 5%/stack (max 50%), otherwise 25% while any normal burn is on it. */
+  /** Heal cut on a monster: Hellfire 5%/stack (max 50%), otherwise 25% while any normal burn is on it · P2'b Blade's End: the bigger cut wins, never stacked. */
   private healCut(m: Mon) {
     const H = RELIC_RULES.hellfire
-    if (m.hell > 0) return Math.min(H.cutMax, m.hell * H.cutPerStack)
-    return m.burnTurns > 0 || m.burnStackTurns > 0 ? RELIC_RULES.burnCut : 0
+    const base = m.hell > 0 ? Math.min(H.cutMax, m.hell * H.cutPerStack) : m.burnTurns > 0 || m.burnStackTurns > 0 ? RELIC_RULES.burnCut : 0
+    return Math.max(base, m.woundCutTurns > 0 ? m.woundCut : 0)
   }
 
   private healMon(m: Mon, n: number, quiet = false) {
