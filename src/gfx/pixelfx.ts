@@ -51,6 +51,8 @@ import * as daggerCross from './fx/thief/dagger-cross'
 import * as shadowSlash from './fx/thief/shadow-slash'
 import * as venomStab from './fx/thief/venom-stab'
 import * as smokeBomb from './fx/thief/smoke-bomb'
+import * as flyingKnife from './fx/thief/flying-knife'
+import * as knifeStorm from './fx/thief/knife-storm'
 import { WOOD_GOLD } from './fx/archer/arrow-shot'
 export { WOOD_GOLD }
 
@@ -139,6 +141,8 @@ export const DEFS = {
   shadowSlash: { mod: shadowSlash },
   venomStab: { mod: venomStab },
   smokeBomb: { mod: smokeBomb },
+  flyingKnife: { mod: flyingKnife, until: 0.25 }, // looping: drop the last frame (t = 0.3 repeats t = 0)
+  knifeStorm: { mod: knifeStorm },
   // Loot: a kill goes up in a poof and coins bounce out. Cut once they settle (~1.25 s); the battle then flies
   // them to the zeny counter. One bake per coin count (the count is an option, not a palette).
   coinDrop3: { mod: coinDrop, until: COIN_DROP_UNTIL, opts: { coins: 3 } },
@@ -315,6 +319,9 @@ export const THIEF_PFX: PfxPreloadEntry[] = [
   { id: 'shadowSlash', palette: ROGUE_GOLD },
   'venomStab',
   'smokeBomb',
+  { id: 'daggerCross', palette: ROGUE_GOLD },
+  'flyingKnife',
+  'knifeStorm',
 ]
 
 /** Every effect the Beastmaster line can show. */

@@ -1,7 +1,8 @@
 // Thief-line pixel-art VFX helpers (effects live in src/gfx/fx/thief, baked by src/gfx/pixelfx.ts).
 // Decoration only: nothing here is awaited by battle logic. All presentation numbers are in THIEF_FX below.
 import type Phaser from 'phaser'
-import { MOB_LILAC, ROGUE_GOLD, playPfx } from '../gfx/pixelfx'
+import { MOB_LILAC, ROGUE_GOLD, loopPfx, playPfx } from '../gfx/pixelfx'
+import { IMPLODE_T } from '../gfx/fx/thief/knife-storm'
 
 type Palette = (string | number)[]
 
@@ -18,6 +19,14 @@ export const THIEF_FX = {
   backstab: { scale: 1.7, speed: 1.1, depth: 9004, chest: 0.5 },
   venom: { scale: 1.4, speed: 1.4, depth: 9003, chest: 0.4, dx: -40 },
   smoke: { scale: 1.5, speed: 1.2, depth: 9005 },
+  /** Rogue 🌪️ พายุมีด. storm: the whirling ring over the monsters (y = ground) · knife: one thrown dagger in flight ·
+   *  knifeHit / lastHit: the gold cross where a knife lands (the last knife of the storm lands bigger) ·
+   *  dim: the backdrop darkens while the storm is up (alpha, fade ms) */
+  storm: { scale: 1.9, speed: 1.15, depth: 9004 },
+  knife: { scale: 1.5, speed: 1, depth: 9006, chest: 0.45 },
+  knifeHit: { scale: 0.95, speed: 1.6, depth: 9005 },
+  lastHit: { scale: 2.1, speed: 1.2, depth: 9006 },
+  dim: { alpha: 0.38, fadeMs: 140, depth: -50 }, // depth: over the backdrop (-70..) but under every sprite (depth = its y)
   /** per-hit nudge so repeated hits do not stack exactly (indexed by n % length) */
   hitOffsets: [[0, 0], [-6, 5], [6, -5], [-3, -8]] as [number, number][],
 } as const
@@ -55,4 +64,25 @@ export function venomStabFx(scene: Phaser.Scene, t: VfxTarget) {
 export function smokeBombFx(scene: Phaser.Scene, x: number, groundY: number) {
   const c = THIEF_FX.smoke
   playPfx(scene, 'smokeBomb', x, groundY, { scale: c.scale, speed: c.speed, depth: c.depth })
+}
+
+/** Rogue 🌪️ พายุมีด: the whirling knife ring over the monsters. Returns real ms until the ring collapses (sync the throws to it). */
+export function knifeStormFx(scene: Phaser.Scene, x: number, groundY: number): number {
+  const c = THIEF_FX.storm
+  playPfx(scene, 'knifeStorm', x, groundY, { scale: c.scale, speed: c.speed, depth: c.depth })
+  return (IMPLODE_T * 1000) / c.speed
+}
+
+/** One thrown dagger at (x, y) = its tip, pointing along `angle` (radians). Caller moves + destroys it. */
+export function flyingKnife(scene: Phaser.Scene, x: number, y: number, angle: number): Phaser.GameObjects.Sprite | undefined {
+  const c = THIEF_FX.knife
+  const spr = loopPfx(scene, 'flyingKnife', x, y, { scale: c.scale, speed: c.speed, depth: c.depth })
+  spr?.setRotation(angle)
+  return spr
+}
+
+/** Where a storm knife lands: a gold dagger cross on the target's body (`last` = the storm's final knife, big). */
+export function knifeLandFx(scene: Phaser.Scene, t: VfxTarget, n = 0, last = false) {
+  const c = last ? THIEF_FX.lastHit : THIEF_FX.knifeHit, [dx, dy] = off(n)
+  playPfx(scene, 'daggerCross', t.x + dx, t.y - t.displayHeight * THIEF_FX.knife.chest + dy, { scale: c.scale, speed: c.speed, depth: c.depth, flip: n % 2 === 1, palette: ROGUE_GOLD })
 }

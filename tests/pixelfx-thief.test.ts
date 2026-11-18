@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { DEFS, MOB_LILAC, ROGUE_GOLD, THIEF_PFX, type PfxId, type PfxPreloadEntry } from '../src/gfx/pixelfx'
 import { createFrame, createFx, clearFrame } from '../src/vendor/pixelfx/core/index.js'
 
-const THIEF_IDS: PfxId[] = ['daggerCross', 'shadowSlash', 'venomStab', 'smokeBomb']
+const THIEF_IDS: PfxId[] = ['daggerCross', 'shadowSlash', 'venomStab', 'smokeBomb', 'knifeStorm']
+const LOOP_IDS: PfxId[] = ['flyingKnife'] // projectiles: never end on their own
 const idOf = (e: PfxPreloadEntry): PfxId => (typeof e === 'string' ? e : e.id)
 
 interface Sample { t: number; lit: number; edge: number }
@@ -50,6 +51,8 @@ test('THIEF_PFX preloads every thief effect and the gold / lilac variants', () =
   for (const id of THIEF_IDS) assert.ok(ids.has(id), `THIEF_PFX must include ${id}`)
   assert.ok(THIEF_PFX.some((e) => typeof e !== 'string' && e.id === 'shadowSlash' && e.palette === ROGUE_GOLD), 'Back Stab gold')
   assert.ok(THIEF_PFX.some((e) => typeof e !== 'string' && e.id === 'daggerCross' && e.palette === MOB_LILAC), 'Mobster lilac')
+  assert.ok(THIEF_PFX.some((e) => typeof e !== 'string' && e.id === 'daggerCross' && e.palette === ROGUE_GOLD), 'พายุมีด gold knife hits')
+  for (const id of LOOP_IDS) assert.ok(ids.has(id), `THIEF_PFX must include ${id}`)
 })
 
 test('every thief effect draws, stays inside its frame and ends empty', () => {
@@ -61,6 +64,17 @@ test('every thief effect draws, stays inside its frame and ends empty', () => {
       for (const x of s) assert.ok(x.edge <= 12, `${id} touches the frame border at t=${x.t.toFixed(2)} (${x.edge} px): it would be clipped`)
       const last = s.at(-1)
       assert.ok(last && last.lit <= 8, `${id} final frame still has ${last?.lit} lit pixels`)
+    }
+  }
+})
+
+test('the Rogue flying knife loops, draws every frame and stays inside its frame', () => {
+  for (const id of LOOP_IDS) {
+    assert.equal((DEFS[id].mod.meta as unknown as { loop: boolean }).loop, true, `${id} loops`)
+    const s = sample(id)
+    for (const x of s) {
+      assert.ok(x.lit > 40, `${id} only ${x.lit} lit pixels at t=${x.t.toFixed(2)}`)
+      assert.ok(x.edge <= 12, `${id} touches the frame border at t=${x.t.toFixed(2)} (${x.edge} px)`)
     }
   }
 })
