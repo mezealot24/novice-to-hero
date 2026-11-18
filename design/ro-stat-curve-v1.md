@@ -1,4 +1,4 @@
-# RO Stat Curve v1 (DRAFT: รอคิวอนุมัติก่อนแก้โค้ด)
+# RO Stat Curve v1 (คิวตอบครบแล้ว 2026-11-19: B · มอนเท่าเดิม · ปุ่ม +1 อย่างเดียว)
 
 > Branch: `claude/ro-stat-curve` · ต้อง merge `claude/thief-ult-agi-ratio` ก่อน (ดู §6)
 > บรรทัดที่อ้างอิงทั้งหมดมาจาก worktree นี้ ยกเว้นที่ขึ้นต้นด้วย `thief:` ซึ่งหมายถึง `claude/thief-ult-agi-ratio:<file>`
@@ -289,7 +289,7 @@ buyStat(s, k, n)  = ซื้อได้สูงสุด n ขั้น ต�
 | `status-tab.ts:68` (แต่ละแถว) | ค่ารวม | เพิ่ม `ถัดไป {statCost(s.stats[k])} แต้ม` |
 | `status-tab.ts:84-91` `add(n)` | `min(n, statPoints, max−stat)` แล้วหัก n | เรียก `buyStat(s, k, n)` (จ่ายทีละขั้นตามราคา) |
 | `status-tab.ts:95` / `:100` | เปิดปุ่มเมื่อ `statPoints > 0` / `> 1` | เปิดเมื่อ `statPoints >= statCost(stat)` |
-| `status-tab.ts:93-101` ปุ่ม | `+1` `+5` | `+1` `+10` (ซื้อเท่าที่จ่ายไหว) เพราะหลัง migration ต้องลงใหม่ ~850 แต้ม |
+| `status-tab.ts:93-101` ปุ่ม | `+1` `+5` | **`+1` อย่างเดียว (คิวเลือก 2026-11-19)** · ⚠️ หลัง migration ต้องลงใหม่ ~850 แต้ม = กดหลายร้อยครั้ง → ถ้าเล่นแล้วเหนื่อย ค่อยเพิ่มกดค้างให้รัว (ไม่เพิ่มปุ่ม) |
 | `status-tab.ts:179-198` รีเซ็ต | คืน `Σ(v−start)` | `statPoints = statPointsAt(baseLevel)` (คิดจากเลเวล ไม่ขึ้นกับราคาเก่า) ถ้าใช้ Σ(v−start) เดิม **แต้มจะหาย** |
 | `src/data/statInfo.ts:14-42` | `+2/แต้ม` | คำว่า "แต้ม" จะสับสนกับแต้มสถานะ ให้เปลี่ยนเป็น `/1 STR` (แก้ข้อความอย่างเดียว) |
 | `src/scenes/GemShopScene.ts:90` | `+3 stat point/เลเวล` | `+{statGain} stat point/เลเวล` |
@@ -372,7 +372,7 @@ s.statCurve = STAT_RULES.curveVersion;
 - **Phase 2 (เปิดใช้จริง, 1 PR Major)**
   - เปลี่ยนค่าเป็น preset ที่คิวเลือก
   - `migrateStatCurve` + `statCurve` ใน `newSave`
-  - UI (ราคาถัดไป, `+10`, reset, ข้อความ) + แก้ `tools/bot.cjs`
+  - UI (ราคาถัดไป, ปุ่ม `+1` อย่างเดียว, reset, ข้อความ) + แก้ `tools/bot.cjs`
 - **Phase 3 (re-tune หลังคิว playtest)**
   - off-stat แบบขั้น (Mage / Cleric), `REC`, `TOWER_POWER.ref`, `MON_STAT.tierPct` ถ้า D6+ ยากเกิน, `JOB3_K`
   - ย้าย `0.1` ของ Thief poison ไป `PER_POINT.off`
@@ -397,8 +397,12 @@ s.statCurve = STAT_RULES.curveVersion;
 
 ---
 
-## 8) คำถามสำหรับคิว (ตอบแค่นี้พอ แล้วเริ่ม Phase 0-1 ได้)
+## 8) คำตอบของคิว (2026-11-19)
 
-1. **Preset ราคา:** จะเอา **B: RO-lite** (`costBase 1`, ต้นเกมเท่าเดิม, แนะนำ) หรือ **A: RO แท้** (`costBase 2`, stat ต้นเกมเหลือราวครึ่ง ต้อง re-tune D1-D5) คะ?
-2. **D6-D10:** ปล่อยมอนไว้เท่าเดิมแล้วคิว playtest ก่อน (แนะนำ) หรือจะลด `MON_STAT.tierPct` ไปพร้อมกับ Phase 2 เลยคะ?
-3. **หลัง reset:** ให้ผู้เล่นลง ~850 แต้มเองด้วยปุ่ม `+1/+10` (MVP แนะนำ) หรืออยากได้ปุ่ม "ลงตามสัดส่วน build เดิม" ด้วยคะ?
+| ข้อ | คำตอบ | ผลต่อแผน |
+|---|---|---|
+| 1. Preset ราคา | **B: RO-lite** (`costBase 1`) | ต้นเกมเท่าเดิม · ไม่ต้อง re-tune D1-D5 |
+| 2. D6-D10 | **ปล่อยมอนเท่าเดิม** | ไม่แตะ `MON_STAT.tierPct` ใน Phase 2 · ดูจากคิวเล่นจริงใน Phase 3 |
+| 3. หลัง reset | **ปุ่ม `+1` อย่างเดียว** | เอา `+5` ออก · ไม่มีปุ่มลงตามสัดส่วน build เดิม |
+
+> ลำดับ: merge `claude/thief-ult-agi-ratio` → Phase 0-1 (ไม่เปลี่ยนตัวเลข) → Phase 2 (เปิดใช้ B)
