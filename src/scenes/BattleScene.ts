@@ -1272,7 +1272,8 @@ export class BattleScene extends Phaser.Scene {
     if (!magic && this.st.thMark > 0 && this.job.id === 'thief') this.ensureMark()
     const markHit = !magic && this.st.thMark > 0 && this.job.id === 'thief' && m === this.thMarkMon, release = markHit && this.malice >= KIT.thiefMark.max // 🔻 หมายหัว: full Malice
     if (release) mul *= 1 + KIT.thiefMark.dmg * this.st.thMark
-    const crit = this.forceCrit || release || (!magic && this.shadowTurns > 0 && this.job.id === 'thief') || (!this.petNoCrit && this.critAllowed() && Math.random() < critRate) // magic crits only with spellCrit (or Falcon Crit on Marked targets) · Skill 2 ตาเหยี่ยว · 2nd job
+    const shadowSure = !magic && this.shadowTurns > 0 && this.job.id === 'thief' // 👤 ร่างเงา
+    const crit = this.forceCrit || release || shadowSure || (!this.petNoCrit && this.critAllowed() && Math.random() < critRate) // magic crits only with spellCrit (or Falcon Crit on Marked targets) · Skill 2 ตาเหยี่ยว · 2nd job
     const effFlee = m.huntMark > 0 ? (m.def.flee ?? 5) * Math.max(0, 1 - this.st.j2MarkPierceFlee) : (m.def.flee ?? 5)
     const noFlee = m.huntMark > 0 && this.st.j2MarkPierceFlee >= 1
     if (!magic && !crit && !this.sureHit && !noFlee && this.zenTurns <= 0 && Math.random() > hitChance(this.st.hit, effFlee)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
@@ -1289,7 +1290,9 @@ export class BattleScene extends Phaser.Scene {
     if (crit && this.st.arCritRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arCritRes) // archer talent ลมหายใจนักล่า
     const chargeDmgAdd = (magic || this.isProcHit()) && this.st.lightChargeLv > 0 && this.lightChargeStacks >= 5 ? this.st.lightChargeLv * 0.2 : 0
     const critDmgAdd = (falconCrit > 0 && m.huntMark > 0 ? Math.max(0, 1.5 - this.st.critMul) : 0) + (m.huntMark > 0 ? this.st.j2StanceMarkCritDmg : 0) + (!magic && this.st.j3Wl > 0 ? this.res * KIT3.warlord.rageCritDmgPer : 0) + (this.isProcHit() && (!this.reacting || this.st.j3PfCritMana > 0) ? this.st.procCritMul : 0) + chargeDmgAdd // 🎓 reactions take procCritMul only with 🎯 จุดอ่อนธาตุ
-    const r = this.roll(mul, magic, crit, critDmgAdd), up = this.src === 'ult' ? this.st.ultPierce : 0 // v78 บดกระดูก: ult pierce
+    const wasForce = this.forceCrit; if (release || shadowSure) this.forceCrit = true // sure crits keep full crit power (critPow)
+    const r = this.roll(mul, magic, crit, critDmgAdd); this.forceCrit = wasForce
+    const up = this.src === 'ult' ? this.st.ultPierce : 0 // v78 บดกระดูก: ult pierce
     const awPierce = !magic && !crit && this.st.j3Rn > 0 && (this.awakenTurns > 0 || this.stampedeFiring) ? this.st.j2Spiral : 0
     const sunder = (m.sunderTurns ?? 0) > 0 ? Math.max(0, 1 - (m.sunder ?? 0)) : 1
     if (!magic && !crit) r.dmg = m.def.def ? Math.max(1, Math.round(afterDef(r.dmg, m.def.def * (1 - Math.min(1, pierce + up + awPierce)) * Math.max(0, 1 - this.st.physPen) * sunder * (m.armorBrk > 0 ? 1 - KIT2.mobster.armorBrk : 1) * (this.job.id === 'thief' ? 1 - poisonDefCut(m.poison) : 1)))) : r.dmg // Mobster เกราะแตก · Ranger j2Spiral · physPen · void_sunder
@@ -3381,7 +3384,7 @@ export class BattleScene extends Phaser.Scene {
         await this.lunge(m, () => {
           this.strike(m, S2N.pickMul(star))
           if (star && !m.dead) { this.addPoison(m, S2N.pickPoison) }
-          for (const k of topStats(m.def).slice(0, star ? 2 : 1)) this.stealFrom(m, k) // 💰 GW2-style steal by the monster's top stat
+          for (const k of [...new Set(topStats(m.def).map((x) => (x === 'dex' ? 'luk' : x)))].slice(0, star ? 2 : 1)) this.stealFrom(m, k) // DEX and LUK share one loot // 💰 GW2-style steal by the monster's top stat
         })
         this.res = Math.min(this.resMax(), this.res + S2N.pickRes(lv))
         break
@@ -3770,7 +3773,7 @@ export class BattleScene extends Phaser.Scene {
       }, false, true)
     }
     this.stayIn = false
-    this.heroSpr.setAlpha(1)
+    this.heroSpr.setAlpha(this.shadowTurns > 0 ? 0.75 : 1) // keep the ร่างเงา look
     await this.goHome()
   }
 
@@ -5277,8 +5280,8 @@ export class BattleScene extends Phaser.Scene {
   private trueHurt(m: Mon, n: number, lethal: boolean, crit = false): number {
     n = Math.ceil(n)
     if (n <= 0 || this.hp <= 0) return 0
-    if (this.dodgeCharges > 0) { this.dodgeCharges--; this.evadeJuice('เงาพริ้ว!', '#c9c9d6'); return 0 }
-    if (this.hx.web <= 0 && Math.random() < this.st.luckyDodge) { this.evadeJuice('LUCKY!', '#6fd08c'); return 0 }
+    if (this.dodgeCharges > 0) { this.dodgeCharges--; this.evadeJuice('เงาพริ้ว!', '#c9c9d6'); this.addShadow(KIT.thiefShadow.dodge); return 0 }
+    if (this.hx.web <= 0 && Math.random() < this.st.luckyDodge) { this.evadeJuice('LUCKY!', '#6fd08c'); this.addShadow(KIT.thiefShadow.dodge); return 0 }
     if (this.shield > 0) { const a = Math.min(Math.ceil(this.shield), n); this.shield = Math.max(0, this.shield - a); n -= a; if (n <= 0) { this.floatText(HERO_X, GROUND - 110, '🛡️ กันไว้', '#9fe3ff'); return 0 } }
     this.castBreak(n)
     const before = this.hp
@@ -6282,7 +6285,7 @@ export class BattleScene extends Phaser.Scene {
     const manual = !this.autoUlt, silent = this.hx.silence > 0, exhaust = this.asuraExhaust > 0, ri = resourceIcon(this.job.resource)
     const money = (n: number) => (n > 0 ? `${ri}${Math.round(n)}` : '')
     if (slot === 's1') {
-      const cost = autoCost(this.job, this.st), isSage = this.j2?.id === 'sage'
+      const cost = this.shadowTurns > 0 && this.job.id === 'thief' ? 0 : autoCost(this.job, this.st), isSage = this.j2?.id === 'sage' // 👤 ร่างเงา: Skill 1 free
       return { in: { cdLeft: 0, cdMax: 0, cost, res: this.res, booked: isSage ? false : this.book.s1, manual, blocked: exhaust }, icon: this.job.auto.icon, name: isSage ? `${this.job.auto.name} (ติดตัว: ตีใช้ Mana)` : this.job.auto.name, costTxt: money(cost) }
     }
     if (slot === 's2' && this.s2) {
