@@ -61,3 +61,12 @@ test('status layer: thief_c1 counts Wound / Exposed kinds, th_t2b counts poison 
   assert.match(c1.desc(1), /Wound/); assert.match(c1.desc(1), /Exposed/)
   assert.match(t2b.desc(1), /พิษ \+ Wound/)
 })
+
+test('B1 worst cases stay under the cap (R4.6.3: one Skill 2, one row-4 talent)', () => {
+  // ม่านควัน ★ Exposed + th_t4a r2 + gear 0.45 · แผลลึก Privileged + th_t4a r2 + gear 0.45 · dot = no Exposed
+  near(takenAmp({ ...T0, exposed: S2N.exposedStar, privileged: 0.3, poisonAmp: 0.45 }), KIT.thiefTakenCap)
+  near(takenAmp({ ...T0, woundPriv: S2N.woundPriv, privileged: 0.3, poisonAmp: 0.45 }), KIT.thiefTakenCap)
+  near(takenAmp({ ...T0, exposed: 0, woundPriv: 0, privileged: 0.3 }), 0.3)
+  // old flat line: gear 0.45 + old กัดกร่อน 0.25 = x1.70 -> now capped at x1.60
+  near(1 + takenAmp({ ...T0, poisonAmp: 0.45 + 0.25 }), 1.6)
+})

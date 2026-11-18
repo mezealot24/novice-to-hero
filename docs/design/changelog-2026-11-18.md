@@ -61,3 +61,9 @@
 - `healCut()` takes the bigger of burn / hellfire / Blade's End cut (never stacked) · Toxic Skin does not speed up Wound / Exposed
 - thief_c1 คมเลือด status kinds = poison / Wound / Exposed / chill (`debuffKinds`) · th_t2b จุดบอดซ้อนพิษ counts poison + Wound stacks (texts updated)
 - No source of Wound / Exposed yet (ม่านควัน / แผลลึก commits)
+
+## ⚖️ feat(thief): P2'b B1 takenAmp in damageMon (replaces the flat poisonAmp line)
+- `damageMon` line `poisonAmp && m.poison >= 10` → `takenAmpOf(m, dot)`: Exposed (hits only) + th_t4a Privileged + แผลลึก Privileged + gear / card / set กัดกร่อน, **added**, cap `KIT.thiefTakenCap` 0.6
+- Gear กัดกร่อน threshold = `thiefPoisonAmpShare` 0.5 × the hero's poison cap: cap 20 → 10 stacks (same) · พิษสะสม cap 29 → 15 · dot still counts (as before)
+- Only number change today: gear 0.45 + talent กัดกร่อน 0.25 = ×1.70 → capped ×1.60
+- New `Stats.thPrivileged` (0 until the th_t4a commit) · stat / set / talent texts say "half the poison cap"

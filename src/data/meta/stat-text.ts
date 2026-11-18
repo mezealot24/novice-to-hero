@@ -67,7 +67,7 @@ const STAT_LABEL: Partial<
 	arDodgeShield: ["หลบ→โล่", (n) => `${pc(n)} HP`],
 	arCritRes: ["คริ→Energy", (n) => `${n}`],
 	counterShield: ["สวนกลับ→โล่", (n) => `${pc(n)} HP`],
-	poisonAmp: ["ดาเมจใส่มอนพิษ 10+ stack", pc],
+	poisonAmp: ["ดาเมจใส่มอนพิษ ≥ ครึ่งเพดาน (10 ที่ 20)", pc],
 	poisonSlow: ["พิษชา", (n) => `Lv ${n}`],
 	poisonOverflow: ["พิษล้น", () => "เปิด"],
 	thMark: ["หมายหัว", (n) => `Lv ${n}`],

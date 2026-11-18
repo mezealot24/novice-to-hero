@@ -23,7 +23,7 @@ import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/ski
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
-import { thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, ultCooldown, ultCost } from '../data/skill-math'
+import { thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -3075,6 +3075,18 @@ export class BattleScene extends Phaser.Scene {
   private debuffFlags(m: Mon): DebuffFlags {
     return { poison: m.poison > 0, wound: m.wound > 0, exposed: m.exposed > 0, chill: m.chill > 0, stabMark: false, blind: m.blind > 0, armorBrk: m.armorBrk > 0, weak: m.weakTurns > 0 }
   }
+  /** P2'b B1 Taken (R4.6): every term keeps its own filter, then takenAmp() adds them under one cap. Stack thresholds = share of poisonMax(). */
+  private takenAmpOf(m: Mon, dot: boolean): number {
+    const cap = this.poisonMax()
+    const priv = this.st.thPrivileged > 0 && (m.poison >= poisonAt(KIT.thiefPrivShare, cap) || debuffKinds(this.debuffFlags(m), true) >= KIT.thiefKindsAt) ? this.st.thPrivileged : 0
+    return takenAmp({
+      exposed: !dot && m.exposed > 0 ? m.exposedPct : 0, // Exposed: hits only
+      stabMark: 0, // P3 (Rogue) fills this
+      woundPriv: this.s2?.id === 'th_wound' && m.poison > 0 && m.wound > 0 ? S2N.woundPriv : 0, // แผลลึก Privileged: all damage incl. dot
+      privileged: priv, // th_t4a สถานะทับซ้อน (dot too)
+      poisonAmp: this.st.poisonAmp > 0 && m.poison >= poisonAt(KIT.thiefPoisonAmpShare, cap) ? this.st.poisonAmp : 0, // gear / cards / sets กัดกร่อน (dot too, like before)
+    })
+  }
   /** Status kinds on a monster for thief_c1: poison / Wound / Exposed / chill (🐌 พิษชา counts). */
   private statusKinds(m: Mon): number { return debuffKinds(this.debuffFlags(m), false) }
   /** P2'a thief_c4 ★ ราชันย์โลหิต active right now. */
@@ -4104,7 +4116,7 @@ export class BattleScene extends Phaser.Scene {
     if (!dot && m.huntMark > 0) { const mk = Math.max(this.st.arMark, this.j2?.id === 'beastmaster' ? preyMarkOf(this.st) : 0); if (mk > 0) dmg = Math.ceil(dmg * (1 + mk)) } // v82 archer หมายหัว · 🏷️ Beastmaster Prey Mark (hits only)
     if (!dot && m.armorBrk > 0 && this.st.swBreak > 0) dmg = Math.ceil(dmg * (1 + this.st.swBreak)) // v84 Swordsman ทุบเกราะ (hits only)
     if (this.st.lateDmg > 0 && this.fightTurns >= 12) dmg = Math.ceil(dmg * (1 + this.st.lateDmg)) // cleric talent: อรุณรุ่ง
-    if (this.st.poisonAmp > 0 && m.poison >= 10) dmg = Math.ceil(dmg * (1 + this.st.poisonAmp)) // Thief talent: กัดกร่อน
+    const taken = this.takenAmpOf(m, dot); if (taken > 0) dmg = Math.ceil(dmg * (1 + taken)) // P2'b B1 Taken (R4.6): Exposed + Privileged + gear กัดกร่อน, added under KIT.thiefTakenCap
     if (!dot && this.relic === 'executioner' && m.hp < m.def.hp * RELIC_RULES.executioner.below) dmg = Math.ceil(dmg * (1 + RELIC_RULES.executioner.mul))
     if (m.maiden && !m.maiden.dead && dmg > 0) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'อมตะ! (ฆ่าเมเดนก่อน)', '#e0a8ff'); return }
     if ((m.parry || m.espadaArmed) && dmg > 0) { // duelist: Riposte stance / Grandado Espada mark turn = immortal
