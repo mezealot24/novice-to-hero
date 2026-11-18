@@ -5,8 +5,8 @@
 
 ## สรุป (5 บรรทัด)
 1. แต้มสถานะต่อ Base Lv จะโตขึ้นตามเลเวล: `3 + floor(Lv/5)` (Lv 80 = 19 แต้ม/เลเวล, รวม 856 แต้ม จากเดิม 240)
-2. การอัป stat แพงขึ้นเรื่อยๆ: `costBase + floor((stat-1)/10)` แต้มต่อ +1 คิดจากค่าที่ซื้อเองเท่านั้น ส่วน race / gear / job bonus ได้ฟรี
-3. ผลคือ build ลงตัวเดียวหมดโดนตัดครึ่ง (AGI 238 เหลือราว 126 ที่ Lv 80) ส่วน build 3 stat ช่วง Lv 1-30 ได้ค่าเท่าเดิม และ build กระจายได้มากกว่าเดิม
+2. การอัป stat แพงขึ้นเรื่อยๆ: `costBase + floor((stat-1)/10)` แต้มต่อ +1 โดย A (RO แท้) ใช้ `costBase` 2 และ B (RO-lite, แนะนำ) ใช้ 1 ราคาคิดจากค่าที่ซื้อเองเท่านั้น ส่วน race / gear / job bonus ได้ฟรี
+3. ผลคือ build ลงตัวเดียวหมดโดนตัดครึ่ง (AGI 238 ที่ Lv 80 เหลือ 117 ใน A และ 126 ใน B) ส่วน B: build 3 stat ช่วง Lv 1-30 ได้ค่าเท่าเดิม และ build กระจายได้มากกว่าเดิม
 4. มอนสเตอร์ไม่เปลี่ยน: แยก `MON_STAT.pointsPerLv` ออกจาก `STAT_RULES` ให้เป็นเลข 3 ของตัวเอง
 5. Save ทุกอันจะรีเซ็ต stat ฟรี 1 ครั้งและได้แต้มคืนตามกฎใหม่ (flag `statCurve`) ทำเป็น 3 phase โดย phase 1 ต้องไม่เปลี่ยนตัวเลขอะไรเลย
 
@@ -229,13 +229,28 @@ buyStat(s, k, n)  = ซื้อได้สูงสุด n ขั้น ต�
 |---|---|---|---|---|---|
 | 1. แต้มที่ซื้อ AGI ÷ แต้มที่ได้ | `statCostTo(bought) / statPointsAt(Lv)` | ~0.99 (เศษที่เหลือ) | 0.49 | **ไม่นับ** | ❌ ไม่นับ AGI ฟรี |
 | 2. AGI ดิบ ÷ ลงหมดได้เท่าไร | `(AGI−1) / (maxSingleAt(Lv)−1)` | 1.00 | 0.70 | 1.08 | ⚠️ ลงครึ่งได้ 70% |
-| **3. ราคาของ AGI รวม ÷ ราคาของการลงหมด (แนะนำ)** | `statCostTo(1+agiAbove) / statCostTo(maxSingleAt(Lv))` | **1.00** | **0.50** | 1.16 (ไม่เกิน cap 1.2) | ✅ |
+| **3. ราคาของ AGI รวม ÷ ราคาของการลงหมด (แนะนำ)** | `statCostTo(1+agiAbove) / statCostTo(maxSingleAt(Lv))` | **1.00** | **0.50** | 1.16 (ไม่เกิน cap 1.2) | ✅ ถ้าไม่มี AGI ฟรี (ดูตารางล่าง) |
+
+**AGI ฟรี (job bonus + gear) ใน option 3 มีค่ามากกว่าวันนี้** เพราะคิดราคาที่ช่วงบนของ curve (B, Lv 80)
+
+| AGI ที่ซื้อ + ฟรี | share ใน option 3 | share วันนี้ (build เดียวกัน) |
+|---|---|---|
+| 126 + 0 (ลงหมด) | 1.00 | 0.99 |
+| 88 + 0 (ลง 2 ตัว) | 0.50 | 0.50 |
+| 88 + 10 | 0.62 | 0.54 |
+| 88 + 30 | 0.88 | 0.63 |
+| 71 + 30 (ลง 3 ตัว) | 0.65 | 0.46 |
+
+- ถ้ามี AGI ฟรีเยอะ เงาพริ้วจะแรงกว่าวันนี้ราว +0.1 ถึง +0.5 ของ K
+- ปุ่มที่ใช้ปรับคือ `KIT.thiefUltAgiK` และ `KIT.thiefUltAgiShareCap` ใน Phase 3 หลังคิว playtest
+- อีกทาง: นับ AGI ฟรีแบบดิบ คือ `(statCostTo(bought) + free × statCost(bought)) / pool` ซึ่งซับซ้อนกว่า ไม่แนะนำสำหรับ MVP
 
 - ทางที่แนะนำ: signature `thiefUltAgiBonus(agiAboveStart, pool)` คงเดิม
   - ข้างในแปลงตัวตั้งเป็น `statCostTo(start + agiAboveStart)`
   - `statPool(s)` คืน `statCostTo(maxSingleAt(baseLevel))`
   - ถ้าไม่มี baseLevel ใช้ `statSpent(s.stats)` (แทน `Σ(v-start)` ที่ `thief:279-282`)
 - ใช้กับ preset "เหมือนวันนี้" ได้ผลเท่าเดิมทุกค่า: `statCostTo(x) = x-1` และ `maxSingle = 1+3L` ทำให้ pool = 3L
+- มอนไม่โดน: `statPool` / `thiefUltAgiBonus` ถูกเรียกแค่ใน `heroBuild` ตอน job thief (`thief:301`), `statInfo.ts` และ `status-tab.ts:218` (git grep บน Thief branch) ไม่มีทางที่ `mon-stats.ts` / `hero-skill-book.ts` / `mon-skill-scale.ts` จะเรียกถึง
 - `statInfo.ts` (`thief:` diff) และ `status-tab.ts` (`thief:218`) ส่ง `statPool(save())` อยู่แล้ว จึงไม่ต้องแก้ตรงที่เรียก
 
 ### 3.4 Hero Power (`src/data/power.ts`)
@@ -285,7 +300,10 @@ buyStat(s, k, n)  = ซื้อได้สูงสุด n ขั้น ต�
 | `src/data/levelup.ts:38` | `+= lv × pointsPerLevel` | `+= statPointsAt(new) − statPointsAt(old)` |
 
 - `tools/bot.cjs:12-45` ตั้ง stat ตรงๆ แบบ `3×(Lv−1)` ซึ่งจะผิดกฎใหม่ ต้องเปลี่ยนให้ซื้อผ่าน `statCostTo` ไม่อย่างนั้นผล bot ใช้ไม่ได้ (ต้องถามคิวก่อนรัน bot)
-- ในโค้ดไม่มีที่อื่นเขียน `s.stats[...]` ของ hero นอกจาก `status-tab.ts` และ `save.ts:200` (grep แล้ว)
+- ที่อื่นที่ยุ่งกับ stat ของ hero (จาก grep `s.stats[` และ `stats: {`; ยังไม่ได้ไล่ครบทุก pattern ให้ grep ซ้ำตอนทำ Phase 1):
+  - `src/scenes/BattleScene.ts:368` (mutator ดวงพุ่ง คูณ LUK ที่ซื้อ) และ `:5288` (คูณ AGI ที่ซื้อ) เป็นการคูณชั่วคราวตอนคำนวณ stat ไม่ได้ใช้ราคา จึงไม่ต้องแก้ แต่ผลจะลดลงตาม stat ที่ซื้อได้น้อยลง
+  - `src/preview-kit.ts:23` ใช้ `newSave` + เขียนทับ `statPoints` (อยู่ในตารางแล้ว)
+  - `src/save.ts:162` (`newSave`) และ `:200` (fallback WIS)
 
 ---
 
@@ -324,7 +342,7 @@ s.statCurve = STAT_RULES.curveVersion;
 | AGI + STR + DEX | 62 × 3 | 71 × 3 | AGI −70% |
 
 - ค่านี้ยังไม่รวม job bonus / gear AGI ซึ่งได้เท่าเดิม
-- เงาพริ้ว (option 3): ลง AGI ตัวเดียว bonus ยังเท่ากับ K (2.0) ลง AGI+STR ได้ ~1.0 ซึ่งเท่ากับวันนี้ที่ลงครึ่ง
+- เงาพริ้ว (option 3): ลง AGI ตัวเดียว bonus ยังเท่ากับ K (2.0) ลง AGI+STR ได้ ~1.0 แต่ถ้ามี AGI ฟรีจะได้มากกว่าวันนี้ (ตารางใน §3.3)
 
 ---
 
@@ -347,7 +365,8 @@ s.statCurve = STAT_RULES.curveVersion;
 - **Phase 0:** merge `claude/thief-ult-agi-ratio`
 - **Phase 1 (refactor, ตัวเลขไม่เปลี่ยน, 1 commit)**
   - เพิ่ม `stat-curve.ts` + field ใหม่ใน `STAT_RULES` ตั้งเป็น preset "เหมือนวันนี้"
-  - ย้ายจุดที่เรียกทั้งหมด (`save.ts:145`, `:584`, `levelup.ts:38`, status-tab, `statPool`) มาใช้ฟังก์ชันใหม่
+  - ย้ายจุดที่เรียกทั้งหมด (`save.ts:145`, `:584`, `levelup.ts:38`, `status-tab.ts:84-101`, `statPool`) มาใช้ฟังก์ชันใหม่
+  - ปุ่มรีเซ็ตยังคงเป็น `Σ(v−start)` เหมือนเดิม (ใน preset นี้ได้ค่าเท่ากัน) ส่วนการเปลี่ยนเป็น `statPointsAt(baseLevel)` ไปทำใน Phase 2
   - แยก `MON_STAT.pointsPerLv` + tunables
   - test พิสูจน์ว่าทุกค่าเท่าเดิม
 - **Phase 2 (เปิดใช้จริง, 1 PR Major)**
