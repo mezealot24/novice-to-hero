@@ -216,11 +216,24 @@ export const KIT2 = {
   },
   rogue: {
     knifeMul: 0.4, knifePerCombo: 1, dualKnife: 1, // 🔪 มีดบิน: each extra combo hit throws knives at random monsters (+1 with a dagger off-hand) · no lifesteal
-    stabCost: 30, stabCd: 3, stabMul: 2.2, // 🗡️ Back Stab: sure crit on the highest-HP monster
+    stabCost: 30, stabCd: 3, stabMul: 2.2, // 🗡️ Back Stab: sure crit on the most-marked monster (ties: highest HP), P3'a
     stabCpMax: 5, stabCpPer: 0.2, // 🔁 Combo Point (Q 2026-11-18, WoW / D4 builder-finisher): each combo hit +1 point (max cpMax), Back Stab spends all for +cpPer x points
     ultKnives: 8, ultKnifeMul: 0.5, // 🌪️ พายุมีด: shadow dance + knives spread over every monster
     ultKnifeJ2Share: 0.75, // 🌪️ พายุมีด knives get this share of j2KnifeMul (มีดคม / ใบมีดลับคม) · Q 2026-11-19 fix: before, the storm ignored it
-    mastery: { atkPct: 0.05, crit: 0.03 }, // dagger
+    mastery: { atkPct: 0.05, skillCrit: 0.05 }, // dagger · P3'a: skillCrit (physical skills crit only with it since the crit rework), was crit 0.03
+    // ----- P3'a (design/thief-rogue-rework-v1.md §3.2 + R4.7.4): 🔪 Dagger Mark + Voracity -----
+    knifePskillShare: 0.5, // มีดบิน (combo / crit / free knives, not the storm) x (1 + pskill x this)
+    markMax: 3, markTurns: 2, markFocus: 0.3, // ตราคมมีด: a landed knife = +1 Mark (max, lasts N monster turns, refreshed) · chance a knife picks a monster under the cap
+    markSteelMul: 0.35, markSteelSplash: 0.6, markRes: 6, markCp: 1, // เก็บมีด (basic / combo / แทงพิษ / Back Stab on a marked monster): swing x P.ATK per Mark (others take the splash share) · Energy per Mark · Combo Point per pickup
+    markKillKnives: 2, // Kill Reset (1 per hero turn): kill with a knife / kill a marked monster -> Back Stab + Ult CD -1 and free knives at the lowest HP monster
+    stabPickupAt: 2, stabPickupCdCut: 1, // a pickup of this many Marks cuts Back Stab CD (1 per hero turn)
+    stabMarkAmp: 0.15, stabMarkTurns: 2, // 🗡️ Backstab Mark: + damage taken from hits (B1 Taken, R4.6), monster turns
+    stabStrip: 0.2, stabStripTurns: 2, // 🗡️ Strip Armor: P.DEF -share, monster turns
+    stabAmbushMul: 0.25, stabAmbushRes: 15, stabAmpCap: 0.75, // 🗡️ Shadow Ambush (in Shroud or dodged since the last hero turn): + Back Stab dmg, Energy · B4 cap of every conditional Back Stab amp (Combo Point is outside it)
+    knifeBounce: 0.65, knifeBounceAt: 2, // rg_k2 มีดชิ่ง: base share of the bounce · Marks the target needs (or the knife kills it)
+    comboTempoMax: 5, comboDebuffMax: 4, comboDodgeEvery: 3, comboDodgeIcdTurns: 2, // rg_c1 Tempo stacks per wave · rg_c2 debuff kinds counted · rg_c3 dodge every N combo hits, ICD hero turns
+    comboShadowMul: 0.45, comboShadowAt: 3, // rg_c4 ★ Living Shadow: share of a Back Stab · chain hits needed
+    critAmbushHi: 0.7, critAmbushLo: 0.35, critLeechResMax: 12, critKnifeMul: 1.2, // rg_x1 HP at / above · below · rg_x3 Energy cap per hero turn · rg_x4 ★ crit knife x P.ATK
   },
   mobster: {
     execBase: 0.08, execPer: 0.03, bossExecMul: 2, // 📒 สมุดหนี้: Execute under (base + per x debt) HP · boss / mini take x this instead (doc 3x)
@@ -321,6 +334,19 @@ export const KIT2 = {
     mastery: { atkPct: 0.05, crit: 0.02 }, // bow
   },
 }
+
+// ----- P3'a Rogue pure helpers (BattleScene reads these · tests/rogue-p3a.test.ts) -----
+/** มีดบิน x P.ATK: (base + j2KnifeMul) x (1 + pskill x knifePskillShare). The storm keeps its own formula. */
+export const rogueKnifeMul = (st: Pick<Stats, 'j2KnifeMul' | 'pskill'>, base: number = KIT2.rogue.knifeMul) => (base + st.j2KnifeMul) * (1 + Math.max(0, st.pskill) * KIT2.rogue.knifePskillShare)
+/** 🔪 เก็บมีด Sinister Steel x P.ATK on the picked-up monster (the others take x markSteelSplash). */
+export const rogueSteelMul = (marks: number, pskill: number) => KIT2.rogue.markSteelMul * Math.max(0, marks) * (1 + Math.max(0, pskill))
+/** Back Stab B4 (R4.6): conditional amps add under stabAmpCap. Combo Point is a separate multiplier outside it (MAIN-VS-REV4 R1). */
+export const rogueStabAmp = (ambush: boolean) => Math.min(KIT2.rogue.stabAmpCap, ambush ? KIT2.rogue.stabAmbushMul : 0)
+/** rg_c2: combo dmg + per debuff kind / Mark on the target, at most comboDebuffMax kinds. */
+export const rogueComboDebuff = (st: Pick<Stats, 'j2ComboDebuff'>, kinds: number) => Math.max(0, st.j2ComboDebuff) * Math.min(KIT2.rogue.comboDebuffMax, Math.max(0, kinds))
+/** rg_x1: + crit / skillCrit vs a monster at HP share >= critAmbushHi, < critAmbushLo, or Exposed. */
+export const rogueAmbushCrit = (st: Pick<Stats, 'j2AmbushCrit'>, hpShare: number, exposed: boolean) =>
+  st.j2AmbushCrit > 0 && (hpShare >= KIT2.rogue.critAmbushHi || hpShare < KIT2.rogue.critAmbushLo || exposed) ? st.j2AmbushCrit : 0
 
 /** Beastmaster Partner Passive Stances (`save.pet = 'hawk' | 'boar' | 'wolf'`, rework v2.1). */
 export const BM_STANCE = {

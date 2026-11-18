@@ -97,6 +97,7 @@ export const INT_FIELDS: ReadonlySet<keyof Stats> = new Set<keyof Stats>([
 	"j2HawkHits",
 	"j2AutoBolts",
 	"j2KnifeAdd",
+	"j2CritEnergy",
 	"j2Meteors",
 	"j2LovHits",
 	"j2HcVit",
