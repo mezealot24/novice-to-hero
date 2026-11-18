@@ -104,6 +104,7 @@ export function explainTableGroup(t: TableId, key: string): { title: string; des
       cast: { title: '🔮 cast · ระบบร่ายเวท (Mage)', desc: 'โอกาสร่ายแตก คืน Mana และลูกไฟพื้นฐาน' },
       cleric: { title: '✝️ cleric · ตัวคูณและโล่หลัก (Cleric)', desc: 'ค่าร่าย Ult, ฮีล, แสงตก, โล่ และเพดานโล่พระ' },
       clericTree: { title: '🕸️ clericTree · ใยแมงมุมพระ (รุ่งอรุณ / แก่นศรัทธา)', desc: 'ตัวเลขโนดในสกิลทรีของนักบวช' },
+      mageCore: { title: '💪 mageCore · กายสู่เวท (แกนจอมเวท)', desc: 'STR ต่อขั้นที่แปลงเป็นฟื้น Mana และ M.ATK ของโนด mage_core3' },
     },
     skills: {
       crit: { title: '💥 crit · ตัวคูณความแรงคริแยกสกิลคลาสหลัก', desc: '1 = ปกติ, 0.5 = โบนัสคริครึ่ง, 0 = ไม่คริ' },

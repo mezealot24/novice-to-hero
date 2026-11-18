@@ -46,3 +46,6 @@
 
 ## 🤖 chore(bot): sync thief web ids and rework flag
 - `tools/bot.cjs` save setup adds `thiefRogueRework: 1` (else `load()` would wipe the bot's Thief / Rogue / Mobster `jobTree`) · `TREEX` / `TAL` examples use P2a ids · Rogue preset untouched (P3) · bot not run (Q playtests)
+
+## 🐛 fix(admin): Thai labels for kit mageCore
+- `kit.mageCore.*` (กายสู่เวท) had no `KIT_EXPLAIN` rows and no group title → 2 `admin-engine` tests failed (pre-existing, not P2a) · added 4 labels + the group title
