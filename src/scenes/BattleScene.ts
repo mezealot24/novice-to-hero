@@ -1235,7 +1235,7 @@ export class BattleScene extends Phaser.Scene {
     const effFlee = m.huntMark > 0 ? (m.def.flee ?? 5) * Math.max(0, 1 - this.st.j2MarkPierceFlee) : (m.def.flee ?? 5)
     const noFlee = m.huntMark > 0 && this.st.j2MarkPierceFlee >= 1
     if (!magic && !crit && !this.sureHit && !noFlee && this.zenTurns <= 0 && Math.random() > hitChance(this.st.hit, effFlee)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
-    if (!magic && m.def.luckyDodge && Math.random() < m.def.luckyDodge) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, '🍀 หลบ!', '#a9a6c7'); return 0 } // D6+ stat monsters: LUK lucky dodge (even vs crits, like the hero's)
+    if (!magic && !this.backStabbing && m.def.luckyDodge && Math.random() < m.def.luckyDodge) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, '🍀 หลบ!', '#a9a6c7'); return 0 } // D6+ stat monsters: LUK lucky dodge (even vs crits, like the hero's)
     if (m.def.fixedFlee && Math.random() < m.def.fixedFlee) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS 👻', '#e0a8ff'); return 0 } // Maiden: always 50%
     if (this.skillHits) mul *= 1 - this.skillCut() // spell vamp drawbacks: skill / ult damage cut
     if (!magic && this.st.j2HpPunch > 0 && !this.allyHitting && this.src !== 'other') mul += this.st.j2HpPunch * this.st.maxHp / Math.max(1, this.st.atk) // Monk หมัดเลือดนักสู้ (+ Paladin Hybrid)
@@ -1286,7 +1286,7 @@ export class BattleScene extends Phaser.Scene {
         this.heal(this.st.maxHp * KIT3.warlord.ultFuryCritHeal, true)
       }
     }
-    if (r.crit && !magic && this.st.j2KnifeCrit > 0 && this.j2?.id === 'rogue' && (this.src === 'basic' || this.src === 'combo')) this.critKnives++ // Rogue ★ คริเป็นมีด
+    if (r.crit && !magic && this.st.j2KnifeCrit > 0 && this.j2?.id === 'rogue' && (this.src === 'basic' || this.src === 'combo' || this.backStabbing)) this.critKnives++ // Rogue ★ คริเป็นมีด (+ Back Stab)
     if (!m.dead && !this.allyHitting) {
       const vs = this.itemEffect('void_sunder')
       if (vs && Math.random() < (vs.chance ?? 1)) {
@@ -1678,6 +1678,7 @@ export class BattleScene extends Phaser.Scene {
   private pet: PetId = 'hawk' // save.pet: the partner ★ พรานแห่งป่า sends in again
   private pets: { id: PetId; pow: number }[] = [] // this wave's pet lineup (rework v1: all 3)
   private sureHit = false // Blitz Beat: skips Flee
+  private backStabbing = false // Rogue Back Stab in flight: RO Back Stab ignores the monster's LUK lucky dodge · ★ คริเป็นมีด counts it
   private zenyWave = 0 // 🧲 แม่เหล็ก: + zeny share this wave
   private mirror = false // 🔁 กระจก: the next landed monster hit is bounced back
   /** Wave start: Beastmaster pets, Innovator traps (+ Ranger Hybrid traps · ★ ป้อมถาวร free turret). */
@@ -2171,7 +2172,11 @@ export class BattleScene extends Phaser.Scene {
         }
       } else if (j2.id === 'rogue') { // 🗡️ Back Stab: sure crit on the highest-HP monster
         const t = this.alive().sort((a, b) => b.hp - a.hp)[0]
-        if (t) { this.forceCrit = true; await this.lunge(t, () => this.strike(t, KIT2.rogue.stabMul * pow * (1 + this.st.pskill), false, '#ffd36b')); this.forceCrit = false }
+        if (t) {
+          this.forceCrit = true; this.backStabbing = true
+          try { await this.lunge(t, () => this.strike(t, KIT2.rogue.stabMul * pow * (1 + this.st.pskill), false, '#ffd36b')) } finally { this.forceCrit = false; this.backStabbing = false }
+          this.comboKnives(false) // ★ คริเป็นมีด: the Back Stab crit owes a knife
+        }
       } else if (j2.id === 'mobster') { // ⛓️ ตัดเส้นเอ็น: boss first, DEF break + chill
         const M = KIT2.mobster, t = this.bossTarget() ?? live[0], turns = M.cutTurns + this.st.j2DebuffTurns
         if (t) await this.lunge(t, () => {
