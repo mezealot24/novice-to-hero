@@ -45,7 +45,7 @@ test('core mods: PLAYER keys, finite, >= 0, never above full; full-level numbers
   near(thiefCondLeechAdd(c1, KIT.thiefKindsAt), 0.135, 'c1 Lv 5 multi = 13.5%')
   near(thiefKillHeal(c3, 0), 0.12, 'c3 Lv 5')
   near(thiefBossCritHeal(c3), 0.045, 'c3 boss crit')
-  assert.equal(thiefBloodKingOn(st(node('thief_c4').mod(1)), 40, 100), true)
+  assert.equal(thiefBloodKingOn(st(node('thief_c4').mod(1)), 40, 100, false), true)
 })
 
 test('row-2 talents: ขโมยจังหวะ / จุดบอดซ้อนพิษ / จังหวะสลับมีด numbers, ranks > 0, no autoCostCut', () => {
@@ -79,9 +79,9 @@ test('pure helpers: leech kinds, kill heal, boss crit, blood king, stack crit', 
   assert.equal(thiefKillHeal(st({}), 40), 0, 'no node -> no poison heal either')
   near(thiefBossCritHeal(k), 0.12 * KIT.thiefBossCritLeech)
   const bk = st({ thBloodKing: 1 })
-  assert.equal(thiefBloodKingOn(bk, 44, 100), true)
-  assert.equal(thiefBloodKingOn(bk, 45, 100), false, '45% is not below 45%')
-  assert.equal(thiefBloodKingOn(st({}), 1, 100), false)
+  assert.equal(thiefBloodKingOn(bk, 44, 100, false), true)
+  assert.equal(thiefBloodKingOn(bk, 45, 100, false), false, '45% is not below 45%')
+  assert.equal(thiefBloodKingOn(st({}), 1, 100, false), false)
   const t = st({ thStackCritTal: 0.016 })
   near(thiefStackCritAdd(t, 5), 0.08)
   near(thiefStackCritAdd(t, 99), 0.016 * KIT.thiefStackCritTalMax, 'stacks above the cap do nothing')

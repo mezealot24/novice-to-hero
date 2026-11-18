@@ -408,7 +408,7 @@ export class BattleScene extends Phaser.Scene {
     this.blessOn = false; this.blessDelta = undefined; this.kyrie = { hp: 0, hits: 0 } // v77 พรแสง
     if (this.s2?.id === 'cl_spear') this.st.spearMul += S2N.spearPlus(this.st.s2Lv) // หอกคม: +10%/lv of the 0.3x base
     this.res = this.job.resource === 'rage' ? 0 : this.resMax()
-    this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0; this.shadowGauge = 0; this.shadowTurns = 0; this.thMarkMon = undefined; this.malice = 0; this.rogueCp = 0; this.thHpBonus = 0; this.thTenBonus = 0
+    this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0; this.shadowGauge = 0; this.shadowTurns = 0; this.thMarkMon = undefined; this.malice = 0; this.rogueCp = 0; this.thHpBonus = 0; this.thTenBonus = 0; this.shroudTurns = 0; this.raidReady = false
     this.rigSpec = heroRigSpec(s)
     this.heroRig.setAppearance(this.rigSpec, heroCostumeTint(s.costume))
     this.heroRig.resetPose(HERO_X, GROUND)
@@ -1089,6 +1089,7 @@ export class BattleScene extends Phaser.Scene {
       if (m.woundTurns > 0 && --m.woundTurns === 0) { m.wound = 0; this.dotIcon(m) }
     }
     this.syncStackBody() // P2'b th_t1c
+    if (this.shroudTurns > 0) this.shroudTurns-- // P2'b Shroud: cast on turn N = S2N.smokeTurns -> covers the monster turns after N and N+1
     if (this.st.regen > 0) {
       const lowAmp = this.st.swLowRegenAmp > 0 && this.hp < this.st.maxHp * KIT.swordCore.lowHpAt ? 1 + this.st.swLowRegenAmp : 1
       this.heal(this.st.maxHp * this.st.regen * BATTLE.regenPerTurn / 100 * lowAmp, true)
@@ -1175,6 +1176,8 @@ export class BattleScene extends Phaser.Scene {
   private res = 0
   private shield = 0
   private dodgeCharges = 0
+  private shroudTurns = 0 // P2'b ม่านควัน Shroud: hero turns left (ticks at the top of heroAct)
+  private raidReady = false // P2'b ม่านควัน: the next active hit is a Sightless Raid
   private thHpBonus = 0; private thTenBonus = 0 // P2'b th_t1c: Max HP / tenacity added right now (delta-tracked)
   private shadowGauge = 0 // 👤 Thief เกจเงา (KIT.thiefShadow)
   private shadowTurns = 0 // hero turns of ร่างเงา left
@@ -1360,7 +1363,8 @@ export class BattleScene extends Phaser.Scene {
     if (crit && this.st.thExecute > 0 && m.hp < m.def.hp * 0.3) mul *= 1.5 // Thief ★ เพชฌฆาต
     if (crit && this.st.arCritRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arCritRes) // archer talent ลมหายใจนักล่า
     const chargeDmgAdd = (magic || this.isProcHit()) && this.st.lightChargeLv > 0 && this.lightChargeStacks >= 5 ? this.st.lightChargeLv * 0.2 : 0
-    const critDmgAdd = (falconCrit > 0 && m.huntMark > 0 ? Math.max(0, 1.5 - this.st.critMul) : 0) + (m.huntMark > 0 ? this.st.j2StanceMarkCritDmg : 0) + (!magic && this.st.j3Wl > 0 ? this.res * KIT3.warlord.rageCritDmgPer : 0) + (this.isProcHit() && (!this.reacting || this.st.j3PfCritMana > 0) ? this.st.procCritMul : 0) + chargeDmgAdd // 🎓 reactions take procCritMul only with 🎯 จุดอ่อนธาตุ
+    const condCritDmg = !magic && this.inShroud() && this.st.s2Star > 0 && this.s2?.id === 'th_smoke' ? S2N.smokeCritDmg : 0 // P2'b B3 (R4.6): Shroud ★ crit dmg, added (P2'c adds its own terms + the cap)
+    const critDmgAdd = condCritDmg + (falconCrit > 0 && m.huntMark > 0 ? Math.max(0, 1.5 - this.st.critMul) : 0) + (m.huntMark > 0 ? this.st.j2StanceMarkCritDmg : 0) + (!magic && this.st.j3Wl > 0 ? this.res * KIT3.warlord.rageCritDmgPer : 0) + (this.isProcHit() && (!this.reacting || this.st.j3PfCritMana > 0) ? this.st.procCritMul : 0) + chargeDmgAdd // 🎓 reactions take procCritMul only with 🎯 จุดอ่อนธาตุ
     const wasForce = this.forceCrit; if (release || shadowSure) this.forceCrit = true // sure crits keep full crit power (critPow)
     const r = this.roll(mul, magic, crit, critDmgAdd); this.forceCrit = wasForce
     const up = this.src === 'ult' ? this.st.ultPierce : 0 // v78 บดกระดูก: ult pierce
@@ -1388,6 +1392,7 @@ export class BattleScene extends Phaser.Scene {
     if (broken && this.st.swBreakLeech > 0 && this.hp > 0) this.heal(r.dmg * this.st.swBreakLeech, true) // v84 Swordsman ซ้ำรอย
     if (m.def.toxicSkin && this.hp > 0) this.applyFx({ poison: BATTLE.toxicSkin.poison }) // every landed hit poisons the hero
     if (m.def.iceSkin && this.hp > 0) { if (!this.hx.thorn) this.floatText(HERO_X + 30, GROUND - 150, '❄️ หนามน้ำแข็ง! DMG -15%', '#9fe3ff'); this.hx.thorn = BATTLE.iceSkin.turns }
+    if (this.raidReady && !magic && !this.allyHitting && !m.dead && (this.src === 'basic' || this.src === 'combo' || this.src === 'skill' || this.src === 'ult')) this.sightlessRaid(m) // P2'b ม่านควัน
     if (this.skillHits) { this.skillHits.dmg += r.dmg; this.skillHits.mons.add(m) }
     if (!magic && this.st.poison > 0 && !m.dead) this.addPoison(m, this.st.poison)
     if (markHit) { // 🔻 หมายหัว: build Malice, or spend it on the release hit
@@ -3103,7 +3108,20 @@ export class BattleScene extends Phaser.Scene {
   /** Status kinds on a monster for thief_c1: poison / Wound / Exposed / chill (🐌 พิษชา counts). */
   private statusKinds(m: Mon): number { return debuffKinds(this.debuffFlags(m), false) }
   /** P2'a thief_c4 ★ ราชันย์โลหิต active right now. */
-  private bloodKingOn(): boolean { return thiefBloodKingOn(this.st, this.hp, this.st.maxHp) }
+  private bloodKingOn(): boolean { return thiefBloodKingOn(this.st, this.hp, this.st.maxHp, this.inShroud()) }
+  /** P2'b ม่านควัน Shroud is up (FLEE / skillCrit / ★ crit dmg / thief_c4 read it). */
+  private inShroud(): boolean { return this.shroudTurns > 0 }
+  /** P2'b: hero FLEE right now (Shroud x(1 + S2N.smokeFlee)); never write st.flee itself. */
+  private fleeNow(): number { return this.st.flee * (this.inShroud() ? 1 + S2N.smokeFlee : 1) }
+  /** P2'b ม่านควัน Sightless Raid: the first active hit after the cast marks Exposed + Blind and hits again (src 'other', so it never re-triggers). */
+  private sightlessRaid(m: Mon) {
+    this.raidReady = false // off BEFORE the bonus hit
+    m.exposed = S2N.exposedTurns; m.exposedPct = this.st.s2Star > 0 ? S2N.exposedStar : S2N.exposedPct
+    m.blind = Math.max(m.blind, S2N.smokeBlindTurns); this.dotIcon(m)
+    this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 40, '👁️ Sightless Raid', '#e6e6f2')
+    daggerCrossFx(this, m.spr.x, m.spr.y - m.spr.displayHeight / 2, 0, this.j2?.id === 'mobster' ? 'mobster' : 'thief')
+    this.withSrc('other', () => this.strike(m, S2N.raidMul * (1 + this.st.pskill), false, '#e6e6f2'))
+  }
   private critRateFor(magic: boolean, physAdd: number, target?: Mon): number {
     const C = CRIT_RULES.cap
     const sc = target && !magic ? thiefStackCritAdd(this.st, target.poison + target.wound) : 0 // th_t2b: physical crit / skillCrit per poison + Wound stack
@@ -3113,7 +3131,8 @@ export class BattleScene extends Phaser.Scene {
     const chargeCrit = (magic || this.isProcHit()) && this.st.lightChargeLv > 0 && this.lightChargeStacks > 0 ? this.lightChargeStacks * (0.02 + this.st.lightChargeLv * 0.01) : 0
     if (this.isProcHit()) return Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit)
     const skill = this.src === 'skill' || this.src === 'ult' || (this.skillSlot !== null && this.src === 'other')
-    if (skill) return Math.min(C.skillCrit, this.st.skillCrit + sc + iceBonus + (magic ? this.st.spellCrit + chargeCrit : (this.st.crit + physAdd) * CRIT_RULES.skillFromCrit))
+    const shroudSc = this.inShroud() ? S2N.smokeSkillCrit : 0 // P2'b Shroud: skillCrit + (still under C.skillCrit)
+    if (skill) return Math.min(C.skillCrit, this.st.skillCrit + shroudSc + sc + iceBonus + (magic ? this.st.spellCrit + chargeCrit : (this.st.crit + physAdd) * CRIT_RULES.skillFromCrit))
     return magic ? Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit) : Math.min(C.crit, this.st.crit + physAdd + sc)
   }
   /** Share of the crit bonus a skill hit keeps (admin: same `crit.<class>.<slot>` number; 1 = full). Sure crits and element procs always keep all of it. */
@@ -3554,8 +3573,10 @@ export class BattleScene extends Phaser.Scene {
       case 'cl_spear': this.spears += S2N.spearCount(star); break // "+" node: spearMul set at run start
       case 'th_smoke':
         this.dodgeCharges = Math.max(this.dodgeCharges, S2N.smokeDodges(star))
-        if (lv > 0) this.heal(this.st.maxHp * S2N.smokeHeal(lv))
+        this.shroudTurns = S2N.smokeTurns; this.raidReady = true // P2'b Shroud + Sightless Raid
+        if (lv > 0) { this.heal(this.st.maxHp * S2N.smokeHeal(lv)); if (this.job.resource === 'energy') this.resGain(S2N.smokeRes(lv)) } // "+" ควันหอม
         smokeBombFx(this, HERO_X, GROUND)
+        this.floatText(HERO_X, GROUND - 190, `🌫️ Shroud ${this.shroudTurns}`, '#c9c9d6')
         break
       case 'th_pick': {
         const m = front(); if (!m) break
@@ -4679,7 +4700,7 @@ export class BattleScene extends Phaser.Scene {
     }
     const sure =this.hx.web > 0 || (!magic && (src?.trueTurns ?? 0) > 0) // 🕸️ webbed: Can't Evade · 🎯 ตาเหยี่ยว: physical hits skip Flee + lucky dodge
     if (!sure && Math.random() < this.st.luckyDodge) return dodged('LUCKY!', '#6fd08c')
-    if (!sure && Math.random() > hitChance(monHit, this.st.flee, 0.8 - this.st.fleeFloor)) return dodged('EVADE!', '#9fe3ff') // Thief เงาบาง lowers the floor
+    if (!sure && Math.random() > hitChance(monHit, this.fleeNow(), 0.8 - this.st.fleeFloor)) return dodged('EVADE!', '#9fe3ff') // Thief เงาบาง lowers the floor
     if (!magic && (this.st.j2Guard > 0 || this.inspire > 0) && Math.random() < (this.inspire > 0 ? KIT3.common.inspireGuard : this.st.j2Guard + (this.gc ? this.st.j2GcGuard : 0)) * (this.hasShield || this.j2?.id === 'monk' || this.inspire > 0 ? 1 : KIT2.knight.guardShieldless)) { this.hitOut = 'block'; this.floatText(HERO_X, GROUND - 120, '🛡️ BLOCK!', '#9fe3ff'); sfx.hit(); this.onBlock(src); return false } // Knight / Crusader / Champion / Warlord Auto Guard
     if (magic && this.j2?.id === 'sage') { // 🛡️ Sage Magic Rod (+ VIT scaling)
       const rod = sageRodGain(this.st, this.heroVit)

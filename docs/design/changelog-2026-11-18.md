@@ -73,3 +73,10 @@
 - `th_t1c` หนังหนา (+40 / +80 HP) → 🩸 **กายต้านพิษ**: while any monster has poison / Wound: tenacity +8% / +14% · Max HP +8 / +14 per poison + Wound stack on the field (max 20 stacks = +160 / +280), delta-tracked, HP clamped when it fades
 - New `Stats.thStackHp` / `thCondTenacity`
 - Save: `THIEF_REWORK_VER` 1 → 2, same minimal reset (class 1 web + talents refunded once; job2 untouched) · bot save flag synced (not run)
+
+## ✨ feat(thief): P2'b ม่านควัน — Shroud + Sightless Raid + Exposed + Blind
+- Cast (cost 40 → **35**, CD 4): sure dodge 1 (★ 2, as before) + 🌫️ **Shroud** 2 hero turns: FLEE ×1.25 · skillCrit +15% (under the skillCrit cap) · ★ crit dmg +25% (B3, added)
+- First active hit after the cast (basic / combo / skill / Ult; not counters / allies) = 👁️ **Sightless Raid** 1.2x × (1 + P.skill) bonus hit + **Exposed** (+20% / ★ +30% damage taken from hits, 2 monster turns, B1) + 🙈 **Blind** 2 monster turns (Crusader's Hit cut)
+- "+" ควันหอม: heal as before + Energy 10 + 5/Lv (rounded)
+- 👑 ราชันย์โลหิต (thief_c4) also turns on inside Shroud · smoke bomb VFX kept, Raid uses the dagger-cross VFX
+- Texts + skill info rows updated

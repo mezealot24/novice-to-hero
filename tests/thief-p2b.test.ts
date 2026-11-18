@@ -4,7 +4,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { PLAYER, type Stats } from '../src/data/game-data'
 import { nodeById, TALENTS } from '../src/data/tree'
-import { debuffKinds, KIT, poisonAt, poisonCapOf, S2N, S2P, takenAmp, type DebuffFlags, type TakenIn } from '../src/data/skill-math'
+import { SKILL2 } from '../src/data/skill2'
+import { debuffKinds, KIT, poisonAt, skill2Info, thiefBloodKingOn, poisonCapOf, S2N, S2P, takenAmp, type DebuffFlags, type TakenIn } from '../src/data/skill-math'
 
 const near = (a: number, b: number, msg = '') => assert.ok(Math.abs(a - b) < 1e-9, `${msg} ${a} != ${b}`)
 const NO: DebuffFlags = { poison: false, wound: false, exposed: false, chill: false, stabMark: false, blind: false, armorBrk: false, weak: false }
@@ -92,6 +93,24 @@ test('talents th_t4a สถานะทับซ้อน / th_t1c กายต�
 })
 
 // ---------- save migration thiefRogueRework v2 (localStorage mock for load()) ----------
+test('ม่านควัน: cost 35, texts + info rows read S2N, ราชันย์โลหิต also on inside Shroud', () => {
+  const sk = SKILL2.find((x) => x.id === 'th_smoke'); assert.ok(sk)
+  assert.equal(sk.cost, 35)
+  assert.match(sk.desc, /Shroud 2 เทิร์น/); assert.match(sk.desc, /Sightless Raid 1\.2x/); assert.match(sk.star.desc, /30%/)
+  for (const lv of [0, 0.6, 3]) assert.ok(!/undefined|NaN/.test(sk.plus.desc(lv)), sk.plus.desc(lv))
+  assert.match(sk.plus.desc(3), /Energy 25/)
+  for (const [s2Lv, s2Star] of [[0, 0], [3, 1]]) {
+    const rows = skill2Info(sk, { ...PLAYER, s2Lv, s2Star })
+    assert.ok(rows.some((r) => /Shroud/.test(r.label)) && rows.some((r) => /Exposed/.test(r.label)), JSON.stringify(rows))
+    assert.ok(rows.every((r) => !/undefined|NaN/.test(r.label + r.value)))
+  }
+  const bk: Stats = { ...PLAYER, thBloodKing: 1 }
+  assert.equal(thiefBloodKingOn(bk, 100, 100, true), true, 'full HP inside Shroud')
+  assert.equal(thiefBloodKingOn(bk, 100, 100, false), false)
+  assert.equal(thiefBloodKingOn(PLAYER, 1, 100, true), false, 'needs the node')
+  assert.match(nodeById('thief_c4')!.desc(1), /ม่านควัน/)
+})
+
 const mem: Record<string, string> = {}
 ;(globalThis as { localStorage?: unknown }).localStorage = {
   getItem: (k: string) => mem[k] ?? null,

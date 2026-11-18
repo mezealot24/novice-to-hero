@@ -433,8 +433,8 @@ export const thiefKillHeal = (st: Stats, poisonOnCorpse: number): number =>
   st.thKillLeech > 0 ? st.thKillLeech + Math.min(KIT.thiefKillPoisonHealCap, Math.max(0, poisonOnCorpse) * KIT.thiefKillPoisonHeal) : 0
 /** thief_c3: first crit on a boss / mini each turn heals this share of max HP. */
 export const thiefBossCritHeal = (st: Stats): number => st.thKillLeech * KIT.thiefBossCritLeech
-/** thief_c4 ★ ราชันย์โลหิต: on below KIT.thiefBloodKingBelow of max HP (P2'b may add ม่านควัน). */
-export const thiefBloodKingOn = (st: Stats, hp: number, maxHp: number): boolean => st.thBloodKing > 0 && hp < maxHp * KIT.thiefBloodKingBelow
+/** thief_c4 ★ ราชันย์โลหิต: on below KIT.thiefBloodKingBelow of max HP, or inside ม่านควัน Shroud (P2'b). */
+export const thiefBloodKingOn = (st: Stats, hp: number, maxHp: number, inShroud: boolean): boolean => st.thBloodKing > 0 && (inShroud || hp < maxHp * KIT.thiefBloodKingBelow)
 // ---------- P2'b Thief status layer (B1 Taken, R4.6) ----------
 /** Stacks needed for a "share of the poison cap" threshold (P2'b): ceil(share x cap), at least 1. cap = the hero's poisonMax(). */
 export const poisonAt = (share: number, cap: number): number => Math.max(1, Math.ceil(share * Math.max(0, cap) - 1e-9))
@@ -840,7 +840,13 @@ export function skill2Info(k: Skill2Def, st: Stats): InfoRow[] {
       if (star) add('✨ Gloria', `LUK +${S2N.gloriaLuk}`)
       break
     case 'cl_spear': add(`หอกแสง ${S2N.spearCount(star)} เล่ม ตัวสุ่ม /เล่ม (ข้างๆ 50%)`, hitText(st, spearMul(st, k), true)); break
-    case 'th_smoke': add('หลบแน่นอน', `${S2N.smokeDodges(star)} ครั้ง`); if (lv) add('ฟื้น HP', `${heal(st, st.maxHp * S2N.smokeHeal(lv))}`); break
+    case 'th_smoke':
+      add('หลบแน่นอน', `${S2N.smokeDodges(star)} ครั้ง`)
+      add('Shroud', `${S2N.smokeTurns} เทิร์น · FLEE +${pct(S2N.smokeFlee)} (คูณ) · skillCrit +${pct(S2N.smokeSkillCrit)}${star ? ` · ดาเมจคริ +${pct(S2N.smokeCritDmg)}` : ''}`)
+      add('Sightless Raid (ฮิตแรกหลังร่าย)', hitText(st, S2N.raidMul * (1 + st.pskill), false))
+      add('Exposed + Blind', `รับดาเมจ +${pct(star ? S2N.exposedStar : S2N.exposedPct)} ${S2N.exposedTurns} เทิร์น · Hit −${pct(KIT2.crusader.blindHit)} ${S2N.smokeBlindTurns} เทิร์น`)
+      if (lv) add('ฟื้น HP + Energy', `${heal(st, st.maxHp * S2N.smokeHeal(lv))} · +${S2N.smokeRes(lv)}`)
+      break
     case 'th_pick': { const T = KIT.thiefSteal; add('แทงตัวหน้า', hitText(st, S2N.pickMul(star), false)); add('คืน Energy', `${S2N.pickRes(lv)}`); if (star) add('พิษ', `+${S2N.pickPoison} stack`)
       add(star ? 'ขโมย 2 อย่าง (stat เด่น 1-2)' : 'ขโมยตาม stat เด่น', `STR→P.ATK +${Math.round(T.atk * 100)}% · AGI→Energy +${T.res} · INT→พิษ ${T.poison} · VIT→เกราะแตก ${T.brkTurns} · WIS→ฮีล ${Math.round(T.heal * 100)}% · LUK/DEX→คริ +${Math.round(T.crit * 100)}% (${T.turns} เทิร์น)`); break }
     case 'th_wound': add('แทงทะลุ DEF', hitText(st, S2N.woundMul(star), false)); add('พิษ', `+${S2N.woundPoison(lv)} stack (${thiefPoisonPerStack(st).toFixed(1)}/stack/เทิร์น)`); break
