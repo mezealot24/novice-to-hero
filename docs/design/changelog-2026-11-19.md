@@ -45,3 +45,9 @@
 - R4.7: 148 keys to add before P2/P3 (Thief `KIT` 76 · `S2P` 2 + `S2N` 25 · `KIT2.rogue` 45) with Thai admin labels + registration checklist (`KIT_INTS`/`KIT_NUMS`, `KIT_EXPLAIN`, `S2N_TH`, `J2_LABEL`, `J2_COL` prefixes, `INTISH`, no `Cost`/`Cd` suffix)
 - 1-per-turn ICDs = flags (no key) · value-only changes on existing paths: `job.thief.auto.cost` 40 -> 45, `th_smoke` cost 40 -> 35
 - Docs only · no code / test / bot run
+
+## 🔀 chore(thief): P1 rebased onto main (Thief rework #120–#125 + VFX)
+- Ratio AGI replaces main's `KIT.thiefUltAgi` (0.02/pt) with `thiefUltAgiK` / `thiefUltAgiShareCap` · admin test `thief-poison` checks the new knobs
+- พายุมีด v2 `knifeStorm()` gets `ultKnifeJ2Share × j2KnifeMul` · Back Stab keeps main's Combo Points + `backstabFx`, adds lucky-dodge pierce + ★ crit knife
+- ทวงหนี้: main's `poison.burstKeep` kept; `debtBursting` stops ระเบิดพิษ re-spreading on a debt kill (main's chain blast made it matter more)
+- แทงพิษ `(1 + pskill)` on main's `venomStabFx` line

@@ -22,8 +22,8 @@ test('poison shreds DEF per stack, capped', () => {
   assert.equal(poisonDefCut(999), KIT.poison.defCap)
 })
 
-test('admin kit table exposes poison.* and thiefUltAgi knobs', () => {
-  for (const p of ['poison.atkPer', 'poison.matkPer', 'poison.intPer', 'poison.burstKeep', 'poison.defPer', 'poison.defCap', 'poison.baseCap', 'thiefUltAgi']) assert.ok(fieldFor('kit', p), p)
+test('admin kit table exposes poison.* and Ratio AGI knobs', () => {
+  for (const p of ['poison.atkPer', 'poison.matkPer', 'poison.intPer', 'poison.burstKeep', 'poison.defPer', 'poison.defCap', 'poison.baseCap', 'thiefUltAgiK', 'thiefUltAgiShareCap']) assert.ok(fieldFor('kit', p), p)
   const patch = { kit: { 'poison.atkPer': 0, 'poison.matkPer': 0 } }
   const r = applyPatch(patch, guardsFor(patch))
   try {
