@@ -1,13 +1,13 @@
-# Thief & Rogue Rework v1 (Revision 4 — P1 ship แล้ว · P2/P3 รออนุมัติ)
+# Thief & Rogue Rework v1 (Revision 4 — P1 commit แล้วบน branch (ยังไม่ push/merge) · P2/P3 รออนุมัติ)
 
 ## 🆕 Rev 4 Delta (2026-11-19) — อ่านส่วนนี้ก่อน · ถ้าขัดกับเนื้อหา Rev 3 ด้านล่าง ให้ถือ Rev 4 เป็นหลัก
 
-### R4.1 สิ่งที่ ship แล้ว (branch `claude/thief-ult-agi-ratio`)
+### R4.1 สิ่งที่ commit แล้ว (branch `claude/thief-ult-agi-ratio` · ยังไม่ push · ยังไม่ได้เล่นทดสอบในเกม)
 | Commit | งาน | แทนที่ Rev 3 |
 |---|---|---|
 | `9302177` | **Ratio AGI:** `thUltAgi = KIT.thiefUltAgiK (2.0) × min(KIT.thiefUltAgiShareCap (1.2), AGI ÷ statPool)` · `statPool = 3 × Base Lv` | `thUltAgi = 0.01 × AGI` (§2.5, §4, §7.1) |
 | `d0ca9e9` | **พายุมีด อ่าน `j2KnifeMul`:** `(ultKnifeMul + KIT2.rogue.ultKnifeJ2Share (0.75) × j2KnifeMul) × h2` | สูตร `UltKnifeMul` §3.4 (ไม่คูณ ultPow ซ้ำ: `h2` มีอยู่แล้ว) |
-| `f5c3f20` | **`ทวงหนี้` ล้างพิษก่อน `damageMon()`** (debt kill ไม่กระจายพิษซ้ำ) | แถว CRITICAL ใน §6 |
+| `f5c3f20`+ | **`ทวงหนี้` debt kill ไม่กระจายพิษซ้ำ** (flag `debtBursting` ข้ามเฉพาะ `poisonSpread` · ยังได้ `poisonAmp` ของกัดกร่อนครบ) | แถว CRITICAL ใน §6 |
 | `4825e8a` | **Back Stab ทะลุ `luckyDodge`** (flag `backStabbing` แยกจาก `sureHit`) + **`rg_x4 ★` ปามีดเมื่อ Back Stab คริ** | §3.3 + `rg_x4` ส่วน Back Stab (ยังไม่รวม Plagiarism) |
 
 ### R4.2 สิ่งที่คิวตัดสินแล้ว
@@ -16,7 +16,7 @@
 - **ระบบ stat แบบ RO** (แต้มต่อเลเวลเพิ่มขึ้น + ลง stat แพงขึ้น) แยกไปทำใน `design/ro-stat-curve-v1.md` → ถ้าผ่าน ต้องแก้ `statPool()` ให้วัดจาก "แต้มที่จ่ายให้ AGI ÷ แต้มทั้งหมด"
 
 ### R4.3 กติกาใหม่ที่ทับ Rev 3
-1. **Ult budget:** ทุกแหล่งที่เพิ่มฮิตเงาพริ้ว (`dexUltHits` +6, `th_t3b`, On-Hit `eff`, finisher) คูณ ×AGI (สูงสุด ×3.4) ด้วย → ดาเมจรวมของ Ult ที่ Lv80 ต้อง **≤ หลัง Ratio AGI** · ลด `dexUltHits` cap เหลือ +3 และห้ามบวก `thUltDex` เข้ากับ `thUltAgi` ตรง ๆ (ให้เป็นโบนัสต่อฮิตที่คุณภาพแทน)
+1. **Ult budget:** ทุกแหล่งที่เพิ่มฮิตเงาพริ้ว (`dexUltHits` +6, `th_t3b`, On-Hit `eff`, finisher) คูณ ×AGI (สูงสุด ×3.4) ด้วย → ดาเมจรวมของ Ult ที่ Lv80 ต้อง **≤ หลัง Ratio AGI** · *ข้อเสนอ (ยังไม่ได้ตัดสิน):* ลด `dexUltHits` cap เหลือ +3 และไม่บวก `thUltDex` เข้ากับ `thUltAgi` ตรง ๆ
 2. **ห้าม magic number ใน `BattleScene`** (AGENTS.md): ทุกตัวเลขใน Rev 3 ที่บอกว่า "บวก base ใน BattleScene" (`0.38`, `0.24`, `0.65`, `1.5`/`0.6`, `0.35x`, `1.2x`, `25%` heal cap, ICD ต่าง ๆ) ต้องเป็น key ใน `KIT` / `KIT2.rogue` / `S2P` พร้อม label ใน `skill-registry.ts` + `src/admin/explain/combo-kit.ts`
 3. **Mobster ไม่ได้ "ไม่โดนแตะ":** Mobster ยืนอยู่บน web คลาส 1 ของ Thief → จะเสีย flat crit / critMul / lifesteal / HP / flee และเปลี่ยนจังหวะแทงพิษ → §5.4 ต้องวัด `JOB2_K.mobster` ด้วย (**รอคิวเลือก** ดู R4.5)
 4. **Migration:** ใช้ `resetTree(s)` (`save.ts:801`) ซึ่งคืนแต้ม `crossSpent.j2In1/j3In1` กลับ pool ที่ถูกต้องอยู่แล้ว + ล้าง `jobTalents` / `job2Talents`
@@ -28,7 +28,7 @@
 ### R4.4 แผนที่เหลือ (ทำทีละ task · commit ละ 1 งาน)
 | Phase | งาน | สถานะ |
 |---|---|---|
-| P1 | Ratio AGI · knife fix · Back Stab | ✅ ship |
+| P1 | Ratio AGI · knife fix · Back Stab · ทวงหนี้ cleanup | ✅ commit (รอคิวเล่นทดสอบ) |
 | P1b | แทงพิษ energy loop (`s1Weave`, floor cost) + `pskill` | ⏸ รอ R4.5 ข้อ 2 |
 | P2 | Thief web + talents ใหม่ + migration | ⏸ รอ R4.5 ข้อ 1 + ตาราง bracket |
 | P3 | Rogue web (Marks, Voracity, Death Mark) | ⏸ หลัง P2 |

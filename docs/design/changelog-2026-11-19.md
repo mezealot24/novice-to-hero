@@ -27,6 +27,6 @@
 - Removed 15 expired `vertexaisearch` redirect links · fixed `rg_c1` Tempo Lv1 (+12%, not +20%)
 - Open for Q: Mobster path (A/B) · แทงพิษ `pskill`
 
-## 🧹 fix(mobster): ทวงหนี้ clears poison before the burst damage
-- Order was `damageMon()` (can kill -> `killMon` -> `poisonSpread` reads the stacks) then `m.poison = 0` -> a debt kill re-spread the stacks it just burst
-- Now stacks are collected first · Q: the spread on a debt kill was hardly ever used, so this is cleanup (Mobster tree / KIT2 untouched)
+## 🧹 fix(mobster): ทวงหนี้ debt kill no longer re-spreads the burst stacks
+- Order is `damageMon()` (can kill -> `killMon` -> `poisonSpread` reads the stacks) then `m.poison = 0` -> a debt kill re-spread the stacks it just burst
+- Now a `debtBursting` flag skips only the spread (first try cleared the stacks before the hit, but that also dropped กัดกร่อน `poisonAmp` on the burst: reverted) · Q: the spread on a debt kill was hardly ever used, so this is cleanup (Mobster tree / KIT2 untouched)

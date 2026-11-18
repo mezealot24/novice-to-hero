@@ -1678,6 +1678,7 @@ export class BattleScene extends Phaser.Scene {
   private pet: PetId = 'hawk' // save.pet: the partner ★ พรานแห่งป่า sends in again
   private pets: { id: PetId; pow: number }[] = [] // this wave's pet lineup (rework v1: all 3)
   private sureHit = false // Blitz Beat: skips Flee
+  private debtBursting = false // Mobster ทวงหนี้ burst in flight: killMon skips poisonSpread
   private backStabbing = false // Rogue Back Stab in flight: RO Back Stab ignores the monster's LUK lucky dodge · ★ คริเป็นมีด counts it
   private zenyWave = 0 // 🧲 แม่เหล็ก: + zeny share this wave
   private mirror = false // 🔁 กระจก: the next landed monster hit is bounced back
@@ -2253,8 +2254,9 @@ export class BattleScene extends Phaser.Scene {
         if (!m.dead && m.poison > 0) {
           const dmg = Math.max(1, Math.round(m.poison * m.poisonDmg * M.burstTurns * M.burstMul * h2 * this.dotMul()))
           this.burst(m.spr.x, m.spr.y - 30, 0xa77be0, 14, 200)
-          m.poison = 0; this.dotIcon(m) // collect first: a debt kill must not re-spread the burst stacks (ระเบิดพิษ / poisonSpread in killMon)
-          this.withSrc('poison', () => this.damageMon(m, dmg, false, '#a77be0', true))
+          this.debtBursting = true // a debt kill must not re-spread the stacks it bursts (killMon poisonSpread) · stacks stay readable for กัดกร่อน poisonAmp
+          try { this.withSrc('poison', () => this.damageMon(m, dmg, false, '#a77be0', true)) } finally { this.debtBursting = false }
+          m.poison = 0; this.dotIcon(m)
         }
         if (m.dead || this.mobExec(m)) kills++
       }
@@ -4017,7 +4019,7 @@ export class BattleScene extends Phaser.Scene {
       for (const o of others) { o.burnStacks = Math.min(this.burnMax(), o.burnStacks + Math.ceil(m.burnStacks / 2)); o.burnStackTurns = 3; this.dotIcon(o) } // tree
       this.resGain(MAGE_PASSIVE.ablaze.manaGain)
     }
-    if (this.st.poisonSpread > 0 && m.poison > 0) for (const o of others) { o.poison = Math.min(this.poisonMax(), o.poison + Math.ceil(m.poison / 2)); o.poisonDmg = Math.max(o.poisonDmg, m.poisonDmg); this.dotIcon(o) } // tree
+    if (this.st.poisonSpread > 0 && m.poison > 0 && !this.debtBursting) for (const o of others) { o.poison = Math.min(this.poisonMax(), o.poison + Math.ceil(m.poison / 2)); o.poisonDmg = Math.max(o.poisonDmg, m.poisonDmg); this.dotIcon(o) } // tree
     this.archerKill(m, others)
     if (m.armorBrk > 0 && this.st.swBreakSpread > 0 && others.length) { // v84 Swordsman ร้าวลาม
       for (const o of others) { o.armorBrk = Math.max(o.armorBrk, KIT.swordTree.breakTurns); this.dotIcon(o) }
