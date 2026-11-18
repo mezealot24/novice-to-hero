@@ -1787,6 +1787,7 @@ export class BattleScene extends Phaser.Scene {
   private pet: PetId = 'hawk' // save.pet: the partner ★ พรานแห่งป่า sends in again
   private pets: { id: PetId; pow: number }[] = [] // this wave's pet lineup (rework v1: all 3)
   private sureHit = false // Blitz Beat: skips Flee
+  private debtBursting = false // Mobster ทวงหนี้ burst in flight: killMon skips ระเบิดพิษ spread
   private backStabbing = false // Rogue Back Stab in flight: RO Back Stab ignores the monster's LUK lucky dodge · ★ คริเป็นมีด counts it
   private zenyWave = 0 // 🧲 แม่เหล็ก: + zeny share this wave
   private mirror = false // 🔁 กระจก: the next landed monster hit is bounced back
@@ -2406,7 +2407,8 @@ export class BattleScene extends Phaser.Scene {
         if (!m.dead && m.poison > 0) {
           const dmg = Math.max(1, Math.round(m.poison * m.poisonDmg * M.burstTurns * M.burstMul * h2 * this.dotMul()))
           this.burst(m.spr.x, m.spr.y - 30, 0xa77be0, 14, 200)
-          this.withSrc('poison', () => this.damageMon(m, dmg, false, '#a77be0', true))
+          this.debtBursting = true // a debt kill must not re-spread the stacks it bursts (killMon ระเบิดพิษ) · stacks stay readable for amps
+          try { this.withSrc('poison', () => this.damageMon(m, dmg, false, '#a77be0', true)) } finally { this.debtBursting = false }
           m.poison = Math.floor(m.poison * KIT.poison.burstKeep); this.dotIcon(m) // kit poison.burstKeep (0 = cleared)
         }
         if (m.dead || this.mobExec(m)) kills++
@@ -4177,7 +4179,7 @@ export class BattleScene extends Phaser.Scene {
       for (const o of others) { o.burnStacks = Math.min(this.burnMax(), o.burnStacks + Math.ceil(m.burnStacks / 2)); o.burnStackTurns = 3; this.dotIcon(o) } // tree
       this.resGain(MAGE_PASSIVE.ablaze.manaGain)
     }
-    if (this.st.poisonSpread > 0 && m.poison > 0) { // 💣 ระเบิดพิษ (KIT.poison.spreadShare / spreadBurst): pass the stacks on, then blast them (kills can chain)
+    if (this.st.poisonSpread > 0 && m.poison > 0 && !this.debtBursting) { // 💣 ระเบิดพิษ (KIT.poison.spreadShare / spreadBurst): pass the stacks on, then blast them (kills can chain)
       const P = KIT.poison, pass = Math.ceil(m.poison * P.spreadShare), blast = Math.round(m.poison * m.poisonDmg * P.spreadBurst * this.dotMul())
       const live = others.filter((o) => !o.dead)
       if (live.length) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '💣 ระเบิดพิษ!', '#b48aff')
