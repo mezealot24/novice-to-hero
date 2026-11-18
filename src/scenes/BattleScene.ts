@@ -2253,8 +2253,8 @@ export class BattleScene extends Phaser.Scene {
         if (!m.dead && m.poison > 0) {
           const dmg = Math.max(1, Math.round(m.poison * m.poisonDmg * M.burstTurns * M.burstMul * h2 * this.dotMul()))
           this.burst(m.spr.x, m.spr.y - 30, 0xa77be0, 14, 200)
+          m.poison = 0; this.dotIcon(m) // collect first: a debt kill must not re-spread the burst stacks (ระเบิดพิษ / poisonSpread in killMon)
           this.withSrc('poison', () => this.damageMon(m, dmg, false, '#a77be0', true))
-          m.poison = 0; this.dotIcon(m)
         }
         if (m.dead || this.mobExec(m)) kills++
       }
