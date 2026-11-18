@@ -1,11 +1,11 @@
 // ===== Status tab texts: what each base stat does, generic lines + lines for the CURRENT class only (Q 2026-11-04). =====
 // Numbers come from PER_POINT (meta.ts), so a balance change updates the text too. Novice sees generic lines only.
 // A line gets the stat's total (b) and points above the start (d) so it can show what the hero gets right now.
-import { PER_POINT, type BaseStat } from './meta'
+import { PER_POINT, thiefUltAgiBonus, type BaseStat } from './meta'
 import type { JobId } from './jobs'
-import { breakChance, KIT2, MAGE_CAST } from './skill-math'
+import { breakChance, KIT, KIT2, MAGE_CAST } from './skill-math'
 
-type Line = string | ((b: number, d: number) => string)
+type Line = string | ((b: number, d: number, pool: number) => string) // pool = stat points from Base Lv (statPool)
 export interface StatInfo { generic: Line[]; byClass: Partial<Record<JobId, Line[]>>; byJob2?: Partial<Record<string, Line[]>> }
 
 const P = PER_POINT
@@ -66,7 +66,7 @@ export const STAT_INFO: Record<BaseStat, StatInfo> = {
   },
   agi: {
     generic: [`ความเร็วเทิร์น +${f1(P.agi.aspdPct * 100)}%/แต้ม (ตีบ่อยขึ้น)`, `Flee +${P.agi.flee}/แต้ม`, (_b, d) => `คอมโบ ${pctK(d, P.agi.comboK)}`],
-    byClass: { thief: [(_b, d) => `เงาพริ้วแรง +2%/แต้ม (ตอนนี้ +${2 * d}%)`] },
+    byClass: { thief: [(_b, d, pool) => `เงาพริ้วแรงตามสัดส่วน AGI ต่อแต้มทั้งหมด: ลงเต็ม = +${Math.round(KIT.thiefUltAgiK * 100)}% (สูงสุด +${Math.round(KIT.thiefUltAgiK * KIT.thiefUltAgiShareCap * 100)}%, ตอนนี้ +${Math.round(thiefUltAgiBonus(d, pool) * 100)}%)`] },
   },
 }
 
@@ -78,9 +78,9 @@ export const DERIVED_STAT_CAPS = {
 } as const
 
 /** Lines for this stat and class, already filled with the hero's numbers. */
-export function statLines(stat: BaseStat, job: JobId, total: number, job2?: string) {
+export function statLines(stat: BaseStat, job: JobId, total: number, job2?: string, pool = 0) {
   const info = STAT_INFO[stat], d = Math.max(0, total - 1)
-  const fill = (l: Line) => (typeof l === 'string' ? l : l(total, d))
+  const fill = (l: Line) => (typeof l === 'string' ? l : l(total, d, pool))
   const j2Lines = job2 && info.byJob2?.[job2] ? info.byJob2[job2]!.map(fill) : []
   return { generic: info.generic.map(fill), cls: [...(info.byClass[job] ?? []).map(fill), ...j2Lines] }
 }

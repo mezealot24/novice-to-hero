@@ -145,7 +145,7 @@ const HARD_FIELDS: [string, FieldDef][] = [
 ]
 
 const KIT_INTS = 'archerAutoShots|archerVolleyShots|mageFireStacks|mageIceChill|mageLightHits|clericSmiteTargets|clericJudgeEvery|clericWarmLightLv|spearMax|thiefAutoPoison|thiefUltHits|thiefUltDodge'
-const KIT_NUMS = 'archerAuto|archerUlt|mageFire|mageIce|mageLightLo|mageLightHi|clericHealBelow|clericJudge|clericUltAtkLv|clericWarmCounterLv|clericSpearShieldLv|spearBase|thiefAuto|thiefUlt|thiefUltAgi'
+const KIT_NUMS = 'archerAuto|archerUlt|mageFire|mageIce|mageLightLo|mageLightHi|clericHealBelow|clericJudge|clericUltAtkLv|clericWarmCounterLv|clericSpearShieldLv|spearBase|thiefAuto|thiefUlt|thiefUltAgiK|thiefUltAgiShareCap'
 
 export const TABLES: Record<TableId, TableDef> = {
   monsters: { id: 'monsters', label: 'Monsters / mini bosses / bosses', target: () => MONSTERS, fields: pre('*', MONSTER_FIELDS) },

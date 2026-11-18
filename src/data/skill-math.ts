@@ -81,8 +81,11 @@ export const KIT = {
   clericUltAtkLv: 0.15, // v108 (Q: Ult back to v58): root พรคุ้มครอง smash +0.15x P.ATK per Lv = 150% x (1 + 10%/Lv) · v104 0.2 per 🌄 Lv · v92 0.5 per root Lv
   clericWarmCounterLv: 0.025, clericWarmLightLv: 1, clericSpearShieldLv: 0.02,
   spearBase: 0.3, spearMax: 8, spearSplash: 0.5, // v120 Q 2026-11-11: หอกแสง = random target (Priest lights: their own target) + the monster on each side x spearSplash
-  thiefAuto: 1.6, thiefAutoPoison: 3, thiefUlt: 0.7, thiefUltHits: 4, thiefUltDodge: 2,
-  thiefUltAgi: 0.02, // เงาพริ้ว +this share of damage per AGI point over the start (was hardcoded 2%)
+  thiefAuto: 1, thiefAutoPoison: 3, // Q 2026-11-19: แทงพิษ now x (1 + pskill) like other STR skills; 1.6 -> 1 keeps Q's Lv 80 (STR 121, pskill +60.5%) the same
+  thiefUlt: 0.7, thiefUltHits: 4, thiefUltDodge: 2,
+  // Q 2026-11-19 Ratio AGI: เงาพริ้ว +thiefUltAgiK x (AGI above start / stat points the Base Lv gives), share capped at thiefUltAgiShareCap.
+  // Was +thiefUltAgi 2% per AGI point (uncapped): Lv 80 all-AGI = x5.74 per stab, early game weak (P.ATK x AGI grew with level squared). Now all-in = x3 at every Lv.
+  thiefUltAgiK: 2, thiefUltAgiShareCap: 1.2,
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
   // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
   // 💰 Thief ทักษะ 2 ล้วงกระเป๋า (Q 2026-11-18, GW2 Steal): what you steal depends on the front monster's top stat. admin `kit` · thiefSteal.*
@@ -205,6 +208,7 @@ export const KIT2 = {
     stabCost: 30, stabCd: 3, stabMul: 2.2, // 🗡️ Back Stab: sure crit on the highest-HP monster
     stabCpMax: 5, stabCpPer: 0.2, // 🔁 Combo Point (Q 2026-11-18, WoW / D4 builder-finisher): each combo hit +1 point (max cpMax), Back Stab spends all for +cpPer x points
     ultKnives: 8, ultKnifeMul: 0.5, // 🌪️ พายุมีด: shadow dance + knives spread over every monster
+    ultKnifeJ2Share: 0.75, // 🌪️ พายุมีด knives get this share of j2KnifeMul (มีดคม / ใบมีดลับคม) · Q 2026-11-19 fix: before, the storm ignored it
     mastery: { atkPct: 0.05, crit: 0.03 }, // dagger
   },
   mobster: {
@@ -658,7 +662,7 @@ export function autoInfo(jobId: JobId, st: Stats, job2?: string): InfoRow[] {
       if (st.judge > 0) out.push({ label: `พิพากษา (ทุก ${KIT.clericJudgeEvery} ครั้ง)`, value: hitText(st, KIT.clericJudge * pow * (1 + st.smiteMul), true) })
       break
     case 'thief':
-      out.push({ label: 'แทง 1 ที', value: hitText(st, KIT.thiefAuto * pow, false) })
+      out.push({ label: 'แทง 1 ที', value: hitText(st, KIT.thiefAuto * pow * (1 + st.pskill), false) })
       out.push({ label: 'พิษ', value: `+${KIT.thiefAutoPoison} stack (${thiefPoisonPerStack(st).toFixed(1)}/stack/เทิร์น)` })
       break
     default: return []

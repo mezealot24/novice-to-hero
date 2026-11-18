@@ -128,7 +128,7 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
       s2('th_pick', ...lin('pickRes', 'คืน Energy'), sk('s2n.pickPoison', 'พิษ (stack)', int(0, 20))),
       s2('th_wound'),
     ],
-    ult: [sk('job.thief.ult.cd', 'คูลดาวน์ (เทิร์น)', CD), kit('thiefUlt', 'ดาเมจต่อทีแทง ×'), kit('thiefUltHits', 'จำนวนทีแทง'), kit('thiefUltDodge', 'หลบแน่นอน (ครั้ง)')],
+    ult: [sk('job.thief.ult.cd', 'คูลดาวน์ (เทิร์น)', CD), kit('thiefUlt', 'ดาเมจต่อทีแทง ×'), kit('thiefUltHits', 'จำนวนทีแทง'), kit('thiefUltAgiK', 'AGI ลงเต็มสัดส่วน → แรง +×'), kit('thiefUltAgiShareCap', 'เพดานสัดส่วน AGI'),kit('thiefUltDodge', 'หลบแน่นอน (ครั้ง)')],
   },
 }
 
@@ -167,6 +167,7 @@ const J2_LABEL: Record<string, string> = {
   'rogue.knifeMul': '🔪 มีดบิน: ดาเมจต่อเล่ม × P.ATK', 'rogue.knifePerCombo': '🔪 มีดบิน: จำนวนมีดต่อฮิตคอมโบ',
   'rogue.dualKnife': '🔪 มีดมือรอง: มีดบินเพิ่ม (เล่ม)', 'rogue.stabMul': '🗡️ Back Stab: ดาเมจ × P.ATK (คริแน่)', 'rogue.stabCpMax': '🔁 Combo Point: แต้มสูงสุด', 'rogue.stabCpPer': '🔁 Back Stab: แรงขึ้นต่อ Combo Point',
   'rogue.ultKnives': '🌪️ พายุมีด: จำนวนมีดบินที่โปรย', 'rogue.ultKnifeMul': '🌪️ พายุมีด: ดาเมจต่อเล่ม × P.ATK',
+  'rogue.ultKnifeJ2Share': '🌪️ พายุมีด: ได้โบนัสมีดบิน (มีดคม/ใบมีดลับคม) กี่ส่วน',
   'rogue.mastery.atkPct': 'ชำนาญมีด: P.ATK +%', 'rogue.mastery.crit': 'ชำนาญมีด: คริ +',
   // 🕴️ Mobster
   'mobster.execBase': '📒 สมุดหนี้: เกณฑ์ Execute พื้นฐาน (% HP)', 'mobster.execPer': '📒 สมุดหนี้: เกณฑ์เพิ่มต่อ 1 หนี้',
