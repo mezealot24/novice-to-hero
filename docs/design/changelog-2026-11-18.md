@@ -73,3 +73,9 @@
 ## 🧫 feat(thief): th_t4a Privileged Status talent
 - P2b T5: `th_t4a` กัดกร่อน (`poisonAmp` 0.15 / 0.25 at ≥ 10 poison) → **สถานะทับซ้อน**: target with ≥ `KIT.thiefPrivAt` (8) poison **or** ≥ `KIT.thiefKindsAt` (2) debuff kinds (8-kind list) takes +18% / +30% (`thPrivileged`, B1 Taken, dot too, cap +60% with the others)
 - Same id (save data): old picks are cleared by the P2a `migrateThiefRogueRework` talent reset · Mobster (Thief web) gets it too: gear 0.30 + old talent 0.25 = ×1.55 → ×1.60 (cap)
+
+## 🌫️ feat(thief): th_smoke — Shroud + Sightless Raid + Exposed + Blind
+- P2b T6: ม่านควัน keeps its sure dodge(s) and adds **Shroud** `S2N.smokeTurns` (2) hero turns: FLEE ×1.25 (`fleeNow()`, `st.flee` untouched) · skillCrit +15% (under the skill cap) · ★ ควันหนา Crit Dmg +25% (B3, added into `critDmgAdd` as `condCritDmg`)
+- **Sightless Raid**: the first landed basic / combo / skill / Ult hit after the cast marks **Exposed** +20% (★ 30%) for 2 monster turns (B1, hits only) + **Blind** 2 turns (Hit −`KIT2.crusader.blindHit`) and hits again 1.2x P.ATK × (1 + pskill) (src other) · waits across turns until a real attack lands
+- "+" ควันหอม: heal as before + Energy `S2N.smokeRes(lv)` (10–25)
+- `inShroud()` is live: `thief_c4` ★ ราชันย์โลหิต also turns on inside the Shroud (text updated)

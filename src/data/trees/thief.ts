@@ -29,7 +29,7 @@ export const tree: ClassTree = {
     n('thief_c1', 'thief_core', 1, '🩸', 'คมเลือดซ้อนสถานะ', 3, (lv) => `ตีเป้าที่ติดสถานะ: ดูดเลือด +${Math.round(3 * lv)}% (ติด ${KIT.thiefKindsAt} ชนิดขึ้นไป ×${KIT.thiefCondLeechMulti}) · กายภาพเท่านั้น`, (lv) => ({ thCondLeech: 0.03 * lv })),
     n('thief_c2', 'thief_core', 2, '🎯', 'จุดตายสะสม', 3, (lv) => `คริ + คริสกิล +${Math.round(5 * lv)}% ที่พิษ + Wound ${KIT.thiefStackCritMax} stack บนเป้า (ไล่ตาม stack) · คริกายภาพ → พิษ +1`, (lv) => ({ thStackCrit: 0.00625 * lv, thCritPoison: 1 })),
     n('thief_c3', 'thief_core', 3, '🦇', 'กระหายเลือด', 3, (lv) => `ฆ่ามอน: ฟื้น ${Math.round(4 * lv)}% HP + พิษบนศพ ${KIT.thiefKillPoisonHeal * 100}%/stack (สูงสุด +${Math.round(KIT.thiefKillPoisonHealCap * 100)}%) · Energy +${KIT.thiefKillRes} · คริบอส/มินิครั้งแรกของเทิร์น: ฟื้น ${+(4 * lv * KIT.thiefBossCritLeech).toFixed(1)}% HP + Energy +${KIT.thiefBossCritRes}`, (lv) => ({ thKillLeech: 0.04 * lv })),
-    n('thief_c4', 'thief_core', 4, '👑', 'ราชันย์โลหิต', 1, () => `HP ต่ำกว่า ${Math.round(KIT.thiefBloodKingBelow * 100)}%: ดูดเลือด ×${KIT.thiefBloodKingMul} · D.Strike ดูดเลือด ${Math.round(KIT.thiefStrikeLs * 100)}% → ${Math.round(KIT.thiefBloodKingStrikeLs * 100)}% (ไม่ซ้อนกับราชันย์โลหิตของใส่)`, () => ({ thBloodKing: 1 })),
+    n('thief_c4', 'thief_core', 4, '👑', 'ราชันย์โลหิต', 1, () => `HP ต่ำกว่า ${Math.round(KIT.thiefBloodKingBelow * 100)}% หรืออยู่ในม่านควัน: ดูดเลือด ×${KIT.thiefBloodKingMul} · D.Strike ดูดเลือด ${Math.round(KIT.thiefStrikeLs * 100)}% → ${Math.round(KIT.thiefBloodKingStrikeLs * 100)}% (ไม่ซ้อนกับราชันย์โลหิตของใส่)`, () => ({ thBloodKing: 1 })),
     n('thief_b4', 'thief_b', 4, '👤', 'เงาสวน', 1, () => 'หลบได้ทุกครั้ง = แทงสวน 0.8x (ติดพิษได้)', () => ({ dodgeStrike: 1 })),
   ],
   talents: [
