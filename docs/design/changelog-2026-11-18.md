@@ -6,3 +6,8 @@
 - 8 new `Stats` keys (`thCondLeech` `thKillLeech` `thBloodKing` `thDodgeCdCut` `thDodgeCdIcd` `thStackCritTal` `thWeaveDmg` `thWeaveRes`), 0 by default
 - Dropped P2 keys (a-line pen / hold / plague, จุดตายสะสม) are not added: main's a-line + หมายหัว stay
 - Docs: owner answers Q1–Q3 + save rule recorded in MAIN-VS-REV4 ("คำตอบของคิว")
+
+## ⚖️ feat(thief): แทงพิษ cost 45, Energy floor 30, pure helpers
+- `JOBS.thief.auto.cost` 40 → 45 (Rogue / Mobster use it too) · `autoCost()` floor for the Thief line = `KIT.thiefAutoMinCost` 30 (other classes keep floor 10 / own cost)
+- New pure helpers in `skill-math.ts` (tested in `tests/thief-p2a.test.ts`): `thiefS1Woven` (Q3: never woven inside 👤 ร่างเงา) · `thiefStackCritAdd` (th_t2b only) · `thiefCondLeechAdd` · `thiefKillHeal` · `thiefBossCritHeal` · `thiefBloodKingOn`
+- แทงพิษ text + Skill 1 info row "สลับคม" (behavior lands with the s1Weave commit)
