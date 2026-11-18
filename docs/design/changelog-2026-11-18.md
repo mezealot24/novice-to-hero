@@ -43,3 +43,6 @@
 - New `SaveData.thiefRogueRework` (version number) + `THIEF_REWORK_VER = 1` + `migrateThiefRogueRework()` (runs in `load()` after `migrateNodeStretch` / `migrateSageRework`; `newSave()` starts at 1)
 - Every save with `job === 'thief'` (Rogue / Mobster included) gets its class 1 web refunded through `resetTree()` (cross-tier points go back to their own pool) and `jobTalents` cleared, once · `job2Tree` / `job2Talents` / `job2Points` untouched
 - Guards: non-object save, string flag, null `jobTree`, corrupt values, missing `skillPoints` · tests in `tests/thief-p2a.test.ts` (incl. `load()` end to end)
+
+## 🤖 chore(bot): sync thief web ids and rework flag
+- `tools/bot.cjs` save setup adds `thiefRogueRework: 1` (else `load()` would wipe the bot's Thief / Rogue / Mobster `jobTree`) · `TREEX` / `TAL` examples use P2a ids · Rogue preset untouched (P3) · bot not run (Q playtests)

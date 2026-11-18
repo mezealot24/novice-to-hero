@@ -51,8 +51,8 @@ if (D >= 6) { // D6 profile (Q 2026-11-04 level dungeons): Base Lv 45 (135 point
   const lvTo = (lv) => Math.min(5, Math.round(((lv || 1) - 1) * 10 / 12))
   const t = { [`${job}_s1p`]: lvTo(save.jobSkills.auto), [`${job}_ultp`]: lvTo(save.jobSkills.ult) }
   if (process.env.S2) { t[process.env.S2] = 1; t[process.env.S2 + '_p'] = +(process.env.PL ?? 0); if (process.env.STAR) { t[process.env.S2 + '_p'] = 5; t[process.env.S2 + '_x'] = 1 } } // v83: "+" max 5 (PL = its Lv 0..5)
-  if (process.env.TREEX) Object.assign(t, JSON.parse(process.env.TREEX)) // extra web nodes, e.g. {"thief_core1":5}
-  Object.assign(save, { web: 1, stretch: 1, bmRework: 2, jobTree: t, jobSkills: { auto: 1, ult: 1 } }) // stretch / bmRework: skip migrations
+  if (process.env.TREEX) Object.assign(t, JSON.parse(process.env.TREEX)) // extra web nodes, e.g. {"thief_core1":5,"thief_a1":5}
+  Object.assign(save, { web: 1, stretch: 1, bmRework: 2, thiefRogueRework: 1, jobTree: t, jobSkills: { auto: 1, ult: 1 } }) // stretch / bmRework / thiefRogueRework: skip migrations (else load() wipes the bot's Thief jobTree)
 }
 // EXTRA=1: also wear headgear + off-hand for the class and a second accessory (equipment screen v1)
 if (process.env.EXTRA) {
@@ -72,7 +72,7 @@ if (process.env.CRAFTED) {
 for (const [env, slot] of [['WEAPON', 'weapon'], ['ARMOR', 'armor'], ['ACC', 'acc'], ['HEAD', 'head'], ['OFF', 'offhand']]) if (process.env[env]) { save.owned.push(process.env[env]); save.equipped[slot] = process.env[env] }
 if (process.env.GRADE) save.grade = Object.fromEntries(Object.values(save.equipped).map((id) => [id, +process.env.GRADE]))
 // refine (phase 2): REFINE=n puts every worn item at +n (no bonus lines), BROKEN=1 marks them all broken
-// SOCK='{"<item id>":["card id",...]}' slots cards (bag gets them too) · TAL='{"1":{"id":"th_t1c","rank":2}}' sets talents
+// SOCK='{"<item id>":["card id",...]}' slots cards (bag gets them too) · TAL='{"2":{"id":"th_t2c","rank":2}}' sets talents
 if (process.env.BL) save.baseLevel = +process.env.BL // HARD=1 tests: scaling reads Base Lv
 if (process.env.HARD) save.hardClearsBy = {}
 if (process.env.SOCK) { save.sockets = JSON.parse(process.env.SOCK); save.cards = {}; for (const ids of Object.values(save.sockets)) for (const id of ids) save.cards[id] = (save.cards[id] ?? 0) + 1 }
