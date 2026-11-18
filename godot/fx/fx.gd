@@ -126,6 +126,7 @@ func vortex(owner_node: Node3D, radius: float, duration: float, color: Color) ->
 	var mat := ring_material(color)
 	mat.set_shader_parameter("fill", 0.0)
 	mat.set_shader_parameter("glow", 1.8)
+	mat.set_shader_parameter("base", 0.03)
 	var quad := _flat_quad(Vector3(0.0, GROUND_Y, 0.0), Vector2(radius, radius), mat)
 	remove_child(quad)
 	owner_node.add_child(quad)

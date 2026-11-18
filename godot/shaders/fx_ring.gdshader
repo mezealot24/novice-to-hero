@@ -9,6 +9,8 @@ uniform float alpha : hint_range(0.0, 1.0) = 1.0;
 // 0 = circle, 1 = rectangle (line telegraph): the quad is scaled by the caller.
 uniform float rect : hint_range(0.0, 1.0) = 0.0;
 uniform float glow = 1.0;
+// Faint tint over the whole shape, so the danger area reads before it fills.
+uniform float base : hint_range(0.0, 1.0) = 0.14;
 
 void fragment() {
 	vec2 p = UV * 2.0 - 1.0;
@@ -18,7 +20,7 @@ void fragment() {
 	// Rectangles fill along their length (UV.y), circles from the centre out.
 	float fill_d = mix(d, UV.y, rect);
 	float filled = (1.0 - smoothstep(fill - 0.02, fill, fill_d)) * inside;
-	float a = max(edge * 0.95, max(filled * 0.42, inside * 0.14));
+	float a = max(edge * 0.95, max(filled * 0.42, inside * base));
 	ALBEDO = color.rgb * glow;
 	ALPHA = a * alpha * color.a;
 }

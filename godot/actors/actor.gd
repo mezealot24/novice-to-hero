@@ -6,7 +6,7 @@ signal hurt(amount: int, crit: bool)
 signal died(actor: Actor)
 
 const FLASH_TIME := 0.12
-const FLASH_PEAK := 0.85
+const FLASH_PEAK := 0.7
 
 var arena: Arena
 var max_hp := 1
