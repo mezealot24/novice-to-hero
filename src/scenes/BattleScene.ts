@@ -50,7 +50,7 @@ import { ftue, track } from '../analytics'
 import { HeroRig } from '../battle/hero-rig'
 import { fitHeroScale, heroCostumeTint, heroRigSpec, heroTex, type HeroRigSpec } from '../gfx/hero-visual'
 import { ARCHER_PFX, BEAST_PFX, CLERIC_PFX, COIN_DROP_IDS, COIN_DROP_REST, COIN_PFX, MAGE_PFX, POISON_GREEN, RICOCHET_LEAF, THIEF_PFX, ZAP_YELLOW, ZAP_YELLOW_SPARKS, playPfx, preloadPfx } from '../gfx/pixelfx'
-import { backstabFx, daggerCrossFx, shadowSlashFx, smokeBombFx, venomStabFx } from '../battle/thief-vfx'
+import { THIEF_FX, backstabFx, daggerCrossFx, flyingKnife, knifeLandFx, knifeStormFx, shadowSlashFx, smokeBombFx, venomStabFx } from '../battle/thief-vfx'
 import { pickChainTargets, playChainLightningFx } from '../battle/lightning-vfx'
 import { RANGER_FX, arrowImpactFx, arrowProjectile, arrowRainFx, beastRoarFx, boarGuardFx, eagleEyeFx, huntMarkOn, petHitFx, type PetKind, pierceShotFx, snareTrapFx, stampedeFx, wolfRoarPalette } from '../battle/ranger-vfx'
 import { blockShieldFx, bowlingBashFx, brandishSweepFx, chargeOpenerFx, comboSlashFx, guardianUltFx, pierceHitFx, skill2AuraFx, spearBoomerangFx, whirlwindFx } from '../battle/sword-vfx'
@@ -2138,6 +2138,51 @@ export class BattleScene extends Phaser.Scene {
       this.withSrc('other', () => this.strike(m, mul, false, '#e0e0f0'))
     }
   }
+  /** Rogue 🌪️ พายุมีด (VFX v2): the backdrop dims, a ring of daggers whirls over the monsters and collapses, then `n`
+   *  knives dive from the sky one after another (same rules as throwKnives: random alive monster each, no lifesteal).
+   *  A knife's damage lands when it arrives; if its target died on the way it hits another live monster. The last knife
+   *  lands big (gold flash + hit-stop). */
+  private async knifeStorm(n: number, mul: number) {
+    const live = this.alive(); if (!live.length || n <= 0) return
+    const D = THIEF_FX.dim, step = BATTLE.stepMs
+    const dim = this.add.rectangle(0, 0, W, H, 0x05030c, 0).setOrigin(0).setDepth(D.depth)
+    this.tweens.add({ targets: dim, fillAlpha: D.alpha, duration: D.fadeMs })
+    const cx = live.reduce((a, m) => a + m.spr.x, 0) / live.length
+    this.heroRig.playWindup(false)
+    const collapseMs = knifeStormFx(this, cx, GROUND)
+    this.callout('🌪️ พายุมีด!', W / 2, 165, '#ffd36b')
+    sfx.swing()
+    await this.wait(collapseMs)
+    this.heroRig.playStrike(1, false)
+    this.shake(90, 0.006)
+    const flights: Promise<void>[] = []
+    for (let i = 0; i < n; i++) {
+      const t = this.alive(); if (!t.length) break
+      const m = t[Phaser.Math.Between(0, t.length - 1)], last = i === n - 1
+      flights.push(this.diveKnife(m, mul, i, last))
+      await this.wait(step * 0.07)
+    }
+    await Promise.all(flights)
+    this.tweens.add({ targets: dim, fillAlpha: 0, duration: D.fadeMs * 2, onComplete: () => dim.destroy() })
+    await this.wait(step * 0.2)
+  }
+  /** One storm knife: dives at `m` from high on the left, then strikes on arrival (or another live monster if `m` died). */
+  private async diveKnife(m: Mon, mul: number, i: number, last: boolean) {
+    const tx = m.spr.x + Phaser.Math.Between(-8, 8), ty = m.spr.y - m.spr.displayHeight * THIEF_FX.knife.chest
+    const sx = tx - Phaser.Math.Between(70, 150), sy = ty - Phaser.Math.Between(190, 250)
+    const k = flyingKnife(this, sx, sy, Math.atan2(ty - sy, tx - sx))
+    if (k) await this.tween({ targets: k, x: tx, y: ty, duration: BATTLE.stepMs * 0.22, ease: 'Quad.easeIn' })
+    k?.destroy()
+    const t = m.dead ? this.alive() : [m]; if (!t.length) return
+    const hit = t[Phaser.Math.Between(0, t.length - 1)]
+    knifeLandFx(this, hit.spr, i, last)
+    this.withSrc('other', () => this.strike(hit, mul, false, '#e0e0f0'))
+    if (last) {
+      this.cameras.main.flash(120, 255, 211, 107)
+      this.shake(160, 0.012)
+      this.hitStop(70)
+    }
+  }
   /** Rogue: knives per combo hit (+ crit knives owed). */
   private comboKnives(comboHit: boolean) {
     if (this.j2?.id !== 'rogue') return
@@ -2345,9 +2390,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.j2!.id === 'rogue') { // 🌪️ พายุมีด: shadow dance + a knife storm
       await this.shadowDance(h2)
       const R = KIT2.rogue
-      this.throwKnives(R.ultKnives + this.st.j2KnifeAdd, R.ultKnifeMul * h2)
-      this.cameras.main.flash(100, 220, 220, 240)
-      await this.wait(BATTLE.stepMs * 0.3)
+      await this.knifeStorm(R.ultKnives + this.st.j2KnifeAdd, R.ultKnifeMul * h2)
       return
     }
     if (this.j2!.id === 'mobster') { // 💀 ทวงหนี้: slash all, burst every poison stack, then collect
