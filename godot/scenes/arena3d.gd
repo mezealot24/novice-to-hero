@@ -3,6 +3,10 @@
 ## Placeholder shapes only (capsule hero, sphere monsters); real models / combat come in M1.
 extends Node3D
 
+const Toon := preload("res://core/toon.gd")
+const ASSETS_DIR := "res://assets"
+const HERO_HEIGHT := 1.7
+
 const ARENA_SIZE := Vector2(40.0, 24.0) # metres (x, z)
 const HERO_SPEED := 4.0 # m/s
 const HERO_RADIUS := 0.45
@@ -27,6 +31,11 @@ var cam_locked := true
 var cam_focus := Vector3.ZERO
 var cam_dist := 16.0
 var marker_t := 0.0
+## Set when a real model (e.g. KayKit Rogue) was found in res://assets.
+var hero_anim: AnimationPlayer
+var anim_idle := ""
+var anim_walk := ""
+var hero_model_name := "placeholder"
 
 
 func _ready() -> void:
@@ -63,7 +72,9 @@ func _process(delta: float) -> void:
 	# Holding right click keeps steering, like LoL.
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		_order_move(get_viewport().get_mouse_position(), false)
+	var before := hero.position
 	_move_hero(delta)
+	_play_move_anim(hero.position.distance_to(before) > 0.0001)
 	_move_monsters(delta)
 	_update_camera(delta)
 	_update_marker(delta)
@@ -131,6 +142,14 @@ func _update_camera(delta: float) -> void:
 	cam.look_at(cam_focus, Vector3.UP)
 
 
+func _play_move_anim(moving: bool) -> void:
+	if hero_anim == null:
+		return
+	var want := anim_walk if moving and anim_walk != "" else anim_idle
+	if want != "" and hero_anim.current_animation != want:
+		hero_anim.play(want, 0.15)
+
+
 func _update_marker(delta: float) -> void:
 	marker_t = maxf(0.0, marker_t - delta)
 	click_marker.visible = marker_t > 0.0
@@ -155,7 +174,7 @@ func _spawn_room(dungeon_id: String, room_index: int) -> void:
 		for i in int(pair[1]):
 			var r := float(def.get("radius", 15)) * MON_RADIUS_SCALE
 			var body := _blob(r, Color("7fd96b"))
-			body.position = Vector3(randf_range(half.x * 0.3, half.x - 2.0), r, randf_range(-half.y + 2.0, half.y - 2.0))
+			body.position = Vector3(randf_range(half.x * 0.3, half.x - 2.0), r * 0.8, randf_range(-half.y + 2.0, half.y - 2.0))
 			add_child(body)
 			mons.append({ "node": body, "r": r, "speed": float(def.get("moveSpeed", 200)) * MON_SPEED_SCALE })
 
@@ -180,7 +199,7 @@ func _build_world() -> void:
 	var plane := PlaneMesh.new()
 	plane.size = ARENA_SIZE
 	ground.mesh = plane
-	ground.material_override = _mat(Color("4a7a3c"))
+	ground.material_override = _mat(Color("6fae4f"), 0.0)
 	add_child(ground)
 
 	# Low walls so the arena edge reads clearly from the tilted camera.
@@ -190,7 +209,7 @@ func _build_world() -> void:
 		var box := BoxMesh.new()
 		box.size = Vector3(side.z, 0.6, side.w)
 		wall.mesh = box
-		wall.material_override = _mat(Color("6b5a44"))
+		wall.material_override = _mat(Color("8a6a4a"), 0.0)
 		wall.position = Vector3(side.x, 0.3, side.y)
 		add_child(wall)
 
@@ -199,13 +218,29 @@ func _build_world() -> void:
 	ring.inner_radius = 0.25
 	ring.outer_radius = 0.35
 	click_marker.mesh = ring
-	click_marker.material_override = _mat(Color("6bffb0"))
+	click_marker.material_override = _mat(Color("6bffb0"), 0.0)
 	click_marker.visible = false
 	add_child(click_marker)
 
 
 func _build_hero() -> Node3D:
 	var root := Node3D.new()
+	var path := Toon.find_model(ASSETS_DIR, "rogue")
+	var model: Node3D = Toon.load_character(path, HERO_HEIGHT) if path != "" else null
+	if model != null:
+		root.add_child(model)
+		Toon.apply(model, 0.02)
+		hero_model_name = path.get_file()
+		var aps := model.find_children("*", "AnimationPlayer", true, false)
+		if not aps.is_empty():
+			hero_anim = aps[0] as AnimationPlayer
+			anim_idle = Toon.pick_anim(hero_anim, ["idle"])
+			anim_walk = Toon.pick_anim(hero_anim, ["walking_a", "walk", "run"])
+			for a in [anim_idle, anim_walk]:
+				if a != "":
+					hero_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
+		return root
+	# Placeholder: capsule + "nose" so you can see which way the hero faces (look_at points -Z forward).
 	var body := MeshInstance3D.new()
 	var cap := CapsuleMesh.new()
 	cap.radius = HERO_RADIUS
@@ -214,7 +249,6 @@ func _build_hero() -> Node3D:
 	body.material_override = _mat(Color("ffd36b"))
 	body.position.y = 0.8
 	root.add_child(body)
-	# A "nose" so you can see which way the hero faces (look_at points -Z forward).
 	var nose := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = Vector3(0.2, 0.2, 0.4)
@@ -225,20 +259,32 @@ func _build_hero() -> Node3D:
 	return root
 
 
-func _blob(r: float, color: Color) -> MeshInstance3D:
-	var m := MeshInstance3D.new()
+## Slime-ish placeholder monster: squashed toon sphere with two eyes on its -Z (facing) side.
+func _blob(r: float, color: Color) -> Node3D:
+	var root := Node3D.new()
+	var body := MeshInstance3D.new()
 	var s := SphereMesh.new()
 	s.radius = r
 	s.height = r * 2.0
-	m.mesh = s
-	m.material_override = _mat(color)
-	return m
+	body.mesh = s
+	body.material_override = _mat(color)
+	body.scale = Vector3(1.0, 0.8, 1.0)
+	root.add_child(body)
+	for side in [-1.0, 1.0]:
+		var eye := MeshInstance3D.new()
+		var e := SphereMesh.new()
+		e.radius = r * 0.16
+		e.height = r * 0.32
+		eye.mesh = e
+		eye.material_override = _mat(Color("1b1424"), 0.0)
+		eye.position = Vector3(side * r * 0.35, r * 0.15, -r * 0.82)
+		root.add_child(eye)
+	return root
 
 
-func _mat(color: Color) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = color
-	return m
+## Toon material with outline for placeholder shapes.
+func _mat(color: Color, outline := 0.03) -> ShaderMaterial:
+	return Toon.material(color, null, outline)
 
 
 func _build_hud() -> void:
@@ -252,5 +298,5 @@ func _build_hud() -> void:
 
 func _update_hud() -> void:
 	var d1: Dictionary = GameData.dungeon("d1")
-	info.text = "%s · monsters %d · คลิกขวา = เดิน · Y = ล็อกกล้อง (%s) · Space = กลับมาที่ฮีโร่ · ล้อเมาส์ = ซูม" % [
-		d1.get("name", "?"), mons.size(), "ล็อก" if cam_locked else "อิสระ"]
+	info.text = "%s · hero: %s · monsters %d\nคลิกขวา = เดิน · Y = ล็อกกล้อง (%s) · Space = กลับมาที่ฮีโร่ · ล้อเมาส์ = ซูม" % [
+		d1.get("name", "?"), hero_model_name, mons.size(), "ล็อก" if cam_locked else "อิสระ"]
