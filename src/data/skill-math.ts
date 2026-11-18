@@ -86,6 +86,13 @@ export const KIT = {
   // Q 2026-11-19 Ratio AGI: เงาพริ้ว +thiefUltAgiK x (AGI above start / stat points the Base Lv gives), share capped at thiefUltAgiShareCap.
   // Was +2% per AGI point (uncapped): Lv 80 all-AGI = x5.74 per stab, early game weak (P.ATK x AGI grew with level squared). Now all-in = x3 at every Lv.
   thiefUltAgiK: 2, thiefUltAgiShareCap: 1.2,
+  // P2a (design/p2/P2a-spec.md, R4.7.2): แทงพิษ floor · D.Strike Energy / leech · thief_a (พิษ) · thief_core (เลือด/คริ) · th_t2b
+  thiefAutoMinCost: 30, thiefStrikeRes: 4, thiefStrikeLs: 0.33,
+  thiefToxicHoldCap: 0.75, thiefSpreadShare: 0.6, thiefPlagueAt: 10, thiefPlagueTurns: 1,
+  thiefKindsAt: 2, thiefCondLeechMulti: 1.5, thiefStackCritMax: 8,
+  thiefKillRes: 10, thiefKillPoisonHeal: 0.005, thiefKillPoisonHealCap: 0.12, thiefBossCritLeech: 0.375, thiefBossCritRes: 8,
+  thiefBloodKingBelow: 0.45, thiefBloodKingMul: 1.75, thiefBloodKingStrikeLs: 0.66,
+  thiefStackCritTalMax: 14,
   // v82 Archer web: 🧪 ศรพิษ (under ทักษะ 1) + 🏷️ ล่าหัว (under Ult), first guesses (design/skill-tree-archer.md v82)
   archerTree: {
     poisonArrow: [0.2, 0.35, 0.5], poisonArrowStacks: 1, vsPoison: 0.06, ricochet: [0.5, 0.7, 0.9], // ศรอาบพิษ chance per arrow · ซ้ำแผล per lv · ศรเด้ง shot mul
