@@ -21,3 +21,8 @@
 - RO Back Stab never misses: the forced crit already skipped Flee, but D6+ LUK monsters could still 🍀 lucky-dodge it -> new `backStabbing` flag skips `luckyDodge` (Maiden `fixedFlee` unchanged)
 - `rg_x4` ★ คริเป็นมีด counted only basic / combo crits -> Back Stab (always a crit) now owes +1 มีดบิน, thrown right after the stab
 - Texts: Back Stab desc + rg_x4 desc
+
+## 📝 docs(design): Thief & Rogue rework Rev 4
+- `design/thief-rogue-rework-v1.md` gets a "Rev 4 Delta" on top: shipped P1 (3 commits), Q's decisions, rules that override Rev 3 (Ult budget vs ×AGI, no magic numbers in BattleScene, Mobster impact, `resetTree()` migration, reused ids, unverified balance numbers, damage-amp bracket table)
+- Removed 15 expired `vertexaisearch` redirect links · fixed `rg_c1` Tempo Lv1 (+12%, not +20%)
+- Open for Q: Mobster path (A/B) · แทงพิษ `pskill`
