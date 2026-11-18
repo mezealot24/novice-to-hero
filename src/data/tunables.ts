@@ -184,6 +184,7 @@ export const TABLES: Record<TableId, TableDef> = {
       ['job.xpBase|xpStep', int(1, 100_000)],
       ['run.runXpBase|runXpStep', int(1, 1000)],
       ['run.xpOnClear', int(0, 1000)],
+      ['run.failXpMul', num(0, 1)],
       ['run.healOnClear|healOnLevel', num(0, 1)],
     ],
   },

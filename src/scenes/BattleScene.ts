@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { HERO_SKILL_BOOK, heroSkillSteps, resolveHeroKit, type HeroKit } from '../data/hero-skill-book'
 import { chooseHeroSkill, newKitState, spendKit, tickKit, type KitCtx, type KitState } from '../battle/hero-skill-engine'
-import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, softCapDiminish, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats } from '../data/game-data'
+import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, bankedRunXp, softCapDiminish, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats } from '../data/game-data'
 import { counterRate, shieldGain } from '../data/stack-math'
 import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, nextZapTarget, PERKS_V2, OFFER_RULES, OUTSIDE_CAP, overflowShare, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type OutsideKey, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
 import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
@@ -5874,6 +5874,8 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     this.zeny = Math.round(this.zeny * this.run.mut.zenyMul * this.dropMul) // daily mutators · v59 over-geared normal dungeon
+    const dxx = this.run.modeId === 'dungeon' || this.run.modeId === 'hard', xpFull = this.runXp
+    this.runXp = bankedRunXp(this.runXp, won, dxx) // 💀 lost Dxx run: Base / Job EXP x RULES.failXpMul (zeny / loot unchanged)
     const mode = MODES[this.run.modeId].reward(s, this.run, { won, left: this.leftTower, floor: this.towerFloor, from: Math.max(0, (this.modeArgs.startFloor ?? 1) - 1), bank: this.bank })
     if (mode) { this.zeny += mode.zeny; for (const [id, n] of Object.entries(mode.mats)) this.runMats[id] = (this.runMats[id] ?? 0) + n }
     s.zeny += this.zeny
@@ -5908,6 +5910,7 @@ export class BattleScene extends Phaser.Scene {
       ...Object.entries(this.runDupeMats).map(([id, n]) => `💎 ของยูนีคซ้ำ → ได้วัตถุดิบแทน ${matName(id)} x${n}`),
     ]
     const lines = [...uniq, ...(mode?.lines ?? []), `+${this.zeny} zeny · +${this.runXp} EXP${s.gems > before ? ` · +${s.gems - before} เพชร` : ''}`]
+    if (this.runXp < xpFull) lines.push(`💀 ล้มเหลว: ได้ EXP แค่ ${Math.round(RULES.failXpMul * 100)}% (เต็ม ${xpFull}) · zeny กับของได้ครบ`)
     if (ups.base) lines.push(`🎉 Base Lv ${s.baseLevel}! ได้แต้มสถานะเพิ่ม`)
     if (ups.job) lines.push(jobUpText(s, ups.job))
     if (trial) lines.unshift(`⚔️ ผ่าน Master Trial! ตื่นรู้เป็น ${JOB3[trial].icon} ${JOB3[trial].name} ได้ที่ 🏠 เมือง › อาชีพ`)

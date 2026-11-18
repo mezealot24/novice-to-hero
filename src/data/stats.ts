@@ -454,7 +454,11 @@ export const RULES = {
   healOnClear: 0.2, // share of max HP back after each room
   healOnLevel: 0.2,
   xpOnClear: 6,
+  failXpMul: 0.25, // Dxx run lost (dead / timeout / left early): account Base + Job EXP x this · zeny / loot unchanged (Q 2026-11-18, live-tunable)
   smashRadius: 140,
   runXpBase: 4, runXpStep: 3, // live-tunable (data/tunables.ts progression)
   xpNeed: (level: number): number => RULES.runXpBase + RULES.runXpStep * level, // xp to go from `level` to `level + 1`
 }
+
+/** Account EXP (Base + Job) banked at the end of a run: a lost Dxx run (normal / hard / hell) keeps only RULES.failXpMul of it. */
+export const bankedRunXp = (xp: number, won: boolean, dxx: boolean): number => (won || !dxx ? xp : Math.round(xp * RULES.failXpMul))
