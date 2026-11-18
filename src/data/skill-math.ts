@@ -357,7 +357,31 @@ export const S2N = {
 }
 
 // ---------- costs / cooldowns ----------
-export const autoCost = (job: JobDef, st: Stats) => Math.max(Math.min(10, job.auto.cost), job.auto.cost - st.autoCostCut) // floor 10, unless the class's own cost is lower (Mage 5, 2026-11-13)
+// floor 10, unless the class's own cost is lower (Mage 5, 2026-11-13) · P2a: Thief (Rogue / Mobster too) floor KIT.thiefAutoMinCost
+export const autoCost = (job: JobDef, st: Stats) => Math.max(job.id === 'thief' ? KIT.thiefAutoMinCost : Math.min(10, job.auto.cost), job.auto.cost - st.autoCostCut)
+
+// ---------- P2a Thief pure helpers (numbers only, no Mon / Phaser: tests call them directly) ----------
+/** สลับคม: after แทงพิษ the next hero turn is a basic attack. */
+export const thiefS1Woven = (jobId: string, weave: boolean): boolean => jobId === 'thief' && weave
+/** thief_c2 + th_t2b: crit / skillCrit from stacks on the target. */
+export const thiefStackCritAdd = (st: Stats, stacks: number): number =>
+  st.thStackCrit * Math.min(stacks, KIT.thiefStackCritMax) + st.thStackCritTal * Math.min(stacks, KIT.thiefStackCritTalMax)
+/** thief_c1: lifesteal from status kinds on the target. */
+export const thiefCondLeechAdd = (st: Stats, kinds: number): number =>
+  kinds < 1 ? 0 : st.thCondLeech * (kinds >= KIT.thiefKindsAt ? KIT.thiefCondLeechMulti : 1)
+/** thief_c3: kill heal share of max HP (poison on the corpse adds, only with the node). */
+export const thiefKillHeal = (st: Stats, poisonOnCorpse: number): number =>
+  st.thKillLeech > 0 ? st.thKillLeech + Math.min(KIT.thiefKillPoisonHealCap, Math.max(0, poisonOnCorpse) * KIT.thiefKillPoisonHeal) : 0
+/** thief_c3: first crit on a boss / mini each turn heals this share of max HP. */
+export const thiefBossCritHeal = (st: Stats): number => st.thKillLeech * KIT.thiefBossCritLeech
+/** thief_a3: chance toxicSkin does not shed a poison stack. */
+export const thiefToxicHold = (st: Stats): number => Math.min(KIT.thiefToxicHoldCap, st.thToxicHold)
+/** thief_a4 ★ / card ven_L1: poison stacks spread on death (card share /2 unchanged). */
+export const thiefSpreadAmount = (poison: number, plague: boolean): number =>
+  plague ? Math.ceil(poison * KIT.thiefSpreadShare) : Math.ceil(poison / 2)
+/** thief_c4 ★ ราชันย์โลหิต: low HP or inside the Shroud. */
+export const thiefBloodKingOn = (st: Stats, hp: number, maxHp: number, inShroud: boolean): boolean =>
+  st.thBloodKing > 0 && (hp < maxHp * KIT.thiefBloodKingBelow || inShroud)
 /** Mana the ult costs (Mage, Swordsman, Cleric since v86); 0 for every other job. v102: pass st for the base Cleric ult (+clUltMana by Ult node Lv). */
 export const ultCost = (job: JobDef, st?: Stats) => (job.resource === 'mana' ? (job.ult.cost ?? 0) + (job.id === 'cleric' && (job.ult.cost ?? 0) > 0 ? st?.clUltMana ?? 0 : 0) : 0)
 /** Ult cooldown in hero turns before relics (gear smashCd lowers it for every job). */
@@ -623,6 +647,7 @@ export function autoInfo(jobId: JobId, st: Stats, job2?: string): InfoRow[] {
     case 'thief':
       out.push({ label: 'แทง 1 ที', value: hitText(st, KIT.thiefAuto * pow * (1 + st.pskill), false) })
       out.push({ label: 'พิษ', value: `+${KIT.thiefAutoPoison} stack (${(st.poisonDmg).toFixed(1)}/stack/เทิร์น)` })
+      out.push({ label: 'สลับคม', value: 'หลังแทงพิษ ตีปกติ 1 เทิร์นก่อน' })
       break
     default: return []
   }
