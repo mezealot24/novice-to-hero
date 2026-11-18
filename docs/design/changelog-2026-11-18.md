@@ -21,3 +21,8 @@
 - สลับคม: after แทงพิษ the next hero action is a basic attack (`s1Weave`, cleared by any basic attack · a booked Ult keeps it) → S1 : Basic = 1 : 1 even with cost cuts (Rogue / Mobster too: `job.id` stays `thief`)
 - Double Strike landing: Energy +`KIT.thiefStrikeRes` (4) · its leech share is `KIT.thiefStrikeLs` (was hardcoded 0.33)
 - Test: 20-turn Energy simulation in `tests/thief-p2a.test.ts`
+
+## ☠️ feat(thief): thief_a hooks pen, hold, strike poison, plague
+- `thief_a1`: physical non-crit hits on a poisoned monster add `thPoisonPen` to physPen (total under `STAT_CAPS.physPen` 0.75)
+- `thief_a3`: Toxic Skin monsters keep each poison stack with chance `thiefToxicHold` (cap 0.75) · Double Strike landed → +1 poison
+- `thief_a4` ★: poison spread on death = `KIT.thiefSpreadShare` (60%, card `ven_L1` alone still /2) · Plague Burst: corpse with ≥ `KIT.thiefPlagueAt` stacks hits every other monster for `thiefPlagueTurns` turns of its poison (dot, src poison) · `plagueBursting` stops chains · ทวงหนี้ (`debtBursting`) skips both

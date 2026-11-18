@@ -134,3 +134,12 @@ test('Energy loop: S1 then a basic attack, 1:1 whatever the cost cut (floor 30 i
     assert.ok(Math.abs(s1 - basic) <= 1, `cut ${cut}: S1 ${s1} vs basic ${basic}`)
   }
 })
+
+test('a-line hooks: full พิษทนทาน = the hold cap, ★ spread share vs the card half', () => {
+  near(thiefToxicHold(st(node('thief_a3').mod(5))), KIT.thiefToxicHoldCap, 'a3 Lv 5')
+  assert.ok(thiefToxicHold(st(node('thief_a3').mod(1))) < KIT.thiefToxicHoldCap)
+  const a4 = st(node('thief_a4').mod(1))
+  assert.equal(a4.thPlagueDeath, 1)
+  assert.equal(thiefSpreadAmount(20, a4.thPlagueDeath > 0), Math.ceil(20 * KIT.thiefSpreadShare))
+  assert.equal(thiefSpreadAmount(20, false), 10, 'card ven_L1 alone keeps /2')
+})

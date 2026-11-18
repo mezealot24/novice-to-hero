@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { HERO_SKILL_BOOK, heroSkillSteps, mirrorKit, type HeroKit } from '../data/hero-skill-book'
 import { chooseHeroSkill, newKitState, spendKit, tickKit, type KitCtx, type KitState } from '../battle/hero-skill-engine'
-import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, softCapDiminish, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats } from '../data/game-data'
+import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, softCapDiminish, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats, STAT_CAPS } from '../data/game-data'
 import { counterRate, shieldGain } from '../data/stack-math'
 import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, nextZapTarget, PERKS_V2, OFFER_RULES, OUTSIDE_CAP, overflowShare, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type OutsideKey, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
 import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
@@ -23,7 +23,7 @@ import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/ski
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
-import { ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefS1Woven, ultCooldown, ultCost } from '../data/skill-math'
+import { ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefS1Woven, thiefSpreadAmount, thiefToxicHold, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -1251,7 +1251,7 @@ export class BattleScene extends Phaser.Scene {
     const r = this.roll(mul, magic, crit, critDmgAdd), up = this.src === 'ult' ? this.st.ultPierce : 0 // v78 บดกระดูก: ult pierce
     const awPierce = !magic && !crit && this.st.j3Rn > 0 && (this.awakenTurns > 0 || this.stampedeFiring) ? this.st.j2Spiral : 0
     const sunder = (m.sunderTurns ?? 0) > 0 ? Math.max(0, 1 - (m.sunder ?? 0)) : 1
-    if (!magic && !crit) r.dmg = m.def.def ? Math.max(1, Math.round(afterDef(r.dmg, m.def.def * (1 - Math.min(1, pierce + up + awPierce)) * Math.max(0, 1 - this.st.physPen) * sunder * (m.armorBrk > 0 ? 1 - KIT2.mobster.armorBrk : 1)))) : r.dmg // Mobster เกราะแตก · Ranger j2Spiral · physPen · void_sunder
+    if (!magic && !crit) r.dmg = m.def.def ? Math.max(1, Math.round(afterDef(r.dmg, m.def.def * (1 - Math.min(1, pierce + up + awPierce)) * Math.max(0, 1 - Math.min(STAT_CAPS.physPen, this.st.physPen + (m.poison > 0 ? this.st.thPoisonPen : 0))) * sunder * (m.armorBrk > 0 ? 1 - KIT2.mobster.armorBrk : 1)))) : r.dmg // Mobster เกราะแตก · Ranger j2Spiral · physPen (+ P2a thief_a1 vs poisoned) · void_sunder
     if (magic && m.def.mdef) r.dmg = Math.max(1, Math.round(r.dmg * (1 - m.def.mdef * (1 - Math.min(1, pierce + up)) * Math.max(0, 1 - this.st.magPen) * sunder))) // D6+ stat monsters: WIS M.DEF · magPen · void_sunder
     if (r.crit && m.def.statDef?.critDR) r.dmg = Math.max(1, Math.round(r.dmg * Math.max(1 / (this.st.critMul || 1), 1 - m.def.statDef.critDR))) // LUK crit DR, never below a normal hit
     if (m.def.toxicSkin) { // venomqueen Toxic Skin: crit bonus halved, -5% damage
@@ -1680,6 +1680,7 @@ export class BattleScene extends Phaser.Scene {
   private pets: { id: PetId; pow: number }[] = [] // this wave's pet lineup (rework v1: all 3)
   private sureHit = false // Blitz Beat: skips Flee
   private debtBursting = false // Mobster ทวงหนี้ burst in flight: killMon skips poisonSpread
+  private plagueBursting = false // P2a Thief ★ Plague Burst in flight: a kill by the burst does not burst again
   private backStabbing = false // Rogue Back Stab in flight: RO Back Stab ignores the monster's LUK lucky dodge · ★ คริเป็นมีด counts it
   private zenyWave = 0 // 🧲 แม่เหล็ก: + zeny share this wave
   private mirror = false // 🔁 กระจก: the next landed monster hit is bounced back
@@ -2986,6 +2987,7 @@ export class BattleScene extends Phaser.Scene {
     this.lsMul = KIT.thiefStrikeLs
     this.strike(m, mul)
     this.lsMul = prev
+    if (this.st.thStrikePoison > 0 && !m.dead) this.addPoison(m, 1) // P2a thief_a3: D.Strike landed -> +1 poison
   }
 
   /** While true, melee hits stay at the monster (combo chain, Thief ult) and the hero walks home once at the end via goHome(). */
@@ -4022,7 +4024,14 @@ export class BattleScene extends Phaser.Scene {
       for (const o of others) { o.burnStacks = Math.min(this.burnMax(), o.burnStacks + Math.ceil(m.burnStacks / 2)); o.burnStackTurns = 3; this.dotIcon(o) } // tree
       this.resGain(MAGE_PASSIVE.ablaze.manaGain)
     }
-    if (this.st.poisonSpread > 0 && m.poison > 0 && !this.debtBursting) for (const o of others) { o.poison = Math.min(this.poisonMax(), o.poison + Math.ceil(m.poison / 2)); o.poisonDmg = Math.max(o.poisonDmg, m.poisonDmg); this.dotIcon(o) } // tree
+    if (this.st.poisonSpread > 0 && m.poison > 0 && !this.debtBursting) for (const o of others) { o.poison = Math.min(this.poisonMax(), o.poison + thiefSpreadAmount(m.poison, this.st.thPlagueDeath > 0)); o.poisonDmg = Math.max(o.poisonDmg, m.poisonDmg); this.dotIcon(o) } // tree / card ven_L1 (P2a ★ ระเบิดพิษลาม: KIT.thiefSpreadShare)
+    if (this.st.thPlagueDeath > 0 && m.poison >= KIT.thiefPlagueAt && !this.debtBursting && !this.plagueBursting && others.length) { // P2a ★ Plague Burst: the corpse's poison hits everyone else once (no chain)
+      this.plagueBursting = true
+      try {
+        const dmg = Math.max(1, Math.round(KIT.thiefPlagueTurns * m.poison * m.poisonDmg * this.dotMul()))
+        for (const o of others) if (!o.dead) this.withSrc('poison', () => this.damageMon(o, dmg, false, '#a77be0', true))
+      } finally { this.plagueBursting = false }
+    }
     this.archerKill(m, others)
     if (m.armorBrk > 0 && this.st.swBreakSpread > 0 && others.length) { // v84 Swordsman ร้าวลาม
       for (const o of others) { o.armorBrk = Math.max(o.armorBrk, KIT.swordTree.breakTurns); this.dotIcon(o) }
@@ -4093,7 +4102,7 @@ export class BattleScene extends Phaser.Scene {
     if (m.blind > 0 && --m.blind === 0) this.dotIcon(m)
     if (m.wet > 0 && --m.wet === 0) this.dotIcon(m)
     if (m.def.toxicSkin) { // Toxic Skin tenacity: debuffs on it wear off twice as fast
-      if (m.chill > 0) m.chill--; if (m.burnTurns > 0) m.burnTurns--; if (m.burnStackTurns > 0) m.burnStackTurns--; if (m.poison > 0) m.poison--
+      if (m.chill > 0) m.chill--; if (m.burnTurns > 0) m.burnTurns--; if (m.burnStackTurns > 0) m.burnStackTurns--; if (m.poison > 0 && Math.random() >= thiefToxicHold(this.st)) m.poison-- // P2a thief_a3 พิษทนทาน: chance to keep the stack
       if (m.weakTurns > 0 && --m.weakTurns === 0) this.dotIcon(m); if ((m.marked ?? 0) > 0) m.marked!--; if (this.awakenTurns <= 0 && m.huntMark > 0 && --m.huntMark === 0) this.dotIcon(m); if (m.armorBrk > 0 && --m.armorBrk === 0) this.dotIcon(m)
     }
     if (m.drainStats && !m.dead && this.hp > 0) this.deathRealm(m, m.drainStats)
