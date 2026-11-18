@@ -64,3 +64,8 @@
 - P2b T3: `Mon.exposed` / `exposedPct` (monster turns) · `wound` / `woundTurns` (hero turns, ticked at the top of `heroAct()` before Skill 2) · `woundCut` / `woundCutTurns` (Blade's End heal cut) · `bladeSpent` (reset each hero turn) · `robbed`
 - `healCut()` = max(hellfire / burn cut, Blade's End cut) · icons 👁️ Exposed, 🩸N Wound · Toxic Skin does not speed up Wound / Exposed
 - `thief_c2` / `th_t2b` stack crit counts poison + Wound (`stackCountOf`) · no caller sets the new statuses yet (T6–T8)
+
+## ➕ feat(thief): B1 takenAmp in damageMon (replaces the flat poisonAmp line)
+- P2b T4: `damageMon()` calls `takenAmpOf(m, dot)`: Exposed (hits only) + แผลลึก Privileged (`S2N.woundPriv`, dot too) + `thPrivileged` (new stat, th_t4a in T5) + gear `poisonAmp` (still needs `KIT.thiefPoisonAmpAt` 10 stacks) — **added**, cap `KIT.thiefTakenCap` 0.6
+- Numbers today: unchanged, except gear `poisonAmp` + old th_t4a above +60% now stop at +60% (max gear 0.45 + 0.25 = 0.70 → 0.60)
+- `thief_c1` status kinds read `debuffKinds()` (Poison / Wound / Exposed / Chill) · new `debuffFlags(m)` (stabMark = P3)

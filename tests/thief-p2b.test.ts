@@ -47,3 +47,8 @@ test('Skill 2 numbers: S2N keys are plain numbers, "+" numbers are whole, th_smo
   for (let lv = 0; lv < 5; lv += 0.6) assert.ok(S2N.woundMax(lv + 0.6) >= S2N.woundMax(lv))
   assert.equal(SKILL2.find((x) => x.id === 'th_smoke')!.cost, 35)
 })
+
+test('thPrivileged is a PLAYER stat that starts at 0', async () => {
+  const { PLAYER } = await import('../src/data/game-data')
+  assert.equal(PLAYER.thPrivileged, 0)
+})
