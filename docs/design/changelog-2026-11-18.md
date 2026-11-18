@@ -31,3 +31,8 @@
 - c3 กระหายเลือด: kill heals `thKillLeech` + 0.5%/poison stack on the corpse (max +12%) + Energy `thiefKillRes` · first crit on a boss / mini per hero turn heals + Energy `thiefBossCritRes` (shares the gear once-per-turn flag)
 - c4 ★ ราชันย์โลหิต: HP < 45% → lifesteal ×1.75 (gear ★ ×2 wins if both, never stacked) · D.Strike leech share 33% → 66%
 - Gear / card `killHeal` Energy reads `KIT.thiefKillRes` (10, same as before) · c2 หมายหัว is main's, no new hook
+
+## ⚡ feat(thief): row-2 talent hooks (dodge cooldown cut, stack crit, weave bonus)
+- ⚡ ขโมยจังหวะ: a dodge also cuts Skill 2 (if its CD is the longer one) or the Ult CD by 1, then waits 3 / 2 hero turns (ICD, reset each wave) · Ult CD cut goes through the new single `cutUltCd()` (P2'c adds the global cap there)
+- 🎯 จุดบอดซ้อนพิษ: physical crit / skillCrit +1.0 / 1.6% per poison stack on the target (counts up to `thiefStackCritTalMax` 14), under the usual crit caps
+- 🧪 จังหวะสลับมีด: the basic swing right after แทงพิษ gets +25 / 40% in the basic bracket (all its basic / combo / D.Strike hits) and Energy +10 / 16
