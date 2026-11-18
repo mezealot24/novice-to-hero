@@ -157,13 +157,13 @@ const oldThief = (over: Partial<SaveData> = {}): SaveData => {
 }
 
 test('migration: old Thief gets the class 1 web + talents back once', () => {
-  assert.equal(THIEF_REWORK_VER, 1)
+  assert.ok(THIEF_REWORK_VER >= 1) // P2'b bumped it to 2 (tests/thief-p2b.test.ts)
   const s = oldThief()
   migrateThiefRogueRework(s)
   assert.equal(s.skillPoints, 2 + 10)
   assert.deepEqual(s.jobTree, {})
   assert.deepEqual(s.jobTalents, {})
-  assert.equal(s.thiefRogueRework, 1)
+  assert.equal(s.thiefRogueRework, THIEF_REWORK_VER)
   s.jobTree = { thief_a1: 1 }
   migrateThiefRogueRework(s)
   assert.deepEqual(s.jobTree, { thief_a1: 1 }, 'idempotent')
@@ -172,14 +172,14 @@ test('migration: old Thief gets the class 1 web + talents back once', () => {
 
 test('migration: new saves skip it, other classes only get the flag', () => {
   const s = newSave('n', 'human')
-  assert.equal(s.thiefRogueRework, 1)
+  assert.equal(s.thiefRogueRework, THIEF_REWORK_VER)
   Object.assign(s, { job: 'thief', jobTree: { thief_a1: 2 } })
   migrateThiefRogueRework(s)
   assert.deepEqual(s.jobTree, { thief_a1: 2 })
   const a = oldThief({ job: 'archer', jobTree: { archer_a1: 3 } })
   migrateThiefRogueRework(a)
   assert.deepEqual(a.jobTree, { archer_a1: 3 })
-  assert.equal(a.thiefRogueRework, 1)
+  assert.equal(a.thiefRogueRework, THIEF_REWORK_VER)
 })
 
 test('migration: Mobster / Rogue keep their job2 web, talents and points', () => {
@@ -206,7 +206,7 @@ test('migration: corrupt data does not throw, results stay finite', () => {
   Object.assign(s, { jobTree: null, thiefRogueRework: 'x', jobTalents: undefined, skillPoints: undefined })
   assert.doesNotThrow(() => migrateThiefRogueRework(s))
   assert.ok(Number.isFinite(s.skillPoints))
-  assert.equal(s.thiefRogueRework, 1)
+  assert.equal(s.thiefRogueRework, THIEF_REWORK_VER)
   const b = oldThief({ jobTree: { thief_a1: 'oops', thief_b1: 2 } as unknown as SaveData['jobTree'] })
   migrateThiefRogueRework(b)
   assert.equal(b.skillPoints, 4)
@@ -217,7 +217,7 @@ test('migration: load() end to end migrates once', () => {
   mem['novice-to-hero.save.v1'] = JSON.stringify(oldThief())
   const s = load()
   assert.ok(s)
-  assert.equal(s.thiefRogueRework, 1)
+  assert.equal(s.thiefRogueRework, THIEF_REWORK_VER)
   assert.deepEqual(s.jobTree, {})
   assert.ok(s.skillPoints >= 12, `refunded: ${s.skillPoints}`)
 })

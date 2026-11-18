@@ -2,6 +2,7 @@
 // of the poison cap, Exposed / Wound, talents th_t4a / th_t1c, ม่านควัน / แผลลึก numbers. Run: node tools/test.mjs thief-p2b
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { PLAYER, type Stats } from '../src/data/game-data'
 import { nodeById, TALENTS } from '../src/data/tree'
 import { debuffKinds, KIT, poisonAt, poisonCapOf, S2N, S2P, takenAmp, type DebuffFlags, type TakenIn } from '../src/data/skill-math'
 
@@ -69,4 +70,54 @@ test('B1 worst cases stay under the cap (R4.6.3: one Skill 2, one row-4 talent)'
   near(takenAmp({ ...T0, exposed: 0, woundPriv: 0, privileged: 0.3 }), 0.3)
   // old flat line: gear 0.45 + old กัดกร่อน 0.25 = x1.70 -> now capped at x1.60
   near(1 + takenAmp({ ...T0, poisonAmp: 0.45 + 0.25 }), 1.6)
+})
+
+test('talents th_t4a สถานะทับซ้อน / th_t1c กายต้านพิษ: new Stats keys, every rank > 0, no old poisonAmp / maxHp', () => {
+  const tal = (id: string) => { const t = TALENTS.find((x) => x.id === id); assert.ok(t, id); return t }
+  for (const id of ['th_t4a', 'th_t1c']) {
+    for (const r of [1, 2]) {
+      const mod = tal(id).mod(r)
+      for (const [k, v] of Object.entries(mod)) { assert.ok(k in PLAYER, `${id} ${k}`); assert.ok(typeof v === 'number' && v > 0, `${id} r${r} ${k}=${v}`) }
+      assert.ok(!('poisonAmp' in mod) && !('maxHp' in mod), `${id} r${r}: old meaning gone`)
+      assert.ok(!/undefined|NaN/.test(tal(id).desc(r)), tal(id).desc(r))
+    }
+  }
+  assert.deepEqual(tal('th_t4a').mod(1), { thPrivileged: 0.18 }); assert.deepEqual(tal('th_t4a').mod(2), { thPrivileged: 0.3 })
+  assert.deepEqual(tal('th_t1c').mod(2), { thCondTenacity: 0.14, thStackHp: 14 })
+  assert.match(tal('th_t4a').desc(2), /12 จาก 20/)
+  const zero: Partial<Stats> = { thPrivileged: PLAYER.thPrivileged, thStackHp: PLAYER.thStackHp, thCondTenacity: PLAYER.thCondTenacity }
+  assert.deepEqual(zero, { thPrivileged: 0, thStackHp: 0, thCondTenacity: 0 })
+  // full th_t1c = KIT.thiefStackHpMax stacks x 14 Max HP
+  assert.equal(KIT.thiefStackHpMax * tal('th_t1c').mod(2).thStackHp!, 280)
+})
+
+// ---------- save migration thiefRogueRework v2 (localStorage mock for load()) ----------
+const mem: Record<string, string> = {}
+;(globalThis as { localStorage?: unknown }).localStorage = {
+  getItem: (k: string) => mem[k] ?? null,
+  setItem: (k: string, v: string) => { mem[k] = v },
+  removeItem: (k: string) => { delete mem[k] },
+}
+const { migrateThiefRogueRework, newSave, THIEF_REWORK_VER } = await import('../src/save')
+type SaveData = ReturnType<typeof newSave>
+
+test('migration v2: a P2\'a (v1) Thief gets web + talents back once, v2 saves are left alone', () => {
+  assert.equal(THIEF_REWORK_VER, 2)
+  const s = newSave('th', 'human')
+  Object.assign(s, { job: 'thief', thiefRogueRework: 1, skillPoints: 1, jobTree: { thief_core1: 5, th_wound: 1 }, jobTalents: { 1: { id: 'th_t1c', rank: 2 }, 4: { id: 'th_t4a', rank: 2 } } } as Partial<SaveData>)
+  migrateThiefRogueRework(s)
+  assert.equal(s.thiefRogueRework, 2)
+  assert.deepEqual(s.jobTree, {}); assert.deepEqual(s.jobTalents, {})
+  assert.equal(s.skillPoints, 1 + 6)
+  s.jobTree = { thief_a1: 1 }
+  migrateThiefRogueRework(s)
+  assert.deepEqual(s.jobTree, { thief_a1: 1 }, 'idempotent')
+  const fresh = newSave('n', 'human')
+  assert.equal(fresh.thiefRogueRework, 2)
+  Object.assign(fresh, { job: 'thief', jobTree: { thief_a1: 2 } })
+  migrateThiefRogueRework(fresh)
+  assert.deepEqual(fresh.jobTree, { thief_a1: 2 })
+  const arc = newSave('a', 'human'); Object.assign(arc, { job: 'archer', thiefRogueRework: 1, jobTree: { archer_a1: 3 } })
+  migrateThiefRogueRework(arc)
+  assert.deepEqual(arc.jobTree, { archer_a1: 3 }); assert.equal(arc.thiefRogueRework, 2)
 })

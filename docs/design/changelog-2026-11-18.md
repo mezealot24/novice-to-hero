@@ -67,3 +67,9 @@
 - Gear กัดกร่อน threshold = `thiefPoisonAmpShare` 0.5 × the hero's poison cap: cap 20 → 10 stacks (same) · พิษสะสม cap 29 → 15 · dot still counts (as before)
 - Only number change today: gear 0.45 + talent กัดกร่อน 0.25 = ×1.70 → capped ×1.60
 - New `Stats.thPrivileged` (0 until the th_t4a commit) · stat / set / talent texts say "half the poison cap"
+
+## ⚖️ feat(thief): P2'b talents สถานะทับซ้อน (th_t4a) + กายต้านพิษ (th_t1c) · save rework v2
+- `th_t4a` กัดกร่อน → 🧫 **สถานะทับซ้อน**: monster with poison ≥ 60% of the poison cap (12 at cap 20) **or** ≥ 2 debuff kinds (poison / Wound / Exposed / chill / blind / armor break / weak) takes +18% / +30% damage, dot too · B1 (cap +60% with Exposed / gear)
+- `th_t1c` หนังหนา (+40 / +80 HP) → 🩸 **กายต้านพิษ**: while any monster has poison / Wound: tenacity +8% / +14% · Max HP +8 / +14 per poison + Wound stack on the field (max 20 stacks = +160 / +280), delta-tracked, HP clamped when it fades
+- New `Stats.thStackHp` / `thCondTenacity`
+- Save: `THIEF_REWORK_VER` 1 → 2, same minimal reset (class 1 web + talents refunded once; job2 untouched) · bot save flag synced (not run)

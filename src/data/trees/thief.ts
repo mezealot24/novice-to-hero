@@ -4,10 +4,11 @@
 // Node and talent ids are save data: never rename or remove a shipped id (retire it by leaving it out of the UI instead).
 // P2'a (design/p2/MAIN-VS-REV4.md §4): one core column thief_core (c1 / c2 หมายหัว / c3 / c4) replaces thief_crit + thief_blood;
 // thief_c3 / thief_c4 / th_t2* get new meanings, gated by save.ts migrateThiefRogueRework (jobTree + talents reset). thief_b3 / thief_l1-l4 retired.
+// P2'b: th_t4a / th_t1c new meanings + ม่านควัน / แผลลึก rework -> migrateThiefRogueRework v2 (same reset).
 // Node mods are written per OLD level 1..3 (★ = 1): stretchNode() (data/tree.ts) shows 5 levels.
 import { node as n, rk, talent as t, type ClassTree } from '../tree-types'
 import { doubleAtkChance } from '../game-data'
-import { KIT, slowAtLv } from '../skill-math'
+import { KIT, poisonAt, slowAtLv } from '../skill-math'
 
 // Q 2026-11-03: RO style Double Strike gates ทักษะ 2 (max 5, Lv 5 = 60%; the extra hit CAN crit, unlike RO).
 // Must be 5/5 before picking ม่านควัน / ล้วงกระเป๋า / แผลลึก. Id kept from v36 (was a 10-level core node; save.ts refunds the extra).
@@ -38,7 +39,7 @@ export const tree: ClassTree = {
     // ----- row 1 · Job Lv 5 · ตั้งตัว -----
     t('th_t1a', 1, '🐈', 'ฝีเท้าแมว', 2, (r) => `Flee +${r === 1 ? 8 : 14} · หลบโชคดี +${r === 1 ? 3 : 5}%`, (r) => ({ flee: r === 1 ? 8 : 14, luckyDodge: r === 1 ? 0.03 : 0.05 })),
     t('th_t1b', 1, '💨', 'ควันตั้งต้น', 2, (r) => `เริ่มทุกเวฟ หลบแน่นอน ${r} ครั้ง`, (r) => ({ waveDodge: r })),
-    t('th_t1c', 1, '🩸', 'หนังหนา', 2, (r) => `HP สูงสุด +${r === 1 ? 40 : 80}`, (r) => ({ maxHp: r === 1 ? 40 : 80 })),
+    t('th_t1c', 1, '🩸', 'กายต้านพิษ', 2, (r) => `มีมอนติดพิษ/Wound บนสนาม: ต้านทาน +${rk(r, 8, 14)}% · Max HP +${rk(r, 8, 14)} ต่อ stack พิษ/Wound บนสนาม (สูงสุด ${KIT.thiefStackHpMax} stack)`, (r) => ({ thCondTenacity: rk(r, 0.08, 0.14), thStackHp: rk(r, 8, 14) })), // P2'b; id kept (save data, reset by migrateThiefRogueRework v2)
     // ----- row 2 · Job Lv 10 · จังหวะ -----
     t('th_t2a', 2, '⚡', 'ขโมยจังหวะ', 2, (r) => `หลบได้ → Energy +${rk(r, 15, 25)} · ลด CD ทักษะ 2 หรือ Ult 1 เทิร์น (ทุก ${rk(r, 3, 2)} เทิร์น)`, (r) => ({ dodgeEnergy: rk(r, 15, 25), thDodgeCdCut: 1, thDodgeCdIcd: rk(r, 3, 2) })),
     t('th_t2b', 2, '🎯', 'จุดบอดซ้อนพิษ', 2, (r) => `คริ + คริสกิล +${rk(r, 1, 1.6).toFixed(1)}% ต่อ stack พิษ + Wound บนเป้า (สูงสุด ${KIT.thiefStackCritTalMax} stack) · กายภาพ`, (r) => ({ thStackCritTal: rk(r, 0.01, 0.016) })),
@@ -48,7 +49,7 @@ export const tree: ClassTree = {
     t('th_t3b', 3, '🌪️', 'มีดรัว', 2, (r) => `เงาพริ้ว แทง 4 → ${r === 1 ? 6 : 7} ที`, (r) => ({ ultHits: r === 1 ? 2 : 3 })),
     t('th_t3c', 3, '☠️', 'มีดอาบพิษ', 2, (r) => `เงาพริ้ว แต่ละทีติดพิษ +${r === 1 ? 2 : 3} stack`, (r) => ({ ultPoison: r === 1 ? 2 : 3 })),
     // ----- row 4 · Job Lv 30 · ล้มบอส -----
-    t('th_t4a', 4, '🧫', 'กัดกร่อน', 2, (r) => `มอนที่ติดพิษ ≥ ${Math.round(KIT.thiefPoisonAmpShare * 100)}% ของเพดานพิษ รับดาเมจ +${r === 1 ? 15 : 25}%`, (r) => ({ poisonAmp: r === 1 ? 0.15 : 0.25 })),
+    t('th_t4a', 4, '🧫', 'สถานะทับซ้อน', 2, (r) => `ศัตรูที่พิษ ≥ ${Math.round(KIT.thiefPrivShare * 100)}% ของเพดานพิษ (${poisonAt(KIT.thiefPrivShare, KIT.poison.baseCap)} จาก ${KIT.poison.baseCap}) หรือติดดีบัฟต่างชนิด ≥ ${KIT.thiefKindsAt} อย่าง รับดาเมจ +${rk(r, 18, 30)}% (รวมพิษ · รวมกับโบนัสรับดาเมจอื่นไม่เกิน +${Math.round(KIT.thiefTakenCap * 100)}%)`, (r) => ({ thPrivileged: rk(r, 0.18, 0.3) })), // P2'b Privileged Status (B1); id kept (save data, reset by migrateThiefRogueRework v2)
     t('th_t4b', 4, '🗡️', 'นักฆ่า', 2, (r) => `ดาเมจคริ +${r === 1 ? 30 : 50}%`, (r) => ({ critMul: r === 1 ? 0.3 : 0.5 })),
     t('th_t4c', 4, '🌑', 'ร่างเงา', 2, (r) => `มอนตีโดนขั้นต่ำ −${r === 1 ? 5 : 8}% (ต่ำสุด 60%)`, (r) => ({ fleeFloor: r === 1 ? 0.05 : 0.08 })),
   ],

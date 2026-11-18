@@ -408,7 +408,7 @@ export class BattleScene extends Phaser.Scene {
     this.blessOn = false; this.blessDelta = undefined; this.kyrie = { hp: 0, hits: 0 } // v77 พรแสง
     if (this.s2?.id === 'cl_spear') this.st.spearMul += S2N.spearPlus(this.st.s2Lv) // หอกคม: +10%/lv of the 0.3x base
     this.res = this.job.resource === 'rage' ? 0 : this.resMax()
-    this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0; this.shadowGauge = 0; this.shadowTurns = 0; this.thMarkMon = undefined; this.malice = 0; this.rogueCp = 0
+    this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0; this.shadowGauge = 0; this.shadowTurns = 0; this.thMarkMon = undefined; this.malice = 0; this.rogueCp = 0; this.thHpBonus = 0; this.thTenBonus = 0
     this.rigSpec = heroRigSpec(s)
     this.heroRig.setAppearance(this.rigSpec, heroCostumeTint(s.costume))
     this.heroRig.resetPose(HERO_X, GROUND)
@@ -1088,6 +1088,7 @@ export class BattleScene extends Phaser.Scene {
       m.bladeSpent = false
       if (m.woundTurns > 0 && --m.woundTurns === 0) { m.wound = 0; this.dotIcon(m) }
     }
+    this.syncStackBody() // P2'b th_t1c
     if (this.st.regen > 0) {
       const lowAmp = this.st.swLowRegenAmp > 0 && this.hp < this.st.maxHp * KIT.swordCore.lowHpAt ? 1 + this.st.swLowRegenAmp : 1
       this.heal(this.st.maxHp * this.st.regen * BATTLE.regenPerTurn / 100 * lowAmp, true)
@@ -1174,6 +1175,7 @@ export class BattleScene extends Phaser.Scene {
   private res = 0
   private shield = 0
   private dodgeCharges = 0
+  private thHpBonus = 0; private thTenBonus = 0 // P2'b th_t1c: Max HP / tenacity added right now (delta-tracked)
   private shadowGauge = 0 // 👤 Thief เกจเงา (KIT.thiefShadow)
   private shadowTurns = 0 // hero turns of ร่างเงา left
   private thMarkMon?: Mon // 🔻 Thief หมายหัว target
@@ -3075,6 +3077,17 @@ export class BattleScene extends Phaser.Scene {
   private debuffFlags(m: Mon): DebuffFlags {
     return { poison: m.poison > 0, wound: m.wound > 0, exposed: m.exposed > 0, chill: m.chill > 0, stabMark: false, blind: m.blind > 0, armorBrk: m.armorBrk > 0, weak: m.weakTurns > 0 }
   }
+  /** P2'b th_t1c กายต้านพิษ: poison + Wound stacks on the field -> temporary Max HP + tenacity (delta-tracked so the base never drifts). */
+  private syncStackBody() {
+    if (this.st.thStackHp <= 0 && this.st.thCondTenacity <= 0 && this.thHpBonus === 0 && this.thTenBonus === 0) return
+    const live = this.alive()
+    const n = Math.min(KIT.thiefStackHpMax, live.reduce((sum, m) => sum + m.poison + m.wound, 0))
+    const wantHp = n * this.st.thStackHp, wantTen = live.some((m) => m.poison > 0 || m.wound > 0) ? this.st.thCondTenacity : 0
+    const dHp = wantHp - this.thHpBonus
+    this.st.maxHp += dHp; this.thHpBonus = wantHp
+    if (this.hp > 0) this.hp = dHp > 0 ? this.hp + dHp : Math.min(this.hp, this.st.maxHp) // grows with the bonus, clamped when it fades (never revives)
+    this.st.tenacity += wantTen - this.thTenBonus; this.thTenBonus = wantTen
+  }
   /** P2'b B1 Taken (R4.6): every term keeps its own filter, then takenAmp() adds them under one cap. Stack thresholds = share of poisonMax(). */
   private takenAmpOf(m: Mon, dot: boolean): number {
     const cap = this.poisonMax()
@@ -4224,6 +4237,7 @@ export class BattleScene extends Phaser.Scene {
 
   private killMon(m: Mon) {
     m.dead = true
+    this.syncStackBody() // P2'b th_t1c: a dead monster's stacks no longer count
     if (this.st.killHeal > 0 && this.hp > 0) {
       this.heal(this.st.maxHp * this.st.killHeal) // gear / card / Mobster kill heal
       if (this.job.resource === 'energy') this.resGain(KIT.thiefKillRes)
