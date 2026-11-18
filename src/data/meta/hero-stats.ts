@@ -279,6 +279,7 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 	const job = JOBS[s.job ?? "novice"];
 	applyBase(st, b, job.attack === "ranged" ? "dex" : "str"); // ranged jobs draw P.ATK from DEX instead of STR (stat spec v1)
 	if (job.id === "thief") st.poisonDmg += KIT.poison.intPer * d("int"); // Q 2026-11-03: off-stat use, Thief poison + per INT point per stack (kit poison.intPer)
+	st.poisonHpPct = KIT.poison.hpPct + KIT.poison.hpPctInt * Math.floor(Math.max(0, b.int) / 10); // Q 2026-11-18: poison %HP bite per stack, +per 10 INT (every job)
 	if (job.id === "thief") st.thUltAgi = KIT.thiefUltAgi * d("agi"); // Q 2026-11-03: เงาพริ้ว + per AGI point (kit thiefUltAgi)
 	// off-stats (Q 2026-11-03): each class gets one use for a stat its kit otherwise ignores (design/class-rebalance-v1.md)
 	if (job.id === "swordsman") st.counter += P.off.swordDexCounter * d("dex"); // DEX: parry -> more counters

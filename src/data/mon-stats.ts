@@ -45,6 +45,13 @@ export const allocOf = (d: MonsterDef): StatAlloc => (typeof d.statAlloc === 'st
 export const monPoints = (lv: number, tier: MonTier, hard = false, tierPct?: number) =>
   Math.round(MON_STAT.pointsPerLv * Math.max(0, lv - 1) * ((tierPct ?? MON_STAT.tierPct[tier]) + (hard ? MON_STAT.hardAdd : 0)))
 
+/** 💰 Thief ล้วงกระเป๋า: the monster's stats from highest to lowest (its real base when built, else its archetype weights). */
+export function topStats(d: MonsterDef): BaseStat[] {
+  const w: Partial<Record<BaseStat, number>> = d.base ?? allocOf(d)
+  const out = (Object.keys(w) as BaseStat[]).filter((k) => (w[k] ?? 0) > 1 || !d.base).sort((a, b) => (w[b] ?? 0) - (w[a] ?? 0))
+  return out.length ? out : ['str']
+}
+
 /** Base stats from points + weights. statMul (hard-mode corruption) multiplies the points one stat gets. */
 export function monBase(alloc: StatAlloc, points: number, statMul: StatAlloc = {}): Record<BaseStat, number> {
   const b: Record<BaseStat, number> = { str: 1, vit: 1, wis: 1, dex: 1, int: 1, luk: 1, agi: 1 }

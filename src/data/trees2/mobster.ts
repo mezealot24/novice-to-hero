@@ -1,5 +1,6 @@
 // 🕴️ Mobster ใยชั้น 2 (design/second-jobs-v1.md §4). Node ids are save data: never rename.
 import { node as n, rk, talent as t, type ClassTree } from '../tree-types'
+import { KIT } from '../skill-math'
 
 export const tree2: ClassTree = {
   branches: [
@@ -9,11 +10,11 @@ export const tree2: ClassTree = {
   ],
   nodes: [
     n('mb_p1', 'mb_p', 1, '🧪', 'พิษเข้ม', 3, (lv) => `ดาเมจพิษ +${lv}/stack`, (lv) => ({ poisonDmg: lv })),
-    n('mb_p2', 'mb_p', 2, '🏺', 'พิษสะสม', 3, (lv) => `พิษ stack สูงสุด +${lv * 3}`, (lv) => ({ poisonCap: 3 * lv })),
-    n('mb_p3', 'mb_p', 3, '☠️', 'กัดกร่อน', 3, (lv) => `ตีมอนติดพิษ ดาเมจ +${lv * 5}%`, (lv) => ({ vsPoison: 0.05 * lv })),
-    n('mb_p4', 'mb_p', 4, '💉', 'พิษซ้อน', 1, () => 'ทุกฮิตติดพิษ +1 stack', () => ({ poison: 1 })),
+    n('mb_p2', 'mb_p', 2, '🏺', 'คลังพิษ', 3, (lv) => `พิษ stack สูงสุด +${lv * 3}`, (lv) => ({ poisonCap: 3 * lv })),
+    n('mb_p3', 'mb_p', 3, '☠️', 'พิษกัดเนื้อ', 3, (lv) => `ตีมอนติดพิษ ดาเมจ +${lv * 5}%`, (lv) => ({ vsPoison: 0.05 * lv })),
+    n('mb_p4', 'mb_p', 4, '💥', 'พิษล้น', 1, () => `ทุกฮิตติดพิษ +1 stack · พิษที่เกินเพดาน ระเบิดทันที (stack ที่เกิน × ดาเมจ/stack × ${KIT.poison.overflowMul})`, () => ({ poison: 1, poisonOverflow: 1 })),
     n('mb_d1', 'mb_d', 1, '⛓️', 'มัดแน่น', 2, (lv) => `ตัดเส้นเอ็น ดีบัฟนาน +${lv} เทิร์น`, (lv) => ({ j2DebuffTurns: lv })),
-    n('mb_d2', 'mb_d', 2, '⛰️', 'หนังหนา', 3, (lv) => `P.DEF +${lv * 3} · ต้านทาน +${lv * 5}%`, (lv) => ({ def: 3 * lv, tenacity: 0.05 * lv })),
+    n('mb_d2', 'mb_d', 2, '⛰️', 'เกราะหนัง', 3, (lv) => `P.DEF +${lv * 3} · ต้านทาน +${lv * 5}%`, (lv) => ({ def: 3 * lv, tenacity: 0.05 * lv })),
     n('mb_d3', 'mb_d', 3, '🧊', 'เย็นยะเยือก', 3, (lv) => `ตีมอนติดช้า ดาเมจ +${lv * 5}%`, (lv) => ({ vsChill: 0.05 * lv })),
     n('mb_d4', 'mb_d', 4, '📒', 'ดอกเบี้ยทบต้น', 1, () => 'ดีบัฟทุกชนิดนับหนี้ x2', () => ({ j2DebtX2: 1 })),
     n('mb_e1', 'mb_e', 1, '⚰️', 'ทวงไว', 3, (lv) => `เกณฑ์ Execute +${lv}% HP`, (lv) => ({ j2ExecAdd: 0.01 * lv })),
@@ -24,7 +25,7 @@ export const tree2: ClassTree = {
   talents: [
     // v119 (Q 2026-11-08) ทาเลนต์ชั้น 2 · I stats · II Ult วิวัฒน์ · III ทักษะ 3 · IV ตัวตน
     t('mb_t1_poison', 1, '🧪', 'สูตรพิเศษ', 2, (r) => `ดาเมจพิษ +${rk(r, 1, 2)}/stack`, (r) => ({ poisonDmg: rk(r, 1, 2) })),
-    t('mb_t1_crit', 1, '🎯', 'เล็งจุดอ่อน', 2, (r) => `คริ +${rk(r, 4, 7)}%`, (r) => ({ crit: rk(r, 0.04, 0.07) })),
+    t('mb_t1_crit', 1, '🎯', 'ตาเพชฌฆาต', 2, (r) => `คริ +${rk(r, 4, 7)}%`, (r) => ({ crit: rk(r, 0.04, 0.07) })),
     t('mb_t1_hide', 1, '⛰️', 'ผิวหนา', 2, (r) => `P.DEF +${rk(r, 5, 9)} · ต้านทาน +${rk(r, 8, 14)}%`, (r) => ({ def: rk(r, 5, 9), tenacity: rk(r, 0.08, 0.14) })),
     t('mb_t2_ult', 2, '💀', 'ทวงหนี้โหด', 2, (r) => `ทวงหนี้แรง +${rk(r, 15, 25)}%`, (r) => ({ ult2Pow: rk(r, 0.15, 0.25) })),
     t('mb_t2_exec', 2, '⚰️', 'เส้นตายเลื่อน', 2, (r) => `เกณฑ์ Execute +${rk(r, 1, 2)}% HP`, (r) => ({ j2ExecAdd: rk(r, 0.01, 0.02) })),

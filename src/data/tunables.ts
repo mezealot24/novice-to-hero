@@ -185,6 +185,7 @@ export const TABLES: Record<TableId, TableDef> = {
       ['job.xpBase|xpStep', int(1, 100_000)],
       ['run.runXpBase|runXpStep', int(1, 1000)],
       ['run.xpOnClear', int(0, 1000)],
+      ['run.failXpMul', num(0, 1)],
       ['run.healOnClear|healOnLevel', num(0, 1)],
       // ☀️ dungeon days (data/dungeon-days.ts, Q 2026-11-18): run length / echo monsters / day-end fights
       ['days.on|returnMini', int(0, 1)],
@@ -205,7 +206,10 @@ export const TABLES: Record<TableId, TableDef> = {
       ['cleric.ultManaLv', int(0, 100)], ['clericTree.dawn.matk|share|heal|crit|weak', num(0, 20)], ['clericTree.dawn.wis.*', num(0, 5)], ['clericTree.dawn.wisTurns.*', int(0, 20)], ['clericTree.dawn.every', int(1, 20)], // v107 Cleric web
       ['clericTree.core.base|regen|guard|wisAmp|heal|shield', num(0, 50)], ['clericTree.core.intPer.*', int(1, 50)],
       ['mageCore.regenStep|matkStep', int(1, 100)], ['mageCore.regenMissing', int(0, 1)], ['mageCore.matkPer', num(0, 1000)], // 💪 กายสู่เวท
-      ['poison.atkPer|matkPer|intPer|burstKeep|defPer|defCap', num(0, 1)], ['poison.baseCap', int(1, 50)]], // ☠️ Thief-line poison (Q 2026-11-17)
+      ['poison.atkPer|matkPer|intPer|burstKeep|defPer|defCap', num(0, 1)], ['poison.baseCap', int(1, 50)],
+      ['thiefShadow.max|turns|dodge|double|ult', int(0, 20)], ['thiefMark.max', int(1, 20)], ['thiefMark.dmg', num(0, 5)],
+      ['poison.slowAt|slowStep|slowTurns', int(0, 50)], ['poison.overflowMul|spreadBurst|hpFlat', num(0, 10)], ['poison.hpAbove|hpPct|hpPctInt|spreadShare', num(0, 1)],
+      ['thiefSteal.atk|heal|crit', num(0, 2)], ['thiefSteal.turns|res|poison|brkTurns', int(0, 100)]], // ☠️ Thief-line poison (Q 2026-11-17)
   },
   // Class skills (skill-registry.ts): costs / cooldowns / Skill 2 numbers / per-skill crit switch. Exact paths, built from the registry.
   // Class kit numbers that are already in `kit` stay there (one path = one table): the admin "⚔️ สกิลอาชีพ" tab shows both.
