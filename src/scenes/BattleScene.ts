@@ -722,7 +722,7 @@ export class BattleScene extends Phaser.Scene {
   private async fight(id: number): Promise<boolean> {
     this.undrain()
     this.fightTurns = 0; this.timedOut = false
-    this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.s1Weave = false; this.rampage = 0
+    this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.s1Weave = false; this.weaveBonus = 0; this.dodgeCdIcd = 0; this.rampage = 0
     this.martyrUsed = false; this.j2Hurt = false; this.monkGrit = 0; this.asuraExhaust = 0; this.awakenTurns = 0; this.awakenAbsorbed = 0; this.awakenUltPow = 1; this.clearAllies() // Crusader ★ ผู้พลีชีพ once per wave · allies last one wave · Awakening resets per wave
     this.inspireUsed = false; this.inspire = 0; this.earthDone = false // ⚜️ Paladin: once per fight
     this.clearBookings() // v86: booked Skill 1-3 do not carry into the next wave (the ult booking does)
@@ -1016,6 +1016,7 @@ export class BattleScene extends Phaser.Scene {
 
   private async heroAct() {
     this.execTurnUsed = false; this.critPetUsed = false; this.killHealCritUsed = false
+    if (this.dodgeCdIcd > 0) this.dodgeCdIcd-- // P2a th_t2a ICD counts hero turns
     if (this.st.regen > 0) {
       const lowAmp = this.st.swLowRegenAmp > 0 && this.hp < this.st.maxHp * KIT.swordCore.lowHpAt ? 1 + this.st.swLowRegenAmp : 1
       this.heal(this.st.maxHp * this.st.regen * BATTLE.regenPerTurn / 100 * lowAmp, true)
@@ -1347,6 +1348,8 @@ export class BattleScene extends Phaser.Scene {
   private boomUsed = false // Knight Spear Boomerang used this wave
   private firstSwing = false // Knight Charge Attack: first basic swing of the wave
   private s1Weave = false // P2a Thief สลับคม: แทงพิษ was cast, the next hero action is a basic attack (cleared by basicAttack)
+  private weaveBonus = 0 // P2a th_t2c: basic bracket bonus for the swing right after แทงพิษ (set / cleared in basicAttack)
+  private dodgeCdIcd = 0 // P2a th_t2a: hero turns until a dodge may cut a cooldown again
   private killHealCritUsed = false // กระหายเลือด: boss/mini crit heal once per hero turn
   private forceCrit = false
   /** Q 2026-11-14: Beastmaster Ult + Skill 3 hawk / boar hits never crit (the wolf still can; sure crits still go through). */
@@ -2899,6 +2902,16 @@ export class BattleScene extends Phaser.Scene {
   /** On-hit proc (zap / fire / ice / spear / light ...) or a Sage Auto Spell bolt: rolls spellCrit (CRIT_RULES). */
   private isProcHit() { return this.autoSpelling || this.reacting || ELEM_SRC.has(this.src) } // 🎓 reactions roll spellCrit (Sage cap)
   /** Sage rework v1 crit split (data/battle-rules.ts CRIT_RULES): basic -> crit · skill/Ult -> skillCrit · proc -> spellCrit. */
+  /** P2a th_t2a: one Ult cooldown cut, the single place every Ult CD cut goes through (P2c adds the global cap / floor here). */
+  private cutUltCd(n: number) { this.smashCdLeft = Math.max(0, this.smashCdLeft - n) }
+  /** P2a th_t2a: a dodge cuts Skill 2 (when its CD is the longer one) or the Ult cooldown, once per ICD. */
+  private dodgeCdCut() {
+    if (this.st.thDodgeCdCut <= 0 || this.dodgeCdIcd > 0) return
+    if (this.s2Cd > 0 && this.s2Cd >= this.smashCdLeft) this.s2Cd = Math.max(0, this.s2Cd - this.st.thDodgeCdCut)
+    else if (this.smashCdLeft > 0) this.cutUltCd(this.st.thDodgeCdCut)
+    else return
+    this.dodgeCdIcd = this.st.thDodgeCdIcd
+  }
   /** P2a: status kinds on a monster (thief_c1). P2b adds Wound / Exposed here. */
   private statusKinds(m: Mon): number { return (m.poison > 0 ? 1 : 0) + (m.chill > 0 ? 1 : 0) }
   /** P2a: stacks on a monster for thief_c2 / th_t2b crit. P2b adds Wound here. */
@@ -3085,7 +3098,10 @@ export class BattleScene extends Phaser.Scene {
   /** Basic attack, then combo: each success chains one more (COMBO.baseCount + st.comboCount). */
   private async basicAttack() {
     const target = this.front()[0]
-    this.s1Weave = false // P2a สลับคม: any basic attack ends the weave
+    const woven = thiefS1Woven(this.job.id, this.s1Weave) // P2a สลับคม: this swing follows แทงพิษ
+    this.s1Weave = false // any basic attack ends the weave
+    this.weaveBonus = woven ? this.st.thWeaveDmg : 0 // th_t2c: every basic / combo hit of this swing
+    if (woven && this.st.thWeaveRes > 0) this.resGain(this.st.thWeaveRes)
     // 📖 Sage Passive Skill 1 (ศาสตราวุธธาตุ): never skips basicAttack; spends Mana alongside the swing to empower + guarantee Auto Spell
     this.sageInfusePow = 0
     if (this.j2?.id === 'sage' && target) {
@@ -3153,6 +3169,7 @@ export class BattleScene extends Phaser.Scene {
         this.floatText(HERO_X, GROUND - 165, `🌪️ ปิดฉาก! CD -${O.comboFinishCdCut}`, '#ffd24a')
       }
     }
+    this.weaveBonus = 0 // th_t2c covers the hero's own swing only
     await this.monCounter(target) // v49: the target may strike back
     this.stayIn = false
     await this.goHome()
@@ -4455,6 +4472,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.st.arDodgeShield > 0 && this.shield < this.st.maxHp * this.st.arDodgeShield * 3) this.addShield(Math.min(this.st.maxHp * this.st.arDodgeShield, this.st.maxHp * this.st.arDodgeShield * 3 - this.shield)) // archer tree โล่ลม
       if (this.st.arDodgeRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arDodgeRes) // archer ★ ยิงถอย
       if (this.st.dodgeEnergy > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.dodgeEnergy) // Thief talent: ขโมยจังหวะ
+      this.dodgeCdCut() // P2a th_t2a: also cuts a cooldown (ICD)
       return false
     }
     if (this.dodgeCharges > 0) { this.dodgeCharges--; return dodged('เงาพริ้ว!', '#c9c9d6') }
@@ -4765,7 +4783,7 @@ export class BattleScene extends Phaser.Scene {
     let k = 1
     for (const ms of this.masteries) k *= ms.src === src ? 1 + ms.amp : 1 - ms.cut
     const basic = src === 'basic' || src === 'combo', skill = src === 'skill' || src === 'ult'
-    if (basic) { const d = this.monCombo(m), c = src === 'combo'; k *= Math.max(COMBO.dmgFloor, 1 + this.px('basicDmg') + (c ? this.st.comboDmg : 0) - d.basicDR - (c ? d.comboDR : 0)) } // Capybara-style additive bracket
+    if (basic) { const d = this.monCombo(m), c = src === 'combo'; k *= Math.max(COMBO.dmgFloor, 1 + this.px('basicDmg') + this.weaveBonus + (c ? this.st.comboDmg : 0) - d.basicDR - (c ? d.comboDR : 0)) } // Capybara-style additive bracket
     if (src === 'counter') { const d = this.monCombo(m); k *= Math.max(COMBO.dmgFloor, 1 + this.px('basicDmg') + this.px('counterDmg') - d.basicDR - d.counterDR) } // same bracket as combo
     if (rel === 'wolf') k *= src === 'combo' || src === 'counter' ? 1 + RELIC_RULES.wolf.comboCounter : skill ? 1 - RELIC_RULES.wolf.skillCut : 1
     if (rel === 'wizard' && skill) k *= 1 + RELIC_RULES.wizard.skill

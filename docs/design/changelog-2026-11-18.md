@@ -33,3 +33,8 @@
 - `thief_c3`: kill heals `thiefKillHeal` (+ poison on the corpse) + Energy `KIT.thiefKillRes` · first boss / mini crit each turn heals + Energy · old `resGain(10)` of `killHeal` now reads `KIT.thiefKillRes` (same 10)
 - `thief_c4` ★: HP < 45% → lifesteal ×1.75 and D.Strike leech 66% (gear ★ ราชันย์โลหิต ×2 is not stacked: the bigger one wins)
 - Extension points for P2b: `statusKinds()` `stackCountOf()` `inShroud()` · notes in `design/p2/NOTES.md`
+
+## ⏱️ feat(thief): row-2 talents dodge cooldown, stack crit, weave bonus
+- `th_t2a` ขโมยจังหวะ: a dodge still gives Energy, and also cuts Skill 2 (when its CD is the longer one) or the Ult CD by 1 turn · ICD 3 / 2 hero turns · Ult CD cuts go through the new `cutUltCd()` (P2c adds the global cap there)
+- `th_t2b` จุดบอดซ้อนพิษ: crit / skillCrit per poison stack (cap `KIT.thiefStackCritTalMax` 14) via the same helper as `thief_c2`
+- `th_t2c` จังหวะสลับมีด: the basic attack right after แทงพิษ gets +25/40% in the basic bracket (all its basic / combo hits, outside the `basicDmg` perk cap) + Energy 10/16

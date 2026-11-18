@@ -155,3 +155,16 @@ test('core hooks: node numbers at full = Rev 3 targets (leech 13.5%, kill heal 1
   assert.equal(thiefBloodKingOn(c4, 40, 100, false), true)
   assert.equal(thiefBloodKingOn(c4, 60, 100, false), false)
 })
+
+test('row-2 talent numbers: ขโมยจังหวะ / จุดบอดซ้อนพิษ / จังหวะสลับมีด', () => {
+  assert.deepEqual(tal('th_t2a').mod(1), { dodgeEnergy: 15, thDodgeCdCut: 1, thDodgeCdIcd: 3 })
+  assert.deepEqual(tal('th_t2a').mod(2), { dodgeEnergy: 25, thDodgeCdCut: 1, thDodgeCdIcd: 2 })
+  near(tal('th_t2b').mod(1).thStackCritTal ?? 0, 0.01)
+  near(tal('th_t2b').mod(2).thStackCritTal ?? 0, 0.016)
+  assert.deepEqual(tal('th_t2c').mod(1), { thWeaveDmg: 0.25, thWeaveRes: 10 })
+  assert.deepEqual(tal('th_t2c').mod(2), { thWeaveDmg: 0.4, thWeaveRes: 16 })
+  const t2b = st(tal('th_t2b').mod(2))
+  near(thiefStackCritAdd(t2b, KIT.thiefStackCritTalMax), 0.016 * KIT.thiefStackCritTalMax, 'r2 at the stack cap')
+  near(thiefStackCritAdd(t2b, 99), 0.016 * KIT.thiefStackCritTalMax, 'stacks above the cap do nothing')
+  near(thiefStackCritAdd(st({ ...tal('th_t2b').mod(2), ...node('thief_c2').mod(5) }), 10), 0.016 * 10 + 0.15, 'node (cap 8) + talent (cap 14) add up')
+})
