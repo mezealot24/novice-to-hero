@@ -4,7 +4,7 @@ import { chooseHeroSkill, newKitState, spendKit, tickKit, type KitCtx, type KitS
 import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, softCapDiminish, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats } from '../data/game-data'
 import { counterRate, shieldGain } from '../data/stack-math'
 import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, nextZapTarget, PERKS_V2, OFFER_RULES, OUTSIDE_CAP, overflowShare, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type OutsideKey, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
-import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
+import { EVENT_RULES, FORTUNE, type DayOpts, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
 import { blessBase, FREE_GEMS, heroBuild, heroStats, jobUpText, itemById, PER_POINT, RESOURCES, splitStatLine, totalBase, type BaseStat, type HeroBuildSummary } from '../data/meta'
 import { COIN_FX, CRIT_RULES, RESIST_RULES, coinTier, splitZeny } from '../data/battle-rules'
@@ -463,7 +463,8 @@ export class BattleScene extends Phaser.Scene {
       const won = await this.fight(id)
       if (id !== this.runId) return
       if (!won) { this.over = true; await this.wait(700); this.showGameOver(); return }
-      this.heal(this.st.maxHp * RULES.healOnClear * this.run.mut.waveHeal)
+      if (room.dayEnd) { await this.settleDay(room); if (id !== this.runId) return } // ☀️ bounty / Kafra / oath / scout pay out
+      if (this.flags.oath !== 'blood') this.heal(this.st.maxHp * RULES.healOnClear * this.run.mut.waveHeal) // ⚔️ blood vow: no wave heal until day end
       if (this.immortal === 'egg' && this.eggN < IMMORTAL_RULES.eggMax) { this.eggN++; this.st.def += this.eggDef * IMMORTAL_RULES.eggStep; this.floatText(HERO_X, GROUND - 150, `🥚 ไข่ทองคำ +${Math.round(this.eggN * IMMORTAL_RULES.eggStep * 100)}%`, '#ffd86b') }
       if (this.flags.eliteReward) this.eliteReward()
       this.gainXp(RULES.xpOnClear); this.runXp += RULES.xpOnClear
@@ -507,8 +508,9 @@ export class BattleScene extends Phaser.Scene {
       if (fresh.length) { this.banner(`🗼 กฎใหม่ของหอคอย: ${fresh.map((a) => `${a.icon} ${a.name}`).join(' · ')}`, fresh.map((a) => a.desc).join(' · ')); await this.wait(1400) }
     }
     if (room.mini) {
-      const pool = room.miniPool ?? MINI_POOL
-      this.miniKind = pool[Phaser.Math.Between(0, pool.length - 1)]
+      const pool = room.miniPool ?? MINI_POOL, picked = this.flags.nextMini // ☀️ 🔭 scout picked tonight's mini in advance
+      this.flags.nextMini = undefined
+      this.miniKind = picked && pool.includes(picked) ? picked : pool[Phaser.Math.Between(0, pool.length - 1)]
       const d = MONSTERS[this.miniKind]
       this.banner(`⚔️ ดวล 1-1 · ${d.name} ${d.title ?? ''}`, MINI_HINT[d.mini!])
       kinds.push(this.miniKind)
@@ -518,6 +520,7 @@ export class BattleScene extends Phaser.Scene {
     }
     kinds.slice(0, SLOT_X.length).forEach((k, j) => this.addMon(k, j))
     if (room.elite) this.flags.eliteReward = true // ☀️ day-end elite wave: pays like the fork event's dangerous path (no stat boost)
+    if (room.dayEnd) this.dayHp0 = this.hp // ☀️ 📜 no-scratch bounty reads the HP lost in this fight
     if (this.flags.elite && !room.mini && !room.boss) { // event ทางแยก: this wave is elite
       const E = EVENT_RULES.forkElite
       this.flags.elite = false; this.flags.eliteReward = true
@@ -603,7 +606,7 @@ export class BattleScene extends Phaser.Scene {
    *  D6+: the room Lv (a D1-D5 kind's numbers follow its stats up, like the tower) · D1-D5: this dungeon's LEGACY Lv for its tier. null = not an echo. */
   private echoDef(kind: MonsterKind): MonsterDef | null {
     const room = this.roomDef(this.room), d = MONSTERS[kind], home = homeDungeon(kind)
-    if (!room?.echo || !d || !home || home === this.dg.id || this.run.endless) return null
+    if ((!room?.echo && !this.forceEcho) || !d || !home || home === this.dg.id || this.run.endless) return null
     const homeBase = () => withStats(d, kind, legacyLevel(kind, d, this.dg), { hard: this.hard, statMul: this.run.corrupt?.statMul })
     let out: MonsterDef
     if (this.dg.level) out = statNative(kind) ? this.statDef(d, kind) : this.statDef(d, kind, (lv) => restatAt(homeBase(), kind, lv, true, this.hard))
@@ -613,6 +616,34 @@ export class BattleScene extends Phaser.Scene {
     }
     const k = echoPay(this.dg, d)
     return { ...out, xp: Math.max(1, Math.round(out.xp * k.xp)), zeny: [Math.round(out.zeny[0] * k.zeny), Math.round(out.zeny[1] * k.zeny)] }
+  }
+
+  private forceEcho = false // ☀️ 👑 rematch event fight: rebuild the old boss at this room's Lv too
+  private dayHp0 = 0
+
+  /** ☀️ the day-end fight was won: settle what the day's events left (bounty, Kafra, oath, scout). */
+  private async settleDay(room: RunRoom) {
+    const F = this.flags, R = EVENT_RULES, h = this.eventHost(), t = this.dg.tier
+    if (F.bounty) {
+      const kind = room.mini ? this.miniKind : this.mons.slice(this.roomStart)[0]?.kind
+      const ok = F.bounty === 'speed' ? this.fightTurns <= Math.ceil(this.turnLimit * R.bountySpeed) : (this.dayHp0 - this.hp) / this.st.maxHp <= R.bountyClean
+      if (!ok) { this.callout('📜 ทำสัญญาไม่สำเร็จ...', W / 2, 250); h.addFortune(FORTUNE.failCheck, 'ปลอบใจ') }
+      else if (F.bounty === 'speed') { this.callout('📜 ค่าหัวสายฟ้า!', W / 2, 250); h.gainZeny(Phaser.Math.Between(R.chestZeny[0] * t, R.chestZeny[1] * t) * R.bountyZeny); h.mat(true, 1) }
+      else { this.callout('📜 ค่าหัวไร้รอย!', W / 2, 250); const n = kind ? h.card(kind) : undefined; if (n) this.say(`🃏 ได้${n}!`, '#f2b84b'); else h.mat(true, 1, kind ? homeDungeon(kind) : undefined) }
+      F.bounty = undefined
+      await this.wait(500)
+    }
+    if (F.deposit) { const back = Math.round(F.deposit * R.kafraRate); this.say(`🏦 คาฟร่าคืนเงิน ${back} z`, '#ffd86b'); h.gainZeny(back); F.deposit = undefined }
+    if (F.debt) {
+      const pay = Math.min(this.zeny, F.debt)
+      this.zeny -= pay; this.say(`💸 คืนเงินกู้ ${pay} z`, '#ffd86b')
+      if (pay < F.debt) this.addCurse('hunted')
+      F.debt = undefined
+    }
+    if (F.oath === 'hunt') { F.curseDmg = Math.max(0, F.curseDmg - R.oathHunt); const n = h.card(); if (n) this.say(`🃏 ได้${n}!`, '#f2b84b'); h.addFortune(FORTUNE.risky, 'คำสาบาน') }
+    if (F.oath === 'blood') F.dayLegend = (F.dayLegend ?? 0) + 1
+    F.oath = undefined
+    for (; (F.dayLegend ?? 0) > 0; F.dayLegend!--) await this.offerPerks(true)
   }
 
   /** ☀️ a new day of a dungeon run: banner + a small heal (DUNGEON_DAYS.dayHeal). */
@@ -5009,8 +5040,8 @@ export class BattleScene extends Phaser.Scene {
         this.runCards.push(cd.id); sfx.coin()
         return cardName(cd)
       },
-      mat: (boss, n) => {
-        const id = matOf(this.dg.id, boss)
+      mat: (boss, n, dg) => {
+        const id = matOf(dg ?? this.dg.id, boss)
         this.runMats[id] = (this.runMats[id] ?? 0) + n
         this.floatText(HERO_X + 60, GROUND - 120, `${matName(id)} +${n}`, '#e8d9a8')
       },
@@ -5030,6 +5061,9 @@ export class BattleScene extends Phaser.Scene {
       },
       shieldShare: (share) => { this.shield = Math.max(this.shield, Math.round(this.st.maxHp * share)); this.floatText(HERO_X, GROUND - 100, `🛡️ โล่ ${this.shield}`, '#9fe3ff') },
       fight: (kind, o) => this.eventFight(kind, o),
+      dayOpts: () => this.dayOpts(),
+      nextMinis: () => { const r = this.roomDef(this.room + 1); return r?.mini ? r.miniPool ?? MINI_POOL : [] },
+      rematchPool: () => this.rematchPool(),
       say: (text, color) => this.say(text, color),
       sound: (k) => { sfx[k]() },
       flash: (big) => {
@@ -5037,6 +5071,27 @@ export class BattleScene extends Phaser.Scene {
         if (big) { this.burst(W / 2, H / 2, COLORS.gold, 40, 420, true); self.shake(250, 0.01) }
       },
     }
+  }
+
+  /** ☀️ which day events may roll after this room (data/events.ts DayOpts). Undefined outside day runs. */
+  private dayOpts(): DayOpts | undefined {
+    const r = this.roomDef(this.room), next = this.roomDef(this.room + 1), F = this.flags
+    if (!r?.days || this.run.endless) return undefined
+    let ahead = false
+    for (let j = this.room + 1; ; j++) { const x = this.roomDef(j); if (!x || x.day !== r.day || x.boss) break; if (x.dayEnd) { ahead = true; break } }
+    const nextEnd = !!next?.dayEnd
+    return {
+      bounty: nextEnd && !F.bounty,
+      scout: nextEnd && !!next?.mini && (next.miniPool ?? MINI_POOL).length >= 2 && !F.nextMini,
+      kafra: ahead && !F.deposit && !F.debt,
+      oath: ahead && !F.oath,
+      rematch: (r.day ?? 1) >= 2 && this.rematchPool().length > 0,
+    }
+  }
+  /** ☀️ 👑 bosses of the dungeons before this one that the save has cleared. */
+  private rematchPool(): { kind: MonsterKind; dg: string }[] {
+    const s = save(), by = s.clearsBy ?? { d1: s.clears }, i = DUNGEONS.findIndex((d) => d.id === this.dg.id)
+    return DUNGEONS.slice(0, Math.max(0, i)).filter((d) => (by[d.id] ?? 0) > 0).flatMap((d) => (d.rooms.find((r) => r.boss)?.spawn ?? []).map(([kind]) => ({ kind, dg: d.id })))
   }
 
   private say(text: string, color?: string) {
@@ -5095,8 +5150,12 @@ export class BattleScene extends Phaser.Scene {
 
   /** An event fight: the hero can't drop below the floor (a loss costs at most eventFightLoss of max HP), and the
    *  monsters run once the hero has used `turns` turns. Not a wave: no turn log, no room heal, no game over. */
-  private async eventFight(kind: MonsterKind, o: { hp?: number; dmg?: number; def?: number; mul?: { hp: number; dmg: number }; turns: number; tint?: number; alpha?: number }) {
+  private async eventFight(kind: MonsterKind, o: { hp?: number; dmg?: number; def?: number; mul?: { hp: number; dmg: number }; turns: number; tint?: number; alpha?: number; echo?: boolean }) {
     const id = this.runId, start = this.mons.length
+    this.forceEcho = !!o.echo // ☀️ rematch: an old boss (and its summons) at this room's Lv
+    try { return await this.eventFightRun(kind, o, id, start) } finally { this.forceEcho = false }
+  }
+  private async eventFightRun(kind: MonsterKind, o: { hp?: number; dmg?: number; def?: number; mul?: { hp: number; dmg: number }; turns: number; tint?: number; alpha?: number }, id: number, start: number) {
     const m = this.addMon(kind, 0)
     const base = m.def
     const hp = Math.round(o.hp ?? base.hp * (o.mul?.hp ?? 1)), dmg = o.dmg ?? base.dmg * (o.mul?.dmg ?? 1)

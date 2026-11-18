@@ -90,3 +90,19 @@ test('☀️ echo pay: an earlier dungeon monster pays like this dungeon of its 
   const own = echoPay(d7, MONSTERS['yeti' as MonsterKind])
   assert.ok(own.xp > 0.5 && own.xp < 2)
 })
+
+test('☀️ day events: never roll outside day runs, only the ones the day allows inside them', async () => {
+  const { EVENTS, rollEvent } = await import('../src/data/events')
+  const dayIds = EVENTS.filter((e) => e.day).map((e) => e.id)
+  assert.deepEqual(dayIds.sort(), ['bounty', 'kafra', 'oath', 'rematch', 'scout'])
+  const base = { canShop: true, canSpin: true, canFork: true, canImmortal: true }
+  for (let i = 0; i < 400; i++) {
+    const rare = i % 2 ? 1 : 0
+    assert.ok(!dayIds.includes(rollEvent(rare, 5, base).id), 'no day event outside a day run')
+    const e = rollEvent(rare, 5, { ...base, day: { bounty: true, rematch: true } })
+    assert.ok(!['kafra', 'oath', 'scout'].includes(e.id), `${e.id} rolled without the day allowing it`)
+  }
+  let seen = 0
+  for (let i = 0; i < 2000; i++) if (rollEvent(0, 5, { ...base, day: { bounty: true } }).id === 'bounty') seen++
+  assert.ok(seen > 0, 'bounty can roll when allowed')
+})

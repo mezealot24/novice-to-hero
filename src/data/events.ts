@@ -12,6 +12,8 @@ export type EventId =
   | 'goldchest' | 'fairy' | 'goldjellop' | 'goddess' | 'market' | 'ghost'
   // rare, พร v2 🌈 immortal cards (only while the run has none)
   | 'altar' | 'darkmirror' | 'nest'
+  // ☀️ dungeon days (Q 2026-11-18): only in day runs (data/dungeon-days.ts), they lean on the day-end fight
+  | 'bounty' | 'kafra' | 'scout' | 'oath' | 'rematch'
   // jackpot (only from a full Fortune meter)
   | 'vault' | 'mimicking' | 'clover' | 'stars'
 export type EventTier = 'common' | 'rare' | 'jackpot'
@@ -21,6 +23,8 @@ export interface EventDef {
   rare: boolean
   minTier?: number // dungeon tier needed (d1 = 1)
   minLuk?: number // jackpot only: LUK needed
+  /** ☀️ day runs only: rolls only when the run says the day allows it right now (rollEvent opts.day) */
+  day?: true
 }
 
 const ev = (id: EventId, tier: EventTier, weight: number, icon: string, name: string, desc: string, extra: Partial<EventDef> = {}): EventDef =>
@@ -51,6 +55,12 @@ export const EVENTS: EventDef[] = [
   ev('altar', 'rare', 8, '👼', 'แท่นบูชาแสง', 'อีเวนต์หายาก! แสงสีรุ้งส่องลงมา... ถวายเครื่องบูชาเพื่อรับ 🌈 พรอมตะ', { minTier: 2 }),
   ev('darkmirror', 'rare', 8, '🔁', 'กระจกเงาปีศาจ', 'อีเวนต์หายาก! เงาในกระจกยิ้มให้... ยื่นมือเข้าไปเพื่อรับ 🌈 พรอมตะ', { minTier: 2 }),
   ev('nest', 'rare', 8, '🐣', 'รังนกยักษ์', 'อีเวนต์หายาก! มีไข่ทองคำในรังนกยักษ์ แต่แม่นกเฝ้าอยู่', { minTier: 2 }),
+  // ----- ☀️ dungeon days (design/dungeon-days-v1.md §events) -----
+  ev('bounty', 'common', 12, '📜', 'ใบประกาศจับ', 'ประกาศจับหัวหน้าคืนนี้! ทำตามเงื่อนไขได้ค่าหัวก้อนโต', { minTier: 2, day: true }),
+  ev('kafra', 'common', 9, '💼', 'คาฟร่าเซอร์วิส', 'พนักงานคาฟร่ายิ้มหวาน "ฝากเงินไว้กับเราไหมคะ? ดอกเบี้ยดีนะคะ"', { minTier: 2, day: true }),
+  ev('scout', 'common', 8, '🔭', 'หน่วยสอดแนม', 'นักสอดแนมกระซิบ "รู้แล้วว่าคืนนี้ใครรออยู่... อยากเปลี่ยนตัวไหม?"', { minTier: 2, day: true }),
+  ev('oath', 'common', 8, '⚔️', 'คำสาบานอัศวิน', 'ดาบปักหินมีจารึก "สาบานต่อข้า แล้วรุ่งเช้าจะได้รางวัล"', { minTier: 2, day: true }),
+  ev('rematch', 'rare', 10, '👑', 'เงาบอสเก่า', 'อีเวนต์หายาก! เงาของบอสที่เคยล้มลุกขึ้นท้าดวลอีกครั้ง', { minTier: 3, day: true }),
   // ----- jackpot (Fortune meter full; the best one the hero's LUK reaches) -----
   ev('vault', 'jackpot', 1, '🏦', 'ห้องสมบัติลับ', 'JACKPOT! มาตรดวงเต็ม เจอห้องสมบัติลับ เลือกได้ 2 อย่าง', { minLuk: 0 }),
   ev('mimicking', 'jackpot', 1, '👑', 'หีบมิมิคราชา', 'JACKPOT! หีบยักษ์มีมงกุฎ... มันขยับ! ชนะได้การ์ดแน่นอน', { minLuk: 20 }),
@@ -98,6 +108,16 @@ export const EVENT_RULES = {
   altarZeny: 35, // x tier: offering at the light altar (or pass a WIS check)
   nestTurns: 12, nestHp: 1.5, // mother bird = event mimic numbers, HP x1.5
   gemCap: 8, // most gems events can give in one run
+  // ----- ☀️ dungeon days events -----
+  bountySpeed: 0.5, // speed contract: win the day-end fight within this share of its turn limit
+  bountyClean: 0.25, // no-scratch contract: lose at most this share of max HP in it
+  bountyZeny: 4, // x chest zeny (speed contract), + 1 boss material
+  kafraShare: 0.5, kafraMin: 10, kafraRate: 1.6, // deposit this share of zeny (at least kafraMin x tier), x kafraRate back after the day-end win
+  loanZeny: 3, loanRate: 1.5, // loan = loanZeny x chest zeny now, repay x loanRate at day end (short = 🎯 hunted curse)
+  scoutBribe: 20, // x tier (LUK discount): face the other mini boss tonight
+  scoutSilence: 2, // failed INT peek: silenced hero turns at the day-end fight start
+  oathHunt: 0.2, // hunter vow: monsters hit this much harder until day end
+  rematchMul: { hp: 0.6, dmg: 0.8 }, rematchTurns: 18,
 }
 
 // ----- stat checks -----
@@ -134,11 +154,15 @@ export function slotsResult(r: SlotFace[]): 'gems' | 'legend' | 'jackpot' | 'cur
 
 /** Pick one event. `rareChance` = hero eventChance (+ boosts). Never the same event twice in a row. */
 const IMMORTAL_EVENTS: EventId[] = ['altar', 'darkmirror', 'nest']
-export function rollEvent(rareChance: number, tier: number, opts: { canShop: boolean; canSpin: boolean; canFork: boolean; canImmortal?: boolean; last?: EventId }, rnd = Math.random): EventDef {
+/** ☀️ Day events the run allows right now (BattleScene: bounty / scout before a day-end fight, kafra / oath while one is ahead
+ * today, rematch from day 2). Undefined outside day runs: no day event rolls there. */
+export type DayOpts = Partial<Record<EventId, boolean>>
+export function rollEvent(rareChance: number, tier: number, opts: { canShop: boolean; canSpin: boolean; canFork: boolean; canImmortal?: boolean; last?: EventId; day?: DayOpts }, rnd = Math.random): EventDef {
   const want: EventTier = rnd() < rareChance ? 'rare' : 'common'
   const ok = (e: EventDef) => e.tier === want && (e.minTier ?? 1) <= tier && e.id !== opts.last
     && (opts.canShop || e.id !== 'merchant') && (opts.canSpin || e.id !== 'slots') && (opts.canFork || e.id !== 'fork')
     && (opts.canImmortal !== false || !IMMORTAL_EVENTS.includes(e.id))
+    && (!e.day || !!opts.day?.[e.id])
   const pool = EVENTS.filter(ok)
   let r = rnd() * pool.reduce((a, e) => a + e.weight, 0)
   for (const e of pool) { r -= e.weight; if (r < 0) return e }
