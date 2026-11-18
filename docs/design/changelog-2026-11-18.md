@@ -54,3 +54,8 @@
 - P2b T1 (`design/p2/P2b-spec.md`): `takenAmp(TakenIn)` = Exposed + stabMark + woundPriv + privileged + gear `poisonAmp` **added**, one cap `KIT.thiefTakenCap` 0.6 (R4.6 B1) · `debuffKinds(flags, wide)` (4 kinds for thief_c1, 8 for th_t4a)
 - New `KIT` keys `thiefTakenCap` 0.6 · `thiefPrivAt` 8 · `thiefStackHpMax` 20 · `thiefPoisonAmpAt` 10 (admin kit table + Thai labels) · `thiefKindsAt` / `thiefStrikeRes` / `thiefStrikeLs` already came with P2a
 - Pure only, no caller yet · tests `tests/thief-p2b.test.ts`
+
+## 🔢 feat(thief): Skill 2 numbers S2P/S2N + admin labels + text
+- P2b T2: `S2P.smokeRes` {10, 5} (rounded) · `S2P.woundMax` {6, 2/3} (floored) · 25 plain `S2N` numbers (Shroud / Sightless Raid / Exposed / Blind · ล้วงกระเป๋า / Zeny / Plunder · Wound / Blade's End / Privileged), all in the admin `skills` table with Thai labels
+- `S2N.pickMul()` removed → `pickBase` 1.3 / `pickStarMul` 1.9: ล้วงกระเป๋า hits 1.3x / 1.9x now (was 1x / 1.6x); the full rework comes in T7
+- ม่านควัน cost 40 → 35 · the three Skill 2 texts + skill info rows describe the new mechanics (numbers read from `S2N`, whole numbers at fractional "+" levels)

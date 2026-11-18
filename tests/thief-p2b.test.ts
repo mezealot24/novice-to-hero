@@ -29,3 +29,21 @@ test('Mobster regression (R4.6): gear poisonAmp 0.30 + old th_t4a 0.25 = x1.55 -
   near(1 + takenAmp({ ...ZERO, privileged: 0.3, poisonAmp: 0.3 }), 1.6, 'new')
   near(1 + takenAmp({ ...ZERO, privileged: 0.3, poisonAmp: 0.45 }), 1 + KIT.thiefTakenCap, 'gear max + talent hits the cap')
 })
+
+test('Skill 2 numbers: S2N keys are plain numbers, "+" numbers are whole, th_smoke costs 35', async () => {
+  const { S2N } = await import('../src/data/skill-math')
+  const { SKILL2 } = await import('../src/data/skill2')
+  const keys = ['smokeTurns', 'smokeFlee', 'smokeSkillCrit', 'smokeCritDmg', 'raidMul', 'exposedPct', 'exposedStar', 'exposedTurns', 'smokeBlindTurns',
+    'pickBase', 'pickStarMul', 'pickZeny', 'pickZenyDex', 'plunderRes', 'plunderDrop', 'plunderMax',
+    'woundStacks', 'woundStarStacks', 'woundTurns', 'woundStrikeChance', 'bladeAt', 'bladeMul', 'bladeHealCut', 'bladeCutTurns', 'woundPriv'] as const
+  assert.equal(keys.length, 25)
+  for (const k of keys) assert.equal(typeof S2N[k], 'number', k)
+  assert.ok(!('pickMul' in S2N), 'pickMul function is gone')
+  for (const lv of [0, 0.6, 1.2, 1.8, 2.4, 3]) {
+    assert.ok(Number.isInteger(S2N.smokeRes(lv)) && Number.isInteger(S2N.woundMax(lv)), `lv ${lv}`)
+    for (const id of ['th_smoke', 'th_pick', 'th_wound']) assert.ok(!/\d\.\d{2,}/.test(SKILL2.find((x) => x.id === id)!.plus.desc(lv)), `${id} + text at ${lv}`)
+  }
+  assert.equal(S2N.woundMax(3), 8)
+  for (let lv = 0; lv < 5; lv += 0.6) assert.ok(S2N.woundMax(lv + 0.6) >= S2N.woundMax(lv))
+  assert.equal(SKILL2.find((x) => x.id === 'th_smoke')!.cost, 35)
+})

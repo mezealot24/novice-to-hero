@@ -332,6 +332,7 @@ export const S2P = {
   mshieldTake: { base: 0.4, per: 0.05 }, novaMul: { base: 0.8, per: 0.15 }, arcaneMul: { base: 0.6, per: 0.1 },
   renewHeal: { base: 0.3, per: 0.05 }, kyrieHp: { base: 0, per: 0.05 }, spearPlus: { base: 0, per: 0.03 },
   smokeHeal: { base: 0, per: 0.03 }, pickRes: { base: 15, per: 5 },
+  smokeRes: { base: 10, per: 5 }, woundMax: { base: 6, per: 2 / 3 }, // P2b: ควันหอม Energy (rounded) · แผลฉีก Wound cap (floored)
 }
 const lin = (k: { base: number; per: number }, lv: number) => k.base + k.per * lv
 
@@ -354,8 +355,19 @@ export const S2N = {
   blessTurns: 3, blessStat: 15, blessCleanse: 1, kyrieHp: (lv: number) => lin(S2P.kyrieHp, lv), kyrieHits: 3, gloriaLuk: 30,
   spearPlus: (lv: number) => lin(S2P.spearPlus, lv), spearCount: (star: boolean) => (star ? 4 : 2), // หอกคม: +10%/lv of the 0.3x base
   smokeHeal: (lv: number) => lin(S2P.smokeHeal, lv), smokeDodges: (star: boolean) => (star ? 2 : 1),
-  pickMul: (star: boolean) => (star ? 1.6 : 1), pickRes: (lv: number) => lin(S2P.pickRes, lv), pickPoison: 3,
+  pickRes: (lv: number) => lin(S2P.pickRes, lv), pickPoison: 3,
   woundMul: (star: boolean) => (star ? 2 : 1.2), woundPoison: (lv: number) => 4 + Math.round(lv), // stacks: whole numbers (v83 s2Lv can be fractional)
+  // P2b (design/p2/P2b-spec.md T2, R4.7.3): plain numbers so the admin can tune them (skills `s2n.<key>`)
+  // ม่านควัน: Shroud (FLEE x(1 + smokeFlee), skillCrit +, ★ Crit Dmg + in B3) · first active hit = Sightless Raid + Exposed (B1) + Blind (KIT2.crusader.blindHit)
+  smokeTurns: 2, smokeFlee: 0.25, smokeSkillCrit: 0.15, smokeCritDmg: 0.25, raidMul: 1.2,
+  exposedPct: 0.2, exposedStar: 0.3, exposedTurns: 2, smokeBlindTurns: 2,
+  smokeRes: (lv: number) => Math.round(lin(S2P.smokeRes, lv)),
+  // ล้วงกระเป๋า: one basic swing x P.ATK (★ จอมโจร) · Zeny once per monster · ★ Plunder: Energy + 💎 drop chance per stack (max per wave)
+  pickBase: 1.3, pickStarMul: 1.9, pickZeny: 8, pickZenyDex: 10, plunderRes: 10, plunderDrop: 0.05, plunderMax: 3,
+  // แผลลึก: Wound stacks (hero turns, refreshed on every add) · Blade's End at bladeAt Wound (1 / turn / target) · Privileged +woundPriv in B1
+  woundStacks: 2, woundStarStacks: 3, woundTurns: 3, woundStrikeChance: 0.5,
+  bladeAt: 3, bladeMul: 1.8, bladeHealCut: 0.4, bladeCutTurns: 2, woundPriv: 0.12,
+  woundMax: (lv: number) => Math.floor(lin(S2P.woundMax, lv)), // whole stacks (s2Lv can be fractional)
 }
 
 /** B1 (R4.6): flags of the debuffs one monster carries; the Scene fills it, the math stays Phaser-free. */
@@ -788,9 +800,24 @@ export function skill2Info(k: Skill2Def, st: Stats): InfoRow[] {
       if (star) add('✨ Gloria', `LUK +${S2N.gloriaLuk}`)
       break
     case 'cl_spear': add(`หอกแสง ${S2N.spearCount(star)} เล่ม ตัวสุ่ม /เล่ม (ข้างๆ 50%)`, hitText(st, spearMul(st, k), true)); break
-    case 'th_smoke': add('หลบแน่นอน', `${S2N.smokeDodges(star)} ครั้ง`); if (lv) add('ฟื้น HP', `${heal(st, st.maxHp * S2N.smokeHeal(lv))}`); break
-    case 'th_pick': add('แทงตัวหน้า', hitText(st, S2N.pickMul(star), false)); add('คืน Energy', `${S2N.pickRes(lv)}`); if (star) add('พิษ', `+${S2N.pickPoison} stack`); break
-    case 'th_wound': add('แทงทะลุ DEF', hitText(st, S2N.woundMul(star), false)); add('พิษ', `+${S2N.woundPoison(lv)} stack (${st.poisonDmg.toFixed(1)}/stack/เทิร์น)`); break
+    case 'th_smoke':
+      add('หลบแน่นอน', `${S2N.smokeDodges(star)} ครั้ง`)
+      add('Shroud', `${S2N.smokeTurns} เทิร์น · FLEE +${pct(S2N.smokeFlee)} (คูณ) · skillCrit +${pct(S2N.smokeSkillCrit)}${star ? ` · ดาเมจคริ +${pct(S2N.smokeCritDmg)}` : ''}`)
+      add('Sightless Raid (ฮิตแรกหลังร่าย)', hitText(st, S2N.raidMul * (1 + st.pskill), false))
+      add('Exposed + Blind', `รับดาเมจ +${pct(star ? S2N.exposedStar : S2N.exposedPct)} ${S2N.exposedTurns} เทิร์น · Hit −${pct(KIT2.crusader.blindHit)} ${S2N.smokeBlindTurns} เทิร์น`)
+      if (lv) add('ฟื้น HP + Energy', `${heal(st, st.maxHp * S2N.smokeHeal(lv))} · +${S2N.smokeRes(lv)}`)
+      break
+    case 'th_pick':
+      add('แทงตัวหน้า (นับเป็นตีปกติ)', hitText(st, (star ? S2N.pickStarMul : S2N.pickBase) * (1 + st.pskill), false)); add('คืน Energy', `${S2N.pickRes(lv)}`)
+      add('ปล้น Zeny (1 ครั้ง/ตัว)', `${S2N.pickZeny} + DEX/${S2N.pickZenyDex}`)
+      if (star) { add('พิษ', `+${S2N.pickPoison} stack`); add('Plunder (ฆ่า/ตีบอส)', `Energy +${S2N.plunderRes} · 💎 +${pct(S2N.plunderDrop)}/stack (สูงสุด ${S2N.plunderMax}/เวฟ)`) }
+      break
+    case 'th_wound':
+      add('แทงทะลุ DEF', hitText(st, S2N.woundMul(star), false)); add('พิษ', `+${S2N.woundPoison(lv)} stack (${st.poisonDmg.toFixed(1)}/stack/เทิร์น)`)
+      add('Wound', `+${star ? S2N.woundStarStacks : S2N.woundStacks} stack (สูงสุด ${S2N.woundMax(lv)} · ${S2N.woundTurns} เทิร์น)`)
+      add(`Blade's End (Wound ≥ ${S2N.bladeAt})`, `${hitText(st, S2N.bladeMul * (1 + st.pskill), false)} · ตัดฮีลมอน ${pct(S2N.bladeHealCut)} ${S2N.bladeCutTurns} เทิร์น${star ? ' · คริได้' : ''}`)
+      add('Privileged (พิษ + Wound)', `รับดาเมจ +${pct(S2N.woundPriv)}`)
+      break
   }
   return out
 }

@@ -3375,7 +3375,7 @@ export class BattleScene extends Phaser.Scene {
       case 'th_pick': {
         const m = front(); if (!m) break
         await this.lunge(m, () => {
-          this.strike(m, S2N.pickMul(star))
+          this.strike(m, star ? S2N.pickStarMul : S2N.pickBase) // P2b T2: temporary, T7 rewrites th_pick
           if (star && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + S2N.pickPoison); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) }
         })
         this.res = Math.min(this.resMax(), this.res + S2N.pickRes(lv))

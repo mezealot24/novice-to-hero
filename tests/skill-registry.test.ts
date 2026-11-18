@@ -58,6 +58,10 @@ test('Skill 2 base/per numbers keep the v83 formulas (refactor guard)', () => {
     assert.equal(S2N.smokeHeal(lv), 0.03 * lv)
     assert.equal(S2N.pickRes(lv), 15 + 5 * lv)
   }
+  for (const lv of [0, 1, 2, 3, 3.6, 5]) { // P2b: rounded / floored "+" numbers
+    assert.equal(S2N.smokeRes(lv), Math.round(10 + 5 * lv))
+    assert.equal(S2N.woundMax(lv), Math.floor(6 + (2 / 3) * lv))
+  }
 })
 
 test('a patch reaches the real data and revert() restores it (Skill 2 cost / cd / base, job cd, Mana consts)', () => {
