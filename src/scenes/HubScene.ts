@@ -3,7 +3,7 @@ import { COLORS, DUNGEONS, H, HARD, W } from '../data/game-data'
 import type { BiomeHazardId } from '../data/biome-hazards'
 import { levelDropMul, TOWER_LV, towerMonLv } from '../data/mon-stats'
 import { foldCorruptions, rollCorruptions } from '../data/corruptions'
-import { HARD_POWER, heroParts, heroPower, matchScale, overpowerMul, powerHint, recPower, TOWER_POWER } from '../data/power'
+import { heroPower, overpowerMul, powerHint, TOWER_POWER } from '../data/power'
 import { FREE_GEMS, isBroken, itemById, JOB_RULES, noviceLeft, RACES, STAT_RULES } from '../data/meta'
 import { canChangeJob, canChangeJob2, persist, save, today, ultMode, wipe, job3Ready } from '../save'
 import { activeJob3, job3Of } from '../data/jobs3'
@@ -114,7 +114,7 @@ export class HubScene extends Phaser.Scene {
       const status = locked ? (compact ? '🔒 ล็อก' : lockMsg) : n ? `เคลียร์แล้ว ${n} ครั้ง` : compact ? `ครั้งแรก 💎${FREE_GEMS.firstClear}` : `เคลียร์ครั้งแรกได้เพชร ${FREE_GEMS.firstClear}`
       const nameT = txt(this, 452, y, `${i + 1}. ${d.name}${d.tier >= 4 ? ' 💀' : ''}`, compact ? 15 : 17, locked ? UI.sub : UI.text, true)
       const maxRight = n > 0 ? 718 : 786
-      if (d.level) { // D6+: fixed monster level instead of Hero Power (data/mon-stats.ts)
+      if (d.level) { // fixed monster level instead of Hero Power (data/mon-stats.ts; v126: D1-D5 too)
         const dm = levelDropMul(s.baseLevel, d.level), low = s.baseLevel < d.level[0]
         const lvColor = low ? '#ff7a7a' : dm < 1 ? '#9fd0ff' : '#9fe3a0'
         const lvX = nameT.x + nameT.width + 8
@@ -177,7 +177,7 @@ export class HubScene extends Phaser.Scene {
         if (locked) { confirm(this, `${d.name} ยังล็อกอยู่`, `${why} (โหมดทดสอบ: ลองได้)`, 'ลองเลย', start); return }
         start()
       }, { size: compact ? 17 : 20, fill: locked ? 0x4a4e6e : undefined, color: locked ? UI.sub : undefined })
-      if (n > 0 && d.level) { // D6+ hard: +50% monster stat points + a PoE-style corruption roll shown before the run
+      if (n > 0 && d.level) { // hard (v126: every dungeon): +50% monster stat points + a PoE-style corruption roll shown before the run
         const seed = Math.floor(Math.random() * 1e9), cr = foldCorruptions(rollCorruptions(seed))
         button(this, hellOn ? 739 : 756, y + (compact ? 18 : 26), hellOn ? 32 : 62, compact ? 34 : 50, hellOn ? '🔥' : '🔥ยาก', () => confirm(this, `🔥 โหมดยาก · ${d.name}`,
           `มอน Lv${d.level![0]}-${d.level![1]} เท่าเดิม แต่แต้มสถานะ +50% (ธรรมดา 100% · มินิ 150% · บอส 200%)\nบอส/มินิบอสสุ่มสกิล + passive\n☠️ Corruption: ${cr.list.map((c) => `${c.icon} ${c.name} (${c.desc})`).join('\n')}\nรางวัล zeny/EXP x${(HARD.reward * cr.reward).toFixed(2)} · วัตถุดิบ x${(HARD.mats * cr.reward).toFixed(2)}`,
@@ -188,11 +188,6 @@ export class HubScene extends Phaser.Scene {
             `โหมดยาก + มอนทุกตัวเป็นร่างนรก: Lv +${HELL_MODE.lv} · HP x${HELL.hp} · ATK x${HELL.atk} · สุ่มพลังนรก 1 อย่าง\nรางวัล zeny / EXP / วัตถุดิบ x${HELL_MODE.reward} ของโหมดยาก · ยูนีค ${HELL_MODE.uniqueRate * 100}% · ผลึกโลกันตร์ +${HELL_MODE.taintAdd}\n☠️ Corruption: ${hc.list.map((c) => `${c.icon} ${c.name}`).join(' · ')}`,
             'ลุยเลย', () => go(this, 'battle', { d: i, hard: true, hell: true, seed: hs }), 'ยังก่อน'), { size: 16, fill: 0x3a0a14, color: '#ffb0b0' })
         }
-      } else if (n > 0) { // hard mode (v47): cleared dungeons only, monsters scale with Base Lv
-        const m = matchScale(heroParts(s), d.id), kh = m.hp * HARD_POWER.target, ka = m.atk * HARD_POWER.target, rw = HARD.reward * m.hp ** HARD.rewardPow
-        button(this, 756, y + (compact ? 18 : 26), 62, compact ? 34 : 50, '🔥ยาก', () => confirm(this, `🔥 โหมดยาก · ${d.name}`,
-          `มอนแกร่งตาม Hero Power ของเรา (⚡${power} · ดันนี้แนะนำ ⚡${recPower(d.id)})\nมอนประมาณ ${Math.round(HARD_POWER.target * 100)}% ของเรา: HP x${kh.toFixed(2)} (ตามดาเมจเรา) · ATK x${ka.toFixed(2)} (ตามความถึก)\nบอส/มินิบอสสุ่มสกิล + passive · 🎯 หลบได้ครั้งเดียวแล้วตีโดนแน่ 3 เทิร์น\nรางวัล zeny/EXP x${rw.toFixed(2)} · วัตถุดิบ x${HARD.mats}`,
-          'ลุยเลย', () => go(this, 'battle', { d: i, hard: true }), 'ยังก่อน'), { size: 14, fill: 0x8a3a2a, color: UI.text })
       }
       const nextLocked = i === DUNGEONS.length - 1 || isLocked(DUNGEONS[i + 1])
       if (!locked && nextLocked) this.tweens.add({ targets: b, scale: 1.05, duration: 700, yoyo: true, repeat: -1 })

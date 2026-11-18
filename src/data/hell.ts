@@ -55,5 +55,5 @@ export const HELL_MODE = {
   taintAdd: 1, // + ผลึกโลกันตร์ from the final boss
   turnMul: 1.15, // a bit more time: Hell monsters are tankier
 }
-/** Hell mode is open on a level dungeon (D6+) once it has a 🔥 hard clear. */
-export const hellOpen = (s: { hardClearsBy?: Record<string, number> }, dg: { id: string; level?: unknown }) => !!dg.level && ((s.hardClearsBy ?? {})[dg.id] ?? 0) > 0
+/** Hell mode is open on a D6+ dungeon (tier 6+; D1-D5 have a level band too since v126) once it has a 🔥 hard clear. */
+export const hellOpen = (s: { hardClearsBy?: Record<string, number> }, dg: { id: string; tier: number }) => dg.tier >= 6 && ((s.hardClearsBy ?? {})[dg.id] ?? 0) > 0

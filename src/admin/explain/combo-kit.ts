@@ -133,20 +133,9 @@ const MON_STAT_MAP: Record<string, FieldExplain> = {
   'levelGap.free': { label: 'ระยะห่าง Lv ปลอดการหักรางวัล', effect: 'เพิ่ม = ฮีโร่เวลเกินดัน D6+ ได้หลายเลเวลขึ้นโดยยังได้ของ/EXP เต็ม 100%' },
   'levelGap.per': { label: 'หักรางวัลต่อ Lv ที่เกิน (%)', effect: 'เพิ่ม = พอเวลเกินระยะปลอดภาษีปุ๊บ รางวัลร่วงฮวบไวขึ้น (-0.1 = -10%/Lv)' },
   'levelGap.min': { label: 'พื้นต่ำสุดรางวัลเมื่อเวลเกินเยอะ', effect: 'เพิ่ม = ต่อให้เวลทิ้งห่างแค่ไหนก็ยังได้รางวัลขั้นต่ำเท่านี้ (0.4 = อย่างน้อย 40%)' },
-  'legacy.tierDrop.normal': { label: 'Lv ลดหลั่นของมอนปกติ (D1–5)', effect: 'เพิ่ม = มอนลูกกระจ๊อกใน D1–5 จะมีเลเวลต่ำกว่าบอสในดันนั้นมากขึ้น (คำนวณ stat อ่อนลง)' },
-  'legacy.tierDrop.mini': { label: 'Lv ลดหลั่นของมินิบอส (D1–5)', effect: 'เพิ่ม = มินิบอสใน D1–5 มีเลเวลอ้างอิงต่ำกว่าบอสดันนั้นมากขึ้น' },
-  'legacy.tierDrop.boss': { label: 'Lv ลดหลั่นของบอส (D1–5)', effect: 'ปกติ 0 = บอส D1–5 ใช้เลเวลเต็มของ legacy.lv ดันเจี้ยนนั้น' },
 }
 export function explainMonStat(path: string): FieldExplain {
   if (MON_STAT_MAP[path]) return MON_STAT_MAP[path]
-  if (path.startsWith('legacy.lv.')) {
-    const d = path.slice('legacy.lv.'.length)
-    return {
-      label: `Lv อ้างอิงของ ${DUNGEON_LABEL[d] ?? d} (D1–5)`,
-      effect: 'เพิ่ม = มอนในดันนี้ได้แต้มสเตตัสคำนวณ M.DEF / Tenacity / Skill Scale มากขึ้น',
-      detail: 'มีผลกับค่า stat เสริม (M.DEF/Lucky/Skill Scale) ของมอน D1–5 โดยคง HP/ATK จุดอ้างอิงเดิมไว้',
-    }
-  }
   return { label: path, effect: 'ค่าสูตรสเตตัสมอน' }
 }
 

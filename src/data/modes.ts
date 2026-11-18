@@ -18,7 +18,7 @@ import type { SaveData } from '../save'
 import { heroParts, matchScale, TOWER_POWER, towerDamp, type PowerParts } from './power'
 import { affixesAt, rollAffixes, type AffixId } from './affixes'
 import { foldCorruptions, rollCorruptions, type FoldedCorruption } from './corruptions'
-import { DEEP_ANCHOR, statNative } from './mon-stats'
+import { DEEP_ANCHOR, deepDungeon, deepKind } from './mon-stats'
 import { ENDLESS_HELL, endlessHell, hellChance } from './hell'
 import { buildDays, DUNGEON_DAYS, type DayRoom } from './dungeon-days'
 
@@ -142,7 +142,7 @@ function dungeonRun(modeId: ModeId, dg: DungeonDef, hard: boolean, pp: PowerPart
   const mi = days.findIndex((r) => r.mini)
   const rooms = corrupt?.twinDuel && mi >= 0 ? [...days.slice(0, mi + 1), { ...days[mi], title: `${days[mi].title} (รอบ 2)`, dayEnd: false }, ...days.slice(mi + 1)] : days
   return {
-    modeId, seed, power: pp.power, pp, endless: false, affix: false, mutators, mut, tag: hell ? '😈' : hard ? 'hard' : '', corrupt, hell: hell && hard && !!dg.level,
+    modeId, seed, power: pp.power, pp, endless: false, affix: false, mutators, mut, tag: hell ? '😈' : hard ? 'hard' : '', corrupt, hell: hell && hard && deepDungeon(dg),
     roomAt: (i) => rooms[i] ?? null,
     themeAt: () => dg,
     scale: () => null,
@@ -226,7 +226,7 @@ const BOSSES: { kind: MonsterKind; src: string; turnLimit: number; title: string
 const dungeonNum = (d: DungeonDef) => (/^d\d+$/.test(d.id) ? Number(d.id.slice(1)) : NaN)
 export const ENDLESS_DUNGEONS = DUNGEONS.filter((d) => dungeonNum(d) >= 1 && dungeonNum(d) <= TOWER.poolMax)
 /** Where a kind from dungeon d scales from in the tower (D6+ anchored to D5, see mon-stats deepAnchor). */
-const srcFor = (d: DungeonDef) => (d.level ? DEEP_ANCHOR : d.id)
+const srcFor = (d: DungeonDef) => (deepDungeon(d) ? DEEP_ANCHOR : d.id)
 export const towerTheme = (f: number) => DUNGEONS.find((d) => d.id === TOWER.themes[Math.min(TOWER.themes.length - 1, Math.floor((f - 1) / TOWER.themeEvery))])!
 export const floorKind = (f: number): 'gauntlet' | 'boss' | 'wave' => (f % TOWER.gauntletEvery === 0 ? 'gauntlet' : f % TOWER.bossEvery === 0 ? 'boss' : 'wave')
 
@@ -242,7 +242,7 @@ export function towerFloor(f: number, lv: number, pool: DungeonDef[] = ENDLESS_D
   const rooms = towerFloorBase(f, lv, pool.length ? pool : ENDLESS_DUNGEONS)
   const p = hellChance(f), all = endlessHell(f)
   if (p > 0 || all) for (const r of rooms) {
-    const kinds = [...new Set([...r.spawn.map(([k]) => k), ...(r.miniPool ?? [])])].filter((k) => all || (!statNative(k) && Math.random() < p))
+    const kinds = [...new Set([...r.spawn.map(([k]) => k), ...(r.miniPool ?? [])])].filter((k) => all || (!deepKind(k) && Math.random() < p))
     if (kinds.length) r.hell = kinds
   }
   return rooms
@@ -337,7 +337,7 @@ export function towerFloorLoot(f: number, lv: number, room?: RunRoom): { zeny: n
 }
 
 // ---------- 🎲 Daily Challenge ----------
-const deepDungeons = () => DUNGEONS.filter((d) => d.level)
+const deepDungeons = () => DUNGEONS.filter((d) => deepDungeon(d))
 const isEndgameCleared = (s: SaveData, d: DungeonDef) => {
   const num = Number(d.id.replace(/\D+/g, ''))
   return !Number.isFinite(num) || num <= 10 || cleared(s, d.id)
@@ -365,12 +365,14 @@ export function dailyOf(seed: number, deep = false, s?: SaveData) {
   return { dg, mutators: rollMutators(rand, n) }
 }
 
-/** deep = 🌌 D6+: a level dungeon, so BattleScene builds its monsters at the room's level (statDef) with the mutators; scale() is not read. */
+/** BattleScene builds the monsters at the room's level (statDef) with the mutators; scale() is not read.
+ *  deep = 🌌 D6+: the dungeon's own Lv band. 🎲 D2-D5 (v126): the band follows the hero both ways (boss Lv = Base Lv), like the old levelScale. */
 function dailyRun(s: SaveData, seed: number, deep = false): RunConfig {
   const { dg, mutators } = dailyOf(seed, deep, s), mut = foldMutators(mutators), lv = s.baseLevel
+  const shift = deep || !dg.level ? 0 : lv - dg.level[1]
   return {
     modeId: 'daily', seed, endless: false, ...(() => { const pp = heroParts(s); return { pp, power: pp.power } })(), affix: false, mutators, mut, tag: deep ? '🌌' : '🎲', tint: 0xb0a0ff, deepDaily: deep,
-    roomAt: (i) => (dg.rooms[i] ? { ...dg.rooms[i], src: dg.id } : null),
+    roomAt: (i) => { const r = dg.rooms[i]; return r ? { ...r, src: dg.id, ...(r.lv ? { lv: Math.max(1, r.lv + shift) } : {}) } : null },
     themeAt: () => dg,
     scale: (r) => { const k = levelScale(r.src ?? dg.id, lv); return { hp: k.hp * mut.monHp, atk: k.atk * mut.monAtk, hit: k.hit, speed: mut.monSpeed } },
     turnMul: () => mut.turnMul,
@@ -408,7 +410,7 @@ export function weeklySeed(d = new Date()): number {
 
 export function bountyOf(seed: number, s?: SaveData) {
   const rand = rng(seed)
-  const available = s ? DUNGEONS.filter((d) => d.level && cleared(s, d.id)).map((d) => d.id) : BOUNTY.pool
+  const available = s ? DUNGEONS.filter((d) => deepDungeon(d) && cleared(s, d.id)).map((d) => d.id) : BOUNTY.pool
   const pool = available.length > 0 ? available : BOUNTY.pool
   const id = pool[Math.floor(rand() * pool.length)]
   const dg = DUNGEONS.find((d) => d.id === id)!

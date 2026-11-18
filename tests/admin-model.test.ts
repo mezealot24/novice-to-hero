@@ -85,7 +85,7 @@ test('previewMon: game formulas on a draft, defaults restored after', () => {
   assert.ok(Math.abs(buff.hp - def.hp * 2) <= 1, 'MON_STAT.body.boss x2 doubles HP')
   assert.equal(JSON.stringify(MONSTERS.pharaoh), before, 'revert leaves the build defaults untouched')
   const [king] = previewMon('king', {})
-  assert.equal(king.hp, MONSTERS.king.hp, 'D1-5 defaults derive their tuned numbers')
+  assert.ok(Math.abs(king.hp - 903) <= 9 && king.lv === 5, `v126: D1 boss at Lv5 keeps its v125 HP (903): ${king.hp}`)
   assert.ok(!monSections('pharaoh', fields('monsters').filter((r) => r.path.startsWith('pharaoh.'))).flatMap((s) => s.fields).some((f) => f.row.path === 'pharaoh.hp'), 'placeholder hp hidden')
 })
 
@@ -161,7 +161,7 @@ test('pointsMul + allocFor: typed stats -> weights + budget, defaults untouched'
   const [x2] = previewMon('pharaoh', { monsters: { 'pharaoh.pointsMul': 2 } })
   assert.ok((x2.base.str ?? 0) > (def.base.str ?? 0) * 1.8, `pointsMul 2 ~doubles stats: STR ${def.base.str} -> ${x2.base.str}`)
   const [king] = previewMon('king', {})
-  assert.equal(king.hp, MONSTERS.king.hp, 'D1-5 anchor still neutral')
+  assert.ok(Math.abs(king.hp - 903) <= 9, 'v126 calibration: D1 boss HP as before')
   const want = { str: 120, vit: 80, wis: 1, dex: 40, int: 1, luk: 1, agi: 30 }
   const p = allocFor('pharaoh', def.lv, want, null)
   assert.equal(Math.max(...Object.values(p.weights)), 20, 'largest weight = 20')
@@ -180,10 +180,10 @@ test('scripted kits: Celeste shows Into Arena / Riposte / Espada with real battl
   assert.equal(scriptKits('jellop').length, 0)
 })
 
-test('v82: bodyMul / speedMul now work on D1-5 monsters (they were D6-only)', () => {
+test('v82: bodyMul / speedMul work on D1-5 monsters (v126: they are stat monsters, x on the calibrated values)', () => {
+  const d = MONSTERS.duelist, k = d.bodyMul!, sp = d.speedMul!
   const [base] = previewMon('duelist', {})
-  const [buff] = previewMon('duelist', { monsters: { 'duelist.bodyMul.hp': 2, 'duelist.bodyMul.dmg': 1.5, 'duelist.speedMul': 2 } })
-  assert.equal(base.hp, MONSTERS.duelist.hp, 'default unchanged')
+  const [buff] = previewMon('duelist', { monsters: { 'duelist.bodyMul.hp': k.hp! * 2, 'duelist.bodyMul.dmg': k.dmg! * 1.5, 'duelist.speedMul': sp * 2 } })
   assert.ok(Math.abs(buff.hp - base.hp * 2) <= 1, `HP x2: ${base.hp} -> ${buff.hp}`)
   assert.ok(Math.abs(buff.dmg - base.dmg * 1.5) < 1e-6, 'ATK x1.5')
   assert.ok(Math.abs(buff.speed - base.speed * 2) < 1e-6, 'speed x2')
@@ -191,7 +191,7 @@ test('v82: bodyMul / speedMul now work on D1-5 monsters (they were D6-only)', ()
 
 test('v124 previewSkills: cast Lv from the monster Lv + hero-style damage text', () => {
   const dk = previewSkills('deathknight', {}).find((p) => p.kind === 'strike')!
-  assert.equal(dk.casts[0].lv, 1, 'D3 at home: no bonus')
+  assert.equal(dk.casts[0].lv, 2, 'v126: D3 boss Lv13 casts Lv2 (absolute skill Lv, like D6+)')
   assert.match(dk.casts[0].dmg ?? '', /^\d+% P\.ATK \(ตัวเดียว ×2\)$/)
   const deep = (Object.keys(MONSTERS) as MonsterKind[]).find((k) => statNative(k) && (MONSTERS[k].skills ?? []).some((s) => s.kind === 'bolt'))!
   const bolt = previewSkills(deep, {}).find((p) => p.kind === 'bolt')!
