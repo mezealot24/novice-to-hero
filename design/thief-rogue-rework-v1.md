@@ -13,30 +13,31 @@
 ### R4.2 สิ่งที่คิวตัดสินแล้ว
 - **คิวเล่นจริง (Lv80 Rogue, AGI 238):** ที่แรงเกินคือ "แทง 7 ที" ของเงาพริ้ว (~90% ของดาเมจ Ult) ส่วนมีด 8 เล่มของพายุมีดอ่อน → แก้ด้วย Ratio AGI (−48% ที่ Lv80, ต้นเกม +38%)
 - **พิษกระจายตอน `ทวงหนี้` ฆ่า:** แทบไม่ได้ใช้จริง → การสลับ `m.poison = 0` ก่อน `damageMon()` ถือเป็น cleanup ทำได้เลย (ไม่ใช่ "CRITICAL BUG FIX")
+- **Mobster = ทาง A (2026-11-19):** ให้ Mobster เปลี่ยนตาม rework ของ Thief web แล้ววัด `JOB2_K.mobster` ใหม่ (ไม่ต้องคงโหนด flat ไว้ให้)
+- **แทงพิษ (2026-11-19):** คูณ `(1 + pskill)` + `thiefAuto` 1.6 → 1.0 (Lv80 STR 121 เท่าเดิม) ✅ commit `422beb2`
 - **ระบบ stat แบบ RO** (แต้มต่อเลเวลเพิ่มขึ้น + ลง stat แพงขึ้น) แยกไปทำใน `design/ro-stat-curve-v1.md` → ถ้าผ่าน ต้องแก้ `statPool()` ให้วัดจาก "แต้มที่จ่ายให้ AGI ÷ แต้มทั้งหมด"
 
 ### R4.3 กติกาใหม่ที่ทับ Rev 3
 1. **Ult budget:** ทุกแหล่งที่เพิ่มฮิตเงาพริ้ว (`dexUltHits` +6, `th_t3b`, On-Hit `eff`, finisher) คูณ ×AGI (สูงสุด ×3.4) ด้วย → ดาเมจรวมของ Ult ที่ Lv80 ต้อง **≤ หลัง Ratio AGI** · *ข้อเสนอ (ยังไม่ได้ตัดสิน):* ลด `dexUltHits` cap เหลือ +3 และไม่บวก `thUltDex` เข้ากับ `thUltAgi` ตรง ๆ
 2. **ห้าม magic number ใน `BattleScene`** (AGENTS.md): ทุกตัวเลขใน Rev 3 ที่บอกว่า "บวก base ใน BattleScene" (`0.38`, `0.24`, `0.65`, `1.5`/`0.6`, `0.35x`, `1.2x`, `25%` heal cap, ICD ต่าง ๆ) ต้องเป็น key ใน `KIT` / `KIT2.rogue` / `S2P` พร้อม label ใน `skill-registry.ts` + `src/admin/explain/combo-kit.ts`
-3. **Mobster ไม่ได้ "ไม่โดนแตะ":** Mobster ยืนอยู่บน web คลาส 1 ของ Thief → จะเสีย flat crit / critMul / lifesteal / HP / flee และเปลี่ยนจังหวะแทงพิษ → §5.4 ต้องวัด `JOB2_K.mobster` ด้วย (**รอคิวเลือก** ดู R4.5)
+3. **Mobster เปลี่ยนตาม (ทาง A):** Mobster ยืนอยู่บน web คลาส 1 ของ Thief → จะเสีย flat crit / critMul / lifesteal / HP / flee และเปลี่ยนจังหวะแทงพิษ → §5.4 ต้องวัด `JOB2_K.mobster` ด้วย · §6 "ห้ามแก้ Mobster" ยังใช้กับ `trees2/mobster.ts` / `JOB2.mobster` / `KIT2.mobster` เท่านั้น
 4. **Migration:** ใช้ `resetTree(s)` (`save.ts:801`) ซึ่งคืนแต้ม `crossSpent.j2In1/j3In1` กลับ pool ที่ถูกต้องอยู่แล้ว + ล้าง `jobTalents` / `job2Talents`
 5. **ID ที่ ship แล้ว:** Rev 3 นำ `thief_b3`/`c2`/`c3`/`c4`, `th_t*`, `rg_k2`/`rg_x3` ฯลฯ มาใช้ซ้ำในความหมายใหม่ → migration ต้อง gate ด้วย flag ทุก save (ห้ามมีทางข้าม) และต้องแก้ `tools/bot.cjs` (บรรทัด ~86 อ้าง `rg_k2`/`rg_k3`) ด้วย
 6. **Balance ยังไม่มีหลักฐาน:** ตัวเลข `0.45x–0.90x`, `±15%`, "Simulation 20 เทิร์น" ใน Rev 3 = **ยังไม่ยืนยัน** · วัดจากคิวเล่นจริงเป็นหลัก (บอทประเมินผู้เล่นต่ำ) · ห้ามรัน `npm test` เต็มชุด ใช้ `node tools/test.mjs <ไฟล์>`
 7. **Damage-amp bracket:** ต้องเพิ่มตารางใน §5 ว่า `vsPoison`, `Exposed`, `stabMark`, Privileged (`th_wound` + `th_t4a`), Perfect Agony บวกกันหรือคูณกัน ก่อนลงมือ P2
-8. **แทงพิษ `(1 + pskill)`:** Swordsman S1 คูณ `pskill` แต่ Thief ไม่คูณ → ใส่แล้ว Lv80 STR 121 แทงพิษแรงขึ้น ~60% (Mobster ด้วย) → **รอคิวเลือก** (R4.5)
+8. **แทงพิษ `(1 + pskill)`:** ✅ ทำแล้ว (`thiefAuto` 1.0) → สูตร §2.2 ข้อ 4 ให้ใช้ `thiefAuto` 1.0 ไม่ใช่ 1.6 · ต้นเกมแทงพิษเบาลง (STR 20: −31%) ให้เงาพริ้ว (Ratio AGI) แบกแทน
 
 ### R4.4 แผนที่เหลือ (ทำทีละ task · commit ละ 1 งาน)
 | Phase | งาน | สถานะ |
 |---|---|---|
 | P1 | Ratio AGI · knife fix · Back Stab · ทวงหนี้ cleanup | ✅ commit (รอคิวเล่นทดสอบ) |
-| P1b | แทงพิษ energy loop (`s1Weave`, floor cost) + `pskill` | ⏸ รอ R4.5 ข้อ 2 |
-| P2 | Thief web + talents ใหม่ + migration | ⏸ รอ R4.5 ข้อ 1 + ตาราง bracket |
+| P1b | แทงพิษ `pskill` ✅ · energy loop (`s1Weave`, floor cost) ⏸ ทำพร้อม P2 (talent `th_t2c` เปลี่ยน) |
+| P2 | Thief web + talents ใหม่ + migration | ⏳ ปลดล็อกแล้ว (Mobster A) · ต้องทำตาราง bracket + KIT key list ก่อน |
 | P3 | Rogue web (Marks, Voracity, Death Mark) | ⏸ หลัง P2 |
 | P4 | Plagiarism | ⏸ PR แยก ทำท้ายสุด |
 
 ### R4.5 คำถามที่ค้างถึงคิว
-1. **Mobster:** (A) ยอมให้เปลี่ยนตาม rework แล้ววัด power ใหม่ หรือ (B) คงโหนด flat ที่ Mobster ต้องใช้ไว้ใน Thief web
-2. **แทงพิษ:** ใส่ `(1 + pskill)` เลยไหม (ต้นเกมดีขึ้น แต่ Lv80 แรงขึ้น ~60%) หรือใส่พร้อมลด `thiefAuto` 1.6 ลงให้ Lv80 เท่าเดิม
+- ไม่มี (ตอบครบ 2026-11-19: Mobster A · แทงพิษ pskill + ลด thiefAuto)
 
 ---
 
