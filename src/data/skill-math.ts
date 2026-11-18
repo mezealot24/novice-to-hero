@@ -207,6 +207,7 @@ export const KIT2 = {
     stabCost: 30, stabCd: 3, stabMul: 2.2, // 🗡️ Back Stab: sure crit on the highest-HP monster
     stabCpMax: 5, stabCpPer: 0.2, // 🔁 Combo Point (Q 2026-11-18, WoW / D4 builder-finisher): each combo hit +1 point (max cpMax), Back Stab spends all for +cpPer x points
     ultKnives: 8, ultKnifeMul: 0.5, // 🌪️ พายุมีด: shadow dance + knives spread over every monster
+    ultKnifeJ2Share: 0.75, // 🌪️ พายุมีด knives get this share of j2KnifeMul (มีดคม / ใบมีดลับคม) · Q 2026-11-19 fix: before, the storm ignored it
     mastery: { atkPct: 0.05, crit: 0.03 }, // dagger
   },
   mobster: {

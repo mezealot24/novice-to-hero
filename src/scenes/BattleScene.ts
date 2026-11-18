@@ -2390,7 +2390,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.j2!.id === 'rogue') { // 🌪️ พายุมีด: shadow dance + a knife storm
       await this.shadowDance(h2)
       const R = KIT2.rogue
-      await this.knifeStorm(R.ultKnives + this.st.j2KnifeAdd, R.ultKnifeMul * h2)
+      await this.knifeStorm(R.ultKnives + this.st.j2KnifeAdd, (R.ultKnifeMul + R.ultKnifeJ2Share * this.st.j2KnifeMul) * h2) // knife nodes / talents now count in the storm
       return
     }
     if (this.j2!.id === 'mobster') { // 💀 ทวงหนี้: slash all, burst every poison stack, then collect
