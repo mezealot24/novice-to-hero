@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { HERO_SKILL_BOOK, heroSkillSteps, resolveHeroKit, type HeroKit } from '../data/hero-skill-book'
 import { chooseHeroSkill, newKitState, spendKit, tickKit, type KitCtx, type KitState } from '../battle/hero-skill-engine'
-import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, bankedRunXp, softCapDiminish, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats } from '../data/game-data'
+import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, bankedRunXp, softCapDiminish, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats, LIFESTEAL_CAP } from '../data/game-data'
 import { counterRate, shieldGain } from '../data/stack-math'
 import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, nextZapTarget, PERKS_V2, OFFER_RULES, OUTSIDE_CAP, overflowShare, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type OutsideKey, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
 import { EVENT_RULES, FORTUNE, type DayOpts, type EventId } from '../data/events'
@@ -23,7 +23,7 @@ import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/ski
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
-import { thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
+import { thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -784,7 +784,7 @@ export class BattleScene extends Phaser.Scene {
   private async fight(id: number): Promise<boolean> {
     this.undrain()
     this.fightTurns = 0; this.timedOut = false
-    this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.rampage = 0
+    this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.s1Weave = false; this.weaveBonus = 0; this.dodgeCdIcd = 0; this.rampage = 0
     this.martyrUsed = false; this.j2Hurt = false; this.monkGrit = 0; this.asuraExhaust = 0; this.awakenTurns = 0; this.awakenAbsorbed = 0; this.awakenUltPow = 1; this.clearAllies() // Crusader ★ ผู้พลีชีพ once per wave · allies last one wave · Awakening resets per wave
     this.inspireUsed = false; this.inspire = 0; this.earthDone = false // ⚜️ Paladin: once per fight
     this.clearBookings() // v86: booked Skill 1-3 do not carry into the next wave (the ult booking does)
@@ -1079,6 +1079,7 @@ export class BattleScene extends Phaser.Scene {
 
   private async heroAct() {
     this.execTurnUsed = false; this.critPetUsed = false; this.killHealCritUsed = false
+    if (this.dodgeCdIcd > 0) this.dodgeCdIcd-- // P2'a th_t2a ICD counts hero turns
     if (this.st.regen > 0) {
       const lowAmp = this.st.swLowRegenAmp > 0 && this.hp < this.st.maxHp * KIT.swordCore.lowHpAt ? 1 + this.st.swLowRegenAmp : 1
       this.heal(this.st.maxHp * this.st.regen * BATTLE.regenPerTurn / 100 * lowAmp, true)
@@ -1135,7 +1136,7 @@ export class BattleScene extends Phaser.Scene {
     if (ultWaiting) this.floatText(HERO_X, GROUND - 140, this.charges < asuraNeed ? `🔵 ลูกพลังไม่พอ อาชูร่า (${this.charges}/${asuraNeed})` : `🔷 Mana ไม่พอ ult (${Math.floor(this.res)}/${ultCost})`, '#5aa0ff') // keep it booked, save Mana/charges for it
     const cost = this.shadowTurns > 0 && this.job.id === 'thief' ? 0 : autoCost(this.job, this.st) // 👤 ร่างเงา: Skill 1 free
     const s1Ok = mayCast(!this.autoUlt, this.book.s1) // v86: manual mode only casts Skill 1 when it is booked, otherwise a basic attack (saves Mana for the ult)
-    const castS1 = async () => { this.spendRes(cost); this.book.s1 = false; this.popSkill('s1'); await this.asSkill(() => this.autoSkill(), 'skill', 's1') }
+    const castS1 = async () => { const inShadow = this.shadowTurns > 0; this.spendRes(cost); this.book.s1 = false; this.popSkill('s1'); await this.asSkill(() => this.autoSkill(), 'skill', 's1'); if (this.job.id === 'thief' && !inShadow) this.s1Weave = true } // P2'a สลับคม: next turn is a basic attack (Q3: not after a free ร่างเงา cast)
     if (this.job.id === 'cleric') { // v59 Q: the Priest smashes EVERY turn; Skill 1 rides along (heal first when low, holy light after the smash)
       const castable = () => s1Ok && !ultWaiting && this.res >= cost && this.alive().length > 0 && this.hp > 0
       const low = this.hp < this.st.maxHp * (KIT.clericHealBelow - this.st.healAt)
@@ -1145,7 +1146,7 @@ export class BattleScene extends Phaser.Scene {
       await this.faithBurst() // v84 ศรัทธา: full Faith bursts after the turn's actions
       return
     }
-    if (this.job.resource && this.j2?.id !== 'sage' && s1Ok && !ultWaiting && this.res >= cost && this.alive().length) {
+    if (this.job.resource && this.j2?.id !== 'sage' && s1Ok && !ultWaiting && !thiefS1Woven(this.job.id, this.s1Weave, this.shadowTurns > 0) && this.res >= cost && this.alive().length) {
       await castS1()
       return
     }
@@ -1369,6 +1370,10 @@ export class BattleScene extends Phaser.Scene {
     if (r.crit && !this.killHealCritUsed && this.st.killHeal > 0 && (m.def.ai === 'boss' || !!m.def.mini) && this.hp > 0) {
       this.killHealCritUsed = true
       this.heal(this.st.maxHp * this.st.killHeal * 0.25, true)
+    } else if (r.crit && !this.killHealCritUsed && this.st.thKillLeech > 0 && (m.def.ai === 'boss' || !!m.def.mini) && this.hp > 0) { // P2'a thief_c3 กระหายเลือด: first boss / mini crit of the turn
+      this.killHealCritUsed = true
+      this.heal(this.st.maxHp * thiefBossCritHeal(this.st), true)
+      if (this.job.resource === 'energy') this.resGain(KIT.thiefBossCritRes)
     }
     if (broken && this.st.swBreakLeech > 0 && this.hp > 0) this.heal(r.dmg * this.st.swBreakLeech, true) // v84 Swordsman ซ้ำรอย
     if (m.def.toxicSkin && this.hp > 0) this.applyFx({ poison: BATTLE.toxicSkin.poison }) // every landed hit poisons the hero
@@ -1382,8 +1387,10 @@ export class BattleScene extends Phaser.Scene {
     }
     if (this.relic === 'hellfire' && !m.dead) { m.hell++; this.dotIcon(m) }
     const woundLs = !magic && m.poison >= BM_STANCE.wolf.woundMinStacks ? this.st.j2StanceWoundLeech : 0
-    const ls = this.st.lifesteal + woundLs + (this.buf.blood > 0 ? S2N.bloodVamp(this.st.s2Lv) : 0) // Skill 2 เลือดเดือด · Wolf Bloodpack Stance wound leech
-    if (ls > 0 && this.lsMul > 0) this.heal(r.dmg * ls * this.lsMul * (this.berserking() ? 2 : 1) * (this.st.bloodKing > 0 && this.hp < this.st.maxHp * 0.4 ? 2 : 1), true) // Thief ★ ราชันย์โลหิต
+    const condLs = !magic ? thiefCondLeechAdd(this.st, this.statusKinds(m)) : 0 // P2'a thief_c1: leech vs a target with a status (base lifesteal + this stays under LIFESTEAL_CAP)
+    const ls = (condLs > 0 ? Math.min(LIFESTEAL_CAP, this.st.lifesteal + condLs) : this.st.lifesteal) + woundLs + (this.buf.blood > 0 ? S2N.bloodVamp(this.st.s2Lv) : 0) // Skill 2 เลือดเดือด · Wolf Bloodpack Stance wound leech
+    const bkMul = Math.max(this.bloodKingOn() ? KIT.thiefBloodKingMul : 1, this.st.bloodKing > 0 && this.hp < this.st.maxHp * 0.4 ? 2 : 1) // P2'a thief_c4 vs gear ★ ราชันย์โลหิต: the bigger one, never both
+    if (ls > 0 && this.lsMul > 0) this.heal(r.dmg * ls * this.lsMul * (this.berserking() ? 2 : 1) * bkMul, true)
     if (r.crit) sfx.crit(); else sfx.hit()
     this.gainRage(RES_RULES.rageOnHit)
     if (r.crit && !magic && this.j2?.id === 'berserker') { // คลั่งเลือด: crits stack Frenzy
@@ -1448,6 +1455,9 @@ export class BattleScene extends Phaser.Scene {
   private rampage = 0 // Berserker บ้าระห่ำ turns left
   private boomUsed = false // Knight Spear Boomerang used this wave
   private firstSwing = false // Knight Charge Attack: first basic swing of the wave
+  private s1Weave = false // P2'a Thief สลับคม: แทงพิษ was cast outside ร่างเงา, the next hero action is a basic attack (cleared by basicAttack)
+  private weaveBonus = 0 // P2'a th_t2c: basic bracket bonus for the swing right after แทงพิษ (set / cleared in basicAttack)
+  private dodgeCdIcd = 0 // P2'a th_t2a: hero turns until a dodge may cut a cooldown again
   private killHealCritUsed = false // กระหายเลือด: boss/mini crit heal once per hero turn
   private forceCrit = false
   /** Q 2026-11-14: Beastmaster Ult + Skill 3 hawk / boar hits never crit (the wolf still can; sure crits still go through). */
@@ -3043,16 +3053,31 @@ export class BattleScene extends Phaser.Scene {
   /** On-hit proc (zap / fire / ice / spear / light ...) or a Sage Auto Spell bolt: rolls spellCrit (CRIT_RULES). */
   private isProcHit() { return this.autoSpelling || this.reacting || ELEM_SRC.has(this.src) } // 🎓 reactions roll spellCrit (Sage cap)
   /** Sage rework v1 crit split (data/battle-rules.ts CRIT_RULES): basic -> crit · skill/Ult -> skillCrit · proc -> spellCrit. */
+  /** P2'a th_t2a: one Ult cooldown cut, the single place Thief Ult CD cuts go through (P2'c adds the global cap / floor here). */
+  private cutUltCd(n: number) { this.smashCdLeft = Math.max(0, this.smashCdLeft - n) }
+  /** P2'a th_t2a: a dodge cuts Skill 2 (when its CD is the longer one) or the Ult cooldown, once per ICD. */
+  private dodgeCdCut() {
+    if (this.st.thDodgeCdCut <= 0 || this.dodgeCdIcd > 0) return
+    if (this.s2Cd > 0 && this.s2Cd >= this.smashCdLeft) this.s2Cd = Math.max(0, this.s2Cd - this.st.thDodgeCdCut)
+    else if (this.smashCdLeft > 0) this.cutUltCd(this.st.thDodgeCdCut)
+    else return
+    this.dodgeCdIcd = this.st.thDodgeCdIcd
+  }
+  /** P2'a: status kinds on a monster (thief_c1): poison + chill (🐌 พิษชา counts). P2'b adds Wound / Exposed here. */
+  private statusKinds(m: Mon): number { return (m.poison > 0 ? 1 : 0) + (m.chill > 0 ? 1 : 0) }
+  /** P2'a thief_c4 ★ ราชันย์โลหิต active right now. */
+  private bloodKingOn(): boolean { return thiefBloodKingOn(this.st, this.hp, this.st.maxHp) }
   private critRateFor(magic: boolean, physAdd: number, target?: Mon): number {
     const C = CRIT_RULES.cap
+    const sc = target && !magic ? thiefStackCritAdd(this.st, target.poison) : 0 // P2'a th_t2b: physical crit / skillCrit per poison stack (P2'b adds Wound)
     const spellCap = this.j2?.id === 'sage' ? CRIT_RULES.sageSpellCap : C.spellCrit
     const burnBonus = target && target.burnStacks > 0 ? this.st.j2FireCrit : 0
     const iceBonus = target && (target.chill > 0 || target.frozen) ? (this.st.j2IcePerk > 0 ? KIT2.sage.perk.iceCritBonus : 0) + this.st.j2IceCrit : 0
     const chargeCrit = (magic || this.isProcHit()) && this.st.lightChargeLv > 0 && this.lightChargeStacks > 0 ? this.lightChargeStacks * (0.02 + this.st.lightChargeLv * 0.01) : 0
     if (this.isProcHit()) return Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit)
     const skill = this.src === 'skill' || this.src === 'ult' || (this.skillSlot !== null && this.src === 'other')
-    if (skill) return Math.min(C.skillCrit, this.st.skillCrit + iceBonus + (magic ? this.st.spellCrit + chargeCrit : (this.st.crit + physAdd) * CRIT_RULES.skillFromCrit))
-    return magic ? Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit) : Math.min(C.crit, this.st.crit + physAdd)
+    if (skill) return Math.min(C.skillCrit, this.st.skillCrit + sc + iceBonus + (magic ? this.st.spellCrit + chargeCrit : (this.st.crit + physAdd) * CRIT_RULES.skillFromCrit))
+    return magic ? Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit) : Math.min(C.crit, this.st.crit + physAdd + sc)
   }
   /** Share of the crit bonus a skill hit keeps (admin: same `crit.<class>.<slot>` number; 1 = full). Sure crits and element procs always keep all of it. */
   private critPow() {
@@ -3129,13 +3154,14 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  /** Thief passive Double Strike: chance of +1 hit (Q: unlike RO, it can crit; lifesteals at 33%). */
+  /** Thief passive Double Strike: chance of +1 hit (Q: unlike RO, it can crit; lifesteals at KIT.thiefStrikeLs). P2'a: landing it gives Energy. */
   private doubleAttack(m: Mon, mul: number) {
     if (this.st.doubleAtk <= 0 || m.dead || Math.random() >= doubleAtkChance(this.st.doubleAtk)) return
     this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 22, 'DOUBLE!', '#ffd36b')
     this.addShadow(KIT.thiefShadow.double) // 👤 เกจเงา
+    if (this.job.resource === 'energy') this.resGain(KIT.thiefStrikeRes)
     const prev = this.lsMul
-    this.lsMul = 0.33
+    this.lsMul = this.bloodKingOn() ? KIT.thiefBloodKingStrikeLs : KIT.thiefStrikeLs // P2'a thief_c4
     this.strike(m, mul)
     this.lsMul = prev
   }
@@ -3219,6 +3245,10 @@ export class BattleScene extends Phaser.Scene {
   /** Basic attack, then combo: each success chains one more (COMBO.baseCount + st.comboCount). */
   private async basicAttack() {
     const target = this.front()[0]
+    const woven = thiefS1Woven(this.job.id, this.s1Weave, false) // P2'a สลับคม: this swing follows แทงพิษ
+    this.s1Weave = false // any basic attack ends the weave
+    this.weaveBonus = woven ? this.st.thWeaveDmg : 0 // th_t2c: every basic / combo hit of this swing
+    if (woven && this.st.thWeaveRes > 0) this.resGain(this.st.thWeaveRes)
     // 📖 Sage Passive Skill 1 (ศาสตราวุธธาตุ): never skips basicAttack; spends Mana alongside the swing to empower + guarantee Auto Spell
     this.sageInfusePow = 0
     if (this.j2?.id === 'sage' && target) {
@@ -3287,6 +3317,7 @@ export class BattleScene extends Phaser.Scene {
         this.floatText(HERO_X, GROUND - 165, `🌪️ ปิดฉาก! CD -${O.comboFinishCdCut}`, '#ffd24a')
       }
     }
+    this.weaveBonus = 0 // th_t2c covers the hero's own swing only
     await this.monCounter(target) // v49: the target may strike back
     this.stayIn = false
     await this.goHome()
@@ -4170,8 +4201,12 @@ export class BattleScene extends Phaser.Scene {
   private killMon(m: Mon) {
     m.dead = true
     if (this.st.killHeal > 0 && this.hp > 0) {
-      this.heal(this.st.maxHp * this.st.killHeal) // Thief กระหายเลือด
-      if (this.job.resource === 'energy') this.resGain(10)
+      this.heal(this.st.maxHp * this.st.killHeal) // gear / card / Mobster kill heal
+      if (this.job.resource === 'energy') this.resGain(KIT.thiefKillRes)
+    }
+    if (this.st.thKillLeech > 0 && this.hp > 0) { // P2'a thief_c3 กระหายเลือด: + poison left on the corpse
+      this.heal(this.st.maxHp * thiefKillHeal(this.st, m.poison))
+      if (this.job.resource === 'energy') this.resGain(KIT.thiefKillRes)
     }
     if (this.st.lockOn > 0 && this.lockTarget === m && this.dodgeCharges < 1) { this.dodgeCharges = 1; this.floatText(HERO_X, GROUND - 100, '💨 ถอยตั้งหลัก', '#c9c9d6') } // archer ★ ล็อกเป้า: kill the locked target -> 1 sure dodge
     const others = this.alive()
@@ -4591,6 +4626,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.st.arDodgeShield > 0 && this.shield < this.st.maxHp * this.st.arDodgeShield * 3) this.addShield(Math.min(this.st.maxHp * this.st.arDodgeShield, this.st.maxHp * this.st.arDodgeShield * 3 - this.shield)) // archer tree โล่ลม
       if (this.st.arDodgeRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arDodgeRes) // archer ★ ยิงถอย
       if (this.st.dodgeEnergy > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.dodgeEnergy) // Thief talent: ขโมยจังหวะ
+      this.dodgeCdCut() // P2'a th_t2a: also cuts a cooldown (ICD)
       this.addShadow(KIT.thiefShadow.dodge) // 👤 เกจเงา
       return false
     }
@@ -4902,7 +4938,7 @@ export class BattleScene extends Phaser.Scene {
     let k = 1
     for (const ms of this.masteries) k *= ms.src === src ? 1 + ms.amp : 1 - ms.cut
     const basic = src === 'basic' || src === 'combo', skill = src === 'skill' || src === 'ult'
-    if (basic) { const d = this.monCombo(m), c = src === 'combo'; k *= Math.max(COMBO.dmgFloor, 1 + this.px('basicDmg') + (c ? this.st.comboDmg : 0) - d.basicDR - (c ? d.comboDR : 0)) } // Capybara-style additive bracket
+    if (basic) { const d = this.monCombo(m), c = src === 'combo'; k *= Math.max(COMBO.dmgFloor, 1 + this.px('basicDmg') + this.weaveBonus + (c ? this.st.comboDmg : 0) - d.basicDR - (c ? d.comboDR : 0)) } // Capybara-style additive bracket (+ P2'a th_t2c weave)
     if (src === 'counter') { const d = this.monCombo(m); k *= Math.max(COMBO.dmgFloor, 1 + this.px('basicDmg') + this.px('counterDmg') - d.basicDR - d.counterDR) } // same bracket as combo
     if (rel === 'wolf') k *= src === 'combo' || src === 'counter' ? 1 + RELIC_RULES.wolf.comboCounter : skill ? 1 - RELIC_RULES.wolf.skillCut : 1
     if (rel === 'wizard' && skill) k *= 1 + RELIC_RULES.wizard.skill
