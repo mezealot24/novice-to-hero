@@ -182,15 +182,19 @@ test('migration: new saves skip it, other classes only get the flag', () => {
   assert.equal(a.thiefRogueRework, THIEF_REWORK_VER)
 })
 
-test('migration: Mobster / Rogue keep their job2 web, talents and points', () => {
-  for (const job2 of ['mobster', 'rogue']) {
-    const s = oldThief({ job2, job2Points: 3, job2Tree: { x: 4 }, job2Talents: { 1: { id: 'y', rank: 1 } } })
-    migrateThiefRogueRework(s)
-    assert.deepEqual(s.job2Tree, { x: 4 }, job2)
-    assert.deepEqual(s.job2Talents, { 1: { id: 'y', rank: 1 } }, job2)
-    assert.equal(s.job2Points, 3, job2)
-    assert.deepEqual(s.jobTree, {}, job2)
-  }
+test('migration: Mobster keeps its job2 web, talents and points · Rogue gets its web back (P3\'a v3), talents kept', () => {
+  const m = oldThief({ job2: 'mobster', job2Points: 3, job2Tree: { x: 4 }, job2Talents: { 1: { id: 'y', rank: 1 } } })
+  migrateThiefRogueRework(m)
+  assert.deepEqual(m.job2Tree, { x: 4 })
+  assert.deepEqual(m.job2Talents, { 1: { id: 'y', rank: 1 } })
+  assert.equal(m.job2Points, 3)
+  assert.deepEqual(m.jobTree, {})
+  const r = oldThief({ job2: 'rogue', job2Points: 3, job2Tree: { x: 4 }, job2Talents: { 1: { id: 'y', rank: 1 } } })
+  migrateThiefRogueRework(r)
+  assert.deepEqual(r.job2Tree, {})
+  assert.deepEqual(r.job2Talents, { 1: { id: 'y', rank: 1 } })
+  assert.equal(r.job2Points, 3 + 4)
+  assert.deepEqual(r.jobTree, {})
 })
 
 test('migration: cross-tier points go back to their own pool', () => {
