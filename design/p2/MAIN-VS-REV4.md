@@ -33,7 +33,7 @@
 | P1 | พิษ/stack = `poisonDmg` + `atkPer` 0.04 × P.ATK + `matkPer` 0.04 × M.ATK · `skill-math.ts:111-112` · `thiefPoisonPerStack` `:173` | P2d `thief_v2` Contaminate มีเทอม M.ATK แยก (`thiefDetMatkLv`, `thiefDetFlatBase/Lv`) · P2d §1.1 B | `ซ้ำ` | ทิ้งเทอม M.ATK ของ Contaminate (M.ATK เข้าพิษผ่าน `matkPer` แล้ว) |
 | P2 | `KIT.poison.intPer` 0.1 `skill-math.ts:113` | P2d §8 ข้อ 1 (INT → `poisonDmg` 0.1/pt) | `ซ้ำ` | ตรงกันแล้ว · ใช้ key ของ main |
 | P3 | `baseCap` 20 `skill-math.ts:114` · `poisonCapOf` `:180` | P2d §1.1 F `wisPoisonCap` +1/8 WIS (≤ +16) | `ชน` | §2 |
-| P4 | DEF shred 1%/stack cap 40% · `poisonDefCut` `skill-math.ts:176` · ใช้ที่ `BattleScene.ts:1347` | P2a §T3 `thief_a1` `thPoisonPen` +6%/lv (Enchant Poison) | `ซ้ำ` | ทิ้ง `thPoisonPen` |
+| P4 | DEF shred 1%/stack cap 40% · `poisonDefCut` `skill-math.ts:176` · ใช้ที่ `BattleScene.ts:1358` | P2a §T3 `thief_a1` `thPoisonPen` +6%/lv (Enchant Poison) | `ซ้ำ` | ทิ้ง `thPoisonPen` |
 | P5 | %HP bite: stack × (0.5% + 0.1%/10 INT) × max HP + 2 ขณะ HP > 50% · `skill-math.ts:120` · tick `:4273` · `hero-stats.ts:301` | P2d §1.2 Venom Melt + Toxic Seep (W2) | `ซ้ำ` | ทิ้ง Venom Melt / Toxic Seep ถาวร |
 | P6 | 💣 `thief_a4` ระเบิดพิษ: ส่ง 100% + blast ×1.5 ลูกโซ่ได้ · `trees/thief.ts:26` · `skill-math.ts:123` · `:4182-4188` | P2a §T3/T5 ระเบิดพิษลาม (0.6 + Plague Burst ไม่ chain) | `ซ้ำ` | เก็บ main · ทิ้ง `thiefSpreadShare`, `thiefPlague*`, `plagueBursting` |
 | P7 | 🐌 `thief_a2` พิษชา: `poisonDmg` + chill เมื่อ stack ≥ `slowAtLv` · `trees/thief.ts:24` · `skill-math.ts:116` · `:4277` | P2a §T3 `thief_a2` พิษกัดลึก (`poisonDmg` + `vsPoison` 0.08/lv) | `ชน` | §2 |
@@ -142,6 +142,7 @@ main ไม่ได้ rework id พวกนี้ (เปลี่ยนแ�
 
 ### 3.2 ทดสอบด้วย `git merge-tree` กับ HEAD (read-only)
 - **ทุก commit exit=1** → ไม่มีตัวไหน `cherry-pick` ได้ตรง ๆ
+- ทดสอบทีละ commit เดี่ยว ๆ บน HEAD (ไม่ได้ลง commit ก่อนหน้า) → conflict บางจุดมาจากบรรทัดของ commit P2a ข้าง ๆ ไม่ใช่ของ main
 - `docs/design/changelog-2026-11-18.md` **ไม่มีบน main** → ทุก commit ชนไฟล์นี้ (กติกา changelog ใน `INTEGRATION.md` §4 เก่าแล้ว: ให้เขียนลง changelog ของวันที่ commit จริง)
 - `tests/thief-p2a.test.ts` / `thief-p2b.test.ts` ถูกสร้างทีละ commit และไม่มีบน HEAD → **เอาจากปลาย branch** (`git show origin/claude/thief-p2:tests/thief-p2a.test.ts`) แล้วตัดเคสของกลไกที่ทิ้ง
 
@@ -150,17 +151,17 @@ main ไม่ได้ rework id พวกนี้ (เปลี่ยนแ�
 |---|---|---|---|---|
 | `f574d3e` | save migration `thiefRogueRework` v1 | ชนแค่ changelog / NOTES / test | **เอา src ได้** | `git diff f574d3e^ f574d3e -- src/save.ts \| git apply -3` · เทสต์ migration เอาจากปลาย branch |
 | `49467dd` | `tools/bot.cjs` flag + id | ชนแค่ changelog | **เอา src ได้** | `git diff 49467dd^ 49467dd -- tools/bot.cjs \| git apply -3` · ตัวอย่าง `TREEX` แก้ id ที่ทิ้ง |
-| `fdd5d8d` | `th_t4a` Privileged talent | ชนแค่ changelog / test | **เอา src ได้** | `-- src/data/trees/thief.ts` · ต้องมี `thiefPrivAt` (จาก `296e378`) ก่อน · ค่าเกณฑ์ใหม่ (§5) |
+| `fdd5d8d` | `th_t4a` Privileged talent | ชนแค่ changelog / test | **เอา src ได้** | `-- src/data/trees/thief.ts` · ต้องมี KIT `thiefPrivAt` (`296e378`) + Stats `thPrivileged` (`35f5d2d`) ก่อน · ค่าเกณฑ์ใหม่ (§5) |
 | `3e47e7b` | Stats + KIT + registry | ชน `skill-math.ts` `stats.ts` `combo-kit.ts` | **rewrite** | พิมพ์ใหม่บน main · ตัด key ที่ทิ้ง (§2) |
 | `ba672be` | ค่าร่าย 45 · floor 30 · pure helpers | ชน `skill-math.ts` | **rewrite** | เก็บ `autoCost` floor · `thiefS1Woven` · `thiefCondLeechAdd` · `thiefKillHeal` · `thiefBossCritHeal` · `thiefBloodKingOn` · ทิ้ง `thiefSpreadAmount` `thiefToxicHold` · `thiefStackCritAdd` เหลือส่วน `th_t2b` |
 | `ecaf11d` | tree data a/core/t2 + test | ชน `trees/thief.ts` | **rewrite** | a-line = main ไม่แตะ · core: c1 / **c2 หมายหัว** / c3 / c4 · แก้ `admin-model.test.ts` นำไปใช้ได้ |
 | `e1ecefc` | `s1Weave` + D.Strike Energy | ชน `BattleScene.ts` (บรรทัด `castS1` / cost ร่างเงา `:1136`) | **rewrite** (เล็ก) | logic เดิมใช้ได้ + เงื่อนไขร่างเงา (Q3) |
 | `0085cf4` | core hooks c1–c4 + `LIFESTEAL_CAP` | ชน `BattleScene.ts` | **rewrite** | เก็บ c1 / c3 / c4 · ทิ้ง c2 (`thCritPoison`) |
 | `381dfae` | hooks `th_t2a/b/c` + `cutUltCd` | ชน `BattleScene.ts` (`dodged()` มี `addShadow` แล้ว) | **rewrite** (เล็ก) | logic ใช้ได้ทั้งหมด |
-| `296e378` | B1 `takenAmp` + `debuffKinds` + keys | ชนแค่ `combo-kit.ts` | **rewrite** (เล็ก) | pure helpers ใช้ได้ตรง · เกณฑ์ `thiefPrivAt` / `thiefPoisonAmpAt` ใหม่ |
-| `49b97d3` | S2P/S2N + labels | ชน `skill-math.ts` | **rewrite** | ตัด key `th_pick` ทั้งหมด · เก็บ smoke / exposed / wound / blade |
-| `9545414` | สถานะ Exposed / Wound / woundCut | ชน `trees/thief.ts` (ข้อความ c2) | **rewrite** (เล็ก) | ส่วน `BattleScene` ใช้ได้ · c2 เป็นหมายหัวแล้ว |
-| `35f5d2d` | `takenAmp` ใน `damageMon` | ชน `stats.ts` (บรรทัด `PLAYER`) | **rewrite** (เล็ก) | `BattleScene` auto-merge ได้ · แทน `:4064` |
+| `296e378` | B1 `takenAmp` + `debuffKinds` + keys | ชน `skill-math.ts` `skill-registry.ts` `tunables.ts` `combo-kit.ts` | **rewrite** (เล็ก) | pure helpers ใช้ได้ตรง · เกณฑ์ `thiefPrivAt` / `thiefPoisonAmpAt` ใหม่ |
+| `49b97d3` | S2P/S2N + labels | ชน `skill-math.ts` `skill2.ts` `BattleScene.ts` | **rewrite** | ตัด key `th_pick` ทั้งหมด · เก็บ smoke / exposed / wound / blade |
+| `9545414` | สถานะ Exposed / Wound / woundCut | ชน `trees/thief.ts` (ข้อความ c2) `BattleScene.ts` | **rewrite** (เล็ก) | logic `BattleScene` ใช้ได้ (พิมพ์ใหม่) · c2 เป็นหมายหัวแล้ว |
+| `35f5d2d` | `takenAmp` ใน `damageMon` + Stats `thPrivileged` ฯลฯ | ชน `stats.ts` (บรรทัด `PLAYER`) `BattleScene.ts` | **rewrite** (เล็ก) | แทน `:4064` · ต้องมาก่อน `fdd5d8d` |
 | `6d335c8` | `th_smoke` Shroud + Raid | ชน `BattleScene.ts` + `trees/thief.ts` | **rewrite** | คง `smokeBombFx` · Raid ใช้ `daggerCross` |
 | `d4521f7` | `th_wound` Wound + Blade's End | ชน `BattleScene.ts` (case `th_wound` มี `venomStabFx`) | **rewrite** (เล็ก) | `addWound` / `bladesEnd` ใช้ได้ตรง |
 | `4c9f593` | a-line hooks (pen · hold · strikePoison · Plague) | — | **ทิ้ง** | ซ้ำ P4 P6 P8 |
@@ -200,7 +201,7 @@ main ไม่ได้ rework id พวกนี้ (เปลี่ยนแ�
 | 4 | tick = (stack × perStack + **hpBite**) × `dotMul` `:4275` | B5 Perfect Agony คูณ src `poison` ทั้งก้อน (สูงสุด +100%) | 🔴 คูณ %HP ซ้ำ | PA คูณเฉพาะ `m.poison × m.poisonDmg` ไม่รวม hpBite |
 | 5 | INT → พิษ 3 ทาง: `intPer` · `hpPctInt` · M.ATK (`matkPer`) | Contaminate เทอม M.ATK อีก 2 ตัว | 🟠 ทางที่ 4 | ตัดเทอม (P1) · `thief_v1` เป็นฮิตเวท ไม่ใช่พิษ → OK |
 | 6 | `poisonLeech` 10%/lv ของ tick flat ไม่มี cap `:4276` (tick โตตาม P.ATK) | `thief_v3` cap 25% max HP/เทิร์น | 🟢 P2 ช่วยลด | ทำ |
-| 7 | DEF shred 1%/stack (`:1347`) ใช้กับฮิตไม่คริเท่านั้น | `thPoisonPen` | ซ้ำ + ในร่างเงาไม่มีผล (คริข้าม DEF) | ทิ้ง |
+| 7 | DEF shred 1%/stack (`:1358`) ใช้กับฮิตไม่คริเท่านั้น | `thPoisonPen` | ซ้ำ + ในร่างเงาไม่มีผล (คริข้าม DEF) | ทิ้ง |
 | 8 | stack เพิ่มต่อฮิต: `thStrikePoison` +1 · `thCritPoison` +1 | — | ถึง cap อยู่แล้ว → แค่ป้อน Mobster พิษล้น | ทิ้งทั้งคู่ |
 | 9 | ระเบิดพิษ chain `:4182` | Contaminate ฆ่า → ลูกโซ่ | 🟠 | Contaminate ICD 1/เทิร์น (ตาม spec) · ไม่ต้อง guard chain เพิ่ม (main ตั้งใจให้ chain) |
 
