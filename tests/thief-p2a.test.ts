@@ -143,3 +143,15 @@ test('a-line hooks: full พิษทนทาน = the hold cap, ★ spread sha
   assert.equal(thiefSpreadAmount(20, a4.thPlagueDeath > 0), Math.ceil(20 * KIT.thiefSpreadShare))
   assert.equal(thiefSpreadAmount(20, false), 10, 'card ven_L1 alone keeps /2')
 })
+
+test('core hooks: node numbers at full = Rev 3 targets (leech 13.5%, kill heal 12% + poison, boss crit 4.5%)', () => {
+  const c1 = st(node('thief_c1').mod(5)), c3 = st(node('thief_c3').mod(5))
+  near(thiefCondLeechAdd(c1, KIT.thiefKindsAt), 0.135, 'c1 Lv 5 multi')
+  near(thiefCondLeechAdd(c1, 1), 0.09, 'c1 Lv 5 one kind')
+  near(thiefKillHeal(c3, 0), 0.12, 'c3 Lv 5')
+  near(thiefKillHeal(c3, 1000), 0.12 + KIT.thiefKillPoisonHealCap, 'c3 poison cap')
+  near(thiefBossCritHeal(c3), 0.045, 'c3 boss crit')
+  const c4 = st(node('thief_c4').mod(1))
+  assert.equal(thiefBloodKingOn(c4, 40, 100, false), true)
+  assert.equal(thiefBloodKingOn(c4, 60, 100, false), false)
+})

@@ -26,3 +26,10 @@
 - `thief_a1`: physical non-crit hits on a poisoned monster add `thPoisonPen` to physPen (total under `STAT_CAPS.physPen` 0.75)
 - `thief_a3`: Toxic Skin monsters keep each poison stack with chance `thiefToxicHold` (cap 0.75) · Double Strike landed → +1 poison
 - `thief_a4` ★: poison spread on death = `KIT.thiefSpreadShare` (60%, card `ven_L1` alone still /2) · Plague Burst: corpse with ≥ `KIT.thiefPlagueAt` stacks hits every other monster for `thiefPlagueTurns` turns of its poison (dot, src poison) · `plagueBursting` stops chains · ทวงหนี้ (`debtBursting`) skips both
+
+## 🩸 feat(thief): thief_core hooks leech, stack crit, kill heal, blood king
+- `thief_c1`: physical hits leech `thCondLeech` when the target has a status (poison / chill today; ×1.5 at 2+ kinds) · base lifesteal + this capped at `LIFESTEAL_CAP` 0.4 (new export, also used by `heroBuild`)
+- `thief_c2`: crit (basic / combo) and skillCrit (skills / Ult) + per poison stack on the target (`thiefStackCritAdd`, under the usual crit caps) · physical crit → +1 poison
+- `thief_c3`: kill heals `thiefKillHeal` (+ poison on the corpse) + Energy `KIT.thiefKillRes` · first boss / mini crit each turn heals + Energy · old `resGain(10)` of `killHeal` now reads `KIT.thiefKillRes` (same 10)
+- `thief_c4` ★: HP < 45% → lifesteal ×1.75 and D.Strike leech 66% (gear ★ ราชันย์โลหิต ×2 is not stacked: the bigger one wins)
+- Extension points for P2b: `statusKinds()` `stackCountOf()` `inShroud()` · notes in `design/p2/NOTES.md`

@@ -438,6 +438,9 @@ export interface Stats {
   swLowRegenAmp: number // bonus multiplier to HP Regen ticks when HP < 50%
 }
 
+/** Lifesteal cap (heroBuild clamps st.lifesteal; P2a thief_c1 per-hit leech stays under it too). */
+export const LIFESTEAL_CAP = 0.4
+
 export const STAT_CAPS = {
   physPen: 0.75,
   magPen: 0.75,

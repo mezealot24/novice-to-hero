@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { HERO_SKILL_BOOK, heroSkillSteps, mirrorKit, type HeroKit } from '../data/hero-skill-book'
 import { chooseHeroSkill, newKitState, spendKit, tickKit, type KitCtx, type KitState } from '../battle/hero-skill-engine'
-import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, softCapDiminish, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats, STAT_CAPS } from '../data/game-data'
+import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, softCapDiminish, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats, LIFESTEAL_CAP, STAT_CAPS } from '../data/game-data'
 import { counterRate, shieldGain } from '../data/stack-math'
 import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, nextZapTarget, PERKS_V2, OFFER_RULES, OUTSIDE_CAP, overflowShare, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type OutsideKey, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
 import { EVENT_RULES, FORTUNE, type EventId } from '../data/events'
@@ -23,7 +23,7 @@ import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/ski
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
-import { ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefS1Woven, thiefSpreadAmount, thiefToxicHold, ultCooldown, ultCost } from '../data/skill-math'
+import { ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefSpreadAmount, thiefStackCritAdd, thiefToxicHold, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -1265,7 +1265,12 @@ export class BattleScene extends Phaser.Scene {
     if (r.crit && !this.killHealCritUsed && this.st.killHeal > 0 && (m.def.ai === 'boss' || !!m.def.mini) && this.hp > 0) {
       this.killHealCritUsed = true
       this.heal(this.st.maxHp * this.st.killHeal * 0.25, true)
+    } else if (r.crit && !this.killHealCritUsed && this.st.thKillLeech > 0 && (m.def.ai === 'boss' || !!m.def.mini) && this.hp > 0) { // P2a thief_c3 กระหายเลือด: first boss / mini crit of the turn
+      this.killHealCritUsed = true
+      this.heal(this.st.maxHp * thiefBossCritHeal(this.st), true)
+      if (this.job.resource === 'energy') this.resGain(KIT.thiefBossCritRes)
     }
+    if (r.crit && !magic && this.st.thCritPoison > 0 && !m.dead) this.addPoison(m, 1) // P2a thief_c2: physical crit -> +1 poison
     if (broken && this.st.swBreakLeech > 0 && this.hp > 0) this.heal(r.dmg * this.st.swBreakLeech, true) // v84 Swordsman ซ้ำรอย
     if (m.def.toxicSkin && this.hp > 0) this.applyFx({ poison: BATTLE.toxicSkin.poison }) // every landed hit poisons the hero
     if (m.def.iceSkin && this.hp > 0) { if (!this.hx.thorn) this.floatText(HERO_X + 30, GROUND - 150, '❄️ หนามน้ำแข็ง! DMG -15%', '#9fe3ff'); this.hx.thorn = BATTLE.iceSkin.turns }
@@ -1273,8 +1278,10 @@ export class BattleScene extends Phaser.Scene {
     if (!magic && this.st.poison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.poison); m.poisonDmg = this.st.poisonDmg; this.dotIcon(m) }
     if (this.relic === 'hellfire' && !m.dead) { m.hell++; this.dotIcon(m) }
     const woundLs = !magic && m.poison >= BM_STANCE.wolf.woundMinStacks ? this.st.j2StanceWoundLeech : 0
-    const ls = this.st.lifesteal + woundLs + (this.buf.blood > 0 ? S2N.bloodVamp(this.st.s2Lv) : 0) // Skill 2 เลือดเดือด · Wolf Bloodpack Stance wound leech
-    if (ls > 0 && this.lsMul > 0) this.heal(r.dmg * ls * this.lsMul * (this.berserking() ? 2 : 1) * (this.st.bloodKing > 0 && this.hp < this.st.maxHp * 0.4 ? 2 : 1), true) // Thief ★ ราชันย์โลหิต
+    const condLs = !magic ? thiefCondLeechAdd(this.st, this.statusKinds(m)) : 0 // P2a thief_c1: leech vs a target with a status (base lifesteal + this stays under LIFESTEAL_CAP)
+    const ls = (condLs > 0 ? Math.min(LIFESTEAL_CAP, this.st.lifesteal + condLs) : this.st.lifesteal) + woundLs + (this.buf.blood > 0 ? S2N.bloodVamp(this.st.s2Lv) : 0) // Skill 2 เลือดเดือด · Wolf Bloodpack Stance wound leech
+    const bkMul = Math.max(this.bloodKingOn() ? KIT.thiefBloodKingMul : 1, this.st.bloodKing > 0 && this.hp < this.st.maxHp * 0.4 ? 2 : 1) // P2a thief_c4 vs gear ★ ราชันย์โลหิต: the bigger one, never both
+    if (ls > 0 && this.lsMul > 0) this.heal(r.dmg * ls * this.lsMul * (this.berserking() ? 2 : 1) * bkMul, true)
     if (r.crit) sfx.crit(); else sfx.hit()
     this.gainRage(RES_RULES.rageOnHit)
     if (r.crit && !magic && this.j2?.id === 'berserker') { // คลั่งเลือด: crits stack Frenzy
@@ -2892,16 +2899,25 @@ export class BattleScene extends Phaser.Scene {
   /** On-hit proc (zap / fire / ice / spear / light ...) or a Sage Auto Spell bolt: rolls spellCrit (CRIT_RULES). */
   private isProcHit() { return this.autoSpelling || this.reacting || ELEM_SRC.has(this.src) } // 🎓 reactions roll spellCrit (Sage cap)
   /** Sage rework v1 crit split (data/battle-rules.ts CRIT_RULES): basic -> crit · skill/Ult -> skillCrit · proc -> spellCrit. */
+  /** P2a: status kinds on a monster (thief_c1). P2b adds Wound / Exposed here. */
+  private statusKinds(m: Mon): number { return (m.poison > 0 ? 1 : 0) + (m.chill > 0 ? 1 : 0) }
+  /** P2a: stacks on a monster for thief_c2 / th_t2b crit. P2b adds Wound here. */
+  private stackCountOf(m: Mon): number { return m.poison }
+  /** P2a extension point: P2b ม่านควัน -> return this.shroudTurns > 0 */
+  private inShroud(): boolean { return false }
+  /** P2a thief_c4 ★ ราชันย์โลหิต active right now. */
+  private bloodKingOn(): boolean { return thiefBloodKingOn(this.st, this.hp, this.st.maxHp, this.inShroud()) }
   private critRateFor(magic: boolean, physAdd: number, target?: Mon): number {
     const C = CRIT_RULES.cap
+    const sc = target && !magic ? thiefStackCritAdd(this.st, this.stackCountOf(target)) : 0 // P2a thief_c2 + th_t2b: physical crit / skillCrit per stack
     const spellCap = this.j2?.id === 'sage' ? CRIT_RULES.sageSpellCap : C.spellCrit
     const burnBonus = target && target.burnStacks > 0 ? this.st.j2FireCrit : 0
     const iceBonus = target && (target.chill > 0 || target.frozen) ? (this.st.j2IcePerk > 0 ? KIT2.sage.perk.iceCritBonus : 0) + this.st.j2IceCrit : 0
     const chargeCrit = (magic || this.isProcHit()) && this.st.lightChargeLv > 0 && this.lightChargeStacks > 0 ? this.lightChargeStacks * (0.02 + this.st.lightChargeLv * 0.01) : 0
     if (this.isProcHit()) return Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit)
     const skill = this.src === 'skill' || this.src === 'ult' || (this.skillSlot !== null && this.src === 'other')
-    if (skill) return Math.min(C.skillCrit, this.st.skillCrit + iceBonus + (magic ? this.st.spellCrit + chargeCrit : (this.st.crit + physAdd) * CRIT_RULES.skillFromCrit))
-    return magic ? Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit) : Math.min(C.crit, this.st.crit + physAdd)
+    if (skill) return Math.min(C.skillCrit, this.st.skillCrit + sc + iceBonus + (magic ? this.st.spellCrit + chargeCrit : (this.st.crit + physAdd) * CRIT_RULES.skillFromCrit))
+    return magic ? Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit) : Math.min(C.crit, this.st.crit + physAdd + sc)
   }
   /** Share of the crit bonus a skill hit keeps (admin: same `crit.<class>.<slot>` number; 1 = full). Sure crits and element procs always keep all of it. */
   private critPow() {
@@ -2984,7 +3000,7 @@ export class BattleScene extends Phaser.Scene {
     this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 22, 'DOUBLE!', '#ffd36b')
     if (this.job.resource === 'energy') this.resGain(KIT.thiefStrikeRes)
     const prev = this.lsMul
-    this.lsMul = KIT.thiefStrikeLs
+    this.lsMul = this.bloodKingOn() ? KIT.thiefBloodKingStrikeLs : KIT.thiefStrikeLs // P2a thief_c4
     this.strike(m, mul)
     this.lsMul = prev
     if (this.st.thStrikePoison > 0 && !m.dead) this.addPoison(m, 1) // P2a thief_a3: D.Strike landed -> +1 poison
@@ -4015,8 +4031,12 @@ export class BattleScene extends Phaser.Scene {
   private killMon(m: Mon) {
     m.dead = true
     if (this.st.killHeal > 0 && this.hp > 0) {
-      this.heal(this.st.maxHp * this.st.killHeal) // Thief กระหายเลือด
-      if (this.job.resource === 'energy') this.resGain(10)
+      this.heal(this.st.maxHp * this.st.killHeal) // gear / card / Mobster kill heal
+      if (this.job.resource === 'energy') this.resGain(KIT.thiefKillRes)
+    }
+    if (this.st.thKillLeech > 0 && this.hp > 0) { // P2a thief_c3 กระหายเลือด: + poison left on the corpse
+      this.heal(this.st.maxHp * thiefKillHeal(this.st, m.poison))
+      if (this.job.resource === 'energy') this.resGain(KIT.thiefKillRes)
     }
     if (this.st.lockOn > 0 && this.lockTarget === m && this.dodgeCharges < 1) { this.dodgeCharges = 1; this.floatText(HERO_X, GROUND - 100, '💨 ถอยตั้งหลัก', '#c9c9d6') } // archer ★ ล็อกเป้า: kill the locked target -> 1 sure dodge
     const others = this.alive()
