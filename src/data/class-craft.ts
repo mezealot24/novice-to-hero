@@ -251,7 +251,7 @@ export const D9_CLASS_GEAR: Item[] = [
   {
     id: 'cc_d9_eagleeye', slot: 'head', name: 'แว่นเหยี่ยวสยบฟ้า', icon: '🦅', price: 0, slots: 1,
     jobs: AR,
-    desc: 'ของคราฟ D9 เฉพาะสายนักธนู · เล็งจุดตายมอนเลือดน้อย คริทะลุเกราะรุนแรง',
+    desc: 'ของคราฟ D9 เฉพาะสายนักธนู · เล็งจุดตายมอนเลือดน้อย คริรุนแรง',
     base: { dex: 7, luk: 6 },
     mod: { hit: 22, crit: 0.08, critMul: 0.25, pierce: 0.2 },
     craft: { ...D9, bonus: [{ arLowHpBonus: 0.2 }, { ultAmp: 0.2, aspd: 0.16 }] },

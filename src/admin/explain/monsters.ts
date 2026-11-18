@@ -265,7 +265,7 @@ export function explainMonsterField(path: string, native: boolean, defaultLabel?
     },
     def: {
       label: defaultLabel ?? (native ? 'DEF (โบนัส +)' : 'DEF ฐาน'),
-      effect: 'เพิ่ม = ลดดาเมจกายภาพที่ฮีโร่ตีเข้า (ถ้าฮีโร่ติดคริจะเจาะทะลุ DEF แต่สกิล/ตีปกติโดนลด)',
+      effect: 'เพิ่ม = ลดดาเมจกายภาพที่ฮีโร่ตีเข้า (ทุกฮิต รวมคริ ก็โดนลด)',
       detail: native ? 'มอน D6+: บวก (+) ทับค่า DEF ที่คำนวณจาก VIT และเลเวล' : 'มอน D1–5: ค่า DEF ฐานที่ระดับบ้านเกิด (บวกผลต่างจาก VIT)',
     },
     flee: {

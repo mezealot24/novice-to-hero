@@ -1333,8 +1333,8 @@ export class BattleScene extends Phaser.Scene {
   private hawkTurn = 0
   private ultFiring = false // archer: ult hits a charging boss harder (ทะลวงเกราะ / ศรบั่น)
 
-  /** One physical/magic hit. RO-style crit: physical only, rolled first; a crit always hits (skips flee) and ignores DEF.
-   *  Magic never misses and never crits. Returns damage dealt. */
+  /** One physical/magic hit. Crit is rolled first; a basic / combo / counter crit skips flee, a physical skill crit
+   *  still rolls Hit (Q 2026-11-19). No crit ignores DEF. Magic never misses. Returns damage dealt. */
   private strike(m: Mon, mul: number, magic = false, color?: string, pierce = 0, falconCrit = 0): number {
     if (m.dead || this.hp <= 0) return 0
     if (this.j3Bless > 0) mul *= 1 + this.st.j3AfterBless // ⚜️ พรหลังศึก
@@ -1350,7 +1350,8 @@ export class BattleScene extends Phaser.Scene {
     const crit = this.forceCrit || release || shadowSure || (!this.petNoCrit && this.critAllowed() && Math.random() < critRate) // magic crits only with spellCrit (or Falcon Crit on Marked targets) · Skill 2 ตาเหยี่ยว · 2nd job
     const effFlee = m.huntMark > 0 ? (m.def.flee ?? 5) * Math.max(0, 1 - this.st.j2MarkPierceFlee) : (m.def.flee ?? 5)
     const noFlee = m.huntMark > 0 && this.st.j2MarkPierceFlee >= 1
-    if (!magic && !crit && !this.sureHit && !noFlee && this.zenTurns <= 0 && Math.random() > hitChance(this.st.hit, effFlee)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
+    const critSkipsFlee = crit && (!this.isSkillHit() || this.backStabbing) // Q 2026-11-19: only a basic / combo / counter crit skips Flee; a physical skill hit rolls Hit (Back Stab is a stated sure hit)
+    if (!magic && !critSkipsFlee && !this.sureHit && !noFlee && this.zenTurns <= 0 && Math.random() > hitChance(this.st.hit, effFlee)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
     if (!magic && !this.backStabbing && m.def.luckyDodge && Math.random() < m.def.luckyDodge) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, '🍀 หลบ!', '#a9a6c7'); return 0 } // D6+ stat monsters: LUK lucky dodge (even vs crits, like the hero's)
     if (m.def.fixedFlee && Math.random() < m.def.fixedFlee) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS 👻', '#e0a8ff'); return 0 } // Maiden: always 50%
     if (this.skillHits) mul *= 1 - this.skillCut() // spell vamp drawbacks: skill / ult damage cut
@@ -1368,9 +1369,9 @@ export class BattleScene extends Phaser.Scene {
     const wasForce = this.forceCrit; if (release || shadowSure) this.forceCrit = true // sure crits keep full crit power (critPow)
     const r = this.roll(mul, magic, crit, critDmgAdd); this.forceCrit = wasForce
     const up = this.src === 'ult' ? this.st.ultPierce : 0 // v78 บดกระดูก: ult pierce
-    const awPierce = !magic && !crit && this.st.j3Rn > 0 && (this.awakenTurns > 0 || this.stampedeFiring) ? this.st.j2Spiral : 0
+    const awPierce = !magic && this.st.j3Rn > 0 && (this.awakenTurns > 0 || this.stampedeFiring) ? this.st.j2Spiral : 0
     const sunder = (m.sunderTurns ?? 0) > 0 ? Math.max(0, 1 - (m.sunder ?? 0)) : 1
-    if (!magic && !crit) r.dmg = m.def.def ? Math.max(1, Math.round(afterDef(r.dmg, m.def.def * (1 - Math.min(1, pierce + up + awPierce)) * Math.max(0, 1 - this.st.physPen) * sunder * (m.armorBrk > 0 ? 1 - KIT2.mobster.armorBrk : 1) * (this.job.id === 'thief' ? 1 - poisonDefCut(m.poison) : 1)))) : r.dmg // Mobster เกราะแตก · Ranger j2Spiral · physPen · void_sunder
+    if (!magic) r.dmg = m.def.def ? Math.max(1, Math.round(afterDef(r.dmg, m.def.def * (1 - Math.min(1, pierce + up + awPierce)) * Math.max(0, 1 - this.st.physPen) * sunder * (m.armorBrk > 0 ? 1 - KIT2.mobster.armorBrk : 1) * (this.job.id === 'thief' ? 1 - poisonDefCut(m.poison) : 1)))) : r.dmg // crits face DEF too (Q 2026-11-19) · Mobster เกราะแตก · Ranger j2Spiral · physPen · void_sunder
     if (magic && m.def.mdef) r.dmg = Math.max(1, Math.round(r.dmg * (1 - m.def.mdef * (1 - Math.min(1, pierce + up)) * Math.max(0, 1 - this.st.magPen) * sunder))) // D6+ stat monsters: WIS M.DEF · magPen · void_sunder
     if (r.crit && m.def.statDef?.critDR) r.dmg = Math.max(1, Math.round(r.dmg * Math.max(1 / (this.st.critMul || 1), 1 - m.def.statDef.critDR))) // LUK crit DR, never below a normal hit
     if (m.def.toxicSkin) { // venomqueen Toxic Skin: crit bonus halved, -5% damage
@@ -3068,6 +3069,8 @@ export class BattleScene extends Phaser.Scene {
   }
   /** On-hit proc (zap / fire / ice / spear / light ...) or a Sage Auto Spell bolt: rolls spellCrit (CRIT_RULES). */
   private isProcHit() { return this.autoSpelling || this.reacting || ELEM_SRC.has(this.src) } // 🎓 reactions roll spellCrit (Sage cap)
+  /** An active skill / Ult hit (not a proc): rolls skillCrit, and a physical one must pass Hit/Flee even on a crit. */
+  private isSkillHit() { return !this.isProcHit() && (this.src === 'skill' || this.src === 'ult' || (this.skillSlot !== null && this.src === 'other')) }
   /** Sage rework v1 crit split (data/battle-rules.ts CRIT_RULES): basic -> crit · skill/Ult -> skillCrit · proc -> spellCrit. */
   /** P2'a th_t2a: one Ult cooldown cut, the single place Thief Ult CD cuts go through (P2'c adds the global cap / floor here). */
   private cutUltCd(n: number) { this.smashCdLeft = Math.max(0, this.smashCdLeft - n) }
@@ -3151,9 +3154,11 @@ export class BattleScene extends Phaser.Scene {
     const iceBonus = target && (target.chill > 0 || target.frozen) ? (this.st.j2IcePerk > 0 ? KIT2.sage.perk.iceCritBonus : 0) + this.st.j2IceCrit : 0
     const chargeCrit = (magic || this.isProcHit()) && this.st.lightChargeLv > 0 && this.lightChargeStacks > 0 ? this.lightChargeStacks * (0.02 + this.st.lightChargeLv * 0.01) : 0
     if (this.isProcHit()) return Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit)
-    const skill = this.src === 'skill' || this.src === 'ult' || (this.skillSlot !== null && this.src === 'other')
-    const shroudSc = this.inShroud() ? S2N.smokeSkillCrit : 0 // P2'b Shroud: skillCrit + (still under C.skillCrit)
-    if (skill) return Math.min(C.skillCrit, this.st.skillCrit + shroudSc + sc + iceBonus + (magic ? this.st.spellCrit + chargeCrit : (this.st.crit + physAdd) * CRIT_RULES.skillFromCrit))
+    if (this.isSkillHit()) {
+      const skillCrit = this.st.skillCrit + (this.inShroud() ? S2N.smokeSkillCrit : 0) // P2'b Shroud: skillCrit + (still under C.skillCrit)
+      if (!magic && skillCrit <= 0) return 0 // Q 2026-11-19: a physical skill needs skillCrit to crit at all (talent / buff bonuses ride on top of it)
+      return Math.min(C.skillCrit, skillCrit + sc + iceBonus + (magic ? this.st.spellCrit + chargeCrit : (this.st.crit + physAdd) * CRIT_RULES.skillFromCrit))
+    }
     return magic ? Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit) : Math.min(C.crit, this.st.crit + physAdd + sc)
   }
   /** Share of the crit bonus a skill hit keeps (admin: same `crit.<class>.<slot>` number; 1 = full). Sure crits and element procs always keep all of it. */
@@ -4115,7 +4120,7 @@ export class BattleScene extends Phaser.Scene {
     if (!quiet) this.floatText(HERO_X, GROUND - 100, `🛡️ โล่ ${Math.round(this.shield)}`, '#9fe3ff')
   }
 
-  /** RO-style crit: physical only, uses max ATK (no low roll) x critMul (base 1.4 + crit-damage bonuses). Caller skips DEF on a crit. */
+  /** RO-style crit: physical only, uses max ATK (no low roll) x critMul (base 1.4 + crit-damage bonuses). Caller still applies DEF on a crit (Q 2026-11-19). */
   private roll(mul = 1, magic = false, crit = Math.random() < this.critRateFor(magic, 0), critDmgAdd = 0) { // crit split: CRIT_RULES via critRateFor
     const hb = hitBase(this.st, magic) // data/skill-math.ts: the one place the hit base (and the coming 70/30 magic rule) lives
     const base = (crit ? hb.hi : Phaser.Math.FloatBetween(hb.lo, hb.hi)) * (this.berserking() ? 1.4 : 1) * this.atkMul()
@@ -4145,7 +4150,7 @@ export class BattleScene extends Phaser.Scene {
         continue
       }
       const r = this.roll(this.st.smashMul * (1 + this.st.pskill))
-      this.damageMon(m, r.crit ? r.dmg : this.armor(m, r.dmg, this.st.ultPierce), true) // v78 บดกระดูก pierce
+      this.damageMon(m, this.armor(m, r.dmg, this.st.ultPierce), true) // v78 บดกระดูก pierce · crits face DEF too (Q 2026-11-19)
       if (!m.dead) { m.gauge = Math.max(0, m.gauge - 40); this.tweens.add({ targets: m.spr, x: m.spr.x + 30, duration: 90, yoyo: true }) }
     }
     await this.wait(250)

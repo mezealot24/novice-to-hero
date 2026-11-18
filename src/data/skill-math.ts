@@ -16,7 +16,7 @@ export const MAGIC_MIX = { matk: 0.7, atk: 0.3 }
 export const magicPower = (st: Stats) => st.matk * MAGIC_MIX.matk + st.atk * MAGIC_MIX.atk
 /** Magic hit base before the skill multiplier: Pm 0.9–1.1x (a crit uses the top). */
 export const magicBase = (st: Stats) => { const pm = magicPower(st); return { lo: pm * 0.9, hi: pm * 1.1 } }
-/** Physical hit base: P.ATK minPct–1x (DEX raises the floor; a crit uses the top and skips DEF). */
+/** Physical hit base: P.ATK minPct–1x (DEX raises the floor; a crit uses the top, DEF still applies). */
 export const physBase = (st: Stats) => ({ lo: st.atk * st.minPct, hi: st.atk })
 export const hitBase = (st: Stats, magic: boolean) => (magic ? magicBase(st) : physBase(st))
 
@@ -670,7 +670,7 @@ export const sageRodGain = (st: Stats, vit: number) => {
 /** Damage of one hit at `mul`, before monster DEF: "lo–hi (คริ X)". Uses CRIT_RULES split when `skill` is true. */
 export function hitText(st: Stats, mul: number, magic: boolean, skill = false) {
   const b = hitBase(st, magic)
-  const c = skill ? Math.min(CRIT_RULES.cap.skillCrit, st.skillCrit + (magic ? st.spellCrit : st.crit * CRIT_RULES.skillFromCrit)) : (magic ? st.spellCrit : st.crit)
+  const c = skill ? (!magic && st.skillCrit <= 0 ? 0 : Math.min(CRIT_RULES.cap.skillCrit, st.skillCrit + (magic ? st.spellCrit : st.crit * CRIT_RULES.skillFromCrit))) : (magic ? st.spellCrit : st.crit) // Q 2026-11-19: physical skill crit needs skillCrit
   return `${range(b.lo * mul, b.hi * mul)}${c > 0 ? ` (คริ ${r(b.hi * mul * st.critMul)})` : ''}`
 }
 const heal = (st: Stats, n: number) => r(n * (1 + st.healAmp))
