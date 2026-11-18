@@ -1,0 +1,5 @@
+# Godot 4 editor cache and export output
+.godot/
+/android/
+/build/
+/shots/
