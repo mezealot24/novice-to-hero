@@ -380,6 +380,7 @@ export const S2P = {
   mshieldTake: { base: 0.4, per: 0.05 }, novaMul: { base: 0.8, per: 0.15 }, arcaneMul: { base: 0.6, per: 0.1 },
   renewHeal: { base: 0.3, per: 0.05 }, kyrieHp: { base: 0, per: 0.05 }, spearPlus: { base: 0, per: 0.03 },
   smokeHeal: { base: 0, per: 0.03 }, pickRes: { base: 15, per: 5 },
+  smokeRes: { base: 10, per: 5 }, woundMax: { base: 6, per: 2 / 3 }, // P2'b: ควันหอม Energy (rounded) · แผลฉีก Wound cap (floored)
 }
 const lin = (k: { base: number; per: number }, lv: number) => k.base + k.per * lv
 
@@ -404,6 +405,15 @@ export const S2N = {
   smokeHeal: (lv: number) => lin(S2P.smokeHeal, lv), smokeDodges: (star: boolean) => (star ? 2 : 1),
   pickMul: (star: boolean) => (star ? 1.6 : 1), pickRes: (lv: number) => lin(S2P.pickRes, lv), pickPoison: 3,
   woundMul: (star: boolean) => (star ? 2 : 1.2), woundPoison: (lv: number) => 4 + Math.round(lv), // stacks: whole numbers (v83 s2Lv can be fractional)
+  // P2'b (MAIN-VS-REV4 §4, R4.7.3 minus ล้วงกระเป๋า: main's steal stays): plain numbers so the admin can tune them (skills `s2n.<key>`)
+  // ม่านควัน: Shroud (FLEE x(1 + smokeFlee), skillCrit +, ★ Crit Dmg + in B3) · first active hit = Sightless Raid + Exposed (B1) + Blind (KIT2.crusader.blindHit)
+  smokeTurns: 2, smokeFlee: 0.25, smokeSkillCrit: 0.15, smokeCritDmg: 0.25, raidMul: 1.2,
+  exposedPct: 0.2, exposedStar: 0.3, exposedTurns: 2, smokeBlindTurns: 2,
+  smokeRes: (lv: number) => Math.round(lin(S2P.smokeRes, lv)), // whole Energy (s2Lv can be fractional)
+  // แผลลึก: Wound stacks (hero turns, refreshed on every add) · Blade's End at bladeAt Wound (1 / turn / target) · Privileged +woundPriv in B1
+  woundStacks: 2, woundStarStacks: 3, woundTurns: 3, woundStrikeChance: 0.5,
+  bladeAt: 3, bladeMul: 1.8, bladeHealCut: 0.4, bladeCutTurns: 2, woundPriv: 0.12,
+  woundMax: (lv: number) => Math.floor(lin(S2P.woundMax, lv)), // whole stacks (s2Lv can be fractional)
 }
 
 // ---------- costs / cooldowns ----------

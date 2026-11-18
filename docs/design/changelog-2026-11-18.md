@@ -49,3 +49,9 @@
 - New `KIT`: `thiefTakenCap` 0.6 · `thiefPrivShare` 0.6 · `thiefPoisonAmpShare` 0.5 · `thiefStackHpMax` 20 (admin `kit` + Thai labels)
 - Stack thresholds are a share of the hero's poison cap (§5.1 #3): at cap 20 gear กัดกร่อน = 10 stacks (same as today), สถานะทับซ้อน = 12 · cap 29 → 15 / 18
 - No behavior yet · tests: `tests/thief-p2b.test.ts`
+
+## 🔧 feat(thief): P2'b Skill 2 numbers ม่านควัน / แผลลึก + admin labels
+- `S2P.smokeRes` {10, 5} (ควันหอม Energy, rounded) · `S2P.woundMax` {6, 2/3} (แผลฉีก Wound cap, floored)
+- 18 plain `S2N` numbers: Shroud (`smokeTurns` 2 · `smokeFlee` 0.25 · `smokeSkillCrit` 0.15 · ★ `smokeCritDmg` 0.25) · Sightless Raid `raidMul` 1.2 · Exposed 0.2 / ★ 0.3, 2 turns · Blind 2 turns · Wound 2 / ★ 3 stacks, 3 hero turns, D.Strike 50% · Blade's End at 3 Wound, 1.8x, heal cut 40% 2 turns · Privileged +12%
+- All in admin `skills` (Thai labels in `S2N_TH` / `S2P_TH`) · ล้วงกระเป๋า untouched (main's steal)
+- Numbers only: skill texts + behavior land with the ม่านควัน / แผลลึก commits

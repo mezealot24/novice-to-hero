@@ -2,7 +2,7 @@
 // of the poison cap, Exposed / Wound, talents th_t4a / th_t1c, ม่านควัน / แผลลึก numbers. Run: node tools/test.mjs thief-p2b
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { debuffKinds, KIT, poisonAt, poisonCapOf, takenAmp, type DebuffFlags, type TakenIn } from '../src/data/skill-math'
+import { debuffKinds, KIT, poisonAt, poisonCapOf, S2N, S2P, takenAmp, type DebuffFlags, type TakenIn } from '../src/data/skill-math'
 
 const near = (a: number, b: number, msg = '') => assert.ok(Math.abs(a - b) < 1e-9, `${msg} ${a} != ${b}`)
 const NO: DebuffFlags = { poison: false, wound: false, exposed: false, chill: false, stabMark: false, blind: false, armorBrk: false, weak: false }
@@ -35,4 +35,21 @@ test('thresholds follow the poison cap (MAIN-VS-REV4 §5.1 #3): share x poisonMa
   assert.equal(poisonAt(KIT.thiefPrivShare, a3), 18)
   assert.equal(poisonAt(0, base), 1)
   assert.ok(poisonAt(KIT.thiefPrivShare, a3) <= a3 && poisonAt(1, a3) === a3, 'never above the cap')
+})
+
+test('Skill 2 numbers: ม่านควัน / แผลลึก plain numbers, "+" values whole at fractional s2Lv, no ล้วงกระเป๋า rework', () => {
+  const nums = ['smokeTurns', 'smokeFlee', 'smokeSkillCrit', 'smokeCritDmg', 'raidMul', 'exposedPct', 'exposedStar', 'exposedTurns', 'smokeBlindTurns',
+    'woundStacks', 'woundStarStacks', 'woundTurns', 'woundStrikeChance', 'bladeAt', 'bladeMul', 'bladeHealCut', 'bladeCutTurns', 'woundPriv'] as const
+  for (const k of nums) assert.ok(typeof S2N[k] === 'number' && S2N[k] > 0, k)
+  assert.ok(S2N.exposedStar >= S2N.exposedPct && S2N.woundStarStacks >= S2N.woundStacks)
+  let prev = 0
+  for (const lv of [0, 0.6, 1.2, 1.8, 2.4, 3, 3.6, 5]) {
+    const w = S2N.woundMax(lv), r = S2N.smokeRes(lv)
+    assert.ok(Number.isInteger(w) && Number.isInteger(r), `lv ${lv}: ${w} / ${r}`)
+    assert.ok(w >= prev && w >= S2N.bladeAt, `woundMax never drops and reaches Blade's End (lv ${lv})`); prev = w
+  }
+  assert.equal(S2N.woundMax(0), 6); assert.equal(S2N.woundMax(3), 8); assert.equal(S2N.smokeRes(3), 25)
+  assert.ok('smokeRes' in S2P && 'woundMax' in S2P)
+  assert.equal(typeof S2N.pickMul, 'function', "th_pick = main's steal (not touched)")
+  for (const k of ['pickBase', 'pickStarMul', 'pickZeny', 'plunderRes']) assert.ok(!(k in S2N), k)
 })
