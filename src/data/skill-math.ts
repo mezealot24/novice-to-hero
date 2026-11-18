@@ -849,7 +849,12 @@ export function skill2Info(k: Skill2Def, st: Stats): InfoRow[] {
       break
     case 'th_pick': { const T = KIT.thiefSteal; add('แทงตัวหน้า', hitText(st, S2N.pickMul(star), false)); add('คืน Energy', `${S2N.pickRes(lv)}`); if (star) add('พิษ', `+${S2N.pickPoison} stack`)
       add(star ? 'ขโมย 2 อย่าง (stat เด่น 1-2)' : 'ขโมยตาม stat เด่น', `STR→P.ATK +${Math.round(T.atk * 100)}% · AGI→Energy +${T.res} · INT→พิษ ${T.poison} · VIT→เกราะแตก ${T.brkTurns} · WIS→ฮีล ${Math.round(T.heal * 100)}% · LUK/DEX→คริ +${Math.round(T.crit * 100)}% (${T.turns} เทิร์น)`); break }
-    case 'th_wound': add('แทงทะลุ DEF', hitText(st, S2N.woundMul(star), false)); add('พิษ', `+${S2N.woundPoison(lv)} stack (${thiefPoisonPerStack(st).toFixed(1)}/stack/เทิร์น)`); break
+    case 'th_wound':
+      add('แทงทะลุ DEF', hitText(st, S2N.woundMul(star), false)); add('พิษ', `+${S2N.woundPoison(lv)} stack (${thiefPoisonPerStack(st).toFixed(1)}/stack/เทิร์น)`)
+      add('Wound', `+${star ? S2N.woundStarStacks : S2N.woundStacks} stack (สูงสุด ${S2N.woundMax(lv)} · ${S2N.woundTurns} เทิร์น)${lv ? ` · D.Strike ${pct(S2N.woundStrikeChance)} +1` : ''}`)
+      add(`Blade's End (Wound ≥ ${S2N.bladeAt})`, `${hitText(st, S2N.bladeMul * (1 + st.pskill), false)} · ตัดฮีลมอน ${pct(S2N.bladeHealCut)} ${S2N.bladeCutTurns} เทิร์น${star ? ' · คริได้' : ''}`)
+      add('Privileged (พิษ + Wound)', `รับดาเมจ +${pct(S2N.woundPriv)}`)
+      break
   }
   return out
 }

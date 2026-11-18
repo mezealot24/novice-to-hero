@@ -80,3 +80,10 @@
 - "+" ควันหอม: heal as before + Energy 10 + 5/Lv (rounded)
 - 👑 ราชันย์โลหิต (thief_c4) also turns on inside Shroud · smoke bomb VFX kept, Raid uses the dagger-cross VFX
 - Texts + skill info rows updated
+
+## ✨ feat(thief): P2'b แผลลึก — Wound + Blade's End + heal cut + D.Strike Wound
+- Stab (1.2x / ★ 2x, DEF pierce, poison as before) also puts 🩸 **Wound** 2 (★ 3) stacks, cap 6 + 2/3 per "+" Lv (floored, Lv 3 = 8), lasts 3 hero turns (refreshed on each add)
+- Basic / combo / D.Strike / Back Stab hit on a target with Wound ≥ 3 = **Blade's End**: spends 3 Wound, 1.8x × (1 + P.skill) DEF-piercing hit (no lifesteal, crits only with ★ แผลมรณะ) + monster heal cut 40% for 2 monster turns (bigger cut wins vs burn / hellfire) · once per hero turn per monster · แทงพิษ alone never detonates
+- Privileged (B1): a target with poison + Wound takes +12% from everything (dot too), under the +60% cap
+- "+" แผลฉีก: D.Strike 50% → Wound +1
+- Texts + info rows · Blade's End uses the shadow-slash VFX

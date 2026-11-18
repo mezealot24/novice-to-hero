@@ -111,6 +111,17 @@ test('ม่านควัน: cost 35, texts + info rows read S2N, ราช�
   assert.match(nodeById('thief_c4')!.desc(1), /ม่านควัน/)
 })
 
+test('แผลลึก: texts + info rows read S2N (Wound, Blade\'s End, Privileged), whole numbers at fractional "+" Lv', () => {
+  const sk = SKILL2.find((x) => x.id === 'th_wound'); assert.ok(sk)
+  assert.match(sk.desc, /Wound 2 stack \(สูงสุด 6/); assert.match(sk.desc, /Blade's End 1\.8x/); assert.match(sk.desc, /\+12%/)
+  for (const lv of [0, 0.6, 1.8, 3]) { const d = sk.plus.desc(lv); assert.ok(!/undefined|NaN|\.\d{2,}/.test(d), d) }
+  assert.match(sk.plus.desc(3), /Wound สูงสุด 8/)
+  assert.match(sk.star.desc, /Wound 3 stack/)
+  const rows = skill2Info(sk, { ...PLAYER, s2Lv: 3, s2Star: 1 })
+  for (const k of ['Wound', "Blade's End", 'Privileged']) assert.ok(rows.some((r) => r.label.includes(k)), k)
+  assert.ok(rows.every((r) => !/undefined|NaN/.test(r.label + r.value)))
+})
+
 const mem: Record<string, string> = {}
 ;(globalThis as { localStorage?: unknown }).localStorage = {
   getItem: (k: string) => mem[k] ?? null,
