@@ -1279,6 +1279,7 @@ export class BattleScene extends Phaser.Scene {
     this.lastCrit = r.crit
     this.damageMon(m, r.dmg, r.crit, color)
     if (this.raidReady && !magic && !this.allyHitting && !m.dead && (this.src === 'basic' || this.src === 'combo' || this.src === 'skill' || this.src === 'ult')) this.sightlessRaid(m)
+    if (this.s2?.id === 'th_wound' && !magic && !m.dead && !this.allyHitting && !m.bladeSpent && m.wound >= S2N.bladeAt && (this.src === 'basic' || this.src === 'combo' || this.backStabbing)) this.bladesEnd(m) // แทงพิษ (src skill) alone never detonates
     if (r.crit && !this.killHealCritUsed && this.st.killHeal > 0 && (m.def.ai === 'boss' || !!m.def.mini) && this.hp > 0) {
       this.killHealCritUsed = true
       this.heal(this.st.maxHp * this.st.killHeal * 0.25, true)
@@ -2940,6 +2941,25 @@ export class BattleScene extends Phaser.Scene {
     this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 40, '👁️ Sightless Raid', '#e6e6f2')
     this.withSrc('other', () => this.strike(m, S2N.raidMul * (1 + this.st.pskill), false, '#e6e6f2'))
   }
+  /** P2b แผลลึก: add Wound stacks (cap S2N.woundMax(s2Lv)), refresh to S2N.woundTurns hero turns. P2c On-Hit Ult / thief_b4 ★ call it too. */
+  private addWound(m: Mon, n: number) {
+    if (m.dead || n <= 0) return
+    m.wound = Math.min(S2N.woundMax(this.st.s2Lv), m.wound + n); m.woundTurns = S2N.woundTurns; this.dotIcon(m)
+  }
+  /** P2b แผลลึก Blade's End: spend S2N.bladeAt Wound for a DEF-piercing hit + heal cut, once per hero turn per monster (flag set BEFORE the hit). */
+  private bladesEnd(m: Mon) {
+    m.bladeSpent = true; m.wound -= S2N.bladeAt
+    m.woundCut = Math.max(m.woundCut, S2N.bladeHealCut); m.woundCutTurns = S2N.bladeCutTurns
+    this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 40, "🩸 Blade's End", '#ff7a7a')
+    const prevLs = this.lsMul, prevForce = this.forceCrit
+    this.lsMul = 0
+    const blade = () => this.withSrc('other', () => this.strike(m, S2N.bladeMul * (1 + this.st.pskill), false, '#ff7a7a', 1))
+    try {
+      if (this.st.s2Star > 0) blade() // ★ แผลมรณะ: Blade's End can crit
+      else { this.forceCrit = false; this.noPetCrit(blade) } // no crit, not even inside a forced-crit Back Stab
+    } finally { this.lsMul = prevLs; this.forceCrit = prevForce }
+    this.dotIcon(m)
+  }
   /** P2b ม่านควัน Shroud is up (thief_c4 ★ reads it). */
   private inShroud(): boolean { return this.shroudTurns > 0 }
   /** P2b: hero FLEE right now (ม่านควัน Shroud x(1 + S2N.smokeFlee)); never write st.flee itself. */
@@ -3044,6 +3064,7 @@ export class BattleScene extends Phaser.Scene {
     this.strike(m, mul)
     this.lsMul = prev
     if (this.st.thStrikePoison > 0 && !m.dead) this.addPoison(m, 1) // P2a thief_a3: D.Strike landed -> +1 poison
+    if (this.s2?.id === 'th_wound' && this.st.s2Lv > 0 && !m.dead && Math.random() < S2N.woundStrikeChance) this.addWound(m, 1) // P2b "+" แผลฉีก
   }
 
   /** While true, melee hits stay at the monster (combo chain, Thief ult) and the hero walks home once at the end via goHome(). */
@@ -3426,6 +3447,7 @@ export class BattleScene extends Phaser.Scene {
         await this.lunge(m, () => {
           this.strike(m, S2N.woundMul(star), false, '#ff7a7a', 1)
           if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + S2N.woundPoison(lv)); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) }
+          this.addWound(m, star ? S2N.woundStarStacks : S2N.woundStacks) // P2b Wound
         })
         break
       }

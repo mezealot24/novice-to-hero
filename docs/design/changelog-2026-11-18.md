@@ -84,3 +84,8 @@
 - P2b T7: ล้วงกระเป๋า = **one basic swing** on the front monster: 1.3x (★ 1.9x) P.ATK × (1 + pskill), basic crit (`st.crit`, not the skill formula), basic bracket, full lifesteal, D.Strike chance, `procs('basic')` once · Energy `S2N.pickRes(lv)` as before (now through `resGain`)
 - **ปล้น Zeny**: 8 + DEX/10 the first time each monster is picked
 - ★ จอมโจร: poison +3 as before + **Plunder**: a kill (or any pick on a boss) → Energy +10 and 💎 drop chance +5% per stack (max 3 stacks per wave, reset each wave) · tied to the 💎 `dropChance` roll only (cards / mats / uniques untouched, INTEGRATION §3)
+
+## 🩸 feat(thief): th_wound — Wound stacks + Blade's End + healCut + D.Strike Wound
+- P2b T8: แผลลึก also puts **Wound** 2 (★ 3) stacks (cap `S2N.woundMax(s2Lv)` 6 → 8, 3 hero turns, refreshed on every add) via `addWound()` (P2c will call it too)
+- **Blade's End**: a basic / combo / D.Strike / Back Stab hit on a monster with ≥ 3 Wound spends 3 for 1.8x P.ATK × (1 + pskill), DEF pierce, no leech, + heal cut 40% for 2 monster turns · once per hero turn per monster · แทงพิษ alone never detonates · crits only with ★ แผลมรณะ
+- "+" แผลฉีก: D.Strike 50% → +1 Wound · Privileged +12% (B1) works since T4
