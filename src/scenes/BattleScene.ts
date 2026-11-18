@@ -23,7 +23,7 @@ import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/ski
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
-import { ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
+import { ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefS1Woven, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -722,7 +722,7 @@ export class BattleScene extends Phaser.Scene {
   private async fight(id: number): Promise<boolean> {
     this.undrain()
     this.fightTurns = 0; this.timedOut = false
-    this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.rampage = 0
+    this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.s1Weave = false; this.rampage = 0
     this.martyrUsed = false; this.j2Hurt = false; this.monkGrit = 0; this.asuraExhaust = 0; this.awakenTurns = 0; this.awakenAbsorbed = 0; this.awakenUltPow = 1; this.clearAllies() // Crusader ★ ผู้พลีชีพ once per wave · allies last one wave · Awakening resets per wave
     this.inspireUsed = false; this.inspire = 0; this.earthDone = false // ⚜️ Paladin: once per fight
     this.clearBookings() // v86: booked Skill 1-3 do not carry into the next wave (the ult booking does)
@@ -1072,7 +1072,7 @@ export class BattleScene extends Phaser.Scene {
     if (ultWaiting) this.floatText(HERO_X, GROUND - 140, this.charges < asuraNeed ? `🔵 ลูกพลังไม่พอ อาชูร่า (${this.charges}/${asuraNeed})` : `🔷 Mana ไม่พอ ult (${Math.floor(this.res)}/${ultCost})`, '#5aa0ff') // keep it booked, save Mana/charges for it
     const cost = autoCost(this.job, this.st)
     const s1Ok = mayCast(!this.autoUlt, this.book.s1) // v86: manual mode only casts Skill 1 when it is booked, otherwise a basic attack (saves Mana for the ult)
-    const castS1 = async () => { this.spendRes(cost); this.book.s1 = false; this.popSkill('s1'); await this.asSkill(() => this.autoSkill(), 'skill', 's1') }
+    const castS1 = async () => { this.spendRes(cost); this.book.s1 = false; this.popSkill('s1'); await this.asSkill(() => this.autoSkill(), 'skill', 's1'); if (this.job.id === 'thief') this.s1Weave = true } // P2a สลับคม: the next turn is a basic attack
     if (this.job.id === 'cleric') { // v59 Q: the Priest smashes EVERY turn; Skill 1 rides along (heal first when low, holy light after the smash)
       const castable = () => s1Ok && !ultWaiting && this.res >= cost && this.alive().length > 0 && this.hp > 0
       const low = this.hp < this.st.maxHp * (KIT.clericHealBelow - this.st.healAt)
@@ -1082,7 +1082,7 @@ export class BattleScene extends Phaser.Scene {
       await this.faithBurst() // v84 ศรัทธา: full Faith bursts after the turn's actions
       return
     }
-    if (this.job.resource && this.j2?.id !== 'sage' && s1Ok && !ultWaiting && this.res >= cost && this.alive().length) {
+    if (this.job.resource && this.j2?.id !== 'sage' && s1Ok && !ultWaiting && !thiefS1Woven(this.job.id, this.s1Weave) && this.res >= cost && this.alive().length) {
       await castS1()
       return
     }
@@ -1339,6 +1339,7 @@ export class BattleScene extends Phaser.Scene {
   private rampage = 0 // Berserker บ้าระห่ำ turns left
   private boomUsed = false // Knight Spear Boomerang used this wave
   private firstSwing = false // Knight Charge Attack: first basic swing of the wave
+  private s1Weave = false // P2a Thief สลับคม: แทงพิษ was cast, the next hero action is a basic attack (cleared by basicAttack)
   private killHealCritUsed = false // กระหายเลือด: boss/mini crit heal once per hero turn
   private forceCrit = false
   /** Q 2026-11-14: Beastmaster Ult + Skill 3 hawk / boar hits never crit (the wolf still can; sure crits still go through). */
@@ -2976,12 +2977,13 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  /** Thief passive Double Strike: chance of +1 hit (Q: unlike RO, it can crit; lifesteals at 33%). */
+  /** Thief passive Double Strike: chance of +1 hit (Q: unlike RO, it can crit; lifesteals at KIT.thiefStrikeLs). P2a: landing it gives Energy. */
   private doubleAttack(m: Mon, mul: number) {
     if (this.st.doubleAtk <= 0 || m.dead || Math.random() >= doubleAtkChance(this.st.doubleAtk)) return
     this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 22, 'DOUBLE!', '#ffd36b')
+    if (this.job.resource === 'energy') this.resGain(KIT.thiefStrikeRes)
     const prev = this.lsMul
-    this.lsMul = 0.33
+    this.lsMul = KIT.thiefStrikeLs
     this.strike(m, mul)
     this.lsMul = prev
   }
@@ -3065,6 +3067,7 @@ export class BattleScene extends Phaser.Scene {
   /** Basic attack, then combo: each success chains one more (COMBO.baseCount + st.comboCount). */
   private async basicAttack() {
     const target = this.front()[0]
+    this.s1Weave = false // P2a สลับคม: any basic attack ends the weave
     // 📖 Sage Passive Skill 1 (ศาสตราวุธธาตุ): never skips basicAttack; spends Mana alongside the swing to empower + guarantee Auto Spell
     this.sageInfusePow = 0
     if (this.j2?.id === 'sage' && target) {

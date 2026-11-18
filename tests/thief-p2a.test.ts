@@ -121,3 +121,16 @@ test('autoCost: แทงพิษ 45, floor 30 (Rogue / Mobster share JOBS.thie
   assert.equal(autoCost(JOBS.thief, st({ autoCostCut: 40 })), KIT.thiefAutoMinCost)
   assert.equal(autoCost(JOBS.mage, st({ autoCostCut: 0 })), JOBS.mage.auto.cost)
 })
+
+test('Energy loop: S1 then a basic attack, 1:1 whatever the cost cut (floor 30 included)', async () => {
+  const { RES_RULES } = await import('../src/data/jobs')
+  for (const cut of [0, 16, 40]) {
+    const cost = autoCost(JOBS.thief, st({ autoCostCut: cut }))
+    let res = 100, weave = false, s1 = 0, basic = 0
+    for (let turn = 0; turn < 20; turn++) {
+      res = Math.min(100, res + RES_RULES.energyPerTurn)
+      if (!thiefS1Woven('thief', weave) && res >= cost) { res -= cost; weave = true; s1++ } else { weave = false; basic++ }
+    }
+    assert.ok(Math.abs(s1 - basic) <= 1, `cut ${cut}: S1 ${s1} vs basic ${basic}`)
+  }
+})

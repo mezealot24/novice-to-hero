@@ -16,3 +16,8 @@
 - Talents row 2: `th_t2a` ขโมยจังหวะ (+CD cut) · `th_t2b` จุดบอดซ้อนพิษ (crit per stack) · `th_t2c` จังหวะสลับมีด (weave bonus; no more `autoCostCut`)
 - Tests: new `tests/thief-p2a.test.ts` · `admin-model` borrow tests no longer use removed Thief nodes
 - Hooks come in the next commits (data only here)
+
+## 🔁 feat(thief): s1Weave alternation and D.Strike energy
+- สลับคม: after แทงพิษ the next hero action is a basic attack (`s1Weave`, cleared by any basic attack · a booked Ult keeps it) → S1 : Basic = 1 : 1 even with cost cuts (Rogue / Mobster too: `job.id` stays `thief`)
+- Double Strike landing: Energy +`KIT.thiefStrikeRes` (4) · its leech share is `KIT.thiefStrikeLs` (was hardcoded 0.33)
+- Test: 20-turn Energy simulation in `tests/thief-p2a.test.ts`
