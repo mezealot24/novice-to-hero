@@ -86,6 +86,12 @@ export const KIT = {
   // Q 2026-11-19 Ratio AGI: เงาพริ้ว +thiefUltAgiK x (AGI above start / stat points the Base Lv gives), share capped at thiefUltAgiShareCap.
   // Was +thiefUltAgi 2% per AGI point (uncapped): Lv 80 all-AGI = x5.74 per stab, early game weak (P.ATK x AGI grew with level squared). Now all-in = x3 at every Lv.
   thiefUltAgiK: 2, thiefUltAgiShareCap: 1.2,
+  // P2'a (design/p2/MAIN-VS-REV4.md §4, R4.7.2 minus the keys §2 drops): แทงพิษ floor · D.Strike Energy / leech · thief_core (c1 / c3 / c4) · th_t2b
+  thiefAutoMinCost: 30, thiefStrikeRes: 4, thiefStrikeLs: 0.33,
+  thiefKindsAt: 2, thiefCondLeechMulti: 1.5,
+  thiefKillRes: 10, thiefKillPoisonHeal: 0.005, thiefKillPoisonHealCap: 0.12, thiefBossCritLeech: 0.375, thiefBossCritRes: 8,
+  thiefBloodKingBelow: 0.45, thiefBloodKingMul: 1.75, thiefBloodKingStrikeLs: 0.66,
+  thiefStackCritTalMax: 14,
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
   // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
   // 💰 Thief ทักษะ 2 ล้วงกระเป๋า (Q 2026-11-18, GW2 Steal): what you steal depends on the front monster's top stat. admin `kit` · thiefSteal.*

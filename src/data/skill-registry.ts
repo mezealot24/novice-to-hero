@@ -122,13 +122,27 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
     ],
   },
   thief: {
-    s1: [sk('job.thief.auto.cost', 'ค่า Energy', COST), kit('thiefAuto', 'ดาเมจแทง ×'), kit('thiefAutoPoison', 'พิษ (stack)')],
+    s1: [sk('job.thief.auto.cost', 'ค่า Energy', COST), kit('thiefAuto', 'ดาเมจแทง ×'), kit('thiefAutoPoison', 'พิษ (stack)'),
+      kit('thiefAutoMinCost', 'แทงพิษ: Energy ต่ำสุดหลังลด'), kit('thiefStrikeRes', 'D.Strike ติด: คืน Energy'), kit('thiefStrikeLs', 'D.Strike: สัดส่วนดูดเลือด')],
     s2: [
       s2('th_smoke', ...lin('smokeHeal', 'ฟื้น % HP')),
       s2('th_pick', ...lin('pickRes', 'คืน Energy'), sk('s2n.pickPoison', 'พิษ (stack)', int(0, 20))),
       s2('th_wound'),
     ],
     ult: [sk('job.thief.ult.cd', 'คูลดาวน์ (เทิร์น)', CD), kit('thiefUlt', 'ดาเมจต่อทีแทง ×'), kit('thiefUltHits', 'จำนวนทีแทง'), kit('thiefUltAgiK', 'AGI ลงเต็มสัดส่วน → แรง +×'), kit('thiefUltAgiShareCap', 'เพดานสัดส่วน AGI'),kit('thiefUltDodge', 'หลบแน่นอน (ครั้ง)')],
+    tree: [ // P2'a: numbers the Thief web core column / talents read at run time
+      kit('thiefKindsAt', '"ดีบัฟหลายชนิด" = กี่ชนิดขึ้นไป'),
+      kit('thiefCondLeechMulti', 'คมเลือด: × เมื่อดีบัฟหลายชนิด'),
+      kit('thiefKillRes', 'กระหายเลือด: ฆ่าได้ Energy'),
+      kit('thiefKillPoisonHeal', 'กระหายเลือด: ฮีลต่อพิษบนศพ'),
+      kit('thiefKillPoisonHealCap', 'กระหายเลือด: ฮีลโบนัสสูงสุด'),
+      kit('thiefBossCritLeech', 'กระหายเลือด: คริบอส ฮีลกี่ส่วน'),
+      kit('thiefBossCritRes', 'กระหายเลือด: คริบอส Energy'),
+      kit('thiefBloodKingBelow', 'ราชันย์โลหิต: HP ต่ำกว่า'),
+      kit('thiefBloodKingMul', 'ราชันย์โลหิต: ดูดเลือด ×'),
+      kit('thiefBloodKingStrikeLs', 'ราชันย์โลหิต: D.Strike ดูดเลือด'),
+      kit('thiefStackCritTalMax', 'จุดบอดซ้อนพิษ: stack สูงสุด'),
+    ],
   },
 }
 

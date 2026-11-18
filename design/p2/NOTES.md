@@ -18,3 +18,9 @@ Entries the implementer logged while coding. Each keeps the spec's intent; "why"
 - **T7 `procs('basic')`**: called once after the swing as the spec says, with the Skill 2 `src` (`'skill'`) still set: `withSrc()` restores `src` synchronously, so it cannot wrap the async `procs()`. Card procs read the trigger, not `src`.
 - **T7 th_t2c weave**: ล้วงกระเป๋า is a basic swing (`src 'basic'`), so a pending จังหวะสลับมีด bonus also applies to it (the bonus is only cleared at the end of `basicAttack()`). Left as is (one basic swing = basic bracket, as the spec asks).
 - **T8 Blade's End crit**: without ★ the spec allowed a forced crit (Back Stab `forceCrit`) to leak into Blade's End; the code clears `forceCrit` for the non-★ hit (the spec's "strict" option) so "Blade's End คริได้" stays a ★-only effect. Hook + Wound add are methods `bladesEnd(m)` / `addWound(m, n)`.
+
+## P2'a
+
+Slice P2'a (design/p2/MAIN-VS-REV4.md §4) on top of main's live Thief rework. Entries where the plan or the old P2a spec did not match the real code.
+
+- **Keys**: only the keys P2'a reads were added (14 KIT · 8 Stats). The ones MAIN-VS-REV4 §2 drops (`thPoisonPen`, `thToxicHold`, `thStrikePoison`, `thPlagueDeath`, `thStackCrit`, `thCritPoison`, `thiefToxicHoldCap`, `thiefSpreadShare`, `thiefPlague*`, `thiefStackCritMax`) are not created at all.
