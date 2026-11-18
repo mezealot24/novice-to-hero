@@ -49,3 +49,8 @@
 
 ## 🐛 fix(admin): Thai labels for kit mageCore
 - `kit.mageCore.*` (กายสู่เวท) had no `KIT_EXPLAIN` rows and no group title → 2 `admin-engine` tests failed (pre-existing, not P2a) · added 4 labels + the group title
+
+## 🎯 feat(thief): B1 takenAmp + debuffKinds pure helpers + KIT keys
+- P2b T1 (`design/p2/P2b-spec.md`): `takenAmp(TakenIn)` = Exposed + stabMark + woundPriv + privileged + gear `poisonAmp` **added**, one cap `KIT.thiefTakenCap` 0.6 (R4.6 B1) · `debuffKinds(flags, wide)` (4 kinds for thief_c1, 8 for th_t4a)
+- New `KIT` keys `thiefTakenCap` 0.6 · `thiefPrivAt` 8 · `thiefStackHpMax` 20 · `thiefPoisonAmpAt` 10 (admin kit table + Thai labels) · `thiefKindsAt` / `thiefStrikeRes` / `thiefStrikeLs` already came with P2a
+- Pure only, no caller yet · tests `tests/thief-p2b.test.ts`

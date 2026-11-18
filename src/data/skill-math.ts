@@ -93,6 +93,8 @@ export const KIT = {
   thiefKillRes: 10, thiefKillPoisonHeal: 0.005, thiefKillPoisonHealCap: 0.12, thiefBossCritLeech: 0.375, thiefBossCritRes: 8,
   thiefBloodKingBelow: 0.45, thiefBloodKingMul: 1.75, thiefBloodKingStrikeLs: 0.66,
   thiefStackCritTalMax: 14,
+  // P2b (design/p2/P2b-spec.md, R4.6 B1 + R4.7.2): Taken bracket cap · th_t4a Privileged · th_t1c stack HP · gear poisonAmp threshold (was a literal 10 in damageMon)
+  thiefTakenCap: 0.6, thiefPrivAt: 8, thiefStackHpMax: 20, thiefPoisonAmpAt: 10,
   // v82 Archer web: 🧪 ศรพิษ (under ทักษะ 1) + 🏷️ ล่าหัว (under Ult), first guesses (design/skill-tree-archer.md v82)
   archerTree: {
     poisonArrow: [0.2, 0.35, 0.5], poisonArrowStacks: 1, vsPoison: 0.06, ricochet: [0.5, 0.7, 0.9], // ศรอาบพิษ chance per arrow · ซ้ำแผล per lv · ศรเด้ง shot mul
@@ -355,6 +357,19 @@ export const S2N = {
   pickMul: (star: boolean) => (star ? 1.6 : 1), pickRes: (lv: number) => lin(S2P.pickRes, lv), pickPoison: 3,
   woundMul: (star: boolean) => (star ? 2 : 1.2), woundPoison: (lv: number) => 4 + Math.round(lv), // stacks: whole numbers (v83 s2Lv can be fractional)
 }
+
+/** B1 (R4.6): flags of the debuffs one monster carries; the Scene fills it, the math stays Phaser-free. */
+export interface DebuffFlags { poison: boolean; wound: boolean; exposed: boolean; chill: boolean; stabMark: boolean; blind: boolean; armorBrk: boolean; weak: boolean }
+/** How many different debuff kinds. `wide` = the th_t4a list (8 kinds); otherwise the thief_c1 list (Poison / Wound / Exposed / Chill). */
+export const debuffKinds = (f: DebuffFlags, wide: boolean): number =>
+  (f.poison ? 1 : 0) + (f.wound ? 1 : 0) + (f.exposed ? 1 : 0) + (f.chill ? 1 : 0) +
+  (wide ? (f.stabMark ? 1 : 0) + (f.blind ? 1 : 0) + (f.armorBrk ? 1 : 0) + (f.weak ? 1 : 0) : 0)
+
+/** B1 inputs: each term is already 0 when its own filter fails (Exposed is !dot, Privileged needs its condition ...). */
+export interface TakenIn { exposed: number; stabMark: number; woundPriv: number; privileged: number; poisonAmp: number }
+/** B1 Taken (R4.6): terms ADD, one cap (KIT.thiefTakenCap). */
+export const takenAmp = (i: TakenIn): number =>
+  Math.max(0, Math.min(KIT.thiefTakenCap, i.exposed + i.stabMark + i.woundPriv + i.privileged + i.poisonAmp))
 
 // ---------- costs / cooldowns ----------
 // floor 10, unless the class's own cost is lower (Mage 5, 2026-11-13) · P2a: Thief (Rogue / Mobster too) floor KIT.thiefAutoMinCost

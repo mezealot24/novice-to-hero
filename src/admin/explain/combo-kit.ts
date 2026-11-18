@@ -278,4 +278,8 @@ export const KIT_EXPLAIN: Record<string, FieldExplain> = {
   thiefBloodKingMul: { label: 'Thief · ราชันย์โลหิต: ดูดเลือด ×', effect: 'เพิ่ม = ตอนราชันย์โลหิตเปิด ดูดเลือดแรงขึ้น' },
   thiefBloodKingStrikeLs: { label: 'Thief · ราชันย์โลหิต: D.Strike ดูดเลือด', effect: 'เพิ่ม = ตอนราชันย์โลหิตเปิด ฮิต Double Strike ดูดเลือดมากขึ้น' },
   thiefStackCritTalMax: { label: 'Thief · จุดบอดซ้อนพิษ: stack สูงสุด', effect: 'เพิ่ม = ทาเลนต์จุดบอดซ้อนพิษนับ stack บนเป้าได้มากขึ้น คริสูงขึ้น' },
+  thiefTakenCap: { label: 'Thief · B1: ดาเมจที่มอนรับเพิ่ม สูงสุด', effect: 'เพิ่ม = Exposed / สถานะทับซ้อน / Privileged / กัดกร่อน รวมกันแล้วดันดาเมจที่มอนรับได้สูงขึ้น (0.6 = สูงสุด +60%)' },
+  thiefPrivAt: { label: 'Thief · Privileged: พิษขั้นต่ำ (stack)', effect: 'เพิ่ม = ทาเลนต์สถานะทับซ้อนต้องสะสมพิษบนเป้ามากขึ้นก่อนเปิดโบนัสดาเมจ' },
+  thiefStackHpMax: { label: 'Thief · กายต้านพิษ: นับ stack สูงสุด', effect: 'เพิ่ม = พิษ+แผลบนสนามนับเป็น Max HP ชั่วคราวได้มากขึ้น (ทาเลนต์กายต้านพิษ)' },
+  thiefPoisonAmpAt: { label: 'Thief · กัดกร่อน (ของใส่/การ์ด): พิษขั้นต่ำ', effect: 'เพิ่ม = โบนัสดาเมจกัดกร่อนจากของใส่/การ์ดต้องรอพิษบนเป้าหนาขึ้นก่อนทำงาน' },
 }
