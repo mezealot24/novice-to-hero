@@ -56,3 +56,14 @@
 - Q playtest: Lv 4, AGI 18 (race +2, gear +4) showed เงาพริ้ว +227% — free AGI filled a 12-point pool, near the ×3.4 cap
 - Share now divides by `max(KIT.thiefUltAgiPoolMin 60, 3 × Base Lv)` (60 = Lv 20's points) · Lv 4 AGI 18 → +57% (pre-P1: +34%) · Lv 20+ unchanged
 - New admin key `thiefUltAgiPoolMin` (kit table, int 0–300, Thai label)
+
+## ⚖️ balance(combat): crit rework, physical skills need skillCrit + Hit, crits no longer ignore DEF (Q)
+- Physical skill / Ult hits crit **only** with `skillCrit` (สกิลคริ): `CRIT_RULES.skillFromCrit` 0.5 -> 0 and `skillCrit <= 0` = no crit at all
+  - Basic `crit` + crit buffs (ตาเหยี่ยว, ขโมยดวง, คลื่นดาบ, Berserker rampage, Warlord rage) no longer reach skills · Thief poison-stack / Sage ice bonuses still ride on top of `skillCrit`
+  - Sure crits are unchanged (`forceCrit`, ร่างเงา, หมายหัว release, Back Stab) · magic skills unchanged (`skillCrit + spellCrit`)
+- Physical skill hits always roll Hit vs Flee, even on a crit (new `isSkillHit()`) · basic / combo / counter crits still skip Flee · `sureHit`, Mark pierce, Zen, Back Stab still sure-hit
+- **No crit ignores DEF**: `strike()` + Novice `smash()` apply DEF on crits · Ranger `awPierce` now applies to crits too · monster crits already faced hero DEF
+- `hitText()` (skill panel) uses the same rule · item texts "คริ = ทะลุเกราะ" removed (u_hawkeye unique, DEX weapon, D9 archer craft, admin DEF explain)
+- Balance impact: big nerf to crit builds (crit dmg now ÷ DEF, skills lose borrowed crit) · physical classes have almost no `skillCrit` source yet
+- Shroud (P2'b ม่านควัน `smokeSkillCrit`) counts as a skillCrit source, so physical skills inside Shroud can crit
+- Tests: `tests/crit-split.test.ts` (+ skill-info tests) · not bot-checked

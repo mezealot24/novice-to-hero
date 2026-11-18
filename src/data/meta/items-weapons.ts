@@ -154,7 +154,7 @@ export const WEAPONS: Item[] = [
 		name: "ธนูพราน",
 		icon: "🏹",
 		price: 520,
-		desc: "แม่นและคริบ่อย (คริ = ทะลุเกราะ โดนแน่)",
+		desc: "แม่นและคริบ่อย",
 		base: { dex: 3 },
 		mod: { atk: 6, hit: 8, crit: 0.05 },
 		jobs: AR,

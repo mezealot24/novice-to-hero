@@ -32,11 +32,13 @@ export const COMBO = {
 
 /** Crit split (design/sage-rework-v1.md §1). Three separate rates:
  *  - `crit`      basic / combo / counter (physical)
- *  - `skillCrit` active skills / Ult (physical skills also borrow `skillFromCrit` of `crit`; magic skills add `spellCrit`)
+ *  - `skillCrit` active skills / Ult (magic skills add `spellCrit`; physical skills borrow `skillFromCrit` of `crit` = 0 now)
  *  - `spellCrit` magic basics + on-hit procs (zap / fire / ice / spear / light ...) + Sage Auto Spell
- *  `crit` no longer leaks into `spellCrit`. A Mage's `crit` mods (gear / card / tree / talent) go to `skillCrit`. */
+ *  `crit` no longer leaks into `spellCrit`. A Mage's `crit` mods (gear / card / tree / talent) go to `skillCrit`.
+ *  Q 2026-11-19: a physical skill crits ONLY with skillCrit (no skillCrit = never crits, except sure-crit effects),
+ *  a physical skill crit no longer skips the Hit/Flee roll, and NO crit ignores DEF any more (hero and monster). */
 export const CRIT_RULES = {
-  skillFromCrit: 0.5, // physical skills: share of basic `crit` that also counts for skills (nerf: was 100%)
+  skillFromCrit: 0, // physical skills: share of basic `crit` (+ crit buffs) that also counts for skills (Q 2026-11-19: 0, was 0.5)
   cap: { crit: 1, skillCrit: 0.6, spellCrit: 0.6 }, // basic crit uncapped (feedback was skill / perk crit only)
   sageSpellCap: 0.75, // Sage: higher spellCrit cap (perk-crit identity)
 } as const

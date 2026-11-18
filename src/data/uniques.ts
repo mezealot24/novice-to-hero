@@ -34,7 +34,7 @@ export const UNIQUE_ITEMS: Item[] = [
   { id: 'u_ghostcloak', slot: 'armor', name: 'ผ้าคลุมไร้เงา', icon: '👻', price: 0, slots: 1, unique: { dg: 'd2' }, jobs: [...TH, ...AR],
     desc: 'หลบแล้วฟื้นเลือด หลบโชคดีบ่อยขึ้น', base: { agi: 3 }, mod: { maxHp: 40, dodgeHeal: 0.04, luckyDodge: 0.06, flee: 10 } },
   { id: 'u_hawkeye', slot: 'head', name: 'ตาเหยี่ยวราชัน', icon: '🦅', price: 0, slots: 1, unique: { dg: 'd5' },
-    desc: 'ตาไว คริบ่อย (คริ = ทะลุเกราะ โดนแน่)', base: { dex: 3 }, mod: { crit: 0.06, hit: 10 } },
+    desc: 'ตาไว คริบ่อย แม่นยำ', base: { dex: 3 }, mod: { crit: 0.06, hit: 10 } },
   { id: 'u_mirrorshield', slot: 'offhand', name: 'โล่กระจกสะท้อน', icon: '🔁', price: 0, slots: 1, unique: { dg: 'd7' }, jobs: [...SW, ...CL],
     desc: 'โล่ที่แตกสะท้อนดาเมจกลับ ได้โล่ทุกต้นเวฟ', base: { vit: 2 }, mod: { thorns: 0.3, waveShield: 0.04, def: 6 } },
   { id: 'u_soulstaff', slot: 'weapon', name: 'คทาดูดวิญญาณ', icon: '🔮', price: 0, slots: 1, unique: { dg: 'd5' }, jobs: [...MG, ...CL], wtype: 'staff',

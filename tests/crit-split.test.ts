@@ -27,7 +27,7 @@ test('crit split: a Mage turns gear crit into skillCrit (not basic crit, not spe
   assert.ok(Math.abs(b.spellCrit - a.spellCrit - PER_POINT.off.mageLukSpellCrit) < 1e-9)
 })
 
-test('CRIT_RULES: physical skills borrow only part of basic crit; Sage gets the highest spellCrit cap', () => {
-  assert.ok(CRIT_RULES.skillFromCrit > 0 && CRIT_RULES.skillFromCrit < 1)
+test('CRIT_RULES: physical skills borrow no basic crit (skillCrit only, Q 2026-11-19); Sage gets the highest spellCrit cap', () => {
+  assert.equal(CRIT_RULES.skillFromCrit, 0)
   assert.ok(CRIT_RULES.sageSpellCap > CRIT_RULES.cap.spellCrit)
 })
