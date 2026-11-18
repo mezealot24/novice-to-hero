@@ -92,6 +92,9 @@ export const KIT = {
   thiefKillRes: 10, thiefKillPoisonHeal: 0.005, thiefKillPoisonHealCap: 0.12, thiefBossCritLeech: 0.375, thiefBossCritRes: 8,
   thiefBloodKingBelow: 0.45, thiefBloodKingMul: 1.75, thiefBloodKingStrikeLs: 0.66,
   thiefStackCritTalMax: 14,
+  // P2'b (MAIN-VS-REV4 §4 + §5.1 #3, R4.6 B1): one additive "damage taken" bracket under thiefTakenCap · stack thresholds are a share of the
+  // hero's poison cap (poisonMax()), not flat stacks (cap 20 + พิษสะสม made the old 8 / 10 always on) · th_t1c counts up to thiefStackHpMax stacks
+  thiefTakenCap: 0.6, thiefPrivShare: 0.6, thiefPoisonAmpShare: 0.5, thiefStackHpMax: 20,
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
   // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
   // 💰 Thief ทักษะ 2 ล้วงกระเป๋า (Q 2026-11-18, GW2 Steal): what you steal depends on the front monster's top stat. admin `kit` · thiefSteal.*
@@ -422,6 +425,20 @@ export const thiefKillHeal = (st: Stats, poisonOnCorpse: number): number =>
 export const thiefBossCritHeal = (st: Stats): number => st.thKillLeech * KIT.thiefBossCritLeech
 /** thief_c4 ★ ราชันย์โลหิต: on below KIT.thiefBloodKingBelow of max HP (P2'b may add ม่านควัน). */
 export const thiefBloodKingOn = (st: Stats, hp: number, maxHp: number): boolean => st.thBloodKing > 0 && hp < maxHp * KIT.thiefBloodKingBelow
+// ---------- P2'b Thief status layer (B1 Taken, R4.6) ----------
+/** Stacks needed for a "share of the poison cap" threshold (P2'b): ceil(share x cap), at least 1. cap = the hero's poisonMax(). */
+export const poisonAt = (share: number, cap: number): number => Math.max(1, Math.ceil(share * Math.max(0, cap) - 1e-9))
+/** B1: the debuffs one monster carries; the Scene fills it, the math stays Phaser-free. */
+export interface DebuffFlags { poison: boolean; wound: boolean; exposed: boolean; chill: boolean; stabMark: boolean; blind: boolean; armorBrk: boolean; weak: boolean }
+/** How many different debuff kinds. `wide` = the th_t4a list (8 kinds); otherwise the thief_c1 list (poison / Wound / Exposed / chill). */
+export const debuffKinds = (f: DebuffFlags, wide: boolean): number =>
+  (f.poison ? 1 : 0) + (f.wound ? 1 : 0) + (f.exposed ? 1 : 0) + (f.chill ? 1 : 0) +
+  (wide ? (f.stabMark ? 1 : 0) + (f.blind ? 1 : 0) + (f.armorBrk ? 1 : 0) + (f.weak ? 1 : 0) : 0)
+/** B1 inputs: each term is already 0 when its own filter fails (Exposed: hits only, Privileged: its condition ...). stabMark = P3 Rogue. */
+export interface TakenIn { exposed: number; stabMark: number; woundPriv: number; privileged: number; poisonAmp: number }
+/** B1 Taken (R4.6): the terms ADD, one cap (KIT.thiefTakenCap). Damage x (1 + this). */
+export const takenAmp = (i: TakenIn): number =>
+  Math.max(0, Math.min(KIT.thiefTakenCap, i.exposed + i.stabMark + i.woundPriv + i.privileged + i.poisonAmp))
 /** Mana the ult costs (Mage, Swordsman, Cleric since v86); 0 for every other job. v102: pass st for the base Cleric ult (+clUltMana by Ult node Lv). */
 export const ultCost = (job: JobDef, st?: Stats) => (job.resource === 'mana' ? (job.ult.cost ?? 0) + (job.id === 'cleric' && (job.ult.cost ?? 0) > 0 ? st?.clUltMana ?? 0 : 0) : 0)
 /** Ult cooldown in hero turns before relics (gear smashCd lowers it for every job). */

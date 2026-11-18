@@ -38,3 +38,9 @@ Slice P2'a (design/p2/MAIN-VS-REV4.md §4) on top of main's live Thief rework. E
 - **`th_t2c` weave bonus** is added inside the basic bracket (`srcMul`, R4.6 B4), so it covers every basic / combo / D.Strike hit of that one swing and is cleared before `monCounter` (a counter swing does not get it).
 - **Migration** (`f574d3e` src applied with `git apply -3`, owner rule: minimal): `thiefRogueRework` number, `THIEF_REWORK_VER = 1`. Lower version + `job === 'thief'` (Rogue / Mobster too) → `resetTree(s)` refund (cross-tier points go back to job2 / job3 pools) + `jobTalents = {}`; job2 web / talents / points untouched. Non-number / ≤ 0 `jobTree` entries are dropped first so the refund cannot be `NaN`; flag is written first, so a rerun does nothing. Later slices bump the version + add an `if (v < N)` block.
 - **bot.cjs** (`49467dd` applied): bot saves carry `thiefRogueRework: 1` so `load()` does not wipe the bot's Thief `jobTree`; examples use live ids. Not run.
+
+## P2'b
+
+Slice P2'b (design/p2/MAIN-VS-REV4.md §4: status layer + Skill 2) on top of P2'a. Entries where the plan / old P2b spec did not match the real code.
+
+- **Thresholds as a cap share**: the old `thiefPrivAt` 8 / `thiefPoisonAmpAt` 10 (flat stacks, tuned at cap 12) became `KIT.thiefPrivShare` 0.6 / `KIT.thiefPoisonAmpShare` 0.5 of the hero's `poisonMax()` through `poisonAt(share, cap)` (ceil, ≥ 1). At the base cap 20 gear กัดกร่อน still needs 10 stacks (no change); with พิษสะสม (cap 29) it needs 15. สถานะทับซ้อน = 12 at cap 20 (0.6 is MAIN-VS-REV4 §5.1 #3's example; old 8/12 was 0.67).

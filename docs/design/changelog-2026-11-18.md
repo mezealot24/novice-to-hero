@@ -42,3 +42,10 @@
 - Old Thief saves (Rogue / Mobster too, `job === 'thief'`): class 1 web + talents reset once with a full refund via `resetTree()` (cross-tier points back to their own pool) · 2nd-job web / talents / points untouched · corrupt `jobTree` entries are dropped, never crashes
 - Other classes only get the flag · `tools/bot.cjs` sets the flag so bot saves keep their web (bot not run)
 - Tests: migration cases in `tests/thief-p2a.test.ts` (refund, idempotent, Mobster / Rogue job2 kept, cross-tier, corrupt data, `load()` end to end)
+
+## 🔧 feat(thief): P2'b B1 takenAmp helpers + keys (thresholds scale with the poison cap)
+- Plan: `design/p2/MAIN-VS-REV4.md` §4 slice P2'b (status layer + Skill 2), on top of P2'a
+- Pure helpers in `skill-math.ts`: `takenAmp()` (R4.6 B1: Exposed + Privileged + แผลลึก Privileged + gear กัดกร่อน, **added** under one cap) · `debuffKinds()` (narrow 4 / wide 8 kinds) · `poisonAt(share, cap)`
+- New `KIT`: `thiefTakenCap` 0.6 · `thiefPrivShare` 0.6 · `thiefPoisonAmpShare` 0.5 · `thiefStackHpMax` 20 (admin `kit` + Thai labels)
+- Stack thresholds are a share of the hero's poison cap (§5.1 #3): at cap 20 gear กัดกร่อน = 10 stacks (same as today), สถานะทับซ้อน = 12 · cap 29 → 15 / 18
+- No behavior yet · tests: `tests/thief-p2b.test.ts`

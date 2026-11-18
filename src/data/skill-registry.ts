@@ -142,6 +142,10 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
       kit('thiefBloodKingMul', 'ราชันย์โลหิต: ดูดเลือด ×'),
       kit('thiefBloodKingStrikeLs', 'ราชันย์โลหิต: D.Strike ดูดเลือด'),
       kit('thiefStackCritTalMax', 'จุดบอดซ้อนพิษ: stack สูงสุด'),
+      kit('thiefTakenCap', 'B1: ดาเมจที่มอนรับเพิ่ม สูงสุด'),
+      kit('thiefPrivShare', 'สถานะทับซ้อน: พิษขั้นต่ำ (สัดส่วนเพดานพิษ)'),
+      kit('thiefPoisonAmpShare', 'กัดกร่อน (ของใส่/การ์ด): พิษขั้นต่ำ (สัดส่วนเพดานพิษ)'),
+      kit('thiefStackHpMax', 'กายต้านพิษ: นับ stack สูงสุด'),
     ],
   },
 }
