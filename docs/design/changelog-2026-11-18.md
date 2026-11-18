@@ -18,3 +18,10 @@
 - Row 2 talents: ⚡ ขโมยจังหวะ (dodge Energy + CD cut, ICD) · 🎯 จุดบอดซ้อนพิษ (crit / skillCrit per poison stack, max 14) · 🧪 จังหวะสลับมีด (basic after แทงพิษ +25/40% · Energy +10/16, no more autoCostCut)
 - a-line (main's poison rework), เงา column, row 1/3/4 talents untouched · hooks come in the next commits (data only here)
 - Tests: `tests/thief-p2a.test.ts` (web + talents) · `admin-model` borrow tests pick crit / lifesteal nodes from any class
+
+## 🔁 feat(thief): s1Weave alternation (Q3) and D.Strike Energy
+- สลับคม: after แทงพิษ the next hero action is a basic attack (`s1Weave`, cleared by any basic attack, reset each wave) → outside 👤 ร่างเงา S1 : basic = 1:1 whatever the cost cut
+- Q3: a free ร่างเงา แทงพิษ does not set the weave, and the weave never blocks a cast inside ร่างเงา (free S1 spam stays like live)
+- An ult or a booked-but-not-castable turn leaves the weave pending ("the next basic attack"); manual mode is unchanged (no booking = basic)
+- D.Strike landing: Energy +`KIT.thiefStrikeRes` 4 (Energy classes only) · its lifesteal share reads `KIT.thiefStrikeLs` 0.33 (was a hardcoded 0.33, same number)
+- Rogue / Mobster share it (`job.id === 'thief'`)
