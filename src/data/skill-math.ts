@@ -82,7 +82,9 @@ export const KIT = {
   clericWarmCounterLv: 0.025, clericWarmLightLv: 1, clericSpearShieldLv: 0.02,
   spearBase: 0.3, spearMax: 8, spearSplash: 0.5, // v120 Q 2026-11-11: หอกแสง = random target (Priest lights: their own target) + the monster on each side x spearSplash
   thiefAuto: 1.6, thiefAutoPoison: 3, thiefUlt: 0.7, thiefUltHits: 4, thiefUltDodge: 2,
-  thiefUltAgi: 0.02, // เงาพริ้ว +this share of damage per AGI point over the start (was hardcoded 2%)
+  // Q 2026-11-19 Ratio AGI: เงาพริ้ว +thiefUltAgiK x (AGI above start / stat points the Base Lv gives), share capped at thiefUltAgiShareCap.
+  // Was +thiefUltAgi 2% per AGI point (uncapped): Lv 80 all-AGI = x5.74 per stab, early game weak (P.ATK x AGI grew with level squared). Now all-in = x3 at every Lv.
+  thiefUltAgiK: 2, thiefUltAgiShareCap: 1.2,
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
   // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
   // 💰 Thief ทักษะ 2 ล้วงกระเป๋า (Q 2026-11-18, GW2 Steal): what you steal depends on the front monster's top stat. admin `kit` · thiefSteal.*
