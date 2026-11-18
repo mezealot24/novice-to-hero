@@ -1,12 +1,13 @@
 // Post-wave events v2: the scene-side handlers (rules and numbers live in data/events.ts).
 // BattleScene hands over a small EventHost, so this file never touches battle internals directly.
 // Design: design/roadmap-and-events-v1.md.
-import { COMMON_PERKS, type HitFx, type MonsterKind, type Stats } from '../data/game-data'
+import { COMMON_PERKS, MONSTERS, type HitFx, type MonsterKind, type Stats } from '../data/game-data'
+import { MINI_RELICS, RELICS } from '../data/relics'
 import { IMMORTAL_RULES, IMMORTALS, type ImmortalId } from '../data/perks'
 import type { BaseStat } from '../data/meta'
 import {
   CHECK_NAME, checkChance, EVENT_RULES as R, eventById, eventMon, FORTUNE, fortuneGain, jackpotFor, nextJackpot, rollEvent,
-  SLOT_FACES, slotsResult, type CheckStat, type EventDef, type EventId, type SlotFace,
+  SLOT_FACES, slotsResult, type CheckStat, type DayOpts, type EventDef, type EventId, type SlotFace,
 } from '../data/events'
 
 export type Curse = 'frail' | 'hunted'
@@ -24,6 +25,13 @@ export interface RunFlags {
   eliteReward: boolean // ...and pays out once it is cleared
   pendingFx: HitFx // trap / runes: lands on the hero when the next wave starts
   gems: number // gems given by events this run (capped)
+  // ----- ☀️ dungeon days: settled after the next day-end win (BattleScene.settleDay); a lost run keeps nothing -----
+  bounty?: 'speed' | 'clean' // 📜 contract on tonight's fight
+  deposit?: number // 💼 zeny banked at Kafra (paid back x kafraRate)
+  debt?: number // 💼 zeny owed to Kafra
+  oath?: 'blood' | 'hunt' // ⚔️ vow until day end
+  nextMini?: MonsterKind // 🔭 tonight's mini boss, picked in advance
+  dayLegend?: number // legend picks owed after the day-end win (blood vow / scout peek)
 }
 export const newFlags = (): RunFlags => ({ clover: false, allLegend: false, stars: false, karma: 0, curses: [], curseDmg: 0, curseHp: 0, elite: false, eliteReward: false, pendingFx: {}, gems: 0 })
 
@@ -64,7 +72,8 @@ export interface EventHost {
   gems(n: number): number
   /** a random card of this dungeon's monsters (or of `kind`) goes to the run's loot; returns its name */
   card(kind?: MonsterKind): string | undefined
-  mat(boss: boolean, n: number): void
+  /** forge materials of this dungeon (or of `dg`) */
+  mat(boss: boolean, n: number, dg?: string): void
   fortune(): number
   setFortune(n: number): void
   addFortune(n: number, why?: string): void
@@ -73,7 +82,13 @@ export interface EventHost {
   shieldShare(share: number): void
   /** an event fight: never kills (stops at a loss of eventFightLoss of max HP), the monster runs after `turns` hero turns.
    * hp / dmg / def replace the monster's numbers; mul scales its own (ghost). share = HP share taken off it. */
-  fight(kind: MonsterKind, o: { hp?: number; dmg?: number; def?: number; mul?: { hp: number; dmg: number }; turns: number; tint?: number; alpha?: number }): Promise<{ won: boolean; share: number }>
+  fight(kind: MonsterKind, o: { hp?: number; dmg?: number; def?: number; mul?: { hp: number; dmg: number }; turns: number; tint?: number; alpha?: number; echo?: boolean }): Promise<{ won: boolean; share: number }>
+  /** ☀️ day runs: which day events may roll now (undefined = not a day run) */
+  dayOpts?(): DayOpts | undefined
+  /** ☀️ the mini bosses tonight's duel draws from */
+  nextMinis?(): MonsterKind[]
+  /** ☀️ bosses of earlier dungeons this save has cleared */
+  rematchPool?(): { kind: MonsterKind; dg: string }[]
   say(text: string, color?: string): void
   sound(k: 'win' | 'door' | 'coin' | 'hurt' | 'pop'): void
   flash(big: boolean): void
@@ -369,6 +384,72 @@ const HANDLERS: Record<EventId, Handler> = {
     if (r.won) h.grantImmortal('egg')
     else h.say('🐣 แม่นกไล่เราออกมา...', '#a9a6c7')
   },
+  // ---------------- ☀️ dungeon days (design/dungeon-days-v1.md) ----------------
+  async bounty(h, ev) {
+    const c = await h.choose(ev, [
+      { label: '⚡ สัญญาสายฟ้า', sub: `ชนะศึกท้ายวันใน ${pc(R.bountySpeed)} ของเทิร์นที่มี\nได้: zeny ก้อนโต + วัตถุดิบบอส 1` },
+      { label: '🛡️ สัญญาไร้รอย', sub: `ชนะโดยเสีย HP ไม่เกิน ${pc(R.bountyClean)}\nได้: การ์ดของหัวหน้า (ไม่มี = วัตถุดิบบอส)` },
+      { label: '🚶 ไม่รับงาน', sub: 'คืนนี้ขอสู้แบบสบายๆ' },
+    ])
+    if (c === 2) return
+    h.flags.bounty = c === 0 ? 'speed' : 'clean'
+    h.say(c === 0 ? '📜 รับสัญญาสายฟ้า!' : '📜 รับสัญญาไร้รอย!', '#f2b84b')
+  },
+  async kafra(h, ev) {
+    const dep = Math.max(R.kafraMin * h.tier, Math.floor(h.zeny() * R.kafraShare)), loan = R.loanZeny * chestZeny(h.tier)
+    const c = await h.choose(ev, [
+      { label: `🏦 ฝาก ${dep} z`, sub: `ชนะศึกท้ายวัน รับคืน x${R.kafraRate} (${Math.round(dep * R.kafraRate)} z)\nแพ้ก่อน = คาฟร่าเก็บไว้นะคะ`, off: h.zeny() < dep },
+      { label: `💸 กู้ ${loan} z`, sub: `ได้เงินตอนนี้ คืน x${R.loanRate} (${Math.round(loan * R.loanRate)} z) หลังศึกท้ายวัน\nจ่ายไม่ครบ = 💀 คำสาปถูกล่า` },
+      { label: '👋 ไว้คราวหน้า', sub: 'ขอบคุณค่ะ' },
+    ])
+    if (c === 0) { h.spend(dep); h.flags.deposit = (h.flags.deposit ?? 0) + dep; h.say(`🏦 ฝาก ${dep} z แล้ว`, '#ffd86b') }
+    else if (c === 1) { h.gainZeny(loan); h.flags.debt = (h.flags.debt ?? 0) + Math.round(loan * R.loanRate); h.say(`💸 กู้ ${loan} z (คืน ${h.flags.debt})`, '#ffd86b') }
+  },
+  async scout(h, ev) {
+    const pool = h.nextMinis?.() ?? []
+    if (pool.length < 2) return
+    const a = pickOne(pool), b = pickOne(pool.filter((k) => k !== a))
+    const relics = (k: MonsterKind) => { const r = MINI_RELICS[k]; return r ? r.map((x) => `${RELICS[x].icon}${RELICS[x].name}`).join(' / ') : '-' }
+    const price = Math.round(R.scoutBribe * h.tier * (1 - discount(h))), cs = bestOf(h, 'int')
+    const c = await h.choose({ ...ev, desc: `${ev.desc}\nคืนนี้: ${MONSTERS[a].name} ${MONSTERS[a].title ?? ''} (พรเทพ ${relics(a)})` }, [
+      { label: '✅ สู้ตามนั้น', sub: `${MONSTERS[a].name}\nรู้ล่วงหน้า ไม่เสียอะไร` },
+      { label: `🔄 จ้าง ${price} z`, sub: `เปลี่ยนเป็น ${MONSTERS[b].name}\n(พรเทพ ${relics(b)})`, off: h.zeny() < price },
+      { label: `${STAT_ICON[cs]} แอบดูจุดอ่อน ${pc(checkChance(cs, h.stat(cs), bonus(h)))}`, sub: `ผ่าน: ชนะคืนนี้ได้พรตำนานเพิ่ม 1 ใบ\nพลาด: โดนใบ้ ${R.scoutSilence} เทิร์นตอนเริ่มศึก` },
+    ])
+    h.flags.nextMini = c === 1 ? b : a
+    if (c === 1) { h.spend(price); h.say(`🔄 คืนนี้เจอ ${MONSTERS[b].name}`, '#9fe3ff') }
+    if (c === 2) {
+      if (await doCheck(h, cs)) { h.flags.dayLegend = (h.flags.dayLegend ?? 0) + 1; h.say('📖 รู้จุดอ่อนแล้ว!', '#8fe08a') }
+      else { h.flags.pendingFx.silence = (h.flags.pendingFx.silence ?? 0) + R.scoutSilence; h.say('🤐 โดนจับได้!', '#ff7a7a') }
+    }
+  },
+  async oath(h, ev) {
+    if (h.flags.oath) { h.say('⚔️ สาบานไว้แล้ววันนี้', '#ff9a8a'); return }
+    const c = await h.choose(ev, [
+      { label: '🩸 สาบานเลือด', sub: 'ไม่ฟื้นเลือดหลังจบเวฟจนจบวัน\nชนะศึกท้ายวัน: พรตำนาน 1 ใบ' },
+      { label: '💀 สาบานนักล่า', sub: `มอนตีแรง +${pc(R.oathHunt)} จนจบวัน\nชนะศึกท้ายวัน: การ์ดดันนี้ 1 ใบ + 🍀 ดวง` },
+      { label: '🚶 ไม่สาบาน', sub: 'ดาบนี้ดูอันตราย' },
+    ])
+    if (c === 2) return
+    h.flags.oath = c === 0 ? 'blood' : 'hunt'
+    if (c === 1) h.flags.curseDmg += R.oathHunt
+    h.say(c === 0 ? '🩸 สาบานเลือดแล้ว!' : '💀 สาบานนักล่าแล้ว!', '#ff9a8a')
+  },
+  async rematch(h, ev) {
+    const pool = h.rematchPool?.() ?? []
+    if (!pool.length) return
+    const b = pickOne(pool), m = MONSTERS[b.kind]
+    const c = await h.choose({ ...ev, desc: `${ev.desc}\n${m.name}${m.title ? ` · ${m.title}` : ''} (Lv ตามดันนี้)` }, [
+      { label: '⚔️ รับคำท้า', sub: `HP x${R.rematchMul.hp} ตี x${R.rematchMul.dmg} · ${R.rematchTurns} เทิร์น\nชนะ: พรตำนาน + การ์ดของมัน\nแพ้: เสีย HP ไม่เกิน ${pc(R.eventFightLoss)}` },
+      { label: '🙇 คารวะแล้วผ่าน', sub: `EXP +${R.campXp * 2} + 🍀 ดวง` },
+    ])
+    if (c === 1) { h.gainXp(R.campXp * 2); h.addFortune(FORTUNE.risky, 'คารวะ'); return }
+    const r = await h.fight(b.kind, { mul: R.rematchMul, turns: R.rematchTurns, tint: 0xb8a0ff, alpha: 0.85, echo: true })
+    if (!r.won) { h.say('👑 เงาบอสสลายไป...', '#b8a0ff'); return }
+    const n = h.card(b.kind)
+    if (n) h.say(`🃏 ได้${n}!`, '#f2b84b'); else h.mat(true, 1, b.dg)
+    await h.perks(true)
+  },
   // ---------------- jackpot ----------------
   async vault(h, ev) {
     type Loot = { id: 'legend' | 'zeny' | 'gems' | 'heal'; label: string; sub: string }
@@ -424,7 +505,7 @@ export async function runPostWaveEvent(h: EventHost) {
     let rare = F.clover ? 1 : h.st.eventChance
     if (F.karma > 0) { rare = Math.max(rare, F.karma); F.karma = 0 }
     const potion = Math.round(R.potionCost * h.tier * (1 - discount(h)))
-    ev = rollEvent(rare, h.tier, { canShop: h.zeny() >= potion, canSpin: h.zeny() >= R.slotsCost * h.tier, canFork: h.nextIsWave(), canImmortal: !h.immortal(), last: F.last })
+    ev = rollEvent(rare, h.tier, { canShop: h.zeny() >= potion, canSpin: h.zeny() >= R.slotsCost * h.tier, canFork: h.nextIsWave(), canImmortal: !h.immortal(), last: F.last, day: h.dayOpts?.() })
     if (meterOn) h.addFortune(fortuneGain(luk(h)))
   }
   F.last = ev.id

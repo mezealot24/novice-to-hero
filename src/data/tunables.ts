@@ -5,6 +5,7 @@ import { JOB_RULES, STAT_RULES } from './meta'
 import { ARCHETYPES, LEGACY, LEVEL_GAP, MON_STAT, SKILL_SCALE } from './mon-stats'
 import { skillRoot, skillTableFields } from './skill-registry'
 import { KIT } from './skill-math'
+import { DUNGEON_DAYS } from './dungeon-days'
 
 export const CONFIG_SCHEMA = 1
 
@@ -177,7 +178,7 @@ export const TABLES: Record<TableId, TableDef> = {
   skillScale: { id: 'skillScale', label: 'Monster skill scaling + skill levels', target: () => SKILL_SCALE, fields: [['per', num(0, 0.1)], ['min|max', num(0, 10)], ['fx.*.per', num(0, 0.1)], ['lv.powPer', num(0, 1)], ['lv.hitsEvery|fxEvery|turnsEvery', int(0, 99)]] }, // fx: v76 phase heal / shield, razor
   progression: {
     id: 'progression', label: 'Progression (stat points, EXP curves, run healing)',
-    target: () => ({ stat: STAT_RULES, job: JOB_RULES, run: RULES }),
+    target: () => ({ stat: STAT_RULES, job: JOB_RULES, run: RULES, days: DUNGEON_DAYS }),
     fields: [
       ['stat.pointsPerLevel', int(1, 20)],
       ['stat.xpBase|xpStep', int(1, 100_000)],
@@ -186,6 +187,16 @@ export const TABLES: Record<TableId, TableDef> = {
       ['run.xpOnClear', int(0, 1000)],
       ['run.failXpMul', num(0, 1)],
       ['run.healOnClear|healOnLevel', num(0, 1)],
+      // ☀️ dungeon days (data/dungeon-days.ts, Q 2026-11-18): run length / echo monsters / day-end fights
+      ['days.on|returnMini', int(0, 1)],
+      ['days.from', int(1, 99)],
+      ['days.base|max', int(2, 12)],
+      ['days.every|waves', int(1, 6)],
+      ['days.size|eliteSize', int(1, 4)],
+      ['days.native', int(0, 3)],
+      ['days.dayEndLv', int(0, 10)],
+      ['days.dayEndEvents', int(0, 3)],
+      ['days.dayHeal', num(0, 1)],
     ],
   },
   kit: {

@@ -11,6 +11,7 @@ import { JOB_CHANGE, JOBS } from '../data/jobs'
 import { JOB2, JOB2_RULES, job2Of } from '../data/jobs2'
 import { BOUNTY, bountyOf, DAILY, dailyOf, dailySeed, deepDailyOk, MODES, PANEL_MODES, TOWER, towerCatchUp, towerCheckpoints, towerSkipCheck, towerSkipGems, weeklySeed, type ModeArgs } from '../data/modes'
 import { matName } from '../data/materials'
+import { daysOf } from '../data/dungeon-days'
 import { TAINT_MAT } from '../data/taint'
 import { RIFT_TUNING } from '../data/rift'
 import { cloudEnabled } from '../cloud'
@@ -107,7 +108,8 @@ export class HubScene extends Phaser.Scene {
       const locked = isLocked(d)
       const n = by[d.id] ?? 0
       const mini = d.rooms.some((r) => r.mini)
-      const info = `${d.rooms.length - 1 - (mini ? 1 : 0)} เวฟ${mini ? ' + ดวล 1-1' : ''} + บอส${d.boss}`
+      const nDays = daysOf(d) // ☀️ dungeon days (data/dungeon-days.ts)
+      const info = nDays ? `☀️ ${nDays} วัน · ศึกท้ายวัน 🌙 · บอส${d.boss}` : `${d.rooms.length - 1 - (mini ? 1 : 0)} เวฟ${mini ? ' + ดวล 1-1' : ''} + บอส${d.boss}`
       const lockMsg = d.unlock === 'job' ? '🔒 ปลดล็อกหลังเปลี่ยนอาชีพ' : `🔒 ปลดล็อกหลังเคลียร์${prevName(d.unlock)}`
       const status = locked ? (compact ? '🔒 ล็อก' : lockMsg) : n ? `เคลียร์แล้ว ${n} ครั้ง` : compact ? `ครั้งแรก 💎${FREE_GEMS.firstClear}` : `เคลียร์ครั้งแรกได้เพชร ${FREE_GEMS.firstClear}`
       const nameT = txt(this, 452, y, `${i + 1}. ${d.name}${d.tier >= 4 ? ' 💀' : ''}`, compact ? 15 : 17, locked ? UI.sub : UI.text, true)

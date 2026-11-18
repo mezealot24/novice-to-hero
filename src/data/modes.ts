@@ -1,7 +1,7 @@
 // Game modes (design/game-modes-v1.md): every way to start a run is a GameMode that builds a RunConfig.
 // BattleScene only reads the RunConfig (rooms, scaling, mutators, events, HUD text); mode rules live here.
 import type { BiomeHazardId } from './biome-hazards'
-import { DUNGEONS, HARD, hardMul, MONSTERS, type DungeonDef, type MonsterKind, type RoomDef } from './game-data'
+import { DUNGEONS, HARD, hardMul, MONSTERS, type DungeonDef, type MonsterKind } from './game-data'
 import { MINI_POOL } from './relics'
 import { matName, matOf } from './materials'
 import { TAINT_MAT } from './taint'
@@ -20,6 +20,7 @@ import { affixesAt, rollAffixes, type AffixId } from './affixes'
 import { foldCorruptions, rollCorruptions, type FoldedCorruption } from './corruptions'
 import { DEEP_ANCHOR, statNative } from './mon-stats'
 import { ENDLESS_HELL, endlessHell, hellChance } from './hell'
+import { buildDays, DUNGEON_DAYS, type DayRoom } from './dungeon-days'
 
 export type ModeId = 'dungeon' | 'hard' | 'tower' | 'daily' | 'bounty' | 'rift'
 /** v87 tower checkpoint record: the in-run level (and whether a relic was held) the first time a run cleared that floor. */
@@ -48,7 +49,7 @@ export interface ModeArgs {
 }
 
 /** A room of a run: a dungeon room + where it sits in the tower + the dungeon its monsters scale from. */
-export interface RunRoom extends RoomDef {
+export interface RunRoom extends DayRoom {
   floor?: number; floorEnd?: boolean; src?: string
   /** Tower floor 20+ mixed fight: bosses / minis together with normal monsters. Each kind scales from its own dungeon (srcOf) and may carry an HP share (hpOf). */
   mixed?: 'boss' | 'mini' | 'minis' | 'bossAdds'
@@ -137,17 +138,18 @@ export function levelScale(src: string, baseLv: number): MonScale {
 function dungeonRun(modeId: ModeId, dg: DungeonDef, hard: boolean, pp: PowerParts, seed = 0, hell = false): RunConfig {
   const corrupt = hard && dg.level ? foldCorruptions(rollCorruptions(seed)) : undefined
   const mutators = corrupt?.mutators ?? [], mut = corrupt ? foldMutators(mutators) : NO_MUT
-  const mi = dg.rooms.findIndex((r) => r.mini)
-  const rooms = corrupt?.twinDuel && mi >= 0 ? [...dg.rooms.slice(0, mi + 1), { ...dg.rooms[mi], title: `${dg.rooms[mi].title} (รอบ 2)` }, ...dg.rooms.slice(mi + 1)] : dg.rooms
+  const days: RunRoom[] = buildDays(dg, seed) // ☀️ D2+: the run in days (data/dungeon-days.ts); D1 / days off = the authored rooms
+  const mi = days.findIndex((r) => r.mini)
+  const rooms = corrupt?.twinDuel && mi >= 0 ? [...days.slice(0, mi + 1), { ...days[mi], title: `${days[mi].title} (รอบ 2)`, dayEnd: false }, ...days.slice(mi + 1)] : days
   return {
     modeId, seed, power: pp.power, pp, endless: false, affix: false, mutators, mut, tag: hell ? '😈' : hard ? 'hard' : '', corrupt, hell: hell && hard && !!dg.level,
     roomAt: (i) => rooms[i] ?? null,
     themeAt: () => dg,
     scale: () => null,
     turnMul: () => mut.turnMul,
-    eventsAfter: (i, r) => (r.boss || i >= rooms.length - 1 ? 0 : 1),
-    relicAfter: () => true,
-    where: (i) => `${dg.name} · ด่าน ${i + 1}/${rooms.length}`,
+    eventsAfter: (i, r) => (r.boss || i >= rooms.length - 1 ? 0 : 1 + (r.dayEnd ? Math.max(0, Math.round(DUNGEON_DAYS.dayEndEvents)) : 0)),
+    relicAfter: (r, has) => !r.echo || !has, // a returning mini only offers 👑 when the run has none yet (no forced swap)
+    where: (i) => { const r = rooms[Math.min(i, rooms.length - 1)]; return `${dg.name}${r?.days ? ` · วัน ${r.day}/${r.days}` : ''} · ด่าน ${i + 1}/${rooms.length}` },
   }
 }
 
@@ -446,7 +448,7 @@ export const MODES: Record<ModeId, GameMode> = {
   dungeon: {
     id: 'dungeon', name: 'ดันเจี้ยน', icon: '⚔️', desc: 'ดันปกติ',
     unlock: () => ({ ok: true, why: '' }), record: (s) => `เคลียร์ ${s.clears} ครั้ง`,
-    buildRun: (s, a) => dungeonRun('dungeon', DUNGEONS[a.d ?? 0] ?? DUNGEONS[0], false, heroParts(s)),
+    buildRun: (s, a) => dungeonRun('dungeon', DUNGEONS[a.d ?? 0] ?? DUNGEONS[0], false, heroParts(s), a.seed ?? Math.floor(Math.random() * 1e9)), // seed: ☀️ echo monsters
     reward: () => null,
   },
   hard: {
