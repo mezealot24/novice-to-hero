@@ -94,16 +94,20 @@ test('borrow: hero tree nodes map onto monster fields, the rest is skipped', () 
   const thief = cls.find((c) => c.id === 'thief')
   assert.ok(thief && cls.length >= 5, 'base classes listed')
   const pick = (name: string) => thief.srcs.find((s) => s.name === name)
-  const blade = pick('มีดคู่'), bite = pick('คมเลือด'), strike = pick('D.Strike')
-  assert.ok(blade && bite && strike)
+  const strike = pick('D.Strike')
+  assert.ok(strike)
+  // P2a: the Thief web has no flat crit / lifesteal node any more -> borrow those from any class whose node unlocks them
+  const all = cls.flatMap((c) => c.srcs).filter((s) => !s.group.startsWith('⭐'))
+  const blade = all.find((s) => (s.mod(s.max).crit ?? 0) > 0), bite = all.find((s) => (s.mod(s.max).lifesteal ?? 0) > 0)
+  assert.ok(blade && bite, 'some class web node gives crit / lifesteal')
   const king = (path: string) => (path === 'king.crit' ? 0.06 : undefined)
-  const p = borrowPlan('king', blade, blade.max, king) // v83: full = Lv 5 (was 3), same value
-  const crit = p.lines.find((l) => l.path === 'king.crit'), combo = p.lines.find((l) => l.path === 'king.combo')
-  assert.ok(crit && Math.abs(crit.to - 0.15) < 1e-9, `มีดคู่ full crit 0.06 + 0.09 -> ${crit?.to}`)
-  assert.ok(combo && Math.abs(combo.to - 0.15) < 1e-9)
-  assert.equal(borrowPlan('king', bite, bite.max, () => undefined).lines[0]?.path, 'king.lifesteal')
+  const p = borrowPlan('king', blade, blade.max, king)
+  const crit = p.lines.find((l) => l.path === 'king.crit')
+  const want = 0.06 + (blade.mod(blade.max).crit ?? 0)
+  assert.ok(crit && Math.abs(crit.to - Math.min(want, 1.5)) < 1e-9, `${blade.name} full crit 0.06 + node -> ${crit?.to}`)
+  assert.ok(borrowPlan('king', bite, bite.max, () => undefined).lines.some((l) => l.path === 'king.lifesteal'))
   assert.ok(Math.abs((borrowPlan('king', strike, 5, () => undefined).lines[0]?.to ?? 0) - 0.6) < 1e-9, 'D.Strike 5 -> combo 60%')
-  const poison = pick('เคลือบพิษ')
+  const poison = pick('เคลือบพิษอาบคม')
   assert.ok(poison)
   assert.equal(borrowPlan('king', poison, poison.max, () => undefined).lines[0]?.to, 3, 'king had no onHit: the empty slot now takes it')
   for (const c of cls) for (const s of c.srcs) for (const l of borrowPlan('pharaoh', s, s.max, () => undefined).lines) {
@@ -141,14 +145,15 @@ test('skill levels: Lv 1 = as written, RO style over-level scales pow / hits / f
 })
 
 test('borrow over-level: growing nodes go to Lv 50, talents stop at max, caps flagged', () => {
-  const thief = heroClasses().find((c) => c.id === 'thief')
-  const blade = thief?.srcs.find((s) => s.name === 'มีดคู่'), talent = thief?.srcs.find((s) => s.name === 'จุดบอด')
+  const cls = heroClasses()
+  // P2a: Thief lost its flat crit node (มีดคู่) -> any class web node that grows crit; talent = a base-class talent with an unconditional crit
+  const blade = cls.flatMap((c) => c.srcs).find((s) => !s.group.startsWith('⭐') && s.top === 50 && (s.mod(1).crit ?? 0) > 0)
+  const talent = cls.flatMap((c) => c.srcs).find((s) => s.group.startsWith('⭐ Talent แถว'))
   assert.ok(blade && talent)
   assert.equal(blade.top, 50)
   assert.equal(talent.top, talent.max, 'rank table talent cannot pass max')
-  // v83: มีดคู่ is 5 levels now (Lv n = old Lv n x 3/5), so Lv 50 = old Lv 30: crit +0.03 x 30 = +90%
   const crit = borrowPlan('king', blade, 50, (p) => (p === 'king.crit' ? 0.7 : undefined)).lines.find((l) => l.path === 'king.crit')
-  assert.ok(crit?.capped && crit.to === 1.5, 'มีดคู่ Lv 50 crit 0.7 + 0.9 hits the 1.5 cap')
+  assert.ok(crit?.capped && crit.to === 1.5, `${blade.name} Lv 50 crit 0.7 + node hits the 1.5 cap`)
 })
 
 test('pointsMul + allocFor: typed stats -> weights + budget, defaults untouched', () => {
