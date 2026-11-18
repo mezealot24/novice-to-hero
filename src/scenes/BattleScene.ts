@@ -2235,7 +2235,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.j2!.id === 'rogue') { // 🌪️ พายุมีด: shadow dance + a knife storm
       await this.shadowDance(h2)
       const R = KIT2.rogue
-      this.throwKnives(R.ultKnives + this.st.j2KnifeAdd, R.ultKnifeMul * h2)
+      this.throwKnives(R.ultKnives + this.st.j2KnifeAdd, (R.ultKnifeMul + R.ultKnifeJ2Share * this.st.j2KnifeMul) * h2) // knife nodes / talents now count in the storm
       this.cameras.main.flash(100, 220, 220, 240)
       await this.wait(BATTLE.stepMs * 0.3)
       return

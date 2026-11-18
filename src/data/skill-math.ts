@@ -159,6 +159,7 @@ export const KIT2 = {
     knifeMul: 0.4, knifePerCombo: 1, dualKnife: 1, // 🔪 มีดบิน: each extra combo hit throws knives at random monsters (+1 with a dagger off-hand) · no lifesteal
     stabCost: 30, stabCd: 3, stabMul: 2.2, // 🗡️ Back Stab: sure crit on the highest-HP monster
     ultKnives: 8, ultKnifeMul: 0.5, // 🌪️ พายุมีด: shadow dance + knives spread over every monster
+    ultKnifeJ2Share: 0.75, // 🌪️ พายุมีด knives get this share of j2KnifeMul (มีดคม / ใบมีดลับคม) · Q 2026-11-19 fix: before, the storm ignored it
     mastery: { atkPct: 0.05, crit: 0.03 }, // dagger
   },
   mobster: {

@@ -63,7 +63,7 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     mastery: { weapon: 'มีด', ok: (it) => it.wtype === 'dagger', mod: { crit: R.mastery.crit }, pct: { atk: R.mastery.atkPct } },
     signature: { name: 'มีดบิน', icon: '🔪', desc: `ทุกฮิตคอมโบ ปามีด ${R.knifePerCombo} เล่มใส่มอนสุ่ม ${R.knifeMul}x P.ATK (คริได้ ไม่ดูดเลือด) · มือรองเป็นมีด +${R.dualKnife} เล่ม` },
     skill3: { name: 'Back Stab', icon: '🗡️', cost: R.stabCost, cd: R.stabCd, desc: `Energy ${R.stabCost} · คูลดาวน์ ${R.stabCd}: แทงหลังตัวที่ HP มากสุด ${R.stabMul}x P.ATK คริแน่นอน` },
-    ult: { name: 'พายุมีด', icon: '🌪️', cd: 4, desc: `เงาพริ้วเดิม แล้วโปรยมีดบิน ${R.ultKnives} เล่มใส่มอนสุ่ม เล่มละ ${R.ultKnifeMul}x` },
+    ult: { name: 'พายุมีด', icon: '🌪️', cd: 4, desc: `เงาพริ้วเดิม แล้วโปรยมีดบิน ${R.ultKnives} เล่มใส่มอนสุ่ม เล่มละ ${R.ultKnifeMul}x (+${Math.round(R.ultKnifeJ2Share * 100)}% ของโบนัสมีดบิน)` },
   },
   mobster: {
     id: 'mobster', parent: 'thief', name: 'มาเฟีย', icon: '🕴️', focus: 'AGI · STR · INT',
