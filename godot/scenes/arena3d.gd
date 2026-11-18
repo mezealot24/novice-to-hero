@@ -4,6 +4,9 @@
 extends Node3D
 
 const Toon := preload("res://core/toon.gd")
+const Ambience := preload("res://core/ambience.gd")
+## Dirt path across the arena (x from, x to, z centre, half width): grass is kept off it.
+const PATH := Vector4(-20.0, 20.0, 3.0, 1.6)
 const ASSETS_DIR := "res://assets"
 const HERO_HEIGHT := 1.7
 
@@ -20,6 +23,7 @@ const EDGE_PAN_PX := 18.0
 const EDGE_PAN_SPEED := 18.0 # m/s
 
 var cam: Camera3D
+var cam_attr: CameraAttributesPractical
 var hero: Node3D
 var click_marker: MeshInstance3D
 var info: Label
@@ -44,6 +48,8 @@ func _ready() -> void:
 	add_child(hero)
 	cam = Camera3D.new()
 	cam.fov = 40.0
+	cam_attr = Ambience.camera_attributes()
+	cam.attributes = cam_attr
 	add_child(cam)
 	cam.make_current()
 	cam_focus = hero.position
@@ -140,6 +146,7 @@ func _update_camera(delta: float) -> void:
 	var pitch := deg_to_rad(CAM_PITCH_DEG)
 	cam.position = cam_focus + Vector3(0.0, sin(pitch) * cam_dist, cos(pitch) * cam_dist)
 	cam.look_at(cam_focus, Vector3.UP)
+	Ambience.focus_dof(cam_attr, cam_dist)
 
 
 func _play_move_anim(moving: bool) -> void:
@@ -180,27 +187,26 @@ func _spawn_room(dungeon_id: String, room_index: int) -> void:
 
 
 func _build_world() -> void:
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color("141a2e")
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("8a9ac8")
-	env.ambient_light_energy = 0.6
-	var we := WorldEnvironment.new()
-	we.environment = env
-	add_child(we)
-
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-60.0, -35.0, 0.0)
-	sun.shadow_enabled = true
-	add_child(sun)
+	add_child(Ambience.environment())
+	add_child(Ambience.sun())
 
 	var ground := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = ARENA_SIZE
 	ground.mesh = plane
-	ground.material_override = _mat(Color("6fae4f"), 0.0)
+	ground.material_override = _mat(Color("5f9a45"), 0.0)
 	add_child(ground)
+
+	var path := MeshInstance3D.new()
+	var strip := PlaneMesh.new()
+	strip.size = Vector2(PATH.y - PATH.x, PATH.w * 2.0)
+	path.mesh = strip
+	path.material_override = _mat(Color("c98f5a"), 0.0)
+	path.position = Vector3((PATH.x + PATH.y) * 0.5, 0.01, PATH.z)
+	add_child(path)
+
+	add_child(Ambience.grass(ARENA_SIZE - Vector2(1.0, 1.0), 6000, func(p: Vector3) -> bool: return absf(p.z - PATH.z) < PATH.w + 0.2))
+	add_child(Ambience.dust(ARENA_SIZE))
 
 	# Low walls so the arena edge reads clearly from the tilted camera.
 	var half := ARENA_SIZE * 0.5
