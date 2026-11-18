@@ -168,3 +168,85 @@ test('row-2 talent numbers: ขโมยจังหวะ / จุดบอด�
   near(thiefStackCritAdd(t2b, 99), 0.016 * KIT.thiefStackCritTalMax, 'stacks above the cap do nothing')
   near(thiefStackCritAdd(st({ ...tal('th_t2b').mod(2), ...node('thief_c2').mod(5) }), 10), 0.016 * 10 + 0.15, 'node (cap 8) + talent (cap 14) add up')
 })
+
+// ---------- T8 save migration (localStorage mock for load()) ----------
+const mem: Record<string, string> = {}
+;(globalThis as { localStorage?: unknown }).localStorage = {
+  getItem: (k: string) => mem[k] ?? null,
+  setItem: (k: string, v: string) => { mem[k] = v },
+  removeItem: (k: string) => { delete mem[k] },
+}
+const { load, migrateThiefRogueRework, newSave, THIEF_REWORK_VER } = await import('../src/save')
+type SaveData = ReturnType<typeof newSave>
+const oldThief = (over: Partial<SaveData> = {}): SaveData => {
+  const s = newSave('th', 'human')
+  delete s.thiefRogueRework
+  Object.assign(s, { job: 'thief', skillPoints: 2, jobTree: { thief_core1: 5, thief_a1: 3, thief_c2: 2 }, jobTalents: { 2: { id: 'th_t2c', rank: 2 } }, ...over })
+  return s
+}
+
+test('migration: old Thief gets the class 1 web + talents back once', () => {
+  assert.equal(THIEF_REWORK_VER, 1)
+  const s = oldThief()
+  migrateThiefRogueRework(s)
+  assert.equal(s.skillPoints, 2 + 10)
+  assert.deepEqual(s.jobTree, {})
+  assert.deepEqual(s.jobTalents, {})
+  assert.equal(s.thiefRogueRework, 1)
+  s.jobTree = { thief_a1: 1 }
+  migrateThiefRogueRework(s)
+  assert.deepEqual(s.jobTree, { thief_a1: 1 }, 'idempotent')
+  assert.equal(s.skillPoints, 12)
+})
+
+test('migration: new saves skip it, other classes only get the flag', () => {
+  const s = newSave('n', 'human')
+  assert.equal(s.thiefRogueRework, 1)
+  Object.assign(s, { job: 'thief', jobTree: { thief_a1: 2 } })
+  migrateThiefRogueRework(s)
+  assert.deepEqual(s.jobTree, { thief_a1: 2 })
+  const a = oldThief({ job: 'archer', jobTree: { archer_a1: 3 } })
+  migrateThiefRogueRework(a)
+  assert.deepEqual(a.jobTree, { archer_a1: 3 })
+  assert.equal(a.thiefRogueRework, 1)
+})
+
+test('migration: Mobster / Rogue keep their job2 web, talents and points', () => {
+  for (const job2 of ['mobster', 'rogue']) {
+    const s = oldThief({ job2, job2Points: 3, job2Tree: { x: 4 }, job2Talents: { 1: { id: 'y', rank: 1 } } })
+    migrateThiefRogueRework(s)
+    assert.deepEqual(s.job2Tree, { x: 4 }, job2)
+    assert.deepEqual(s.job2Talents, { 1: { id: 'y', rank: 1 } }, job2)
+    assert.equal(s.job2Points, 3, job2)
+    assert.deepEqual(s.jobTree, {}, job2)
+  }
+})
+
+test('migration: cross-tier points go back to their own pool', () => {
+  const s = oldThief({ job2: 'mobster', job2Points: 0, crossSpent: { j2In1: 4, j3In1: 0 } } as Partial<SaveData>)
+  migrateThiefRogueRework(s)
+  assert.equal(s.skillPoints, 2 + 6)
+  assert.equal(s.job2Points, 4)
+  assert.equal(s.crossSpent?.j2In1, 0)
+})
+
+test('migration: corrupt data does not throw, results stay finite', () => {
+  const s = oldThief()
+  Object.assign(s, { jobTree: null, thiefRogueRework: 'x', jobTalents: undefined, skillPoints: undefined })
+  assert.doesNotThrow(() => migrateThiefRogueRework(s))
+  assert.ok(Number.isFinite(s.skillPoints))
+  assert.equal(s.thiefRogueRework, 1)
+  const b = oldThief({ jobTree: { thief_a1: 'oops', thief_b1: 2 } as unknown as SaveData['jobTree'] })
+  migrateThiefRogueRework(b)
+  assert.equal(b.skillPoints, 4)
+  assert.doesNotThrow(() => migrateThiefRogueRework(null as unknown as SaveData))
+})
+
+test('migration: load() end to end migrates once', () => {
+  mem['novice-to-hero.save.v1'] = JSON.stringify(oldThief())
+  const s = load()
+  assert.ok(s)
+  assert.equal(s.thiefRogueRework, 1)
+  assert.deepEqual(s.jobTree, {})
+  assert.ok(s.skillPoints >= 12, `refunded: ${s.skillPoints}`)
+})
