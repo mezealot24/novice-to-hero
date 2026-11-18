@@ -25,3 +25,9 @@
 - An ult or a booked-but-not-castable turn leaves the weave pending ("the next basic attack"); manual mode is unchanged (no booking = basic)
 - D.Strike landing: Energy +`KIT.thiefStrikeRes` 4 (Energy classes only) · its lifesteal share reads `KIT.thiefStrikeLs` 0.33 (was a hardcoded 0.33, same number)
 - Rogue / Mobster share it (`job.id === 'thief'`)
+
+## 🩸 feat(thief): core hooks c1 / c3 / c4 (leech, kill heal, blood king)
+- c1 คมเลือดซ้อนสถานะ: physical hits on a monster with poison / chill leech +`thCondLeech` (×`thiefCondLeechMulti` at 2 kinds); base lifesteal + this stays under the new `LIFESTEAL_CAP` 0.4 (`heroBuild` uses it too)
+- c3 กระหายเลือด: kill heals `thKillLeech` + 0.5%/poison stack on the corpse (max +12%) + Energy `thiefKillRes` · first crit on a boss / mini per hero turn heals + Energy `thiefBossCritRes` (shares the gear once-per-turn flag)
+- c4 ★ ราชันย์โลหิต: HP < 45% → lifesteal ×1.75 (gear ★ ×2 wins if both, never stacked) · D.Strike leech share 33% → 66%
+- Gear / card `killHeal` Energy reads `KIT.thiefKillRes` (10, same as before) · c2 หมายหัว is main's, no new hook

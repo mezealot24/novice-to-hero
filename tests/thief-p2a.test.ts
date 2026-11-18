@@ -129,3 +129,13 @@ test('Energy loop: inside ร่างเงา every turn is a free แทง�
   const { s1, basic } = loop(0, () => true, 6)
   assert.deepEqual({ s1, basic }, { s1: 6, basic: 0 })
 })
+
+test('core hooks: thief_c1 leech stays under LIFESTEAL_CAP with base lifesteal, c3 kill heal grows with poison on the corpse', async () => {
+  const { LIFESTEAL_CAP } = await import('../src/data/stats')
+  const c1 = st({ ...node('thief_c1').mod(5), lifesteal: 0.35 })
+  const add = thiefCondLeechAdd(c1, KIT.thiefKindsAt)
+  assert.ok(add > 0)
+  assert.equal(Math.min(LIFESTEAL_CAP, c1.lifesteal + add), LIFESTEAL_CAP, 'base 35% + c1 13.5% -> cap')
+  const c3 = st(node('thief_c3').mod(5))
+  assert.ok(thiefKillHeal(c3, 20) > thiefKillHeal(c3, 0))
+})

@@ -1,4 +1,4 @@
-import { COMBO, PLAYER, STAT_CAPS, softCapDiminish, type Stats } from "../game-data";
+import { COMBO, LIFESTEAL_CAP, PLAYER, STAT_CAPS, softCapDiminish, type Stats } from "../game-data";
 import { BM_STANCE, KIT, KIT2, KIT3, S2N } from "../skill-math";
 import { COUNTER_RULES } from "../stack-math";
 import { branchPts, crossTierBonus, talent2Mods, talentMods, tree2Mods, tree3Mods, treeMods, type TalentSave, type TreeSave } from "../tree";
@@ -484,7 +484,7 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 		st.luckyDodge = Math.min(0.25, st.luckyDodge);
 		st.counter = Math.min(COMBO.rateCap, Math.max(COUNTER_RULES.min, st.counter));
 		st.combo = Math.min(COMBO.rateCap, st.combo);
-		st.lifesteal = Math.min(0.4, st.lifesteal);
+		st.lifesteal = Math.min(LIFESTEAL_CAP, st.lifesteal);
 		st.spellVamp = Math.min(0.4, st.spellVamp);
 		st.skillDmgCut = Math.min(0.9, st.skillDmgCut);
 		st.dodgeHeal = Math.min(0.1, st.dodgeHeal);
