@@ -165,7 +165,7 @@ const J2_LABEL: Record<string, string> = {
   'knight.tree.sweepStun': '🌪️ ★ พายุทวน: โอกาสมึน / ผลักเกจ',
   // 🔪 Rogue
   'rogue.knifeMul': '🔪 มีดบิน: ดาเมจต่อเล่ม × P.ATK', 'rogue.knifePerCombo': '🔪 มีดบิน: จำนวนมีดต่อฮิตคอมโบ',
-  'rogue.dualKnife': '🔪 มีดมือรอง: มีดบินเพิ่ม (เล่ม)', 'rogue.stabMul': '🗡️ Back Stab: ดาเมจ × P.ATK (คริแน่)',
+  'rogue.dualKnife': '🔪 มีดมือรอง: มีดบินเพิ่ม (เล่ม)', 'rogue.stabMul': '🗡️ Back Stab: ดาเมจ × P.ATK (คริแน่)', 'rogue.stabCpMax': '🔁 Combo Point: แต้มสูงสุด', 'rogue.stabCpPer': '🔁 Back Stab: แรงขึ้นต่อ Combo Point',
   'rogue.ultKnives': '🌪️ พายุมีด: จำนวนมีดบินที่โปรย', 'rogue.ultKnifeMul': '🌪️ พายุมีด: ดาเมจต่อเล่ม × P.ATK',
   'rogue.mastery.atkPct': 'ชำนาญมีด: P.ATK +%', 'rogue.mastery.crit': 'ชำนาญมีด: คริ +',
   // 🕴️ Mobster

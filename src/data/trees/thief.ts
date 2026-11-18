@@ -4,7 +4,7 @@
 // Node and talent ids are save data: never rename or remove a shipped id (retire it by leaving it out of the UI instead).
 import { node as n, talent as t, type ClassTree } from '../tree-types'
 import { doubleAtkChance } from '../game-data'
-import { KIT } from '../skill-math'
+import { KIT, slowAtLv } from '../skill-math'
 
 // Q 2026-11-03: RO style Double Strike gates ทักษะ 2 (max 5, Lv 5 = 60%; the extra hit CAN crit, unlike RO).
 // Must be 5/5 before picking ม่านควัน / ล้วงกระเป๋า / แผลลึก. Id kept from v36 (was a 10-level core node; save.ts refunds the extra).
@@ -21,13 +21,13 @@ export const tree: ClassTree = {
   ],
   nodes: [
     n('thief_a1', 'thief_a', 1, '🧪', 'เคลือบพิษ', 3, (lv) => `พิษ +${lv} stack ต่อ hit`, (lv) => ({ poison: lv })),
-    n('thief_a2', 'thief_a', 2, '☠️', 'พิษเข้มข้น', 3, (lv) => `ดาเมจพิษ +${lv}/stack (+${Math.round(KIT.poison.intPer * 10 * 10) / 10}/stack ทุก INT 10 · พิษโจร +${Math.round(KIT.poison.atkPer * 100)}% P.ATK +${Math.round(KIT.poison.matkPer * 100)}% M.ATK/stack)`, (lv) => ({ poisonDmg: lv })),
+    n('thief_a2', 'thief_a', 2, '🐌', 'พิษชา', 3, (lv) => `ดาเมจพิษ +${lv}/stack · 🐌 มอนติดพิษ ≥ ${slowAtLv(lv)} stack ช้าลง (ติดช้า ${KIT.poison.slowTurns} เทิร์นทุกครั้งที่พิษกัด) · พิษโจร +${Math.round(KIT.poison.atkPer * 100)}% P.ATK +${Math.round(KIT.poison.matkPer * 100)}% M.ATK/stack`, (lv) => ({ poisonDmg: lv, poisonSlow: lv })),
     n('thief_a3', 'thief_a', 3, '🏺', 'พิษสะสม', 3, (lv) => `เพดานพิษ ${KIT.poison.baseCap} → ${KIT.poison.baseCap + lv * 3} stack`, (lv) => ({ poisonCap: 3 * lv })),
-    n('thief_a4', 'thief_a', 4, '💣', 'ระเบิดพิษ', 1, () => 'มอนตาย: พิษครึ่งหนึ่งกระจายไปทุกตัวที่เหลือ', () => ({ poisonSpread: 1 })),
+    n('thief_a4', 'thief_a', 4, '💣', 'ระเบิดพิษ', 1, () => `มอนตาย: พิษ ${Math.round(KIT.poison.spreadShare * 100)}% กระจายไปทุกตัวที่เหลือ + ระเบิดใส่ทุกตัว (stack × ดาเมจ/stack × ${KIT.poison.spreadBurst}) · ฆ่าได้ = ระเบิดต่อเป็นลูกโซ่`, () => ({ poisonSpread: 1 })),
     n('thief_b1', 'thief_b', 1, '🌫️', 'ย่องเบา', 3, (lv) => `Flee +${lv * 4} · มอนตีโดนขั้นต่ำ −${lv * 2}%`, (lv) => ({ flee: 4 * lv, fleeFloor: 0.02 * lv })),
     n('thief_b2', 'thief_b', 2, '🌙', 'หายใจในเงา', 3, (lv) => `หลบได้แล้วฟื้น ${lv * 2}% HP สูงสุด`, (lv) => ({ dodgeHeal: 0.02 * lv })),
     n('thief_b3', 'thief_crit', 1, '🔪', 'มีดคู่', 3, (lv) => `คอมโบ +${lv * 5}% · คริ +${lv * 3}%`, (lv) => ({ combo: 0.05 * lv, crit: 0.03 * lv })),
-    n('thief_c2', 'thief_crit', 2, '💀', 'จุดตาย', 3, (lv) => `ดาเมจคริ +${lv * 10}%`, (lv) => ({ critMul: 0.1 * lv })),
+    n('thief_c2', 'thief_crit', 2, '🔻', 'หมายหัว', 3, (lv) => `หมายมอน HP มากสุด · ตีตัวที่หมาย = Malice +1 · เต็ม ${KIT.thiefMark.max}: ทีถัดไปคริแน่ ดาเมจ +${Math.round(KIT.thiefMark.dmg * lv * 100)}% · ตัวที่หมายตาย = ย้ายหมาย`, (lv) => ({ thMark: lv })),
     n('thief_c3', 'thief_crit', 3, '⚡', 'คริชาร์จ', 3, (lv) => `คริแล้ว Energy +${lv * 5}`, (lv) => ({ arCritRes: 5 * lv })),
     n('thief_c4', 'thief_crit', 4, '🪓', 'เพชฌฆาต', 1, () => 'คริใส่มอนที่ HP ต่ำกว่า 30% แรง ×1.5', () => ({ thExecute: 1 })),
     n('thief_l1', 'thief_blood', 1, '🩸', 'คมเลือด', 3, (lv) => `ดูดเลือด +${lv * 3}% (ตีปกติ + คอมโบ · D.Strike ได้ 33%)`, (lv) => ({ lifesteal: 0.03 * lv })),
@@ -39,7 +39,7 @@ export const tree: ClassTree = {
   talents: [
     // ----- row 1 · Job Lv 5 · ตั้งตัว -----
     t('th_t1a', 1, '🐈', 'ฝีเท้าแมว', 2, (r) => `Flee +${r === 1 ? 8 : 14} · หลบโชคดี +${r === 1 ? 3 : 5}%`, (r) => ({ flee: r === 1 ? 8 : 14, luckyDodge: r === 1 ? 0.03 : 0.05 })),
-    t('th_t1b', 1, '💨', 'ม่านควัน', 2, (r) => `เริ่มทุกเวฟ หลบแน่นอน ${r} ครั้ง`, (r) => ({ waveDodge: r })),
+    t('th_t1b', 1, '💨', 'ควันตั้งต้น', 2, (r) => `เริ่มทุกเวฟ หลบแน่นอน ${r} ครั้ง`, (r) => ({ waveDodge: r })),
     t('th_t1c', 1, '🩸', 'หนังหนา', 2, (r) => `HP สูงสุด +${r === 1 ? 40 : 80}`, (r) => ({ maxHp: r === 1 ? 40 : 80 })),
     // ----- row 2 · Job Lv 10 · จังหวะ -----
     t('th_t2a', 2, '⚡', 'ขโมยจังหวะ', 2, (r) => `หลบได้ → Energy +${r === 1 ? 15 : 25}`, (r) => ({ dodgeEnergy: r === 1 ? 15 : 25 })),
@@ -47,7 +47,7 @@ export const tree: ClassTree = {
     t('th_t2c', 2, '🧪', 'ซองพิษ', 2, (r) => `แทงพิษใช้ Energy 40 → ${r === 1 ? 30 : 24}`, (r) => ({ autoCostCut: r === 1 ? 10 : 16 })),
     // ----- row 3 · Job Lv 20 · เงาพริ้ว (ult) -----
     t('th_t3a', 3, '👥', 'เงาซ้อน', 2, (r) => `เงาพริ้ว หลบแน่นอน 2 → ${2 + r} ครั้ง`, (r) => ({ ultDodge: r })),
-    t('th_t3b', 3, '🌪️', 'พายุมีด', 2, (r) => `เงาพริ้ว แทง 4 → ${r === 1 ? 6 : 7} ที`, (r) => ({ ultHits: r === 1 ? 2 : 3 })),
+    t('th_t3b', 3, '🌪️', 'มีดรัว', 2, (r) => `เงาพริ้ว แทง 4 → ${r === 1 ? 6 : 7} ที`, (r) => ({ ultHits: r === 1 ? 2 : 3 })),
     t('th_t3c', 3, '☠️', 'มีดอาบพิษ', 2, (r) => `เงาพริ้ว แต่ละทีติดพิษ +${r === 1 ? 2 : 3} stack`, (r) => ({ ultPoison: r === 1 ? 2 : 3 })),
     // ----- row 4 · Job Lv 30 · ล้มบอส -----
     t('th_t4a', 4, '🧫', 'กัดกร่อน', 2, (r) => `มอนที่ติดพิษ ≥ 10 stack รับดาเมจ +${r === 1 ? 15 : 25}%`, (r) => ({ poisonAmp: r === 1 ? 0.15 : 0.25 })),
