@@ -64,3 +64,17 @@ test('th_t4a Privileged Status: thPrivileged 0.18 / 0.30, no poisonAmp at any ra
     for (const [k, v] of Object.entries(t.mod(r))) { assert.ok(k in PLAYER, k); assert.ok(typeof v === 'number' && v > 0, `${k}=${v}`) }
   }
 })
+
+test('th_t1c กายต้านพิษ: thCondTenacity 0.08 / 0.14 + thStackHp 8 / 14, PLAYER keys, > 0 at every rank, no flat maxHp', async () => {
+  const { TALENTS } = await import('../src/data/tree')
+  const { PLAYER } = await import('../src/data/game-data')
+  const t = TALENTS.find((x) => x.id === 'th_t1c')!
+  assert.ok(t)
+  assert.deepEqual([1, 2].map((r) => [t.mod(r).thCondTenacity, t.mod(r).thStackHp]), [[0.08, 8], [0.14, 14]])
+  for (const r of [1, 2]) {
+    assert.ok(!('maxHp' in t.mod(r)), `rank ${r}`)
+    for (const [k, v] of Object.entries(t.mod(r))) { assert.ok(k in PLAYER, k); assert.ok(typeof v === 'number' && v > 0, `${k}=${v}`) }
+  }
+  assert.equal(KIT.thiefStackHpMax * (t.mod(2).thStackHp ?? 0), 280, 'cap +280 HP at rank 2')
+  assert.equal(PLAYER.thStackHp, 0); assert.equal(PLAYER.thCondTenacity, 0)
+})

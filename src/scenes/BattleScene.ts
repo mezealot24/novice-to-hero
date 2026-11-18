@@ -406,7 +406,7 @@ export class BattleScene extends Phaser.Scene {
     this.blessOn = false; this.blessDelta = undefined; this.kyrie = { hp: 0, hits: 0 } // v77 พรแสง
     if (this.s2?.id === 'cl_spear') this.st.spearMul += S2N.spearPlus(this.st.s2Lv) // หอกคม: +10%/lv of the 0.3x base
     this.res = this.job.resource === 'rage' ? 0 : this.resMax()
-    this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0; this.shroudTurns = 0; this.raidReady = false; this.plunderStacks = 0
+    this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0; this.shroudTurns = 0; this.raidReady = false; this.plunderStacks = 0; this.thHpBonus = 0; this.thTenBonus = 0
     this.rigSpec = heroRigSpec(s)
     this.heroRig.setAppearance(this.rigSpec, heroCostumeTint(s.costume))
     this.heroRig.resetPose(HERO_X, GROUND)
@@ -1028,6 +1028,7 @@ export class BattleScene extends Phaser.Scene {
       m.bladeSpent = false
       if (m.woundTurns > 0 && --m.woundTurns === 0) { m.wound = 0; this.dotIcon(m) }
     }
+    this.syncStackBody() // P2b th_t1c
     if (this.st.regen > 0) {
       const lowAmp = this.st.swLowRegenAmp > 0 && this.hp < this.st.maxHp * KIT.swordCore.lowHpAt ? 1 + this.st.swLowRegenAmp : 1
       this.heal(this.st.maxHp * this.st.regen * BATTLE.regenPerTurn / 100 * lowAmp, true)
@@ -1116,6 +1117,7 @@ export class BattleScene extends Phaser.Scene {
   private dodgeCharges = 0
   private shroudTurns = 0 // P2b ม่านควัน Shroud: hero turns left (ticks at the top of heroAct)
   private raidReady = false // P2b ม่านควัน: the next active hit is a Sightless Raid
+  private thHpBonus = 0; private thTenBonus = 0 // P2b th_t1c: Max HP / tenacity added right now (delta-tracked)
   private plunderStacks = 0 // P2b ล้วงกระเป๋า ★ Plunder: 💎 drop chance stacks this wave
   private ctrCharges = 0 // Swordsman talent ท่าสวนพร้อม: sure counters left
   /** Mana the ult costs (Mage, Swordsman); 0 for every other job. */
@@ -2960,6 +2962,17 @@ export class BattleScene extends Phaser.Scene {
     } finally { this.lsMul = prevLs; this.forceCrit = prevForce }
     this.dotIcon(m)
   }
+  /** P2b th_t1c กายต้านพิษ: poison + Wound stacks on the field -> temporary Max HP + tenacity (delta-tracked so the base never drifts). */
+  private syncStackBody() {
+    if (this.st.thStackHp <= 0 && this.st.thCondTenacity <= 0) return
+    const live = this.alive()
+    const n = Math.min(KIT.thiefStackHpMax, live.reduce((sum, m) => sum + m.poison + m.wound, 0))
+    const wantHp = n * this.st.thStackHp, wantTen = live.some((m) => m.poison > 0 || m.wound > 0) ? this.st.thCondTenacity : 0
+    const dHp = wantHp - this.thHpBonus
+    this.st.maxHp += dHp; this.thHpBonus = wantHp
+    if (this.hp > 0) this.hp = dHp > 0 ? this.hp + dHp : Math.min(this.hp, this.st.maxHp) // grows with the bonus, clamped when it fades (never revives a dead hero)
+    this.st.tenacity += wantTen - this.thTenBonus; this.thTenBonus = wantTen
+  }
   /** P2b ม่านควัน Shroud is up (thief_c4 ★ reads it). */
   private inShroud(): boolean { return this.shroudTurns > 0 }
   /** P2b: hero FLEE right now (ม่านควัน Shroud x(1 + S2N.smokeFlee)); never write st.flee itself. */
@@ -4174,6 +4187,7 @@ export class BattleScene extends Phaser.Scene {
     this.rollUnique(m)
     if (Math.random() < this.st.dropChance + this.plunderStacks * S2N.plunderDrop) { this.runGems++; this.floatText(m.spr.x, m.spr.y - 80, '💎 ของหายาก!', '#7fd7ff'); sfx.coin() } // P2b ★ Plunder: + per stack
     sfx.pop()
+    this.syncStackBody() // P2b th_t1c: a dead monster's stacks no longer count
     m.dotTxt?.destroy(); m.dotTxt = undefined
     this.tweens.add({ targets: [m.spr, m.shadow], alpha: 0, duration: 260, onComplete: () => this.removeMon(m) })
     this.tweens.add({ targets: m.spr, scaleY: 0.2, duration: 260 })

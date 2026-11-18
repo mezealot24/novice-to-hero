@@ -89,3 +89,8 @@
 - P2b T8: แผลลึก also puts **Wound** 2 (★ 3) stacks (cap `S2N.woundMax(s2Lv)` 6 → 8, 3 hero turns, refreshed on every add) via `addWound()` (P2c will call it too)
 - **Blade's End**: a basic / combo / D.Strike / Back Stab hit on a monster with ≥ 3 Wound spends 3 for 1.8x P.ATK × (1 + pskill), DEF pierce, no leech, + heal cut 40% for 2 monster turns · once per hero turn per monster · แทงพิษ alone never detonates · crits only with ★ แผลมรณะ
 - "+" แผลฉีก: D.Strike 50% → +1 Wound · Privileged +12% (B1) works since T4
+
+## 🛡️ feat(thief): th_t1c กายต้านพิษ (stack-scaled tenacity + HP)
+- P2b T9: `th_t1c` หนังหนา (Max HP +40 / +80) → **กายต้านพิษ**: while any monster has poison / Wound, tenacity +8% / +14% (`thCondTenacity`) and Max HP +8 / +14 per poison + Wound stack on the field (`thStackHp`, max `KIT.thiefStackHpMax` 20 stacks = +160 / +280)
+- `syncStackBody()` (top of each hero turn + every kill) adds / removes only its own delta: HP grows with the bonus, is clamped when it fades · same id, old picks reset by the P2a migration
+- P2b T10 (D.Strike Gate) skipped: P2a already did it (INTEGRATION §2)

@@ -36,7 +36,7 @@ export const tree: ClassTree = {
     // ----- row 1 · Job Lv 5 · ตั้งตัว -----
     t('th_t1a', 1, '🐈', 'ฝีเท้าแมว', 2, (r) => `Flee +${r === 1 ? 8 : 14} · หลบโชคดี +${r === 1 ? 3 : 5}%`, (r) => ({ flee: r === 1 ? 8 : 14, luckyDodge: r === 1 ? 0.03 : 0.05 })),
     t('th_t1b', 1, '💨', 'ม่านควัน', 2, (r) => `เริ่มทุกเวฟ หลบแน่นอน ${r} ครั้ง`, (r) => ({ waveDodge: r })),
-    t('th_t1c', 1, '🩸', 'หนังหนา', 2, (r) => `HP สูงสุด +${r === 1 ? 40 : 80}`, (r) => ({ maxHp: r === 1 ? 40 : 80 })),
+    t('th_t1c', 1, '🩸', 'กายต้านพิษ', 2, (r) => `มีมอนติดพิษ/Wound บนสนาม: ต้านทาน +${rk(r, 8, 14)}% · Max HP +${rk(r, 8, 14)} ต่อ stack พิษ/Wound (สูงสุด ${KIT.thiefStackHpMax} stack)`, (r) => ({ thCondTenacity: rk(r, 0.08, 0.14), thStackHp: rk(r, 8, 14) })), // P2b; id kept (save data, reset by migrateThiefRogueRework)
     // ----- row 2 · Job Lv 10 · จังหวะ -----
     t('th_t2a', 2, '⚡', 'ขโมยจังหวะ', 2, (r) => `หลบได้ → Energy +${rk(r, 15, 25)} · ลด CD ทักษะ 2 หรือ Ult 1 เทิร์น (ทุก ${rk(r, 3, 2)} เทิร์น)`, (r) => ({ dodgeEnergy: rk(r, 15, 25), thDodgeCdCut: 1, thDodgeCdIcd: rk(r, 3, 2) })),
     t('th_t2b', 2, '🎯', 'จุดบอดซ้อนพิษ', 2, (r) => `คริ + คริสกิล +${rk(r, 1, 1.6).toFixed(1)}% ต่อ stack พิษ/Wound บนเป้า (สูงสุด ${KIT.thiefStackCritTalMax} stack)`, (r) => ({ thStackCritTal: rk(r, 0.01, 0.016) })),
