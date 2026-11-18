@@ -273,7 +273,11 @@ func _build_scenery() -> void:
 		var z := -_half.y
 		while z < _half.y:
 			var px := side * (_half.x + _rng.randf_range(1.5, 5.0))
-			if not on_path(px, z, 2.0):
+			if on_path(px, z, 2.0):
+				pass
+			elif z > 2.0:
+				_bush(Vector3(px, 0.0, z)) # near side: keep it low
+			else:
 				_tree(Vector3(px, 0.0, z))
 			z += _rng.randf_range(3.0, 5.0)
 	# A few rocks and bushes inside the arena: cover to play around.
