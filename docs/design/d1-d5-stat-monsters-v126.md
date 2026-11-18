@@ -23,3 +23,10 @@ Hell mode (`hellOpen`: tier 6+), deep daily / rift / weekly bounty pools, the to
 ## Live config
 Old live-config keys `monStat.legacy.*`, `battle.monBuff.hp|dmg.*` and D1-D5 `hp` / `dmg` / `matk` are now skipped / unused.
 Tune D1-D5 with `bodyMul`, `speedMul`, `statAlloc`, `pointsMul` and the bonuses, as on D6+.
+
+# v127: 🔥 hard escalation (Q 2026-11-19 "ให้มันโหดขึ้นในแต่ละเวฟ แต่ละวัน")
+`src/data/hard-escalation.ts`, called from `BattleScene.statDef` on 🔥 hard / 😈 hell dungeon runs (not tower / rift):
+- every room: all stat points x (1 + 0.10 x room index)
+- day 2: 3 random perks (MON_PERKS, 16) + HP x1.3 · day 3+: 5 perks + 1 🟡 blessing (MON_BLESS_YELLOW, 5), HP x1.3 stays
+- 😈 hell final boss (MVP): HP x1.5, stat points x1.5, + 1 🔴 blessing (MON_BLESS_RED, 4)
+- perk icons float over each monster; bosses / minis call out the names. Knobs: HARD_ESC (not in live config yet).

@@ -34,7 +34,8 @@ import { rollEndgameUniqueDrop, rollUnique3Drop } from '../data/uniques3'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
 import { HARD_POWER, overpowerMul, TOWER_POWER } from '../data/power'
-import { deepAnchor, deepKind, homeDungeon, homeLv, levelDropMul, restatAt, topStats, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, towerMonLv } from '../data/mon-stats'
+import { escalate, escalationAt } from '../data/hard-escalation'
+import { deepAnchor, deepKind, homeDungeon, homeLv, levelDropMul, monTier, restatAt, topStats, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, towerMonLv } from '../data/mon-stats'
 import { ENDLESS_HELL, endlessHell, HELL, HELL_MODE, hellify } from '../data/hell'
 import { foldAffixes } from '../data/affixes'
 import { PACKS } from '../data/dungeons'
@@ -575,6 +576,8 @@ export class BattleScene extends Phaser.Scene {
     if (affix) this.time.delayedCall(700, () => this.callout(`🔥 ${def.name}: ${affix}`, W / 2, 205))
     else if (def.hellish && big) this.time.delayedCall(700, () => this.callout(`🔥 ${def.name}: ${def.hellish}`, W / 2, 205))
     else if (def.hellish) this.time.delayedCall(500 + slot * 120, () => this.floatText(spr.x, spr.y - 90, def.hellish!, '#ff8a80'))
+    if (def.escTag && big) this.time.delayedCall(1300, () => this.callout(`🔥 ${def.name}: ${def.escNames}`, W / 2, 235))
+    else if (def.escTag) this.time.delayedCall(700 + slot * 120, () => this.floatText(spr.x, spr.y - 110, def.escTag!, '#ffd86b'))
     this.mons.push(m)
     this.tweens.add({ targets: [spr, shadow], x, duration: 600, ease: 'Quad.easeOut', delay: slot * 90 })
     return m
@@ -585,8 +588,11 @@ export class BattleScene extends Phaser.Scene {
   private statDef(base: MonsterDef, kind?: MonsterKind): MonsterDef {
     const endless = kind && this.run.riftMode ? this.towerLv(kind) : 0 // v125 rift: room Lv, never below ENDLESS_HELL.minLv from depth 100
     const lv = endless || (this.roomDef(this.room)?.lv ?? roomLevel(this.dg.level!, this.dg.rooms, this.room)) + (this.hell ? HELL_MODE.lv : 0) // 😈 hell: +10 Lv
-    let out = statMonster(base, lv, { hard: this.hard || this.endlessDeep(), statMul: this.run.corrupt?.statMul })
+    // v127 🔥 hard escalation: +10% stat points per room, day 2+ perks / HP, day 3+ 🟡 blessing, 😈 hell MVP 🔴 (data/hard-escalation.ts)
+    const esc = this.hard && !this.run.endless ? escalationAt(this.room, this.roomDef(this.room)?.day ?? 1, this.hell && monTier(base) === 'boss') : null
+    let out = statMonster(esc ? { ...base, pointsMul: (base.pointsMul ?? 1) * esc.pointsMul } : base, lv, { hard: this.hard || this.endlessDeep(), statMul: this.run.corrupt?.statMul })
     if (this.hell && !out.passive) out = hellify(out, Math.random()) // 😈 every monster is a Hell copy (one trait, HP / ATK / EXP up)
+    if (esc) { const r = escalate(out, esc); out = r.def; if (r.tag) { out.escTag = r.tag; out.escNames = r.names } }
     const mut = this.run.mut
     if (mut.monHp !== 1) out.hp = Math.round(out.hp * mut.monHp)
     if (mut.monAtk !== 1) { out.dmg *= mut.monAtk; out.matk = (out.matk ?? out.dmg) * mut.monAtk }

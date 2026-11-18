@@ -80,6 +80,8 @@ export interface BossPhase {
 
 export interface MonsterDef {
   hellish?: string // v114 tower Hell copy (data/hell.ts): its trait label; also marks the tint
+  escTag?: string // v127 🔥 hard escalation (data/hard-escalation.ts): icons of its rolled perks / blessings
+  escNames?: string // ... and their names (boss / mini callout)
   name: string
   tex: string
   hp: number
