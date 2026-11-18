@@ -24,7 +24,7 @@
 4. **Migration:** ใช้ `resetTree(s)` (`save.ts:801`) ซึ่งคืนแต้ม `crossSpent.j2In1/j3In1` กลับ pool ที่ถูกต้องอยู่แล้ว + ล้าง `jobTalents` / `job2Talents`
 5. **ID ที่ ship แล้ว:** Rev 3 นำ `thief_b3`/`c2`/`c3`/`c4`, `th_t*`, `rg_k2`/`rg_x3` ฯลฯ มาใช้ซ้ำในความหมายใหม่ → migration ต้อง gate ด้วย flag ทุก save (ห้ามมีทางข้าม) และต้องแก้ `tools/bot.cjs` (บรรทัด ~86 อ้าง `rg_k2`/`rg_k3`) ด้วย
 6. **Balance ยังไม่มีหลักฐาน:** ตัวเลข `0.45x–0.90x`, `±15%`, "Simulation 20 เทิร์น" ใน Rev 3 = **ยังไม่ยืนยัน** · วัดจากคิวเล่นจริงเป็นหลัก (บอทประเมินผู้เล่นต่ำ) · ห้ามรัน `npm test` เต็มชุด ใช้ `node tools/test.mjs <ไฟล์>`
-7. **Damage-amp bracket:** ต้องเพิ่มตารางใน §5 ว่า `vsPoison`, `Exposed`, `stabMark`, Privileged (`th_wound` + `th_t4a`), Perfect Agony บวกกันหรือคูณกัน ก่อนลงมือ P2
+7. **Damage-amp bracket:** ✅ ดู R4.6 (6 bracket, B1 Taken cap +0.60 ฯลฯ) · ใช้เป็นกฎตอนเขียน P2
 8. **แทงพิษ `(1 + pskill)`:** ✅ ทำแล้ว (`thiefAuto` 1.0) → สูตร §2.2 ข้อ 4 ให้ใช้ `thiefAuto` 1.0 ไม่ใช่ 1.6 · ต้นเกมแทงพิษเบาลง (STR 20: −31%) ให้เงาพริ้ว (Ratio AGI) แบกแทน
 
 ### R4.4 แผนที่เหลือ (ทำทีละ task · commit ละ 1 งาน)
@@ -32,7 +32,7 @@
 |---|---|---|
 | P1 | Ratio AGI · knife fix · Back Stab · ทวงหนี้ cleanup | ✅ commit (รอคิวเล่นทดสอบ) |
 | P1b | แทงพิษ `pskill` ✅ · energy loop (`s1Weave`, floor cost) ⏸ ทำพร้อม P2 (talent `th_t2c` เปลี่ยน) |
-| P2 | Thief web + talents ใหม่ + migration | ⏳ ปลดล็อกแล้ว (Mobster A) · ต้องทำตาราง bracket + KIT key list ก่อน |
+| P2 | Thief web + talents ใหม่ + migration | ⏳ พร้อมเริ่ม (Mobster A · bracket R4.6 · KIT keys R4.7 ✅) |
 | P3 | Rogue web (Marks, Voracity, Death Mark) | ⏸ หลัง P2 |
 | P4 | Plagiarism | ⏸ PR แยก ทำท้ายสุด |
 
