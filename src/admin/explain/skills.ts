@@ -19,6 +19,8 @@ const S2P_TH: Record<string, [string, string]> = {
   spearPlus: ['🔱 หอกแสงแรงเพิ่มต่อ Lv × M.ATK', 'เพิ่ม = บวกตัวคูณความแรงให้หอกแสงทุกเล่มแรงขึ้น'],
   smokeHeal: ['💨 ฟื้น % HP ในระเบิดควัน', 'เพิ่ม = กดระเบิดควันแล้วเด้งเลือดคืนเยอะขึ้นตาม % Max HP'],
   pickRes: ['⚡ คืน Energy', 'เพิ่ม = กดสกิลนี้แล้วได้ Energy เด้งคืนมาใช้ท่าอื่นต่อทันที'],
+  smokeRes: ['🌫️ ควันหอม: คืน Energy', 'เพิ่ม = ร่ายม่านควัน (เมื่อมี "+") แล้วได้ Energy คืนมากขึ้น (ปัดเป็นจำนวนเต็ม)'],
+  woundMax: ['🔪 แผลฉีก: Wound สูงสุด', 'เพิ่ม = มอนติด Wound ซ้อนได้หนาขึ้น จุด Blade\'s End ได้ถี่ขึ้น (ปัดลงเป็นจำนวนเต็ม)'],
 }
 
 const S2N_TH: Record<string, FieldExplain> = {
@@ -34,6 +36,25 @@ const S2N_TH: Record<string, FieldExplain> = {
   kyrieHits: { label: '🛡️ Kyrie: แตกหลังโดน (ฮิต)', effect: 'เพิ่ม = โล่ Kyrie รับการโจมตีได้หลายครั้งขึ้นก่อนสลาย' },
   gloriaLuk: { label: '✨ ★ Gloria: +LUK ระหว่างบัฟ', effect: 'เพิ่ม = ช่วงมีพรแสงจะได้ค่า LUK พุ่ง (เพิ่มคริ + หลบโชคดี + ดรอป)' },
   pickPoison: { label: '🐍 ล้วงกระเป๋า: พิษใส่เป้า (สแต็ก)', effect: 'เพิ่ม = แทงขโมย Energy แล้วยัดสแต็กพิษใส่มอนหนาขึ้น' },
+  // P2'b Thief ม่านควัน / แผลลึก
+  smokeTurns: { label: '🌫️ ม่านควัน: Shroud นาน (เทิร์น)', effect: 'เพิ่ม = อยู่ในม่านควัน (FLEE / skillCrit / ดาเมจคริ ★ / ราชันย์โลหิต) ได้นานหลายเทิร์นขึ้น' },
+  smokeFlee: { label: '🌫️ Shroud: FLEE +% (คูณ)', effect: 'เพิ่ม = ระหว่างอยู่ในม่านควัน FLEE คูณสูงขึ้น หลบการโจมตีมอนได้บ่อยขึ้น (0.25 = ×1.25)' },
+  smokeSkillCrit: { label: '🌫️ Shroud: skillCrit +', effect: 'เพิ่ม = ระหว่างอยู่ในม่านควัน สกิล/Ult ติดคริง่ายขึ้น (ยังอยู่ใต้เพดาน skillCrit)' },
+  smokeCritDmg: { label: '👥 ★ ควันหนา: ดาเมจคริ + ใน Shroud', effect: 'เพิ่ม = มี ★ แล้วอยู่ในม่านควัน ติดคริแรงขึ้น (บวกเข้าดาเมจคริ ไม่คูณ)' },
+  raidMul: { label: '🌫️ Sightless Raid: × P.ATK', effect: 'เพิ่ม = ฮิตแรกหลังร่ายม่านควันฟาดโบนัสแรงขึ้น' },
+  exposedPct: { label: '👁️ Exposed: รับดาเมจเพิ่ม', effect: 'เพิ่ม = มอนที่โดน Sightless Raid รับดาเมจตรง (ไม่ใช่พิษ) แรงขึ้น (รวมกับโบนัสรับดาเมจอื่น ไม่เกินเพดาน B1)' },
+  exposedStar: { label: '👁️ ★ Exposed: รับดาเมจเพิ่ม', effect: 'เพิ่ม = มี ★ ควันหนา แล้ว Exposed ดันดาเมจที่มอนรับได้สูงขึ้น' },
+  exposedTurns: { label: '👁️ Exposed: นาน (เทิร์นมอน)', effect: 'เพิ่ม = มอนติด Exposed นานขึ้น ตีซ้ำได้หลายรอบขึ้น' },
+  smokeBlindTurns: { label: '🌫️ Blind: นาน (เทิร์นมอน)', effect: 'เพิ่ม = มอนตาบอด (Hit ลดตาม Crusader blindHit) นานขึ้น ตีโจรพลาดบ่อยขึ้น' },
+  woundStacks: { label: '🩸 แผลลึก: Wound ต่อการแทง', effect: 'เพิ่ม = แทงแผลลึกแปะ Wound หนาขึ้น จุด Blade\'s End ได้เร็วขึ้น' },
+  woundStarStacks: { label: '⚰️ ★ แผลมรณะ: Wound ต่อการแทง', effect: 'เพิ่ม = มี ★ แล้วแทงแผลลึกแปะ Wound หนาขึ้น' },
+  woundTurns: { label: '🩸 Wound นาน (เทิร์นฮีโร่)', effect: 'เพิ่ม = Wound อยู่บนมอนนานขึ้นก่อนหาย (รีเฟรชทุกครั้งที่แปะ)' },
+  woundStrikeChance: { label: '🔪 แผลฉีก: D.Strike แปะ Wound (โอกาส)', effect: 'เพิ่ม = มี "+" แล้ว Double Strike แปะ Wound +1 บ่อยขึ้น' },
+  bladeAt: { label: "🩸 Blade's End: Wound ขั้นต่ำ", effect: "⚠️ ลดเลข = จุด Blade's End ได้ง่ายขึ้น (ใช้ Wound เท่านี้ต่อครั้ง)" },
+  bladeMul: { label: "🩸 Blade's End: × P.ATK", effect: "เพิ่ม = ระเบิดแผล Blade's End แรงขึ้น (ทะลุ DEF)" },
+  bladeHealCut: { label: "🩸 Blade's End: ตัดฮีลมอน", effect: "เพิ่ม = หลัง Blade's End มอนฮีลตัวเองได้น้อยลง (ไม่ซ้อนกับตัดฮีลอื่น ใช้ค่าที่มากกว่า)" },
+  bladeCutTurns: { label: "🩸 Blade's End: ตัดฮีลนาน (เทิร์นมอน)", effect: 'เพิ่ม = มอนโดนตัดฮีลนานขึ้น' },
+  woundPriv: { label: '🩸 Privileged (แผลลึก): รับดาเมจเพิ่ม', effect: 'เพิ่ม = มอนที่ติดทั้งพิษและ Wound รับดาเมจทุกแบบ (รวมพิษ) แรงขึ้น (รวมในเพดาน B1)' },
 }
 
 const J2_DETAIL_HINTS: Record<string, string> = {

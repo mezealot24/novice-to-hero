@@ -72,7 +72,7 @@ export const ITEM_SETS: readonly ItemSet[] = [
     memberIds: ['c_emeraldmail', 'c_venomgauche', 'cf_plaguecharm'],
     tiers: [
       { pieces: 2, label: '2 ชิ้น: พิษ +1 stack, พิษแรง +3, ตีติดพิษ +10%', mod: { poison: 1, poisonDmg: 3, vsPoison: 0.1 } },
-      { pieces: 3, label: '3 ชิ้น: พิษ10+แรง +20%, หลบฟื้น +3%, ดาเมจธาตุ +12%', mod: { poisonAmp: 0.2, dodgeHeal: 0.03, elemDmg: 0.12 } },
+      { pieces: 3, label: '3 ชิ้น: พิษครึ่งเพดาน+ แรง +20%, หลบฟื้น +3%, ดาเมจธาตุ +12%', mod: { poisonAmp: 0.2, dodgeHeal: 0.03, elemDmg: 0.12 } },
     ],
   },
   {

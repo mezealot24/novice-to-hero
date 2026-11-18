@@ -42,3 +42,48 @@
 - Old Thief saves (Rogue / Mobster too, `job === 'thief'`): class 1 web + talents reset once with a full refund via `resetTree()` (cross-tier points back to their own pool) · 2nd-job web / talents / points untouched · corrupt `jobTree` entries are dropped, never crashes
 - Other classes only get the flag · `tools/bot.cjs` sets the flag so bot saves keep their web (bot not run)
 - Tests: migration cases in `tests/thief-p2a.test.ts` (refund, idempotent, Mobster / Rogue job2 kept, cross-tier, corrupt data, `load()` end to end)
+
+## 🔧 feat(thief): P2'b B1 takenAmp helpers + keys (thresholds scale with the poison cap)
+- Plan: `design/p2/MAIN-VS-REV4.md` §4 slice P2'b (status layer + Skill 2), on top of P2'a
+- Pure helpers in `skill-math.ts`: `takenAmp()` (R4.6 B1: Exposed + Privileged + แผลลึก Privileged + gear กัดกร่อน, **added** under one cap) · `debuffKinds()` (narrow 4 / wide 8 kinds) · `poisonAt(share, cap)`
+- New `KIT`: `thiefTakenCap` 0.6 · `thiefPrivShare` 0.6 · `thiefPoisonAmpShare` 0.5 · `thiefStackHpMax` 20 (admin `kit` + Thai labels)
+- Stack thresholds are a share of the hero's poison cap (§5.1 #3): at cap 20 gear กัดกร่อน = 10 stacks (same as today), สถานะทับซ้อน = 12 · cap 29 → 15 / 18
+- No behavior yet · tests: `tests/thief-p2b.test.ts`
+
+## 🔧 feat(thief): P2'b Skill 2 numbers ม่านควัน / แผลลึก + admin labels
+- `S2P.smokeRes` {10, 5} (ควันหอม Energy, rounded) · `S2P.woundMax` {6, 2/3} (แผลฉีก Wound cap, floored)
+- 18 plain `S2N` numbers: Shroud (`smokeTurns` 2 · `smokeFlee` 0.25 · `smokeSkillCrit` 0.15 · ★ `smokeCritDmg` 0.25) · Sightless Raid `raidMul` 1.2 · Exposed 0.2 / ★ 0.3, 2 turns · Blind 2 turns · Wound 2 / ★ 3 stacks, 3 hero turns, D.Strike 50% · Blade's End at 3 Wound, 1.8x, heal cut 40% 2 turns · Privileged +12%
+- All in admin `skills` (Thai labels in `S2N_TH` / `S2P_TH`) · ล้วงกระเป๋า untouched (main's steal)
+- Numbers only: skill texts + behavior land with the ม่านควัน / แผลลึก commits
+
+## 🔧 feat(thief): P2'b monster statuses Exposed / Wound / heal cut
+- New monster fields: 👁️ Exposed (monster turns + B1 share) · 🩸 Wound (stacks, **hero** turns, ticks before Skill 2) · Blade's End heal cut + once-per-turn flag
+- `healCut()` takes the bigger of burn / hellfire / Blade's End cut (never stacked) · Toxic Skin does not speed up Wound / Exposed
+- thief_c1 คมเลือด status kinds = poison / Wound / Exposed / chill (`debuffKinds`) · th_t2b จุดบอดซ้อนพิษ counts poison + Wound stacks (texts updated)
+- No source of Wound / Exposed yet (ม่านควัน / แผลลึก commits)
+
+## ⚖️ feat(thief): P2'b B1 takenAmp in damageMon (replaces the flat poisonAmp line)
+- `damageMon` line `poisonAmp && m.poison >= 10` → `takenAmpOf(m, dot)`: Exposed (hits only) + th_t4a Privileged + แผลลึก Privileged + gear / card / set กัดกร่อน, **added**, cap `KIT.thiefTakenCap` 0.6
+- Gear กัดกร่อน threshold = `thiefPoisonAmpShare` 0.5 × the hero's poison cap: cap 20 → 10 stacks (same) · พิษสะสม cap 29 → 15 · dot still counts (as before)
+- Only number change today: gear 0.45 + talent กัดกร่อน 0.25 = ×1.70 → capped ×1.60
+- New `Stats.thPrivileged` (0 until the th_t4a commit) · stat / set / talent texts say "half the poison cap"
+
+## ⚖️ feat(thief): P2'b talents สถานะทับซ้อน (th_t4a) + กายต้านพิษ (th_t1c) · save rework v2
+- `th_t4a` กัดกร่อน → 🧫 **สถานะทับซ้อน**: monster with poison ≥ 60% of the poison cap (12 at cap 20) **or** ≥ 2 debuff kinds (poison / Wound / Exposed / chill / blind / armor break / weak) takes +18% / +30% damage, dot too · B1 (cap +60% with Exposed / gear)
+- `th_t1c` หนังหนา (+40 / +80 HP) → 🩸 **กายต้านพิษ**: while any monster has poison / Wound: tenacity +8% / +14% · Max HP +8 / +14 per poison + Wound stack on the field (max 20 stacks = +160 / +280), delta-tracked, HP clamped when it fades
+- New `Stats.thStackHp` / `thCondTenacity`
+- Save: `THIEF_REWORK_VER` 1 → 2, same minimal reset (class 1 web + talents refunded once; job2 untouched) · bot save flag synced (not run)
+
+## ✨ feat(thief): P2'b ม่านควัน — Shroud + Sightless Raid + Exposed + Blind
+- Cast (cost 40 → **35**, CD 4): sure dodge 1 (★ 2, as before) + 🌫️ **Shroud** 2 hero turns: FLEE ×1.25 · skillCrit +15% (under the skillCrit cap) · ★ crit dmg +25% (B3, added)
+- First active hit after the cast (basic / combo / skill / Ult; not counters / allies) = 👁️ **Sightless Raid** 1.2x × (1 + P.skill) bonus hit + **Exposed** (+20% / ★ +30% damage taken from hits, 2 monster turns, B1) + 🙈 **Blind** 2 monster turns (Crusader's Hit cut)
+- "+" ควันหอม: heal as before + Energy 10 + 5/Lv (rounded)
+- 👑 ราชันย์โลหิต (thief_c4) also turns on inside Shroud · smoke bomb VFX kept, Raid uses the dagger-cross VFX
+- Texts + skill info rows updated
+
+## ✨ feat(thief): P2'b แผลลึก — Wound + Blade's End + heal cut + D.Strike Wound
+- Stab (1.2x / ★ 2x, DEF pierce, poison as before) also puts 🩸 **Wound** 2 (★ 3) stacks, cap 6 + 2/3 per "+" Lv (floored, Lv 3 = 8), lasts 3 hero turns (refreshed on each add)
+- Basic / combo / D.Strike / Back Stab hit on a target with Wound ≥ 3 = **Blade's End**: spends 3 Wound, 1.8x × (1 + P.skill) DEF-piercing hit (no lifesteal, crits only with ★ แผลมรณะ) + monster heal cut 40% for 2 monster turns (bigger cut wins vs burn / hellfire) · once per hero turn per monster · แทงพิษ alone never detonates
+- Privileged (B1): a target with poison + Wound takes +12% from everything (dot too), under the +60% cap
+- "+" แผลฉีก: D.Strike 50% → Wound +1
+- Texts + info rows · Blade's End uses the shadow-slash VFX

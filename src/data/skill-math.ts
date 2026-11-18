@@ -92,6 +92,9 @@ export const KIT = {
   thiefKillRes: 10, thiefKillPoisonHeal: 0.005, thiefKillPoisonHealCap: 0.12, thiefBossCritLeech: 0.375, thiefBossCritRes: 8,
   thiefBloodKingBelow: 0.45, thiefBloodKingMul: 1.75, thiefBloodKingStrikeLs: 0.66,
   thiefStackCritTalMax: 14,
+  // P2'b (MAIN-VS-REV4 §4 + §5.1 #3, R4.6 B1): one additive "damage taken" bracket under thiefTakenCap · stack thresholds are a share of the
+  // hero's poison cap (poisonMax()), not flat stacks (cap 20 + พิษสะสม made the old 8 / 10 always on) · th_t1c counts up to thiefStackHpMax stacks
+  thiefTakenCap: 0.6, thiefPrivShare: 0.6, thiefPoisonAmpShare: 0.5, thiefStackHpMax: 20,
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
   // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
   // 💰 Thief ทักษะ 2 ล้วงกระเป๋า (Q 2026-11-18, GW2 Steal): what you steal depends on the front monster's top stat. admin `kit` · thiefSteal.*
@@ -377,6 +380,7 @@ export const S2P = {
   mshieldTake: { base: 0.4, per: 0.05 }, novaMul: { base: 0.8, per: 0.15 }, arcaneMul: { base: 0.6, per: 0.1 },
   renewHeal: { base: 0.3, per: 0.05 }, kyrieHp: { base: 0, per: 0.05 }, spearPlus: { base: 0, per: 0.03 },
   smokeHeal: { base: 0, per: 0.03 }, pickRes: { base: 15, per: 5 },
+  smokeRes: { base: 10, per: 5 }, woundMax: { base: 6, per: 2 / 3 }, // P2'b: ควันหอม Energy (rounded) · แผลฉีก Wound cap (floored)
 }
 const lin = (k: { base: number; per: number }, lv: number) => k.base + k.per * lv
 
@@ -401,6 +405,15 @@ export const S2N = {
   smokeHeal: (lv: number) => lin(S2P.smokeHeal, lv), smokeDodges: (star: boolean) => (star ? 2 : 1),
   pickMul: (star: boolean) => (star ? 1.6 : 1), pickRes: (lv: number) => lin(S2P.pickRes, lv), pickPoison: 3,
   woundMul: (star: boolean) => (star ? 2 : 1.2), woundPoison: (lv: number) => 4 + Math.round(lv), // stacks: whole numbers (v83 s2Lv can be fractional)
+  // P2'b (MAIN-VS-REV4 §4, R4.7.3 minus ล้วงกระเป๋า: main's steal stays): plain numbers so the admin can tune them (skills `s2n.<key>`)
+  // ม่านควัน: Shroud (FLEE x(1 + smokeFlee), skillCrit +, ★ Crit Dmg + in B3) · first active hit = Sightless Raid + Exposed (B1) + Blind (KIT2.crusader.blindHit)
+  smokeTurns: 2, smokeFlee: 0.25, smokeSkillCrit: 0.15, smokeCritDmg: 0.25, raidMul: 1.2,
+  exposedPct: 0.2, exposedStar: 0.3, exposedTurns: 2, smokeBlindTurns: 2,
+  smokeRes: (lv: number) => Math.round(lin(S2P.smokeRes, lv)), // whole Energy (s2Lv can be fractional)
+  // แผลลึก: Wound stacks (hero turns, refreshed on every add) · Blade's End at bladeAt Wound (1 / turn / target) · Privileged +woundPriv in B1
+  woundStacks: 2, woundStarStacks: 3, woundTurns: 3, woundStrikeChance: 0.5,
+  bladeAt: 3, bladeMul: 1.8, bladeHealCut: 0.4, bladeCutTurns: 2, woundPriv: 0.12,
+  woundMax: (lv: number) => Math.floor(lin(S2P.woundMax, lv)), // whole stacks (s2Lv can be fractional)
 }
 
 // ---------- costs / cooldowns ----------
@@ -410,7 +423,7 @@ export const autoCost = (job: JobDef, st: Stats) => Math.max(job.id === 'thief' 
 // ---------- P2'a Thief pure helpers (numbers only, no Mon / Phaser: tests call them directly) ----------
 /** สลับคม: after แทงพิษ the next hero turn is a basic attack · Q3: not inside 👤 ร่างเงา (free Skill 1 spam stays). */
 export const thiefS1Woven = (jobId: string, weave: boolean, inShadow: boolean): boolean => jobId === 'thief' && weave && !inShadow
-/** th_t2b: crit / skillCrit from poison stacks on the target (counts up to KIT.thiefStackCritTalMax). */
+/** th_t2b: crit / skillCrit from poison + Wound stacks on the target (counts up to KIT.thiefStackCritTalMax). */
 export const thiefStackCritAdd = (st: Stats, stacks: number): number => st.thStackCritTal * Math.min(Math.max(0, stacks), KIT.thiefStackCritTalMax)
 /** thief_c1: lifesteal from status kinds on the target. */
 export const thiefCondLeechAdd = (st: Stats, kinds: number): number =>
@@ -420,8 +433,22 @@ export const thiefKillHeal = (st: Stats, poisonOnCorpse: number): number =>
   st.thKillLeech > 0 ? st.thKillLeech + Math.min(KIT.thiefKillPoisonHealCap, Math.max(0, poisonOnCorpse) * KIT.thiefKillPoisonHeal) : 0
 /** thief_c3: first crit on a boss / mini each turn heals this share of max HP. */
 export const thiefBossCritHeal = (st: Stats): number => st.thKillLeech * KIT.thiefBossCritLeech
-/** thief_c4 ★ ราชันย์โลหิต: on below KIT.thiefBloodKingBelow of max HP (P2'b may add ม่านควัน). */
-export const thiefBloodKingOn = (st: Stats, hp: number, maxHp: number): boolean => st.thBloodKing > 0 && hp < maxHp * KIT.thiefBloodKingBelow
+/** thief_c4 ★ ราชันย์โลหิต: on below KIT.thiefBloodKingBelow of max HP, or inside ม่านควัน Shroud (P2'b). */
+export const thiefBloodKingOn = (st: Stats, hp: number, maxHp: number, inShroud: boolean): boolean => st.thBloodKing > 0 && (inShroud || hp < maxHp * KIT.thiefBloodKingBelow)
+// ---------- P2'b Thief status layer (B1 Taken, R4.6) ----------
+/** Stacks needed for a "share of the poison cap" threshold (P2'b): ceil(share x cap), at least 1. cap = the hero's poisonMax(). */
+export const poisonAt = (share: number, cap: number): number => Math.max(1, Math.ceil(share * Math.max(0, cap) - 1e-9))
+/** B1: the debuffs one monster carries; the Scene fills it, the math stays Phaser-free. */
+export interface DebuffFlags { poison: boolean; wound: boolean; exposed: boolean; chill: boolean; stabMark: boolean; blind: boolean; armorBrk: boolean; weak: boolean }
+/** How many different debuff kinds. `wide` = the th_t4a list (8 kinds); otherwise the thief_c1 list (poison / Wound / Exposed / chill). */
+export const debuffKinds = (f: DebuffFlags, wide: boolean): number =>
+  (f.poison ? 1 : 0) + (f.wound ? 1 : 0) + (f.exposed ? 1 : 0) + (f.chill ? 1 : 0) +
+  (wide ? (f.stabMark ? 1 : 0) + (f.blind ? 1 : 0) + (f.armorBrk ? 1 : 0) + (f.weak ? 1 : 0) : 0)
+/** B1 inputs: each term is already 0 when its own filter fails (Exposed: hits only, Privileged: its condition ...). stabMark = P3 Rogue. */
+export interface TakenIn { exposed: number; stabMark: number; woundPriv: number; privileged: number; poisonAmp: number }
+/** B1 Taken (R4.6): the terms ADD, one cap (KIT.thiefTakenCap). Damage x (1 + this). */
+export const takenAmp = (i: TakenIn): number =>
+  Math.max(0, Math.min(KIT.thiefTakenCap, i.exposed + i.stabMark + i.woundPriv + i.privileged + i.poisonAmp))
 /** Mana the ult costs (Mage, Swordsman, Cleric since v86); 0 for every other job. v102: pass st for the base Cleric ult (+clUltMana by Ult node Lv). */
 export const ultCost = (job: JobDef, st?: Stats) => (job.resource === 'mana' ? (job.ult.cost ?? 0) + (job.id === 'cleric' && (job.ult.cost ?? 0) > 0 ? st?.clUltMana ?? 0 : 0) : 0)
 /** Ult cooldown in hero turns before relics (gear smashCd lowers it for every job). */
@@ -813,10 +840,21 @@ export function skill2Info(k: Skill2Def, st: Stats): InfoRow[] {
       if (star) add('✨ Gloria', `LUK +${S2N.gloriaLuk}`)
       break
     case 'cl_spear': add(`หอกแสง ${S2N.spearCount(star)} เล่ม ตัวสุ่ม /เล่ม (ข้างๆ 50%)`, hitText(st, spearMul(st, k), true)); break
-    case 'th_smoke': add('หลบแน่นอน', `${S2N.smokeDodges(star)} ครั้ง`); if (lv) add('ฟื้น HP', `${heal(st, st.maxHp * S2N.smokeHeal(lv))}`); break
+    case 'th_smoke':
+      add('หลบแน่นอน', `${S2N.smokeDodges(star)} ครั้ง`)
+      add('Shroud', `${S2N.smokeTurns} เทิร์น · FLEE +${pct(S2N.smokeFlee)} (คูณ) · skillCrit +${pct(S2N.smokeSkillCrit)}${star ? ` · ดาเมจคริ +${pct(S2N.smokeCritDmg)}` : ''}`)
+      add('Sightless Raid (ฮิตแรกหลังร่าย)', hitText(st, S2N.raidMul * (1 + st.pskill), false))
+      add('Exposed + Blind', `รับดาเมจ +${pct(star ? S2N.exposedStar : S2N.exposedPct)} ${S2N.exposedTurns} เทิร์น · Hit −${pct(KIT2.crusader.blindHit)} ${S2N.smokeBlindTurns} เทิร์น`)
+      if (lv) add('ฟื้น HP + Energy', `${heal(st, st.maxHp * S2N.smokeHeal(lv))} · +${S2N.smokeRes(lv)}`)
+      break
     case 'th_pick': { const T = KIT.thiefSteal; add('แทงตัวหน้า', hitText(st, S2N.pickMul(star), false)); add('คืน Energy', `${S2N.pickRes(lv)}`); if (star) add('พิษ', `+${S2N.pickPoison} stack`)
       add(star ? 'ขโมย 2 อย่าง (stat เด่น 1-2)' : 'ขโมยตาม stat เด่น', `STR→P.ATK +${Math.round(T.atk * 100)}% · AGI→Energy +${T.res} · INT→พิษ ${T.poison} · VIT→เกราะแตก ${T.brkTurns} · WIS→ฮีล ${Math.round(T.heal * 100)}% · LUK/DEX→คริ +${Math.round(T.crit * 100)}% (${T.turns} เทิร์น)`); break }
-    case 'th_wound': add('แทงทะลุ DEF', hitText(st, S2N.woundMul(star), false)); add('พิษ', `+${S2N.woundPoison(lv)} stack (${thiefPoisonPerStack(st).toFixed(1)}/stack/เทิร์น)`); break
+    case 'th_wound':
+      add('แทงทะลุ DEF', hitText(st, S2N.woundMul(star), false)); add('พิษ', `+${S2N.woundPoison(lv)} stack (${thiefPoisonPerStack(st).toFixed(1)}/stack/เทิร์น)`)
+      add('Wound', `+${star ? S2N.woundStarStacks : S2N.woundStacks} stack (สูงสุด ${S2N.woundMax(lv)} · ${S2N.woundTurns} เทิร์น)${lv ? ` · D.Strike ${pct(S2N.woundStrikeChance)} +1` : ''}`)
+      add(`Blade's End (Wound ≥ ${S2N.bladeAt})`, `${hitText(st, S2N.bladeMul * (1 + st.pskill), false)} · ตัดฮีลมอน ${pct(S2N.bladeHealCut)} ${S2N.bladeCutTurns} เทิร์น${star ? ' · คริได้' : ''}`)
+      add('Privileged (พิษ + Wound)', `รับดาเมจ +${pct(S2N.woundPriv)}`)
+      break
   }
   return out
 }

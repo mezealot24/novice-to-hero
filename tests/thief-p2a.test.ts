@@ -45,7 +45,7 @@ test('core mods: PLAYER keys, finite, >= 0, never above full; full-level numbers
   near(thiefCondLeechAdd(c1, KIT.thiefKindsAt), 0.135, 'c1 Lv 5 multi = 13.5%')
   near(thiefKillHeal(c3, 0), 0.12, 'c3 Lv 5')
   near(thiefBossCritHeal(c3), 0.045, 'c3 boss crit')
-  assert.equal(thiefBloodKingOn(st(node('thief_c4').mod(1)), 40, 100), true)
+  assert.equal(thiefBloodKingOn(st(node('thief_c4').mod(1)), 40, 100, false), true)
 })
 
 test('row-2 talents: ขโมยจังหวะ / จุดบอดซ้อนพิษ / จังหวะสลับมีด numbers, ranks > 0, no autoCostCut', () => {
@@ -79,9 +79,9 @@ test('pure helpers: leech kinds, kill heal, boss crit, blood king, stack crit', 
   assert.equal(thiefKillHeal(st({}), 40), 0, 'no node -> no poison heal either')
   near(thiefBossCritHeal(k), 0.12 * KIT.thiefBossCritLeech)
   const bk = st({ thBloodKing: 1 })
-  assert.equal(thiefBloodKingOn(bk, 44, 100), true)
-  assert.equal(thiefBloodKingOn(bk, 45, 100), false, '45% is not below 45%')
-  assert.equal(thiefBloodKingOn(st({}), 1, 100), false)
+  assert.equal(thiefBloodKingOn(bk, 44, 100, false), true)
+  assert.equal(thiefBloodKingOn(bk, 45, 100, false), false, '45% is not below 45%')
+  assert.equal(thiefBloodKingOn(st({}), 1, 100, false), false)
   const t = st({ thStackCritTal: 0.016 })
   near(thiefStackCritAdd(t, 5), 0.08)
   near(thiefStackCritAdd(t, 99), 0.016 * KIT.thiefStackCritTalMax, 'stacks above the cap do nothing')
@@ -157,13 +157,13 @@ const oldThief = (over: Partial<SaveData> = {}): SaveData => {
 }
 
 test('migration: old Thief gets the class 1 web + talents back once', () => {
-  assert.equal(THIEF_REWORK_VER, 1)
+  assert.ok(THIEF_REWORK_VER >= 1) // P2'b bumped it to 2 (tests/thief-p2b.test.ts)
   const s = oldThief()
   migrateThiefRogueRework(s)
   assert.equal(s.skillPoints, 2 + 10)
   assert.deepEqual(s.jobTree, {})
   assert.deepEqual(s.jobTalents, {})
-  assert.equal(s.thiefRogueRework, 1)
+  assert.equal(s.thiefRogueRework, THIEF_REWORK_VER)
   s.jobTree = { thief_a1: 1 }
   migrateThiefRogueRework(s)
   assert.deepEqual(s.jobTree, { thief_a1: 1 }, 'idempotent')
@@ -172,14 +172,14 @@ test('migration: old Thief gets the class 1 web + talents back once', () => {
 
 test('migration: new saves skip it, other classes only get the flag', () => {
   const s = newSave('n', 'human')
-  assert.equal(s.thiefRogueRework, 1)
+  assert.equal(s.thiefRogueRework, THIEF_REWORK_VER)
   Object.assign(s, { job: 'thief', jobTree: { thief_a1: 2 } })
   migrateThiefRogueRework(s)
   assert.deepEqual(s.jobTree, { thief_a1: 2 })
   const a = oldThief({ job: 'archer', jobTree: { archer_a1: 3 } })
   migrateThiefRogueRework(a)
   assert.deepEqual(a.jobTree, { archer_a1: 3 })
-  assert.equal(a.thiefRogueRework, 1)
+  assert.equal(a.thiefRogueRework, THIEF_REWORK_VER)
 })
 
 test('migration: Mobster / Rogue keep their job2 web, talents and points', () => {
@@ -206,7 +206,7 @@ test('migration: corrupt data does not throw, results stay finite', () => {
   Object.assign(s, { jobTree: null, thiefRogueRework: 'x', jobTalents: undefined, skillPoints: undefined })
   assert.doesNotThrow(() => migrateThiefRogueRework(s))
   assert.ok(Number.isFinite(s.skillPoints))
-  assert.equal(s.thiefRogueRework, 1)
+  assert.equal(s.thiefRogueRework, THIEF_REWORK_VER)
   const b = oldThief({ jobTree: { thief_a1: 'oops', thief_b1: 2 } as unknown as SaveData['jobTree'] })
   migrateThiefRogueRework(b)
   assert.equal(b.skillPoints, 4)
@@ -217,7 +217,7 @@ test('migration: load() end to end migrates once', () => {
   mem['novice-to-hero.save.v1'] = JSON.stringify(oldThief())
   const s = load()
   assert.ok(s)
-  assert.equal(s.thiefRogueRework, 1)
+  assert.equal(s.thiefRogueRework, THIEF_REWORK_VER)
   assert.deepEqual(s.jobTree, {})
   assert.ok(s.skillPoints >= 12, `refunded: ${s.skillPoints}`)
 })

@@ -21,6 +21,9 @@ export interface Skill2Def {
   star: { icon: string; name: string; desc: string } // max 1, Stats.s2Star
 }
 
+/** Share -> "25%" (one decimal at most, so a fractional "+" Lv still shows the real number). */
+const pc = (x: number) => `${Math.round(x * 1000) / 10}%`
+
 const s = (id: Skill2Id, job: JobId, icon: string, name: string, cost: number, cd: number, desc: string, plus: Skill2Def['plus'], star: Skill2Def['star']): Skill2Def =>
   ({ id, job, icon, name, cost, cd, desc, plus, star })
 
@@ -55,12 +58,14 @@ export const SKILL2: Skill2Def[] = [
   s('cl_spear', 'cleric', '🔱', 'หอกแสง', 20, 3, 'เรียกหอกแสง 2 เล่ม (ตอนจบเทิร์น ใส่ตัวสุ่ม · ตัวข้างๆ 50%)',
     { icon: '⚜️', name: 'หอกคม', desc: (lv) => `หอกแรง +${lv * 10}%` }, { icon: '🌟', name: 'หอกสวรรค์', desc: 'เรียกหอก 4 เล่ม' }),
   // 🗡️ Thief (Energy)
-  s('th_smoke', 'thief', '💨', 'ม่านควัน', 40, 4, 'หลบการโจมตีถัดไปแน่นอน 1 ครั้ง',
-    { icon: '🌫️', name: 'ควันหอม', desc: (lv) => `ร่ายแล้วฟื้น ${lv * 3}% HP` }, { icon: '👥', name: 'ควันหนา', desc: 'หลบแน่นอน 2 ครั้ง' }),
+  s('th_smoke', 'thief', '💨', 'ม่านควัน', 35, 4, `หลบแน่นอน ${S2N.smokeDodges(false)} ครั้ง + Shroud ${S2N.smokeTurns} เทิร์น (FLEE +${pc(S2N.smokeFlee)} · skillCrit +${pc(S2N.smokeSkillCrit)}) · การโจมตีครั้งแรกหลังร่าย = Sightless Raid ${S2N.raidMul}x + Exposed (รับดาเมจ +${pc(S2N.exposedPct)} ${S2N.exposedTurns} เทิร์น) + Blind ${S2N.smokeBlindTurns} เทิร์น`,
+    { icon: '🌫️', name: 'ควันหอม', desc: (lv) => `ร่ายแล้วฟื้น ${pc(S2N.smokeHeal(lv))} HP + Energy ${S2N.smokeRes(lv)}` },
+    { icon: '👥', name: 'ควันหนา', desc: `หลบแน่นอน ${S2N.smokeDodges(true)} ครั้ง · Exposed +${pc(S2N.exposedStar)} · ใน Shroud ดาเมจคริ +${pc(S2N.smokeCritDmg)}` }),
   s('th_pick', 'thief', '💰', 'ล้วงกระเป๋า', 30, 3, `แทงตัวหน้า 1x + คืน Energy 15 + ขโมยตาม stat เด่นของมอน: STR→P.ATK +${Math.round(KIT.thiefSteal.atk * 100)}% · AGI→Energy +${KIT.thiefSteal.res} · INT→พิษ ${KIT.thiefSteal.poison} stack · VIT→เกราะแตก ${KIT.thiefSteal.brkTurns} เทิร์น · WIS→ฮีล ${Math.round(KIT.thiefSteal.heal * 100)}% · LUK/DEX→คริ +${Math.round(KIT.thiefSteal.crit * 100)}% (บัฟ ${KIT.thiefSteal.turns} เทิร์น)`,
     { icon: '💰', name: 'มือไว', desc: (lv) => `คืน Energy ${15 + lv * 5}` }, { icon: '🎭', name: 'จอมโจร', desc: 'แทงแรง 1.6x + ติดพิษ 3 stack + ขโมย 2 อย่าง (stat เด่นอันดับ 1 และ 2)' }),
-  s('th_wound', 'thief', '🩸', 'แผลลึก', 35, 3, 'แทงตัวหน้า 1.2x ทะลุ DEF + พิษ 4 stack',
-    { icon: '🔪', name: 'แผลฉีก', desc: (lv) => `พิษ ${S2N.woundPoison(lv)} stack` }, { icon: '⚰️', name: 'แผลมรณะ', desc: 'แทงแรง 2x ทะลุ DEF' }),
+  s('th_wound', 'thief', '🩸', 'แผลลึก', 35, 3, `แทงตัวหน้า ${S2N.woundMul(false)}x ทะลุ DEF + พิษ ${S2N.woundPoison(0)} stack + Wound ${S2N.woundStacks} stack (สูงสุด ${S2N.woundMax(0)} · ${S2N.woundTurns} เทิร์น) · ตีปกติ/D.Strike/Back Stab ใส่เป้า Wound ≥ ${S2N.bladeAt} = Blade's End ${S2N.bladeMul}x ทะลุ DEF + ตัดฮีลมอน ${pc(S2N.bladeHealCut)} ${S2N.bladeCutTurns} เทิร์น (1 ครั้ง/เทิร์น/ตัว) · เป้าติดพิษ + Wound รับดาเมจ +${pc(S2N.woundPriv)}`,
+    { icon: '🔪', name: 'แผลฉีก', desc: (lv) => `พิษ ${S2N.woundPoison(lv)} stack · Wound สูงสุด ${S2N.woundMax(lv)} · D.Strike ${pc(S2N.woundStrikeChance)} แปะ Wound +1` },
+    { icon: '⚰️', name: 'แผลมรณะ', desc: `แทงแรง ${S2N.woundMul(true)}x ทะลุ DEF · Wound ${S2N.woundStarStacks} stack · Blade's End คริได้` }),
 ]
 export const skill2ById = (id: string) => SKILL2.find((x) => x.id === id)
 export const skill2Of = (job: JobId) => SKILL2.filter((x) => x.job === job)
