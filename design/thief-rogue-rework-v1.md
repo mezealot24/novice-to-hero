@@ -7,6 +7,7 @@
 |---|---|---|
 | `9302177` | **Ratio AGI:** `thUltAgi = KIT.thiefUltAgiK (2.0) × min(KIT.thiefUltAgiShareCap (1.2), AGI ÷ statPool)` · `statPool = 3 × Base Lv` | `thUltAgi = 0.01 × AGI` (§2.5, §4, §7.1) |
 | `d0ca9e9` | **พายุมีด อ่าน `j2KnifeMul`:** `(ultKnifeMul + KIT2.rogue.ultKnifeJ2Share (0.75) × j2KnifeMul) × h2` | สูตร `UltKnifeMul` §3.4 (ไม่คูณ ultPow ซ้ำ: `h2` มีอยู่แล้ว) |
+| `f5c3f20` | **`ทวงหนี้` ล้างพิษก่อน `damageMon()`** (debt kill ไม่กระจายพิษซ้ำ) | แถว CRITICAL ใน §6 |
 | `4825e8a` | **Back Stab ทะลุ `luckyDodge`** (flag `backStabbing` แยกจาก `sureHit`) + **`rg_x4 ★` ปามีดเมื่อ Back Stab คริ** | §3.3 + `rg_x4` ส่วน Back Stab (ยังไม่รวม Plagiarism) |
 
 ### R4.2 สิ่งที่คิวตัดสินแล้ว
