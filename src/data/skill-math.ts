@@ -86,6 +86,8 @@ export const KIT = {
   // Q 2026-11-19 Ratio AGI: เงาพริ้ว +thiefUltAgiK x (AGI above start / stat points the Base Lv gives), share capped at thiefUltAgiShareCap.
   // Was +thiefUltAgi 2% per AGI point (uncapped): Lv 80 all-AGI = x5.74 per stab, early game weak (P.ATK x AGI grew with level squared). Now all-in = x3 at every Lv.
   thiefUltAgiK: 2, thiefUltAgiShareCap: 1.2,
+  // Q 2026-11-19 playtest: Lv 4 with race + gear AGI already hit the share cap (+227%). The pool never counts as fewer than this many points (= Lv 20), so early free AGI is a small share.
+  thiefUltAgiPoolMin: 60,
   // P2'a (design/p2/MAIN-VS-REV4.md §4, R4.7.2 minus the keys §2 drops): แทงพิษ floor · D.Strike Energy / leech · thief_core (c1 / c3 / c4) · th_t2b
   thiefAutoMinCost: 30, thiefStrikeRes: 4, thiefStrikeLs: 0.33,
   thiefKindsAt: 2, thiefCondLeechMulti: 1.5,

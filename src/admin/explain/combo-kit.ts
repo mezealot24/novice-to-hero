@@ -288,6 +288,7 @@ export const KIT_EXPLAIN: Record<string, FieldExplain> = {
   thiefStackHpMax: { label: 'Thief · กายต้านพิษ: นับ stack สูงสุด', effect: 'เพิ่ม = พิษ+Wound บนสนามนับเป็น Max HP ชั่วคราวได้มากขึ้น (ทาเลนต์กายต้านพิษ)' },
   thiefUltAgiK: { label: 'Thief · Ult: โบนัส AGI เมื่อลง AGI เต็มสัดส่วน (+×)', effect: 'เพิ่ม = เงาพริ้วแรงขึ้นตามสัดส่วน AGI ต่อแต้มทั้งหมด (2 = ลง AGI หมดตัวแรง +200% ทุกเลเวล)' },
   thiefUltAgiShareCap: { label: 'Thief · Ult: เพดานสัดส่วน AGI', effect: 'เพิ่ม = AGI จากของใส่ดันโบนัสเงาพริ้วเกินลงเต็มได้มากขึ้น (1.2 = สูงสุด K × 1.2)' },
+  thiefUltAgiPoolMin: { label: 'Thief · Ult: แต้มขั้นต่ำที่ใช้หารสัดส่วน AGI', effect: 'เพิ่ม = เลเวลต่ำต้องลง AGI เยอะขึ้นกว่าจะได้โบนัสเงาพริ้วเต็ม (60 = เท่าแต้มของ Lv 20) · ลด = ต้นเกมเงาพริ้วแรงเร็วขึ้น' },
   'poison.atkPer': { label: 'Poison · ดาเมจ/stack +× P.ATK (สายโจร)', effect: 'เพิ่ม = พิษโตตาม P.ATK แรงขึ้นช่วงเลท · 0 = พิษ flat แบบเดิม' },
   'thiefShadow.max': { label: 'Shadow · เกจเงาเต็มที่', effect: 'ลดเลข = เข้าร่างเงาบ่อยขึ้น' },
   'thiefShadow.turns': { label: 'Shadow · ร่างเงาอยู่กี่เทิร์น', effect: 'เพิ่ม = ช่วงคริแน่ + ทักษะ 1 ฟรีนานขึ้น' },
