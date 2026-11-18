@@ -36,3 +36,9 @@
 - ⚡ ขโมยจังหวะ: a dodge also cuts Skill 2 (if its CD is the longer one) or the Ult CD by 1, then waits 3 / 2 hero turns (ICD, reset each wave) · Ult CD cut goes through the new single `cutUltCd()` (P2'c adds the global cap there)
 - 🎯 จุดบอดซ้อนพิษ: physical crit / skillCrit +1.0 / 1.6% per poison stack on the target (counts up to `thiefStackCritTalMax` 14), under the usual crit caps
 - 🧪 จังหวะสลับมีด: the basic swing right after แทงพิษ gets +25 / 40% in the basic bracket (all its basic / combo / D.Strike hits) and Energy +10 / 16
+
+## 💾 feat(save): Thief rework v1 — free class 1 web + talent reset
+- New `SaveData.thiefRogueRework` (version number, `THIEF_REWORK_VER` 1; new saves start at 1)
+- Old Thief saves (Rogue / Mobster too, `job === 'thief'`): class 1 web + talents reset once with a full refund via `resetTree()` (cross-tier points back to their own pool) · 2nd-job web / talents / points untouched · corrupt `jobTree` entries are dropped, never crashes
+- Other classes only get the flag · `tools/bot.cjs` sets the flag so bot saves keep their web (bot not run)
+- Tests: migration cases in `tests/thief-p2a.test.ts` (refund, idempotent, Mobster / Rogue job2 kept, cross-tier, corrupt data, `load()` end to end)

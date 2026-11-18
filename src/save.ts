@@ -79,6 +79,7 @@ export interface SaveData {
 	stretchRefund?: { skill: number; job2: number }; // points that migration gave back, shown once in town
 	bmRework?: 1 | 2; // Beastmaster rework v1 (1) / v2.1 (2): 1-time free job2Tree reset for existing Beastmasters
 	sageRework?: 1; // Sage rework v1 (Beta): 1-time free job2Tree + talent reset & point refund for existing Sages
+	thiefRogueRework?: number; // Thief / Rogue rework version (THIEF_REWORK_VER): 1 = P2'a Thief class 1 web + talent reset & refund (job2 untouched)
 	job2Talents?: Record<string, { id: string; rank: number }>; // v119 ทาเลนต์ชั้น 2: same shape, Talent Points from Job2 Lv; cleared when the 2nd job changes
 	jobTalents?: Record<string, { id: string; rank: number }>; // talent row "1".."4" -> pick + rank; Talent Points are derived from Job Lv (data/tree.ts)
 	stats: Record<BaseStat, number>;
@@ -138,6 +139,7 @@ export function newSave(name: string, race: RaceId): SaveData {
 		stretch: 1,
 		bmRework: 2,
 		sageRework: 1,
+		thiefRogueRework: THIEF_REWORK_VER,
 		name,
 		race,
 		baseLevel: 1,
@@ -213,6 +215,7 @@ export function load(): SaveData | null {
 		migrateSmashAuto(s);
 		migrateBeastmasterRework(s);
 		migrateSageRework(s);
+		migrateThiefRogueRework(s); // after migrateNodeStretch: refunds the stretched web once
 		if (
 			s.pet !== undefined &&
 			s.pet !== "hawk" &&
@@ -493,6 +496,25 @@ export function migrateSageRework(s: SaveData) {
 				? s.job2Points
 				: 0;
 		s.job2Points = cur + back;
+	}
+}
+/** Thief / Rogue rework version. Bump (and add an `if (v < N)` block) when a later release changes the meaning of shipped ids again. */
+export const THIEF_REWORK_VER = 1;
+/** Thief rework (P2'a): ids thief_c3 / thief_c4 / th_t2* changed meaning (thief_c2 moved column) -> reset the class 1 web + talents of every Thief once (Rogue / Mobster too: job is "thief") and refund the points. job2 webs are untouched (Rogue = P3). */
+export function migrateThiefRogueRework(s: SaveData) {
+	if (!s || typeof s !== "object") return;
+	const v = typeof s.thiefRogueRework === "number" && Number.isFinite(s.thiefRogueRework) ? s.thiefRogueRework : 0;
+	if (v >= THIEF_REWORK_VER) return;
+	s.thiefRogueRework = THIEF_REWORK_VER; // first: idempotent even if something below throws
+	if (s.job !== "thief") return;
+	if (v < 1) {
+		const t: Record<string, number> = {};
+		if (s.jobTree && typeof s.jobTree === "object") for (const [k, n] of Object.entries(s.jobTree)) if (typeof n === "number" && Number.isFinite(n) && n > 0) t[k] = n;
+		s.jobTree = t; // corrupt entries dropped so resetTree() sums numbers only
+		const back = resetTree(s); // also gives cross-tier points back to job2Points / job3Points
+		const cur = typeof s.skillPoints === "number" && Number.isFinite(s.skillPoints) ? s.skillPoints : 0;
+		s.skillPoints = cur + back;
+		s.jobTalents = {};
 	}
 }
 /** v27 skill web: class skill levels and the old tree become web nodes with new rules, so refund every point once. */
