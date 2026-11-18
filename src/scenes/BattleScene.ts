@@ -34,10 +34,11 @@ import { rollEndgameUniqueDrop, rollUnique3Drop } from '../data/uniques3'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
 import { HARD_POWER, matchScale, overpowerMul, TOWER_POWER } from '../data/power'
-import { deepAnchor, homeDungeon, homeLv, legacyLevel, levelDropMul, restatAt, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, statNative, towerMonLv, withStats } from '../data/mon-stats'
+import { deepAnchor, homeDungeon, homeLv, LEGACY, legacyLevel, levelDropMul, monTier, restatAt, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, statNative, towerMonLv, withStats } from '../data/mon-stats'
 import { ENDLESS_HELL, endlessHell, HELL, HELL_MODE, hellify } from '../data/hell'
 import { foldAffixes } from '../data/affixes'
 import { PACKS } from '../data/dungeons'
+import { DUNGEON_DAYS, echoPay } from '../data/dungeon-days'
 import { buildRun, MODES, payTowerSkip, recordTowerCheckpoint, riftFloorLoot, towerFloorLoot, towerSkipGems, type ModeArgs, type RunConfig, type RunRoom } from '../data/modes'
 import { button, fullscreenButton, go, toast, type Btn } from '../ui'
 import { chipGrid, floatLane, hazardHudBadge, HUD_THEME, stagePill, statusChips, type StatusChip } from '../battle/hud-layout'
@@ -456,6 +457,8 @@ export class BattleScene extends Phaser.Scene {
       this.retheme(this.run.themeAt(i))
       await this.walk(i === 0 ? 700 : 1100)
       if (id !== this.runId) return
+      if (room.dayStart && room.days) await this.newDay(room.day ?? 1, room.days) // ☀️ dungeon days (data/dungeon-days.ts)
+      if (id !== this.runId) return
       await this.spawnRoom(i)
       const won = await this.fight(id)
       if (id !== this.runId) return
@@ -514,6 +517,7 @@ export class BattleScene extends Phaser.Scene {
       for (const [k, n] of room.spawn) for (let j = 0; j < n; j++) kinds.push(k)
     }
     kinds.slice(0, SLOT_X.length).forEach((k, j) => this.addMon(k, j))
+    if (room.elite) this.flags.eliteReward = true // ☀️ day-end elite wave: pays like the fork event's dangerous path (no stat boost)
     if (this.flags.elite && !room.mini && !room.boss) { // event ทางแยก: this wave is elite
       const E = EVENT_RULES.forkElite
       this.flags.elite = false; this.flags.eliteReward = true
@@ -540,7 +544,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private addMon(kind: MonsterKind, slot: number, gauge?: number) {
-    let def = statNative(kind) && this.dg.level ? this.statDef(MONSTERS[kind], kind) :this.hardDef(this.modeDef(this.buffDef(this.legacyStats(kind)), kind))
+    let def = this.echoDef(kind) ?? (statNative(kind) && this.dg.level ? this.statDef(MONSTERS[kind], kind) : this.hardDef(this.modeDef(this.buffDef(this.legacyStats(kind)), kind)))
     if (this.isHell(kind)) def = hellify(def, Math.random()) // v114 🔥 tower floor 25+
     const big = def.ai === 'boss'
     const x = this.roomDef(this.room)?.mixed ? MIX_X[slot] ?? SLOT_X[slot] : big ? 720 : SLOT_X[slot] // tower mixed fight: adds in front, big ones behind
@@ -573,10 +577,10 @@ export class BattleScene extends Phaser.Scene {
 
   /** D6+ level dungeon: numbers from the monster's 7 stats at the room's level (data/mon-stats.ts). No Hero Power scaling;
    * 🔥 hard = +50% stat points on every tier, boss / mini affixes, and the run's corruption (affixes + stat boosts). */
-  private statDef(base: MonsterDef, kind?: MonsterKind): MonsterDef {
+  private statDef(base: MonsterDef, kind?: MonsterKind, build?: (lv: number) => MonsterDef): MonsterDef {
     const endless = kind && this.run.riftMode ? this.towerLv(kind) : 0 // v125 rift: room Lv, never below ENDLESS_HELL.minLv from depth 100
     const lv = endless || (this.roomDef(this.room)?.lv ?? roomLevel(this.dg.level!, this.dg.rooms, this.room)) + (this.hell ? HELL_MODE.lv : 0) // 😈 hell: +10 Lv
-    let out = statMonster(base, lv, { hard: this.hard || this.endlessDeep(), statMul: this.run.corrupt?.statMul })
+    let out = build ? build(lv) : statMonster(base, lv, { hard: this.hard || this.endlessDeep(), statMul: this.run.corrupt?.statMul })
     if (this.hell && !out.passive) out = hellify(out, Math.random()) // 😈 every monster is a Hell copy (one trait, HP / ATK / EXP up)
     const mut = this.run.mut
     if (mut.monHp !== 1) out.hp = Math.round(out.hp * mut.monHp)
@@ -594,6 +598,31 @@ export class BattleScene extends Phaser.Scene {
     const lv = this.towerLv(kind)
     return lv ? restatAt(base, kind, lv, true, this.endlessDeep()) : base // v116 tower Lv by floor · v122: HP / ATK / M.ATK from the stats at that Lv too (no Hero Power) · v125 rift too
   }
+  /** ☀️ dungeon days (Q 2026-11-18 "มอนจากด่านเก่าต้อง Scale lv ตามด่านใหม่"): a monster from an earlier dungeon in an echo room
+   *  is rebuilt at THIS room's Lv with its own kit, then pays EXP / zeny like this dungeon's monsters of its tier (dungeon-days echoPay).
+   *  D6+: the room Lv (a D1-D5 kind's numbers follow its stats up, like the tower) · D1-D5: this dungeon's LEGACY Lv for its tier. null = not an echo. */
+  private echoDef(kind: MonsterKind): MonsterDef | null {
+    const room = this.roomDef(this.room), d = MONSTERS[kind], home = homeDungeon(kind)
+    if (!room?.echo || !d || !home || home === this.dg.id || this.run.endless) return null
+    const homeBase = () => withStats(d, kind, legacyLevel(kind, d, this.dg), { hard: this.hard, statMul: this.run.corrupt?.statMul })
+    let out: MonsterDef
+    if (this.dg.level) out = statNative(kind) ? this.statDef(d, kind) : this.statDef(d, kind, (lv) => restatAt(homeBase(), kind, lv, true, this.hard))
+    else {
+      const lv = Math.max(1, (LEGACY.lv[this.dg.id] ?? 5) - LEGACY.tierDrop[monTier(d)])
+      out = this.hardDef(this.modeDef(this.buffDef(restatAt(homeBase(), kind, lv, true)), kind))
+    }
+    const k = echoPay(this.dg, d)
+    return { ...out, xp: Math.max(1, Math.round(out.xp * k.xp)), zeny: [Math.round(out.zeny[0] * k.zeny), Math.round(out.zeny[1] * k.zeny)] }
+  }
+
+  /** ☀️ a new day of a dungeon run: banner + a small heal (DUNGEON_DAYS.dayHeal). */
+  private async newDay(day: number, days: number) {
+    if (day <= 1) { this.banner(`☀️ วันที่ 1 / ${days}`, `ดันนี้ยาว ${days} วัน · ทุกวันจบด้วยศึกท้ายวัน 🌙 · วันสุดท้ายเจอบอส`); await this.wait(1100); return }
+    this.heal(this.st.maxHp * DUNGEON_DAYS.dayHeal)
+    this.banner(`☀️ วันที่ ${day} / ${days}`, day === days ? 'วันสุดท้าย! ปลายทางคือบอส' : 'มอนจากดันที่เคยผ่านเริ่มหวนกลับมา...')
+    await this.wait(1100)
+  }
+
   /** v116: Lv a monster of `kind` takes on this tower floor (0 = not an endless room). Hell copies get HELL.lv more.
    *  v125: a Void Rift room's Lv (every kind, D1-D13). Floor / depth ENDLESS_HELL.from+: never below ENDLESS_HELL.minLv. */
   private towerLv(kind: MonsterKind): number {
@@ -3971,7 +4000,8 @@ export class BattleScene extends Phaser.Scene {
   /** Forge materials (design/item-acquisition-v1.md): this dungeon's common one from normal monsters, its boss one from minis / bosses. Summons (no card) drop nothing. */
   private rollMat(m: Mon) {
     if (m.revived || !cardsOfMonster(m.kind).length) return
-    const dg = (!this.dg.level && statNative(m.kind) && this.endlessPay(m) >= 1 && homeDungeon(m.kind)) || this.dg.id, got: [string, number][] = [] // v114: a D6+ monster in the tower drops its own dungeon's mats
+    const echoHome = this.roomDef(this.room)?.echo ? homeDungeon(m.kind) : undefined // ☀️ Q 2026-11-18: a monster from an earlier dungeon drops that dungeon's mats
+    const dg = echoHome || (!this.dg.level && statNative(m.kind) && this.endlessPay(m) >= 1 && homeDungeon(m.kind)) || this.dg.id, got: [string, number][] = [] // v114: a D6+ monster in the tower drops its own dungeon's mats
     if (m.def.ai === 'boss' && !m.def.mini) {
       got.push([matOf(dg, true), MAT_RULES.boss.boss], [matOf(dg, false), MAT_RULES.boss.common])
       if ((this.run.modeId === 'dungeon' || this.run.modeId === 'hard' || this.run.modeId === 'bounty') && this.roomDef(this.room)?.boss && taintDrop(dg)) got.push([TAINT_MAT, taintDrop(dg) + (this.hell ? HELL_MODE.taintAdd : 0)]) // v89 ผลึกโลกันตร์: D6+ final boss only

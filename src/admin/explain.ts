@@ -99,6 +99,7 @@ export function explainTableGroup(t: TableId, key: string): { title: string; des
       stat: { title: '📊 stat · Base Lv & แต้ม Stat', desc: 'แต้มต่อเลเวลและโค้ง Account EXP' },
       job: { title: '🎭 job · Job Lv & โค้ง Job EXP', desc: 'ความเร็วในการอัป Job Lv เพื่อเปลี่ยนอาชีพ' },
       run: { title: '🏃 run · EXP และฮีลในรอบดันเจี้ยน', desc: 'ค่าประสบการณ์ในรันและการฟื้นเลือดหลังจบห้อง' },
+      days: { title: '☀️ days · ระบบวันในดันเจี้ยน (D2+)', desc: 'จำนวนวันต่อดัน เวฟเสียงสะท้อน (มอนดันเก่า) ศึกท้ายวัน และอีเวนต์คืนกองไฟ' },
     },
     kit: {
       cast: { title: '🔮 cast · ระบบร่ายเวท (Mage)', desc: 'โอกาสร่ายแตก คืน Mana และลูกไฟพื้นฐาน' },
