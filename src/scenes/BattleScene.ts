@@ -23,7 +23,7 @@ import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/ski
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
-import { thiefPoisonPerStack, poisonCapOf, poisonDefCut, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
+import { thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, ultCooldown, ultCost } from '../data/skill-math'
 import { addCard, addMat, addXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -403,7 +403,7 @@ export class BattleScene extends Phaser.Scene {
     this.blessOn = false; this.blessDelta = undefined; this.kyrie = { hp: 0, hits: 0 } // v77 พรแสง
     if (this.s2?.id === 'cl_spear') this.st.spearMul += S2N.spearPlus(this.st.s2Lv) // หอกคม: +10%/lv of the 0.3x base
     this.res = this.job.resource === 'rage' ? 0 : this.resMax()
-    this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0
+    this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0; this.shadowGauge = 0; this.shadowTurns = 0; this.thMarkMon = undefined; this.malice = 0; this.rogueCp = 0
     this.rigSpec = heroRigSpec(s)
     this.heroRig.setAppearance(this.rigSpec, heroCostumeTint(s.costume))
     this.heroRig.resetPose(HERO_X, GROUND)
@@ -855,6 +855,7 @@ export class BattleScene extends Phaser.Scene {
   /** Dungeon 4-5: debuffs tick before the hero acts and count down after. */
   private async heroTurn() {
     this.tickFxCd()
+    if (this.shadowTurns > 0 && --this.shadowTurns === 0) this.heroSpr.setAlpha(1) // 👤 ร่างเงา wears off
     const X = this.hx
     if (this.relic === 'purify') this.heal(this.st.maxHp * RELIC_RULES.purify.regen, true)
     if (X.poison > 0) { this.dotHurt(this.st.maxHp * BATTLE.poisonPct * X.poison, '☠️', '#b48aff'); X.poison-- }
@@ -1072,7 +1073,7 @@ export class BattleScene extends Phaser.Scene {
       return
     }
     if (ultWaiting) this.floatText(HERO_X, GROUND - 140, this.charges < asuraNeed ? `🔵 ลูกพลังไม่พอ อาชูร่า (${this.charges}/${asuraNeed})` : `🔷 Mana ไม่พอ ult (${Math.floor(this.res)}/${ultCost})`, '#5aa0ff') // keep it booked, save Mana/charges for it
-    const cost = autoCost(this.job, this.st)
+    const cost = this.shadowTurns > 0 && this.job.id === 'thief' ? 0 : autoCost(this.job, this.st) // 👤 ร่างเงา: Skill 1 free
     const s1Ok = mayCast(!this.autoUlt, this.book.s1) // v86: manual mode only casts Skill 1 when it is booked, otherwise a basic attack (saves Mana for the ult)
     const castS1 = async () => { this.spendRes(cost); this.book.s1 = false; this.popSkill('s1'); await this.asSkill(() => this.autoSkill(), 'skill', 's1') }
     if (this.job.id === 'cleric') { // v59 Q: the Priest smashes EVERY turn; Skill 1 rides along (heal first when low, holy light after the smash)
@@ -1104,6 +1105,11 @@ export class BattleScene extends Phaser.Scene {
   private res = 0
   private shield = 0
   private dodgeCharges = 0
+  private shadowGauge = 0 // 👤 Thief เกจเงา (KIT.thiefShadow)
+  private shadowTurns = 0 // hero turns of ร่างเงา left
+  private thMarkMon?: Mon // 🔻 Thief หมายหัว target
+  private malice = 0
+  private rogueCp = 0 // 🔁 Rogue Combo Point
   private ctrCharges = 0 // Swordsman talent ท่าสวนพร้อม: sure counters left
   /** Mana the ult costs (Mage, Swordsman); 0 for every other job. */
   private ultCost() { return ultCost(this.job, this.st) } // v102: + Cleric Ult node Lv Mana
@@ -1216,12 +1222,30 @@ export class BattleScene extends Phaser.Scene {
     return overflowShare(add, room)
   }
   private poisonMax() { return poisonCapOf(this.st) }
+  /** 👤 Thief เกจเงา: fill it, full = ร่างเงา (sure physical crits + Skill 1 free) for KIT.thiefShadow.turns hero turns. */
+  private addShadow(n: number) {
+    const S = KIT.thiefShadow
+    if (this.job.id !== 'thief' || n <= 0 || S.max <= 0 || this.shadowTurns > 0) return
+    this.shadowGauge = Math.min(S.max, this.shadowGauge + n)
+    if (this.shadowGauge < S.max) { this.floatText(HERO_X - 40, GROUND - 175, `👤 ${this.shadowGauge}/${S.max}`, '#9a9ab8'); return }
+    this.shadowGauge = 0; this.shadowTurns = S.turns + 1 // +1: heroTurn ticks it down before acting
+    this.heroSpr.setAlpha(0.75)
+    this.callout('👤 ร่างเงา! คริแน่ + ทักษะ 1 ฟรี', HERO_X + 60, GROUND - 190, '#c9b8ff')
+  }
+  /** 🔻 Thief หมายหัว: keep a live mark on the highest-HP monster. */
+  private ensureMark() {
+    if (this.st.thMark <= 0 || (this.thMarkMon && !this.thMarkMon.dead)) return
+    const jumped = !!this.thMarkMon
+    this.thMarkMon = this.alive().sort((a, b) => b.hp - a.hp)[0]
+    if (jumped) this.malice = Math.floor(this.malice / 2) // the mark jumps: keep half the Malice
+    if (this.thMarkMon) this.dotIcon(this.thMarkMon)
+  }
   /** 💰 ล้วงกระเป๋า: one loot by the monster's stat (KIT.thiefSteal). */
   private stealFrom(m: Mon, k: string) {
     const T = KIT.thiefSteal, say = (t: string, c: string) => this.floatText(HERO_X, GROUND - 150, `💰 ${t}`, c)
     if (k === 'str') { this.buf.lootAtk = T.turns; say(`ขโมยแรง! P.ATK +${Math.round(T.atk * 100)}%`, '#ffb36b') }
     else if (k === 'agi') { this.res = Math.min(this.resMax(), this.res + T.res); say(`ขโมยจังหวะ! Energy +${T.res}`, '#8fe3ff') }
-    else if (k === 'int') { if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + T.poison); m.poisonDmg = Math.max(m.poisonDmg, this.myPoisonDmg()); this.dotIcon(m) } say(`ขโมยขวดยา! พิษ +${T.poison}`, '#b48aff') }
+    else if (k === 'int') { if (!m.dead) { this.addPoison(m, T.poison) } say(`ขโมยขวดยา! พิษ +${T.poison}`, '#b48aff') }
     else if (k === 'vit') { if (!m.dead) { m.armorBrk = Math.max(m.armorBrk, T.brkTurns); this.dotIcon(m) } say('ขโมยเกราะ! เกราะแตก', '#d9c7a0') }
     else if (k === 'wis') { this.heal(this.st.maxHp * T.heal); say('ขโมยยาฮีล!', '#7dff9a') }
     else { this.buf.lootCrit = T.turns; say(`ขโมยดวง! คริ +${Math.round(T.crit * 100)}%`, '#ffe08a') }
@@ -1245,7 +1269,10 @@ export class BattleScene extends Phaser.Scene {
     const wlCrit = !magic && this.st.j3Wl > 0 ? this.res * KIT3.warlord.rageCritPer + this.frenzy * this.st.j3WlBlitz : 0
     const physCritAdd = (this.buf.hawk > 0 ? S2N.hawkCrit(this.st.s2Lv) : 0) + (this.buf.lootCrit > 0 ? KIT.thiefSteal.crit : 0) + this.critAdd + this.biomeCritAdd + (this.rampage > 0 ? KIT2.berserker.ultCrit : 0) + wlCrit
     const critRate = canFalconCrit ? falconCrit : this.critRateFor(magic, physCritAdd, m)
-    const crit = this.forceCrit || (!this.petNoCrit && this.critAllowed() && Math.random() < critRate) // magic crits only with spellCrit (or Falcon Crit on Marked targets) · Skill 2 ตาเหยี่ยว · 2nd job
+    if (!magic && this.st.thMark > 0 && this.job.id === 'thief') this.ensureMark()
+    const markHit = !magic && this.st.thMark > 0 && this.job.id === 'thief' && m === this.thMarkMon, release = markHit && this.malice >= KIT.thiefMark.max // 🔻 หมายหัว: full Malice
+    if (release) mul *= 1 + KIT.thiefMark.dmg * this.st.thMark
+    const crit = this.forceCrit || release || (!magic && this.shadowTurns > 0 && this.job.id === 'thief') || (!this.petNoCrit && this.critAllowed() && Math.random() < critRate) // magic crits only with spellCrit (or Falcon Crit on Marked targets) · Skill 2 ตาเหยี่ยว · 2nd job
     const effFlee = m.huntMark > 0 ? (m.def.flee ?? 5) * Math.max(0, 1 - this.st.j2MarkPierceFlee) : (m.def.flee ?? 5)
     const noFlee = m.huntMark > 0 && this.st.j2MarkPierceFlee >= 1
     if (!magic && !crit && !this.sureHit && !noFlee && this.zenTurns <= 0 && Math.random() > hitChance(this.st.hit, effFlee)) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'MISS', '#a9a6c7'); return 0 }
@@ -1284,7 +1311,12 @@ export class BattleScene extends Phaser.Scene {
     if (m.def.toxicSkin && this.hp > 0) this.applyFx({ poison: BATTLE.toxicSkin.poison }) // every landed hit poisons the hero
     if (m.def.iceSkin && this.hp > 0) { if (!this.hx.thorn) this.floatText(HERO_X + 30, GROUND - 150, '❄️ หนามน้ำแข็ง! DMG -15%', '#9fe3ff'); this.hx.thorn = BATTLE.iceSkin.turns }
     if (this.skillHits) { this.skillHits.dmg += r.dmg; this.skillHits.mons.add(m) }
-    if (!magic && this.st.poison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.poison); m.poisonDmg = this.myPoisonDmg(); this.dotIcon(m) }
+    if (!magic && this.st.poison > 0 && !m.dead) this.addPoison(m, this.st.poison)
+    if (markHit) { // 🔻 หมายหัว: build Malice, or spend it on the release hit
+      if (release) { this.malice = 0; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 40, '🔻 ปลดหมายหัว!', '#ff6b8a') }
+      else this.malice = Math.min(KIT.thiefMark.max, this.malice + 1)
+      if (!m.dead) this.dotIcon(m)
+    }
     if (this.relic === 'hellfire' && !m.dead) { m.hell++; this.dotIcon(m) }
     const woundLs = !magic && m.poison >= BM_STANCE.wolf.woundMinStacks ? this.st.j2StanceWoundLeech : 0
     const ls = this.st.lifesteal + woundLs + (this.buf.blood > 0 ? S2N.bloodVamp(this.st.s2Lv) : 0) // Skill 2 เลือดเดือด · Wolf Bloodpack Stance wound leech
@@ -2184,8 +2216,9 @@ export class BattleScene extends Phaser.Scene {
           await this.wait(BATTLE.stepMs * 0.3)
         }
       } else if (j2.id === 'rogue') { // 🗡️ Back Stab: sure crit on the highest-HP monster
-        const t = this.alive().sort((a, b) => b.hp - a.hp)[0]
-        if (t) { this.forceCrit = true; await this.lunge(t, () => { backstabFx(this, t.spr); this.strike(t, KIT2.rogue.stabMul * pow * (1 + this.st.pskill), false, '#ffd36b') }, true, true); this.forceCrit = false }
+        const t = this.alive().sort((a, b) => b.hp - a.hp)[0], cp = this.rogueCp
+        if (t && cp > 0) { this.floatText(HERO_X, GROUND - 160, `🔁 Combo Point x${cp}`, '#ffd36b'); this.rogueCp = 0 }
+        if (t) { this.forceCrit = true; await this.lunge(t, () => { backstabFx(this, t.spr); this.strike(t, KIT2.rogue.stabMul * pow * (1 + this.st.pskill) * (1 + KIT2.rogue.stabCpPer * cp), false, '#ffd36b') }, true, true); this.forceCrit = false }
       } else if (j2.id === 'mobster') { // ⛓️ ตัดเส้นเอ็น: boss first, DEF break + chill
         const M = KIT2.mobster, t = this.bossTarget() ?? live[0], turns = M.cutTurns + this.st.j2DebuffTurns
         if (t) await this.lunge(t, () => {
@@ -2987,6 +3020,7 @@ export class BattleScene extends Phaser.Scene {
   private doubleAttack(m: Mon, mul: number) {
     if (this.st.doubleAtk <= 0 || m.dead || Math.random() >= doubleAtkChance(this.st.doubleAtk)) return
     this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 22, 'DOUBLE!', '#ffd36b')
+    this.addShadow(KIT.thiefShadow.double) // 👤 เกจเงา
     const prev = this.lsMul
     this.lsMul = 0.33
     this.strike(m, mul)
@@ -3104,6 +3138,7 @@ export class BattleScene extends Phaser.Scene {
       sfx.combo(n + 2)
       await this.basicOnce()
       this.comboKnives(true) // Rogue มีดบิน
+      if (this.j2?.id === 'rogue') this.rogueCp = Math.min(KIT2.rogue.stabCpMax, this.rogueCp + 1) // 🔁 Combo Point
       hits++
     }
     this.sageInfusePow = 0
@@ -3345,7 +3380,7 @@ export class BattleScene extends Phaser.Scene {
         const m = front(); if (!m) break
         await this.lunge(m, () => {
           this.strike(m, S2N.pickMul(star))
-          if (star && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + S2N.pickPoison); m.poisonDmg = Math.max(m.poisonDmg, this.myPoisonDmg()); this.dotIcon(m) }
+          if (star && !m.dead) { this.addPoison(m, S2N.pickPoison) }
           for (const k of topStats(m.def).slice(0, star ? 2 : 1)) this.stealFrom(m, k) // 💰 GW2-style steal by the monster's top stat
         })
         this.res = Math.min(this.resMax(), this.res + S2N.pickRes(lv))
@@ -3356,7 +3391,7 @@ export class BattleScene extends Phaser.Scene {
         await this.lunge(m, () => {
           venomStabFx(this, m.spr)
           this.strike(m, S2N.woundMul(star), false, '#ff7a7a', 1)
-          if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + S2N.woundPoison(lv)); m.poisonDmg = Math.max(m.poisonDmg, this.myPoisonDmg()); this.dotIcon(m) }
+          if (!m.dead) { this.addPoison(m, S2N.woundPoison(lv)) }
         }, true, true)
         break
       }
@@ -3439,7 +3474,7 @@ export class BattleScene extends Phaser.Scene {
         await this.wait(BATTLE.stepMs * 0.4)
         break
       case 'thief':
-        await this.lunge(live[0], () => { const m = live[0]; venomStabFx(this, m.spr); this.strike(m, KIT.thiefAuto * pow); this.doubleAttack(m, KIT.thiefAuto * pow); if (!m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + KIT.thiefAutoPoison); m.poisonDmg = Math.max(m.poisonDmg, this.myPoisonDmg()); this.dotIcon(m) } }, true, true)
+        await this.lunge(live[0], () => { const m = live[0]; venomStabFx(this, m.spr); this.strike(m, KIT.thiefAuto * pow); this.doubleAttack(m, KIT.thiefAuto * pow); if (!m.dead) { this.addPoison(m, KIT.thiefAutoPoison) } }, true, true)
         break
     }
   }
@@ -3722,6 +3757,7 @@ export class BattleScene extends Phaser.Scene {
   /** Thief ult เงาพริ้ว (Rogue พายุมีด reuses it). */
   private async shadowDance(hitPow: number) {
     this.dodgeCharges = KIT.thiefUltDodge + this.st.ultDodge // talent: เงาซ้อน
+    this.addShadow(KIT.thiefShadow.ult) // 👤 เกจเงา
     this.stayIn = true // dart from monster to monster, walk home once at the end
     for (let i = 0; i < KIT.thiefUltHits + this.st.ultHits; i++) { // talent: พายุมีด
       const t = this.alive(); if (!t.length) break
@@ -3730,7 +3766,7 @@ export class BattleScene extends Phaser.Scene {
       await this.lunge(m, () => {
         shadowSlashFx(this, m.spr, i) // เงาพริ้ว: a shadow cut per dart
         this.strike(m, KIT.thiefUlt * hitPow * (1 + this.st.thUltAgi)) // Q: scales with AGI
-        if (this.st.ultPoison > 0 && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + this.st.ultPoison); m.poisonDmg = Math.max(m.poisonDmg, this.myPoisonDmg()); this.dotIcon(m) } // talent: มีดอาบพิษ
+        if (this.st.ultPoison > 0 && !m.dead) { this.addPoison(m, this.st.ultPoison) } // talent: มีดอาบพิษ
       }, false, true)
     }
     this.stayIn = false
@@ -4117,6 +4153,7 @@ export class BattleScene extends Phaser.Scene {
       const hpBleed = this.st.j2WolfBleedPct > 0 ? Math.min(Math.round(m.poison * m.def.hp * this.st.j2WolfBleedPct), Math.round(KIT2.beastmaster.wolfBleedCap * this.st.atk)) : 0
       this.withSrc('poison', () => this.damageMon(m, Math.max(1, Math.round(m.poison * m.poisonDmg * bleedScale * this.dotMul()) + hpBleed), false, '#a77be0', true))
       if (this.st.poisonLeech > 0) this.heal(m.poison * m.poisonDmg * this.st.poisonLeech, true)
+      if (this.st.poisonSlow > 0 && !m.dead && m.poison >= slowAtLv(this.st.poisonSlow)) { m.chill = Math.max(m.chill, KIT.poison.slowTurns); this.dotIcon(m) } // 🐌 Thief พิษชา
     } // Thief เลือดพิษ · 🐺 IV talent % Max HP bleed
     if (!m.dead && m.burnStackTurns > 0) { // ไฟลุก: stacks x magic power (พร v2: 70% M.ATK + 30% P.ATK)
       m.burnStackTurns--
@@ -4433,6 +4470,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.st.arDodgeShield > 0 && this.shield < this.st.maxHp * this.st.arDodgeShield * 3) this.addShield(Math.min(this.st.maxHp * this.st.arDodgeShield, this.st.maxHp * this.st.arDodgeShield * 3 - this.shield)) // archer tree โล่ลม
       if (this.st.arDodgeRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arDodgeRes) // archer ★ ยิงถอย
       if (this.st.dodgeEnergy > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.dodgeEnergy) // Thief talent: ขโมยจังหวะ
+      this.addShadow(KIT.thiefShadow.dodge) // 👤 เกจเงา
       return false
     }
     if (this.dodgeCharges > 0) { this.dodgeCharges--; return dodged('เงาพริ้ว!', '#c9c9d6') }
@@ -4576,7 +4614,7 @@ export class BattleScene extends Phaser.Scene {
   private dotIcon(m: Mon) {
     if (m.dead || !m.spr.active) return // a DoT tick or card can land after the kill: its icon text is already gone (page error 'drawImage' of null)
     if (!m.dotTxt) m.dotTxt = this.add.text(0, 0, '', { fontSize: '14px' }).setOrigin(0.5).setDepth(9500)
-    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${(m.permafrost ?? 0) > 0 ? '💠' + m.permafrost : ''}${m.mark ? `[${PROF_ICON[m.mark]}${(m.markLayers ?? 1) > 1 ? '×' + m.markLayers : ''}]` : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${m.armorBrk > 0 ? '🦴' : ''}${(m.sunderTurns ?? 0) > 0 ? '🕳️' : ''}${m.blind > 0 ? '🙈' : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${m.reflect > 0 ? '🔁' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
+    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${(m.permafrost ?? 0) > 0 ? '💠' + m.permafrost : ''}${m.mark ? `[${PROF_ICON[m.mark]}${(m.markLayers ?? 1) > 1 ? '×' + m.markLayers : ''}]` : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${m.armorBrk > 0 ? '🦴' : ''}${(m.sunderTurns ?? 0) > 0 ? '🕳️' : ''}${m.blind > 0 ? '🙈' : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${this.thMarkMon === m ? '🔻' + this.malice : ''}${m.reflect > 0 ? '🔁' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
   }
 
   // ---------- xp / perks ----------
@@ -4905,7 +4943,12 @@ export class BattleScene extends Phaser.Scene {
   }
   private addPoison(m: Mon, n: number) {
     if (m.dead || n <= 0) return
-    m.poison = Math.min(this.poisonMax(), m.poison + n); m.poisonDmg = Math.max(m.poisonDmg, this.myPoisonDmg()); this.dotIcon(m)
+    const cap = this.poisonMax(), over = m.poison + n - cap
+    m.poison = Math.min(cap, m.poison + n); m.poisonDmg = Math.max(m.poisonDmg, this.myPoisonDmg()); this.dotIcon(m)
+    if (over > 0 && this.st.poisonOverflow > 0) { // 💥 Mobster พิษล้น: stacks over the cap burst at once
+      const dmg = Math.max(1, Math.round(over * m.poisonDmg * KIT.poison.overflowMul * this.dotMul()))
+      this.withSrc('poison', () => this.damageMon(m, dmg, false, '#c77dff', true))
+    }
   }
   /** Ice spike: chill 2 turns; a chilled normal monster may freeze (10%, หนาวลึก higher); สัมผัสมรณะ may execute one under 30%. */
   private iceHit(m: Mon, pow: number, sureFreeze: boolean) {

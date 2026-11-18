@@ -95,12 +95,23 @@ export const KIT = {
     heal: 0.08, // WIS monster (support): heal share of max HP
     crit: 0.15, // LUK / DEX monster: crit +15%
   },
+  // 👤 Thief เกจเงา (Q 2026-11-18, Lost Ark Persona / D4 Inner Sight): dodge / DOUBLE / ult fill it, full = ร่างเงา: physical hits sure crit + Skill 1 free
+  thiefShadow: {
+    max: 5, // gauge to fill
+    turns: 2, // hero turns of ร่างเงา
+    dodge: 1, double: 1, ult: 2, // gauge per dodge / DOUBLE proc / เงาพริ้ว cast
+  },
+  // 🔻 Thief หมายหัว (node thief_c2, GW2 Deadeye's Mark + Malice): the highest-HP monster is marked, Thief-line hits on it build Malice,
+  // full Malice = next hit on it is a sure crit x(1 + dmg x node Lv), then Malice resets. A dead mark jumps to the next highest-HP monster.
+  thiefMark: { max: 5, dmg: 0.3 },
   poison: {
     atkPer: 0.04, // + P.ATK share per stack (Lv100 P.ATK ~400 -> +16/stack)
     matkPer: 0.04, // + M.ATK share per stack (Q 2026-11-17: INT / M.ATK from gear, cards, buffs also feed poison)
     intPer: 0.1, // Thief flat poison +this per INT point over the start (was hardcoded)
     baseCap: 12, // max stacks before poisonCap nodes / gear
     defPer: 0.01, defCap: 0.4, // 🦴 Q 2026-11-17: each poison stack on a monster = its DEF −defPer vs Thief-line hits, at most defCap
+    slowAt: 10, slowStep: 2, slowTurns: 2, // 🐌 พิษชา (node thief_a2): a monster with >= slowAt − slowStep x (Lv − 1) stacks is chilled slowTurns on each poison tick
+    overflowMul: 2, // 💥 พิษล้น (node mb_p4): stacks pushed over the cap burst at once, x per-stack x this
     burstKeep: 0.5, // 💀 Mobster ทวงหนี้: share of stacks left after the burst (0 = cleared, the old rule)
   },
   // v82 Archer web: 🧪 ศรพิษ (under ทักษะ 1) + 🏷️ ล่าหัว (under Ult), first guesses (design/skill-tree-archer.md v82)
@@ -154,6 +165,8 @@ export const thiefPoisonPerStack = (st: Pick<Stats, 'poisonDmg' | 'atk' | 'matk'
   st.poisonDmg + KIT.poison.atkPer * Math.max(0, st.atk) + KIT.poison.matkPer * Math.max(0, st.matk)
 /** 🦴 Thief-line poison DEF shred: share of the monster's DEF removed by its poison stacks (KIT.poison.defPer per stack, capped at defCap). */
 export const poisonDefCut = (stacks: number) => Math.min(KIT.poison.defCap, KIT.poison.defPer * Math.max(0, stacks))
+/** 🐌 พิษชา: stacks a monster needs to be chilled by poison at node Lv (KIT.poison.slowAt − slowStep x (Lv − 1), never below 1). */
+export const slowAtLv = (lv: number) => Math.max(1, Math.round(KIT.poison.slowAt - KIT.poison.slowStep * (Math.max(1, lv) - 1)))
 /** Max poison stacks on a monster (KIT.poison.baseCap + Stats.poisonCap). */
 export const poisonCapOf = (st: Pick<Stats, 'poisonCap'>) => KIT.poison.baseCap + st.poisonCap
 
@@ -184,6 +197,7 @@ export const KIT2 = {
   rogue: {
     knifeMul: 0.4, knifePerCombo: 1, dualKnife: 1, // 🔪 มีดบิน: each extra combo hit throws knives at random monsters (+1 with a dagger off-hand) · no lifesteal
     stabCost: 30, stabCd: 3, stabMul: 2.2, // 🗡️ Back Stab: sure crit on the highest-HP monster
+    stabCpMax: 5, stabCpPer: 0.2, // 🔁 Combo Point (Q 2026-11-18, WoW / D4 builder-finisher): each combo hit +1 point (max cpMax), Back Stab spends all for +cpPer x points
     ultKnives: 8, ultKnifeMul: 0.5, // 🌪️ พายุมีด: shadow dance + knives spread over every monster
     mastery: { atkPct: 0.05, crit: 0.03 }, // dagger
   },

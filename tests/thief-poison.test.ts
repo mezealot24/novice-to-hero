@@ -43,3 +43,29 @@ test('ล้วงกระเป๋า steals by the monster top stat', async (
   assert.ok(ARCHETYPES.support.wis! > 0)
   for (const p of ['thiefSteal.atk', 'thiefSteal.res', 'thiefSteal.poison', 'thiefSteal.brkTurns', 'thiefSteal.heal', 'thiefSteal.crit', 'thiefSteal.turns']) assert.ok(fieldFor('kit', p), p)
 })
+
+test('พิษชา threshold drops with node Lv, never below 1', async () => {
+  const { slowAtLv } = await import('../src/data/skill-math')
+  assert.equal(slowAtLv(1), KIT.poison.slowAt)
+  assert.ok(slowAtLv(3) < slowAtLv(1))
+  assert.ok(slowAtLv(99) >= 1)
+  for (const p of ['thiefShadow.max', 'thiefShadow.turns', 'thiefShadow.dodge', 'thiefShadow.double', 'thiefShadow.ult', 'thiefMark.max', 'thiefMark.dmg', 'poison.slowAt', 'poison.slowStep', 'poison.slowTurns', 'poison.overflowMul']) assert.ok(fieldFor('kit', p), p)
+})
+
+test('Thief-line trees: mechanic nodes wired, no duplicate display names', async () => {
+  const { tree } = await import('../src/data/trees/thief')
+  const { tree2: rogue } = await import('../src/data/trees2/rogue')
+  const { tree2: mob } = await import('../src/data/trees2/mobster')
+  const byId = (t: typeof tree, id: string) => t.nodes.find((n) => n.id === id)!
+  assert.ok((byId(tree, 'thief_a2').mod(3).poisonSlow ?? 0) > 0, 'พิษชา')
+  assert.ok((byId(tree, 'thief_c2').mod(3).thMark ?? 0) > 0, 'หมายหัว')
+  assert.ok((byId(mob, 'mb_p4').mod(1).poisonOverflow ?? 0) > 0, 'พิษล้น')
+  const { SKILL2 } = await import('../src/data/skill2')
+  const { JOBS } = await import('../src/data/jobs')
+  const { JOB2 } = await import('../src/data/jobs2')
+  const names = [...[tree, rogue, mob].flatMap((t) => [...t.nodes, ...t.talents].map((n) => n.name)),
+    ...SKILL2.filter((k) => k.job === 'thief').flatMap((k) => [k.name, k.plus.name, k.star.name]),
+    JOBS.thief.auto.name, JOBS.thief.ult.name, ...(['rogue', 'mobster'] as const).flatMap((j) => [JOB2[j].skill3!.name, JOB2[j].ult.name, JOB2[j].signature!.name])]
+  const dup = names.filter((n, i) => names.indexOf(n) !== i)
+  assert.deepEqual(dup, [], `duplicate names: ${dup.join(', ')}`)
+})

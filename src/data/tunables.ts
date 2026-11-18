@@ -195,6 +195,8 @@ export const TABLES: Record<TableId, TableDef> = {
       ['clericTree.core.base|regen|guard|wisAmp|heal|shield', num(0, 50)], ['clericTree.core.intPer.*', int(1, 50)],
       ['mageCore.regenStep|matkStep', int(1, 100)], ['mageCore.regenMissing', int(0, 1)], ['mageCore.matkPer', num(0, 1000)], // 💪 กายสู่เวท
       ['poison.atkPer|matkPer|intPer|burstKeep|defPer|defCap', num(0, 1)], ['poison.baseCap', int(1, 50)],
+      ['thiefShadow.max|turns|dodge|double|ult', int(0, 20)], ['thiefMark.max', int(1, 20)], ['thiefMark.dmg', num(0, 5)],
+      ['poison.slowAt|slowStep|slowTurns', int(0, 50)], ['poison.overflowMul', num(0, 10)],
       ['thiefSteal.atk|heal|crit', num(0, 2)], ['thiefSteal.turns|res|poison|brkTurns', int(0, 100)]], // ☠️ Thief-line poison (Q 2026-11-17)
   },
   // Class skills (skill-registry.ts): costs / cooldowns / Skill 2 numbers / per-skill crit switch. Exact paths, built from the registry.
