@@ -93,7 +93,12 @@ interface Mon {
   clone?: boolean; evaded?: number; trueTurns?: number // v56 trueSight: hero evades counted, then 🎯 its physical hits always land
   weakTurns: number; weakPct: number // hero Skill 2 ท้าทาย: hits weaker for its next N turns
   armorBrk: number // Mobster ตัดเส้นเอ็น: turns of DEF -KIT2.mobster.armorBrk
-  blind: number // Crusader Holy Cross: turns of Hit -KIT2.crusader.blindHit
+  blind: number // Crusader Holy Cross: turns of Hit -KIT2.crusader.blindHit (Thief ม่านควัน Sightless Raid shares it)
+  exposed: number; exposedPct: number // P2b Thief ม่านควัน: monster turns of Exposed · its B1 damage-taken share (non-dot hits)
+  wound: number; woundTurns: number // P2b Thief แผลลึก: Wound stacks · hero turns left (refreshed on every add)
+  woundCut: number; woundCutTurns: number // P2b Blade's End heal cut share · monster turns left (healCut() takes the max with burn / hellfire)
+  bladeSpent?: boolean // P2b Blade's End already went off on this monster this hero turn
+  robbed?: boolean // P2b ล้วงกระเป๋า Zeny already taken from this monster
   wet: number // Innovator ☁️ เมฆฝน: turns of +KIT2.innovator.wetAmp damage taken
   huntMark: number // v82 Archer หมายหัว: turns of +st.arMark damage taken (ticks with its turns)
   stunTurns?: number // Champion Tiger Knuckle extra stun turns left
@@ -552,7 +557,7 @@ export class BattleScene extends Phaser.Scene {
     else if (this.run.affix && def.ai === 'boss') spr.setTint(HARD.tint)
     const affix = (this.hard || this.run.affix) && def.ai === 'boss' ? this.lastAffix : undefined
     const m: Mon = { kind, def, spr, shadow, hp: def.hp, gauge: gauge ?? Phaser.Math.Between(0, 40), dead: false, slot, turns: 0, charging: false, summoned: false, burnStacks: 0, burnStackTurns: 0, chill: 0, frozen: false, burn: 0, burnTurns: 0, poison: 0, poisonDmg: 0, parry: false, ice: 0, iceChance: 0, iced: false, hell: 0, harvestMark: 0, huntMark: 0,
-      shield: 0, atkUp: 0, atkUpTurns: 0, phase: 0, speedMul: 1, dmgMul: 1, reflect: def.reflect ?? 0, absorb: def.absorb ?? 0, stored: 0, chargeEvery: def.chargeEvery ?? BATTLE.slamEvery, skills: def.skills ?? [], onHit: def.onHit, slamFx: def.slamFx, revived: false, weakTurns: 0, weakPct: 0, armorBrk: 0, blind: 0, wet: 0, affix, instanceId: `${kind}_${++this.monSeq}` }
+      shield: 0, atkUp: 0, atkUpTurns: 0, phase: 0, speedMul: 1, dmgMul: 1, reflect: def.reflect ?? 0, absorb: def.absorb ?? 0, stored: 0, chargeEvery: def.chargeEvery ?? BATTLE.slamEvery, skills: def.skills ?? [], onHit: def.onHit, slamFx: def.slamFx, revived: false, weakTurns: 0, weakPct: 0, armorBrk: 0, blind: 0, exposed: 0, exposedPct: 0, wound: 0, woundTurns: 0, woundCut: 0, woundCutTurns: 0, wet: 0, affix, instanceId: `${kind}_${++this.monSeq}` }
     const hk = def.heroKit === 'mirror' ? mirrorKit(this.job.id, this.s2?.id, this.j2?.id) : def.heroKit
     if (hk?.skills.length) { m.heroKit = hk; m.kit = newKitState(hk) }
     if (this.biomeState?.hazard === 'astral_eclipse' && m.instanceId) {
@@ -1017,6 +1022,10 @@ export class BattleScene extends Phaser.Scene {
   private async heroAct() {
     this.execTurnUsed = false; this.critPetUsed = false; this.killHealCritUsed = false
     if (this.dodgeCdIcd > 0) this.dodgeCdIcd-- // P2a th_t2a ICD counts hero turns
+    for (const m of this.alive()) { // P2b: Blade's End once per hero turn per monster · Wound counts hero turns (before skill2Turn)
+      m.bladeSpent = false
+      if (m.woundTurns > 0 && --m.woundTurns === 0) { m.wound = 0; this.dotIcon(m) }
+    }
     if (this.st.regen > 0) {
       const lowAmp = this.st.swLowRegenAmp > 0 && this.hp < this.st.maxHp * KIT.swordCore.lowHpAt ? 1 + this.st.swLowRegenAmp : 1
       this.heal(this.st.maxHp * this.st.regen * BATTLE.regenPerTurn / 100 * lowAmp, true)
@@ -2914,8 +2923,8 @@ export class BattleScene extends Phaser.Scene {
   }
   /** P2a: status kinds on a monster (thief_c1). P2b adds Wound / Exposed here. */
   private statusKinds(m: Mon): number { return (m.poison > 0 ? 1 : 0) + (m.chill > 0 ? 1 : 0) }
-  /** P2a: stacks on a monster for thief_c2 / th_t2b crit. P2b adds Wound here. */
-  private stackCountOf(m: Mon): number { return m.poison }
+  /** P2a: stacks on a monster for thief_c2 / th_t2b crit. */
+  private stackCountOf(m: Mon): number { return m.poison + m.wound } // P2b: Wound stacks count too
   /** P2a extension point: P2b ม่านควัน -> return this.shroudTurns > 0 */
   private inShroud(): boolean { return false }
   /** P2a thief_c4 ★ ราชันย์โลหิต active right now. */
@@ -4137,8 +4146,10 @@ export class BattleScene extends Phaser.Scene {
     if (this.awakenTurns <= 0 && m.huntMark > 0 && --m.huntMark === 0) this.dotIcon(m)
     if (m.armorBrk > 0 && --m.armorBrk === 0) this.dotIcon(m)
     if (m.blind > 0 && --m.blind === 0) this.dotIcon(m)
+    if (m.exposed > 0 && --m.exposed === 0) { m.exposedPct = 0; this.dotIcon(m) } // P2b Exposed counts monster turns
+    if (m.woundCutTurns > 0 && --m.woundCutTurns === 0) m.woundCut = 0 // P2b Blade's End heal cut
     if (m.wet > 0 && --m.wet === 0) this.dotIcon(m)
-    if (m.def.toxicSkin) { // Toxic Skin tenacity: debuffs on it wear off twice as fast
+    if (m.def.toxicSkin) { // Toxic Skin tenacity: debuffs on it wear off twice as fast (P2b: never Wound / Exposed, design Rev 3 §2.4)
       if (m.chill > 0) m.chill--; if (m.burnTurns > 0) m.burnTurns--; if (m.burnStackTurns > 0) m.burnStackTurns--; if (m.poison > 0 && Math.random() >= thiefToxicHold(this.st)) m.poison-- // P2a thief_a3 พิษทนทาน: chance to keep the stack
       if (m.weakTurns > 0 && --m.weakTurns === 0) this.dotIcon(m); if ((m.marked ?? 0) > 0) m.marked!--; if (this.awakenTurns <= 0 && m.huntMark > 0 && --m.huntMark === 0) this.dotIcon(m); if (m.armorBrk > 0 && --m.armorBrk === 0) this.dotIcon(m)
     }
@@ -4616,7 +4627,7 @@ export class BattleScene extends Phaser.Scene {
   private dotIcon(m: Mon) {
     if (m.dead || !m.spr.active) return // a DoT tick or card can land after the kill: its icon text is already gone (page error 'drawImage' of null)
     if (!m.dotTxt) m.dotTxt = this.add.text(0, 0, '', { fontSize: '14px' }).setOrigin(0.5).setDepth(9500)
-    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${(m.permafrost ?? 0) > 0 ? '💠' + m.permafrost : ''}${m.mark ? `[${PROF_ICON[m.mark]}${(m.markLayers ?? 1) > 1 ? '×' + m.markLayers : ''}]` : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${m.armorBrk > 0 ? '🦴' : ''}${(m.sunderTurns ?? 0) > 0 ? '🕳️' : ''}${m.blind > 0 ? '🙈' : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${m.reflect > 0 ? '🔁' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
+    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${(m.permafrost ?? 0) > 0 ? '💠' + m.permafrost : ''}${m.mark ? `[${PROF_ICON[m.mark]}${(m.markLayers ?? 1) > 1 ? '×' + m.markLayers : ''}]` : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${m.armorBrk > 0 ? '🦴' : ''}${(m.sunderTurns ?? 0) > 0 ? '🕳️' : ''}${m.blind > 0 ? '🙈' : ''}${m.exposed > 0 ? '👁️' : ''}${m.wound > 0 ? '🩸' + m.wound : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${m.reflect > 0 ? '🔁' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
   }
 
   // ---------- xp / perks ----------
@@ -5239,8 +5250,8 @@ export class BattleScene extends Phaser.Scene {
   /** Heal cut on a monster: Hellfire 5%/stack (max 50%), otherwise 25% while any normal burn is on it. */
   private healCut(m: Mon) {
     const H = RELIC_RULES.hellfire
-    if (m.hell > 0) return Math.min(H.cutMax, m.hell * H.cutPerStack)
-    return m.burnTurns > 0 || m.burnStackTurns > 0 ? RELIC_RULES.burnCut : 0
+    const base = m.hell > 0 ? Math.min(H.cutMax, m.hell * H.cutPerStack) : m.burnTurns > 0 || m.burnStackTurns > 0 ? RELIC_RULES.burnCut : 0
+    return Math.max(base, m.woundCutTurns > 0 ? m.woundCut : 0) // P2b Blade's End: the bigger cut wins, never stacked
   }
 
   private healMon(m: Mon, n: number, quiet = false) {

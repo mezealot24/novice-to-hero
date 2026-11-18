@@ -59,3 +59,8 @@
 - P2b T2: `S2P.smokeRes` {10, 5} (rounded) · `S2P.woundMax` {6, 2/3} (floored) · 25 plain `S2N` numbers (Shroud / Sightless Raid / Exposed / Blind · ล้วงกระเป๋า / Zeny / Plunder · Wound / Blade's End / Privileged), all in the admin `skills` table with Thai labels
 - `S2N.pickMul()` removed → `pickBase` 1.3 / `pickStarMul` 1.9: ล้วงกระเป๋า hits 1.3x / 1.9x now (was 1x / 1.6x); the full rework comes in T7
 - ม่านควัน cost 40 → 35 · the three Skill 2 texts + skill info rows describe the new mechanics (numbers read from `S2N`, whole numbers at fractional "+" levels)
+
+## 👁️ feat(thief): monster statuses Exposed / Wound / woundHealCut + ticks
+- P2b T3: `Mon.exposed` / `exposedPct` (monster turns) · `wound` / `woundTurns` (hero turns, ticked at the top of `heroAct()` before Skill 2) · `woundCut` / `woundCutTurns` (Blade's End heal cut) · `bladeSpent` (reset each hero turn) · `robbed`
+- `healCut()` = max(hellfire / burn cut, Blade's End cut) · icons 👁️ Exposed, 🩸N Wound · Toxic Skin does not speed up Wound / Exposed
+- `thief_c2` / `th_t2b` stack crit counts poison + Wound (`stackCountOf`) · no caller sets the new statuses yet (T6–T8)
