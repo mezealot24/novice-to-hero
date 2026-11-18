@@ -79,3 +79,8 @@
 - **Sightless Raid**: the first landed basic / combo / skill / Ult hit after the cast marks **Exposed** +20% (★ 30%) for 2 monster turns (B1, hits only) + **Blind** 2 turns (Hit −`KIT2.crusader.blindHit`) and hits again 1.2x P.ATK × (1 + pskill) (src other) · waits across turns until a real attack lands
 - "+" ควันหอม: heal as before + Energy `S2N.smokeRes(lv)` (10–25)
 - `inShroud()` is live: `thief_c4` ★ ราชันย์โลหิต also turns on inside the Shroud (text updated)
+
+## 💰 feat(thief): th_pick — On-Hit basic strike + Zeny + Plunder
+- P2b T7: ล้วงกระเป๋า = **one basic swing** on the front monster: 1.3x (★ 1.9x) P.ATK × (1 + pskill), basic crit (`st.crit`, not the skill formula), basic bracket, full lifesteal, D.Strike chance, `procs('basic')` once · Energy `S2N.pickRes(lv)` as before (now through `resGain`)
+- **ปล้น Zeny**: 8 + DEX/10 the first time each monster is picked
+- ★ จอมโจร: poison +3 as before + **Plunder**: a kill (or any pick on a boss) → Energy +10 and 💎 drop chance +5% per stack (max 3 stacks per wave, reset each wave) · tied to the 💎 `dropChance` roll only (cards / mats / uniques untouched, INTEGRATION §3)

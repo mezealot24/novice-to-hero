@@ -14,3 +14,6 @@ Entries the implementer logged while coding. Each keeps the spec's intent; "why"
 
 - **T3 `stackCountOf()`**: P2a left it at `m.poison` with "P2b adds Wound here"; T3 makes it `m.poison + m.wound` (the spec §3.2 lists `thief_c1`/`thief_c2` counting poison + Wound). `thief_c2` / `th_t2b` texts now say "พิษ + Wound".
 - **T3 field names**: the spec's `woundCut` / `woundCutTurns` are used as written (Rev 3 calls it `woundHealCut`).
+- **T7 ล้วงกระเป๋า Zeny**: `coinsFly()` adds each coin share to `this.zeny` when it lands (no double count). The coin start point is read before the hit (the sprite may be gone after a kill). `pickZenyDex` divides through `Math.max(1, …)` so an admin value of 0 cannot make `Infinity` Zeny.
+- **T7 `procs('basic')`**: called once after the swing as the spec says, with the Skill 2 `src` (`'skill'`) still set: `withSrc()` restores `src` synchronously, so it cannot wrap the async `procs()`. Card procs read the trigger, not `src`.
+- **T7 th_t2c weave**: ล้วงกระเป๋า is a basic swing (`src 'basic'`), so a pending จังหวะสลับมีด bonus also applies to it (the bonus is only cleared at the end of `basicAttack()`). Left as is (one basic swing = basic bracket, as the spec asks).

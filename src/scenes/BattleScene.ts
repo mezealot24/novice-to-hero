@@ -406,7 +406,7 @@ export class BattleScene extends Phaser.Scene {
     this.blessOn = false; this.blessDelta = undefined; this.kyrie = { hp: 0, hits: 0 } // v77 พรแสง
     if (this.s2?.id === 'cl_spear') this.st.spearMul += S2N.spearPlus(this.st.s2Lv) // หอกคม: +10%/lv of the 0.3x base
     this.res = this.job.resource === 'rage' ? 0 : this.resMax()
-    this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0; this.shroudTurns = 0; this.raidReady = false
+    this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0; this.shroudTurns = 0; this.raidReady = false; this.plunderStacks = 0
     this.rigSpec = heroRigSpec(s)
     this.heroRig.setAppearance(this.rigSpec, heroCostumeTint(s.costume))
     this.heroRig.resetPose(HERO_X, GROUND)
@@ -532,6 +532,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.auraLeft > 0) this.floatText(HERO_X, GROUND - 150, `🔮 ออร่าเวท +${Math.round(this.st.mgAura * 100)}%`, '#c9a8ff')
     const waveDodge = this.st.waveDodge + staticDodgeCharges(this.st.mgStatic) // Thief talent: ม่านควัน + Mage passive ⚡ Static Mirage (stack)
     if (waveDodge > 0) this.dodgeCharges = Math.max(this.dodgeCharges, waveDodge)
+    this.plunderStacks = 0 // P2b Plunder: max S2N.plunderMax per wave
     if (this.st.bossShield > 0 && this.mons.some((m) => !m.dead && m.def.ai === 'boss')) this.addShield(this.st.maxHp * this.st.bossShield) // cleric talent: ร่างพร
     if (this.st.spearStart > 0) this.spears += this.st.spearStart // cleric talent: หอกเปิดศึก
     if (this.st.clManaShield > 0) this.addShield(this.st.maxRes * this.st.clManaShield, true) // v86 💠 มานาพิทักษ์: wave-start shield from Max Mana
@@ -1115,6 +1116,7 @@ export class BattleScene extends Phaser.Scene {
   private dodgeCharges = 0
   private shroudTurns = 0 // P2b ม่านควัน Shroud: hero turns left (ticks at the top of heroAct)
   private raidReady = false // P2b ม่านควัน: the next active hit is a Sightless Raid
+  private plunderStacks = 0 // P2b ล้วงกระเป๋า ★ Plunder: 💎 drop chance stacks this wave
   private ctrCharges = 0 // Swordsman talent ท่าสวนพร้อม: sure counters left
   /** Mana the ult costs (Mage, Swordsman); 0 for every other job. */
   private ultCost() { return ultCost(this.job, this.st) } // v102: + Cleric Ult node Lv Mana
@@ -3399,13 +3401,24 @@ export class BattleScene extends Phaser.Scene {
         this.floatText(HERO_X, GROUND - 190, `🌫️ Shroud ${this.shroudTurns}`, '#c9c9d6')
         this.burst(HERO_X, GROUND - 40, 0xc9c9d6, 16, 180)
         break
-      case 'th_pick': {
+      case 'th_pick': { // P2b: one basic swing (basic crit + bracket, full leech, D.Strike, basic cards) + Zeny once per monster · ★ Plunder
         const m = front(); if (!m) break
-        await this.lunge(m, () => {
-          this.strike(m, star ? S2N.pickStarMul : S2N.pickBase) // P2b T2: temporary, T7 rewrites th_pick
+        const mul = (star ? S2N.pickStarMul : S2N.pickBase) * (1 + this.st.pskill)
+        const zx = m.spr.x, zy = m.spr.y
+        const prevLs = this.lsMul
+        await this.lunge(m, () => this.withSrc('basic', () => {
+          this.lsMul = 1
+          this.strike(m, mul); this.doubleAttack(m, mul)
           if (star && !m.dead) { m.poison = Math.min(this.poisonMax(), m.poison + S2N.pickPoison); m.poisonDmg = Math.max(m.poisonDmg, this.st.poisonDmg); this.dotIcon(m) }
-        })
-        this.res = Math.min(this.resMax(), this.res + S2N.pickRes(lv))
+          if (!m.robbed) { m.robbed = true; this.coinsFly(zx, zy, S2N.pickZeny + Math.floor(this.heroDex / Math.max(1, S2N.pickZenyDex)), true) } // ปล้น Zeny
+        }))
+        this.lsMul = prevLs
+        if (this.alive().length) await this.procs('basic') // cards that fire on a basic attack: once, like one swing
+        this.resGain(S2N.pickRes(lv))
+        if (star && (m.dead || m.def.ai === 'boss') && this.plunderStacks < S2N.plunderMax) { // ★ Plunder: kill, or any hit on a boss
+          this.plunderStacks++; this.resGain(S2N.plunderRes)
+          this.floatText(HERO_X, GROUND - 190, `🎭 Plunder ${this.plunderStacks}`, '#ffd36b')
+        }
         break
       }
       case 'th_wound': {
@@ -4137,7 +4150,7 @@ export class BattleScene extends Phaser.Scene {
     this.rollCard(m)
     this.rollMat(m)
     this.rollUnique(m)
-    if (Math.random() < this.st.dropChance) { this.runGems++; this.floatText(m.spr.x, m.spr.y - 80, '💎 ของหายาก!', '#7fd7ff'); sfx.coin() }
+    if (Math.random() < this.st.dropChance + this.plunderStacks * S2N.plunderDrop) { this.runGems++; this.floatText(m.spr.x, m.spr.y - 80, '💎 ของหายาก!', '#7fd7ff'); sfx.coin() } // P2b ★ Plunder: + per stack
     sfx.pop()
     m.dotTxt?.destroy(); m.dotTxt = undefined
     this.tweens.add({ targets: [m.spr, m.shadow], alpha: 0, duration: 260, onComplete: () => this.removeMon(m) })
