@@ -85,7 +85,7 @@ export const JOBS: Record<JobId, JobDef> = {
     id: 'thief', name: 'โจร', icon: '🗡️', tex: 'hero_thief', blurb: 'เร็ว หลบเก่ง แทงสองที ติดพิษ · Double Strike: มีโอกาสตีเพิ่ม 1 ที · เงาบาง: มอนตีโดนอย่างน้อย 70% (อาชีพอื่น 80%) · 👤 เกจเงา: หลบ / DOUBLE / เงาพริ้ว เติมเกจ เต็ม = ร่างเงา (ตีคริแน่ + ทักษะ 1 ไม่ใช้ Energy)', focus: 'AGI · LUK',
     resource: 'energy', attack: 'melee', tags: ['venom', 'speed'], mod: { flee: 10, aspd: 0.24, poison: 1, fleeFloor: 0.1 },
     auto: { name: 'แทงพิษ', icon: '🧪', cost: 40, desc: 'Energy 40: แทง 1.6x + พิษ 3 stack (ติด Double Strike ได้)' },
-    ult: { name: 'เงาพริ้ว', icon: '👤', cd: 4, desc: 'หลบ 2 ครั้งถัดไปแน่นอน + แทงสุ่ม 4 ที ทีละ 0.7x (แรงขึ้นตาม AGI)' },
+    ult: { name: 'เงาพริ้ว', icon: '👤', cd: 4, desc: 'หลบ 2 ครั้งถัดไปแน่นอน + แทงสุ่ม 4 ที ทีละ 0.7x (แรงขึ้นตามสัดส่วน AGI ต่อแต้มทั้งหมด ดูเลขที่หน้าสถานะ AGI)' },
   },
 }
 export const BASE_JOBS: JobId[] = ['swordsman', 'archer', 'mage', 'cleric', 'thief']
