@@ -1,0 +1,256 @@
+## LoL-style view: 3D world, tilted top-down camera, right-click to move.
+## Camera: Y = lock/unlock, Space = snap to hero (hold), mouse at screen edge = pan (unlocked), wheel = zoom.
+## Placeholder shapes only (capsule hero, sphere monsters); real models / combat come in M1.
+extends Node3D
+
+const ARENA_SIZE := Vector2(40.0, 24.0) # metres (x, z)
+const HERO_SPEED := 4.0 # m/s
+const HERO_RADIUS := 0.45
+## Web data uses px/s in a side-scroll scene; this turns it into m/s on the ground plane.
+const MON_SPEED_SCALE := 0.006
+const MON_RADIUS_SCALE := 1.0 / 30.0
+const CAM_PITCH_DEG := 56.0 # LoL looks down at roughly this angle
+const CAM_DIST_MIN := 10.0
+const CAM_DIST_MAX := 24.0
+const EDGE_PAN_PX := 18.0
+const EDGE_PAN_SPEED := 18.0 # m/s
+
+var cam: Camera3D
+var hero: Node3D
+var click_marker: MeshInstance3D
+var info: Label
+var mons: Array[Dictionary] = []
+
+var move_target := Vector3.ZERO
+var has_target := false
+var cam_locked := true
+var cam_focus := Vector3.ZERO
+var cam_dist := 16.0
+var marker_t := 0.0
+
+
+func _ready() -> void:
+	_build_world()
+	hero = _build_hero()
+	add_child(hero)
+	cam = Camera3D.new()
+	cam.fov = 40.0
+	add_child(cam)
+	cam.make_current()
+	cam_focus = hero.position
+	_spawn_room("d1", 0)
+	_build_hud()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	var mb := event as InputEventMouseButton
+	if mb != null and mb.pressed:
+		match mb.button_index:
+			MOUSE_BUTTON_RIGHT:
+				_order_move(mb.position, true)
+			MOUSE_BUTTON_WHEEL_UP:
+				cam_dist = maxf(CAM_DIST_MIN, cam_dist - 1.0)
+			MOUSE_BUTTON_WHEEL_DOWN:
+				cam_dist = minf(CAM_DIST_MAX, cam_dist + 1.0)
+		return
+	var key := event as InputEventKey
+	if key != null and key.pressed and not key.echo and key.physical_keycode == KEY_Y:
+		cam_locked = not cam_locked
+		_update_hud()
+
+
+func _process(delta: float) -> void:
+	# Holding right click keeps steering, like LoL.
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		_order_move(get_viewport().get_mouse_position(), false)
+	_move_hero(delta)
+	_move_monsters(delta)
+	_update_camera(delta)
+	_update_marker(delta)
+
+
+func _order_move(screen_pos: Vector2, show_marker: bool) -> void:
+	var from := cam.project_ray_origin(screen_pos)
+	var dir := cam.project_ray_normal(screen_pos)
+	var hit: Variant = Plane(Vector3.UP, 0.0).intersects_ray(from, dir)
+	if hit == null:
+		return
+	var p: Vector3 = hit
+	var half := ARENA_SIZE * 0.5
+	move_target = Vector3(clampf(p.x, -half.x, half.x), 0.0, clampf(p.z, -half.y, half.y))
+	has_target = true
+	if show_marker:
+		click_marker.position = move_target + Vector3(0, 0.02, 0)
+		marker_t = 0.4
+
+
+func _move_hero(delta: float) -> void:
+	# WASD still works as a fallback (screen-relative).
+	var key_dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	if key_dir != Vector2.ZERO:
+		has_target = false
+		var step := Vector3(key_dir.x, 0.0, key_dir.y) * HERO_SPEED * delta
+		_face(hero, hero.position + step)
+		hero.position += step
+		return
+	if not has_target:
+		return
+	var flat := Vector3(hero.position.x, 0.0, hero.position.z)
+	if flat.distance_to(move_target) < 0.05:
+		has_target = false
+		return
+	_face(hero, move_target)
+	var next := flat.move_toward(move_target, HERO_SPEED * delta)
+	hero.position = Vector3(next.x, hero.position.y, next.z)
+
+
+func _move_monsters(delta: float) -> void:
+	for m in mons:
+		var body: Node3D = m["node"]
+		var to_hero := hero.position - body.position
+		to_hero.y = 0.0
+		if to_hero.length() > HERO_RADIUS + float(m["r"]) + 0.1:
+			_face(body, hero.position)
+			body.position += to_hero.normalized() * float(m["speed"]) * delta
+
+
+func _update_camera(delta: float) -> void:
+	if cam_locked or Input.is_physical_key_pressed(KEY_SPACE):
+		cam_focus = Vector3(hero.position.x, 0.0, hero.position.z)
+	else:
+		var vp := get_viewport().get_visible_rect().size
+		var mp := get_viewport().get_mouse_position()
+		var pan := Vector3.ZERO
+		if mp.x < EDGE_PAN_PX: pan.x -= 1.0
+		elif mp.x > vp.x - EDGE_PAN_PX: pan.x += 1.0
+		if mp.y < EDGE_PAN_PX: pan.z -= 1.0
+		elif mp.y > vp.y - EDGE_PAN_PX: pan.z += 1.0
+		cam_focus += pan * EDGE_PAN_SPEED * delta
+	var pitch := deg_to_rad(CAM_PITCH_DEG)
+	cam.position = cam_focus + Vector3(0.0, sin(pitch) * cam_dist, cos(pitch) * cam_dist)
+	cam.look_at(cam_focus, Vector3.UP)
+
+
+func _update_marker(delta: float) -> void:
+	marker_t = maxf(0.0, marker_t - delta)
+	click_marker.visible = marker_t > 0.0
+	click_marker.scale = Vector3.ONE * (0.6 + marker_t)
+
+
+## Turns `node` to look at `target` on the ground plane (skips when too close, look_at would fail).
+func _face(node: Node3D, target: Vector3) -> void:
+	var t := Vector3(target.x, node.position.y, target.z)
+	if node.position.distance_to(t) > 0.01:
+		node.look_at(t, Vector3.UP)
+
+
+func _spawn_room(dungeon_id: String, room_index: int) -> void:
+	var rooms: Array = GameData.dungeon(dungeon_id).get("rooms", [])
+	if room_index >= rooms.size():
+		return
+	var room: Dictionary = rooms[room_index]
+	var half := ARENA_SIZE * 0.5
+	for pair: Array in room.get("spawn", []):
+		var def: Dictionary = GameData.monster(pair[0])
+		for i in int(pair[1]):
+			var r := float(def.get("radius", 15)) * MON_RADIUS_SCALE
+			var body := _blob(r, Color("7fd96b"))
+			body.position = Vector3(randf_range(half.x * 0.3, half.x - 2.0), r, randf_range(-half.y + 2.0, half.y - 2.0))
+			add_child(body)
+			mons.append({ "node": body, "r": r, "speed": float(def.get("moveSpeed", 200)) * MON_SPEED_SCALE })
+
+
+func _build_world() -> void:
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color("141a2e")
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color("8a9ac8")
+	env.ambient_light_energy = 0.6
+	var we := WorldEnvironment.new()
+	we.environment = env
+	add_child(we)
+
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-60.0, -35.0, 0.0)
+	sun.shadow_enabled = true
+	add_child(sun)
+
+	var ground := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = ARENA_SIZE
+	ground.mesh = plane
+	ground.material_override = _mat(Color("4a7a3c"))
+	add_child(ground)
+
+	# Low walls so the arena edge reads clearly from the tilted camera.
+	var half := ARENA_SIZE * 0.5
+	for side in [Vector4(0, -half.y, ARENA_SIZE.x, 0.4), Vector4(0, half.y, ARENA_SIZE.x, 0.4), Vector4(-half.x, 0, 0.4, ARENA_SIZE.y), Vector4(half.x, 0, 0.4, ARENA_SIZE.y)]:
+		var wall := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(side.z, 0.6, side.w)
+		wall.mesh = box
+		wall.material_override = _mat(Color("6b5a44"))
+		wall.position = Vector3(side.x, 0.3, side.y)
+		add_child(wall)
+
+	click_marker = MeshInstance3D.new()
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.25
+	ring.outer_radius = 0.35
+	click_marker.mesh = ring
+	click_marker.material_override = _mat(Color("6bffb0"))
+	click_marker.visible = false
+	add_child(click_marker)
+
+
+func _build_hero() -> Node3D:
+	var root := Node3D.new()
+	var body := MeshInstance3D.new()
+	var cap := CapsuleMesh.new()
+	cap.radius = HERO_RADIUS
+	cap.height = 1.6
+	body.mesh = cap
+	body.material_override = _mat(Color("ffd36b"))
+	body.position.y = 0.8
+	root.add_child(body)
+	# A "nose" so you can see which way the hero faces (look_at points -Z forward).
+	var nose := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.2, 0.2, 0.4)
+	nose.mesh = box
+	nose.material_override = _mat(Color("c0392b"))
+	nose.position = Vector3(0.0, 1.2, -0.45)
+	root.add_child(nose)
+	return root
+
+
+func _blob(r: float, color: Color) -> MeshInstance3D:
+	var m := MeshInstance3D.new()
+	var s := SphereMesh.new()
+	s.radius = r
+	s.height = r * 2.0
+	m.mesh = s
+	m.material_override = _mat(color)
+	return m
+
+
+func _mat(color: Color) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = color
+	return m
+
+
+func _build_hud() -> void:
+	var layer := CanvasLayer.new()
+	add_child(layer)
+	info = Label.new()
+	info.position = Vector2(16, 12)
+	layer.add_child(info)
+	_update_hud()
+
+
+func _update_hud() -> void:
+	var d1: Dictionary = GameData.dungeon("d1")
+	info.text = "%s · monsters %d · คลิกขวา = เดิน · Y = ล็อกกล้อง (%s) · Space = กลับมาที่ฮีโร่ · ล้อเมาส์ = ซูม" % [
+		d1.get("name", "?"), mons.size(), "ล็อก" if cam_locked else "อิสระ"]

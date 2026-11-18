@@ -5,7 +5,7 @@ The web game (Phaser, repo root) is unchanged.
 
 ## Open
 Godot Project Manager → **Import** → pick `godot/project.godot` in this repo → Edit → **F5**.
-WASD / arrows move the hero (yellow); D1 room 1 monsters (green) chase it. That is all M0 does.
+LoL-style 3D view (`scenes/arena3d.tscn`, main scene): right-click to move, Y = camera lock, Space = snap to hero, wheel = zoom. D1 room 1 monsters chase the hero. The old 2D smoke test is `scenes/main.tscn`.
 
 ## Data
 Balance data comes from the web game's `src/data/` (single source of truth):
