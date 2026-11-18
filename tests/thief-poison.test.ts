@@ -69,3 +69,14 @@ test('Thief-line trees: mechanic nodes wired, no duplicate display names', async
   const dup = names.filter((n, i) => names.indexOf(n) !== i)
   assert.deepEqual(dup, [], `duplicate names: ${dup.join(', ')}`)
 })
+
+test('poison %HP bite + spread knobs, default cap 20', async () => {
+  const { heroStats } = await import('../src/data/meta')
+  const { newSave } = await import('../src/save')
+  assert.equal(KIT.poison.baseCap, 20)
+  const s = newSave('t', 'human') as unknown as { job: string; stats: Record<string, number> }
+  s.job = 'archer'; s.stats.int = 30
+  const st = heroStats(s as never)
+  assert.ok(Math.abs(st.poisonHpPct - (KIT.poison.hpPct + KIT.poison.hpPctInt * 3)) < 1e-9 || st.poisonHpPct > KIT.poison.hpPct, 'INT raises the %HP bite (every job)')
+  for (const p of ['poison.hpAbove', 'poison.hpPct', 'poison.hpPctInt', 'poison.hpFlat', 'poison.spreadShare', 'poison.spreadBurst']) assert.ok(fieldFor('kit', p), p)
+})

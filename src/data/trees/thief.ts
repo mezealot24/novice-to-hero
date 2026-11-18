@@ -23,7 +23,7 @@ export const tree: ClassTree = {
     n('thief_a1', 'thief_a', 1, '🧪', 'เคลือบพิษ', 3, (lv) => `พิษ +${lv} stack ต่อ hit`, (lv) => ({ poison: lv })),
     n('thief_a2', 'thief_a', 2, '🐌', 'พิษชา', 3, (lv) => `ดาเมจพิษ +${lv}/stack · 🐌 มอนติดพิษ ≥ ${slowAtLv(lv)} stack ช้าลง (ติดช้า ${KIT.poison.slowTurns} เทิร์นทุกครั้งที่พิษกัด) · พิษโจร +${Math.round(KIT.poison.atkPer * 100)}% P.ATK +${Math.round(KIT.poison.matkPer * 100)}% M.ATK/stack`, (lv) => ({ poisonDmg: lv, poisonSlow: lv })),
     n('thief_a3', 'thief_a', 3, '🏺', 'พิษสะสม', 3, (lv) => `เพดานพิษ ${KIT.poison.baseCap} → ${KIT.poison.baseCap + lv * 3} stack`, (lv) => ({ poisonCap: 3 * lv })),
-    n('thief_a4', 'thief_a', 4, '💣', 'ระเบิดพิษ', 1, () => 'มอนตาย: พิษครึ่งหนึ่งกระจายไปทุกตัวที่เหลือ', () => ({ poisonSpread: 1 })),
+    n('thief_a4', 'thief_a', 4, '💣', 'ระเบิดพิษ', 1, () => `มอนตาย: พิษ ${Math.round(KIT.poison.spreadShare * 100)}% กระจายไปทุกตัวที่เหลือ + ระเบิดใส่ทุกตัว (stack × ดาเมจ/stack × ${KIT.poison.spreadBurst}) · ฆ่าได้ = ระเบิดต่อเป็นลูกโซ่`, () => ({ poisonSpread: 1 })),
     n('thief_b1', 'thief_b', 1, '🌫️', 'ย่องเบา', 3, (lv) => `Flee +${lv * 4} · มอนตีโดนขั้นต่ำ −${lv * 2}%`, (lv) => ({ flee: 4 * lv, fleeFloor: 0.02 * lv })),
     n('thief_b2', 'thief_b', 2, '🌙', 'หายใจในเงา', 3, (lv) => `หลบได้แล้วฟื้น ${lv * 2}% HP สูงสุด`, (lv) => ({ dodgeHeal: 0.02 * lv })),
     n('thief_b3', 'thief_crit', 1, '🔪', 'มีดคู่', 3, (lv) => `คอมโบ +${lv * 5}% · คริ +${lv * 3}%`, (lv) => ({ combo: 0.05 * lv, crit: 0.03 * lv })),

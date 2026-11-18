@@ -71,6 +71,7 @@ const STAT_LABEL: Partial<
 	poisonSlow: ["พิษชา", (n) => `Lv ${n}`],
 	poisonOverflow: ["พิษล้น", () => "เปิด"],
 	thMark: ["หมายหัว", (n) => `Lv ${n}`],
+	poisonHpPct: ["พิษกัด %HP/stack", (n) => `${Math.round(n * 1000) / 10}%`],
 	ultMulAdd: ["ult ตัวคูณ", (n) => `${n}x`],
 	ultVsCharge: ["ult ใส่บอสที่กำลังชาร์จ", pc],
 	ultRegen: ["หลัง ult ฟื้น HP/เทิร์น (3 เทิร์น)", pc],

@@ -4068,7 +4068,13 @@ export class BattleScene extends Phaser.Scene {
       for (const o of others) { o.burnStacks = Math.min(this.burnMax(), o.burnStacks + Math.ceil(m.burnStacks / 2)); o.burnStackTurns = 3; this.dotIcon(o) } // tree
       this.resGain(MAGE_PASSIVE.ablaze.manaGain)
     }
-    if (this.st.poisonSpread > 0 && m.poison > 0) for (const o of others) { o.poison = Math.min(this.poisonMax(), o.poison + Math.ceil(m.poison / 2)); o.poisonDmg = Math.max(o.poisonDmg, m.poisonDmg); this.dotIcon(o) } // tree
+    if (this.st.poisonSpread > 0 && m.poison > 0) { // 💣 ระเบิดพิษ (KIT.poison.spreadShare / spreadBurst): pass the stacks on, then blast them (kills can chain)
+      const P = KIT.poison, pass = Math.ceil(m.poison * P.spreadShare), blast = Math.round(m.poison * m.poisonDmg * P.spreadBurst * this.dotMul())
+      const live = others.filter((o) => !o.dead)
+      if (live.length) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '💣 ระเบิดพิษ!', '#b48aff')
+      for (const o of live) { if (pass > 0) { o.poison = Math.min(this.poisonMax(), o.poison + pass); o.poisonDmg = Math.max(o.poisonDmg, m.poisonDmg); this.dotIcon(o) } }
+      if (blast > 0) for (const o of live) if (!o.dead) this.withSrc('poison', () => this.damageMon(o, blast, false, '#b48aff', true))
+    }
     this.archerKill(m, others)
     if (m.armorBrk > 0 && this.st.swBreakSpread > 0 && others.length) { // v84 Swordsman ร้าวลาม
       for (const o of others) { o.armorBrk = Math.max(o.armorBrk, KIT.swordTree.breakTurns); this.dotIcon(o) }
@@ -4153,8 +4159,9 @@ export class BattleScene extends Phaser.Scene {
     if (m.burnTurns > 0) { m.burnTurns--; this.withSrc('fire', () => this.damageMon(m, Math.max(1, Math.round(m.burn * this.dotMul())), false, '#ff8c42', true)); if (!m.burnTurns) this.dotIcon(m) }
     if (!m.dead && m.poison > 0) {
       const bleedScale = 1 + this.st.j2BleedDmg
+      const P = KIT.poison, hpBite = m.hp > m.def.hp * P.hpAbove ? m.poison * (m.def.hp * this.st.poisonHpPct + P.hpFlat) : 0 // 🩸 %HP bite while above 50%
       const hpBleed = this.st.j2WolfBleedPct > 0 ? Math.min(Math.round(m.poison * m.def.hp * this.st.j2WolfBleedPct), Math.round(KIT2.beastmaster.wolfBleedCap * this.st.atk)) : 0
-      this.withSrc('poison', () => this.damageMon(m, Math.max(1, Math.round(m.poison * m.poisonDmg * bleedScale * this.dotMul()) + hpBleed), false, '#a77be0', true))
+      this.withSrc('poison', () => this.damageMon(m, Math.max(1, Math.round((m.poison * m.poisonDmg * bleedScale + hpBite) * this.dotMul()) + hpBleed), false, '#a77be0', true))
       if (this.st.poisonLeech > 0) this.heal(m.poison * m.poisonDmg * this.st.poisonLeech, true)
       if (this.st.poisonSlow > 0 && !m.dead && m.poison >= slowAtLv(this.st.poisonSlow)) { m.chill = Math.max(m.chill, KIT.poison.slowTurns); this.dotIcon(m) } // 🐌 Thief พิษชา
     } // Thief เลือดพิษ · 🐺 IV talent % Max HP bleed

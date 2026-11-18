@@ -108,10 +108,16 @@ export const KIT = {
     atkPer: 0.04, // + P.ATK share per stack (Lv100 P.ATK ~400 -> +16/stack)
     matkPer: 0.04, // + M.ATK share per stack (Q 2026-11-17: INT / M.ATK from gear, cards, buffs also feed poison)
     intPer: 0.1, // Thief flat poison +this per INT point over the start (was hardcoded)
-    baseCap: 12, // max stacks before poisonCap nodes / gear
+    baseCap: 20, // max stacks before poisonCap nodes / gear (Q 2026-11-18: 12 -> 20, every poison source)
     defPer: 0.01, defCap: 0.4, // 🦴 Q 2026-11-17: each poison stack on a monster = its DEF −defPer vs Thief-line hits, at most defCap
     slowAt: 10, slowStep: 2, slowTurns: 2, // 🐌 พิษชา (node thief_a2): a monster with >= slowAt − slowStep x (Lv − 1) stacks is chilled slowTurns on each poison tick
     overflowMul: 2, // 💥 พิษล้น (node mb_p4): stacks pushed over the cap burst at once, x per-stack x this
+    // 🩸 Q 2026-11-18 %HP bite (every hero poison): while the monster is above hpAbove of its max HP, each stack also takes
+    // (hpPct + hpPctInt per 10 INT) x its max HP + hpFlat per tick
+    hpAbove: 0.5, hpPct: 0.005, hpPctInt: 0.001, hpFlat: 2,
+    // 💣 ระเบิดพิษ (★ thief_a4, Q 2026-11-18 buff): a dying monster passes spreadShare of its stacks to every other monster
+    // and blasts each of them for its stacks x per-stack x spreadBurst at once (kills can chain)
+    spreadShare: 1, spreadBurst: 1.5,
     burstKeep: 0.5, // 💀 Mobster ทวงหนี้: share of stacks left after the burst (0 = cleared, the old rule)
   },
   // v82 Archer web: 🧪 ศรพิษ (under ทักษะ 1) + 🏷️ ล่าหัว (under Ult), first guesses (design/skill-tree-archer.md v82)
