@@ -69,3 +69,7 @@
 - P2b T4: `damageMon()` calls `takenAmpOf(m, dot)`: Exposed (hits only) + แผลลึก Privileged (`S2N.woundPriv`, dot too) + `thPrivileged` (new stat, th_t4a in T5) + gear `poisonAmp` (still needs `KIT.thiefPoisonAmpAt` 10 stacks) — **added**, cap `KIT.thiefTakenCap` 0.6
 - Numbers today: unchanged, except gear `poisonAmp` + old th_t4a above +60% now stop at +60% (max gear 0.45 + 0.25 = 0.70 → 0.60)
 - `thief_c1` status kinds read `debuffKinds()` (Poison / Wound / Exposed / Chill) · new `debuffFlags(m)` (stabMark = P3)
+
+## 🧫 feat(thief): th_t4a Privileged Status talent
+- P2b T5: `th_t4a` กัดกร่อน (`poisonAmp` 0.15 / 0.25 at ≥ 10 poison) → **สถานะทับซ้อน**: target with ≥ `KIT.thiefPrivAt` (8) poison **or** ≥ `KIT.thiefKindsAt` (2) debuff kinds (8-kind list) takes +18% / +30% (`thPrivileged`, B1 Taken, dot too, cap +60% with the others)
+- Same id (save data): old picks are cleared by the P2a `migrateThiefRogueRework` talent reset · Mobster (Thief web) gets it too: gear 0.30 + old talent 0.25 = ×1.55 → ×1.60 (cap)

@@ -52,3 +52,15 @@ test('thPrivileged is a PLAYER stat that starts at 0', async () => {
   const { PLAYER } = await import('../src/data/game-data')
   assert.equal(PLAYER.thPrivileged, 0)
 })
+
+test('th_t4a Privileged Status: thPrivileged 0.18 / 0.30, no poisonAmp at any rank', async () => {
+  const { TALENTS } = await import('../src/data/tree')
+  const { PLAYER } = await import('../src/data/game-data')
+  const t = TALENTS.find((x) => x.id === 'th_t4a')!
+  assert.ok(t)
+  assert.deepEqual([1, 2].map((r) => t.mod(r).thPrivileged), [0.18, 0.3])
+  for (const r of [1, 2]) {
+    assert.ok(!('poisonAmp' in t.mod(r)), `rank ${r}`)
+    for (const [k, v] of Object.entries(t.mod(r))) { assert.ok(k in PLAYER, k); assert.ok(typeof v === 'number' && v > 0, `${k}=${v}`) }
+  }
+})
