@@ -39,6 +39,281 @@
 ### R4.5 คำถามที่ค้างถึงคิว
 - ไม่มี (ตอบครบ 2026-11-19: Mobster A · แทงพิษ pskill + ลด thiefAuto)
 
+### R4.6 ตาราง Damage-amp bracket (ของจริงในโค้ด + ของใหม่ที่ Rev 3 เสนอ)
+
+> **So what:** โค้ดวันนี้คูณ amp ต่อกันเกือบทุกตัว · ถ้าใส่ของใหม่ของ Rev 3 แบบเดียวกัน Back Stab ที่ Lv80 = **×12.05** (วันนี้ ×2.64) · ใช้ 6 กฎด้านล่าง → **×6.21** (−48%)
+> เลขบรรทัดอ่านจากโค้ด 2026-11-19 (`BattleScene.ts` ถ้าไม่ระบุไฟล์) · เลขบรรทัดใน Rev 3 ด้านล่างเก่าแล้ว
+
+#### R4.6.1 Pipeline จริง: amp ที่มีอยู่แล้ว
+ลำดับ: `strike()` สร้าง `mul` → `roll()` → DEF → `damageMon()` → `srcMul()` → amp ใน `damageMon()`
+
+| # | Amp ที่มีอยู่ | ที่อยู่ | แบบ | Cap / หมายเหตุ |
+|---|---|---|---|---|
+| 1 | `j3AfterBless` | `:1228` | × | — (คลาส 3) |
+| 2 | `elemDmg` | `:1229` (เวท, src ไม่ใช่ธาตุ) · `:4741` (src ธาตุ) | × | — |
+| 3 | `skillCut()` | `:1240` · def `:2909` | × `(1 − cut)` | cut ≤ 0.9 |
+| 4 | `j2HpPunch` | `:1241` | **+** เข้า `mul` | Monk / Paladin |
+| 5 | `j2Mul()` | `:1242` · def `:2075-2092` | × ทั้งก้อน · ข้างในคูณกันทุกตัว (frenzy, `j2BossCrit`, ดวล, Mobster `bossExecMul` ×2 `:2083` ฯลฯ) | ไม่มี cap · **Rogue ไม่มีบรรทัดใน `j2Mul`** |
+| 6 | brittle = `max(st.brittle, px('vsChill'))` | `:1243-1244` | × เมื่อ `m.chill > 0` | `OUTSIDE_CAP.vsChill` |
+| 7 | `arUltBreak` · `arLowHpBonus` | `:1245` · `:1246` | × | Archer |
+| 8 | `thExecute` (★ เพชฌฆาต) | `:1247` | × **1.5 hardcode** (คริ + HP < **0.3** hardcode) | แหล่งเดียว = `thief_c4` เดิม (`trees/thief.ts:31`) → หลัง rework ไม่มีแหล่ง |
+| 9 | `critDmgAdd` (falcon, stance mark, Warlord, `procCritMul`, light charge) | `:1250` | **+ เข้า `critMul`** | `roll()` `:3851`: `scaleCritMul(critMul + add, critPow())` · `critPow` = 1 เมื่อ `forceCrit` (`:2906`) |
+| 10 | `atkMul()` (trinity, harvest, aegis, weaken, thorn, comboAtk, veteran, egg, Warlord) | ใน `roll()` `:3850` · def `:5116-5122` | × chain | แต่ละตัวมี cap ของตัวเอง |
+| 11 | DEF · M.DEF · `critDR` · `toxicSkin` | `:1254` · `:1255` · `:1256` · `:1257-1261` | ตัด | คริกายภาพข้าม DEF |
+| 12 | `srcMul()` masteries | `:3887` → `:4734` | × `1+amp` / `1−cut` · **ใช้กับ dot ด้วย** (ดูแค่ `src`) | — |
+| 13 | `srcMul()` basic bracket | `:4736` (counter `:4737`) | **+** `1 + basicDmg + comboDmg − DR` = bracket เดียวที่บวกกันอยู่แล้ว | floor `COMBO.dmgFloor` |
+| 14 | `srcMul()` relic wolf/wizard/queen · skill (biome, blood_pact, mana_overload) · glass · demon · `ultOpen` | `:4738-4753` | × | — |
+| 15 | `vsBurn` · `vsPoison` | `:4749` · `:4750` | × · `!dot` เท่านั้น | `px()` `:4727` = `min(OUTSIDE_CAP[k], pk[k] + st[k])` → **`vsPoison` cap 0.70** (`perks.ts:201-205` = 2 × card `ven_brew`+ 0.35 `perks.ts:148`) · ค่าจาก tree / gear อยู่ใต้ cap เดียวกัน |
+| 16 | `marked` (Cleric ตราบาป) | `:3901` | × **1.15 hardcode** · ใช้กับ dot ด้วย | — |
+| 17 | `huntMark` (Archer / Beastmaster) | `:3902` | × · `!dot` | — |
+| 18 | `swBreak` (Swordsman) | `:3903` | × · `!dot` | — |
+| 19 | `lateDmg` (Cleric) | `:3904` | × · ใช้กับ dot ด้วย | — |
+| 20 | `poisonAmp` (กัดกร่อน) | `:3905` | × เมื่อ `m.poison >= 10` (**10 hardcode**) · **ใช้กับ dot ด้วย** | แหล่ง: `th_t4a` เดิม 0.15/0.25 (`trees/thief.ts:52`) · card `venomqueen` 0.10 (`cards.ts:110`) · set 0.20 (`sets.ts:75`) · craft 0.15 (`craft.ts:65`) |
+| 21 | relic executioner | `:3906` | × · `!dot` | — |
+| 22 | `dotMul()` (bloodpact) | def `:2914` · tick พิษ `:4108` · ไฟ `:4104` / `:4113` · ทวงหนี้ `:2255` | × (ตัด) | — |
+
+**โค้ดขัดกับ Rev 3 (ต้องแก้ใน P2/P3):**
+- `dot = true` **ไม่ได้ข้าม amp ทุกตัว:** `marked` `:3901`, `lateDmg` `:3904`, `poisonAmp` `:3905`, masteries `:4734` ยังคูณ
+  - → Death Mark pop แบบ `dot=true` (`rg_u1`) **ยังโดน `poisonAmp`** (Rev 3 เขียนว่าไม่โดน)
+  - → pop ใช้ `this.src` ที่ค้างอยู่ ถ้าไม่ห่อด้วย `withSrc()`
+- Contaminate (`src='poison'`, `dot=false`) ถ้าเรียก `damageMon()` ตรง ๆ → ได้ `vsPoison` + `poisonAmp` + mastery พิษ แต่ **ข้ามทุกอย่างใน `strike()`** (`j2Mul`, `critDmgAdd`, DEF)
+- `thExecute` ×1.5 (`:1247`) ไม่มีแหล่งหลัง rework → ลบ หรือย้ายเข้า B3
+- Blind ของ 2-1 ใช้ `m.blind` ร่วมกับ Crusader → ตัด Hit ด้วย `KIT2.crusader.blindHit` (`:4430` · Rev 3 อ้าง `:4423` = เลขเก่า)
+- **ของที่ซ้อนกันไม่ได้** (ห้ามนับรวมใน max stack):
+  - ทาเลนต์ 1 แถวเลือก 1 (`save.ts:83` `jobTalents` row → pick) → `th_t4a` Privileged ⟂ `th_t4b` Perfect Agony
+  - Skill 2 เลือก 1 จาก 3 (`tree.ts:165`) → `Exposed` (`th_smoke`) ⟂ Privileged +12% ของ `th_wound`
+  - `thPrivileged` = stat key ของ `th_t4a` (ตัวเดียวกัน ไม่ใช่ amp แยก)
+
+#### R4.6.2 Bracket + กฎ 1 ข้อต่อ bracket
+
+| Bracket | สมาชิก | กฎ (1 ข้อ) | วางที่ไหน |
+|---|---|---|---|
+| **B1 Taken** (ดีบัฟบนมอน → รับดาเมจเพิ่ม) | `Exposed` +0.20/0.30 (`!dot`) · `stabMark` +0.15 (คริ / Back Stab / พายุมีด / Basic) · Privileged `th_wound` +0.12 · `thPrivileged` (`th_t4a`) +0.18/0.30 · `poisonAmp` เดิม (gear) | **บวกกันใน bracket เดียว cap +0.60** (`KIT.thiefTakenCap`) · แต่ละตัวคง filter ของตัวเอง (`!dot`, crit-only ฯลฯ) | helper `takenAmp(m, dot, crit)` ใน `damageMon()` แทน `:3905` |
+| **B2 vs-status** (ของเดิม) | `vsPoison` (+ `thief_a2` 0.08×lv) · `vsBurn` · `vsChill` | **ไม่แก้:** ค่า tree บวกเข้า `px()` ใต้ `OUTSIDE_CAP` เดิม (vsPoison 0.70) | `:4749-4750` เหมือนเดิม |
+| **B3 Crit Dmg** (เงื่อนไข → ดาเมจคริ) | `thUltCondCritDmg` (`thief_u1` +0.30/ชนิด) · `thUltExecDmg` (`th_t3a` +0.35/0.60) · `thExecUlt` (`thief_u3` +0.51) · Shroud★ +0.25 · `j2HeartRend` (`rg_x2` +0.36) · `thExecute` เดิม (ถ้าเก็บ) | **บวกเข้า `critDmgAdd` (`:1250`) ห้ามคูณ `mul` · รวมเงื่อนไขใหม่ cap +0.75** (`KIT.thiefCondCritDmgCap`) | `:1250` |
+| **B4 Skill-own** (สกิลนับดีบัฟ / สถานะเอง) | `j2StabDebuffAmp` (`rg_s3` +0.24/ชนิด) · Shadow Ambush ×1.25 · `j2ComboDebuff` (`rg_c2`) · `thWeaveDmg` (`th_t2c` → `basicDmg` bracket เดิม #13) | **บวกเข้า `mul` ของสกิลนั้นเป็น `1 + Σ` · cap ต่อสกิล** (Back Stab +0.75 `KIT2.rogue.stabAmpCap` · นับดีบัฟสูงสุด 3 ชนิด `stabDebuffMax`) | ตอนสร้าง `mul` ก่อน `strike()` |
+| **B5 Poison power** (`src='poison'`: tick, Toxic Seep, Contaminate, Plague Burst) | Perfect Agony (`th_t4b`) · `vsPoison` (เฉพาะ Contaminate เพราะ `!dot`) | **บวกกัน cap +1.00** (= cap ของ PA, `KIT.thiefAgonyCap`) · ถ้าคริ ใช้ `critMul` แทน PA · mastery พิษ (`ven_L2`) คงคูณแยกแบบเดิม | Contaminate: ข้าม `:4750` แล้วรวม `vsPoison` ใน B5 |
+| **B6 Echo** (ดาเมจที่สะท้อนดาเมจที่ amp แล้ว) | Death Mark pop (`rg_u1` 0.24 + 0.05×lv + `j2RgDeathMark` ≤ 0.59) + AoE | **ไม่รับ amp ใด ๆ** · flag ใหม่ `echo` ใน `damageMon()` ข้าม `srcMul` + `:3901-3906` · `withSrc('other')` · ไม่บันทึกเข้า Death Mark ซ้ำ · ไม่ดูดเลือด · ตัด "ทะลุ P.DEF 50%" (ค่าที่บันทึกผ่าน DEF แล้ว) | `damageMon(..., dot=true, echo=true)` |
+
+- Bracket ยังคูณกันเอง (B1 × B2 × B3 × B4 × B5) แต่ **ทุกก้อนมี cap** → ไม่ระเบิดแบบไม่จำกัด
+- **ผลข้างเคียง:**
+  - Mobster: `poisonAmp` gear สูงสุด 0.45 < cap 0.60 → ไม่เปลี่ยน · ถ้าเลือก `th_t4a` ใหม่ (+0.30) → ชน cap: วันนี้ `th_t4a` R2 + gear = ×1.70 → หลัง rework สูงสุด ×1.60 → นับใน §5.4 ตอนวัด `JOB2_K.mobster`
+  - Archer / Beastmaster / Cleric: B2, `huntMark`, `marked`, `lateDmg` ไม่แตะ → ไม่เปลี่ยน
+  - cap ทุกตัว = key ใหม่ (ดู R4.7)
+
+#### R4.6.3 ตัวอย่าง Lv80 (ตัวคูณ amp ล้วน · ไม่รวม P.ATK / skill mul / critMul ฐาน)
+**สมมติ:** Rogue Lv80 · Skill 2 `th_smoke`★ · แถว 4 `th_t4a` R2 · `rg_s3` Lv5 · `rg_x2` Lv5 · poisonAmp 0.30 (venomqueen 0.10 + set 3 ชิ้น 0.20) · `st.critMul = 2.0` (สมมติ)
+- `vsPoison` ชน cap 0.70 จาก gear/card อยู่แล้ว **ทั้ง 3 คอลัมน์** (`ven_brew`+ 0.35 + set 2 ชิ้น 0.10 `sets.ts:74` + card toad 0.10 `cards.ts:105` + craft 0.10 `class-craft.ts:65` + refine 0.07 `refine.ts:165`) → `thief_a2` (+0.24) **ไม่เพิ่มอะไรเมื่อชน cap** · บอส poison ≥ 10 + Exposed + Stripped + stabMark ยังอยู่ (CD Back Stab ถูกตัดด้วย Voracity) · ฮีโร่อยู่ใน Shroud
+
+**Hit — Back Stab (คริแน่):**
+| ตัวคูณ | วันนี้ (live) | Rev 3 แบบคูณ | กฎ R4.6 |
+|---|---|---|---|
+| `vsPoison` (B2) | ×1.70 | ×1.70 | ×1.70 |
+| `poisonAmp` | ×1.55 (gear 0.30 + `th_t4a` เดิม 0.25) | ×1.30 | → B1 |
+| `Exposed`★ · `stabMark` · `thPrivileged` R2 | — | ×1.30 · ×1.15 · ×1.30 | → B1 |
+| **B1** | — | คูณกัน ×2.53 | `0.30+0.30+0.15+0.30 = 1.05 → cap 0.60` = **×1.60** |
+| `rg_s3` (3 ชนิด) · Shadow Ambush | — | ×1.72 · ×1.25 (= ×2.15) | B4 `0.72+0.25 = 0.97 → cap 0.75` = **×1.75** |
+| คริเงื่อนไข (Heart Rend 0.36 + Shroud★ 0.25) | — | `(2.0+0.61)/2.0` = ×1.305 | B3 `0.61 ≤ 0.75` = ×1.305 |
+| **รวม** | **×2.64** | **×12.05** | **×6.21** (−48% · ×2.36 ของวันนี้) |
+
+**Poison burst — Contaminate** (`dot=false`, ไม่คริ · แถว 4 = `th_t4b` แทน · run มี `ven_L2`+ mastery พิษ):
+| ตัวคูณ | Rev 3 แบบคูณ | กฎ R4.6 |
+|---|---|---|
+| `Exposed`★ + `poisonAmp` 0.30 | ×1.30 × ×1.30 | B1 `0.60` → ×1.60 |
+| `vsPoison` 0.70 + Perfect Agony (สมมติชน cap +1.00) | ×1.70 × ×2.00 | B5 `1.70 → cap 1.00` → ×2.00 |
+| mastery `ven_L2`+ (เดิม) | ×1.90 | ×1.90 |
+| **รวม** | **×10.92** | **×6.08** (−44%) |
+
+- ยังสูงกว่าวันนี้ เพราะเป็นกลไกใหม่หลายชั้น → cap 0.60 / 0.75 / 1.00 = จุดเริ่ม · ปรับจากคิวเล่นจริง (R4.3 ข้อ 6)
+
+### R4.7 KIT key list (no magic numbers in BattleScene)
+
+> **So what:** 148 key (Thief `KIT` 76 · Skill 2 27 · Rogue `KIT2.rogue` 45) · `KIT` / `S2N` ที่ขาดการลงทะเบียน = test fail · `KIT2` ที่ขาด `J2_LABEL` = ไม่ fail แต่ admin โชว์ชื่อ key ดิบ
+
+- **ขอบเขต:** เฉพาะตัวเลขที่ Rev 3 §2–§3 ให้ "บวก base ใน BattleScene" หรือฝังในสูตร
+  - ไม่ list: ตัวคูณต่อ Lv ใน `mod(lv)` / `desc(lv)` ของ node / talent (อยู่ใน `src/data/trees/thief.ts` · `trees2/rogue.ts` = data อยู่แล้ว)
+  - ย้ายเข้า talent `mod` แทน KIT: `th_t3c` โล่ตอนหลบ `(0.10 | 0.20) × FLEE` → stat ใหม่ `thDodgeShield: 0.10 | 0.20`
+  - ไม่ list: §4 (WIS Melt, Shadow Ward, Toxic Overheal, LUK) · P4 Plagiarism
+  - **ICD "1 ครั้ง/เทิร์น" = flag รีเซ็ตต่อเทิร์น ไม่ใช่ตัวเลข → ไม่มี key** (Contaminate ×2 สาย, Blade's End, Voracity pickup/kill, `thief_c3`, `rg_k4`, `rg_t2_voracity`, `th_t3c` shield) · ICD ที่ไม่ใช่ 1: `rg_c3` (มี key) · `th_t2a` (อยู่ใน `mod` `thDodgeCdIcd`)
+- **ไม่ต้องมี key ใหม่ แค่เปลี่ยนค่า path เดิม:**
+  - ค่าร่ายแทงพิษ `job.thief.auto.cost` 40 → 45 (`skill-registry.ts:125` · ห้ามมี `KIT.thiefAutoCost`: "1 path = 1 table" `tunables.ts:199`)
+  - `th_smoke` cost 40 → 35 (`skill2.ts` `s('th_smoke', ..., 40, 4, ...)`)
+
+#### R4.7.1 Checklist ลงทะเบียน
+| Object | ต้องแก้ | Test ที่จับ |
+|---|---|---|
+| `KIT` (Thief) | 1) key ใน `KIT` (`skill-math.ts:74`) 2) ชื่อใน `KIT_INTS` (`int(0,50)`) หรือ `KIT_NUMS` (`num(0,20)`) (`tunables.ts:146-147`) 3) `KIT_EXPLAIN` (`src/admin/explain/combo-kit.ts`) 4) label ใน `SKILL_LAYOUT.thief` ด้วย `kit('key', 'label')` (helper `skill-registry.ts:57` · layout `:124-132` · ช่อง `tree?: SkillRef[]` `:50`) | `admin-engine.test.ts:39-54` (effect ห้ามเป็น fallback `ตัวคูณคิทคลาสหลัก`) · `skill-registry.test.ts:20-28` (ref ใน layout ต้อง whitelisted = อยู่ใน `KIT_INTS`/`KIT_NUMS` + ค่าเริ่มอยู่ในช่วง min..max) |
+| `S2P` | `{ base, per }` (`skill-math.ts:320`) + `lin('key', label)` ใน `SKILL_LAYOUT.thief.s2` · `S2P_TH` (`explain/skills.ts:7`) ใส่หรือไม่ก็ได้ | — |
+| `S2N` | **ตัวเลขล้วน ไม่ใช่ function** (`skill-math.ts:330`) + `sk('s2n.key', label, int/num)` ใน `SKILL_LAYOUT.thief.s2` + **`S2N_TH`** (`explain/skills.ts:24`) · `s2('th_wound')` วันนี้ยังไม่มี ref | `skill-registry.test.ts:23` (`typeof v === 'number'`) · `admin-engine.test.ts:50` (ไม่มี `S2N_TH` → fallback → fail) |
+| `KIT2.rogue` | key ใน `skill-math.ts:159` + label `J2_LABEL` (`skill-registry.ts:139`) · effect มาจาก regex `explainKit2Effect` (`explain/skills.ts`) อัตโนมัติ | `admin-engine.test.ts:71-84` (เช็กแค่ label ไม่ว่าง → ไม่มี `J2_LABEL` ก็ผ่าน แต่โชว์ชื่อ key ดิบ) |
+
+**กฎตั้งชื่อ `KIT2.rogue`:**
+- คอลัมน์ (`skill-registry.ts:297`): `/^stab/` → ทักษะ 3 · `/^ult/` → Ult · ที่เหลือ → other
+- ห้ามลงท้าย `Cost` / `Cd` → ถูกข้ามเงียบ ๆ (`:313`) → ใช้ `CdCut`
+- เป็น int ใน admin เมื่อ **ชื่อ match `INTISH`** (`:306`: `Turns|Hits|Max|Keep|At|Stacks|Every|Boxes|Knives|Count|CdCut|PerSwing|PerCombo`) **และ** ค่าเริ่มเป็นจำนวนเต็ม · ไม่ match = `num` (ใช้ได้ แค่ admin ไม่บังคับจำนวนเต็ม)
+
+#### R4.7.2 Thief — `KIT` (76 key · INTS 28 · NUMS 48)
+| Key | ค่า | ชนิด | Rev 3 | Label (admin) |
+|---|---|---|---|---|
+| `thiefAutoMinCost` | 30 | INTS | §2.2 ข้อ 1 | แทงพิษ: Energy ต่ำสุดหลังลด |
+| `thiefStrikeRes` | 4 | INTS | §2.4 Gate | D.Strike ติด: คืน Energy |
+| `thiefStrikeLs` | 0.33 | NUMS | hardcode เดิม `:2984` | D.Strike: สัดส่วนดูดเลือด |
+| `thiefToxicHoldCap` | 0.75 | NUMS | `thief_a3` | พิษทนทาน: โอกาสพิษไม่ลด สูงสุด |
+| `thiefSpreadShare` | 0.6 | NUMS | `thief_a4` | ระเบิดพิษลาม: สัดส่วนพิษที่กระจาย (ใช้เมื่อ `thPlagueDeath > 0` · `:4022` `/2` ใช้ร่วมกับ card `ven_L1` ห้ามแก้) |
+| `thiefPlagueAt` | 10 | INTS | `thief_a4` | Plague Burst: พิษขั้นต่ำ (stack) |
+| `thiefPlagueTurns` | 1 | INTS | `thief_a4` | Plague Burst: ดาเมจ = กี่เทิร์นพิษ |
+| `thiefVenomBasicShare` | 0.35 / 0.6 | NUMS | `thief_v1` | Venom Coating: Basic ได้กี่ส่วนของแทงพิษ |
+| `thiefArcaneMatkPerInt` | 1 | NUMS | `thief_v1` (`heroBuild`) | Arcane Edge: M.ATK ต่อ INT |
+| `thiefVenomIntAt` | 20 | INTS | `thief_v1` | แทงฉาบอาคม: INT ขั้นต่ำ ได้พิษ +1 |
+| `thiefVenomIntPoison` | 1 | INTS | `thief_v1` | แทงฉาบอาคม: พิษเพิ่ม (stack) |
+| `thiefDetAt` | 8 | INTS | `thief_v2` | Contaminate: พิษขั้นต่ำ (stack) |
+| `thiefDetShare` | 0.4 | NUMS | `thief_v2` | Contaminate: ใช้พิษกี่ส่วน |
+| `thiefDetMin` | 3 | INTS | `thief_v2` | Contaminate: ใช้พิษอย่างน้อย (stack) |
+| `thiefDetPoisonBase` | 1.5 | NUMS | `thief_v2` | Contaminate: × poisonDmg ฐาน |
+| `thiefDetPoisonLv` | 0.5 | NUMS | `thief_v2` | Contaminate: × poisonDmg ต่อ Lv |
+| `thiefDetMatkLv` | 0.14 | NUMS | `thief_v2` | Contaminate: × M.ATK ต่อ stack ต่อ Lv |
+| `thiefDetFlatBase` | 0.6 | NUMS | `thief_v2` | Contaminate: × M.ATK ก้อนฐาน |
+| `thiefDetFlatLv` | 1 | NUMS | `thief_v2` | Contaminate: × M.ATK ก้อนต่อ Lv |
+| `thiefDetSplash` | 0.5 | NUMS | `thief_v2` | Contaminate: AoE ตัวอื่น |
+| `thiefDetLeechShare` | 0.5 | NUMS | `thief_v2` / `v4` | เลือดพิษจาก Contaminate (ไม่มี ★) |
+| `thiefDetBossRefund` | 0.25 | NUMS | `thief_v4` ★ | ★ คืนพิษเมื่อระเบิดใส่บอส |
+| `thiefAlchemyStab` | 0.9 | NUMS | `thief_v4` ★ | Alchemy Blade: Back Stab × M.ATK |
+| `thiefAlchemyKnife` | 0.6 | NUMS | `thief_v4` ★ | Alchemy Blade: มีดพายุ × M.ATK |
+| `thiefLeechLv` | 0.08 | NUMS | `thief_v3` | เลือดพิษ: อัตราต่อ Lv |
+| `thiefLeechInt` | 0.015 | NUMS | `thief_v3` | เลือดพิษ: ขยายต่อ INT |
+| `thiefLeechCap` | 0.6 | NUMS | `thief_v3` | เลือดพิษ: อัตราสูงสุด |
+| `thiefLeechTurnCap` | 0.25 | NUMS | `thief_v3` | เลือดพิษ: ฮีลสูงสุด/เทิร์น (% Max HP) |
+| `thiefUltDexEvery` | 15 | INTS | §2.5 | เงาพริ้ว: ทุกกี่ DEX ได้ +1 ที |
+| `thiefUltDexHitCap` | 6 | INTS | §2.5 (R4.3 เสนอ 3) | เงาพริ้ว: ทีจาก DEX สูงสุด |
+| `thiefUltDexPer` | 0.012 | NUMS | §2.5 `thUltDex` | เงาพริ้ว: แรงต่อ DEX |
+| `thiefShroudBase` | 1 | INTS | Ghost Shroud ข้อ 1 | Ghost Shroud: ชาร์จฐาน |
+| `thiefShroudEvery` | 2 | INTS | Ghost Shroud ข้อ 2 | Ghost Shroud: +1 ทุกกี่เทิร์น |
+| `thiefShroudFlee` | 0.15 | NUMS | Ghost Shroud ข้อ 3 | Shadow Shield: × FLEE ฐาน |
+| `thiefShroudHpCap` | 0.2 | NUMS | Ghost Shroud ข้อ 3 | Shadow Shield: สูงสุด % Max HP |
+| `thiefUltCritShare` | 0.75 | NUMS | สาย A · `thief_u1` | เงาพริ้ว: รับ crit กี่ส่วน |
+| `thiefUltCritCap` | 0.75 | NUMS | สาย A | เงาพริ้ว: คริสูงสุด |
+| `thiefExecBelow` | 0.35 | NUMS | สาย A · `thief_u3` · `th_t3a` R2 | เพชฌฆาตเงา: HP ต่ำกว่า |
+| `thiefUltCritResCap` | 24 | INTS | `thief_u3` | เพชฌฆาตเงา: Energy สูงสุด/Ult |
+| `thiefOnHitBase` | 0.38 | NUMS | สาย B | On-Hit: eff ฐาน |
+| `thiefOnHitTalHi` | 0.05 | NUMS | สาย B (`th_t3b` R2 + `u2`) | On-Hit: โบนัสทาเลนต์ R2 |
+| `thiefOnHitTalLo` | 0.03 | NUMS | สาย B (`th_t3b` R1 + `u2`) | On-Hit: โบนัสทาเลนต์ R1 |
+| `thiefOnHitCap` | 0.55 | NUMS | สาย B | On-Hit: eff สูงสุด |
+| `thiefOnHitStrikeMax` | 2 | INTS | สาย B | On-Hit: D.Strike สูงสุด/Ult |
+| `thiefCounterMul` | 0.8 | NUMS | `thief_b4` ★ | เงาสวน: × P.ATK |
+| `thiefCounterExposedMul` | 1.1 | NUMS | `thief_b4` ★ | เงาสวน: × P.ATK เมื่อเป้า Exposed |
+| `thiefFinisherAt` | 3 | INTS | `thief_u4` ★ | เงาพันคม: คริกี่ครั้งได้ฮิตปิด |
+| `thiefFinisherMul` | 1.4 | NUMS | `thief_u4` ★ | เงาพันคม: ฮิตปิด × สูตร Ult |
+| `thiefUltCdCutCap` | 2 | INTS | §3.4 · §5 ข้อ 1 (ใช้ร่วม Rogue) | ลด CD Ult สูงสุด/เทิร์น |
+| `thiefUltCdFloor` | 1 | INTS | §5 ข้อ 1 | CD Ult ต่ำสุดหลังกด |
+| `thiefDodgeBuffTurns` | 2 | INTS | `thief_b1` · `th_t4c` | บัฟหลังหลบ: นาน (เทิร์นมอน) |
+| `thiefDodgeFleeTurns` | 2 | INTS | `th_t1a` | ก้าวเงา: FLEE หลังหลบ นาน (เทิร์นฮีโร่) |
+| `thiefMistPoison` | 2 | INTS | `th_t4c` | ร่างเงาลวงตา: สะท้อนพิษ (stack) |
+| `thiefKindsAt` | 2 | INTS | `thief_c1` · `th_t3a` · `th_t4a` | "ดีบัฟหลายชนิด" = กี่ชนิดขึ้นไป |
+| `thiefCondLeechMulti` | 1.5 | NUMS | `thief_c1` | คมเลือด: × เมื่อดีบัฟหลายชนิด |
+| `thiefStackCritMax` | 8 | INTS | `thief_c2` | จุดตายสะสม: stack สูงสุด |
+| `thiefKillRes` | 10 | INTS | `thief_c3` | กระหายเลือด: ฆ่าได้ Energy |
+| `thiefKillPoisonHeal` | 0.005 | NUMS | `thief_c3` | กระหายเลือด: ฮีลต่อพิษบนศพ |
+| `thiefKillPoisonHealCap` | 0.12 | NUMS | `thief_c3` | กระหายเลือด: ฮีลโบนัสสูงสุด |
+| `thiefBossCritLeech` | 0.375 | NUMS | `thief_c3` | กระหายเลือด: คริบอส ฮีลกี่ส่วน |
+| `thiefBossCritRes` | 8 | INTS | `thief_c3` | กระหายเลือด: คริบอส Energy |
+| `thiefBloodKingBelow` | 0.45 | NUMS | `thief_c4` ★ | ราชันย์โลหิต: HP ต่ำกว่า |
+| `thiefBloodKingMul` | 1.75 | NUMS | `thief_c4` ★ | ราชันย์โลหิต: ดูดเลือด × |
+| `thiefBloodKingStrikeLs` | 0.66 | NUMS | `thief_c4` ★ | ราชันย์โลหิต: D.Strike ดูดเลือด |
+| `thiefStackHpMax` | 20 | INTS | `th_t1c` (cap 160/280 = 20 stack) | กายต้านพิษ: นับ stack สูงสุด |
+| `thiefStackCritTalMax` | 14 | INTS | `th_t2b` | จุดบอดซ้อนพิษ: stack สูงสุด |
+| `thiefUltExecBelow` | 0.5 | NUMS | `th_t3a` | เงาสังหาร: HP ต่ำกว่า |
+| `thiefPrivAt` | 8 | INTS | `th_t4a` | Privileged: พิษขั้นต่ำ (stack) |
+| `thiefAgonyFrom` | 1.4 | NUMS | `th_t4b` | Perfect Agony: นับ critMul ที่เกิน |
+| `thiefAgonyWisAt` | 40 | INTS | `th_t4b` | Perfect Agony: WIS ขั้นต่ำ |
+| `thiefAgonyWisPer` | 0.0045 | NUMS | `th_t4b` | Perfect Agony: ต่อ WIS |
+| `thiefAgonyWisCap` | 0.55 | NUMS | `th_t4b` | Perfect Agony: ส่วน WIS สูงสุด |
+| `thiefAgonyCap` | 1 | NUMS | `th_t4b` · B5 | Perfect Agony / B5: โบนัสพิษสูงสุด |
+| `thiefAgonyHitCut` | 0.15 | NUMS | `th_t4b` | Perfect Agony: ฮิตไม่คริเบาลง |
+| `thiefTakenCap` | 0.6 | NUMS | R4.6 B1 | B1: ดาเมจที่มอนรับเพิ่ม สูงสุด |
+| `thiefCondCritDmgCap` | 0.75 | NUMS | R4.6 B3 | B3: ดาเมจคริจากเงื่อนไข สูงสุด |
+
+#### R4.7.3 Skill 2 — `S2P` (2) + `S2N` (25)
+| Key | ค่า | Skill 2 | Label (admin) |
+|---|---|---|---|
+| `S2P.smokeRes` | `{ base: 10, per: 5 }` | `th_smoke` + (เฉพาะ `s2Lv > 0`) | ควันหอม: คืน Energy |
+| `S2P.woundMax` | `{ base: 6, per: 2/3 }` (floor) | `th_wound` + | แผลฉีก: Wound สูงสุด |
+| `S2N.smokeTurns` | 2 | `th_smoke` | Shroud: นาน (เทิร์น) |
+| `S2N.smokeFlee` | 0.25 | `th_smoke` | Shroud: FLEE +% (คูณ) |
+| `S2N.smokeSkillCrit` | 0.15 | `th_smoke` | Shroud: skillCrit + |
+| `S2N.smokeCritDmg` | 0.25 | `th_smoke` ★ | Shroud ★: ดาเมจคริ + (→ B3) |
+| `S2N.raidMul` | 1.2 | `th_smoke` | Sightless Raid: × P.ATK |
+| `S2N.exposedPct` | 0.2 | `th_smoke` | Exposed: รับดาเมจเพิ่ม (→ B1) |
+| `S2N.exposedStar` | 0.3 | `th_smoke` ★ | Exposed ★: รับดาเมจเพิ่ม |
+| `S2N.exposedTurns` | 2 | `th_smoke` | Exposed: นาน (เทิร์น) |
+| `S2N.smokeBlindTurns` | 2 | `th_smoke` | Blind: นาน (ตัด Hit ใช้ `KIT2.crusader.blindHit` `:4430`) |
+| `S2N.pickBase` | 1.3 | `th_pick` | ล้วงกระเป๋า: × P.ATK (แทน `pickMul()` function) |
+| `S2N.pickStarMul` | 1.9 | `th_pick` ★ | จอมโจร: × P.ATK |
+| `S2N.pickZeny` | 8 | `th_pick` | ปล้น Zeny ฐาน |
+| `S2N.pickZenyDex` | 10 | `th_pick` | ปล้น Zeny +1 ทุกกี่ DEX |
+| `S2N.plunderRes` | 10 | `th_pick` ★ | Plunder: Energy |
+| `S2N.plunderDrop` | 0.05 | `th_pick` ★ | Plunder: drop +%/stack |
+| `S2N.plunderMax` | 3 | `th_pick` ★ | Plunder: stack สูงสุด/เวฟ |
+| `S2N.woundStacks` | 2 | `th_wound` | Wound ต่อการแทง |
+| `S2N.woundStarStacks` | 3 | `th_wound` ★ | แผลมรณะ: Wound ต่อการแทง |
+| `S2N.woundTurns` | 3 | `th_wound` | Wound นาน (เทิร์นฮีโร่) |
+| `S2N.woundStrikeChance` | 0.5 | `th_wound` + | D.Strike แปะ Wound (โอกาส) |
+| `S2N.bladeAt` | 3 | `th_wound` | Blade's End: Wound ขั้นต่ำ |
+| `S2N.bladeMul` | 1.8 | `th_wound` | Blade's End: × P.ATK |
+| `S2N.bladeHealCut` | 0.4 | `th_wound` | Blade's End: ตัดฮีลมอน |
+| `S2N.bladeCutTurns` | 2 | `th_wound` | Blade's End: ตัดฮีลนาน (เทิร์น) |
+| `S2N.woundPriv` | 0.12 | `th_wound` | Privileged: รับดาเมจเพิ่ม (→ B1) |
+
+- `S2N.woundMul(star)` (1.2 / 2.0) · `woundPoison(lv)` · `pickRes` · `smokeHeal` · `smokeDodges` มีแล้ว ตรงกับ Rev 3
+
+#### R4.7.4 Rogue — `KIT2.rogue` (45 key · 46 admin leaf)
+| Key | ค่า | คอลัมน์ | ชนิด | Rev 3 | Label (`J2_LABEL`) |
+|---|---|---|---|---|---|
+| `mastery.skillCrit` | 0.05 | other | num | §3.1 (**rename** `mastery.crit` 0.03 → ต้องแก้ `J2_LABEL['rogue.mastery.crit']` + จุดที่อ่าน) | ชำนาญมีด: skillCrit + |
+| `knifePskillShare` | 0.5 | other | num | §3.2 ข้อ 1 (`throwKnives` `:2026` วันนี้ไม่มี pskill เลย) | 🔪 มีดบิน: ได้ pskill กี่ส่วน |
+| `markMax` | 3 | other | int | §3.2 ข้อ 2 | 🔪 Dagger Mark: stack สูงสุด |
+| `markTurns` | 2 | other | int | §3.2 ข้อ 2 | 🔪 Dagger Mark: นาน (เทิร์นมอน) |
+| `markFocus` | 0.3 | other | num | §3.2 ข้อ 1 | 🔪 มีดบิน: โอกาสเล็งตัว Mark น้อย |
+| `markSteelMul` | 0.35 | other | num | Sinister Steel | 🔪 เก็บมีด: × P.ATK ต่อ Mark |
+| `markSteelSplash` | 0.6 | other | num | Sinister Steel | 🔪 เก็บมีด: ตัวอื่นโดนกี่ส่วน |
+| `markRes` | 6 | other | num | §3.2 | 🔪 เก็บมีด: Energy ต่อ Mark |
+| `markKillKnives` | 2 | other | int | §3.2 ข้อ 3 | 🔪 Kill Reset: มีดฟรี (เล่ม) |
+| `markTwinMul` | 0.25 | other | num | §3.1 | 🔪 มีดคู่ Voracity: × P.ATK |
+| `markTwinBounce` | 0.5 | other | num | §3.1 | 🔪 มีดคู่ Voracity: โอกาสปักต่อ |
+| `knifeBounce` | 0.65 | other | num | `rg_k2` | 🔪 มีดชิ่ง: ความแรงฐาน |
+| `knifeBounceAt` | 2 | other | int | `rg_k2` | 🔪 มีดชิ่ง: Mark ขั้นต่ำ |
+| `comboTempoMax` | 5 | other | int | `rg_c1` | ⚡ Tempo: stack สูงสุด/เวฟ |
+| `comboDebuffMax` | 4 | other | int | `rg_c2` | ⚡ แทงรัวซ้ำแผล: นับดีบัฟสูงสุด |
+| `comboDodgeEvery` | 3 | other | int | `rg_c3` | ⚡ เงาพริ้วสลับร่าง: ทุกกี่ฮิตคอมโบ |
+| `comboDodgeIcdTurns` | 2 | other | int | `rg_c3` | ⚡ เงาพริ้วสลับร่าง: ICD (เทิร์น) |
+| `comboShadowMul` | 0.45 | other | num | `rg_c4` ★ | 👥 Living Shadow: แรงกี่ส่วนของ Back Stab |
+| `comboShadowAt` | 3 | other | int | `rg_c4` ★ | 👥 Living Shadow: คอมโบขั้นต่ำ |
+| `critAmbushHi` | 0.7 | other | num | `rg_x1` · `rg_t1_ambush` | 🎯 Ambush: HP ตั้งแต่ |
+| `critAmbushLo` | 0.35 | other | num | `rg_x1` · `rg_t1_ambush` | 🎯 Ambush: HP ต่ำกว่า |
+| `critLeechResMax` | 12 | other | int | `rg_x3` | 🎯 ดูดเลือดคมคริ: Energy สูงสุด/เทิร์น |
+| `critKnifeMul` | 1.2 | other | num | `rg_x4` ★ | 🎯 ★ คริเป็นมีด: × P.ATK |
+| `stabMarkAmp` | 0.15 | s3 | num | §3.3 | 🗡️ Backstab Mark: รับดาเมจเพิ่ม (→ B1) |
+| `stabMarkTurns` | 2 | s3 | int | §3.3 | 🗡️ Backstab Mark: นาน (เทิร์นมอน) |
+| `stabPickupAt` | 2 | s3 | int | §3.2 ข้อ 2 | 🗡️ เก็บ Mark กี่อัน ลด CD Back Stab |
+| `stabPickupCdCut` | 1 | s3 | int | §3.2 ข้อ 2 | 🗡️ เก็บ Mark: ลด CD Back Stab (เทิร์น) |
+| `stabStrip` | 0.2 | s3 | num | §3.3 | 🗡️ Strip Armor: ลด P.DEF ฐาน |
+| `stabStripTurns` | 2 | s3 | int | §3.3 | 🗡️ Strip Armor: นาน (เทิร์น) |
+| `stabStripTalTurns` | 1 | s3 | int | `rg_t3_strip` | 🗡️ ปลดอาวุธเต็มขั้น: Strip นานขึ้น (เทิร์น) |
+| `stabStripDexEvery` | 5 | s3 | int | `rg_s1` | 🗡️ ฉีกเกราะ: ทุกกี่ DEX ลดเพิ่ม 1% |
+| `stabStripDexCap` | 0.1 | s3 | num | `rg_s1` | 🗡️ ฉีกเกราะ: ส่วน DEX สูงสุด |
+| `stabAmbushMul` | 0.25 | s3 | num | §3.3 Shadow Ambush | 🗡️ Shadow Ambush: แรงเพิ่ม (→ B4) |
+| `stabAmbushRes` | 15 | s3 | num | §3.3 Shadow Ambush | 🗡️ Shadow Ambush: Energy |
+| `stabDebuffMax` | 3 | s3 | int | `rg_s3` | 🗡️ ปิดฉากกลางหลัง: นับดีบัฟสูงสุด |
+| `stabAmpCap` | 0.75 | s3 | num | R4.6 B4 | 🗡️ Back Stab: โบนัสเงื่อนไขรวมสูงสุด |
+| `ultDexKnifeEvery` | 25 | ult | int | §3.4 ข้อ 2 | 🌪️ พายุมีด: ทุกกี่ DEX มีด +1 |
+| `ultDexKnives` | 3 | ult | int | §3.4 ข้อ 2 | 🌪️ พายุมีด: มีดจาก DEX สูงสุด |
+| `ultKnifePoison` | 0.5 | ult | num | §3.4 ข้อ 2 | 🌪️ พายุมีด: พิษต่อเล่ม (ส่วน) |
+| `ultDeathMark` | 0.24 | ult | num | `rg_u1` | ☠️ Death Mark: ระเบิดฐาน (ส่วนของดาเมจที่บันทึก) |
+| `ultDeathMarkTurns` | 2 | ult | int | `rg_u1` | ☠️ Death Mark: นาน (เทิร์นฮีโร่) |
+| `ultDeathMarkAt` | 0.15 | ult | num | `rg_u1` | ☠️ Death Mark: ระเบิดเมื่อ HP ต่ำกว่า |
+| `ultDeathMarkSplash` | `[0.35, 0.55]` | ult | num ×2 | `rg_t2_deathmark` R1/R2 | ☠️ Death Mark: AoE ตัวอื่น |
+| `ultAbsorbMax` | 6 | ult | int | `rg_u2` | 🌪️ Voracity Storm: มีดจาก Mark สูงสุด |
+| `ultCritKnives` | 2 | ult | int | `rg_x4` ★ (On-Hit Ult) | 🌪️ ★ คริเป็นมีด: สูงสุด/Ult |
+
 ---
 
 > **สถานะเอกสาร:** DRAFT (Iteration 3 — ปรับสมดุล Off-Meta `WIS`/`INT`/`thUltAgi` เข้ากรอบ `0.45x–0.90x` บนบอสจริง + เก็บรายละเอียด `skill-registry`, `Plagiarism`, `rg_x4 ★`, `Sinister Steel`, `onShroudBreak`, `autoInfo`, และ Hygiene ครบถ้วน) — รออนุมัติจากเจ้าของโปรเจกต์ก่อนลงมือแก้ไขโค้ดจริงภายใต้ `src/` และ `tests/`  
