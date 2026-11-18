@@ -30,3 +30,9 @@
 ## 🧹 fix(mobster): ทวงหนี้ debt kill no longer re-spreads the burst stacks
 - Order is `damageMon()` (can kill -> `killMon` -> `poisonSpread` reads the stacks) then `m.poison = 0` -> a debt kill re-spread the stacks it just burst
 - Now a `debtBursting` flag skips only the spread (first try cleared the stacks before the hit, but that also dropped กัดกร่อน `poisonAmp` on the burst: reverted) · Q: the spread on a debt kill was hardly ever used, so this is cleanup (Mobster tree / KIT2 untouched)
+
+## ⚖️ balance(thief): แทงพิษ scales with STR (pskill), base 1.6 -> 1.0
+- Other STR skills (Swordsman S1, Back Stab, ตัดเส้นเอ็น, Ults) multiply `(1 + pskill)`; แทงพิษ (+ its Double Strike) did not
+- Now `KIT.thiefAuto × pow × (1 + pskill)` · `thiefAuto` 1.6 -> 1.0 so Q's Lv 80 (STR 121, pskill +60.5%) hits the same (1.6 vs 1.605)
+- Trade-off (Q's pick): low-STR Thieves hit softer with แทงพิษ (STR 20: 1.6 -> 1.1, −31%) · early game leans on เงาพริ้ว (Ratio AGI) instead · Mobster gets the same change (Q chose path A)
+- Skill info row + JOBS.thief.auto desc updated
