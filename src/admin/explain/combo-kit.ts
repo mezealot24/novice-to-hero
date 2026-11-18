@@ -252,5 +252,7 @@ export const KIT_EXPLAIN: Record<string, FieldExplain> = {
   thiefAutoPoison: { label: 'Thief · ทักษะ 1: พิษใส่เป้า (สแต็ก)', effect: 'เพิ่ม = ทักษะ 1 ยัดสแต็กพิษใส่มอนเยอะขึ้นต่อครั้ง (ซินเนอร์จี้กับ Mobster)' },
   thiefUlt: { label: 'Thief · Ult: ดาเมจต่อฮิต × P.ATK', effect: 'เพิ่ม = แต่ละทีในชุดรัวมีด (Ult) แรงขึ้น' },
   thiefUltHits: { label: 'Thief · Ult: จำนวนทีแทง', effect: 'เพิ่ม = รัวแทงหลายฮิตมากขึ้นต่อ 1 Ult (เพิ่มโอกาสทริกเกอร์พิษ/คริ/หลบ)' },
-  thiefUltDodge: { label: 'Thief · Ult: โควตาหลบแน่นอน (ครั้ง)', effect: 'เพิ่ม = หลังกด Ult โจรจะหลบการโจมตีของมอนได้ชัวร์หลายครั้งขึ้น' },
+  thiefUltAgiK: { label: 'Thief · Ult: โบนัส AGI เมื่อลง AGI เต็มสัดส่วน (+×)', effect: 'เพิ่ม = เงาพริ้วแรงขึ้นตามสัดส่วน AGI ต่อแต้มทั้งหมด (2 = ลง AGI หมดตัวแรง +200% ทุกเลเวล)' },
+  thiefUltAgiShareCap: { label: 'Thief · Ult: เพดานสัดส่วน AGI', effect: 'เพิ่ม = AGI จากของใส่ดันโบนัสเงาพริ้วเกินลงเต็มได้มากขึ้น (1.2 = สูงสุด K × 1.2)' },
+  thiefUltDodge: { label:'Thief · Ult: โควตาหลบแน่นอน (ครั้ง)', effect: 'เพิ่ม = หลังกด Ult โจรจะหลบการโจมตีของมอนได้ชัวร์หลายครั้งขึ้น' },
 }

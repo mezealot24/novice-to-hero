@@ -35,6 +35,7 @@ export interface StatsInput {
 	jobLevel?: number;
 	job2Talents?: TalentSave;
 	job2Level?: number;
+	baseLevel?: number; // Base Lv (SaveData has it): sizes the stat-point pool for Ratio AGI (thiefUltAgiBonus)
 	sockets?: Record<string, string[]>;
 	grade?: Record<string, number>;
 	refine?: Record<string, number>;
@@ -269,6 +270,24 @@ export function blessBase(
 	};
 }
 
+/** Stat points the hero has had to spend: pointsPerLevel per Base Lv (a new save starts with one level's worth).
+ *  No baseLevel (hand-built inputs in tests / sims): the points already allocated above the start instead. */
+export function statPool(s: StatsInput): number {
+	const lv = s.baseLevel;
+	if (typeof lv === "number" && Number.isFinite(lv) && lv >= 1)
+		return STAT_RULES.pointsPerLevel * Math.floor(lv);
+	return Object.values(s.stats).reduce(
+		(a, v) => a + Math.max(0, v - STAT_RULES.start),
+		0,
+	);
+}
+/** Thief เงาพริ้ว bonus from AGI (Q 2026-11-19 Ratio AGI): K x the share of the stat pool that is AGI (gear / race / job AGI count too),
+ *  share capped. Same all-in bonus at every Base Lv, so early Thieves are not weak and Lv 80+ AGI stacks do not run away. */
+export function thiefUltAgiBonus(agiAboveStart: number, pool: number): number {
+	const share = Math.max(0, agiAboveStart) / Math.max(STAT_RULES.pointsPerLevel, pool);
+	return KIT.thiefUltAgiK * Math.min(KIT.thiefUltAgiShareCap, share);
+}
+
 export function heroBuild(s: StatsInput): HeroBuildSummary {
 	const st: Stats = { ...PLAYER };
 	const b = totalBase(s);
@@ -279,7 +298,7 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 	const job = JOBS[s.job ?? "novice"];
 	applyBase(st, b, job.attack === "ranged" ? "dex" : "str"); // ranged jobs draw P.ATK from DEX instead of STR (stat spec v1)
 	if (job.id === "thief") st.poisonDmg += 0.1 * d("int"); // Q 2026-11-03: off-stat use, Thief poison +0.1 per INT point per stack
-	if (job.id === "thief") st.thUltAgi = 0.02 * d("agi"); // Q 2026-11-03: เงาพริ้ว +2% per AGI point
+	if (job.id === "thief") st.thUltAgi = thiefUltAgiBonus(d("agi"), statPool(s)); // Q 2026-11-19 Ratio AGI (was +2% per point, uncapped)
 	// off-stats (Q 2026-11-03): each class gets one use for a stat its kit otherwise ignores (design/class-rebalance-v1.md)
 	if (job.id === "swordsman") st.counter += P.off.swordDexCounter * d("dex"); // DEX: parry -> more counters
 	if (job.id === "archer") st.ultAmp += P.off.archerStrUlt * d("str"); // STR: heavier draw on ศรทะลวง

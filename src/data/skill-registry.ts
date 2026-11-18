@@ -128,7 +128,7 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
       s2('th_pick', ...lin('pickRes', 'คืน Energy'), sk('s2n.pickPoison', 'พิษ (stack)', int(0, 20))),
       s2('th_wound'),
     ],
-    ult: [sk('job.thief.ult.cd', 'คูลดาวน์ (เทิร์น)', CD), kit('thiefUlt', 'ดาเมจต่อทีแทง ×'), kit('thiefUltHits', 'จำนวนทีแทง'), kit('thiefUltDodge', 'หลบแน่นอน (ครั้ง)')],
+    ult: [sk('job.thief.ult.cd', 'คูลดาวน์ (เทิร์น)', CD), kit('thiefUlt', 'ดาเมจต่อทีแทง ×'), kit('thiefUltHits', 'จำนวนทีแทง'), kit('thiefUltAgiK', 'AGI ลงเต็มสัดส่วน → แรง +×'), kit('thiefUltAgiShareCap', 'เพดานสัดส่วน AGI'),kit('thiefUltDodge', 'หลบแน่นอน (ครั้ง)')],
   },
 }
 
