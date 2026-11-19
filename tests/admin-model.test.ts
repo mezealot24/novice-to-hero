@@ -192,7 +192,7 @@ test('v82: bodyMul / speedMul work on D1-5 monsters (v126: they are stat monster
 test('v124 previewSkills: cast Lv from the monster Lv + hero-style damage text', () => {
   const dk = previewSkills('deathknight', {}).find((p) => p.kind === 'strike')!
   assert.equal(dk.casts[0].lv, 2, 'v126: D3 boss Lv13 casts Lv2 (absolute skill Lv, like D6+)')
-  assert.match(dk.casts[0].dmg ?? '', /^\d+% P\.ATK \(ตัวเดียว ×2\)$/)
+  assert.match(dk.casts[0].dmg ?? '', /^\d+% P\.ATK \(ตัวเดียว ×1\.5\)$/)
   const deep = (Object.keys(MONSTERS) as MonsterKind[]).find((k) => statNative(k) && (MONSTERS[k].skills ?? []).some((s) => s.kind === 'bolt'))!
   const bolt = previewSkills(deep, {}).find((p) => p.kind === 'bolt')!
   assert.ok(bolt.casts.every((c) => c.lv === castLv(1, skillLvBonus(deep, c.monLv, MONSTERS[deep])) || c.lv > 1), `${deep} cast Lv`)
