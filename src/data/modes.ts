@@ -38,7 +38,7 @@ export interface ModeArgs {
   mode?: ModeId
   d?: number
   hard?: boolean
-  hell?: boolean /* 😈 hell mode (D6-D10, needs hard) */
+  hell?: boolean /* 😈 hell mode (level dungeons D1+, needs hard) */
   seed?: number
   deep?: boolean /* v118: 🌌 deep daily (D6-D10) */
   startFloor?: number /* tower starts at this floor (set by startRun from skipTo; bot / test may pass it directly, no gems) */
@@ -75,7 +75,7 @@ export interface RunConfig {
   tint?: number
   /** v118: 🌌 deep daily run (D6-D10 pool, own reward record) */
   deepDaily?: boolean
-  /** 😈 hell mode: a hard D6+ run where every monster is a Hell copy (data/hell.ts HELL_MODE) */
+  /** 😈 hell mode: a hard level-dungeon run (v129: D1-D5 too) where every monster is a Hell copy (data/hell.ts HELL_MODE) */
   hell?: boolean
   turnMul(room: RunRoom): number
   mutators: MutatorDef[]
@@ -142,7 +142,7 @@ function dungeonRun(modeId: ModeId, dg: DungeonDef, hard: boolean, pp: PowerPart
   const mi = days.findIndex((r) => r.mini)
   const rooms = corrupt?.twinDuel && mi >= 0 ? [...days.slice(0, mi + 1), { ...days[mi], title: `${days[mi].title} (รอบ 2)`, dayEnd: false }, ...days.slice(mi + 1)] : days
   return {
-    modeId, seed, power: pp.power, pp, endless: false, affix: false, mutators, mut, tag: hell ? '😈' : hard ? 'hard' : '', corrupt, hell: hell && hard && deepDungeon(dg),
+    modeId, seed, power: pp.power, pp, endless: false, affix: false, mutators, mut, tag: hell ? '😈' : hard ? 'hard' : '', corrupt, hell: hell && hard && !!dg.level,
     roomAt: (i) => rooms[i] ?? null,
     themeAt: () => dg,
     scale: () => null,

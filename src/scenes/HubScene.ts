@@ -10,7 +10,7 @@ import { activeJob3, job3Of } from '../data/jobs3'
 import { JOB_CHANGE, JOBS } from '../data/jobs'
 import { JOB2, JOB2_RULES, job2Of } from '../data/jobs2'
 import { BOUNTY, bountyOf, DAILY, dailyOf, dailySeed, deepDailyOk, MODES, PANEL_MODES, TOWER, towerCatchUp, towerCheckpoints, towerSkipCheck, towerSkipGems, weeklySeed, type ModeArgs } from '../data/modes'
-import { matName } from '../data/materials'
+import { matName, taintDrop } from '../data/materials'
 import { daysOf } from '../data/dungeon-days'
 import { TAINT_MAT } from '../data/taint'
 import { RIFT_TUNING } from '../data/rift'
@@ -20,7 +20,7 @@ import { askRepick } from './JobScene'
 import { backdrop, button, confirm, fullscreenButton, go, panel, toast, topBar, txt, UI } from '../ui'
 import { fitHeroScale, heroCostumeTint, heroTex } from '../gfx/hero-visual'
 import { ftue } from '../analytics'
-import { HELL, HELL_MODE, hellOpen } from '../data/hell'
+import { HELL, HELL_MODE, hellLvCap, hellOpen } from '../data/hell'
 
 const BIOME_BADGE: Record<Exclude<BiomeHazardId, 'none'>, { icon: string; label: string; color: string; bg: number; stroke: number }> = {
   clockwork_heat: { icon: '⚙️', label: 'เตาหลอมคลั่ง', color: '#ffbe7b', bg: 0x3a2012, stroke: 0xb86a2c },
@@ -119,7 +119,7 @@ export class HubScene extends Phaser.Scene {
         const lvT = txt(this, lvX, y + 2, `มอน Lv${d.level[0]}-${d.level[1]}`, 12, low ? '#ff7a7a' : '#9fe3a0', true)
         if (lvX + lvT.width > maxRight) lvT.setFontSize(11)
       }
-      const hb = (s.hardClearsBy ?? {})[d.id] ?? 0, hl = (s.hellClearsBy ?? {})[d.id] ?? 0, hellOn = hellOpen(s, d) // 😈 D6-D10 hell mode
+      const hb = (s.hardClearsBy ?? {})[d.id] ?? 0, hl = (s.hellClearsBy ?? {})[d.id] ?? 0, hellOn = hellOpen(s, d) // 😈 hell mode (v129: D1-D5 too)
       const hazard = d.hazard && d.hazard !== 'none' ? BIOME_BADGE[d.hazard] : undefined
       if (compact) {
         let lineX = 452
@@ -173,9 +173,10 @@ export class HubScene extends Phaser.Scene {
           `มอน Lv${d.level![0]}-${d.level![1]} เท่าเดิม แต่แต้มสถานะ +50% (ธรรมดา 100% · มินิ 150% · บอส 200%)\nบอส/มินิบอสสุ่มสกิล + passive\n☠️ Corruption: ${cr.list.map((c) => `${c.icon} ${c.name} (${c.desc})`).join('\n')}\nรางวัล zeny/EXP x${(HARD.reward * cr.reward).toFixed(2)} · วัตถุดิบ x${(HARD.mats * cr.reward).toFixed(2)}`,
           'ลุยเลย', () => go(this, 'battle', { d: i, hard: true, seed }), 'ยังก่อน'), { size: 14, fill: 0x5a1a4a, color: UI.text })
         if (hellOn) { // 😈 hell mode (data/hell.ts HELL_MODE): opens after a 🔥 hard clear of this dungeon
-          const hs = Math.floor(Math.random() * 1e9), hc = foldCorruptions(rollCorruptions(hs))
+          const hs = Math.floor(Math.random() * 1e9), hc = foldCorruptions(rollCorruptions(hs)), cap = hellLvCap(d)
+          const capLine = cap === Infinity ? '' : `\n${s.baseLevel > cap ? '⚠️ ' : ''}Lv เกิน ${cap}: ได้ EXP แค่ ${Math.round(HELL_MODE.overLvXp * 100)}%`
           button(this, 774, y + (compact ? 18 : 26), 32, compact ? 34 : 50, '😈', () => confirm(this, `😈 โหมดนรก · ${d.name}`,
-            `โหมดยาก + มอนทุกตัวเป็นร่างนรก: Lv +${HELL_MODE.lv} · HP x${HELL.hp} · ATK x${HELL.atk} · สุ่มพลังนรก 1 อย่าง\nรางวัล zeny / EXP / วัตถุดิบ x${HELL_MODE.reward} ของโหมดยาก · ยูนีค ${HELL_MODE.uniqueRate * 100}% · ผลึกโลกันตร์ +${HELL_MODE.taintAdd}\n☠️ Corruption: ${hc.list.map((c) => `${c.icon} ${c.name}`).join(' · ')}`,
+            `โหมดยาก + มอนทุกตัวเป็นร่างนรก: Lv +${HELL_MODE.lv} · HP x${HELL.hp} · ATK x${HELL.atk} · สุ่มพลังนรก 1 อย่าง\nรางวัล zeny / EXP / วัตถุดิบ x${HELL_MODE.reward} ของโหมดยาก · ยูนีค ${HELL_MODE.uniqueRate * 100}% ${taintDrop(d.id) ? ` · ผลึกโลกันตร์ +${HELL_MODE.taintAdd}` : ''}${capLine}\n☠️ Corruption: ${hc.list.map((c) => `${c.icon} ${c.name}`).join(' · ')}`,
             'ลุยเลย', () => go(this, 'battle', { d: i, hard: true, hell: true, seed: hs }), 'ยังก่อน'), { size: 16, fill: 0x3a0a14, color: '#ffb0b0' })
         }
       }

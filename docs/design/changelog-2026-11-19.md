@@ -182,3 +182,9 @@
 - Added LUK Gambler's Edge (`thiefLuckyRes` +6 Energy on `LUCKY!` dodge, 1/hero turn `luckyIcd`): wired on BOTH `hurtHeroCore` `dodged()` and `trueHurt()` `LUCKY!` paths
 - Updated `statInfo.ts` (Thief WIS/LUK status lines), `tools/bot.cjs` (`thiefRogueRework: 6` + `thief_v` TREEX example), `design/p2/NOTES.md` (`## P2'd`), `design/thief-rogue-rework-v1.md` (`R4.4` + `R4.10`)
 - Added full 19-key admin/registry sweep + Shadow Ward / Gambler's Edge tests in `tests/thief-p2d.test.ts`
+
+## ✨ feat(hell): 😈 Hell mode on D1-D5 (v129)
+- `hellOpen` opens on every level dungeon (D1-D5 too) after a 🔥 hard clear of that dungeon; `dungeonRun` keeps `hell` when `dg.level` (was `deepDungeon`)
+- Same mechanics as D6+: hard +50% stat points + escalation + corruption, every monster a Hell copy (Lv +10, one hell trait), hell MVP 🔴, hell death EXP loss
+- Normal hell drop rates: reward / mats x1.5, unique 20%, MVP / mini card x2 (`HELL_MODE`); no ผลึกโลกันตร์ on D1-D5 (Hub text hides it)
+- New `HELL_MODE.overLvXp` 0.01: a hero above `hellLvCap` (top room Lv + `HELL_MODE.lv`, D1-D5 only via `overLvTierMax` 5) banks 1% of the run's account Base + Job EXP; zeny / loot unchanged; shown in the Hub confirm and the result screen
