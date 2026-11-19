@@ -25,7 +25,8 @@ export const hitBase = (st: Stats, magic: boolean) => (magic ? magicBase(st) : p
  *  A hit that reaches HP while chanting may break it: it must deal >= breakMinHp of max HP, then breakChance rolls (DoT never breaks).
  *  Broken: refund breakRefund of the Mana paid, ult waits brokenUltCd turns (not the full cd), and the NEXT chant can't break (steady).
  *  The release IS the next turn's action (Wizard's stays free). ultMul x the chanted ult. Numbers are guesses (v85). */
-export const MAGE_CAST = { breakBase: 0.25, breakDex: 0.012, breakMinHp: 0.06, breakRefund: 0.6, fireMul: 0.45, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 } // fireMul: 1 -> 0.45 in the 2026-11-13 auto rework (cost 36 -> 5, cast nearly every turn)
+// Q 2026-11-19: breakDex 0.012 -> 0.005 (DEX 21 -> DEX 50 to never break, before tenacity)
+export const MAGE_CAST = { breakBase: 0.25, breakDex: 0.005, breakMinHp: 0.06, breakRefund: 0.6, fireMul: 0.45, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 } // fireMul: 1 -> 0.45 in the 2026-11-13 auto rework (cost 36 -> 5, cast nearly every turn)
 /** 2026-11-13 Mage auto rework (Q): ลูกไฟระเบิด scales 90% M.ATK : 10% P.ATK (the shared hit mix stays 70 : 30 for every other magic hit). */
 export const MAGE_AUTO_MIX = { matk: 0.9, atk: 0.1 }
 /** 2026-11-13 Mage core passives (the "แก่นเวท" column, always on, no pick): 🕯️ มนต์ถดถอย (debuff) · 🔮 ออร่าเวท (buff). Numbers are first guesses.
@@ -62,7 +63,7 @@ export const falconRatio = (st: Stats, int: number, dex: number) => falconPower(
 export const falconMul = (st: Stats, mul: number, int: number, dex: number) => mul * falconRatio(st, int, dex)
 /** v78: does a released chant use up the hero's turn? Base Mage / Sage yes, Wizard no (its edge). */
 export const castUsesTurn = (job2?: string) => job2 !== 'wizard'
-/** Chance one hit breaks the chant: 25% − 1.2%/DEX − tenacity, never below 0 (🧘 Poise = 0). */
+/** Chance one hit breaks the chant: 25% − 0.5%/DEX − tenacity, never below 0 (🧘 Poise = 0). */
 export const breakChance = (dex: number, tenacity: number, poise = false) =>
   poise ? 0 : Math.max(0, MAGE_CAST.breakBase - MAGE_CAST.breakDex * dex - tenacity)
 /** v85: only a hit of >= breakMinHp of max HP (after shields) may roll for a break at all. */

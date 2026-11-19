@@ -30,3 +30,11 @@ test('มีดสนิมเงา c_rustfang is now a skillCrit dagger (no po
   assert.ok((it.mod?.skillCrit ?? 0) > 0)
   assert.ok((it.craft!.bonus[1].skillCrit ?? 0) > 0)
 })
+
+test('มีดสนิมเงา counts toward Moonshadow (with กำไล + จี้ = 3 pieces)', () => {
+  assert.ok(setById('moonshadow')!.memberIds!.includes('c_rustfang'))
+  const worn = ['c_rustfang', 'c_alphaclaw', 'cf_shadowfang'].map((id) => itemById(id)!)
+  const s = setBonuses(worn).active.find((a) => a.set.id === 'moonshadow')!
+  assert.equal(s.count, 3)
+  assert.equal(s.activeTiers.length, 2)
+})
