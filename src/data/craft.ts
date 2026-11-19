@@ -161,6 +161,32 @@ export const CRAFT_ITEMS: Item[] = [
   { id: 'cc_mt_seal', slot: 'acc', name: 'ตราประทับคำพิพากษา', icon: '⚖️', price: 0, slots: 1,
     desc: 'ชุดศาลเตี้ยเที่ยงคืน · สายกลาง โร้ก/มาเฟีย: คริแรง เจาะเกราะ', base: { luk: 7, agi: 5 }, mod: { crit: 0.06, skillCrit: 0.06, critMul: 0.22, physPen: 0.08 }, jobs: TH, j2: ['rogue', 'mobster'],
     craft: { dg: 'd14', common: 26, boss: 7, zeny: 12500, bonus: [{ physPen: 0.06 }, { skillCrit: 0.05, critMul: 0.15 }] } },
+  // ===== Q 2026-11-19: Archer-line zone sets (data/sets.ts dual_trail D6-D10 / meteor_volley D8-D14), mirroring the Thief ones =====
+  // j2 ['beastmaster', 'innovator'] = middle pieces both Archer branches can wear. Archers stack Hit, so "Hit -> skillCrit" is the
+  // archer-flavoured option (Mafia has poisonDmg -> skillCrit).
+  // --- ชุดพรานคู่วิถี (D6-D10): the one new piece, the rest are the existing D6-D9 Archer class craft ---
+  { id: 'cc_dt_brooch', slot: 'acc', name: 'เข็มกลัดพรานคู่วิถี', icon: '🎯', price: 0, slots: 1,
+    desc: 'ชุดพรานคู่วิถี · สายกลาง บีสต์/อินโน ใส่ได้ทั้งคู่: เล็งแม่นยิ่งคริสกิลติดง่าย', base: { dex: 6, luk: 5, agi: 3 }, mod: { atk: 16, hit: 16, crit: 0.06, skillCrit: 0.06 }, jobs: AR, j2: ['beastmaster', 'innovator'],
+    conversions: [{ from: 'hit', to: 'skillCrit', ratio: 0.001, cap: 0.1, label: 'ทุก 10 Hit → คริสกิล +1% (สูงสุด +10%)' }],
+    craft: { dg: 'd10', common: 24, boss: 6, zeny: 6000, bonus: [{ critMul: 0.2 }, { skillCrit: 0.04, hit: 10 }] } },
+  // --- ชุดศรดาวตก (D8-D14, Beastmaster | Innovator + one piece each) ---
+  { id: 'cc_mv_goggles', slot: 'head', name: 'แว่นศรดาวตก', icon: '🥽', price: 0, slots: 1,
+    desc: 'ชุดศรดาวตก · สายกลาง บีสต์/อินโน: เล็งแม่น คริทั้งตีและสกิล', base: { dex: 6, luk: 4 }, mod: { hit: 14, crit: 0.05, skillCrit: 0.05 }, jobs: AR, j2: ['beastmaster', 'innovator'],
+    craft: { dg: 'd8', common: 22, boss: 5, zeny: 4500, bonus: [{ critMul: 0.15 }, { skillCrit: 0.04, physPen: 0.05 }] } },
+  { id: 'cc_mv_longbow', wtype: 'bow', slot: 'weapon', name: 'ธนูดาวตกราชันพงไพร', icon: '☄️', price: 0, slots: 2,
+    desc: 'ชุดศรดาวตก · เฉพาะบีสต์มาสเตอร์: สัตว์เลี้ยงดุขึ้น คริตีปกติไหลเข้าสกิลก้อนใหญ่', base: { dex: 9, luk: 5, agi: 5 }, mod: { atk: 42, hit: 16, crit: 0.1, j2PetPow: 0.2 }, jobs: AR, j2: ['beastmaster'],
+    conversions: [{ from: 'crit', to: 'skillCrit', ratio: 0.4, cap: 0.15, label: '40% คริตีปกติ → คริสกิล (สูงสุด +15%)' }],
+    craft: { dg: 'd11', common: 20, boss: 5, zeny: 8000, bonus: [{ critMul: 0.2 }, { j2HawkMul: 0.2, skillCrit: 0.04 }] } },
+  { id: 'cc_mv_gearquiver', slot: 'offhand', name: 'ซองกลไกดาวตก', icon: '⚙️', price: 0, slots: 1,
+    desc: 'ชุดศรดาวตก · เฉพาะอินโนเวเตอร์: กับดักและป้อมปืนแรงขึ้น ยิ่งแม่นยิ่งคริสกิล', base: { dex: 6, luk: 6, int: 2 }, mod: { atk: 24, hit: 10, j2TrapMul: 0.2, j2TurretMul: 0.15, skillCrit: 0.06 }, jobs: AR, j2: ['innovator'],
+    conversions: [{ from: 'hit', to: 'skillCrit', ratio: 0.001, cap: 0.1, label: 'ทุก 10 Hit → คริสกิล +1% (สูงสุด +10%)' }],
+    craft: { dg: 'd12', common: 22, boss: 6, zeny: 9200, bonus: [{ j2BoxLuck: 0.25 }, { j2TurretTurns: 1, critMul: 0.15 }] } },
+  { id: 'cc_mv_cloak', slot: 'armor', name: 'เสื้อคลุมดาวตก', icon: '🌠', price: 0, slots: 1,
+    desc: 'ชุดศรดาวตก · สายกลาง บีสต์/อินโน: ถึกพอตัว เล็งแม่น คริสกิลแรง', base: { dex: 7, vit: 5 }, mod: { maxHp: 340, def: 22, hit: 18, skillCrit: 0.06, critMul: 0.15 }, jobs: AR, j2: ['beastmaster', 'innovator'],
+    craft: { dg: 'd13', common: 24, boss: 6, zeny: 11000, bonus: [{ flee: 12 }, { skillCrit: 0.05, critMul: 0.15 }] } },
+  { id: 'cc_mv_sigil', slot: 'acc', name: 'ตราดาวตก', icon: '💫', price: 0, slots: 1,
+    desc: 'ชุดศรดาวตก · สายกลาง บีสต์/อินโน: คริแรง เจาะเกราะ', base: { luk: 7, dex: 5 }, mod: { crit: 0.06, skillCrit: 0.06, critMul: 0.22, physPen: 0.08 }, jobs: AR, j2: ['beastmaster', 'innovator'],
+    craft: { dg: 'd14', common: 26, boss: 7, zeny: 12500, bonus: [{ physPen: 0.06 }, { skillCrit: 0.05, critMul: 0.15 }] } },
   // Q 2026-11-19: Cleric-line zone sets (twin_seraph D6-D10 / thunder_cathedral D8-D14)
   ...CLERIC_ZONE_ITEMS,
 ]
