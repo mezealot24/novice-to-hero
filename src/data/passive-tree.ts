@@ -237,6 +237,34 @@ export function refundPassive(
   return norm.filter((id) => id !== nodeId)
 }
 
+/**
+ * Trims allocated passive nodes down to `earned` budget while preserving graph connectivity from `originId`.
+ * Repeatedly removes the most-recently-picked node whose removal keeps all remaining nodes connected to `originId`.
+ */
+export function trimPassiveNodesToBudget(
+  job: JobId,
+  picked: readonly string[] | undefined,
+  earned: number,
+): string[] {
+  const tree = passiveTreeOf(job)
+  if (!tree) return []
+  const cap = Number.isFinite(earned) ? Math.max(0, Math.floor(earned)) : 0
+  let cur = normalizePassiveNodes(job, picked)
+  if (cap === 0) return [tree.originId]
+  while (cur.length - 1 > cap) {
+    let removed = false
+    for (let i = cur.length - 1; i >= 1; i--) {
+      if (canRefundPassive(job, cur, cur[i])) {
+        cur = cur.filter((_, idx) => idx !== i)
+        removed = true
+        break
+      }
+    }
+    if (!removed) break
+  }
+  return cur
+}
+
 /** Non-empty stat modifier patches of every valid connected allocated node for `job` given `ctx`. */
 export function passiveMods(
   job: JobId,

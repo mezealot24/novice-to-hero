@@ -1,7 +1,7 @@
 // One save slot in localStorage. Every read/write is guarded: private windows and sandboxed hosts
 // may throw or start empty, and the game must still run (it just won't remember).
 import { JOB_CHANGE, type JobId } from "./data/jobs";
-import { hasPassiveTree, normalizePassiveNodes } from "./data/passive-tree";
+import { hasPassiveTree, passiveEarnedFor, trimPassiveNodesToBudget } from "./data/passive-tree";
 import { UNIQUE } from "./data/uniques";
 import { JOB2, JOB2_RULES, type Job2Id, type PetId } from "./data/jobs2";
 import {
@@ -544,8 +544,8 @@ export function migratePassiveTree(s: SaveData) {
 		s.passiveNodes = [];
 		return;
 	}
-	const norm = normalizePassiveNodes(s.job, s.passiveNodes);
-	s.passiveNodes = norm.length <= 1 ? [] : norm;
+	const trimmed = trimPassiveNodesToBudget(s.job, s.passiveNodes, passiveEarnedFor(s));
+	s.passiveNodes = trimmed.length <= 1 ? [] : trimmed;
 }
 /** v27 skill web: class skill levels and the old tree become web nodes with new rules, so refund every point once. */
 function migrateToWeb(s: SaveData) {
@@ -712,6 +712,11 @@ export function changeJob2(id: Job2Id, gems = 0): boolean {
 	s.job2 = id;
 	s.job2Level ??= 1;
 	s.job2Xp ??= 0;
+	if (hasPassiveTree(s.job) && s.passiveNodes !== undefined) {
+		// Switching 2nd job may park an active 3rd job and shrink earned passive points: trim over-budget nodes cleanly
+		const trimmed = trimPassiveNodesToBudget(s.job, s.passiveNodes, passiveEarnedFor(s));
+		s.passiveNodes = trimmed.length <= 1 ? [] : trimmed;
+	}
 	persist();
 	return true;
 }
