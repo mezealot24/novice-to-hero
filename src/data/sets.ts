@@ -198,6 +198,44 @@ export const ITEM_SETS: readonly ItemSet[] = [
       { pieces: 4, label: '4 ชิ้น: ดาเมจคริ +25%, คอมโบ +8%', mod: { critMul: 0.25, combo: 0.08 } },
     ],
   },
+  // Q 2026-11-19: Archer-line zone sets, mirroring twin_shade / midnight_tribunal. Boss uniques from the zone's drop pools
+  // count as extra "hunt" pieces (Q: เอา Unique item จาก boss เข้าไปรวมใน Set).
+  {
+    id: 'dual_trail',
+    name: 'ชุดพรานคู่วิถี (Dual Trail)',
+    icon: '🎯',
+    desc: 'เซ็ตสายธนู D6-D10 · ของคราฟธนู D6-D9 + เข็มกลัดชิ้นกลาง บีสต์/อินโน ใส่ได้ทั้งคู่ + ยูนีคบอส · Hit และคริตีปกติแปลงเป็นคริสกิล',
+    // u_hawkeye drops in D6/D9, u_ghostcloak in D9 (uniques.ts UNIQUE_DROPS)
+    memberIds: ['cc_bm_pelt', 'cc_in_apron', 'cc_d7_icequiver', 'cc_d8_volcanobow', 'cc_d9_eagleeye', 'cc_dt_brooch', 'u_hawkeye', 'u_ghostcloak'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: คริสกิล +5%, Hit +10', mod: { skillCrit: 0.05, hit: 10 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: ดาเมจคริ +20%, แปลง 25% คริตีปกติ → คริสกิล (สูงสุด +10%)',
+        mod: { critMul: 0.2 },
+        conversions: [{ from: 'crit', to: 'skillCrit', ratio: 0.25, cap: 0.1, label: '25% คริตีปกติ → คริสกิล (สูงสุด +10%)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: ท่าไม้ตายเจาะเกราะ +15%, ความเร็ว +8%', mod: { pierce: 0.15, aspd: 0.08 } },
+    ],
+  },
+  {
+    id: 'meteor_volley',
+    name: 'ชุดศรดาวตก (Meteor Volley)',
+    icon: '☄️',
+    desc: 'เซ็ตสายธนู D8-D14 · ชิ้นกลางใส่ได้ทั้งบีสต์/อินโน + ธนูเฉพาะบีสต์ มือรองเฉพาะอินโน + ยูนีคบอส · คริสกิลสายสุด',
+    // u_glasscrown drops in D8, u_c3_mjollnir in D11 (uniques.ts / uniques3.ts)
+    memberIds: ['cc_mv_goggles', 'cc_mv_cloak', 'cc_mv_sigil', 'cc_mv_longbow', 'cc_mv_gearquiver', 'u_glasscrown', 'u_c3_mjollnir'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: คริสกิล +6%, ดาเมจคริ +15%', mod: { skillCrit: 0.06, critMul: 0.15 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: เจาะเกราะ +8%, แปลง 50% คริตีปกติ → คริสกิล (สูงสุด +15%)',
+        mod: { physPen: 0.08 },
+        conversions: [{ from: 'crit', to: 'skillCrit', ratio: 0.5, cap: 0.15, label: '50% คริตีปกติ → คริสกิล (สูงสุด +15%)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: ดาเมจคริ +25%, Hit +15', mod: { critMul: 0.25, hit: 15 } },
+    ],
+  },
   {
     id: 'clockwork_chronos',
     name: 'ชุดนาฬิกาโครนอส (Clockwork Chronos)',
