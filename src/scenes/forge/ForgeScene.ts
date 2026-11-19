@@ -140,7 +140,7 @@ export class ForgeScene extends Phaser.Scene {
     this.refreshWallet()
     if (m === 'anvil') { this.buildAnvil(); return }
     if (m === 'recipe') { this.say('สูตรตีของจากวัตถุดิบดัน · ตีเสร็จแล้วอัปขั้น/ตีบวกที่ ⚒️ ทั่ง'); this.recipe.show(false); return }
-    if (m === 'salvage') { this.say('♻️ หลอมคืน: ละลายของที่ตีเองหรือของที่ติดคำสาป ได้วัตถุดิบคืนครึ่งหนึ่ง'); this.recipe.show(true); return }
+    if (m === 'salvage') { this.say('♻️ หลอมคืน: ละลายของที่ตีเอง/ติดคำสาป ได้วัตถุดิบคืนครึ่งหนึ่ง · ⬆⬇ แปลงวัตถุดิบข้ามดันอยู่ที่ 🎒 คลัง'); this.recipe.show(true); return }
     this.stash.show()
   }
 
