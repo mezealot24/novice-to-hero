@@ -89,3 +89,9 @@
 - Death knight ⚔️ ดาบมรณะ: pow 2.8 -> 2.2, alone x2 -> x1.5. At D3 boss Lv 13 it was 192 dmg (6x its basic hit, 308 on a crit) and one-shot 75% HP of a Lv 11 hero; now ~113 and no crit.
 - Every other D1-D5 boss / mini top skill sits at 1.5-2.5x its basic hit, left as is.
 - Hero magic skills now need skillCrit too (Q picked "Need skillCrit too"): no skillCrit = the skill never crits; spellCrit / ice / charge bonuses add on top once skillCrit > 0. Procs, Auto Spell and magic basics still roll spellCrit as before. Mage skillCrit comes from crit gear / cards / talents (converted), Sage also from DEX; Mage LUK only gives spellCrit.
+
+## 🌘 Moonshadow Thief off-hand (Q 2026-11-19)
+- New D3 forge item `c_moondirk` มีดปัดเงาจันทร์ (off-hand dagger, Thief only): AGI +3, Flee +6, Combo +5% · bonus ★3 dodgeHeal +2% / ★5 Combo +4% · recipe D3 12 common + 3 boss + 900z (same as other D3 pieces)
+- Joins ชุดเงาจันทร์ (Moonshadow) `memberIds`; set tiers unchanged. Same off-hand slot as โล่ / กระบอกธนู, so no stacking
+- Tests: `tests/moonshadow-dirk.test.ts`
+- `c_rustfang` มีดสนิมเงา (D3 Thief weapon) poison -> crit line: poison +1 removed, **skillCrit +6%** · ★5 bonus poisonAmp +15% -> skillCrit +4% / critMul +10%
