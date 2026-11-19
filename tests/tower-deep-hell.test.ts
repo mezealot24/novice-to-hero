@@ -2,11 +2,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DUNGEONS, MONSTERS, type MonSkill, type MonsterDef, type MonsterKind } from '../src/data/game-data'
 import { ENDLESS_HELL, HELL, hellify, HELL_TRAITS } from '../src/data/hell'
-import { deepAnchor, homeDungeon, homeLv, legacyLevel, monPoints, monTier, restatAt, TOWER_LV, scaleOf, skillAtLv, skillMul, statNative, towerMonLv, withStats } from '../src/data/mon-stats'
+import { deepAnchor, deepKind, homeDungeon, homeLv, monPoints, monTier, restatAt, TOWER_LV, scaleOf, skillAtLv, skillMul, statMonster, towerMonLv } from '../src/data/mon-stats'
 import { ENDLESS_DUNGEONS, towerFloor } from '../src/data/modes'
 import { castLv, skillLvBonus } from '../src/data/mon-skill-scale'
 
-const DEEP = DUNGEONS.filter((d) => d.level)
+const DEEP = DUNGEONS.filter((d) => d.tier >= 6)
 const kindsOf = (rooms: ReturnType<typeof towerFloor>) => rooms.flatMap((r) => [...r.spawn.map(([k]) => k), ...(r.miniPool ?? [])])
 
 test('v125: every dungeon D1-D13 feeds the tower from floor 1 (no clear needed), and no Hell below floor 25', () => {
@@ -28,16 +28,16 @@ test('v125: a pool limited to D7 only spawns D7 kinds (waves, minis, bosses)', (
 test('v125 floor 100+: every kind in the room (D6+ too) is marked Hell', () => {
   let deep = 0
   for (let i = 0; i < 30; i++) for (let f = ENDLESS_HELL.from; f <= ENDLESS_HELL.from + 15; f++) for (const r of towerFloor(f, 40)) {
-    for (const k of new Set([...r.spawn.map(([x]) => x), ...(r.miniPool ?? [])])) { assert.ok(r.hell?.includes(k), `floor ${f}: ${k} not Hell`); if (statNative(k)) deep++ }
+    for (const k of new Set([...r.spawn.map(([x]) => x), ...(r.miniPool ?? [])])) { assert.ok(r.hell?.includes(k), `floor ${f}: ${k} not Hell`); if (deepKind(k)) deep++ }
   }
   assert.ok(deep > 0)
 })
 
 test('v125 floor 99 -> 100 gets harder: hard stat points on HP / ATK for a D1-D5 and a D6+ kind', () => {
-  const d = MONSTERS.deathknight, home = withStats(d, 'deathknight', legacyLevel('deathknight', d, { id: 'd3' }))
+  const d = MONSTERS.deathknight, home = statMonster(d, 13) // D3 boss room Lv
   const lv = towerMonLv(100) + HELL.lv, plain = restatAt(home, 'deathknight', lv, true), hard = restatAt(home, 'deathknight', lv, true, true)
   assert.ok(hard.hp > plain.hp && hard.dmg > plain.dmg, `D3 boss hp ${hard.hp} vs ${plain.hp}`)
-  const k = (Object.keys(MONSTERS) as MonsterKind[]).find((x) => statNative(x) && homeDungeon(x) === 'd12' && !MONSTERS[x].passive && MONSTERS[x].ai !== 'boss')!
+  const k = (Object.keys(MONSTERS) as MonsterKind[]).find((x) => deepKind(x) && homeDungeon(x) === 'd12' && !MONSTERS[x].passive && MONSTERS[x].ai !== 'boss')!
   const base = deepAnchor(k), p = restatAt(base, k, lv, true), h = restatAt(base, k, lv, true, true)
   assert.ok(h.hp > p.hp && Math.max(h.dmg, h.matk ?? 0) > Math.max(p.dmg, p.matk ?? 0), `${k} hp ${h.hp} vs ${p.hp}`)
   assert.ok(towerMonLv(100) >= ENDLESS_HELL.minLv)
@@ -45,7 +45,7 @@ test('v125 floor 99 -> 100 gets harder: hard stat points on HP / ATK for a D1-D5
 
 test('v125: with numbers, a D5 monster on floor 1 follows the tower Lv down (floors 1-5 at TOWER_LV.minLv)', () => {
   const k = (Object.keys(MONSTERS) as MonsterKind[]).find((x) => homeDungeon(x) === 'd5' && monTier(MONSTERS[x]) === 'normal' && !MONSTERS[x].passive && MONSTERS[x].statAlloc)!
-  const home = withStats(MONSTERS[k], k, legacyLevel(k, MONSTERS[k], { id: 'd5' }))
+  const home = statMonster(MONSTERS[k], 19) // D5 wave Lv
   assert.equal(towerMonLv(1), TOWER_LV.minLv)
   const low = restatAt(home, k, towerMonLv(1), true)
   assert.equal(low.lv, TOWER_LV.minLv)
@@ -57,7 +57,7 @@ test('Hell marks below floor 100: only D1-D5 kinds that are in the room, and the
   for (let i = 0; i < 80; i++) for (let f = 25; f <= 60; f++) for (const r of towerFloor(f, 40)) {
     for (const k of r.hell ?? []) {
       marked++
-      assert.ok(!statNative(k), k)
+      assert.ok(!deepKind(k), k)
       assert.ok(r.spawn.some(([x]) => x === k) || (r.miniPool ?? []).includes(k), `${k} not in room`)
     }
   }
@@ -65,7 +65,7 @@ test('Hell marks below floor 100: only D1-D5 kinds that are in the room, and the
 })
 
 test('deepAnchor: every D6+ kind gets sane D5-sized numbers', () => {
-  const kinds = (Object.keys(MONSTERS) as MonsterKind[]).filter((k) => statNative(k))
+  const kinds = (Object.keys(MONSTERS) as MonsterKind[]).filter((k) => deepKind(k))
   assert.ok(kinds.length > 0)
   for (const k of kinds) {
     const d = deepAnchor(k)
@@ -90,13 +90,13 @@ test('hellify: numbers, name, trait; the source def is untouched; bosses never g
 
 test('floor 40+: every D1-D5 monster in the room is Hell (Q 2026-11-08)', () => {
   for (let i = 0; i < 40; i++) for (let f = HELL.allFrom; f <= HELL.allFrom + 20; f++) for (const r of towerFloor(f, 40)) {
-    const old = [...new Set([...r.spawn.map(([k]) => k), ...(r.miniPool ?? [])])].filter((k) => !statNative(k))
+    const old = [...new Set([...r.spawn.map(([k]) => k), ...(r.miniPool ?? [])])].filter((k) => !deepKind(k))
     for (const k of old) assert.ok(r.hell?.includes(k), `floor ${f}: ${k} not Hell`)
   }
 })
 
-test('tower Lv: a D3 mini locked at its home Lv grows stats on deep floors (skill Lv: v124 skillLvBonus), HP / ATK untouched', () => {
-  const d = MONSTERS.duelist, home = withStats(d, 'duelist', legacyLevel('duelist', d, { id: 'd3' }))
+test('tower Lv: a D3 mini grows stats on deep floors (skill Lv: v124 skillLvBonus), HP / ATK untouched without numbers', () => {
+  const d = MONSTERS.duelist, home = statMonster(d, 12) // D3 duel room Lv
   const lv = towerMonLv(40) + HELL.lv
   assert.ok(lv > (home.lv ?? 0))
   const up = restatAt(home, 'duelist', lv)
@@ -105,11 +105,11 @@ test('tower Lv: a D3 mini locked at its home Lv grows stats on deep floors (skil
   assert.equal(up.dmg, home.dmg)
   assert.ok((up.flee ?? 0) > (home.flee ?? 0) && (up.hit ?? 0) > (home.hit ?? 0), 'flee / hit grow')
   assert.ok(skillLvBonus('duelist', lv, d) > 0, 'skill Lv grows (cast time)')
-  assert.equal(JSON.stringify(restatAt(home, 'duelist', 5)), JSON.stringify(home), 'D1-D5 never go below home Lv')
+  assert.equal(restatAt(home, 'duelist', 5).lv, 5, 'v126: D1-D5 follow the Lv down too, like D6+')
 })
 
 test('tower Lv: a D6+ monster follows the floor Lv down too (no Lv 90 kit on floor 25)', () => {
-  const k = (Object.keys(MONSTERS) as MonsterKind[]).find((x) => statNative(x) && homeDungeon(x) === 'd10' && !MONSTERS[x].passive && MONSTERS[x].ai !== 'boss')!
+  const k = (Object.keys(MONSTERS) as MonsterKind[]).find((x) => deepKind(x) && homeDungeon(x) === 'd10' && !MONSTERS[x].passive && MONSTERS[x].ai !== 'boss')!
   const base = deepAnchor(k), low = restatAt(base, k, towerMonLv(25))
   assert.equal(low.lv, towerMonLv(25))
   assert.equal(low.hp, base.hp)
@@ -127,7 +127,7 @@ test('Hell bosses / minis never roll ตานรก (the tower gives them a sha
 })
 
 test('v122 tower: numbers come from the stats at the floor Lv (no Hero Power); restatAt keeps them only when asked', () => {
-  const d = MONSTERS.deathknight, home = withStats(d, 'deathknight', legacyLevel('deathknight', d, { id: 'd3' }))
+  const d = MONSTERS.deathknight, home = statMonster(d, 13) // D3 boss room Lv
   const lv = towerMonLv(45) + HELL.lv, kept = restatAt(home, 'deathknight', lv), lvd = restatAt(home, 'deathknight', lv, true)
   assert.equal(kept.dmg, home.dmg)
   assert.ok(lvd.dmg > home.dmg * 2 && lvd.hp > home.hp * 2, `Lv${lv} dmg ${lvd.dmg} hp ${lvd.hp}`)
@@ -136,28 +136,28 @@ test('v122 tower: numbers come from the stats at the floor Lv (no Hero Power); r
 
 test('v122 tower MVP: a boss rebuilt with numbers gets TOWER_LV.mvpPct of the hero points (normals / minis unchanged)', () => {
   const lv = towerMonLv(45) + HELL.lv
-  const d = MONSTERS.deathknight, home = withStats(d, 'deathknight', legacyLevel('deathknight', d, { id: 'd3' }))
-  const mvp = restatAt(home, 'deathknight', lv, true), plain = withStats(d, 'deathknight', lv)
+  const d = MONSTERS.deathknight, home = statMonster(d, 13) // D3 boss room Lv
+  const mvp = restatAt(home, 'deathknight', lv, true), plain = statMonster(d, lv)
   const pts = (b?: Record<string, number>) => Object.values(b ?? {}).reduce((a, n) => a + n - 1, 0)
   assert.ok(Math.abs(pts(mvp.base) - monPoints(lv, 'boss', false, TOWER_LV.mvpPct)) <= 7, `mvp points ${pts(mvp.base)}`)
   assert.ok(mvp.hp > plain.hp && mvp.dmg > plain.dmg)
-  const m = MONSTERS.duelist, mh = withStats(m, 'duelist', legacyLevel('duelist', m, { id: 'd3' }))
-  assert.equal(JSON.stringify(restatAt(mh, 'duelist', lv, true).base), JSON.stringify(withStats(m, 'duelist', lv).base), 'mini: no MVP bonus')
+  const m = MONSTERS.duelist, mh = statMonster(m, 12)
+  assert.equal(JSON.stringify(restatAt(mh, 'duelist', lv, true).base), JSON.stringify(statMonster(m, lv).base), 'mini: no MVP bonus')
 })
 
-test('v123/v124 tower: ดาบมรณะ Lv78 is cast at Lv7 = base pow x 1.6, with STR above the Lv ref on top', () => {
-  const d = MONSTERS.deathknight, home = withStats(d, 'deathknight', legacyLevel('deathknight', d, { id: 'd3' }))
+test('v123/v124 tower: ดาบมรณะ Lv78 is cast at Lv8 (v126: absolute skill Lv, like D6+) = base pow x 1.7, with STR above the Lv ref on top', () => {
+  const d = MONSTERS.deathknight, home = statMonster(d, 13) // D3 boss room Lv
   const lv = towerMonLv(45) + HELL.lv, up = restatAt(home, 'deathknight', lv, true)
   const h = home.skills!.find((s) => s.kind === 'strike')!, u = up.skills!.find((s) => s.kind === 'strike')!
   const cast = skillAtLv(u, castLv(u.lv ?? 1, skillLvBonus('deathknight', lv, d)))
-  assert.equal(cast.lv, 7)
-  assert.ok(Math.abs((cast.pow ?? 0) - (h.pow ?? 0) * 1.6) < 1e-9)
+  assert.equal(cast.lv, 8)
+  assert.ok(Math.abs((cast.pow ?? 0) - (h.pow ?? 0) * 1.7) < 1e-9)
   assert.ok(skillMul(up, scaleOf(u)) >= skillMul(home, scaleOf(h)))
 })
 
-test('v125 homeLv: D6+ = band start, D1-D5 = LEGACY Lv (tower / rift pay gate)', () => {
+test('v125 homeLv: the home band start (v126: D1-D5 too; tower / rift pay gate)', () => {
   const k13 = (Object.keys(MONSTERS) as MonsterKind[]).find((x) => homeDungeon(x) === 'd13' && !MONSTERS[x].passive)!
   assert.equal(homeLv(k13), DUNGEONS.find((d) => d.id === 'd13')!.level![0])
-  assert.equal(homeLv('jellop'), legacyLevel('jellop', MONSTERS.jellop, { id: 'd1' }))
+  assert.equal(homeLv('jellop'), 3)
   assert.ok(towerMonLv(1) < homeLv(k13), 'a D13 kind on floor 1 is below its home Lv (pays less)')
 })

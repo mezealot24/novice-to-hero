@@ -68,8 +68,9 @@ export const BATTLE = {
     mummy: 10, jackal: 14, sandscorp: 13, dunewraith: 13, scarab: 8, sunpriest: 10, sphinx: 12, jackallord: 14, pharaoh: 11 /* D6: fallback only, stat monsters use def.speed (AGI) */,
     ...Object.assign({}, ...PACKS.map((p) => p.monSpeed)) /* D7-D10 packs (v78) */ } as Record<MonsterKind, number>,
   monDmgMul: 0.55, // monster hit = def.dmg * this
-  // v56 (Q: "มอนกากไป"): every spawned monster's HP / ATK / M.ATK and every turn limit, by dungeon tier 1..5
-  monBuff: { hp: [1.05, 1.1, 1.18, 1.45, 1.45], dmg: [1.05, 1.1, 1.18, 1.36, 1.4], turns: [1, 1.04, 1.08, 1.16, 1.2] },
+  // v56 (Q: "มอนกากไป"): every turn limit by dungeon tier 1..5. v126: its old HP / ATK / M.ATK part (1.05 .. 1.45) is baked into
+  // the D1-D5 monsters' bodyMul (they are stat monsters now, data/mon-stats.ts)
+  monBuff: { turns: [1, 1.04, 1.08, 1.16, 1.2] },
   cleave: 0.5, // hero's swing also hits the 2nd monster for this share
   regenPerTurn: 1.5, // regen stat (%/s in real-time) -> % of max HP per hero turn
   resPerTurn: 1, // resRegen multiplier per hero turn

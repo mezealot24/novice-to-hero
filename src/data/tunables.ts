@@ -2,7 +2,7 @@
 // NEVER add COSTUMES.price / SUPPORTER_PRICE / GEM_PACKS (server SKU prices) or tints. Bump CONFIG_SCHEMA if a path's meaning changes.
 import { BATTLE, COMBO, HARD, HARD_PASSIVES, HARD_SKILLS, MONSTERS, RULES } from './game-data'
 import { JOB_RULES, STAT_RULES } from './meta'
-import { ARCHETYPES, LEGACY, LEVEL_GAP, MON_STAT, SKILL_SCALE } from './mon-stats'
+import { ARCHETYPES, MON_STAT, SKILL_SCALE } from './mon-stats'
 import { skillRoot, skillTableFields } from './skill-registry'
 import { KIT } from './skill-math'
 import { DUNGEON_DAYS } from './dungeon-days'
@@ -64,7 +64,7 @@ const MONSTER_FIELDS: [string, FieldDef][] = [
   ['flee|hit', num(-500, 5000, true)],
   ['xp', int(0, 100_000)],
   ['zeny.0|1', int(0, 1_000_000)],
-  ['crit|combo|counter', num(0, 1.5, true)],
+  ['crit|combo|counter', num(-1, 1.5, true)], // v126: a bonus on top of the stat rate (D1-D5 calibration has small negatives)
   ['lifesteal|reflect|absorb|razor|fixedFlee', num(0, 1, true)],
   ['deathBlast', num(0, 20, true)],
   ['slamMul', num(0, 20, true)],
@@ -98,7 +98,7 @@ const BATTLE_FIELDS: [string, FieldDef][] = [
   ['heroSpeed', num(1, 100)],
   ['monSpeed.*', num(1, 100)],
   ['monDmgMul', num(0, 10)],
-  ['monBuff.hp|dmg|turns.*', num(0.1, 10)],
+  ['monBuff.turns.*', num(0.1, 10)], // v126: monBuff hp / dmg were baked into the D1-D5 monsters' bodyMul
   ['cleave|counterMul|reviveHp|parryMul|regenPerTurn|resPerTurn', num(0, 10)],
   ['shieldCap', num(0.1, 5)], // hero shield cap (share of max HP, stack-math shieldGain)
   ['slamEvery|parryEvery|comboMax', int(1, 20)],
@@ -149,7 +149,7 @@ const KIT_NUMS = 'archerAuto|archerUlt|mageFire|mageIce|mageLightLo|mageLightHi|
 
 export const TABLES: Record<TableId, TableDef> = {
   monsters: { id: 'monsters', label: 'Monsters / mini bosses / bosses', target: () => MONSTERS, fields: pre('*', MONSTER_FIELDS) },
-  battle: { id: 'battle', label: 'BATTLE (turn engine, monster speed, monBuff)', target: () => BATTLE, fields: BATTLE_FIELDS },
+  battle: { id: 'battle', label: 'BATTLE (turn engine, monster speed, monBuff turns)', target: () => BATTLE, fields: BATTLE_FIELDS },
   combo: { id: 'combo', label: 'COMBO / counter model', target: () => COMBO, fields: COMBO_FIELDS },
   hard: { id: 'hard', label: 'HARD mode curve', target: () => HARD, fields: HARD_FIELDS },
   hardSkills: { id: 'hardSkills', label: 'HARD_SKILLS (boss affix skills)', target: () => HARD_SKILLS, fields: pre('*', SKILL) },
@@ -158,8 +158,8 @@ export const TABLES: Record<TableId, TableDef> = {
     fields: [['*.lifesteal|reflect', num(0, 1, true)], ['*.speed|enrage', num(0.1, 10, true)], ['*.def', num(0, 5000, true)], ...pre('*.onHit', HIT_FX)],
   },
   monStat: {
-    id: 'monStat', label: 'Stat monsters (MON_STAT, LEVEL_GAP, LEGACY)',
-    target: () => ({ monStat: MON_STAT, levelGap: LEVEL_GAP, legacy: LEGACY }),
+    id: 'monStat', label: 'Stat monsters (MON_STAT)',
+    target: () => ({ monStat: MON_STAT }),
     fields: [
       // MON_STAT.pointsPerLv is a getter on STAT_RULES.pointsPerLevel: tune it in `progression`.
       ['monStat.tierPct.normal|mini|boss', num(0, 10)],
@@ -168,10 +168,6 @@ export const TABLES: Record<TableId, TableDef> = {
       ['monStat.body.normal|mini|boss', num(0.1, 100)],
       ['monStat.mdefCap|luckyCap', num(0, 1)],
       ['monStat.rateCap', num(0, 5)],
-      ['levelGap.free', int(0, 99)],
-      ['levelGap.per|min', num(0, 1)],
-      ['legacy.lv.*', int(1, 99)],
-      ['legacy.tierDrop.normal|mini|boss', int(0, 20)],
     ],
   },
   archetypes: { id: 'archetypes', label: 'Monster archetypes (stat weights)', target: () => ARCHETYPES, fields: [[`*.${BASE7}`, num(0, 20, true)]] },
@@ -186,6 +182,7 @@ export const TABLES: Record<TableId, TableDef> = {
       ['run.runXpBase|runXpStep', int(1, 1000)],
       ['run.xpOnClear', int(0, 1000)],
       ['run.failXpMul', num(0, 1)],
+      ['run.hellDeathBase|hellDeathJob', num(0, 1)],
       ['run.healOnClear|healOnLevel', num(0, 1)],
       // ☀️ dungeon days (data/dungeon-days.ts, Q 2026-11-18): run length / echo monsters / day-end fights
       ['days.on|returnMini', int(0, 1)],

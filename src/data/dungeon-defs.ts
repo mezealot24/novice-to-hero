@@ -7,7 +7,7 @@ export interface RoomDef {
   spawn: [MonsterKind, number][]
   boss?: boolean
   turnLimit?: number // hero turns before the fight is lost (default BATTLE.turnLimit)
-  lv?: number // level dungeon (D6+): monster level in this room (default: spread over DungeonDef.level)
+  lv?: number // monster level in this room (default: spread over DungeonDef.level)
   mini?: boolean // 1v1 duel: spawn is ignored, one mini boss is drawn from MINI_POOL (data/relics.ts)
   miniPool?: MonsterKind[] // this duel draws from these instead of MINI_POOL (Dungeon 4-5)
 }
@@ -21,57 +21,57 @@ export interface DungeonDef {
   hills: number // tint on the far hills / trees
   unlock: 'none' | 'job' | 'd2' | 'd3' | 'd4' | 'd5' | 'd6' | 'd7' | 'd8' | 'd9' | 'd10' | 'd11' | 'd12' | 'd13' // 'job' = after the first job change, 'dN' = after clearing dungeon N
   rooms: RoomDef[]
-  level?: [number, number] // D6+: fixed monster level band; its stat monsters use data/mon-stats.ts (no Hero Power scaling)
+  level?: [number, number] // fixed monster level band (v126: D1-D5 too); its stat monsters use data/mon-stats.ts (no Hero Power scaling)
   hazard?: BiomeHazardId // D11+: optional dungeon biome hazard rule
 }
 
 export const DUNGEONS: DungeonDef[] = [{
-  id: 'd1', name: 'ทุ่งเจลล็อป', boss: 'ราชาเจลล็อป', tier: 1, sky: [0x2c3a6e, 0xe9a46a], hills: 0xffffff, unlock: 'none',
+  id: 'd1', name: 'ทุ่งเจลล็อป', boss: 'ราชาเจลล็อป', tier: 1, sky: [0x2c3a6e, 0xe9a46a], hills: 0xffffff, unlock: 'none', level: [3, 5],
   rooms: [
-    { title: 'ห้อง 1 · ทุ่งหญ้า', spawn: [['jellop', 4]] },
-    { title: 'ห้อง 2 · ทางเดินป่า', spawn: [['jellop', 3], ['wolf', 1]] },
-    { title: 'ห้อง 3 · ฝูงหมาป่า', spawn: [['jellop', 3], ['wolf', 2]] },
-    { title: 'ห้องบอส · ราชาเจลล็อป', spawn: [['king', 1]], boss: true, turnLimit: 34 }, // boss buff v1: limits grow with boss HP
+    { title: 'ห้อง 1 · ทุ่งหญ้า', spawn: [['jellop', 4]], lv: 3 },
+    { title: 'ห้อง 2 · ทางเดินป่า', spawn: [['jellop', 3], ['wolf', 1]], lv: 3 },
+    { title: 'ห้อง 3 · ฝูงหมาป่า', spawn: [['jellop', 3], ['wolf', 2]], lv: 3 },
+    { title: 'ห้องบอส · ราชาเจลล็อป', spawn: [['king', 1]], boss: true, turnLimit: 34, lv: 5 }, // boss buff v1: limits grow with boss HP
   ],
 }, {
-  id: 'd2', name: 'ป่าหมาป่าเงา', boss: 'จ่าฝูงเงา', tier: 2, sky: [0x141a3a, 0x6a4a8a], hills: 0x8a7ab8, unlock: 'job',
+  id: 'd2', name: 'ป่าหมาป่าเงา', boss: 'จ่าฝูงเงา', tier: 2, sky: [0x141a3a, 0x6a4a8a], hills: 0x8a7ab8, unlock: 'job', level: [8, 10],
   rooms: [
-    { title: 'เวฟ 1 · ปากถ้ำค้างคาว', spawn: [['bat', 3], ['shroom', 1]] },
-    { title: 'เวฟ 2 · ดงเห็ดสปอร์', spawn: [['shroom', 2], ['bat', 1], ['dewsprite', 1]] },
-    { title: 'เวฟ 3 · ทางหมูป่า', spawn: [['boar', 1], ['shadowwolf', 1], ['bat', 1]] },
-    { title: 'เวฟ 4 · ฝูงหมาป่าเงา', spawn: [['shadowwolf', 2], ['shroom', 1], ['dewsprite', 1]] },
-    { title: 'เวฟ 5 · หน้าถ้ำจ่าฝูง', spawn: [['boar', 2], ['shadowwolf', 1], ['shroom', 1]] },
-    { title: 'ห้องบอส · จ่าฝูงเงา', spawn: [['alpha', 1]], boss: true, turnLimit: 36 },
+    { title: 'เวฟ 1 · ปากถ้ำค้างคาว', spawn: [['bat', 3], ['shroom', 1]], lv: 8 },
+    { title: 'เวฟ 2 · ดงเห็ดสปอร์', spawn: [['shroom', 2], ['bat', 1], ['dewsprite', 1]], lv: 8 },
+    { title: 'เวฟ 3 · ทางหมูป่า', spawn: [['boar', 1], ['shadowwolf', 1], ['bat', 1]], lv: 8 },
+    { title: 'เวฟ 4 · ฝูงหมาป่าเงา', spawn: [['shadowwolf', 2], ['shroom', 1], ['dewsprite', 1]], lv: 8 },
+    { title: 'เวฟ 5 · หน้าถ้ำจ่าฝูง', spawn: [['boar', 2], ['shadowwolf', 1], ['shroom', 1]], lv: 8 },
+    { title: 'ห้องบอส · จ่าฝูงเงา', spawn: [['alpha', 1]], boss: true, turnLimit: 36, lv: 10 },
   ],
 }, {
-  id: 'd3', name: 'ซากป้อมวีรชน', boss: 'อัศวินมรณะ', tier: 3, sky: [0x1a0f22, 0x8a3a3a], hills: 0xb07a7a, unlock: 'd2',
+  id: 'd3', name: 'ซากป้อมวีรชน', boss: 'อัศวินมรณะ', tier: 3, sky: [0x1a0f22, 0x8a3a3a], hills: 0xb07a7a, unlock: 'd2', level: [11, 13],
   rooms: [
-    { title: 'เวฟ 1 · ประตูป้อม', spawn: [['skeleton', 2], ['wisp', 1]] },
-    { title: 'เวฟ 2 · ลานหิน', spawn: [['gargoyle', 1], ['skeleton', 1], ['wisp', 1], ['bonepriest', 1]] },
-    { title: 'สังเวียน · ดวล 1-1', spawn: [], mini: true, turnLimit: 40 },
-    { title: 'เวฟ 3 · ระเบียงผี', spawn: [['wisp', 3], ['skeleton', 1]] },
-    { title: 'เวฟ 4 · หน้าบัลลังก์', spawn: [['gargoyle', 2], ['skeleton', 1], ['bonepriest', 1]] },
-    { title: 'ห้องบอส · อัศวินมรณะ', spawn: [['deathknight', 1]], boss: true, turnLimit: 46 },
+    { title: 'เวฟ 1 · ประตูป้อม', spawn: [['skeleton', 2], ['wisp', 1]], lv: 11 },
+    { title: 'เวฟ 2 · ลานหิน', spawn: [['gargoyle', 1], ['skeleton', 1], ['wisp', 1], ['bonepriest', 1]], lv: 11 },
+    { title: 'สังเวียน · ดวล 1-1', spawn: [], mini: true, turnLimit: 40, lv: 12 },
+    { title: 'เวฟ 3 · ระเบียงผี', spawn: [['wisp', 3], ['skeleton', 1]], lv: 11 },
+    { title: 'เวฟ 4 · หน้าบัลลังก์', spawn: [['gargoyle', 2], ['skeleton', 1], ['bonepriest', 1]], lv: 11 },
+    { title: 'ห้องบอส · อัศวินมรณะ', spawn: [['deathknight', 1]], boss: true, turnLimit: 46, lv: 13 },
   ],
 }, {
-  id: 'd4', name: 'บึงพิษมรกต', boss: 'ไฮดรามรกต', tier: 4, sky: [0x0f2a22, 0x5a8a3a], hills: 0x6ab07a, unlock: 'd3',
+  id: 'd4', name: 'บึงพิษมรกต', boss: 'ไฮดรามรกต', tier: 4, sky: [0x0f2a22, 0x5a8a3a], hills: 0x6ab07a, unlock: 'd3', level: [14, 16],
   rooms: [
-    { title: 'เวฟ 1 · ริมบึง', spawn: [['toad', 2], ['lizardshaman', 1]] },
-    { title: 'เวฟ 2 · รังต่อ', spawn: [['hornet', 2], ['turtleguard', 1]] },
-    { title: 'สังเวียน · ดวล 1-1', spawn: [], mini: true, miniPool: ['venomqueen', 'frostgiant'], turnLimit: 45 },
-    { title: 'เวฟ 3 · ดงคางคกระเบิด', spawn: [['bloater', 2], ['turtleguard', 1], ['hornet', 1]] },
-    { title: 'เวฟ 4 · กำแพงกระดอง', spawn: [['turtleguard', 2], ['lizardshaman', 1], ['toad', 1]] },
-    { title: 'ห้องบอส · ไฮดรามรกต', spawn: [['hydra', 1]], boss: true, turnLimit: 50 },
+    { title: 'เวฟ 1 · ริมบึง', spawn: [['toad', 2], ['lizardshaman', 1]], lv: 14 },
+    { title: 'เวฟ 2 · รังต่อ', spawn: [['hornet', 2], ['turtleguard', 1]], lv: 14 },
+    { title: 'สังเวียน · ดวล 1-1', spawn: [], mini: true, miniPool: ['venomqueen', 'frostgiant'], turnLimit: 45, lv: 15 },
+    { title: 'เวฟ 3 · ดงคางคกระเบิด', spawn: [['bloater', 2], ['turtleguard', 1], ['hornet', 1]], lv: 14 },
+    { title: 'เวฟ 4 · กำแพงกระดอง', spawn: [['turtleguard', 2], ['lizardshaman', 1], ['toad', 1]], lv: 14 },
+    { title: 'ห้องบอส · ไฮดรามรกต', spawn: [['hydra', 1]], boss: true, turnLimit: 50, lv: 16 },
   ],
 }, {
-  id: 'd5', name: 'บัลลังก์อเวจี', boss: 'จอมลิชโมรเดคัส', tier: 5, sky: [0x0a0612, 0x6a1a3a], hills: 0x9a4a6a, unlock: 'd4',
+  id: 'd5', name: 'บัลลังก์อเวจี', boss: 'จอมลิชโมรเดคัส', tier: 5, sky: [0x0a0612, 0x6a1a3a], hills: 0x9a4a6a, unlock: 'd4', level: [19, 21],
   rooms: [
-    { title: 'เวฟ 1 · ประตูนรก', spawn: [['hellknight', 1], ['imp', 1]] },
-    { title: 'เวฟ 2 · โถงคำสาป', spawn: [['hexwitch', 1], ['necropriest', 1], ['imp', 1]] },
-    { title: 'สังเวียน · ดวล 1-1', spawn: [], mini: true, miniPool: ['mirage', 'warlord'], turnLimit: 45 },
-    { title: 'เวฟ 3 · ระเบียงกระจก', spawn: [['wraith', 2], ['imp', 1], ['hexwitch', 1]] },
-    { title: 'เวฟ 4 · กองทัพศพ', spawn: [['hellknight', 2], ['necropriest', 1], ['imp', 1]] },
-    { title: 'ห้องบอส · จอมลิชโมรเดคัส', spawn: [['lich', 1]], boss: true, turnLimit: 56 },
+    { title: 'เวฟ 1 · ประตูนรก', spawn: [['hellknight', 1], ['imp', 1]], lv: 19 },
+    { title: 'เวฟ 2 · โถงคำสาป', spawn: [['hexwitch', 1], ['necropriest', 1], ['imp', 1]], lv: 19 },
+    { title: 'สังเวียน · ดวล 1-1', spawn: [], mini: true, miniPool: ['mirage', 'warlord'], turnLimit: 45, lv: 20 },
+    { title: 'เวฟ 3 · ระเบียงกระจก', spawn: [['wraith', 2], ['imp', 1], ['hexwitch', 1]], lv: 19 },
+    { title: 'เวฟ 4 · กองทัพศพ', spawn: [['hellknight', 2], ['necropriest', 1], ['imp', 1]], lv: 19 },
+    { title: 'ห้องบอส · จอมลิชโมรเดคัส', spawn: [['lich', 1]], boss: true, turnLimit: 56, lv: 21 },
   ],
 }, {
   // D6+ (Q 2026-11-04): fixed level band, monsters with 7 base stats (data/mon-stats.ts), no Hero Power scaling

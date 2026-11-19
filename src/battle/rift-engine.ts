@@ -11,7 +11,7 @@ import {
 } from '../data/dungeons/endgame-dungeons';
 import { DUNGEONS, MONSTERS, type MonsterKind } from '../data/game-data';
 import type { TalentWallet } from '../data/meta/talent-economy';
-import { legacyLevel, statMonster } from '../data/mon-stats';
+import { homeLv, statMonster } from '../data/mon-stats';
 import type { RiftMutatorId } from '../data/mutators';
 import {
   RIFT_BIOMES,
@@ -177,8 +177,7 @@ export function buildRiftMonsterCatalogFromPacks(options?: {
       for (const kind of kinds) {
         const base = MONSTERS[kind];
         if (!base) continue;
-        // v125: D1-D5 have no level band: use the monster's home Lv (LEGACY) for the catalog numbers
-        const lv = dg.level ? room.lv ?? dg.level[1] : legacyLevel(kind, base, dg);
+        const lv = room.lv ?? dg.level?.[1] ?? homeLv(kind);
 
         const rank: EndgameMonsterSpec['rank'] =
           room.boss || base.ai === 'boss'

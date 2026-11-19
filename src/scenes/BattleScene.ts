@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { HERO_SKILL_BOOK, heroSkillSteps, resolveHeroKit, type HeroKit } from '../data/hero-skill-book'
 import { chooseHeroSkill, newKitState, spendKit, tickKit, type KitCtx, type KitState } from '../battle/hero-skill-engine'
-import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, hardGap, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, bankedRunXp, softCapDiminish, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats, LIFESTEAL_CAP } from '../data/game-data'
+import { afterDef, BATTLE, hasFx, COMBO, doubleAtkChance, COLORS, hitChance, DUNGEONS, FONT_NUM, HARD, HARD_PASSIVES, HARD_SKILLS, FONT_UI, H, MONSTERS, perkDesc, PLAYER, RULES, bankedRunXp, softCapDiminish, W, type BossPhase, type DungeonDef, type HitFx, type MonSkill, type MonsterDef, type MonsterKind, type Stats, LIFESTEAL_CAP } from '../data/game-data'
 import { counterRate, shieldGain } from '../data/stack-math'
 import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LINES, levelDelta, LINES, MAGE_SKIP, newPerkStats, nextZapTarget, PERKS_V2, OFFER_RULES, OUTSIDE_CAP, overflowShare, PROC_POW, PROC_RULES, type Effect, type ImmortalId, type Line, type OutsideKey, type PerkDef, type PerkStats, type Proc, type Src, type Trigger } from '../data/perks'
 import { EVENT_RULES, FORTUNE, type DayOpts, type EventId } from '../data/events'
@@ -24,7 +24,7 @@ import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepA
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
 import { thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost, rogueKnifeMul, rogueSteelMul, rogueStabAmp, rogueComboDebuff, rogueAmbushCrit } from '../data/skill-math'
-import { addCard, addMat, addXp, persist, save, trialWin, ultMode } from '../save'
+import { addCard, addMat, addXp, loseXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
 import { TAINT_MAT } from '../data/taint'
@@ -33,8 +33,9 @@ import { rollUniqueDrop, UNIQUE } from '../data/uniques'
 import { rollEndgameUniqueDrop, rollUnique3Drop } from '../data/uniques3'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
-import { HARD_POWER, matchScale, overpowerMul, TOWER_POWER } from '../data/power'
-import { deepAnchor, homeDungeon, homeLv, LEGACY, legacyLevel, levelDropMul, monTier, restatAt, topStats, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, statNative, towerMonLv, withStats } from '../data/mon-stats'
+import { HARD_POWER, TOWER_POWER } from '../data/power'
+import { escalate, escalationAt } from '../data/hard-escalation'
+import { deepAnchor, deepKind, homeDungeon, homeLv, monTier, restatAt, topStats, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, towerMonLv } from '../data/mon-stats'
 import { ENDLESS_HELL, endlessHell, HELL, HELL_MODE, hellify } from '../data/hell'
 import { foldAffixes } from '../data/affixes'
 import { PACKS } from '../data/dungeons'
@@ -219,10 +220,8 @@ export class BattleScene extends Phaser.Scene {
   /** Hard mode (v47): replay of a cleared dungeon, monsters scale with Base Lv (data/game-data.ts HARD). gap = levels above the dungeon's recLv. */
   hard = false
   hell = false // 😈 hell mode (D6-D10): a hard run where every monster is a Hell copy (data/hell.ts HELL_MODE)
-  hardGap = 0
   /** v59: hard-mode monster multiplier from Hero Power (HUD shows it), normal-dungeon drop share when over-geared. */
   hardK = { hp: 1, atk: 1 }
-  dropMul = 1
   /** v59 tower: affixes live on the current floor (folded), monsters enraged this fight (bots read enrageCount). */
   private aff = foldAffixes([])
   enrageCount = 0
@@ -380,10 +379,7 @@ export class BattleScene extends Phaser.Scene {
     this.biomeState = null; this.biomeCritAdd = 0; this.biomeSkillMul = 1; this.hazardSig = ''; this.monSeq = 0
     this.towerFloor = 0; this.bank = { zeny: 0, mats: {} }; this.leftTower = false
     this.clog.reset() // v120 combat log: one run
-    this.hardGap = this.hard && !this.dg.level ? hardGap(this.dg.id, s.baseLevel) : 0
-    if (this.hard && !this.dg.level) { const m = matchScale(this.run.pp, this.dg.id); this.hardK = { hp: m.hp * HARD_POWER.target, atk: m.atk * HARD_POWER.target } }
-    else this.hardK = this.hard ? { hp: HARD_POWER.target, atk: HARD_POWER.target } : { hp: 1, atk: 1 } // D6+ fixed level: reward = HARD.reward x corruption
-    this.dropMul = this.run.modeId === 'dungeon' ? (this.dg.level ? levelDropMul(s.baseLevel, this.dg.level) : overpowerMul(this.run.power, this.dg.id)) : 1
+    this.hardK = this.hard ? { hp: HARD_POWER.target, atk: HARD_POWER.target } : { hp: 1, atk: 1 } // fixed level (v126: every dungeon): reward = HARD.reward x corruption
     this.aff = foldAffixes(this.run.corrupt?.affixes ?? []); this.enrageCount = 0
     this.hp = this.st.maxHp; this.smashCdLeft = 0; this.heroGauge = 0; this.zapCount = 0; this.emergencyUsed = false; this.firstOffer = true
     this.job = JOBS[s.job ?? 'novice']
@@ -553,7 +549,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private addMon(kind: MonsterKind, slot: number, gauge?: number) {
-    let def = this.echoDef(kind) ?? (statNative(kind) && this.dg.level ? this.statDef(MONSTERS[kind], kind) : this.hardDef(this.modeDef(this.buffDef(this.legacyStats(kind)), kind)))
+    // v126: every level dungeon (D1-D13, daily, rift) builds its monsters from their stats at the room Lv; the tower rebuilds them at the floor Lv
+    let def = this.echoDef(kind) ?? (this.dg.level && this.run.modeId !== 'tower' ? this.statDef(MONSTERS[kind], kind) : this.modeDef(this.towerStats(kind), kind))
     if (this.isHell(kind)) def = hellify(def, Math.random()) // v114 🔥 tower floor 25+
     const big = def.ai === 'boss'
     const x = this.roomDef(this.room)?.mixed ? MIX_X[slot] ?? SLOT_X[slot] : big ? 720 : SLOT_X[slot] // tower mixed fight: adds in front, big ones behind
@@ -579,18 +576,23 @@ export class BattleScene extends Phaser.Scene {
     if (affix) this.time.delayedCall(700, () => this.callout(`🔥 ${def.name}: ${affix}`, W / 2, 205))
     else if (def.hellish && big) this.time.delayedCall(700, () => this.callout(`🔥 ${def.name}: ${def.hellish}`, W / 2, 205))
     else if (def.hellish) this.time.delayedCall(500 + slot * 120, () => this.floatText(spr.x, spr.y - 90, def.hellish!, '#ff8a80'))
+    if (def.escTag && big) this.time.delayedCall(1300, () => this.callout(`🔥 ${def.name}: ${def.escNames}`, W / 2, 235))
+    else if (def.escTag) this.time.delayedCall(700 + slot * 120, () => this.floatText(spr.x, spr.y - 110, def.escTag!, '#ffd86b'))
     this.mons.push(m)
     this.tweens.add({ targets: [spr, shadow], x, duration: 600, ease: 'Quad.easeOut', delay: slot * 90 })
     return m
   }
 
-  /** D6+ level dungeon: numbers from the monster's 7 stats at the room's level (data/mon-stats.ts). No Hero Power scaling;
+  /** Level dungeon (v126: D1-D5 too): numbers from the monster's 7 stats at the room's level (data/mon-stats.ts). No Hero Power scaling;
    * 🔥 hard = +50% stat points on every tier, boss / mini affixes, and the run's corruption (affixes + stat boosts). */
-  private statDef(base: MonsterDef, kind?: MonsterKind, build?: (lv: number) => MonsterDef): MonsterDef {
+  private statDef(base: MonsterDef, kind?: MonsterKind): MonsterDef {
     const endless = kind && this.run.riftMode ? this.towerLv(kind) : 0 // v125 rift: room Lv, never below ENDLESS_HELL.minLv from depth 100
     const lv = endless || (this.roomDef(this.room)?.lv ?? roomLevel(this.dg.level!, this.dg.rooms, this.room)) + (this.hell ? HELL_MODE.lv : 0) // 😈 hell: +10 Lv
-    let out = build ? build(lv) : statMonster(base, lv, { hard: this.hard || this.endlessDeep(), statMul: this.run.corrupt?.statMul })
+    // v127 🔥 hard escalation: +10% stat points per room, day 2+ perks / HP, day 3+ 🟡 blessing, 😈 hell MVP 🔴 (data/hard-escalation.ts)
+    const esc = this.hard && !this.run.endless ? escalationAt(this.room, this.roomDef(this.room)?.day ?? 1, this.hell && monTier(base) === 'boss') : null
+    let out = statMonster(esc ? { ...base, pointsMul: (base.pointsMul ?? 1) * esc.pointsMul } : base, lv, { hard: this.hard || this.endlessDeep(), statMul: this.run.corrupt?.statMul })
     if (this.hell && !out.passive) out = hellify(out, Math.random()) // 😈 every monster is a Hell copy (one trait, HP / ATK / EXP up)
+    if (esc) { const r = escalate(out, esc); out = r.def; if (r.tag) { out.escTag = r.tag; out.escNames = r.names } }
     const mut = this.run.mut
     if (mut.monHp !== 1) out.hp = Math.round(out.hp * mut.monHp)
     if (mut.monAtk !== 1) { out.dmg *= mut.monAtk; out.matk = (out.matk ?? out.dmg) * mut.monAtk }
@@ -600,27 +602,19 @@ export class BattleScene extends Phaser.Scene {
     return out
   }
 
-  /** v68: 7 stats on an old monster at its home dungeon's level (numbers stay as tuned; see mon-stats withStats). */
-  private legacyStats(kind: MonsterKind): MonsterDef {
-    const d = MONSTERS[kind], src = this.dg
-    const base = statNative(kind) ? deepAnchor(kind) /* v114: a D6+ monster in the tower (no level dungeon here) */ : withStats(d, kind, legacyLevel(kind, d, src), { hard: this.hard, statMul: this.run.corrupt?.statMul })
-    const lv = this.towerLv(kind)
-    return lv ? restatAt(base, kind, lv, true, this.endlessDeep()) : base // v116 tower Lv by floor · v122: HP / ATK / M.ATK from the stats at that Lv too (no Hero Power) · v125 rift too
+  /** 🗼 tower: a monster rebuilt at the floor's tower Lv (v116 / v122: HP / ATK / M.ATK from its stats at that Lv too, no Hero Power).
+   *  A D6+ kind with no floor Lv falls back to its D5-anchored build (v114). */
+  private towerStats(kind: MonsterKind): MonsterDef {
+    const base = deepAnchor(kind), lv = this.towerLv(kind)
+    return lv ? restatAt(base, kind, lv, true, this.endlessDeep()) : base
   }
   /** ☀️ dungeon days (Q 2026-11-18 "มอนจากด่านเก่าต้อง Scale lv ตามด่านใหม่"): a monster from an earlier dungeon in an echo room
    *  is rebuilt at THIS room's Lv with its own kit, then pays EXP / zeny like this dungeon's monsters of its tier (dungeon-days echoPay).
-   *  D6+: the room Lv (a D1-D5 kind's numbers follow its stats up, like the tower) · D1-D5: this dungeon's LEGACY Lv for its tier. null = not an echo. */
+   *  null = not an echo. */
   private echoDef(kind: MonsterKind): MonsterDef | null {
     const room = this.roomDef(this.room), d = MONSTERS[kind], home = homeDungeon(kind)
-    if ((!room?.echo && !this.forceEcho) || !d || !home || home === this.dg.id || this.run.endless) return null
-    const homeBase = () => withStats(d, kind, legacyLevel(kind, d, this.dg), { hard: this.hard, statMul: this.run.corrupt?.statMul })
-    let out: MonsterDef
-    if (this.dg.level) out = statNative(kind) ? this.statDef(d, kind) : this.statDef(d, kind, (lv) => restatAt(homeBase(), kind, lv, true, this.hard))
-    else {
-      const lv = Math.max(1, (LEGACY.lv[this.dg.id] ?? 5) - LEGACY.tierDrop[monTier(d)])
-      out = this.hardDef(this.modeDef(this.buffDef(restatAt(homeBase(), kind, lv, true)), kind))
-    }
-    const k = echoPay(this.dg, d)
+    if ((!room?.echo && !this.forceEcho) || !d || !home || home === this.dg.id || this.run.endless || !this.dg.level) return null
+    const out = this.statDef(d, kind), k = echoPay(this.dg, d)
     return { ...out, xp: Math.max(1, Math.round(out.xp * k.xp)), zeny: [Math.round(out.zeny[0] * k.zeny), Math.round(out.zeny[1] * k.zeny)] }
   }
 
@@ -679,14 +673,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.endlessDeep()) return true
     const r = this.roomDef(this.room)
     if (this.run.modeId !== 'tower' || !r?.floor) return false
-    return !!r.hell?.includes(kind) || (r.floor >= HELL.allFrom && !statNative(kind))
-  }
-
-  /** v56 global monster buff by dungeon tier (BATTLE.monBuff): HP, ATK and M.ATK. */
-  private buffDef(def: MonsterDef): MonsterDef {
-    if (this.run.modeId === 'tower' || this.run.riftMode) return def // v125 rift: numbers from the room Lv like its D6+ kinds · v122: tower numbers come from the stats at the floor Lv, like D6+ (statDef has no buff either)
-    const t = Math.max(0, Math.min(4, this.dg.tier - 1)), hp = BATTLE.monBuff.hp[t], dmg = BATTLE.monBuff.dmg[t]
-    return { ...def, hp: Math.round(def.hp * hp), dmg: def.dmg * dmg, ...(def.matk ? { matk: def.matk * dmg } : {}) }
+    return !!r.hell?.includes(kind) || (r.floor >= HELL.allFrom && !deepKind(kind))
   }
 
   /** Tower / daily (RunConfig.scale): level + floor + mutator multipliers; tower bosses also roll the hard-mode affixes. */
@@ -702,16 +689,6 @@ export class BattleScene extends Phaser.Scene {
     return out
   }
   private modeSpeed = 1
-
-  /** Hard mode: HP / ATK / M.ATK / Hit scaled by the hero's Base Lv over the dungeon's recLv. */
-  private hardDef(def: MonsterDef): MonsterDef {
-    if (!this.hard) return def
-    // v59: HP x hero offense, ATK x hero survival, both over the dungeon's reference build, x target (power.ts matchScale)
-    const k = this.hardK
-    const out: MonsterDef = { ...def, hp: Math.round(def.hp * k.hp), dmg: def.dmg * k.atk, ...(def.matk ? { matk: def.matk * k.atk } : {}), hit: (def.hit ?? 15) + HARD.hitPerLv * Math.min(25, this.hardGap) }
-    if (def.ai === 'boss' && !def.passive) this.hardAffix(out)
-    return out
-  }
 
   /** Hard mode: a mini boss / boss rolls 1 extra skill + 1 passive (final bosses of dungeon 3+: 2 passives). */
   private hardAffix(d: MonsterDef) {
@@ -4391,7 +4368,7 @@ export class BattleScene extends Phaser.Scene {
     const pity = (save().cardPity ??= {})
     for (const cd of cardsOfMonster(m.kind)) {
       const n = (pity[cd.id] ?? 0) + 1
-      if (Math.random() < cardRate(cd) * this.cardLuck * this.dropMul || n >= cardPityMax(cd)) {
+      if (Math.random() < cardRate(cd) * this.cardLuck * (this.hell && monTier(m.def) !== 'normal' ? HELL_MODE.bossCardMul : 1) || n >= cardPityMax(cd)) {
         pity[cd.id] = 0
         this.runCards.push(cd.id)
         this.callout(`🃏 ได้${cardName(cd)}!`, m.spr.x, m.spr.y - 130 - (cd.v2 ? 40 : 0))
@@ -4404,13 +4381,13 @@ export class BattleScene extends Phaser.Scene {
   private rollMat(m: Mon) {
     if (m.revived || !cardsOfMonster(m.kind).length) return
     const echoHome = this.roomDef(this.room)?.echo ? homeDungeon(m.kind) : undefined // ☀️ Q 2026-11-18: a monster from an earlier dungeon drops that dungeon's mats
-    const dg = echoHome || (!this.dg.level && statNative(m.kind) && this.endlessPay(m) >= 1 && homeDungeon(m.kind)) || this.dg.id, got: [string, number][] = [] // v114: a D6+ monster in the tower drops its own dungeon's mats
+    const dg = echoHome || (this.run.modeId === 'tower' && deepKind(m.kind) && this.endlessPay(m) >= 1 && homeDungeon(m.kind)) || this.dg.id, got: [string, number][] = [] // v114: a D6+ monster in the tower drops its own dungeon's mats
     if (m.def.ai === 'boss' && !m.def.mini) {
       got.push([matOf(dg, true), MAT_RULES.boss.boss], [matOf(dg, false), MAT_RULES.boss.common])
       if ((this.run.modeId === 'dungeon' || this.run.modeId === 'hard' || this.run.modeId === 'bounty') && this.roomDef(this.room)?.boss && taintDrop(dg)) got.push([TAINT_MAT, taintDrop(dg) + (this.hell ? HELL_MODE.taintAdd : 0)]) // v89 ผลึกโลกันตร์: D6+ final boss only
     }
     else if (m.def.ai === 'boss') got.push([matOf(dg, true), MAT_RULES.mini.boss])
-    else if (Math.random() < MAT_RULES.normalRate * this.dropMul) got.push([matOf(dg, false), 1])
+    else if (Math.random() < MAT_RULES.normalRate) got.push([matOf(dg, false), 1])
     got.forEach(([id, n], i) => {
       this.runMats[id] = (this.runMats[id] ?? 0) + n
       this.floatText(m.spr.x + 40, m.spr.y - 40 - i * 24, `${matName(id)} +${n}`, '#e8d9a8')
@@ -6346,7 +6323,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   // ---------- results ----------
-  private settle(won: boolean): string {
+  private settle(won: boolean, died = false): string {
     if (this.settled) return ''
     this.settled = true
     const s = save()
@@ -6361,7 +6338,7 @@ export class BattleScene extends Phaser.Scene {
         for (const id of Object.keys(this.runMats)) this.runMats[id] = Math.ceil(this.runMats[id] * HELL_MODE.mats)
       }
     }
-    this.zeny = Math.round(this.zeny * this.run.mut.zenyMul * this.dropMul) // daily mutators · v59 over-geared normal dungeon
+    this.zeny = Math.round(this.zeny * this.run.mut.zenyMul) // daily mutators · v128: no level / Hero Power drop cut any more (Q 2026-11-19)
     const dxx = this.run.modeId === 'dungeon' || this.run.modeId === 'hard', xpFull = this.runXp
     this.runXp = bankedRunXp(this.runXp, won, dxx) // 💀 lost Dxx run: Base / Job EXP x RULES.failXpMul (zeny / loot unchanged)
     const mode = MODES[this.run.modeId].reward(s, this.run, { won, left: this.leftTower, floor: this.towerFloor, from: Math.max(0, (this.modeArgs.startFloor ?? 1) - 1), bank: this.bank })
@@ -6380,6 +6357,7 @@ export class BattleScene extends Phaser.Scene {
     const before = s.gems
     const lv0 = { base: s.baseLevel, job: s.jobLevel, job2: s.job2Level ?? 1, job3: s.job3Level ?? 1 }
     const ups = addXp(this.runXp)
+    const hellLoss = this.hell && died ? loseXp(RULES.hellDeathBase, RULES.hellDeathJob) : null // 😈 v128: dying in hell costs 5% Base / 10% Job of the current bar
     track({ e: 'run_end', mode: this.hell ? 'hell' : this.run.modeId, dungeon: this.dg.id, won, room: this.room, zeny: this.zeny, xp: this.runXp })
     if (won) ftue('run1_win')
     if (won && this.run.modeId === 'dungeon' && this.dg.id === 'd1') ftue('d1_clear')
@@ -6399,6 +6377,7 @@ export class BattleScene extends Phaser.Scene {
     ]
     const lines = [...uniq, ...(mode?.lines ?? []), `+${this.zeny} zeny · +${this.runXp} EXP${s.gems > before ? ` · +${s.gems - before} เพชร` : ''}`]
     if (this.runXp < xpFull) lines.push(`💀 ล้มเหลว: ได้ EXP แค่ ${Math.round(RULES.failXpMul * 100)}% (เต็ม ${xpFull}) · zeny กับของได้ครบ`)
+    if (hellLoss) lines.push(`😈 ตายในนรก: เสีย Base EXP ${hellLoss.base} · Job EXP ${hellLoss.job} (${Math.round(RULES.hellDeathBase * 100)}% / ${Math.round(RULES.hellDeathJob * 100)}% ของหลอด · ไม่ลดเลเวล)`)
     if (ups.base) lines.push(`🎉 Base Lv ${s.baseLevel}! ได้แต้มสถานะเพิ่ม`)
     if (ups.job) lines.push(jobUpText(s, ups.job))
     if (trial) lines.unshift(`⚔️ ผ่าน Master Trial! ตื่นรู้เป็น ${JOB3[trial].icon} ${JOB3[trial].name} ได้ที่ 🏠 เมือง › อาชีพ`)
@@ -6443,7 +6422,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private showGameOver() {
-    const rewards = this.settle(false)
+    const rewards = this.settle(false, !this.timedOut)
     const d = this.deathRec()
     saveDeath(d)
     const recap = this.timedOut ? [] : recapLines(d)

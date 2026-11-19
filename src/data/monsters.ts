@@ -80,6 +80,8 @@ export interface BossPhase {
 
 export interface MonsterDef {
   hellish?: string // v114 tower Hell copy (data/hell.ts): its trait label; also marks the tint
+  escTag?: string // v127 🔥 hard escalation (data/hard-escalation.ts): icons of its rolled perks / blessings
+  escNames?: string // ... and their names (boss / mini callout)
   name: string
   tex: string
   hp: number
@@ -130,10 +132,9 @@ export interface MonsterDef {
   crit?: number // chance a hit / spell crits: x BATTLE.monCritMul and can't be fled (lucky dodge / shield still work)
   combo?: number // after a normal attack: chance to chain another hit, up to BATTLE.comboMax extra (each x BATTLE.monComboMul)
   counter?: number // when the hero's basic attack lands on it: chance to strike back right away (normal hit x BATTLE.monCounterMul)
-  // ----- 7 base stats (data/mon-stats.ts). D6+ (level dungeons): numbers come from the stats at the room's level.
-  // v76 D1-5 / events: hp / dmg / matk / def / hit / flee / crit / combo / counter are the tuned values AT THE HOME LEVEL with the
-  // default statAlloc; changing statAlloc, LEGACY.lv or MON_STAT moves them by the same stat formulas (mon-stats withStats) -----
-  statAlloc?: Archetype | StatAlloc // how its stat points are split (archetype or own weights; objects so admin.html can edit them). D6+: def / hit / flee / crit / combo / counter are bonuses on top
+  // ----- 7 base stats (data/mon-stats.ts). Every dungeon (v126: D1-D5 too): numbers come from the stats at the room's level;
+  // hp / dmg are 1 placeholders, bodyMul multiplies HP / ATK / M.ATK, def / hit / flee / crit / combo / counter are bonuses on top -----
+  statAlloc?: Archetype | StatAlloc // how its stat points are split (archetype or own weights; objects so admin.html can edit them)
   bodyMul?: { hp?: number; dmg?: number; matk?: number } // x on the stat-built HP / ATK / M.ATK (a heavy body, a frail caster ...)
   pointsMul?: number // v81: x its stat point budget (Lv x tier share), so this one monster gets more / fewer stats at every level
   speedMul?: number // x on the AGI turn speed
@@ -149,52 +150,54 @@ export interface MonsterDef {
 }
 
 export const MONSTERS: Record<MonsterKind, MonsterDef> = {
-  jellop: { name: 'เจลล็อป', tex: 'jellop', statAlloc: { vit: 5, wis: 3, str: 2 }, hp: 34, dmg: 7, xp: 3, ai: 'hopper', moveSpeed: 250, radius: 15, zeny: [1, 2], idleMs: [500, 1100] },
-  minijellop: { name: 'เจลล็อปจิ๋ว', tex: 'jellop', statAlloc: { vit: 5, wis: 3, str: 2 }, hp: 18, dmg: 4, xp: 1, ai: 'hopper', moveSpeed: 300, radius: 11, zeny: [0, 1], idleMs: [350, 800] },
-  wolf: { name: 'หมาป่าสีเทา', tex: 'wolf', statAlloc: { agi: 4, dex: 3, luk: 2, str: 1 }, hp: 55, dmg: 11, xp: 5, ai: 'dasher', moveSpeed: 560, radius: 16, zeny: [2, 3], idleMs: [700, 1300], flee: 18, hit: 20 },
-  king: { name: 'ราชาเจลล็อป', tex: 'king', statAlloc: { vit: 4, str: 3, int: 2, wis: 1 }, hp: 860, dmg: 16, matk: 18, xp: 0, ai: 'boss', moveSpeed: 230, radius: 38, zeny: [15, 20], idleMs: [700, 1000], summon: 'minijellop', slamName: 'ชาร์จพลัง! ทุบตอนนี้เลย', slamMagic: true, slamAnim: 'stomp', slamColor: 0x9fe3ff, charge: true,
+  // ----- D1-D5 / events / support (v126): stat monsters like D6+. bodyMul / speedMul / def..counter bonuses were calibrated once so each
+  // one at its home room Lv (DungeonDef rooms lv) fights like the old hand-tuned numbers x monBuff did (tests/mon-stats-calibration) -----
+  jellop: { name: 'เจลล็อป', tex: 'jellop', statAlloc: { vit: 5, wis: 3, str: 2 }, hp: 1, dmg: 1, bodyMul: { hp: 0.194, dmg: 0.288, matk: 0.359 }, speedMul: 0.8, def: -3, hit: 2, flee: -1, counter: -0.01, xp: 3, ai: 'hopper', moveSpeed: 250, radius: 15, zeny: [1, 2], idleMs: [500, 1100] },
+  minijellop: { name: 'เจลล็อปจิ๋ว', tex: 'jellop', statAlloc: { vit: 5, wis: 3, str: 2 }, hp: 1, dmg: 1, bodyMul: { hp: 0.102, dmg: 0.165, matk: 0.205 }, speedMul: 0.9, def: -3, hit: 2, flee: -1, counter: -0.01, xp: 1, ai: 'hopper', moveSpeed: 300, radius: 11, zeny: [0, 1], idleMs: [350, 800] },
+  wolf: { name: 'หมาป่าสีเทา', tex: 'wolf', statAlloc: { agi: 4, dex: 3, luk: 2, str: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.352, dmg: 0.492, matk: 0.563 }, speedMul: 1.281, def: -2, hit: 6, flee: 11, crit: 0.07, xp: 5, ai: 'dasher', moveSpeed: 560, radius: 16, zeny: [2, 3], idleMs: [700, 1300]},
+  king: { name: 'ราชาเจลล็อป', tex: 'king', statAlloc: { vit: 4, str: 3, int: 2, wis: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.437, dmg: 0.415, matk: 0.532 }, speedMul: 0.8, def: -7, flee: -1, crit: 0.06, counter: -0.02, xp: 0, ai: 'boss', moveSpeed: 230, radius: 38, zeny: [15, 20], idleMs: [700, 1000], summon: 'minijellop', slamName: 'ชาร์จพลัง! ทุบตอนนี้เลย', slamMagic: true, slamAnim: 'stomp', slamColor: 0x9fe3ff, charge: true,
     phases: [{ at: 0.5, name: 'ร่างเยลลี่ยักษ์! เกราะวุ้น', shield: 0.1 }] }, // boss buff v1
   // ----- Dungeon 2: ป่าหมาป่าเงา. Each monster tests one stat (see design/dungeon-2-and-events.md) -----
-  bat: { name: 'ค้างคาวถ้ำ', tex: 'bat', statAlloc: { agi: 4, dex: 3, luk: 2, str: 1 }, hp: 42, dmg: 15, xp: 4, ai: 'dasher', moveSpeed: 500, radius: 12, zeny: [2, 3], idleMs: [500, 900], flee: 30, hit: 26 },
-  shroom: { name: 'เห็ดสปอร์', tex: 'shroom', statAlloc: { int: 5, wis: 3, dex: 1, vit: 1 }, hp: 80, dmg: 21, matk: 24, xp: 5, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [2, 4], idleMs: [700, 1200], magic: true,
+  bat: { name: 'ค้างคาวถ้ำ', tex: 'bat', statAlloc: { agi: 4, dex: 3, luk: 2, str: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.224, dmg: 0.384, matk: 0.434 }, speedMul: 1.509, def: -5, hit: 6, flee: 20, crit: -0.01, combo: 0.14, xp: 4, ai: 'dasher', moveSpeed: 500, radius: 12, zeny: [2, 3], idleMs: [500, 900]},
+  shroom: { name: 'เห็ดสปอร์', tex: 'shroom', statAlloc: { int: 5, wis: 3, dex: 1, vit: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.407, dmg: 0.563, matk: 0.528 }, speedMul: 0.7, def: -6, hit: -3, flee: -1, xp: 5, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [2, 4], idleMs: [700, 1200], magic: true,
     skills: [{ kind: 'bolt', every: 3, pow: 1.3, name: 'ปล่อยสปอร์พิษ', fx: { poison: 1 } }] },
-  boar: { name: 'หมูป่าเขี้ยวเหล็ก', tex: 'boar', statAlloc: { str: 4, vit: 3, dex: 2, agi: 1 }, hp: 145, dmg: 24, xp: 7, ai: 'dasher', moveSpeed: 420, radius: 18, zeny: [3, 5], idleMs: [800, 1300], def: 60 },
-  shadowwolf: { name: 'หมาป่าเงา', tex: 'shadowwolf', statAlloc: { agi: 3, luk: 3, str: 3, dex: 1 }, hp: 92, dmg: 22, xp: 6, ai: 'dasher', moveSpeed: 600, radius: 16, zeny: [3, 4], idleMs: [600, 1100], flee: 22, hit: 26 },
+  boar: { name: 'หมูป่าเขี้ยวเหล็ก', tex: 'boar', statAlloc: { str: 4, vit: 3, dex: 2, agi: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.675, dmg: 0.539, matk: 0.695 }, speedMul: 0.887, def: 53, hit: -4, flee: -2, crit: 0.1, counter: -0.01, xp: 7, ai: 'dasher', moveSpeed: 420, radius: 18, zeny: [3, 5], idleMs: [800, 1300]},
+  shadowwolf: { name: 'หมาป่าเงา', tex: 'shadowwolf', statAlloc: { agi: 3, luk: 3, str: 3, dex: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.493, dmg: 0.515, matk: 0.637 }, speedMul: 1.34, def: -5, hit: 8, flee: 13, crit: 0.04, combo: 0.19, xp: 6, ai: 'dasher', moveSpeed: 600, radius: 16, zeny: [3, 4], idleMs: [600, 1100]},
   // ----- Dungeon 3: ซากป้อมวีรชน. Waves -> 1v1 mini boss (random of 4) -> waves -> boss -----
-  skeleton: { name: 'ทหารโครงกระดูก', tex: 'skeleton', statAlloc: { str: 4, vit: 3, dex: 2, agi: 1 }, hp: 210, dmg: 36, xp: 7, ai: 'hopper', moveSpeed: 220, radius: 15, zeny: [4, 6], idleMs: [700, 1200], def: 45, hit: 32 },
-  wisp: { name: 'ดวงไฟผี', tex: 'wisp', statAlloc: { int: 5, wis: 3, dex: 1, vit: 1 }, hp: 110, dmg: 34, matk: 38, xp: 6, ai: 'dasher', moveSpeed: 520, radius: 13, zeny: [4, 5], idleMs: [500, 900], magic: true, flee: 30,
+  skeleton: { name: 'ทหารโครงกระดูก', tex: 'skeleton', statAlloc: { str: 4, vit: 3, dex: 2, agi: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.873, dmg: 0.669, matk: 0.876 }, speedMul: 0.971, def: 35, hit: 9, flee: -3, combo: -0.01, counter: 0.08, xp: 7, ai: 'hopper', moveSpeed: 220, radius: 15, zeny: [4, 6], idleMs: [700, 1200]},
+  wisp: { name: 'ดวงไฟผี', tex: 'wisp', statAlloc: { int: 5, wis: 3, dex: 1, vit: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.52, dmg: 0.779, matk: 0.695 }, speedMul: 1.4, def: -8, hit: -7, flee: 24, counter: -0.01, xp: 6, ai: 'dasher', moveSpeed: 520, radius: 13, zeny: [4, 5], idleMs: [500, 900], magic: true,
     skills: [{ kind: 'bolt', every: 3, pow: 1.4, name: 'ลูกไฟผี', fx: { burn: 1 } }] },
-  gargoyle: { name: 'การ์กอยล์หิน', tex: 'gargoyle', statAlloc: { vit: 5, wis: 3, str: 2 }, hp: 340, dmg: 44, xp: 9, ai: 'hopper', moveSpeed: 180, radius: 18, zeny: [5, 7], idleMs: [900, 1400], def: 90, hit: 30 },
-  duelist: { name: 'เซเลสต์', title: 'นักดาบดวลเงินจันทร์', tex: 'duelist', statAlloc: { agi: 4, dex: 3, str: 3, luk: 2 }, hp: 1600, dmg: 42, xp: 12, ai: 'boss', mini: 'duelist', moveSpeed: 300, radius: 30, zeny: [30, 40], idleMs: [600, 900], def: 20, flee: 30, hit: 38,
+  gargoyle: { name: 'การ์กอยล์หิน', tex: 'gargoyle', statAlloc: { vit: 5, wis: 3, str: 2 }, hp: 1, dmg: 1, bodyMul: { hp: 1.261, dmg: 0.903, matk: 1.071 }, speedMul: 0.7, def: 79, hit: 10, flee: -1, counter: 0.12, xp: 9, ai: 'hopper', moveSpeed: 180, radius: 18, zeny: [5, 7], idleMs: [900, 1400]},
+  duelist: { name: 'เซเลสต์', title: 'นักดาบดวลเงินจันทร์', tex: 'duelist', statAlloc: { agi: 4, dex: 3, str: 3, luk: 2 }, hp: 1, dmg: 1, bodyMul: { hp: 1.595, dmg: 0.698, matk: 0.953 }, speedMul: 1.288, def: 12, hit: 9, flee: 13, crit: 0.1, combo: -0.03, counter: 0.15, xp: 12, ai: 'boss', mini: 'duelist', moveSpeed: 300, radius: 30, zeny: [30, 40], idleMs: [600, 900],
     phases: [{ at: 0.4, name: 'ดาบจันทร์เต็มดวง! เร็วและคมขึ้น', speed: 1.2, dmg: 1.15 }] },
-  hunter: { name: 'กริมฟาง', title: 'หมาป่าคลั่งเลือด', tex: 'hunter', statAlloc: { str: 4, agi: 3, vit: 2, luk: 1 }, hp: 1750, dmg: 44, xp: 12, ai: 'boss', mini: 'hunter', moveSpeed: 300, radius: 34, zeny: [30, 40], idleMs: [600, 900], def: 15, flee: 15, hit: 34, lifesteal: 0.35, chargeEvery: 4, slamName: 'กลิ่นเลือด! กระโจนตะครุบ', slamAnim: 'pounce', slamColor: 0xc03050, charge: true },
-  gunner: { name: 'ปิ๊กซี่', title: 'มือปืนพลุบ้าระห่ำ', tex: 'gunner', statAlloc: { dex: 5, agi: 2, luk: 2, int: 1 }, hp: 1500, dmg: 21, xp: 12, ai: 'boss', mini: 'gunner', moveSpeed: 300, radius: 30, zeny: [30, 40], idleMs: [600, 900], def: 5, flee: 20, hit: 36, shots: 3, slamMul: 3.4, slamScale: { stat: 'dex' }, slamName: 'จรวดยักษ์! ล็อกเป้าแล้ว', slamAnim: 'shot', slamColor: 0xff8c42, slamMagic: true, charge: true,
+  hunter: { name: 'กริมฟาง', title: 'หมาป่าคลั่งเลือด', tex: 'hunter', statAlloc: { str: 4, agi: 3, vit: 2, luk: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 1.314, dmg: 0.641, matk: 0.999 }, speedMul: 1.13, def: 4, hit: 13, flee: -1, crit: 0.14, combo: 0.12, counter: -0.02, xp: 12, ai: 'boss', mini: 'hunter', moveSpeed: 300, radius: 34, zeny: [30, 40], idleMs: [600, 900], lifesteal: 0.35, chargeEvery: 4, slamName: 'กลิ่นเลือด! กระโจนตะครุบ', slamAnim: 'pounce', slamColor: 0xc03050, charge: true },
+  gunner: { name: 'ปิ๊กซี่', title: 'มือปืนพลุบ้าระห่ำ', tex: 'gunner', statAlloc: { dex: 5, agi: 2, luk: 2, int: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 1.495, dmg: 0.451, matk: 0.427 }, speedMul: 1.267, def: -3, hit: -2, flee: 7, crit: 0.12, combo: -0.02, xp: 12, ai: 'boss', mini: 'gunner', moveSpeed: 300, radius: 30, zeny: [30, 40], idleMs: [600, 900], shots: 3, slamMul: 3.4, slamScale: { stat: 'dex' }, slamName: 'จรวดยักษ์! ล็อกเป้าแล้ว', slamAnim: 'shot', slamColor: 0xff8c42, slamMagic: true, charge: true,
     phases: [{ at: 0.5, name: 'กระสุนเพลิง! ยิงติดไฟ', onHit: { burn: 1 } }] },
-  drainer: { name: 'คาร์วอส', title: 'จอมเวทกาดำ', tex: 'drainer', statAlloc: { int: 5, wis: 3, dex: 1, vit: 1 }, hp: 1700, dmg: 38, matk: 42, xp: 12, ai: 'boss', mini: 'drainer', moveSpeed: 300, radius: 32, zeny: [30, 40], idleMs: [600, 900], def: 20, hit: 34, magic: true, slamMagic: true, lifesteal: 0.3, slamMul: 1.9, slamName: 'กรงเล็บวิญญาณ! ดูดชีวิต', slamAnim: 'cast', slamColor: 0xc03050, charge: true,
+  drainer: { name: 'คาร์วอส', title: 'จอมเวทกาดำ', tex: 'drainer', statAlloc: { int: 5, wis: 3, dex: 1, vit: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 1.489, dmg: 0.815, matk: 0.576 }, def: 11, hit: 10, flee: -1, crit: 0.1, counter: -0.01, xp: 12, ai: 'boss', mini: 'drainer', moveSpeed: 300, radius: 32, zeny: [30, 40], idleMs: [600, 900], magic: true, slamMagic: true, lifesteal: 0.3, slamMul: 1.9, slamName: 'กรงเล็บวิญญาณ! ดูดชีวิต', slamAnim: 'cast', slamColor: 0xc03050, charge: true,
     skills: [{ kind: 'curse', every: 4, name: 'มนต์ปิดปาก', fx: { silence: 1 } }] },
-  deathknight: { name: 'อัศวินมรณะ', tex: 'deathknight', statAlloc: { str: 4, vit: 3, int: 2, wis: 1 }, hp: 3200, dmg: 50, matk: 58, xp: 0, ai: 'boss', moveSpeed: 240, radius: 42, zeny: [60, 80], idleMs: [700, 1000], def: 35, flee: 12, hit: 36, lifesteal: 0.2, summon: 'skeleton', slamName: 'ดาบมรณะ! ฟันกวาดวิญญาณ', slamAnim: 'cleave', slamColor: 0x9a6aff, slamMagic: true, charge: true,
+  deathknight: { name: 'อัศวินมรณะ', tex: 'deathknight', statAlloc: { str: 4, vit: 3, int: 2, wis: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 1.099, dmg: 0.576, matk: 0.883 }, speedMul: 1.1, def: 19, hit: 15, flee: 6, crit: 0.1, counter: 0.1, xp: 0, ai: 'boss', moveSpeed: 240, radius: 42, zeny: [60, 80], idleMs: [700, 1000], lifesteal: 0.2, summon: 'skeleton', slamName: 'ดาบมรณะ! ฟันกวาดวิญญาณ', slamAnim: 'cleave', slamColor: 0x9a6aff, slamMagic: true, charge: true,
     skills: [{ kind: 'revive', every: 4, pow: 0.5, name: 'ปลุกศพ' }],
     phases: [{ at: 0.35, name: '💀 Death Realm! ดูด All Stat ทุกเทิร์น', drainStats: 1 }] }, // Q 2026-11-04 Monster DB comment (was: speed x1.2, charge every 2)
   // ----- Dungeon 4: บึงพิษมรกต. Monsters that heal, shield, poison and explode (design/dungeon-4-5-brutal.md) -----
-  toad: { name: 'คางคกพิษ', tex: 'toad', statAlloc: { str: 4, vit: 3, dex: 2, agi: 1 }, hp: 270, dmg: 40, xp: 8, ai: 'hopper', moveSpeed: 220, radius: 16, zeny: [5, 7], idleMs: [700, 1200], def: 25, hit: 34, onHit: { poison: 2 } },
-  lizardshaman: { name: 'หมอผีกิ้งก่า', tex: 'lizardshaman', statAlloc: { wis: 4, int: 3, vit: 3 }, hp: 240, dmg: 34, matk: 38, xp: 9, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [5, 8], idleMs: [700, 1200], magic: true, hit: 34,
+  toad: { name: 'คางคกพิษ', tex: 'toad', statAlloc: { str: 4, vit: 3, dex: 2, agi: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 1.229, dmg: 0.697, matk: 0.922 }, speedMul: 0.971, def: 13, hit: 8, flee: -3, combo: -0.01, counter: -0.02, xp: 8, ai: 'hopper', moveSpeed: 220, radius: 16, zeny: [5, 7], idleMs: [700, 1200], onHit: { poison: 2 } },
+  lizardshaman: { name: 'หมอผีกิ้งก่า', tex: 'lizardshaman', statAlloc: { wis: 4, int: 3, vit: 3 }, hp: 1, dmg: 1, bodyMul: { hp: 1.091, dmg: 0.746, matk: 0.728 }, speedMul: 0.9, def: -12, hit: 12, flee: -1, counter: -0.02, xp: 9, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [5, 8], idleMs: [700, 1200], magic: true,
     skills: [{ kind: 'heal', every: 2, pow: 0.18, name: 'น้ำมนต์บึง' }, { kind: 'bolt', every: 3, pow: 1.3, name: 'สายฟ้าบึง' }] },
-  hornet: { name: 'ต่อยักษ์', tex: 'hornet', statAlloc: { agi: 4, dex: 3, luk: 2, str: 1 }, hp: 170, dmg: 20, xp: 8, ai: 'dasher', moveSpeed: 520, radius: 13, zeny: [5, 7], idleMs: [500, 900], flee: 42, hit: 40, shots: 2, onHit: { poison: 1 } },
-  turtleguard: { name: 'ทหารเต่าโล่', tex: 'turtleguard', statAlloc: { vit: 5, wis: 3, str: 2 }, hp: 430, dmg: 38, xp: 10, ai: 'hopper', moveSpeed: 160, radius: 18, zeny: [6, 9], idleMs: [900, 1400], def: 120, hit: 32,
+  hornet: { name: 'ต่อยักษ์', tex: 'hornet', statAlloc: { agi: 4, dex: 3, luk: 2, str: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.976, dmg: 0.412, matk: 0.461 }, speedMul: 1.518, def: -9, hit: 12, flee: 28, crit: -0.02, combo: 0.28, xp: 8, ai: 'dasher', moveSpeed: 520, radius: 13, zeny: [5, 7], idleMs: [500, 900], shots: 2, onHit: { poison: 1 } },
+  turtleguard: { name: 'ทหารเต่าโล่', tex: 'turtleguard', statAlloc: { vit: 5, wis: 3, str: 2 }, hp: 1, dmg: 1, bodyMul: { hp: 1.71, dmg: 0.738, matk: 0.876 }, speedMul: 0.7, def: 106, hit: 10, flee: -1, counter: 0.12, xp: 10, ai: 'hopper', moveSpeed: 160, radius: 18, zeny: [6, 9], idleMs: [900, 1400],
     skills: [{ kind: 'shield', every: 4, pow: 0.1, name: 'กำแพงกระดอง', scale: { stat: 'vit' } }] },
-  bloater: { name: 'คางคกพองลม', tex: 'bloater', statAlloc: { vit: 5, wis: 3, str: 2 }, hp: 210, dmg: 30, xp: 8, ai: 'hopper', moveSpeed: 180, radius: 17, zeny: [5, 7], idleMs: [800, 1300], hit: 30, deathBlast: 2, onHit: { poison: 1 } },
-  spiderling: { name: 'ลูกแมงมุม', tex: 'spiderling', statAlloc: { agi: 3, luk: 3, str: 3, dex: 1 }, hp: 160, dmg: 26, xp: 3, ai: 'dasher', moveSpeed: 480, radius: 11, zeny: [1, 2], idleMs: [400, 800], flee: 30, hit: 36, onHit: { poison: 1 } },
-  venomqueen: { name: 'เวโนมิร่า', title: 'ราชินีใยพิษ', tex: 'venomqueen', statAlloc: { int: 3, agi: 3, luk: 2, str: 2 }, hp: 2300, dmg: 44, matk: 48, xp: 14, ai: 'boss', mini: 'venomqueen', moveSpeed: 300, radius: 34, zeny: [45, 60], idleMs: [600, 900], def: 30, flee: 25, hit: 40,
+  bloater: { name: 'คางคกพองลม', tex: 'bloater', statAlloc: { vit: 5, wis: 3, str: 2 }, hp: 1, dmg: 1, bodyMul: { hp: 0.836, dmg: 0.583, matk: 0.692 }, speedMul: 0.8, def: -14, hit: 8, flee: -1, counter: -0.03, xp: 8, ai: 'hopper', moveSpeed: 180, radius: 17, zeny: [5, 7], idleMs: [800, 1300], deathBlast: 2, onHit: { poison: 1 } },
+  spiderling: { name: 'ลูกแมงมุม', tex: 'spiderling', statAlloc: { agi: 3, luk: 3, str: 3, dex: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.917, dmg: 0.478, matk: 0.599 }, speedMul: 1.376, def: -9, hit: 12, flee: 18, crit: -0.02, combo: 0.18, xp: 3, ai: 'dasher', moveSpeed: 480, radius: 11, zeny: [1, 2], idleMs: [400, 800], onHit: { poison: 1 } },
+  venomqueen: { name: 'เวโนมิร่า', title: 'ราชินีใยพิษ', tex: 'venomqueen', statAlloc: { int: 3, agi: 3, luk: 2, str: 2 }, hp: 1, dmg: 1, bodyMul: { hp: 2.558, dmg: 0.734, matk: 0.738 }, speedMul: 1.172, def: 20, hit: 17, flee: 6, crit: 0.05, combo: 0.22, xp: 14, ai: 'boss', mini: 'venomqueen', moveSpeed: 300, radius: 34, zeny: [45, 60], idleMs: [600, 900],
     onHit: { poison: 2 }, chargeEvery: 4, slamMul: 1, slamName: '🕷️ Venom Strike! พิษทวีคูณ', slamAnim: 'shot', slamColor: 0xd8f0c0, slamMagic: true, charge: true,
     venom: { dmg: 30, turns: 4, dex: 40 }, toxicSkin: true, // Q 2026-11-04 Monster DB comment
     skills: [{ kind: 'curse', every: 3, name: '🕸️ พ่นใยมัดตัว', fx: { web: 2 } }],
     phases: [{ at: 0.5, name: 'ฟักไข่! ลูกแมงมุมออกมา', summon: ['spiderling', 2], speed: 1.15 }] },
-  frostgiant: { name: 'กลาเซียร์', title: 'ยักษ์ธารน้ำแข็ง', tex: 'frostgiant', statAlloc: { vit: 4, str: 3, int: 2, wis: 1 }, hp: 2600, dmg: 50, matk: 54, xp: 14, ai: 'boss', mini: 'frostgiant', moveSpeed: 240, radius: 40, zeny: [45, 60], idleMs: [700, 1000], def: 100, flee: 5, hit: 34,
+  frostgiant: { name: 'กลาเซียร์', title: 'ยักษ์ธารน้ำแข็ง', tex: 'frostgiant', statAlloc: { vit: 4, str: 3, int: 2, wis: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 1.646, dmg: 0.743, matk: 0.936 }, speedMul: 0.9, def: 82, hit: 11, flee: -1, counter: 0.1, xp: 14, ai: 'boss', mini: 'frostgiant', moveSpeed: 240, radius: 40, zeny: [45, 60], idleMs: [700, 1000],
     onHit: { armorBreak: 2 }, chargeEvery: 3, slamMul: 1.7, slamName: 'ทุบธารน้ำแข็ง! แช่แข็งทั้งตัว', slamFx: { freeze: 100 }, slamAnim: 'stomp', slamColor: 0x9fe3ff, slamMagic: true, charge: true,
     iceSkin: true, // Q 2026-11-04 Monster DB comment
     phases: [{ at: 0.4, name: 'เกราะน้ำแข็งพันปี!', shield: 0.18, dmg: 1.2, cleanse: true }],
     skills: [{ kind: 'bolt', every: 5, pow: 1.2, name: 'หอกน้ำแข็ง', fx: { freeze: 40 } }] },
-  hydra: { name: 'ไฮดรามรกต', tex: 'hydra', statAlloc: { vit: 4, str: 3, int: 2, wis: 1 }, hp: 4800, dmg: 54, matk: 56, xp: 0, ai: 'boss', moveSpeed: 240, radius: 46, zeny: [90, 120], idleMs: [700, 1000], def: 45, flee: 15, hit: 40,
+  hydra: { name: 'ไฮดรามรกต', tex: 'hydra', statAlloc: { vit: 4, str: 3, int: 2, wis: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 1.461, dmg: 0.674, matk: 0.81 }, speedMul: 1.1, def: 21, hit: 16, flee: 9, combo: 0.3, counter: -0.08, xp: 0, ai: 'boss', moveSpeed: 240, radius: 46, zeny: [90, 120], idleMs: [700, 1000],
     onHit: { poison: 2 }, slamName: 'กัดสามหัว! พิษเข้ากระแสเลือด', slamMul: 1.6, slamFx: { poison: 4 }, slamAnim: 'bite', slamColor: 0x6fd08c, charge: true,
     phases: [
       { at: 0.66, name: 'หัวที่สองงอก! ฟื้นตัว + ไข่ฟัก', heal: 0.1, summon: ['toad', 2], dmg: 1.15, cleanse: true, onHit: { poison: 2, burn: 2 } },
@@ -202,26 +205,26 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
     ],
     skills: [{ kind: 'bolt', every: 4, pow: 1.3, name: 'พ่นกรด', fx: { armorBreak: 2 } }] },
   // ----- Dungeon 5: บัลลังก์อเวจี. Buffers, cursers, revivers, mirrors, bombers -----
-  hellknight: { name: 'อัศวินนรก', tex: 'hellknight', statAlloc: { str: 4, vit: 3, dex: 2, agi: 1 }, hp: 560, dmg: 56, xp: 12, ai: 'hopper', moveSpeed: 220, radius: 18, zeny: [8, 11], idleMs: [700, 1200], def: 80, hit: 40, onHit: { armorBreak: 2 },
+  hellknight: { name: 'อัศวินนรก', tex: 'hellknight', statAlloc: { str: 4, vit: 3, dex: 2, agi: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 2.126, dmg: 0.772, matk: 1.025 }, speedMul: 0.957, def: 64, hit: 9, flee: -4, crit: 0.1, combo: -0.01, counter: 0.12, xp: 12, ai: 'hopper', moveSpeed: 220, radius: 18, zeny: [8, 11], idleMs: [700, 1200], onHit: { armorBreak: 2 },
     skills: [{ kind: 'warcry', every: 3, pow: 0.3, turns: 3, name: 'โห่ร้องสงคราม' }] },
-  hexwitch: { name: 'แม่มดคำสาป', tex: 'hexwitch', statAlloc: { int: 5, wis: 3, dex: 1, vit: 1 }, hp: 320, dmg: 48, matk: 52, xp: 11, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [7, 10], idleMs: [700, 1200], magic: true, hit: 40, onHit: { burn: 2 },
+  hexwitch: { name: 'แม่มดคำสาป', tex: 'hexwitch', statAlloc: { int: 5, wis: 3, dex: 1, vit: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 1.428, dmg: 0.845, matk: 0.697 }, speedMul: 1.1, def: -13, hit: 11, flee: -1, counter: -0.01, xp: 11, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [7, 10], idleMs: [700, 1200], magic: true, onHit: { burn: 2 },
     skills: [{ kind: 'curse', every: 3, name: 'คำสาปอ่อนแรง', fx: { weaken: 3, burn: 2 } }] },
-  imp: { name: 'ปีศาจระเบิด', tex: 'imp', statAlloc: { agi: 3, luk: 3, str: 3, dex: 1 }, hp: 200, dmg: 36, xp: 8, ai: 'dasher', moveSpeed: 560, radius: 12, zeny: [5, 7], idleMs: [400, 800], flee: 38, hit: 42, deathBlast: 2 },
-  necropriest: { name: 'นักบวชมรณะ', tex: 'necropriest', statAlloc: { wis: 4, int: 3, vit: 3 }, hp: 380, dmg: 40, matk: 44, xp: 11, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [7, 10], idleMs: [700, 1200], magic: true, hit: 38,
+  imp: { name: 'ปีศาจระเบิด', tex: 'imp', statAlloc: { agi: 3, luk: 3, str: 3, dex: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.99, dmg: 0.528, matk: 0.659 }, speedMul: 1.518, def: -12, hit: 13, flee: 24, crit: -0.03, combo: -0.02, xp: 8, ai: 'dasher', moveSpeed: 560, radius: 12, zeny: [5, 7], idleMs: [400, 800], deathBlast: 2 },
+  necropriest: { name: 'นักบวชมรณะ', tex: 'necropriest', statAlloc: { wis: 4, int: 3, vit: 3 }, hp: 1, dmg: 1, bodyMul: { hp: 1.442, dmg: 0.704, matk: 0.666 }, speedMul: 0.9, def: -16, hit: 12, flee: -1, counter: -0.03, xp: 11, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [7, 10], idleMs: [700, 1200], magic: true,
     skills: [{ kind: 'revive', every: 3, pow: 0.5, name: 'ปลุกศพ' }, { kind: 'heal', every: 2, pow: 0.15, name: 'มนต์ดำฟื้นกาย' }] },
-  wraith: { name: 'ภูตกระจก', tex: 'wraith', statAlloc: { int: 4, agi: 3, wis: 2, luk: 1 }, hp: 300, dmg: 46, matk: 50, xp: 10, ai: 'dasher', moveSpeed: 500, radius: 14, zeny: [6, 9], idleMs: [500, 900], magic: true, flee: 36, hit: 40, reflect: 0.1 }, // v49: 0.25 -> 0.1 (Q: reflect shields too annoying)
+  wraith: { name: 'ภูตกระจก', tex: 'wraith', statAlloc: { int: 4, agi: 3, wis: 2, luk: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 1.485, dmg: 0.81, matk: 0.711 }, speedMul: 1.339, def: -12, hit: 14, flee: 22, crit: 0.09, combo: -0.02, xp: 10, ai: 'dasher', moveSpeed: 500, radius: 14, zeny: [6, 9], idleMs: [500, 900], magic: true, reflect: 0.1 }, // v49: 0.25 -> 0.1 (Q: reflect shields too annoying)
   // Q 2026-11-04 คาร์วอส Summon Maiden: HP / M.ATK copied from the drainer when she is called; no DEF / M.DEF, hero hits land only 50% of the time
-  maiden: { name: 'เมเดน', title: 'ผีสาวพันธนาการ', tex: 'wraith', statAlloc: { int: 5, wis: 3, dex: 1, vit: 1 }, hp: 1000, dmg: 30, matk: 40, xp: 0, ai: 'dasher', moveSpeed: 400, radius: 16, zeny: [0, 0], idleMs: [500, 900], magic: true, def: 0, hit: 40, fixedFlee: 0.5,
+  maiden: { name: 'เมเดน', title: 'ผีสาวพันธนาการ', tex: 'wraith', statAlloc: { int: 5, wis: 3, dex: 1, vit: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 4.72, dmg: 0.687, matk: 0.732 }, speedMul: 1.1, def: -8, hit: 18, flee: -1, counter: -0.01, xp: 0, ai: 'dasher', moveSpeed: 400, radius: 16, zeny: [0, 0], idleMs: [500, 900], magic: true, fixedFlee: 0.5,
     skills: [{ kind: 'bolt', every: 1, pow: 1, name: '👻 คำสาปเมเดน', fx: { burn: 1 } }] },
-  shard: { name: 'เศษกระจก', tex: 'shard', statAlloc: { int: 3, agi: 3, luk: 2, wis: 2 }, hp: 220, dmg: 30, matk: 34, xp: 3, ai: 'dasher', moveSpeed: 500, radius: 11, zeny: [1, 2], idleMs: [400, 800], magic: true, flee: 30, hit: 40, deathBlast: 1.8 },
-  mirage: { name: 'มิราจ', title: 'ภูตกระจกพันหน้า', tex: 'mirage', statAlloc: { int: 4, wis: 3, agi: 2, luk: 1 }, hp: 2600, dmg: 52, matk: 56, xp: 16, ai: 'boss', mini: 'mirage', moveSpeed: 300, radius: 32, zeny: [60, 80], idleMs: [600, 900], magic: true, slamMagic: true, def: 20, flee: 34, hit: 44,
+  shard: { name: 'เศษกระจก', tex: 'shard', statAlloc: { int: 3, agi: 3, luk: 2, wis: 2 }, hp: 1, dmg: 1, bodyMul: { hp: 1.089, dmg: 0.528, matk: 0.515 }, speedMul: 1.25, def: -12, hit: 14, flee: 16, crit: -0.02, combo: -0.02, xp: 3, ai: 'dasher', moveSpeed: 500, radius: 11, zeny: [1, 2], idleMs: [400, 800], magic: true, deathBlast: 1.8 },
+  mirage: { name: 'มิราจ', title: 'ภูตกระจกพันหน้า', tex: 'mirage', statAlloc: { int: 4, wis: 3, agi: 2, luk: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 2.507, dmg: 0.877, matk: 0.622 }, speedMul: 1.202, def: 7, hit: 17, flee: 17, crit: 0.13, combo: -0.03, xp: 16, ai: 'boss', mini: 'mirage', moveSpeed: 300, radius: 32, zeny: [60, 80], idleMs: [600, 900], magic: true, slamMagic: true,
     absorb: 0.3, onHit: { weaken: 2 }, chargeEvery: 4, slamMul: 1.2, slamName: 'โซลสไตรค์กระจก! ยิงดาเมจที่เก็บไว้คืน', slamFx: { weaken: 3, silence: 1 }, slamAnim: 'cast', slamColor: 0xc9a8ff, charge: true,
     phases: [{ at: 0.5, name: 'แตกร่าง! เศษกระจกระเบิดได้ + เก็บดาเมจมากขึ้น', summon: ['shard', 2], absorb: 0.4 }] },
-  warlord: { name: 'บารัค', title: 'ขุนศึกคลั่งโลหิต', tex: 'warlord', statAlloc: { str: 5, vit: 3, agi: 1, dex: 1 }, hp: 2700, dmg: 50, xp: 16, ai: 'boss', mini: 'warlord', moveSpeed: 300, radius: 36, zeny: [60, 80], idleMs: [600, 900], def: 60, flee: 15, hit: 44, lifesteal: 0.2,
+  warlord: { name: 'บารัค', title: 'ขุนศึกคลั่งโลหิต', tex: 'warlord', statAlloc: { str: 5, vit: 3, agi: 1, dex: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 1.572, dmg: 0.497, matk: 0.875 }, speedMul: 1.101, def: 39, hit: 11, flee: 3, crit: 0.15, combo: 0.13, counter: 0.15, xp: 16, ai: 'boss', mini: 'warlord', moveSpeed: 300, radius: 36, zeny: [60, 80], idleMs: [600, 900], lifesteal: 0.2,
     onHit: { armorBreak: 2 }, chargeEvery: 4, slamMul: 2, slamName: 'ขวานผ่าภูผา! ฟันทะลุเกราะ', slamAnim: 'cleave', slamColor: 0xff5a4e, charge: true,
     skills: [{ kind: 'warcry', every: 3, pow: 0.25, turns: 99, self: true, name: 'คลั่งเลือด (สะสม)' }],
     phases: [{ at: 0.3, name: 'โกรธจัด! เร็วขึ้นมาก', speed: 1.5, dmg: 1.1 }] },
-  lich: { name: 'โมรเดคัส', title: 'จอมลิชนิรันดร์', tex: 'lich', statAlloc: { int: 5, wis: 3, vit: 2 }, hp: 6000, dmg: 62, matk: 66, xp: 0, ai: 'boss', moveSpeed: 240, radius: 44, zeny: [150, 200], idleMs: [700, 1000], magic: true, slamMagic: true, def: 50, flee: 18, hit: 44,
+  lich: { name: 'โมรเดคัส', title: 'จอมลิชนิรันดร์', tex: 'lich', statAlloc: { int: 5, wis: 3, vit: 2 }, hp: 1, dmg: 1, bodyMul: { hp: 2.098, dmg: 1.004, matk: 0.533 }, speedMul: 1.1, def: 28, hit: 16, flee: 12, crit: 0.15, counter: -0.06, xp: 0, ai: 'boss', moveSpeed: 240, radius: 44, zeny: [150, 200], idleMs: [700, 1000], magic: true, slamMagic: true,
     onHit: { burn: 2 }, slamName: 'ดวงดาวมรณะ! ทุกอย่างมอดไหม้', slamMul: 1.7, slamFx: { burn: 3, weaken: 2 }, slamAnim: 'cast', slamColor: 0xff5a2a, charge: true,
     skills: [ // v49: every Mage element + legendary spells (first match wins: legendary every 6, curse every 4, element every 2)
       { kind: 'bolt', every: 6, name: 'เวทตำนาน', pick: [
@@ -241,16 +244,16 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
       { at: 0.35, name: 'พิธีกรรมสุดท้าย! เร็วขึ้น ชาร์จถี่', heal: 0.08, speed: 1.3, dmg: 1.15, chargeEvery: 2, cleanse: true, slamFx: { burn: 3, weaken: 2, silence: 2 }, summon: ['hellknight', 1] },
     ] },
   // ----- event monsters (data/events.ts eventMon scales hp / dmg / def by dungeon tier) -----
-  mimic: { name: 'มิมิค', tex: 'mimic', statAlloc: { str: 4, vit: 3, dex: 2, agi: 1 }, hp: 60, dmg: 10, xp: 2, ai: 'hopper', moveSpeed: 260, radius: 16, zeny: [0, 0], idleMs: [600, 1000], hit: 28 },
-  mimicking: { name: 'ราชามิมิค', title: 'หีบทองกินคน', tex: 'mimicking', statAlloc: { str: 4, vit: 3, dex: 2, agi: 1 }, hp: 360, dmg: 11, xp: 6, ai: 'boss', moveSpeed: 240, radius: 38, zeny: [0, 0], idleMs: [700, 1000], hit: 32,
+  mimic: { name: 'มิมิค', tex: 'mimic', statAlloc: { str: 4, vit: 3, dex: 2, agi: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.358, dmg: 0.412, matk: 0.512 }, speedMul: 1.1, def: -3, hit: 14, flee: -1, xp: 2, ai: 'hopper', moveSpeed: 260, radius: 16, zeny: [0, 0], idleMs: [600, 1000]},
+  mimicking: { name: 'ราชามิมิค', title: 'หีบทองกินคน', tex: 'mimicking', statAlloc: { str: 4, vit: 3, dex: 2, agi: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.2, dmg: 0.26, matk: 0.42 }, speedMul: 0.971, def: -6, hit: 13, flee: -3, combo: -0.01, counter: -0.02, xp: 6, ai: 'boss', moveSpeed: 240, radius: 38, zeny: [0, 0], idleMs: [700, 1000],
     charge: true, chargeEvery: 3, slamName: 'งับทั้งตัว!', slamAnim: 'bite', slamColor: 0xf2b84b, slamMul: 1.5 },
-  goldjellop: { name: 'เจลล็อปทองคำ', tex: 'goldjellop', statAlloc: { agi: 4, dex: 3, luk: 2, str: 1 }, hp: 100, dmg: 0, xp: 4, ai: 'hopper', moveSpeed: 320, radius: 15, zeny: [0, 0], idleMs: [300, 600], flee: 20, passive: true },
+  goldjellop: { name: 'เจลล็อปทองคำ', tex: 'goldjellop', statAlloc: { agi: 4, dex: 3, luk: 2, str: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.636 }, speedMul: 1.182, def: -2, hit: 1, flee: 13, crit: -0.01, xp: 4, ai: 'hopper', moveSpeed: 320, radius: 15, zeny: [0, 0], idleMs: [300, 600], passive: true },
   // ----- Support monsters (Q 2026-11-04): heal / shield their friends, weak alone -----
-  dewsprite: { name: 'ภูตน้ำค้าง', tex: 'dewsprite', statAlloc: { wis: 4, int: 3, vit: 3 }, hp: 70, dmg: 12, matk: 16, xp: 4, ai: 'dasher', moveSpeed: 420, radius: 12, zeny: [2, 3], idleMs: [500, 900], magic: true, flee: 26, hit: 26,
+  dewsprite: { name: 'ภูตน้ำค้าง', tex: 'dewsprite', statAlloc: { wis: 4, int: 3, vit: 3 }, hp: 1, dmg: 1, bodyMul: { hp: 0.325, dmg: 0.322, matk: 0.4 }, speedMul: 1.3, def: -7, hit: 9, flee: 20, counter: -0.01, xp: 4, ai: 'dasher', moveSpeed: 420, radius: 12, zeny: [2, 3], idleMs: [500, 900], magic: true,
     skills: [{ kind: 'heal', every: 2, pow: 0.2, name: 'หยดน้ำค้างฟื้นพลัง' }, { kind: 'shield', every: 5, pow: 0.08, name: 'ม่านหมอก' }] },
-  bonepriest: { name: 'นักบวชกระดูก', tex: 'bonepriest', statAlloc: { wis: 4, int: 3, vit: 3 }, hp: 180, dmg: 24, matk: 34, xp: 7, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [4, 6], idleMs: [700, 1200], magic: true, def: 20, hit: 32,
+  bonepriest: { name: 'นักบวชกระดูก', tex: 'bonepriest', statAlloc: { wis: 4, int: 3, vit: 3 }, hp: 1, dmg: 1, bodyMul: { hp: 0.747, dmg: 0.55, matk: 0.686 }, speedMul: 0.9, def: 10, hit: 12, flee: -1, counter: -0.02, xp: 7, ai: 'hopper', moveSpeed: 200, radius: 15, zeny: [4, 6], idleMs: [700, 1200], magic: true,
     skills: [{ kind: 'shield', every: 3, pow: 0.12, name: 'โล่กระดูก' }, { kind: 'heal', every: 4, pow: 0.15, name: 'มนต์ประสานกระดูก' }] },
-  alpha: { name: 'จ่าฝูงเงา', tex: 'alpha', statAlloc: { str: 3, agi: 3, vit: 2, dex: 2 }, hp: 1600, dmg: 30, xp: 0, ai: 'boss', moveSpeed: 260, radius: 40, zeny: [35, 45], idleMs: [700, 1000], def: 25, flee: 12, hit: 30, summon: 'shadowwolf', slamName: 'หอนเรียกพลัง! กระโจนตาหน้า', slamAnim: 'pounce', slamColor: 0x8a7ab8, charge: true,
+  alpha: { name: 'จ่าฝูงเงา', tex: 'alpha', statAlloc: { str: 3, agi: 3, vit: 2, dex: 2 }, hp: 1, dmg: 1, bodyMul: { hp: 0.71, dmg: 0.458, matk: 0.733 }, speedMul: 0.932, def: 14, hit: 3, flee: -6, crit: 0.1, combo: 0.22, counter: -0.03, xp: 0, ai: 'boss', moveSpeed: 260, radius: 40, zeny: [35, 45], idleMs: [700, 1000], summon: 'shadowwolf', slamName: 'หอนเรียกพลัง! กระโจนตาหน้า', slamAnim: 'pounce', slamColor: 0x8a7ab8, charge: true,
     phases: [{ at: 0.4, name: 'หอนคลั่ง! เร็วขึ้น กัดแล้วอ่อนแรง', speed: 1.25, onHit: { weaken: 1 } }] },
   // ----- Dungeon 6: สุสานทรายกษัตริย์ (Lv 40-50). Stat monsters: hp / dmg / matk come from statAlloc at the room's Lv (data/mon-stats.ts);
   // def / hit / flee / crit / combo / counter written here are bonuses on top of the stat numbers -----
@@ -286,23 +289,21 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
 // ===== v49 monster kits (Q 2026-11-04: "ให้แต่ละตัวมี stat combo, counter, cri, สกิลโหดๆ"): merged into MONSTERS below =====
 // skills are appended after the monster's own (own skills keep priority on shared turns).
 const KITS: Partial<Record<MonsterKind, Pick<MonsterDef, 'crit' | 'combo' | 'counter' | 'trueSight' | 'razor' | 'vengeance'> & { add?: MonSkill[] }>> = {
-  wolf: { crit: 0.08 }, boar: { crit: 0.1 }, shadowwolf: { combo: 0.2, crit: 0.05 }, bat: { combo: 0.15 },
-  skeleton: { counter: 0.1 }, gargoyle: { counter: 0.15 }, hornet: { combo: 0.3, trueSight: { after: 3, turns: 2 } }, turtleguard: { counter: 0.15 },
-  hellknight: { counter: 0.15, crit: 0.1, trueSight: { after: 3, turns: 2 } }, wraith: { crit: 0.1 }, spiderling: { combo: 0.2 },
+  // v126: D1-D5 crit / combo / counter moved onto each monster as stat bonuses (like D6+)
+  hornet: { trueSight: { after: 3, turns: 2 } }, hellknight: { trueSight: { after: 3, turns: 2 } },
   // bosses / mini bosses: stats + a signature skill
-  king: { crit: 0.06, add: [{ kind: 'strike', every: 5, pow: 1.6, name: '🟢 ทับแบน', fx: { freeze: 30 } }] },
-  alpha: { combo: 0.25, crit: 0.1, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, hits: 3, pow: 0.6, name: '🐺 กรงเล็บพายุ' }] },
-  duelist: { counter: 0.15, crit: 0.12, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 5, hits: 3, pow: 0.55, name: '🤺 แทงสามจังหวะ' }] },
-  hunter: { crit: 0.15, combo: 0.15, trueSight: { after: 2, turns: 3 }, razor: 0.05, add: [{ kind: 'strike', every: 4, pow: 2.5, drain: 0.1, name: '🩸 ตะปบจุดตาย' }] }, // Q 2026-11-04 Monster DB comment
-  gunner: { crit: 0.15, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, hits: 4, pow: 0.4, name: '🔫 ระดมยิง', scale: { stat: 'dex' } }] },
-  drainer: { crit: 0.1, add: [{ kind: 'bolt', every: 4, pow: 1.3, name: '🌑 ดูดวิญญาณ', fx: { weaken: 2 } }] },
-  deathknight: { counter: 0.15, crit: 0.1, trueSight: { after: 2, turns: 3 }, vengeance: true, add: [{ kind: 'strike', every: 5, pow: 2.8, magic: true, alone: 2, name: '⚔️ ดาบมรณะ' }] }, // Q 2026-11-04: magic, x2 with no undead at its side
-  venomqueen: { combo: 0.25, crit: 0.08, add: [{ kind: 'strike', every: 2, hits: 2, pow: 0.7, name: '🦂 เหล็กใน', fx: { poison: 4 } }] }, // Q: no ตาเหยี่ยว (the web does that job)
-  frostgiant: { counter: 0.15, add: [{ kind: 'strike', every: 5, pow: 1.6, name: '🧊 ทุบธารน้ำแข็ง', fx: { freeze: 50 } }, { kind: 'curse', every: 4, name: '💙 Frozen Heart', fx: { slow: 2 } }] }, // Q: Frozen Heart replaces ตาเหยี่ยว
-  hydra: { combo: 0.3, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'bolt', every: 4, hits: 3, pow: 0.5, name: '🐍 พ่นพิษสามหัว', fx: { poison: 1 } }] },
-  mirage: { crit: 0.15, add: [{ kind: 'bolt', every: 5, hits: 2, pow: 0.7, name: '🔁 ภาพลวงสองเงา' }] },
-  warlord: { counter: 0.2, crit: 0.15, combo: 0.15, trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 5, hits: 2, pow: 0.9, name: '🪓 ขวานคู่ผ่าฟ้า', fx: { armorBreak: 1 } }] },
-  lich: { crit: 0.15 },
+  king: { add: [{ kind: 'strike', every: 5, pow: 1.6, name: '🟢 ทับแบน', fx: { freeze: 30 } }] },
+  alpha: { trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, hits: 3, pow: 0.6, name: '🐺 กรงเล็บพายุ' }] },
+  duelist: { trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 5, hits: 3, pow: 0.55, name: '🤺 แทงสามจังหวะ' }] },
+  hunter: { trueSight: { after: 2, turns: 3 }, razor: 0.05, add: [{ kind: 'strike', every: 4, pow: 2.5, drain: 0.1, name: '🩸 ตะปบจุดตาย' }] }, // Q 2026-11-04 Monster DB comment
+  gunner: { trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, hits: 4, pow: 0.4, name: '🔫 ระดมยิง', scale: { stat: 'dex' } }] },
+  drainer: { add: [{ kind: 'bolt', every: 4, pow: 1.3, name: '🌑 ดูดวิญญาณ', fx: { weaken: 2 } }] },
+  deathknight: { trueSight: { after: 2, turns: 3 }, vengeance: true, add: [{ kind: 'strike', every: 5, pow: 2.8, magic: true, alone: 2, name: '⚔️ ดาบมรณะ' }] }, // Q 2026-11-04: magic, x2 with no undead at its side
+  venomqueen: { add: [{ kind: 'strike', every: 2, hits: 2, pow: 0.7, name: '🦂 เหล็กใน', fx: { poison: 4 } }] }, // Q: no ตาเหยี่ยว (the web does that job)
+  frostgiant: { add: [{ kind: 'strike', every: 5, pow: 1.6, name: '🧊 ทุบธารน้ำแข็ง', fx: { freeze: 50 } }, { kind: 'curse', every: 4, name: '💙 Frozen Heart', fx: { slow: 2 } }] }, // Q: Frozen Heart replaces ตาเหยี่ยว
+  hydra: { trueSight: { after: 2, turns: 3 }, add: [{ kind: 'bolt', every: 4, hits: 3, pow: 0.5, name: '🐍 พ่นพิษสามหัว', fx: { poison: 1 } }] },
+  mirage: { add: [{ kind: 'bolt', every: 5, hits: 2, pow: 0.7, name: '🔁 ภาพลวงสองเงา' }] },
+  warlord: { trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 5, hits: 2, pow: 0.9, name: '🪓 ขวานคู่ผ่าฟ้า', fx: { armorBreak: 1 } }] },
 }
 for (const [k, kit] of Object.entries(KITS) as [MonsterKind, NonNullable<(typeof KITS)[MonsterKind]>][]) {
   const { add, ...stats } = kit
