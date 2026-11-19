@@ -6,6 +6,7 @@ import { JOB2 } from "../../data/jobs2";
 import { activeJob3, JOB3 } from "../../data/jobs3";
 import { heroStats } from "../../data/meta";
 import {
+	PASSIVE_MAX_POINTS,
 	PASSIVE_RULES,
 	allocatePassive,
 	canAllocatePassive,
@@ -67,10 +68,10 @@ const SECTOR_META: Readonly<
 	>
 > = {
 	core: { label: "แกนกลาง", color: COLORS.gold, hex: UI.gold, lx: 0, ly: 0 },
-	blade: { label: "⚔️ คมมีด", color: 0xe66a55, hex: "#ff9e8c", lx: -225, ly: -268 },
-	shadow: { label: "👤 เงา", color: 0x8b7cf6, hex: "#c4baff", lx: 220, ly: -286 },
-	venom: { label: "☠️ พิษ", color: 0x4fd18b, hex: "#7fe6ab", lx: 245, ly: 266 },
-	alchemy: { label: "⚗️ เล่นแร่", color: 0x52c7e0, hex: "#8ce4f8", lx: -225, ly: 294 },
+	blade: { label: "⚔️ คมมีด", color: 0xe66a55, hex: "#ff9e8c", lx: -335, ly: -395 },
+	shadow: { label: "👤 เงา", color: 0x8b7cf6, hex: "#c4baff", lx: 335, ly: -395 },
+	venom: { label: "☠️ พิษ", color: 0x4fd18b, hex: "#7fe6ab", lx: 345, ly: 395 },
+	alchemy: { label: "⚗️ เล่นแร่", color: 0x52c7e0, hex: "#8ce4f8", lx: -335, ly: 410 },
 };
 
 const KIND_META: Readonly<Record<PassiveKind, { label: string; color: string }>> = {
@@ -255,10 +256,18 @@ function updateHoverRing(scene: CharacterScene, tree: PassiveTreeDef, nodeId: st
 	const g = scene.passiveHoverG;
 	if (!g?.active) return;
 	g.clear();
-	if (!nodeId || nodeId === scene.passiveSelId) return;
-	const node = passiveNodeById(tree.job, nodeId);
-	if (!node) return;
-	drawNodeRing(g, node, 0x9fdcff, 0.85, 2, 4);
+	if (nodeId && nodeId !== scene.passiveSelId) {
+		const node = passiveNodeById(tree.job, nodeId);
+		if (node) drawNodeRing(g, node, 0x9fdcff, 0.85, 2, 4);
+	}
+	if (!scene.passiveDrag?.moved) {
+		const previewId = nodeId || scene.passiveSelId;
+		if (scene.passiveFull) {
+			if (!scene.passiveFullHideCard) renderFullscreenInspectCard(scene, tree, previewId);
+		} else {
+			renderPassiveDetail(scene, tree, previewId);
+		}
+	}
 }
 
 /** Scene-level mouse wheel zoom anchored at cursor position. */
@@ -297,6 +306,7 @@ export function passivePointerMove(scene: CharacterScene, p: Phaser.Input.Pointe
 	if (!passiveActive(scene) || !scene.passiveCam || !scene.passiveBounds) return;
 	const d = scene.passiveDrag;
 	if (d && p.isDown && p.id === d.pointerId) {
+		if (p.rightButtonDown()) return;
 		const dx = p.x - d.lastX;
 		const dy = p.y - d.lastY;
 		if (!d.moved && Math.hypot(p.x - d.startX, p.y - d.startY) >= DRAG_THRESHOLD_PX) {
@@ -327,7 +337,7 @@ export function passivePointerMove(scene: CharacterScene, p: Phaser.Input.Pointe
 	updateHoverRing(scene, tree, hit?.id ?? "");
 }
 
-/** Scene-level pointer up: ends pan drag, or fires 1st-tap inspect / 2nd-tap allocate-or-refund. */
+/** Scene-level pointer up: ends pan drag, or fires PoE 1-click allocate / right-click refund / inspect. */
 export function passivePointerUp(
 	scene: CharacterScene,
 	p: Phaser.Input.Pointer,
@@ -345,8 +355,34 @@ export function passivePointerUp(
 	const hit = pickNodeAt(tree.nodes, scene.passiveCam, scene.passiveView, p.x, p.y, NODE_RADIUS);
 	if (!hit) return;
 
+	const earned = passiveEarnedFor(s);
+	const picked = normalizePassiveNodes(s.job, s.passiveNodes);
+	const pickedSet = new Set(picked);
+
+	// Right-click (desktop PoE style): immediate refund when allocated
+	if (p.rightButtonReleased() || p.button === 2) {
+		scene.passiveSelId = hit.id;
+		scene.passiveFullHideCard = false;
+		if (pickedSet.has(hit.id)) {
+			handleNodeToggle(scene, tree, hit);
+			return;
+		}
+		updateSelectionRing(scene, tree);
+		if (scene.passiveFull) renderFullscreenInspectCard(scene, tree);
+		else renderPassiveDetail(scene, tree);
+		return;
+	}
+
+	// Left-click / tap: PoE 1-click immediate allocate on allocatable (blue) nodes
+	if (canAllocatePassive(s.job, picked, hit.id, earned)) {
+		scene.passiveSelId = hit.id;
+		scene.passiveFullHideCard = false;
+		handleNodeToggle(scene, tree, hit);
+		return;
+	}
+
 	if (scene.passiveSelId !== hit.id) {
-		// 1st tap: inspect node without rebuilding the constellation canvas
+		// 1st click on allocated/locked node: inspect without accidental refund
 		scene.passiveSelId = hit.id;
 		scene.passiveFullHideCard = false;
 		unlock();
@@ -358,7 +394,7 @@ export function passivePointerUp(
 		return;
 	}
 
-	// 2nd tap on already-selected node: allocate or refund
+	// 2nd click on already-selected allocated/locked node: refund or show reason
 	handleNodeToggle(scene, tree, hit);
 }
 
@@ -451,7 +487,6 @@ export function drawPassiveHeroStrip(
 			? `${JOB2[s.job2].icon} ${JOB2[s.job2].name}`
 			: `${JOBS[s.job].icon} ${JOBS[s.job].name}`;
 	const earned = passiveEarnedFor(s);
-	const spent = passiveSpent(s.job, s.passiveNodes);
 	const free = passiveFree(s.job, s.passiveNodes, earned);
 
 	c.add(
@@ -474,8 +509,8 @@ export function drawPassiveHeroStrip(
 				scene,
 				28,
 				98,
-				`⭐ แต้มพาสซีฟเหลือ: ${free} / ${earned} (ใช้แล้ว ${spent})`,
-				13,
+				`⭐ แต้มพาสซีฟ: เหลือ ${free} / ${earned} (Max ${PASSIVE_MAX_POINTS})`,
+				12.5,
 				free > 0 ? UI.gold : UI.sub,
 				true,
 			),
@@ -484,16 +519,20 @@ export function drawPassiveHeroStrip(
 	);
 
 	const p1 = Math.floor(Math.max(0, s.jobLevel) / PASSIVE_RULES.job1Every);
-	const parts: string[] = [`J1 Lv${s.jobLevel}(+${p1})`];
+	const parts: string[] = [`ได้ทุก J1/${PASSIVE_RULES.job1Every} Lv (+${p1})`];
 	if (s.job2 && JOB2[s.job2]?.parent === s.job) {
 		const lv2 = s.job2Level ?? 1;
 		const p2 = Math.floor(Math.max(0, lv2) / PASSIVE_RULES.job2Every);
-		parts.push(`J2 Lv${lv2}(+${p2})`);
+		parts.push(`J2/${PASSIVE_RULES.job2Every} Lv (+${p2})`);
+	} else {
+		parts.push(`J2/${PASSIVE_RULES.job2Every}`);
 	}
 	if (j3) {
 		const lv3 = s.job3Level ?? 1;
 		const p3 = Math.floor(Math.max(0, lv3) / PASSIVE_RULES.job3Every);
-		parts.push(`J3 Lv${lv3}(+${p3})`);
+		parts.push(`J3/${PASSIVE_RULES.job3Every} Lv (+${p3})`);
+	} else {
+		parts.push(`J3/${PASSIVE_RULES.job3Every}`);
 	}
 	c.add(clipW(txt(scene, 28, 117, parts.join(" · "), 9.5, UI.sub), 274));
 
@@ -508,11 +547,25 @@ export function passiveTab(scene: CharacterScene) {
 	const tree = passiveTreeOf(s.job);
 	if (!tree) return;
 
+	const earned = passiveEarnedFor(s);
+	const spent = passiveSpent(s.job, s.passiveNodes);
+	const free = passiveFree(s.job, s.passiveNodes, earned);
+	const defaultSelId = () => {
+		if (spent === 0 && free > 0) {
+			const origin = passiveNodeById(s.job, tree.originId);
+			const starterId = origin?.edges.find((id) =>
+				canAllocatePassive(s.job, s.passiveNodes, id, earned),
+			);
+			if (starterId) return starterId;
+		}
+		return tree.originId;
+	};
+
 	// Reset per-job camera/selection if job changed
 	if (scene.passiveTreeJob !== s.job) {
 		scene.passiveTreeJob = s.job;
 		scene.passiveCam = undefined;
-		scene.passiveSelId = tree.originId;
+		scene.passiveSelId = defaultSelId();
 		scene.passiveTag = null;
 		scene.passiveFull = false;
 	}
@@ -524,7 +577,7 @@ export function passiveTab(scene: CharacterScene) {
 	stopCamTween(scene);
 
 	if (!scene.passiveSelId || !passiveNodeById(s.job, scene.passiveSelId)) {
-		scene.passiveSelId = tree.originId;
+		scene.passiveSelId = defaultSelId();
 	}
 
 	if (scene.passiveFull) {
@@ -554,7 +607,6 @@ export function passiveTab(scene: CharacterScene) {
 	// 1. Top Filter Pills + Reset + Fullscreen strip (y: 108..142, x: 326..942)
 	buildFilterPills(scene, b, tree, 326, 125);
 
-	const spent = passiveSpent(s.job, s.passiveNodes);
 	b.add(
 		button(
 			scene,
@@ -594,7 +646,7 @@ export function passiveTab(scene: CharacterScene) {
 				scene,
 				328,
 				545,
-				"ลากเลื่อน · ลูกกลิ้งซูม · แตะ 1 ครั้งดูผล · แตะซ้ำอัป/คืน  |  🟡 เรียนแล้ว  🔵 อัปได้  👑 คีย์สโตน",
+				"คลิกโหนดขอบฟ้า = อัปทันที · ชี้เมาส์ดูผล · คลิกซ้ำ/คลิกขวาโหนดทอง = คืนฟรี · ลากเลื่อน · ลูกกลิ้งซูม",
 				10.5,
 				UI.sub,
 			),
@@ -673,21 +725,22 @@ function buildConstellationCanvas(
 	parent.add(worldC);
 	scene.passiveWorldC = worldC;
 
-	// Layer 1: Cosmic backdrop (sector nebula glows + deterministic starfield + inner ring guide)
+	// Layer 1: Cosmic backdrop (sector nebula glows + deterministic starfield + concentric ring guides)
 	const bgG = scene.add.graphics();
-	bgG.fillStyle(SECTOR_META.blade.color, 0.055).fillCircle(-210, -165, 175);
-	bgG.fillStyle(SECTOR_META.shadow.color, 0.065).fillCircle(215, -165, 175);
-	bgG.fillStyle(SECTOR_META.venom.color, 0.055).fillCircle(210, 165, 175);
-	bgG.fillStyle(SECTOR_META.alchemy.color, 0.055).fillCircle(-205, 165, 175);
+	bgG.fillStyle(SECTOR_META.blade.color, 0.055).fillCircle(-270, -215, 240);
+	bgG.fillStyle(SECTOR_META.shadow.color, 0.065).fillCircle(275, -215, 240);
+	bgG.fillStyle(SECTOR_META.venom.color, 0.055).fillCircle(270, 215, 240);
+	bgG.fillStyle(SECTOR_META.alchemy.color, 0.055).fillCircle(-265, 215, 240);
 	bgG.lineStyle(1, 0x2e375e, 0.45).strokeCircle(0, 0, 112);
-	bgG.lineStyle(1, 0x242c4e, 0.3).strokeCircle(0, 0, 225);
+	bgG.lineStyle(1, 0x242c4e, 0.34).strokeCircle(0, 0, 225);
+	bgG.lineStyle(1, 0x1e2545, 0.28).strokeCircle(0, 0, 355);
 
 	let seed = 4219;
-	for (let i = 0; i < 72; i++) {
+	for (let i = 0; i < 96; i++) {
 		seed = (seed * 16807) % 2147483647;
-		const sx = ((seed % 960) - 480);
+		const sx = ((seed % 1160) - 580);
 		seed = (seed * 16807) % 2147483647;
-		const sy = ((seed % 700) - 350);
+		const sy = ((seed % 880) - 440);
 		seed = (seed * 16807) % 2147483647;
 		const r = 0.7 + (seed % 10) * 0.1;
 		const a = 0.14 + (seed % 7) * 0.05;
@@ -1134,7 +1187,7 @@ function statusMetaOf(
 	}
 	if (canAlloc) {
 		return {
-			text: "✨ พร้อมอัป · ใช้ 1 แต้ม (แตะซ้ำ/กดปุ่ม)",
+			text: "✨ พร้อมอัป (1 แต้ม) · คลิกบนโหนดหรือกดปุ่มได้เลย",
 			bg: 0x18304d,
 			border: 0x7fd7ff,
 			color: UI.gem,
@@ -1168,7 +1221,7 @@ function statDiffColor(now: string, next: string, fallback: string): string {
 }
 
 /** Left-sidebar Inspect-then-Allocate detail panel (normal Tab 4 mode). */
-function renderPassiveDetail(scene: CharacterScene, tree: PassiveTreeDef) {
+function renderPassiveDetail(scene: CharacterScene, tree: PassiveTreeDef, previewId?: string) {
 	scene.passiveDetailC?.destroy();
 	const dc = scene.add.container(0, 0);
 	scene.passiveDetailC = dc;
@@ -1176,7 +1229,8 @@ function renderPassiveDetail(scene: CharacterScene, tree: PassiveTreeDef) {
 
 	const s = save();
 	const ctx = passiveCtxOf(s);
-	const node = passiveNodeById(s.job, scene.passiveSelId) ?? passiveNodeById(s.job, tree.originId);
+	const targetId = previewId || scene.passiveSelId;
+	const node = passiveNodeById(s.job, targetId) ?? passiveNodeById(s.job, tree.originId);
 	if (!node) return;
 
 	const earned = passiveEarnedFor(s);
@@ -1417,11 +1471,11 @@ function renderFullscreenModal(
 				scene,
 				14,
 				my + 26,
-				`⭐ เหลือ ${free} / ${earned} (ใช้ ${spent}) · ลากเลื่อน · ลูกกลิ้งซูม · ESC ย่อจอ`,
-				10.5,
+				`⭐ เหลือ ${free}/${earned} (Max ${PASSIVE_MAX_POINTS}) · J1/${PASSIVE_RULES.job1Every} · J2/${PASSIVE_RULES.job2Every} · J3/${PASSIVE_RULES.job3Every} · ESC ย่อจอ`,
+				10,
 				free > 0 ? UI.green : UI.sub,
 			),
-			315,
+			320,
 		),
 	);
 
@@ -1477,7 +1531,7 @@ function renderFullscreenModal(
 	renderFullscreenInspectCard(scene, tree);
 }
 
-function renderFullscreenInspectCard(scene: CharacterScene, tree: PassiveTreeDef) {
+function renderFullscreenInspectCard(scene: CharacterScene, tree: PassiveTreeDef, previewId?: string) {
 	scene.passiveDetailC?.destroy();
 	const parent = scene.modal;
 	if (!parent?.active) return;
@@ -1493,7 +1547,8 @@ function renderFullscreenInspectCard(scene: CharacterScene, tree: PassiveTreeDef
 
 	const s = save();
 	const ctx = passiveCtxOf(s);
-	const node = passiveNodeById(s.job, scene.passiveSelId) ?? passiveNodeById(s.job, tree.originId);
+	const targetId = previewId || scene.passiveSelId;
+	const node = passiveNodeById(s.job, targetId) ?? passiveNodeById(s.job, tree.originId);
 	if (!node) return;
 
 	if (scene.passiveFullHideCard) {

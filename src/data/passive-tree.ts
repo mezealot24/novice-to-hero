@@ -2,9 +2,9 @@
 // Pure Phaser-free graph engine: symmetric undirected edges, BFS adjacency allocation,
 // BFS connectivity-preserving single-node refund, and derived passive point economy.
 import type { Stats } from './stats'
-import type { JobId } from './jobs'
-import { JOB2, type Job2Id } from './jobs2'
-import { activeJob3, type Job3Id } from './jobs3'
+import { JOB_CHANGE, type JobId } from './jobs'
+import { JOB2, JOB2_RULES, type Job2Id } from './jobs2'
+import { activeJob3, JOB3_RULES, type Job3Id } from './jobs3'
 import { THIEF_PASSIVE_TREE } from './passives/thief'
 
 export type PassiveKind = 'origin' | 'minor' | 'notable' | 'keystone' | 'socket'
@@ -36,7 +36,7 @@ export interface PassiveTreeDef {
   nodes: readonly PassiveNode[]
 }
 
-export const PASSIVE_RULES = { job1Every: 2, job2Every: 3, job3Every: 5 } as const
+export const PASSIVE_RULES = { job1Every: 3, job2Every: 4, job3Every: 6 } as const
 
 /** Normalizes a tree definition once at load time: ensures every edge is undirected (symmetric), deduplicated, and valid. */
 function normalizeTree(raw: PassiveTreeDef): { def: PassiveTreeDef; map: ReadonlyMap<string, PassiveNode> } {
@@ -88,6 +88,13 @@ export function passiveEarned(jobLevel: number, job2Level?: number, job3Level?: 
     Math.floor(lv3 / PASSIVE_RULES.job3Every)
   )
 }
+
+/** Max derived Passive Points across full Job1 (40) + Job2 (50) + Job3 (30) progression (13 + 12 + 5 = 30). */
+export const PASSIVE_MAX_POINTS = passiveEarned(
+  JOB_CHANGE.classMaxJobLevel,
+  JOB2_RULES.maxJobLevel,
+  JOB3_RULES.maxJobLevel,
+)
 
 /** Save-like convenience wrapper: only counts Job2 Lv when job2 is active for `job`, and Job3 Lv when `activeJob3` is active. */
 export function passiveEarnedFor(s: {

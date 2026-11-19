@@ -67,7 +67,7 @@ export const PASSIVE_VIEW_DEFAULT: Readonly<PassiveView> = {
 
 export const PASSIVE_CAM_DEFAULTS = {
 	zoom: 0.85,
-	minZoom: 0.5,
+	minZoom: 0.42,
 	maxZoom: 1.75,
 	padding: 88,
 	minTouchRadius: 16,

@@ -1,6 +1,6 @@
 # 🌌 PoE-Style Class-Line Constellation Passive Tree v1
 
-> **Status:** `in progress` (Phase 1 Pilot: Thief-Line — Engine/Data `6d22190` & Camera `94ef666` landed; UI & Battle hooks in Wave 2) · **Stack:** Phaser 3.90.0 + TypeScript strict + Vite single-file (`960×576`)
+> **Status:** `shipped` (Phase 1 Pilot: Thief-Line — 67-node constellation, Max 30 points `J1/3 + J2/4 + J3/6`, PoE 1-click allocate + hover inspect) · **Stack:** Phaser 3.90.0 + TypeScript strict + Vite single-file (`960×576`)
 > **เป้าหมาย:** แทนที่ระบบ Talent แบบ 4 แถวเลือก 1 จาก 3 (`jobTalents` / `job2Talents`) ด้วย **5 Class-Line Constellation Passive Trees** (กราฟโหนดเชื่อมโยง 2 มิติสไตล์ Path of Exile แยก 1 ผังต่ออาชีพหลัก)
 > **โค้ดที่เกี่ยวข้อง:**
 > - Engine & Data (ใหม่): `src/data/passive-tree.ts`, `src/data/passives/thief.ts`
@@ -15,7 +15,7 @@
 - **ย้าย Tab 4 (`⭐ ทาเลนต์`) จากรายการ 4 แถวตายตัว → ผังดาวเชื่อมโยง 2 มิติ (Constellation Graph)**: ผู้เล่นวางเส้นทางอิสระจากจุดศูนย์กลาง (`origin`) ผ่าน `minor` → `notable` → `keystone` ที่มีทั้ง **ข้อดี (Upside)** และ **เงื่อนไขแลกเปลี่ยน (Downside)** ชัดเจน
 - **คง Skill Web (Tab 3 `✨ สกิล`) ไว้ครบทุกชั้น**: ใยชั้น 1 (`jobTree`), ใยชั้น 2 (`job2Tree`) และใยชั้น 3 Awakening (`job3Tree`) ยังคงเป็นเจ้าของสกิลหลักและการอัปเกรดสกิล · **Passive Tree แทนที่เฉพาะ `jobTalents` + `job2Talents`** และหลอมรวมแต้มจาก Job1 + Job2 + Job3 เข้าผังเดียว
 - **แยก 5 ผังตามอาชีพหลัก (`swordsman` / `thief` / `archer` / `mage` / `cleric`) ไม่ใช่ 1 ผังรวม**: ตัดปัญหา dead nodes จากสกิล/ทรัพยากรที่ล็อกตามอาชีพ แต่ยังเปิดให้คลาสย่อยผสมข้ามสายได้อิสระ (เช่น Rogue ↔ Mobster บนผัง Thief-Line)
-- **Rollout แบบปลอดภัยไม่พังเซฟเก่า**: Phase 1 เปิดนำร่องเฉพาะ **Thief-Line (43 โหนด)** · อีก 4 อาชีพหลักยังใช้หน้า `talentTab()` เดิมผ่านเกต `hasPassiveTree(job)` จนกว่าจะถึง Phase 2
+- **Rollout แบบปลอดภัยไม่พังเซฟเก่า**: Phase 1 เปิดนำร่องเฉพาะ **Thief-Line (67 โหนด · Max 30 แต้ม `J1/3 + J2/4 + J3/6` · คลิกเดียวอัปโหนดขอบฟ้าแบบ PoE)** · อีก 4 อาชีพหลักยังใช้หน้า `talentTab()` เดิมผ่านเกต `hasPassiveTree(job)` จนกว่าจะถึง Phase 2
 
 ---
 
@@ -86,7 +86,7 @@ export interface PassiveTreeDef {
   nodes: readonly PassiveNode[]
 }
 
-export const PASSIVE_RULES = { job1Every: 2, job2Every: 3, job3Every: 5 } as const
+export const PASSIVE_RULES = { job1Every: 3, job2Every: 4, job3Every: 6 } as const // Max 30 pts (13 + 12 + 5) across 67-node tree
 ```
 
 **Exported Pure Functions (`src/data/passive-tree.ts`):**
@@ -370,7 +370,7 @@ graph TD
 แต้ม Passive **ไม่ถูกเก็บเป็นตัวเลขใน `SaveData`** แต่คำนวณสดทุกครั้ง (เหมือน `talentEarned` ใน `src/data/tree.ts:798-799`) ผ่าน `passiveEarned()` และ `passiveEarnedFor(s)` ใน `src/data/passive-tree.ts`:
 
 ```ts
-export const PASSIVE_RULES = { job1Every: 2, job2Every: 3, job3Every: 5 } as const
+export const PASSIVE_RULES = { job1Every: 3, job2Every: 4, job3Every: 6 } as const // Max 30 pts (13 + 12 + 5) across 67-node tree
 
 passiveEarned(jobLevel, job2Level, job3Level) =
   Math.floor(Math.max(0, jobLevel)  / 2) +   // Job1 (นับเมื่อ job !== 'novice')
@@ -445,7 +445,7 @@ passiveEarned(jobLevel, job2Level, job3Level) =
 แยกคณิตศาสตร์กล้องออกจาก Phaser Scene เพื่อ unit-test 100% (`tests/passive-cam.test.ts` — 7/7 pass):
 - **Constants**:
   - `PASSIVE_VIEW_DEFAULT = { x: 326, y: 146, w: 616, h: 394 }`
-  - `PASSIVE_CAM_DEFAULTS = { zoom: 0.85, minZoom: 0.5, maxZoom: 1.75, padding: 88, minTouchRadius: 16, hitPad: 3, wheelSensitivity: 0.0018, wheelDeltaClamp: 300, zoomStepFactor: 1.25 }`
+  - `PASSIVE_CAM_DEFAULTS = { zoom: 0.85, minZoom: 0.42, maxZoom: 1.75, padding: 88, minTouchRadius: 16, hitPad: 3, wheelSensitivity: 0.0018, wheelDeltaClamp: 300, zoomStepFactor: 1.25 }`
   - `DEFAULT_NODE_RADIUS = { origin: 24, keystone: 24, notable: 18, socket: 16, minor: 13 }`
 - **Exports & Exact Signatures**:
   - `createPassiveCam(overrides?: Partial<PassiveCamState>): PassiveCamState`

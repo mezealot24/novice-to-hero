@@ -126,6 +126,7 @@ export class CharacterScene extends Phaser.Scene {
 	create(data: { tab?: number; back?: { key: string; data?: object } }) {
 		this.cameras.main.setBackgroundColor(UI.night);
 		this.cameras.main.fadeIn(160, 20, 23, 43);
+		this.input.mouse?.disableContextMenu();
 		this.tab = data?.tab ?? 0;
 		this.selPet = undefined;
 		this.showDetail = false;
