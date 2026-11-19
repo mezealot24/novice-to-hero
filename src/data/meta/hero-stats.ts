@@ -306,6 +306,7 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 	if (job.id === "cleric") st.spearMul += P.off.clericDexSpear * d("dex"); // DEX: light spears hit harder
 	if (job.id === "mage") {
 		st.spellCrit += P.off.mageLukSpellCrit * b.luk; // LUK: magic crit (physical LUK crit does nothing for a Mage)
+		st.skillCrit += Math.min(P.off.mageLukSkillCritCap, P.off.mageLukSkillCrit * b.luk); // Q 2026-11-19: LUK -> skillCrit too, so a LUK Mage's skills can crit
 		const sti = treeMods(s.jobTree, "mage").reduce(
 			(a, m) => a + (m.strToInt ?? 0),
 			0,

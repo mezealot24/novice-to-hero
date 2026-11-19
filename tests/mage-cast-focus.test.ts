@@ -6,11 +6,13 @@ import { TABLES } from '../src/data/tunables'
 
 const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`)
 
-test('v85 breakChance: 25% at DEX 0, 0 clamp from DEX 21, tenacity lowers it, never negative, Poise = 0', () => {
+test('breakChance (Q 2026-11-19 nerf 1.2% -> 0.5%/DEX): 25% at DEX 0, 0 clamp from DEX 50, tenacity lowers it, never negative, Poise = 0', () => {
   near(breakChance(0, 0), 0.25)
-  near(breakChance(10, 0), 0.13)
-  near(breakChance(10, 0.05), 0.08)
-  assert.equal(breakChance(30, 0), 0) // 0.25 - 0.36 clamps
+  near(breakChance(10, 0), 0.2)
+  near(breakChance(10, 0.05), 0.15)
+  near(breakChance(30, 0), 0.1)
+  assert.equal(breakChance(50, 0), 0)
+  assert.equal(breakChance(60, 0), 0) // clamps
   assert.ok(breakChance(5, 0.1) < breakChance(5, 0))
   assert.equal(breakChance(99, 0), 0)
   assert.equal(breakChance(0, 1), 0)
@@ -35,7 +37,7 @@ test('v85 breakRefundMana: 60% of the Mana paid comes back, rounded down, never 
 })
 
 test('v78 / v85 MAGE_CAST numbers live in one place and are tunable as kit cast.*', () => {
-  assert.deepEqual(MAGE_CAST, { breakBase: 0.25, breakDex: 0.012, breakMinHp: 0.06, breakRefund: 0.6, fireMul: 0.45, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 })
+  assert.deepEqual(MAGE_CAST, { breakBase: 0.25, breakDex: 0.005, breakMinHp: 0.06, breakRefund: 0.6, fireMul: 0.45, ultMul: 1.3, brokenUltCd: 2, boltMana: 6 })
   assert.equal(KIT.cast, MAGE_CAST)
   const pats = TABLES.kit.fields.map(([p]) => p).join(' ')
   for (const k of Object.keys(MAGE_CAST)) assert.ok(pats.includes(k), `kit table misses cast.${k}`)
