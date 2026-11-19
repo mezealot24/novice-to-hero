@@ -5,6 +5,7 @@ import type { Stats } from './game-data'
 import type { JobId } from './jobs'
 import type { BaseStat, Item } from './meta'
 import { matOf } from './materials'
+import { CLERIC_ZONE_ITEMS } from './cleric-zone-sets'
 
 /** Recipe + grade bonuses of a crafted item. Recipe unlocks after the first win over `dg`'s boss. */
 export interface CraftInfo {
@@ -186,6 +187,8 @@ export const CRAFT_ITEMS: Item[] = [
   { id: 'cc_mv_sigil', slot: 'acc', name: 'ตราดาวตก', icon: '💫', price: 0, slots: 1,
     desc: 'ชุดศรดาวตก · สายกลาง บีสต์/อินโน: คริแรง เจาะเกราะ', base: { luk: 7, dex: 5 }, mod: { crit: 0.06, skillCrit: 0.06, critMul: 0.22, physPen: 0.08 }, jobs: AR, j2: ['beastmaster', 'innovator'],
     craft: { dg: 'd14', common: 26, boss: 7, zeny: 12500, bonus: [{ physPen: 0.06 }, { skillCrit: 0.05, critMul: 0.15 }] } },
+  // Q 2026-11-19: Cleric-line zone sets (twin_seraph D6-D10 / thunder_cathedral D8-D14)
+  ...CLERIC_ZONE_ITEMS,
 ]
 
 /** Highest grade an item can reach: starters 1, plain shop gear 3, class shop gear 4, dungeon + crafted gear 5. */
