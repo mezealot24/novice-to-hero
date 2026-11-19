@@ -67,3 +67,19 @@
 - Balance impact: big nerf to crit builds (crit dmg now ÷ DEF, skills lose borrowed crit) · physical classes have almost no `skillCrit` source yet
 - Shroud (P2'b ม่านควัน `smokeSkillCrit`) counts as a skillCrit source, so physical skills inside Shroud can crit
 - Tests: `tests/crit-split.test.ts` (+ skill-info tests) · not bot-checked
+
+## ✨ feat(rogue): P3'a 🔪 Dagger Mark + Voracity · Back Stab rework · web rg_k / rg_c / rg_x as mechanics
+- Design: `design/thief-rogue-rework-v1.md` §3.2–3.5 + R4.8 (what shipped / what waits for P3'b)
+- 🔪 **ตราคมมีด (Dagger Mark):** every landed flying knife (combo / crit / free / storm) = +1 Mark (max `markMax` 3, `markTurns` 2 monster turns, refreshed) · `markFocus` 30% a knife picks a monster under the cap
+- 🔪 **เก็บมีด (Voracity pickup):** basic / combo (1 per swing), แทงพิษ, Back Stab on a marked monster -> Sinister Steel `0.35x/Mark x (1 + pskill)` (others 60%, no poison, no lifesteal) + Energy 6/Mark + Combo Point +1 · 2+ Marks = Back Stab CD -1 (1/turn)
+- 🔪 **Kill Reset (1/hero turn):** knife kill or a marked monster dies -> Back Stab CD -1 + Ult CD -1 + 2 free knives at the lowest-HP monster
+- มีดบิน now x `(1 + pskill x 0.5)` (`knifePskillShare`)
+- 🗡️ **Back Stab:** targets the most Marks (ties: highest HP) · picks up Marks · Backstab Mark (hits +15% taken, B1 Taken cap) + Strip Armor (P.DEF -20%) 2 monster turns · 🌑 Shadow Ambush (in ม่านควัน Shroud, or dodged since the last hero turn) +25% (B4 `stabAmpCap` 0.75) + 15 Energy · Combo Point stays (MAIN-VS-REV4 R1), outside B4
+- ชำนาญมีด: crit +3% -> **skillCrit +5%** (physical skills crit only with skillCrit since the crit rework)
+- Web (ids kept, mechanics replace flat stats):
+  - 🔪 `rg_k1` มีดคมปักลึก (knife dmg + crit on pickup hits) · `rg_k2` มีดชิ่งสังหาร (bounce off Mark ≥2 / kill, 71–95%) · `rg_k3` มีดอาบสถานะ (Wound / Exposed / poison chance) · `rg_k4`★ ห่ามีดวนลูป (+1 knife, pickup cuts S2/S3 CD, free knife on a Mark-free field)
+  - ⚡ `rg_c1` จังหวะเร่ง (combo + Tempo speed stacks) · `rg_c2` แทงรัวซ้ำแผล (combo dmg + per debuff kind) · `rg_c3` เงาพริ้วสลับร่าง (combo FLEE + sure dodge every 3 combo hits, ICD 2) · `rg_c4`★ คอมโบไม่จบ (Combo Count +1 + 👥 Living Shadow Back Stab 45% after 3+ hits)
+  - 🎯 `rg_x1` จุดตายเป้าอ่อน (crit/skillCrit vs HP ≥70% / <35% / Exposed) · `rg_x2` ใจสลาย (crit dmg vs debuffed) · `rg_x3` ดูดเลือดจากคมคริ (crit / pickup heal + Energy, cap 12/turn) · `rg_x4`★ คริเป็นมีด (crit knives 1.2x)
+- 30 new `KIT2.rogue` keys with Thai admin labels (kit2 table) · pure helpers `rogueKnifeMul` / `rogueSteelMul` / `rogueStabAmp` / `rogueComboDebuff` / `rogueAmbushCrit`
+- Save: `THIEF_REWORK_VER` 2 -> 3 · Rogue ใยชั้น 2 web reset + refund once (class 1 web, Thief + Rogue talents untouched) · Mobster untouched · `tools/bot.cjs` flag 3
+- Tests: `tests/rogue-p3a.test.ts` (+ thief-p2a / p2b migration tests updated) · Not balanced: needs Q's playtest

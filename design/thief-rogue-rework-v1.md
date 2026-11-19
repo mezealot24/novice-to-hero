@@ -32,9 +32,18 @@
 |---|---|---|
 | P1 | Ratio AGI · knife fix · Back Stab · ทวงหนี้ cleanup | ✅ commit (รอคิวเล่นทดสอบ) |
 | P1b | แทงพิษ `pskill` ✅ · energy loop (`s1Weave`, floor cost) ⏸ ทำพร้อม P2 (talent `th_t2c` เปลี่ยน) |
-| P2 | Thief web + talents ใหม่ + migration | ⏳ พร้อมเริ่ม (Mobster A · bracket R4.6 · KIT keys R4.7 ✅) |
-| P3 | Rogue web (Marks, Voracity, Death Mark) | ⏸ หลัง P2 |
+| P2 | Thief web + talents ใหม่ + migration | ✅ merged (#130 #131) |
+| P3'a | Rogue: 🔪 Dagger Mark + Voracity + Kill Reset · Back Stab (Mark target, Strip, Backstab Mark, Shadow Ambush, B4) · web `rg_k`/`rg_c`/`rg_x` เป็นกลไก · migration v3 | ✅ PR (รอคิวเล่นทดสอบ) · ดู R4.8 |
+| P3'b | Rogue: โหนดใต้ Back Stab (`rg_s1-3`) + พายุมีด (`rg_u1-3`, Death Mark) + ทาเลนต์ `rg_t*` ใหม่ + migration v4 | ⏸ หลัง P3'a |
 | P4 | Plagiarism | ⏸ PR แยก ทำท้ายสุด |
+
+### R4.8 P3'a ที่ทำจริง (2026-11-19) · ต่างจาก Rev 3 ตรงไหน
+- **Combo Point อยู่ต่อ (MAIN-VS-REV4 R1):** เก็บมีด = Combo Point +`markCp` (1/ครั้ง) · Back Stab B4 cap 0.75 นับแค่ Shadow Ambush วันนี้ · CP เป็นตัวคูณแยกนอก B4
+- **เก็บมีด:** ตีปกติ/คอมโบ (1 ครั้งต่อสวิง), แทงพิษ, Back Stab (+ เงาเลียนแบบ) · มีดบินเก็บเองไม่ได้ · วงสวิงไม่แปะพิษ ไม่ดูดเลือด ไม่ forced crit
+- **Kill Reset:** 1 ครั้ง/เทิร์นฮีโร่ (flag ตั้งก่อนปามีด) · ยังไม่มี Global Ult CD cap (P2'c ยังไม่ทำ) → ใช้ `cutUltCd(1)` ตรง ๆ
+- **พายุมีด:** มีดปักตราด้วย แต่สูตรดาเมจเดิม (ไม่คูณ pskill) · Death Mark / Voracity Storm / Death Lotus = P3'b
+- **ยังไม่ทำ:** `rg_s*` / `rg_u*` (โหนดใหม่) · ทาเลนต์ Rogue · `j2RgMarkCap` · Twin-Blade Voracity มีดคู่ · Plagiarism (P4)
+- **ชำนาญมีด:** `mastery.crit 0.03` → `mastery.skillCrit 0.05` (key ใน KIT2 เปลี่ยนชื่อ · ไม่ใช่ save key)
 
 ### R4.5 คำถามที่ค้างถึงคิว
 - ไม่มี (ตอบครบ 2026-11-19: Mobster A · แทงพิษ pskill + ลด thiefAuto)

@@ -60,9 +60,9 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     id: 'rogue', parent: 'thief', name: 'โร้ก', icon: '🔪', focus: 'AGI · STR · LUK',
     blurb: 'สายมีด + คอมโบ + คริ · ทุกฮิตคอมโบปามีดบินใส่มอนสุ่ม · ถือมีดมือรอง = มีดบินเพิ่ม',
     mod: { combo: 0.03 },
-    mastery: { weapon: 'มีด', ok: (it) => it.wtype === 'dagger', mod: { crit: R.mastery.crit }, pct: { atk: R.mastery.atkPct } },
-    signature: { name: 'มีดบิน', icon: '🔪', desc: `ทุกฮิตคอมโบ ปามีด ${R.knifePerCombo} เล่มใส่มอนสุ่ม ${R.knifeMul}x P.ATK (คริได้ ไม่ดูดเลือด) · มือรองเป็นมีด +${R.dualKnife} เล่ม` },
-    skill3: { name: 'Back Stab', icon: '🗡️', cost: R.stabCost, cd: R.stabCd, desc: `Energy ${R.stabCost} · คูลดาวน์ ${R.stabCd}: แทงหลังตัวที่ HP มากสุด ${R.stabMul}x P.ATK คริแน่นอน ไม่โดนหลบ (ทะลุหลบโชคดี) · 🔁 ใช้ Combo Point ทั้งหมด (ฮิตคอมโบ = +1 แต้ม สูงสุด ${R.stabCpMax}) แรง +${pc(R.stabCpPer)}/แต้ม` },
+    mastery: { weapon: 'มีด', ok: (it) => it.wtype === 'dagger', mod: { skillCrit: R.mastery.skillCrit }, pct: { atk: R.mastery.atkPct } },
+    signature: { name: 'มีดบิน', icon: '🔪', desc: `ทุกฮิตคอมโบ ปามีด ${R.knifePerCombo} เล่มใส่มอนสุ่ม ${R.knifeMul}x P.ATK (+${pc(R.knifePskillShare)} ของโบนัส STR · ไม่ดูดเลือด) · มือรองเป็นมีด +${R.dualKnife} เล่ม · 🔪 มีดโดน = ตราคมมีด +1 (สูงสุด ${R.markMax} · ${R.markTurns} เทิร์นมอน) · ตีปกติ/คอมโบ/แทงพิษ/Back Stab ใส่ตัวมี Mark = เก็บมีด: วงสวิง ${R.markSteelMul}x/Mark (ตัวอื่น ${pc(R.markSteelSplash)}) + Energy ${R.markRes}/Mark + Combo Point ${R.markCp} · เก็บ ≥${R.stabPickupAt} = CD Back Stab -${R.stabPickupCdCut} · ฆ่าด้วยมีด/ฆ่าตัวมี Mark (1/เทิร์น) = CD Back Stab & Ult -1 + มีดฟรี ${R.markKillKnives} เล่มใส่ตัว HP น้อยสุด` },
+    skill3: { name: 'Back Stab', icon: '🗡️', cost: R.stabCost, cd: R.stabCd, desc: `Energy ${R.stabCost} · คูลดาวน์ ${R.stabCd}: แทงหลังตัวที่มีตราคมมีดมากสุด (เท่ากัน = HP มากสุด) ${R.stabMul}x P.ATK คริแน่นอน ไม่โดนหลบ (ทะลุหลบโชคดี) · เก็บมีด · Backstab Mark: รับดาเมจฮิต +${pc(R.stabMarkAmp)} + Strip Armor P.DEF -${pc(R.stabStrip)} (${R.stabStripTurns} เทิร์นมอน) · 🌑 Shadow Ambush (ในม่านควัน หรือเพิ่งหลบได้): แรง +${pc(R.stabAmbushMul)} + Energy ${R.stabAmbushRes} · 🔁 ใช้ Combo Point ทั้งหมด (ฮิตคอมโบ = +1 แต้ม สูงสุด ${R.stabCpMax}) แรง +${pc(R.stabCpPer)}/แต้ม` },
     ult: { name: 'พายุมีด', icon: '🌪️', cd: 4, desc: `เงาพริ้วเดิม แล้วโปรยมีดบิน ${R.ultKnives} เล่มใส่มอนสุ่ม เล่มละ ${R.ultKnifeMul}x (+${Math.round(R.ultKnifeJ2Share * 100)}% ของโบนัสมีดบิน)` },
   },
   mobster: {

@@ -1,5 +1,8 @@
 // 🔪 Rogue ใยชั้น 2 (design/second-jobs-v1.md §4). Node ids are save data: never rename.
 import { node as n, rk, talent as t, type ClassTree } from '../tree-types'
+import { KIT2 } from '../skill-math'
+
+const R = KIT2.rogue
 
 export const tree2: ClassTree = {
   branches: [
@@ -8,18 +11,19 @@ export const tree2: ClassTree = {
     { id: 'rg_x', job: 'thief', job2: 'rogue', name: 'คริ', icon: '💥', blurb: 'คริ · ดาเมจคริ · คริแล้วปามีด' },
   ],
   nodes: [
-    n('rg_k1', 'rg_k', 1, '🔪', 'มีดคม', 3, (lv) => `มีดบินแรง +${lv * 10}% P.ATK`, (lv) => ({ j2KnifeMul: 0.1 * lv })),
-    n('rg_k2', 'rg_k', 2, '🎯', 'ปาแม่น', 3, (lv) => `HIT +${lv * 4}`, (lv) => ({ hit: 4 * lv })),
-    n('rg_k3', 'rg_k', 3, '🗡️', 'คมเหล็ก', 3, (lv) => `P.ATK +${lv * 4}`, (lv) => ({ atk: 4 * lv })),
-    n('rg_k4', 'rg_k', 4, '🌠', 'ห่ามีด', 1, () => 'มีดบิน +1 เล่ม ทุกครั้งที่ปา', () => ({ j2KnifeAdd: 1 })),
-    n('rg_c1', 'rg_c', 1, '🔁', 'มือลั่น', 3, (lv) => `โอกาสคอมโบ +${lv * 3}%`, (lv) => ({ combo: 0.03 * lv })),
-    n('rg_c2', 'rg_c', 2, '💢', 'แทงรัว', 3, (lv) => `ฮิตคอมโบแรง +${lv * 5}%`, (lv) => ({ comboDmg: 0.05 * lv })),
-    n('rg_c3', 'rg_c', 3, '💨', 'ฝีเท้าเงา', 3, (lv) => `FLEE +${lv * 4}`, (lv) => ({ flee: 4 * lv })),
-    n('rg_c4', 'rg_c', 4, '⛓️', 'คอมโบไม่จบ', 1, () => 'Combo Count +1', () => ({ comboCount: 1 })),
-    n('rg_x1', 'rg_x', 1, '🎯', 'จุดตาย', 3, (lv) => `คริ +${lv * 3}%`, (lv) => ({ crit: 0.03 * lv })),
-    n('rg_x2', 'rg_x', 2, '🩸', 'เฉือนลึก', 3, (lv) => `ดาเมจคริ +${lv * 10}%`, (lv) => ({ critMul: 0.1 * lv })),
-    n('rg_x3', 'rg_x', 3, '🧛', 'ดื่มเลือด', 3, (lv) => `ดูดเลือด +${lv}% (ตีธรรมดา + คอมโบ)`, (lv) => ({ lifesteal: 0.01 * lv })),
-    n('rg_x4', 'rg_x', 4, '✨', 'คริเป็นมีด', 1, () => 'ตีธรรมดา/คอมโบ/Back Stab คริ = มีดบิน +1 เล่ม', () => ({ j2KnifeCrit: 1 })),
+    // P3'a (design/thief-rogue-rework-v1.md §3.5): mechanics instead of flat stats · ids kept (save data), save migration v3 refunds the web
+    n('rg_k1', 'rg_k', 1, '🔪', 'มีดคมปักลึก', 3, (lv) => `มีดบินแรง +${lv * 10}% P.ATK · ตีปกติ/คอมโบที่เก็บมีด คริ +${lv * 6}%`, (lv) => ({ j2KnifeMul: 0.1 * lv, j2MarkCrit: 0.06 * lv })),
+    n('rg_k2', 'rg_k', 2, '🎯', 'มีดชิ่งสังหาร', 3, (lv) => `มีดบินโดนตัวที่มีตรา ≥${R.knifeBounceAt} หรือฆ่าได้ = ชิ่งไปอีกตัว แรง ${Math.round((R.knifeBounce + 0.1 * lv) * 100)}% (ชิ่งครั้งเดียว)`, (lv) => ({ j2KnifeBounce: 0.1 * lv })),
+    n('rg_k3', 'rg_k', 3, '🧪', 'มีดอาบสถานะ', 3, (lv) => `มีดบินโดน โอกาส ${lv * 20}%: แผลลึก +1 (ถ้าใช้แผลลึก) · ไม่งั้น Exposed +1 เทิร์น · ไม่งั้นพิษ +1 (ตัวที่ติดพิษอยู่)`, (lv) => ({ j2KnifeStatus: 0.2 * lv })),
+    n('rg_k4', 'rg_k', 4, '🌠', 'ห่ามีดวนลูป', 1, () => 'มีดบิน +1 เล่ม ทุกครั้งที่ปา · เก็บมีด = CD ทักษะ 2/ทักษะ 3 -1 (1/เทิร์น) · ไม่มีตราบนสนาม = ปามีดฟรี 1 เล่มต้นเทิร์น', () => ({ j2KnifeAdd: 1, j2KnifeLoop: 1 })),
+    n('rg_c1', 'rg_c', 1, '⚡', 'จังหวะเร่ง', 3, (lv) => `โอกาสคอมโบ +${lv * 3}% · ฮิตคอมโบ = Tempo +1 (สูงสุด ${R.comboTempoMax}/เวฟ) ความเร็ว +${lv * 4}%/stack`, (lv) => ({ combo: 0.03 * lv, j2Tempo: 0.04 * lv })),
+    n('rg_c2', 'rg_c', 2, '💢', 'แทงรัวซ้ำแผล', 3, (lv) => `ฮิตคอมโบแรง +${lv * 5}% · +${lv * 4}% ต่อชนิดดีบัฟ/ตราบนเป้า (สูงสุด ${R.comboDebuffMax} ชนิด)`, (lv) => ({ comboDmg: 0.05 * lv, j2ComboDebuff: 0.04 * lv })),
+    n('rg_c3', 'rg_c', 3, '💨', 'เงาพริ้วสลับร่าง', 3, (lv) => `ฮิตคอมโบ = FLEE +${lv * 6} จนถึงเทิร์นถัดไป · ทุก ${R.comboDodgeEvery} ฮิตคอมโบ หลบแน่ +1 (ICD ${R.comboDodgeIcdTurns} เทิร์น)`, (lv) => ({ j2ComboDodge: 6 * lv })),
+    n('rg_c4', 'rg_c', 4, '⛓️', 'คอมโบไม่จบ', 1, () => `Combo Count +1 · คอมโบ ≥${R.comboShadowAt} ฮิต = 👥 เงาเลียนแบบ แทง Back Stab ${Math.round(R.comboShadowMul * 100)}% (คริแน่ · เก็บมีด)`, () => ({ comboCount: 1, j2LivingShadow: 1 })),
+    n('rg_x1', 'rg_x', 1, '🎯', 'จุดตายเป้าอ่อน', 3, (lv) => `คริ + สกิลคริ +${lv * 4}% ใส่ตัวที่ HP ≥${Math.round(R.critAmbushHi * 100)}% หรือ <${Math.round(R.critAmbushLo * 100)}% หรือติด Exposed`, (lv) => ({ j2AmbushCrit: 0.04 * lv })),
+    n('rg_x2', 'rg_x', 2, '🩸', 'ใจสลาย', 3, (lv) => `คริใส่ตัวที่ติดดีบัฟ (พิษ แผลลึก Exposed Strip ช้า) ดาเมจคริ +${lv * 12}%`, (lv) => ({ j2HeartRend: 0.12 * lv })),
+    n('rg_x3', 'rg_x', 3, '🧛', 'ดูดเลือดจากคมคริ', 3, (lv) => `ติดคริ / เก็บมีด: ฮีล ${lv * 2}% ของดาเมจฮิตนั้น + Energy +${lv} (สูงสุด ${R.critLeechResMax}/เทิร์น)`, (lv) => ({ j2CritLeech: 0.02 * lv, j2CritEnergy: lv })),
+    n('rg_x4', 'rg_x', 4, '✨', 'คริเป็นมีด', 1, () => `ตีธรรมดา/คอมโบ/Back Stab คริ = มีดบิน +1 เล่ม แรง ${R.critKnifeMul}x P.ATK (+ โบนัสมีดบิน)`, () => ({ j2KnifeCrit: 1 })),
   ],
   talents: [
     // v119 (Q 2026-11-08) ทาเลนต์ชั้น 2 · I stats · II Ult วิวัฒน์ · III ทักษะ 3 · IV ตัวตน

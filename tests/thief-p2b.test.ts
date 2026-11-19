@@ -132,22 +132,22 @@ const { migrateThiefRogueRework, newSave, THIEF_REWORK_VER } = await import('../
 type SaveData = ReturnType<typeof newSave>
 
 test('migration v2: a P2\'a (v1) Thief gets web + talents back once, v2 saves are left alone', () => {
-  assert.equal(THIEF_REWORK_VER, 2)
+  assert.ok(THIEF_REWORK_VER >= 2) // P3'a bumped it to 3 (tests/rogue-p3a.test.ts)
   const s = newSave('th', 'human')
   Object.assign(s, { job: 'thief', thiefRogueRework: 1, skillPoints: 1, jobTree: { thief_core1: 5, th_wound: 1 }, jobTalents: { 1: { id: 'th_t1c', rank: 2 }, 4: { id: 'th_t4a', rank: 2 } } } as Partial<SaveData>)
   migrateThiefRogueRework(s)
-  assert.equal(s.thiefRogueRework, 2)
+  assert.equal(s.thiefRogueRework, THIEF_REWORK_VER)
   assert.deepEqual(s.jobTree, {}); assert.deepEqual(s.jobTalents, {})
   assert.equal(s.skillPoints, 1 + 6)
   s.jobTree = { thief_a1: 1 }
   migrateThiefRogueRework(s)
   assert.deepEqual(s.jobTree, { thief_a1: 1 }, 'idempotent')
   const fresh = newSave('n', 'human')
-  assert.equal(fresh.thiefRogueRework, 2)
+  assert.equal(fresh.thiefRogueRework, THIEF_REWORK_VER)
   Object.assign(fresh, { job: 'thief', jobTree: { thief_a1: 2 } })
   migrateThiefRogueRework(fresh)
   assert.deepEqual(fresh.jobTree, { thief_a1: 2 })
   const arc = newSave('a', 'human'); Object.assign(arc, { job: 'archer', thiefRogueRework: 1, jobTree: { archer_a1: 3 } })
   migrateThiefRogueRework(arc)
-  assert.deepEqual(arc.jobTree, { archer_a1: 3 }); assert.equal(arc.thiefRogueRework, 2)
+  assert.deepEqual(arc.jobTree, { archer_a1: 3 }); assert.equal(arc.thiefRogueRework, THIEF_REWORK_VER)
 })
