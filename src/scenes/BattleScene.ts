@@ -3307,7 +3307,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.isProcHit()) return Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit)
     if (this.isSkillHit()) {
       const skillCrit = this.st.skillCrit + (this.inShroud() ? S2N.smokeSkillCrit : 0) + (this.src === 'ult' && !magic && this.job.id === 'thief' ? thiefUltCritAdd(this.st) : 0) // P2'b Shroud · P2'c thief_u1 / th_t3a Ult-only skillCrit (still under C.skillCrit)
-      if (!magic && skillCrit <= 0) return 0 // Q 2026-11-19: a physical skill needs skillCrit to crit at all (talent / buff bonuses ride on top of it)
+      if (skillCrit <= 0) return 0 // Q 2026-11-19: any skill (physical or magic) needs skillCrit to crit at all (spellCrit / talent / buff bonuses ride on top of it)
       return Math.min(C.skillCrit, skillCrit + sc + iceBonus + (magic ? this.st.spellCrit + chargeCrit : (this.st.crit + physAdd) * CRIT_RULES.skillFromCrit))
     }
     return magic ? Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit) : Math.min(C.crit, this.st.crit + physAdd + sc)
@@ -5652,6 +5652,9 @@ export class BattleScene extends Phaser.Scene {
     return Math.max(1, BATTLE.monCritMul * (1 - this.st.critDR)) // hero Crit DR (LUK / gear): a crit never hits softer than a normal hit
   }
 
+  /** Q 2026-11-19: monster skills crit only when the skill opts in (`crit: true`) or CRIT_RULES.monSkill is on. */
+  private monSkillCrit(m: Mon, sk: MonSkill) { return sk.crit || CRIT_RULES.monSkill ? this.monCrit(m) : 1 }
+
   private async monBolt(m: Mon, sk: MonSkill) {
     const fxColor = sk.fx?.burn ? 0xff6a2a : sk.fx?.freeze ? 0x9fe3ff : sk.fx?.poison ? 0x7fd04c : sk.name.includes('⚡') || sk.fx?.silence ? 0xfff07a : undefined
     const c = fxColor ?? m.def.slamColor ?? 0xb48aff
@@ -5663,7 +5666,7 @@ export class BattleScene extends Phaser.Scene {
       b.destroy()
       this.burst(HERO_X, GROUND - 50, c, sk.big ? 18 : 12, 180, true)
       if (sk.big) this.shake(120, 0.008)
-      const landed = this.hurtHero(this.skillHit(m, sk, true) * this.monMul(m) * this.monCrit(m), true, 999, m, `✦ ${sk.name}`)
+      const landed = this.hurtHero(this.skillHit(m, sk, true) * this.monMul(m) * this.monSkillCrit(m, sk), true, 999, m, `✦ ${sk.name}`)
       if (landed && sk.fx && !fxDone) { fxDone = true; this.applyFx(sk.fx, m) } // the debuff rides on the first hit that lands
     }
   }
@@ -5675,7 +5678,7 @@ export class BattleScene extends Phaser.Scene {
     let fxDone = false
     for (let i = 0; i < (sk.hits ?? 1) && this.hp > 0 && !m.dead; i++) {
       if (i) { this.tweens.add({ targets: m.spr, x: m.spr.x - 14, duration: 60, yoyo: true }); await this.wait(130) }
-      const cr = this.monCrit(m)
+      const cr = this.monSkillCrit(m, sk)
       const alone = sk.alone && !this.alive().some((x) => x !== m) ? sk.alone : 1
       if (alone > 1 && i === 0) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, `ไร้ศพข้างกาย! ×${alone}`, '#c9a8ff')
       const landed = this.hurtHero(this.skillHit(m, sk, false) * this.monMul(m) * cr * alone, !!sk.magic, sk.magic || cr > 1 ? 999 : m.def.hit ?? 15, m, `✦ ${sk.name}`)
