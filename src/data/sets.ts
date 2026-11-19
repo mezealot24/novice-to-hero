@@ -58,7 +58,7 @@ export const ITEM_SETS: readonly ItemSet[] = [
     name: 'ชุดเงาจันทร์ (Moonshadow)',
     icon: '🌙',
     desc: 'เซ็ตช่วงต้น-กลางสายพริ้ว หลบ คริ คอมโบ สวนกลับ',
-    memberIds: ['c_moonfur', 'c_alphaclaw', 'c_moonshield', 'c_moonquiver', 'c_moondirk', 'cf_shadowfang'],
+    memberIds: ['c_moonfur', 'c_alphaclaw', 'c_moonshield', 'c_moonquiver', 'c_moondirk', 'c_rustfang', 'cf_shadowfang'],
     tiers: [
       { pieces: 2, label: '2 ชิ้น: Flee +10, คริ +5%', mod: { flee: 10, crit: 0.05 } },
       { pieces: 3, label: '3 ชิ้น: คอมโบ +10%, ดาเมจคริ +20%, สวนกลับ +8%', mod: { combo: 0.1, critMul: 0.2, counter: 0.08 } },

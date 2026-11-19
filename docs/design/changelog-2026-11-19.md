@@ -95,3 +95,4 @@
 - Joins ชุดเงาจันทร์ (Moonshadow) `memberIds`; set tiers unchanged. Same off-hand slot as โล่ / กระบอกธนู, so no stacking
 - Tests: `tests/moonshadow-dirk.test.ts`
 - `c_rustfang` มีดสนิมเงา (D3 Thief weapon) poison -> crit line: poison +1 removed, **skillCrit +6%** · ★5 bonus poisonAmp +15% -> skillCrit +4% / critMul +10%
+- `c_rustfang` มีดสนิมเงา joins ชุดเงาจันทร์ memberIds (weapon slot, stacks with the off-hand)
