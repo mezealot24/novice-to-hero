@@ -123,6 +123,8 @@ export const KIT = {
   thiefLeechLv: 0.08, thiefLeechInt: 0.015, thiefLeechCap: 0.6, thiefLeechTurnCap: 0.25, // thief_v3 เลือดพิษ: base/lv, INT scale, total rate cap, max HP heal cap/turn
   thiefDetBossRefund: 0.25, // thief_v4 ★: stacks refunded vs boss / mini-boss after Contaminate
   thiefAgonyFrom: 1.4, thiefAgonyCap: 1, thiefAgonyHitCut: 0.15, // th_t4b วิถีพิษคริ (B5): critMul floor, cap (shared with vsPoison), non-crit physical cut
+  thiefWardPer: 0.003, thiefWardCap: 0.15, // WIS Shadow Ward: DR per WIS above start (cap 15%) vs magic / monHit >= 999 / trueSight
+  thiefLuckyRes: 6, // LUK Gambler's Edge: Energy on LUCKY! dodge (1/hero turn)
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
   // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
   // 💰 Thief ทักษะ 2 ล้วงกระเป๋า (Q 2026-11-18, GW2 Steal): what you steal depends on the front monster's top stat. admin `kit` · thiefSteal.*

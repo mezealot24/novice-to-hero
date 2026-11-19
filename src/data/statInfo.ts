@@ -4,6 +4,7 @@
 import { PER_POINT, thiefUltAgiBonus, type BaseStat } from './meta'
 import type { JobId } from './jobs'
 import { breakChance, KIT, KIT2, MAGE_CAST } from './skill-math'
+import { shadowWard } from './thief-offmeta'
 
 type Line = string | ((b: number, d: number, pool: number) => string) // pool = stat points from Base Lv (statPool)
 export interface StatInfo { generic: Line[]; byClass: Partial<Record<JobId, Line[]>>; byJob2?: Partial<Record<string, Line[]>> }
@@ -31,7 +32,7 @@ export const STAT_INFO: Record<BaseStat, StatInfo> = {
   },
   wis: {
     generic: [(b) => `ฮีล/โล่แรง +${f1(P.wis.healAmp * 100)}%/แต้ม (ตอนนี้ +${Math.round(P.wis.healAmp * 100 * b)}%)`, (b) => `M.DEF ${pctK(b, P.wis.mdefK)} · ต้านทาน ${pctK(b, P.wis.tenacityK)}`],
-    byClass: { swordsman: [manaRegen], mage: [manaRegen], cleric: [manaRegen, 'ฮีลทุกท่าคิดจาก M.ATK แล้วคูณฮีลแรงนี้'] },
+    byClass: { swordsman: [manaRegen], mage: [manaRegen], cleric: [manaRegen, 'ฮีลทุกท่าคิดจาก M.ATK แล้วคูณฮีลแรงนี้'], thief: [(_b, d) => `Shadow Ward: ลดดาเมจเวท/ตาเหยี่ยว/ตีโดนแน่ ${Math.round(shadowWard(d) * 100)}% (สูงสุด ${Math.round(KIT.thiefWardCap * 100)}%)`] },
     byJob2: { sage: [(_b, d) => `ดาเมจธาตุ +${f1(KIT2.sage.wisElemDmg * 100)}%/แต้ม (สูงสุด +${Math.round(KIT2.sage.wisElemCap * 100)}%, ตอนนี้ +${f1(Math.min(KIT2.sage.wisElemCap, KIT2.sage.wisElemDmg * d) * 100)}%)`] },
   },
   dex: {
@@ -58,7 +59,7 @@ export const STAT_INFO: Record<BaseStat, StatInfo> = {
       novice: [(b) => `คริ +1% ต่อ 3 แต้ม (ตอนนี้ ${f1(P.luk.crit * 100 * b)}%)`],
       swordsman: [(b) => `คริ +1% ต่อ 3 แต้ม (ตอนนี้ ${f1(P.luk.crit * 100 * b)}%)`],
       archer: [(b) => `คริ +1% ต่อ 3 แต้ม (ตอนนี้ ${f1(P.luk.crit * 100 * b)}%)`],
-      thief: [(b) => `คริ +1% ต่อ 3 แต้ม (ตอนนี้ ${f1(P.luk.crit * 100 * b)}%)`],
+      thief: [(b) => `คริ +1% ต่อ 3 แต้ม (ตอนนี้ ${f1(P.luk.crit * 100 * b)}%)`, () => `หลบโชคดี (LUCKY!) +${KIT.thiefLuckyRes} Energy (1 ครั้ง/เทิร์น)`],
       mage: [(b) => `คริเวท +1% ต่อ 6 แต้ม (ตอนนี้ ${f1(P.off.mageLukSpellCrit * 100 * b)}%)`, (b) => `สกิลคริ +1% ต่อ 10 แต้ม (สูงสุด ${Math.round(P.off.mageLukSkillCritCap * 100)}%, ตอนนี้ ${f1(Math.min(P.off.mageLukSkillCritCap, P.off.mageLukSkillCrit * b) * 100)}%)`],
       cleric: [(b) => `คริ +1% ต่อ 3 แต้ม (ตอนนี้ ${f1(P.luk.crit * 100 * b)}%)`, (b) => `เรียกหอกแสง ${f1(P.luk.spear * 100)}%/แต้ม ต่อเทิร์น (ตอนนี้ ${f1(Math.min(P.luk.spearCap, P.luk.spear * b) * 100)}%, สูงสุด ${P.luk.spearCap * 100}%)`],
     },

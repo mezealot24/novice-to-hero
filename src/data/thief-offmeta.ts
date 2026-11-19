@@ -44,3 +44,15 @@ export const paApplies = (crit: boolean, debtBursting: boolean): boolean => !cri
 /** Poison tick total: Perfect Agony multiplies ONLY flat poison (never %HP bite or Wolf %HP bleed). */
 export const poisonTickTotal = (flatPoison: number, paBonus: number, hpBite: number, dotMul: number, hpBleed = 0): number =>
   Math.max(1, Math.round((flatPoison * (1 + Math.max(0, paBonus)) + hpBite) * dotMul) + hpBleed)
+
+/** WIS Shadow Ward: Thief-line DR vs magic, monHit >= 999, or trueSight (capped at thiefWardCap). */
+export const shadowWard = (wisEff: number): number =>
+  Math.min(KIT.thiefWardCap, KIT.thiefWardPer * Math.max(0, wisEff))
+
+/** Whether WIS Shadow Ward reduces an incoming hit. */
+export const shadowWardApplies = (magic: boolean, monHit: number, trueSight: boolean): boolean =>
+  magic || monHit >= 999 || trueSight
+
+/** LUK Gambler's Edge: Thief-line gains thiefLuckyRes Energy on LUCKY! dodge (1/hero turn). */
+export const gamblerLuckyRes = (label: string, jobId: string, icd: boolean): number =>
+  label === 'LUCKY!' && jobId === 'thief' && !icd ? KIT.thiefLuckyRes : 0

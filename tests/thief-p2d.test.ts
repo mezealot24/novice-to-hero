@@ -5,7 +5,10 @@ import { PLAYER, type Stats } from '../src/data/game-data'
 import { CRIT_RULES } from '../src/data/battle-rules'
 import { heroStats, STAT_RULES, statEff, type StatsInput } from '../src/data/meta'
 import { autoInfo, KIT, magicPower, matkToPmRatio } from '../src/data/skill-math'
-import { canDetonate, contaminateBossRefund, contaminateCritChance, contaminateLeechShare, detonateDmg, detonateStacks, leechRate, agonyBonus, paApplies, poisonPowerBonus, poisonTickTotal } from '../src/data/thief-offmeta'
+import { statLines } from '../src/data/statInfo'
+import { fieldFor } from '../src/data/patch'
+import { explainField } from '../src/admin/explain'
+import { agonyBonus, canDetonate, contaminateBossRefund, contaminateCritChance, contaminateLeechShare, detonateDmg, detonateStacks, gamblerLuckyRes, leechRate, paApplies, poisonPowerBonus, poisonTickTotal, shadowWard, shadowWardApplies } from '../src/data/thief-offmeta'
 import { nodeById, TALENTS } from '../src/data/tree'
 
 const baseInput = (over: Partial<StatsInput> = {}): StatsInput => ({
@@ -163,4 +166,44 @@ test('migration v6: a v5 Thief / Rogue resets class 1 web + talents once · Rogu
   Object.assign(bad, { job: 'thief', thiefRogueRework: 5, jobTree: { thief_v1: 'x', thief_v2: -3, thief_a1: 4 } as unknown as SaveData['jobTree'], skillPoints: Number.NaN })
   assert.doesNotThrow(() => migrateThiefRogueRework(bad))
   assert.equal(bad.skillPoints, 4)
+})
+
+test('WIS Shadow Ward & LUK Gambler\'s Edge: formulas, Thief-only + Mobster parity, statLines, and 19-key sweep', () => {
+  near(shadowWard(0), 0)
+  near(shadowWard(50), 0.15)
+  near(shadowWard(51), 0.15, 'capped at 15%')
+  assert.equal(shadowWardApplies(true, 100, false), true)
+  assert.equal(shadowWardApplies(false, 999, false), true)
+  assert.equal(shadowWardApplies(false, 100, true), true)
+  assert.equal(shadowWardApplies(false, 100, false), false, 'plain physical hit skips Shadow Ward')
+
+  const wisStats = { str: 1, vit: 1, wis: 51, dex: 1, int: 1, luk: 1, agi: 1 }
+  near(heroStats(baseInput({ job: 'thief', stats: wisStats })).thShadowWard, 0.15)
+  near(heroStats(baseInput({ job: 'thief', job2: 'mobster', stats: wisStats })).thShadowWard, 0.15, 'Mobster inherits Thief off-meta')
+  assert.equal(heroStats(baseInput({ job: 'archer', stats: wisStats })).thShadowWard, 0, 'non-Thief gets 0')
+
+  assert.equal(gamblerLuckyRes('LUCKY!', 'thief', false), KIT.thiefLuckyRes)
+  assert.equal(gamblerLuckyRes('LUCKY!', 'thief', true), 0, 'ICD 1/hero turn')
+  assert.equal(gamblerLuckyRes('EVADE!', 'thief', false), 0)
+  assert.equal(gamblerLuckyRes('LUCKY!', 'archer', false), 0)
+
+  const wisLines = statLines('wis', 'thief', 51)
+  assert.ok(wisLines.cls.some((l) => l.includes('Shadow Ward') && l.includes('15%')))
+  const lukLines = statLines('luk', 'thief', 21)
+  assert.ok(lukLines.cls.some((l) => l.includes('LUCKY!') && l.includes(`+${KIT.thiefLuckyRes} Energy`)))
+
+  const P2D_KEYS = [
+    'thiefVenomBasicShare',
+    'thiefDetAtShare', 'thiefDetShare', 'thiefDetMin', 'thiefDetPoisonBase', 'thiefDetPoisonLv', 'thiefDetSplash', 'thiefDetLeechShare',
+    'thiefLeechLv', 'thiefLeechInt', 'thiefLeechCap', 'thiefLeechTurnCap', 'thiefDetBossRefund',
+    'thiefAgonyFrom', 'thiefAgonyCap', 'thiefAgonyHitCut',
+    'thiefWardPer', 'thiefWardCap', 'thiefLuckyRes',
+  ] as const
+  assert.equal(P2D_KEYS.length, 19)
+  for (const key of P2D_KEYS) {
+    assert.ok(fieldFor('kit', key), `missing tunable whitelist: ${key}`)
+    const ex = explainField('kit', key)
+    assert.ok(ex.label.trim().length > 0, `empty label: ${key}`)
+    assert.ok(ex.effect.trim().length > 0 && ex.effect !== 'ตัวคูณคิทคลาสหลัก', `fallback explain: ${key}`)
+  }
 })

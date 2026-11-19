@@ -176,3 +176,9 @@
 - Flat-only tick rule (`MAIN-VS-REV4.md` §5.1 #4): Perfect Agony multiplies ONLY flat poison (`m.poison × m.poisonDmg × bleedScale`) on poison ticks, NEVER `%HP bite` or Wolf `%HP bleed`; skips crits (Contaminate ★) and Mobster `ทวงหนี้` (`debtBursting`); `srcMul` skips `vsPoison` when `src === 'poison'` so Contaminate applies `vsPoison` once inside B5
 - Bumped `THIEF_REWORK_VER` 5 -> 6 (`migrateThiefRogueRework` resets Thief class 1 web + talents once for saves < 6; Rogue job2 web + talents untouched)
 - 3 new `KIT` keys registered across all 4 admin/layout files
+
+## ✨ feat(thief): P2'd WIS Shadow Ward + LUK Gambler's Edge + sync tools & docs
+- Added WIS Shadow Ward (`thiefWardPer` 0.003/WIS above start, max `thiefWardCap` 15%): reduces magic, `monHit >= 999`, and `trueSight` hits in `hurtHeroCore` (`job.id === 'thief'`, incl. Rogue & Mobster under Way A; dropped WIS poison cap/Venom Melt per `MAIN-VS-REV4.md`)
+- Added LUK Gambler's Edge (`thiefLuckyRes` +6 Energy on `LUCKY!` dodge, 1/hero turn `luckyIcd`): wired on BOTH `hurtHeroCore` `dodged()` and `trueHurt()` `LUCKY!` paths
+- Updated `statInfo.ts` (Thief WIS/LUK status lines), `tools/bot.cjs` (`thiefRogueRework: 6` + `thief_v` TREEX example), `design/p2/NOTES.md` (`## P2'd`), `design/thief-rogue-rework-v1.md` (`R4.4` + `R4.10`)
+- Added full 19-key admin/registry sweep + Shadow Ward / Gambler's Edge tests in `tests/thief-p2d.test.ts`

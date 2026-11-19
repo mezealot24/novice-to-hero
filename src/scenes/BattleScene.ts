@@ -24,7 +24,7 @@ import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepA
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
 import { ultCdCut, condCritB3, thiefUltCondCritDmg, thiefUltCritAdd, thiefUltHitCount, thiefOnHitEff, thiefUltFinisher, thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, matkToPmRatio, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost, rogueKnifeMul, rogueSteelMul, rogueStabAmp, rogueComboDebuff, rogueAmbushCrit } from '../data/skill-math'
-import { agonyBonus, canDetonate, contaminateBossRefund, contaminateCritChance, contaminateLeechShare, detonateDmg, detonateStacks, paApplies, poisonPowerBonus, poisonTickTotal } from '../data/thief-offmeta'
+import { agonyBonus, canDetonate, contaminateBossRefund, contaminateCritChance, contaminateLeechShare, detonateDmg, detonateStacks, gamblerLuckyRes, paApplies, poisonPowerBonus, poisonTickTotal, shadowWardApplies } from '../data/thief-offmeta'
 import { addCard, addMat, addXp, loseXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -772,7 +772,7 @@ export class BattleScene extends Phaser.Scene {
   private async fight(id: number): Promise<boolean> {
     this.undrain()
     this.fightTurns = 0; this.timedOut = false
-    this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.s1Weave = false; this.weaveBonus = 0; this.dodgeCdIcd = 0; this.detUsed = false; this.leechLeft = this.st.maxHp * KIT.thiefLeechTurnCap; this.rampage = 0
+    this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.s1Weave = false; this.weaveBonus = 0; this.dodgeCdIcd = 0; this.detUsed = false; this.luckyIcd = false; this.leechLeft = this.st.maxHp * KIT.thiefLeechTurnCap; this.rampage = 0
     this.rgTempo = 0; this.rgComboN = 0; this.rgDodgeIcd = 0; this.rgFlee = 0; this.rgDodged = false; this.rgAmbush = false // P3'a Rogue: per wave
     this.martyrUsed = false; this.j2Hurt = false; this.monkGrit = 0; this.asuraExhaust = 0; this.awakenTurns = 0; this.awakenAbsorbed = 0; this.awakenUltPow = 1; this.clearAllies() // Crusader ★ ผู้พลีชีพ once per wave · allies last one wave · Awakening resets per wave
     this.inspireUsed = false; this.inspire = 0; this.earthDone = false // ⚜️ Paladin: once per fight
@@ -905,6 +905,7 @@ export class BattleScene extends Phaser.Scene {
   private async heroTurn() {
     this.tickFxCd()
     this.detUsed = false
+    this.luckyIcd = false
     this.leechLeft = this.st.maxHp * KIT.thiefLeechTurnCap
     if (this.shadowTurns > 0 && --this.shadowTurns === 0) this.heroSpr.setAlpha(1) // 👤 ร่างเงา wears off
     const X = this.hx
@@ -1306,6 +1307,11 @@ export class BattleScene extends Phaser.Scene {
     if (this.shadowTurns > 0 && this.st.thShadowDodgeCd > 0 && Math.random() < this.st.thShadowDodgeCd && this.cutUltCd(1) > 0) this.floatText(HERO_X - 40, GROUND - 195, '🌀 เงาวนลูป! Ult CD −1', '#c9b8ff')
     this.addShadow(KIT.thiefShadow.dodge + (this.st.thShadowFill > 0 && Math.random() < this.st.thShadowFill ? 1 : 0))
   }
+  /** P2'd LUK Gambler's Edge: Thief-line gains Energy on LUCKY! dodge (1/hero turn). */
+  private gamblerLucky(label: string) {
+    const g = gamblerLuckyRes(label, this.job.id, this.luckyIcd)
+    if (g > 0 && this.job.resource === 'energy') { this.luckyIcd = true; this.resGain(g) }
+  }
   /** 🔻 Thief หมายหัว: keep a live mark on the highest-HP monster. */
   private ensureMark() {
     if (this.st.thMark <= 0 || (this.thMarkMon && !this.thMarkMon.dead)) return
@@ -1482,6 +1488,7 @@ export class BattleScene extends Phaser.Scene {
   private weaveBonus = 0 // P2'a th_t2c: basic bracket bonus for the swing right after แทงพิษ (set / cleared in basicAttack)
   private dodgeCdIcd = 0 // P2'a th_t2a: hero turns until a dodge may cut a cooldown again
   private detUsed = false // P2'd thief_v2 Contaminate: 1/hero turn across Basic + แทงพิษ
+  private luckyIcd = false // P2'd LUK Gambler's Edge: LUCKY! Energy gain, 1/hero turn
   private leechLeft = 0 // P2'd thief_v3 เลือดพิษ: remaining HP heal budget this hero turn (max KIT.thiefLeechTurnCap x maxHp)
   private killHealCritUsed = false // กระหายเลือด: boss/mini crit heal once per hero turn
   private forceCrit = false
@@ -4969,6 +4976,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.st.dodgeEnergy > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.dodgeEnergy) // Thief talent: ขโมยจังหวะ
       this.dodgeCdCut() // P2'a th_t2a: also cuts a cooldown (ICD)
       this.shadowDodged() // 👤 เกจเงา (+ P2'c thief_b1 / b3)
+      this.gamblerLucky(label) // P2'd LUK Gambler's Edge: LUCKY! -> Energy (1/hero turn)
       this.rgDodged = true // P3'a Rogue: next Back Stab is a Shadow Ambush
       return false
     }
@@ -5003,6 +5011,7 @@ export class BattleScene extends Phaser.Scene {
     const effMdef = Math.min(RESIST_RULES.hardCap, this.st.mdef * ab + (this.st.j3Ch > 0 && this.monkGrit > 0 ? KIT3.champion.gritMdefBonus : 0))
     const raw = magic ? dmg * (1 - effMdef) : afterDef(dmg, this.st.def * ab)
     let n = Math.max(1, Math.ceil(raw * (1 - this.st.guard) * (this.buf.guard > 0 ? 1 - S2N.guardCut(this.st.s2Lv) : 1) * this.takenMul())) // Skill 2 ตั้งการ์ด · พร v2
+    if (this.st.thShadowWard > 0 && shadowWardApplies(magic, monHit, (src?.trueTurns ?? 0) > 0)) n = Math.max(1, Math.ceil(n * (1 - this.st.thShadowWard))) // P2'd WIS Shadow Ward
     if (!magic && this.st.j2BoarGuardDr > 0 && readyAllies(this.allies).some((a) => a.def.share && a.hp > a.maxHp * KIT2.beastmaster.boarGuardHpPct)) n = Math.max(1, Math.ceil(n * (1 - this.st.j2BoarGuardDr))) // 🐗 bm_b3: Boar > 50% HP lowers physical dmg taken
     if (src && this.st.j2Provoke > 0) { // Knight ข่มขวัญ: immediate 50% DR, full DR below provokeAt HP
       const cut = src.hp < src.def.hp * KIT2.knight.tree.provokeAt ? this.st.j2Provoke : this.st.j2Provoke * 0.5
@@ -5808,7 +5817,7 @@ export class BattleScene extends Phaser.Scene {
     n = Math.ceil(n)
     if (n <= 0 || this.hp <= 0) return 0
     if (this.dodgeCharges > 0) { this.dodgeCharges--; this.evadeJuice('เงาพริ้ว!', '#c9c9d6'); this.shadowDodged(); return 0 }
-    if (this.hx.web <= 0 && Math.random() < this.st.luckyDodge) { this.evadeJuice('LUCKY!', '#6fd08c'); this.shadowDodged(); return 0 }
+    if (this.hx.web <= 0 && Math.random() < this.st.luckyDodge) { this.evadeJuice('LUCKY!', '#6fd08c'); this.shadowDodged(); this.gamblerLucky('LUCKY!'); return 0 }
     if (this.shield > 0) { const a = Math.min(Math.ceil(this.shield), n); this.shield = Math.max(0, this.shield - a); n -= a; if (n <= 0) { this.floatText(HERO_X, GROUND - 110, '🛡️ กันไว้', '#9fe3ff'); return 0 } }
     this.castBreak(n)
     const before = this.hp

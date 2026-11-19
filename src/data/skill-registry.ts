@@ -182,6 +182,9 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
       kit('thiefAgonyFrom', 'วิถีพิษคริ: นับ critMul ที่เกิน'),
       kit('thiefAgonyCap', 'B5 วิถีพิษคริ + vsPoison: โบนัสพิษสูงสุด'),
       kit('thiefAgonyHitCut', 'วิถีพิษคริ: ฮิตกายภาพไม่คริเบาลง'),
+      kit('thiefWardPer', 'Shadow Ward: ลดดาเมจเวท/ตาเหยี่ยว ต่อ WIS'),
+      kit('thiefWardCap', 'Shadow Ward: ลดดาเมจสูงสุด'),
+      kit('thiefLuckyRes', "Gambler's Edge: LUCKY! → Energy"),
     ],
   },
 }
