@@ -183,6 +183,12 @@ export function wornRival(s: SaveData, it: Item): Item | null {
 export function itemSetOf(it: Item): ItemSet | undefined {
   return it.setId ? setById(it.setId) : ITEM_SETS.find((st) => st.memberIds?.includes(it.id))
 }
+/** Every set the item counts for (Q 2026-11-19: a shared early piece can be in its own set AND a class set). Primary first. */
+export function itemSetsOf(it: Item): ItemSet[] {
+  const out = ITEM_SETS.filter((st) => st.id === it.setId || !!st.memberIds?.includes(it.id))
+  const p = itemSetOf(it)
+  return p ? [p, ...out.filter((x) => x !== p)] : out
+}
 
 function sameModStats(a: Partial<Stats> | undefined, b: Partial<Stats> | undefined): boolean {
   const keys = new Set([...Object.keys(a ?? {}), ...Object.keys(b ?? {})]) as Set<keyof Stats>
@@ -248,14 +254,14 @@ export function setSpan(ids: readonly string[]): string {
 }
 /** Group recipes by set (sets in the order of their earliest piece), then pack them into pages by height.
  *  A set starts on a fresh page unless it fits whole; a set longer than a page repeats its header (↪) on the next one. */
-export function setPages(items: readonly Item[], setOf: (it: Item) => ItemSet | undefined, h = LIST_H): Row[][] {
+export function setPages(items: readonly Item[], setsOf: (it: Item) => readonly ItemSet[], h = LIST_H): Row[][] {
   const groups = new Map<string, { set: ItemSet; items: Item[] }>()
   for (const it of items) {
-    const st = setOf(it)
-    if (!st) continue
-    const g = groups.get(st.id) ?? { set: st, items: [] }
-    g.items.push(it)
-    groups.set(st.id, g)
+    for (const st of setsOf(it)) { // a piece in two sets shows under both headers
+      const g = groups.get(st.id) ?? { set: st, items: [] }
+      g.items.push(it)
+      groups.set(st.id, g)
+    }
   }
   const order = [...groups.values()].sort((a, b) => dgIx(a.items[0]) - dgIx(b.items[0]) || ITEM_SETS.indexOf(a.set) - ITEM_SETS.indexOf(b.set))
   const pages: Row[][] = []

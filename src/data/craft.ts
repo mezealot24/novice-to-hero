@@ -128,6 +128,15 @@ export const CRAFT_ITEMS: Item[] = [
   { id: 'c_np_charm', slot: 'acc', name: 'เครื่องรางจุดตาย', icon: '🎯', price: 0, slots: 1, desc: 'ชุดนักย่องราตรี · สายตาเล็งจุดตาย คริตีปกติไหลเข้าสกิล', base: { luk: 3, dex: 2 }, mod: { crit: 0.04, critMul: 0.08 }, jobs: TH,
     conversions: [{ from: 'crit', to: 'skillCrit', ratio: 0.2, cap: 0.06, label: '20% คริตีปกติ → คริสกิล (สูงสุด +6%)' }],
     craft: { dg: 'd4', common: 14, boss: 3, zeny: 1500, bonus: [{ skillCrit: 0.03 }, { critMul: 0.12 }] } },
+  // --- Q 2026-11-19: one D4 piece per other class for its D1-D5 zone set (warblood / dawn_faith / lich_seal / wildstalker) ---
+  { id: 'c_wb_bracer', slot: 'acc', name: 'ปลอกแขนนักรบโลหิต', icon: '⛓️', price: 0, slots: 1, desc: 'ชุดเลือดนักรบ · ฟันแรงขึ้น ดูดเลือดนิด ๆ', base: { str: 3, vit: 2 }, mod: { atk: 6, pskill: 0.05, lifesteal: 0.02 }, jobs: SW,
+    craft: { dg: 'd4', common: 14, boss: 3, zeny: 1500, bonus: [{ maxHp: 40 }, { pskill: 0.05, critMul: 0.1 }] } },
+  { id: 'c_df_veil', slot: 'head', name: 'ผ้าคลุมศรัทธาอรุณ', icon: '🕊️', price: 0, slots: 1, desc: 'ชุดศรัทธาอรุณ · ฮีลแรงขึ้น กันเวทได้ดี', base: { wis: 3, int: 2 }, mod: { maxHp: 50, healAmp: 0.08, mdef: 0.04 }, jobs: CL,
+    craft: { dg: 'd4', common: 14, boss: 3, zeny: 1500, bonus: [{ shieldAmp: 0.08 }, { healAmp: 0.08, regen: 0.3 }] } },
+  { id: 'c_ls_circlet', slot: 'head', name: 'มงกุฎผนึกลิช', icon: '👑', price: 0, slots: 1, desc: 'ชุดผนึกลิช · เวทแรง Mana เยอะ คริเวทติดง่าย', base: { int: 3, wis: 1 }, mod: { matk: 10, maxRes: 15, spellCrit: 0.03 }, jobs: MG,
+    craft: { dg: 'd4', common: 14, boss: 3, zeny: 1500, bonus: [{ resRegen: 1 }, { spellCrit: 0.03, elemDmg: 0.06 }] } },
+  { id: 'c_ws_vest', slot: 'armor', name: 'เสื้อพรานพงไพร', icon: '🦌', price: 0, slots: 1, desc: 'ชุดพรานพงไพร · เสื้อพรานเบา ๆ หลบดี เล็งแม่น', base: { dex: 3, agi: 2 }, mod: { maxHp: 70, def: 6, flee: 6, hit: 6 }, jobs: AR,
+    craft: { dg: 'd4', common: 14, boss: 3, zeny: 1500, bonus: [{ crit: 0.03 }, { aspd: 0.06, hit: 6 }] } },
   // --- Set B ชุดเงาคู่ทวิภพ (D6-D10, Rogue | Mafia) ---
   { id: 'cc_ts_kris', wtype: 'dagger', slot: 'weapon', name: 'กริชเงาคู่ทวิภพ', icon: '🔪', price: 0, slots: 2,
     desc: 'ชุดเงาคู่ทวิภพ · สายกลาง โร้ก/มาเฟีย ใส่ได้ทั้งคู่: คอมโบรัวแปลงเป็นคริสกิล', base: { agi: 8, str: 5, luk: 4 }, mod: { atk: 34, combo: 0.08, crit: 0.06, skillCrit: 0.06 }, jobs: TH, j2: ['rogue', 'mobster'],

@@ -15,7 +15,7 @@ import { setBonuses, type ItemSet } from '../../data/sets'
 import { canPay, equip, isWorn, pay, persist, save } from '../../save'
 import { sfx } from '../../sfx'
 import { button, chip, confirm, costStrip, fit, holdButton, itemIcon, panel, toast, txt, UI } from '../../ui'
-import { compareRows, dgIx, forgedWithAspect, HEAD_H, itemSetOf, setPages, setSpan, wornRival, type CmpRow, type Row } from './state'
+import { compareRows, dgIx, forgedWithAspect, HEAD_H, itemSetOf, itemSetsOf, setPages, setSpan, wornRival, type CmpRow, type Row } from './state'
 import { matSource } from './stash'
 
 export interface ViewHost { wallet(): void; say(text: string): void; changed(): void }
@@ -49,13 +49,13 @@ export class RecipeView {
     if (this.salvageMode) return ITEMS.filter((it) => (it.craft || s.taint?.[it.id]) && s.owned.includes(it.id)).sort((a, b) => dgIx(a) - dgIx(b))
     const all = [...CRAFT_ITEMS, ...CLASS_GEAR, ...CLASS_CRAFT_ITEMS, ...AWAKENED_CRAFT_ITEMS, ...ALL_CARDFORGE_ITEMS].sort((a, b) => dgIx(a) - dgIx(b))
     if (this.filter === 'mine') return all.filter((it) => canWearAs(it, s))
-    if (this.filter === 'set') return all.filter((it) => !!itemSetOf(it))
+    if (this.filter === 'set') return all.filter((it) => itemSetsOf(it).length > 0)
     return all
   }
 
   /** Pages of the left list: flat 6 per page, or (🧩 filter) grouped under set headers. */
   private pageRows(list: Item[]): Row[][] {
-    if (this.filter === 'set' && !this.salvageMode) return setPages(list, itemSetOf)
+    if (this.filter === 'set' && !this.salvageMode) return setPages(list, itemSetsOf)
     const out: Row[][] = []
     for (let i = 0; i < list.length; i += PER) out.push(list.slice(i, i + PER).map((it) => ({ kind: 'item' as const, it })))
     return out
@@ -159,7 +159,7 @@ export class RecipeView {
   // ---------- right side ----------
   private stage(root: Phaser.GameObjects.Container, it: Item, s: ReturnType<typeof save>) {
     const sc = this.scene, open = this.unlocked(it), salv = this.salvageMode, cf = isCardforge(it), c = it.craft
-    const itemSet = itemSetOf(it)
+    const itemSet = itemSetOf(it), allSets = itemSetsOf(it)
     root.add(panel(sc, 288, 112, 656, 150))
     const shown = open || salv
     root.add(itemIcon(sc, 288 + 70, 187, 96, shown ? it : { ...it, icon: '❓', name: '???' }, { grade: salv ? gradeOf(s, it.id) : 1, refine: salv ? refineOf(s, it.id) : 0 }))
@@ -171,11 +171,12 @@ export class RecipeView {
     if (shown && itemSet) {
       const members = itemSet.memberIds ?? []
       const ownedCount = members.filter((id) => s.owned.includes(id)).length
-      root.add(button(sc, 852, 132, 168, 28, `🧩 ดูเซ็ต (${ownedCount}/${members.length})`, () => this.openSetModal(itemSet, s), { size: 11.5, fill: 0x3b4e82, color: UI.gold }))
+      const label = allSets.length > 1 ? `🧩 ดูเซ็ต (${allSets.length} เซ็ต)` : `🧩 ดูเซ็ต (${ownedCount}/${members.length})`
+      root.add(button(sc, 852, 132, 168, 28, label, () => this.openSetModal(itemSet, s, allSets), { size: 11.5, fill: 0x3b4e82, color: UI.gold }))
     }
 
     const slotLabel = slotBadge(it)
-    const setTag = shown && itemSet ? ` · 🧩 ${itemSet.name}` : ''
+    const setTag = shown && itemSet ? ` · 🧩 ${allSets.map((x) => x.name.replace(/\s*\(.*\)$/, '')).join(' + ')}` : ''
     root.add(fit(txt(sc, 288 + 128, 148, `${slotLabel} · ${c ? `ของ${dgName(c.dg)}` : 'ของร้าน (ติดคำสาป)'} · ${wearText(it)}${canWearAs(it, s) ? '' : ' (ไม่ใช่อาชีพนี้)'}${setTag}`, 12, canWearAs(it, s) ? UI.sub : UI.red).setWordWrapWidth(510), 18))
 
     const lockMsg = c && !((s.clearsBy?.[c.dg] ?? 0) > 0) ? `ล้ม${dgBoss(c.dg)}ก่อนถึงจะตีได้` : (it.req ? REQ_TEXT[it.req] : 'ยังไม่ปลดล็อก')
@@ -284,7 +285,8 @@ export class RecipeView {
     }
   }
 
-  private openSetModal(itemSet: ItemSet, s: ReturnType<typeof save>) {
+  /** `tabs`: every set the opening item counts for, shown as switch buttons when there is more than one. */
+  private openSetModal(itemSet: ItemSet, s: ReturnType<typeof save>, tabs: readonly ItemSet[] = []) {
     this.modal?.destroy()
     const sc = this.scene
     const close = () => { this.modal?.destroy(); this.modal = undefined }
@@ -296,8 +298,11 @@ export class RecipeView {
     const mx = 110, my = 54, mw = W - 220, mh = H - 108
     c.add([dim, panel(sc, mx, my, mw, mh, 0x141834, 0xf2b84b, 14), sc.add.zone(mx, my, mw, mh).setOrigin(0).setInteractive()])
 
-    c.add(txt(sc, mx + 20, my + 16, `${itemSet.icon} ${itemSet.name}`, 20, UI.gold, true))
-    c.add(txt(sc, mx + 20, my + 44, itemSet.desc, 12.5, UI.sub).setWordWrapWidth(mw - 90))
+    const span = setSpan(itemSet.memberIds ?? [])
+    c.add(fit(txt(sc, mx + 20, my + 16, `${itemSet.icon} ${itemSet.name}${span ? `  ·  ${span}` : ''}`, 20, UI.gold, true).setWordWrapWidth(tabs.length > 1 ? mw - 70 - tabs.length * 92 : mw - 90), 28))
+    c.add(fit(txt(sc, mx + 20, my + 44, itemSet.desc, 12.5, UI.sub).setWordWrapWidth(mw - 90), 34))
+    // A piece in two sets: switch between them here
+    if (tabs.length > 1) tabs.forEach((t, i) => c.add(button(sc, mx + mw - 70 - (tabs.length - i) * 92 + 46, my + 26, 86, 28, `${t.icon} ${t.name.replace(/\s*\(.*\)$/, '').replace(/^ชุด/, '')}`, () => this.openSetModal(t, s, tabs), { size: 10.5, fill: t.id === itemSet.id ? 0xf2b84b : 0x3b4e82, color: t.id === itemSet.id ? UI.ink : UI.text })))
     c.add(button(sc, mx + mw - 26, my + 26, 36, 32, '✕', close, { size: 16, fill: 0x5a5f8a, color: UI.text }))
 
     const activeSummary = setBonuses(wornItems(s)).active.find((a) => a.set.id === itemSet.id)
@@ -308,25 +313,34 @@ export class RecipeView {
     c.add(txt(sc, lx, ly, `📦 ชิ้นส่วนในเซ็ต (ใส่อยู่ ${wornCount}/${itemSet.memberIds?.length ?? 0})`, 14, UI.gold, true))
     const members = itemSet.memberIds ?? []
     const recipeIds = new Set(this.list().map((x) => x.id))
-    // Rows shrink when a set has many pieces (Moonshadow has 7) so the list stays inside the modal.
-    const rowH = Math.min(58, Math.floor((my + mh - 10 - (ly + 28)) / Math.max(1, members.length)))
+    // Rows shrink when a set has many pieces; 9+ pieces go into two columns (zone sets have up to 14) so the list stays inside the modal.
+    const cols = members.length > 8 ? 2 : 1, perCol = Math.ceil(members.length / cols)
+    const rowH = Math.min(58, Math.floor((my + mh - 10 - (ly + 28)) / Math.max(1, perCol)))
     const ph = rowH - 6, half = ph / 2
+    const fullW = lw, colW = cols > 1 ? (fullW - 6) / 2 : fullW
     members.forEach((id, i) => {
       const item = itemById(id)
-      const ry = ly + 28 + i * rowH
+      const lx = mx + 20 + Math.floor(i / perCol) * (colW + 6), lw = colW
+      const ry = ly + 28 + (i % perCol) * rowH
       c.add(panel(sc, lx, ry, lw, ph, 0x1a1f3d, isWorn(s, id) ? 0x6fd08c : s.owned.includes(id) ? 0xf2b84b : UI.line, 8))
       if (!item) return
-      c.add(itemIcon(sc, lx + 28, ry + half, Math.min(38, ph - 8), item, { grade: gradeOf(s, id), refine: refineOf(s, id) }))
-      c.add(fit(txt(sc, lx + 56, ry + Math.max(3, half - 18), item.name, 13, UI.text, true).setWordWrapWidth(lw - 140), 18))
       const status = isWorn(s, id) ? '✅ ใส่อยู่' : s.owned.includes(id) ? '🎒 มีแล้ว' : '🔨 ยังไม่มี'
       const stColor = isWorn(s, id) ? UI.green : s.owned.includes(id) ? UI.gold : UI.sub
+      const open = () => { close(); this.sel = id; this.rebuild() }
+      if (cols > 1) {
+        // compact two-column row: tap the row to jump to its recipe (uniques are boss drops, no recipe)
+        c.add(itemIcon(sc, lx + 22, ry + half, Math.min(34, ph - 8), item, { grade: gradeOf(s, id), refine: refineOf(s, id) }))
+        const go = recipeIds.has(id) && id !== this.sel
+        c.add(fit(txt(sc, lx + 44, ry + Math.max(2, half - 17), `${item.name}${go ? ' ›' : ''}`, 12, UI.text, true).setWordWrapWidth(lw - 50, true), 16))
+        c.add(fit(txt(sc, lx + 44, ry + Math.max(18, half + 1), `${SLOTS.find((q) => q.id === item.slot)?.icon ?? ''} ${item.unique ? '👑 ยูนีค' : status}`, 10.5, item.unique ? '#ffb347' : stColor).setWordWrapWidth(lw - 50), 15))
+        if (go) c.add(sc.add.zone(lx, ry, lw, ph).setOrigin(0).setInteractive({ useHandCursor: true }).on('pointerup', () => { sfx.pop(); open() }))
+        return
+      }
+      c.add(itemIcon(sc, lx + 28, ry + half, Math.min(38, ph - 8), item, { grade: gradeOf(s, id), refine: refineOf(s, id) }))
+      c.add(fit(txt(sc, lx + 56, ry + Math.max(3, half - 18), item.name, 13, UI.text, true).setWordWrapWidth(lw - 140), 18))
       c.add(txt(sc, lx + 56, ry + Math.max(22, half + 2), `${slotBadge(item)} · ${status}`, 11, stColor))
       if (recipeIds.has(id) && id !== this.sel) {
-        c.add(button(sc, lx + lw - 42, ry + half, 68, Math.min(26, ph - 10), 'ดูสูตร ›', () => {
-          close()
-          this.sel = id
-          this.rebuild()
-        }, { size: 11, fill: 0x3b4e82, color: UI.text }))
+        c.add(button(sc, lx + lw - 42, ry + half, 68, Math.min(26, ph - 10), 'ดูสูตร ›', open, { size: 11, fill: 0x3b4e82, color: UI.text }))
       }
     })
 

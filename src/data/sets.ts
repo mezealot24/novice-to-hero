@@ -81,8 +81,9 @@ export const ITEM_SETS: readonly ItemSet[] = [
     id: 'night_prowler',
     name: 'ชุดนักย่องราตรี (Night Prowler)',
     icon: '🌒',
-    desc: 'เซ็ตสายโจร D1-D5 · ตีจากหลายดันผสมกัน คริตีปกติไหลเข้าคริสกิล · ชิ้น D5 มีทั้งของโร้กและมาเฟีย',
-    memberIds: ['c_np_wrap', 'c_np_vest', 'c_np_charm', 'c_shadowdaggers', 'c_blackledger', 'c_rg_hood', 'c_rg_ring', 'c_mb_fedora', 'c_mb_watch'],
+    desc: 'เซ็ตโจรโซน D1-D5 · ผสมของหลายดัน + หมวกเมือกใส + ยูนีค คริตีปกติไหลเข้าคริสกิล · ชิ้น D5 มีทั้งของโร้กและมาเฟีย',
+    // A piece may count for more than one set (Q 2026-11-19): c_jellhood is also Jelly Thorn; uniques are the chase pieces.
+    memberIds: ['c_np_wrap', 'c_np_vest', 'c_np_charm', 'c_jellhood', 'u_glasscrown', 'u_bloodfang', 'u_ghostcloak', 'c_shadowdaggers', 'c_blackledger', 'c_rg_hood', 'c_rg_ring', 'c_mb_fedora', 'c_mb_watch'],
     tiers: [
       { pieces: 2, label: '2 ชิ้น: คริ +4%, คริสกิล +3%', mod: { crit: 0.04, skillCrit: 0.03 } },
       {
@@ -91,6 +92,76 @@ export const ITEM_SETS: readonly ItemSet[] = [
         conversions: [{ from: 'crit', to: 'skillCrit', ratio: 0.3, cap: 0.08, label: '30% คริตีปกติ → คริสกิล (สูงสุด +8%)' }],
       },
       { pieces: 4, label: '4 ชิ้น: ดาเมจคริ +15%, คอมโบ +6%', mod: { critMul: 0.15, combo: 0.06 } },
+    ],
+  },
+  // Q 2026-11-19: a D1-D5 zone set for every class. Shared all-class pieces (Jelly Thorn, card-forge, uniques) count for
+  // their own set AND a class set, so early pieces mix across classes; D5 2nd-job pieces join their class set too.
+  {
+    id: 'warblood',
+    name: 'ชุดเลือดนักรบ (Warblood)',
+    icon: '🩸',
+    desc: 'เซ็ตนักดาบโซน D1-D5 · เกราะหนามเยลลี่ + โล่เงาจันทร์ + ดาบวีรชน + ยูนีค · ชิ้น D5 มีทั้งของเบอร์เซิร์กเกอร์และอัศวิน',
+    memberIds: ['cf_jellthorn', 'c_moonshield', 'c_herosword', 'c_wb_bracer', 'cf_deathplate', 'cf_duelband', 'u_berserkaxe', 'u_bloodfang', 'c_berserkcleaver', 'c_dragonspear', 'c_bz_helm', 'c_bz_fang', 'c_kn_helm', 'c_kn_banner'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: P.ATK +8, HP +60', mod: { atk: 8, maxHp: 60 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: ดาเมจสกิลกาย +8%, ดูดเลือด +3%, แปลง 3% Max HP → P.ATK (สูงสุด +25)',
+        mod: { pskill: 0.08, lifesteal: 0.03 },
+        conversions: [{ from: 'maxHp', to: 'atk', ratio: 0.03, cap: 25, label: '3% Max HP → P.ATK (สูงสุด +25)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: คริสกิล +5%, ดาเมจคริ +15%, สวนกลับ +5%', mod: { skillCrit: 0.05, critMul: 0.15, counter: 0.05 } },
+    ],
+  },
+  {
+    id: 'dawn_faith',
+    name: 'ชุดศรัทธาอรุณ (Dawn Faith)',
+    icon: '🕯️',
+    desc: 'เซ็ตนักบวชโซน D1-D5 · เสื้อคลุมเยลลี่ + หมวกหมูป่า + คทาแสงอรุณ + ยูนีค · ชิ้น D5 มีทั้งของครูเซเดอร์และมังค์',
+    memberIds: ['c_jellcoat', 'cf_boarhelm', 'c_dawnmace', 'c_df_veil', 'c_moonshield', 'u_halo', 'c_paladinblade', 'c_vajraknuckle', 'c_cr_crown', 'c_cr_pendant', 'c_mk_band', 'c_mk_beads'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: ฮีลแรง +10%, HP +50', mod: { healAmp: 0.1, maxHp: 50 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: โล่แรง +10%, ฟื้น HP +0.4, แปลง 15% M.ATK → P.ATK (สูงสุด +20)',
+        mod: { shieldAmp: 0.1, regen: 0.4 },
+        conversions: [{ from: 'matk', to: 'atk', ratio: 0.15, cap: 20, label: '15% M.ATK → P.ATK (สูงสุด +20)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: โล่ต้นเวฟ +5%, P.DEF +8, M.DEF +5%', mod: { waveShield: 0.05, def: 8, mdef: 0.05 } },
+    ],
+  },
+  {
+    id: 'lich_seal',
+    name: 'ชุดผนึกลิช (Lich Seal)',
+    icon: '🔮',
+    desc: 'เซ็ตนักเวทโซน D1-D5 · หมวกเมือกใส + คทา/ลูกแก้วตราผนึก + ของลิช + ยูนีค · ชิ้น D5 มีทั้งของวิซาร์ดและเซจ',
+    memberIds: ['c_jellhood', 'c_sealstaff', 'c_sealorb', 'c_ls_circlet', 'c_lichring', 'cf_lichveil', 'cf_emberring', 'u_soulstaff', 'c_archonstaff', 'c_elementalgrimoire', 'c_wz_hat', 'c_wz_crystal', 'c_sg_cap', 'c_sg_charm'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: M.ATK +10, Max Mana +15', mod: { matk: 10, maxRes: 15 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: เวทคริ +5%, ฟื้น Mana +1, แปลง 8% Max Mana → M.ATK (สูงสุด +20)',
+        mod: { spellCrit: 0.05, resRegen: 1 },
+        conversions: [{ from: 'maxRes', to: 'matk', ratio: 0.08, cap: 20, label: '8% Max Mana → M.ATK (สูงสุด +20)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: ดาเมจธาตุ +10%, ดาเมจคริ +15%', mod: { elemDmg: 0.1, critMul: 0.15 } },
+    ],
+  },
+  {
+    id: 'wildstalker',
+    name: 'ชุดพรานพงไพร (Wildstalker)',
+    icon: '🦌',
+    desc: 'เซ็ตนักธนูโซน D1-D5 · แหวนเมือกใส + กระบอกธนูเงาจันทร์ + ธนูตราผนึก + ยูนีค · ชิ้น D5 มีทั้งของบีสต์มาสเตอร์และอินโนเวเตอร์',
+    memberIds: ['c_jellring', 'c_moonquiver', 'c_sealbow', 'c_ws_vest', 'u_ghostcloak', 'u_hawkeye', 'c_beastlordbow', 'c_clockworkcrossbow', 'c_bm_feather', 'c_bm_tooth', 'c_in_goggles', 'c_in_gear'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: Hit +8, คริ +4%', mod: { hit: 8, crit: 0.04 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: ความเร็ว +6%, แปลง 30% คริตีปกติ → คริสกิล (สูงสุด +8%)',
+        mod: { aspd: 0.06 },
+        conversions: [{ from: 'crit', to: 'skillCrit', ratio: 0.3, cap: 0.08, label: '30% คริตีปกติ → คริสกิล (สูงสุด +8%)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: ดาเมจคริ +15%, Flee +8', mod: { critMul: 0.15, flee: 8 } },
     ],
   },
   {

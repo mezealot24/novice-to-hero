@@ -122,11 +122,10 @@ test('Equip/Unequip Symmetry & Stat Identity: equipping, imbuing, awakening, and
     assert.ok(members.length >= 3, `Set ${setDef.id} must have at least 3 members`)
 
     const s = makeEndgameHero()
-    // Class-locked sets (Q 2026-11-19 Thief-line sets): wear them as a Rogue instead of the default Monk
-    const lock = members.find((m) => m.jobs?.length)?.jobs?.[0]
-    if (lock === 'thief' && members.every((m) => !m.jobs || m.jobs.includes('thief'))) {
-      Object.assign(s, { job: 'thief', job2: 'rogue', job3: undefined, job3Trial: {} })
-    }
+    // Class sets (Q 2026-11-19 zone sets): wear them as that class (2nd job set, no 3rd job) instead of the default Monk
+    const AS: Record<string, string> = { thief: 'rogue', swordsman: 'berserker', mage: 'wizard', archer: 'beastmaster' }
+    const lock = (['thief', 'swordsman', 'mage', 'archer'] as const).find((j) => members.every((m) => !m.jobs || m.jobs.includes(j)))
+    if (lock) Object.assign(s, { job: lock, job2: AS[lock], job3: undefined, job3Trial: {} })
     const baseStats = structuredClone(heroStats(s))
 
     const usedSlots: EquipSlot[] = []

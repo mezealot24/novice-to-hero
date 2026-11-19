@@ -7,9 +7,10 @@ import { CLASS_GEAR } from '../src/data/class-gear'
 import { CLASS_CRAFT_ITEMS } from '../src/data/class-craft'
 import { AWAKENED_CRAFT_ITEMS } from '../src/data/awakened-craft'
 import { ALL_CARDFORGE_ITEMS } from '../src/data/cardforge'
+import { UNIQUE_ITEMS } from '../src/data/uniques'
 import { matById } from '../src/data/materials'
 import { ITEM_SETS, setBonuses, setById } from '../src/data/sets'
-import { itemSetOf, setPages, setSpan } from '../src/scenes/forge/state'
+import { itemSetOf, itemSetsOf, setPages, setSpan } from '../src/scenes/forge/state'
 import { equip, newSave } from '../src/save'
 
 const mem: Record<string, string> = {}
@@ -29,11 +30,9 @@ test('thief sets: span the asked dungeon ranges, real recipes, Thief-only pieces
     assert.ok(st.tiers.some((t) => t.conversions?.some((c) => c.to === 'skillCrit')), `${id} has a crit -> skillCrit option`)
     for (const mid of st.memberIds!) {
       const it = itemById(mid)
-      assert.ok(it?.craft, `${mid} is a forge recipe`)
-      assert.deepEqual(it.jobs, ['thief'], `${mid} is Thief gear`)
-      for (const m of Object.keys(craftCost(it).mats)) assert.ok(matById(m), `${mid} uses real mat ${m}`)
-      // each piece belongs to exactly one set
-      assert.equal(ITEM_SETS.filter((x) => x.memberIds?.includes(mid)).length, 1, `${mid} in one set only`)
+      assert.ok(it?.craft || it?.unique, `${mid} is a forge recipe or a unique`)
+      assert.ok(!it.jobs || it.jobs.includes('thief'), `${mid} is wearable by a Thief`)
+      if (it.craft) for (const m of Object.keys(craftCost(it).mats)) assert.ok(matById(m), `${mid} uses real mat ${m}`)
     }
   }
 })
@@ -68,9 +67,11 @@ test('thief sets: 3pc crit -> skillCrit conversion lands in heroBuild, capped', 
 test('forge 🧩 filter: recipes grouped under set headers, pages fit, sets never lose pieces', () => {
   const all = [...CRAFT_ITEMS, ...CLASS_GEAR, ...CLASS_CRAFT_ITEMS, ...AWAKENED_CRAFT_ITEMS, ...ALL_CARDFORGE_ITEMS]
   const inSet = all.filter((it) => itemSetOf(it))
-  const pages = setPages(inSet, itemSetOf)
+  const pages = setPages(inSet, itemSetsOf)
   const items = pages.flat().filter((r) => r.kind === 'item')
-  assert.equal(items.length, inSet.length, 'every set recipe shown once')
+  const memberships = inSet.reduce((a, it) => a + itemSetsOf(it).length, 0)
+  assert.equal(items.length, memberships, 'every set recipe shown once under each of its sets')
+  assert.ok(memberships > inSet.length, 'some pieces count for two sets (Q 2026-11-19)')
   for (const p of pages) {
     assert.equal(p[0].kind, 'head', 'each page starts with a set header')
     const h = p.reduce((a, r) => a + (r.kind === 'item' ? 56 : 30), 0)
@@ -78,7 +79,7 @@ test('forge 🧩 filter: recipes grouped under set headers, pages fit, sets neve
     let cur = ''
     for (const r of p) {
       if (r.kind === 'head') cur = r.set.id
-      else assert.equal(itemSetOf(r.it)?.id, cur, `${r.it.id} sits under its own set`)
+      else assert.ok(itemSetsOf(r.it).some((x) => x.id === cur), `${r.it.id} sits under one of its sets`)
     }
   }
   // headers: each set opens once (cont=false) in dungeon order
@@ -87,4 +88,29 @@ test('forge 🧩 filter: recipes grouped under set headers, pages fit, sets neve
   assert.equal(opens[0], 'jelly_thorn')
   assert.ok(opens.includes('night_prowler') && opens.includes('midnight_tribunal'))
   assert.ok(ITEMS.length > 0)
+})
+
+const ZONE_SETS: Record<string, string> = { swordsman: 'warblood', thief: 'night_prowler', cleric: 'dawn_faith', mage: 'lich_seal', archer: 'wildstalker' }
+
+test('D1-D5 zone: every class has its own set, every D1-D5 forge piece and unique counts for a set', () => {
+  for (const [job, id] of Object.entries(ZONE_SETS)) {
+    const st = setById(id)
+    assert.ok(st, `${job} has a zone set`)
+    assert.equal(setSpan(st.memberIds!), 'D1-D5', `${id} lives in D1-D5`)
+    assert.deepEqual(st.tiers.map((t) => t.pieces), [2, 3, 4])
+    for (const mid of st.memberIds!) {
+      const it = itemById(mid)
+      assert.ok(it, `${mid} exists`)
+      assert.ok(!it.jobs || it.jobs.includes(job as never), `${mid} is wearable by ${job}`)
+    }
+    // a class-1 (pre 2nd job) hero can reach the 3pc tier from pieces that need no 2nd job, in 3 different slots
+    const pre = st.memberIds!.map((m) => itemById(m)).filter((it) => !it.j2 && it.req !== 'job2')
+    assert.ok(new Set(pre.map((it) => it.slot)).size >= 3, `${id}: 3+ slots before the 2nd job`)
+  }
+  const zone = [...CRAFT_ITEMS, ...CLASS_GEAR, ...ALL_CARDFORGE_ITEMS, ...UNIQUE_ITEMS].filter((it) => /^d[1-5]$/.test(it.craft?.dg ?? it.unique?.dg ?? ''))
+  for (const it of zone) assert.ok(ITEM_SETS.some((st) => st.memberIds?.includes(it.id)), `${it.id} counts for a set`)
+  // shared Jelly Thorn pieces are spread over the classes (Q's example: หมวกเมือกใส counts for the Thief set)
+  for (const id of ['c_jellhood', 'c_jellcoat', 'c_jellring', 'cf_jellthorn']) assert.ok(itemSetsOf(itemById(id)).length >= 2, `${id} counts for 2 sets`)
+  const thief = setBonuses([itemById('c_jellhood'), itemById('c_blackledger'), itemById('c_mb_watch')])
+  assert.equal(thief.active.find((a) => a.set.id === 'night_prowler')?.count, 3, "Q's example: jelly hood + blood ledger + debt watch = Thief set 3pc")
 })
