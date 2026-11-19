@@ -9,7 +9,7 @@ import { forged, forgeTag, heroStats, ITEMS, itemById, wornItems, type Item } fr
 import { salvage } from '../src/data/salvage'
 import { setBonuses } from '../src/data/sets'
 import { adopt, forgetForge, load, newSave, pay, type SaveData } from '../src/save'
-import { slotOf, slotVerb, SLOT_COUNT, verbLock } from '../src/scenes/forge/state'
+import { slotOf, slotVerb, SLOT_COUNT, smithLine, verbLock } from '../src/scenes/forge/state'
 
 const fang = itemById('c_rustfang') // d3 Thief dagger, Moonshadow set
 const dirk = itemById('c_moondirk') // d3 Thief off-hand, Moonshadow set
@@ -195,16 +195,16 @@ test('ascend keeps the item id: it still counts for its set, and the hero gets t
   assert.equal(forgeTag(base, fang.id), ' ★5')
 })
 
-test('ascend verb: 6 tabs, last one is ⇧; locked with a reason only when it can never ascend', () => {
-  assert.equal(SLOT_COUNT, 6)
-  assert.equal(slotVerb(5, false), 'ascend')
-  assert.equal(slotOf('ascend'), 5)
+test('ascend lives in the ⬆️ grade tab (Q 2026-11-19: one tab for grade-up + ascension), 5 tabs', () => {
+  assert.equal(SLOT_COUNT, 5)
   for (let i = 0; i < SLOT_COUNT; i++) assert.equal(slotOf(slotVerb(i, false)), i)
-  assert.match(verbLock(mk(), itemById('longsword'), 'ascend') ?? '', /ค่ะ/)
-  assert.match(verbLock(mk(), itemById('cc_mt_seal'), 'ascend') ?? '', /D11-D14/)
-  assert.ok(verbLock(mk({ taint: { [fang.id]: { kind: 'none' } } }), fang, 'ascend'))
-  assert.equal(verbLock(mk({ grade: { [fang.id]: 3 } }), fang, 'ascend'), undefined) // open: the panel says "★5 first"
-  assert.equal(verbLock(mk({ grade: { [fang.id]: 5 }, ascend: { [fang.id]: 2 } }), fang, 'ascend'), undefined) // open: the panel says "top zone"
+  assert.equal(slotVerb(0, false), 'grade')
+  // ★5 piece that can still move up: the grade tab stays open and the smith points at ascension
+  assert.equal(verbLock(mk({ grade: { [fang.id]: 5 } }), fang, 'grade'), undefined)
+  assert.match(smithLine(mk({ grade: { [fang.id]: 5 } }), fang, 'grade'), /ยกขั้น/)
+  assert.match(smithLine(mk({ grade: { [fang.id]: 5 }, ascend: { [fang.id]: 2 } }), fang, 'grade'), /D11-D14/)
+  // tainted: grade tab is locked, so ascension is too
+  assert.ok(verbLock(mk({ grade: { [fang.id]: 5 }, taint: { [fang.id]: { kind: 'none' } } }), fang, 'grade'))
 })
 
 test('ascend leaves with the item: salvage / sell forget it, salvage gives no zeny and no ascend mats back', () => {

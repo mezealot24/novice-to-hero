@@ -15,7 +15,6 @@ import { RefinePanel } from './verbs/RefinePanel'
 import { RepairPanel } from './verbs/RepairPanel'
 import { TaintPanel } from './verbs/TaintPanel'
 import { AspectPanel } from './verbs/AspectPanel'
-import { AscendPanel } from './verbs/AscendPanel'
 
 // Forge, "anvil" layout (design/forge-ux-v1.md): pick an item on the rail, it sits on the anvil, every verb works on it.
 // Money rules are unchanged from the card layout (design/item-acquisition-v1.md): gems only repair / lock option lines / skip tower floors.
@@ -24,7 +23,7 @@ import { AscendPanel } from './verbs/AscendPanel'
 const RAIL_X = 12, RAIL_Y = 112, RAIL_W = 204, RAIL_H = 454
 const STAGE_X = 228, STAGE_Y = 112
 const VERB_X = 608, VERB_Y = 140, BOX_Y = 172
-const TAB_GAP = 6, TAB_W = Math.floor((BOX_W - TAB_GAP * (SLOT_COUNT - 1)) / SLOT_COUNT) // verb tabs fill the box width (iconTabs puts 6px between tabs; 6 tabs = 51px each)
+const TAB_GAP = 6, TAB_W = Math.floor((BOX_W - TAB_GAP * (SLOT_COUNT - 1)) / SLOT_COUNT) // verb tabs fill the box width (iconTabs puts 6px between tabs)
 const BAR_X = STAGE_X, BAR_Y = 498, BAR_W = VERB_X + BOX_W - STAGE_X, BAR_H = 68
 const STRIP_X = BAR_X + 14, STRIP_W = 436
 const ACT_W = 250, ACT_H = 48, ACT_X = BAR_X + BAR_W - 14 - ACT_W / 2, ACT_Y = BAR_Y + BAR_H / 2
@@ -233,7 +232,6 @@ export class ForgeScene extends Phaser.Scene {
       case 'option': return new OptionPanel(this.ctx)
       case 'taint': return new TaintPanel(this.ctx)
       case 'aspect': return new AspectPanel(this.ctx)
-      case 'ascend': return new AscendPanel(this.ctx)
     }
   }
 

@@ -57,10 +57,6 @@ export function verbLock(s: SaveData, it: Item, v: Verb): string | undefined {
       if (isTainted(s, it.id) && !hasPower) return '🌑 ติดคำสาปแล้ว ใส่รูน/ปลุกพลังไม่ได้อีกค่ะ'
       return undefined
     }
-    case 'ascend': {
-      const c = ascendCheck(s, it)
-      return !c.ok && (c.why === 'cant' || c.why === 'tainted') ? ascendWhyText(it, c.why) : undefined // 'grade' / 'max' / 'broken' stay open: the panel says why
-    }
   }
 }
 
@@ -75,20 +71,20 @@ export function ascendWhyText(it: Item, why: AscendWhy): string {
   }
 }
 
-/** The six tab slots. Slot 1 is ⚒️ ตีบวก, and 🔧 ซ่อม takes its place while the item is broken (spec 3.4). */
-export const SLOT_COUNT = 6
+/** The five tab slots. Slot 1 is ⚒️ ตีบวก, and 🔧 ซ่อม takes its place while the item is broken (spec 3.4).
+ *  ⬆️ อัปขั้น also carries ⇧ ยกขั้น (ascension) once the piece is ★5 (Q 2026-11-19: one tab for both). */
+export const SLOT_COUNT = 5
 export function slotVerb(slot: number, broken: boolean): Verb {
-  return (['grade', broken ? 'repair' : 'refine', 'option', 'taint', 'aspect', 'ascend'] as Verb[])[slot]
+  return (['grade', broken ? 'repair' : 'refine', 'option', 'taint', 'aspect'] as Verb[])[slot]
 }
-export const slotOf = (v: Verb) => (v === 'grade' ? 0 : v === 'refine' || v === 'repair' ? 1 : v === 'option' ? 2 : v === 'taint' ? 3 : v === 'aspect' ? 4 : 5)
+export const slotOf = (v: Verb) => (v === 'grade' ? 0 : v === 'refine' || v === 'repair' ? 1 : v === 'option' ? 2 : v === 'taint' ? 3 : 4)
 export const VERB_TAB: Record<Verb, { icon: string; label: string }> = {
-  grade: { icon: '⬆️', label: 'อัปขั้น' },
+  grade: { icon: '⬆️', label: 'อัป/ยกขั้น' },
   refine: { icon: '⚒️', label: 'ตีบวก' },
   repair: { icon: '🔧', label: 'ซ่อม' },
   option: { icon: '🎲', label: 'ค่าพิเศษ' },
   taint: { icon: '🌑', label: 'Corrupt' },
   aspect: { icon: '🔮', label: 'รูน/ปลุก' },
-  ascend: { icon: '⇧', label: 'ยกขั้น' },
 }
 
 /** The verb to land on when the current one closes (broken -> repair, tainted -> taint note). */
@@ -120,7 +116,6 @@ const SMITH: Record<Verb, string> = {
   option: 'ค่าพิเศษสุ่มได้ ล็อกบรรทัดที่ชอบไว้ด้วยเพชรก็ได้',
   taint: 'คำสาปลุ้นทีเดียวแล้วล็อกของ ทำหลังสุดนะ',
   aspect: 'ฝังรูนธาตุได้ชิ้นละ 1 อย่าง · ยูนีคปลุกพลังเพิ่มสเตตัสได้นะ',
-  ascend: 'ของเก่า ★5 อย่าเพิ่งทิ้งนะคะ ยกขั้นด้วยวัตถุดิบโซนใหม่ได้ ยังนับเซ็ตเดิมด้วยค่ะ',
 }
 
 /** The smith's line for the current state (pity / broken / max / short), falling back to the verb's hint. */
@@ -133,12 +128,12 @@ export function smithLine(s: SaveData, it: Item, v: Verb): string {
     if (!canAffordAuto(s, refineCost(it, refineOf(s, it.id) + 1))) return 'ของยังไม่ครบนะ ไปป้อมวีรชนหาวัตถุดิบสักรอบ'
   }
   if (v === 'grade') {
-    if (gradeCheck(s, it) === 'max') return 'ขั้นสูงสุดของชิ้นนี้แล้ว'
+    if (gradeCheck(s, it) === 'max') {
+      const c = ascendCheck(s, it) // ★5: the same tab goes on to ⇧ ascension
+      if (c.ok) return 'ของเก่า ★5 อย่าเพิ่งทิ้งนะคะ ยกขั้นด้วยวัตถุดิบโซนใหม่ได้ ยังนับเซ็ตเดิมด้วยค่ะ'
+      return c.why === 'max' || c.why === 'broken' ? ascendWhyText(it, c.why) : 'ขั้นสูงสุดของชิ้นนี้แล้ว'
+    }
     if (gradeCheck(s, it) === 'ok' && !canAffordAuto(s, gradeCost(it, gradeOf(s, it.id) + 1))) return 'ของยังไม่ครบนะ ไปป้อมวีรชนหาวัตถุดิบสักรอบ'
-  }
-  if (v === 'ascend') {
-    const c = ascendCheck(s, it)
-    if (!c.ok && (c.why === 'grade' || c.why === 'max')) return ascendWhyText(it, c.why)
   }
   if (v === 'option' && !linesOf(s, it.id).some(Boolean)) return `ตีถึง +${REFINE.lineAt[0]} ก่อน ถึงจะมีค่าพิเศษให้สุ่มนะ`
   if (v === 'taint' && isTainted(s, it.id)) return 'ล็อกไปแล้ว ไม่มีทางกลับนะ'
