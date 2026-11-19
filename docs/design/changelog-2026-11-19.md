@@ -188,3 +188,9 @@
 - Same mechanics as D6+: hard +50% stat points + escalation + corruption, every monster a Hell copy (Lv +10, one hell trait), hell MVP 🔴, hell death EXP loss
 - Normal hell drop rates: reward x1.5, mats x2 (was 1.5, Q 2026-11-19; x3 of a normal run), unique 20%, MVP / mini card x2 (`HELL_MODE`); no ผลึกโลกันตร์ on D1-D5 (Hub text hides it)
 - New `HELL_MODE.overLvXp` 0.01: a hero above `hellLvCap` (top room Lv + `HELL_MODE.lv`, D1-D5 only via `overLvTierMax` 5) banks 1% of the run's account Base + Job EXP; zeny / loot unchanged; shown in the Hub confirm and the result screen
+
+## ✨ feat(jobs3): the last four Awakenings: 🥷 Stalker · 🎩 Kingpin · 🌌 High Wizard · 🤖 Mechanic
+- Every 2nd job now has its 3rd job: Rogue -> Stalker, Mobster -> Kingpin, Wizard -> High Wizard, Innovator -> Mechanic (`JOB3`, `KIT3`, `src/data/trees3/*`); same unlock rule, no new save key
+- Each: signature mechanic, Ult วิวัฒน์ 2 (root `<id>_u3p` powers the added part), 2 Skill 3 variants (AoE / single), ใยชั้น 3 with legacy + Ult + identity branches, hybrid borrow of the sibling web
+- Legacy "guard" lands on a class stat (FLEE / Execute line / M.DEF / trap power) instead of Auto Guard; High Wizard legacy reads its best element branch
+- New Stats: `j3Sk` `j3Kp` `j3Hw` `j3Mc` `j3Pierce` `j3KpDebtAmp` `j3HwDrain` `j3HwAmp` `j3McOver`; class refine lines + `tools/bot.cjs` presets; design `docs/design/awakening-last-four-v1.md`

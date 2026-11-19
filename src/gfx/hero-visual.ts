@@ -65,6 +65,8 @@ export function heroTex(s: HeroVisualInput): string {
 }
 
 /** Layer breakdown for BattleScene's HeroRig so costumes tint only the warrior, leaving Peco / weapons / auras crisp. */
+/** Aura / afterimage tint of the Awakenings that still wear the base-class sprite. */
+const AWAKEN4_AURA: Partial<Record<Job3Id, number>> = { stalker: 0xb9a8ff, kingpin: 0xa77be0, highwizard: 0x9fb8ff, mechanic: 0xffc98a }
 export function heroRigSpec(s: HeroVisualInput): HeroRigSpec {
   const job = s.job ?? 'novice'
   const job3 = activeJob3(s)
@@ -121,11 +123,12 @@ export function heroRigSpec(s: HeroVisualInput): HeroRigSpec {
   const tex = JOBS[job].tex
   const isRanger = job === 'archer' && job3 === 'ranger'
   const isProfessor = job === 'mage' && job3 === 'professor' // 🎓 MVP: violet aura + afterimage (own costume = later)
+  const awake4 = job3 ? AWAKEN4_AURA[job3] : undefined // 🥷🎩🌌🤖 MVP like the Professor: tinted aura + afterimage (own costume = later)
   return {
     compositeTex: tex,
     bodyTex: tex,
-    auraTex: isRanger || isProfessor ? 'aura_gold' : undefined,
-    auraTint: isRanger ? 0x9fe08a : isProfessor ? 0xc9a8ff : undefined,
+    auraTex: isRanger || isProfessor || awake4 ? 'aura_gold' : undefined,
+    auraTint: isRanger ? 0x9fe08a : isProfessor ? 0xc9a8ff : awake4,
     mountOffset: { x: 0, y: 0 },
     bodyOffset: { x: 0, y: 0 },
     weaponOffset: { x: 0, y: 0 },
@@ -134,8 +137,8 @@ export function heroRigSpec(s: HeroVisualInput): HeroRigSpec {
     isMounted: false,
     isTwoHand,
     isKnightLine: false,
-    afterimageTint: isProfessor ? 0xc9a8ff : 0xffd27a,
-    slashPalette: isProfessor ? [0xffffff, 0xc9a8ff, 0x9fe3ff] : [0xffffff, 0xffe08a, 0xffd34d],
+    afterimageTint: isProfessor ? 0xc9a8ff : awake4 ?? 0xffd27a,
+    slashPalette: isProfessor ? [0xffffff, 0xc9a8ff, 0x9fe3ff] : awake4 ? [0xffffff, awake4, 0xffd34d] : [0xffffff, 0xffe08a, 0xffd34d],
   }
 }
 

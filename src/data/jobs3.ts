@@ -7,7 +7,7 @@
 // unlock also needs the Master Trial win (P2), so no real save can reach a 3rd job until then.
 import type { Job2Id } from './jobs2'
 
-export type Job3Id = 'paladin' | 'lordknight' | 'champion' | 'ranger' | 'warlord' | 'professor' // Crusader -> Paladin · Knight -> Lord Knight · Monk -> Champion · Beastmaster -> Ranger · Berserker -> Warlord · Sage -> Professor. One 2nd job at a time.
+export type Job3Id = 'paladin' | 'lordknight' | 'champion' | 'ranger' | 'warlord' | 'professor' | 'stalker' | 'kingpin' | 'highwizard' | 'mechanic' // Crusader -> Paladin · Knight -> Lord Knight · Monk -> Champion · Beastmaster -> Ranger · Berserker -> Warlord · Sage -> Professor · Rogue -> Stalker · Mobster -> Kingpin · Wizard -> High Wizard · Innovator -> Mechanic (docs/design/awakening-last-four-v1.md). One 2nd job at a time.
 export type Job3Path = 'pure' | 'hybrid' // pure: own ใยชั้น 3 to the top · hybrid: tier 1-2 of it + tier 1-2 of the sibling 2nd job's web
 export type Job3Variant = 'a' | 'b' // which Skill 3 variant is on (picked in town, free)
 
@@ -91,6 +91,51 @@ export const JOB3: Record<Job3Id, Job3Def> = {
     variants: {
       a: { name: 'Spell Fist', icon: '👊', desc: 'ใช้ Endow + ตีปกติ 3 ครั้งถัดไปสลับธาตุ 🔥→⚡→❄️ (แปะตราและจุดปฏิกิริยาใส่ตัวเดียวได้เอง เหมาะสู้บอส) · แรงขึ้นตามแต้มสาย 📖 Auto Spell' },
       b: { name: 'Elemental Field', icon: '🌋', desc: 'ใช้ Endow + กางทุ่งธาตุ 3 เทิร์น แปะตราธาตุ Endow ใส่มอนทุกตัวต้นเทิร์น (ปฏิกิริยาหมู่ เคลียร์เวฟไว) · แรงขึ้นตามแต้มสายธาตุที่ Endow' },
+    },
+  },
+  // ----- the last four (docs/design/awakening-last-four-v1.md, Q 2026-11-19 "yolo awakening class"): every 2nd job now has its Awakening -----
+  stalker: {
+    id: 'stalker', parent: 'rogue', sibling: 'mobster', name: 'Stalker', icon: '🥷',
+    blurb: 'Rogue ที่ตื่นรู้ · ตราคมมีดซ้อนได้มากขึ้น · พายุมีดมีระลอก 2 ตามตรา · Back Stab แตกเป็น 2 สาย · แต้มในใยเดิมยิ่งเยอะยิ่งแรง',
+    focus: 'เงาพันมีด · Phantom Storm',
+    ultName: 'Phantom Storm', ultDesc: 'พายุมีดจบแล้ว เงาปามีดระลอก 2 ใส่ตัวที่มีตราคมมีดมากสุดก่อน', rootDesc: 'มีดระลอก 2 ที่ชั้น 3 เพิ่ม',
+    signature: { icon: '🥷', name: 'Preserve', desc: 'ตราคมมีดสูงสุด +2 · ตราอยู่นาน +1 เทิร์น · มีดบินโดนตัวที่ตราเต็ม = Energy +3' },
+    variants: {
+      a: { name: 'Fan of Knives', icon: '🌀', desc: 'Back Stab เป็นกรีดเงาใส่ทุกตัว คริแน่นอน + ตราคมมีด +1 ทุกตัว (ยังใช้ Combo Point) · แรงขึ้นตามแต้มสาย 🔪 มีด' },
+      b: { name: 'Assassinate', icon: '🎯', desc: 'Back Stab เป็นแทงสังหารบอสก่อน ข้าม DEF 50% + เก็บมีด · ฆ่าได้ = คูลดาวน์คืนทันที · แรงขึ้นตามแต้มสาย 💥 คริ' },
+    },
+  },
+  kingpin: {
+    id: 'kingpin', parent: 'mobster', sibling: 'rogue', name: 'Kingpin', icon: '🎩',
+    blurb: 'Mobster ที่ตื่นรู้ · หนี้ทุกก้อนคิดดอก · ทวงหนี้รอบ 2 ตามจำนวนหนี้ · ตัดเส้นเอ็นแตกเป็น 2 สาย · แต้มในใยเดิมยิ่งเยอะยิ่งแรง',
+    focus: 'เจ้าพ่อเงินกู้ · Hostile Takeover',
+    ultName: 'Hostile Takeover', ultDesc: 'ทวงหนี้จบแล้ว ฟันซ้ำทุกตัวที่ยังรอด แรงขึ้นต่อหนี้บนตัวมัน แล้วเช็ก Execute อีกรอบ', rootDesc: 'ฟันรอบ 2 ที่ชั้น 3 เพิ่ม',
+    signature: { icon: '🎩', name: 'Loan Shark', desc: 'หนี้ 1 ก้อนบนมอน = ดาเมจฮิตใส่ตัวนั้น +3% (สูงสุด 6 ก้อน) · Execute สำเร็จ = Energy +10' },
+    variants: {
+      a: { name: 'Shakedown', icon: '💰', desc: 'ตัดเส้นเอ็นเป็นฟันกวาดทุกตัว เกราะแตก + ช้าทั้งแถว · แรงขึ้นตามแต้มสาย ⛓️ ดีบัฟ' },
+      b: { name: 'Hit Contract', icon: '📜', desc: 'ตัดเส้นเอ็นเป็นสั่งเก็บตัวเดียว (บอสก่อน) หนัก + พิษ +3 stack + อ่อนแรง · แรงขึ้นตามแต้มสาย 🧪 พิษ' },
+    },
+  },
+  highwizard: {
+    id: 'highwizard', parent: 'wizard', sibling: 'sage', name: 'High Wizard', icon: '🌌',
+    blurb: 'Wizard ที่ตื่นรู้ · ร่ายใหญ่แล้วได้ Amplify · มหาเวทมี Gravitation ตามหลัง · Storm Gust แตกเป็น 2 สาย · แต้มในใยเดิมยิ่งเยอะยิ่งแรง',
+    focus: 'จอมเวทแรงโน้มถ่วง · Gravitation Field',
+    ultName: 'Gravitation Field', ultDesc: 'มหาเวทธาตุจบแล้ว สนามแรงโน้มถ่วงบดทุกตัวซ้ำ (ข้าม M.DEF บางส่วน + ผลักเกจ)', rootDesc: 'Gravitation ที่ชั้น 3 เพิ่ม',
+    signature: { icon: '🌌', name: 'Mystical Amplification', desc: 'ปล่อยเวทที่ชาร์จไว้ = Amplify: เวทถัดไปแรง +20% · ระหว่างชาร์จ ดาเมจเข้าเพิ่มแค่ครึ่งเดียว' },
+    variants: {
+      a: { name: 'Frost Nova', icon: '❄️', desc: 'Storm Gust +1 ฮิต · ตัวที่ติดช้า/แช่แข็งอยู่แล้วโดนแรงขึ้น · แรงขึ้นตามแต้มสาย ❄️ พายุหิมะ' },
+      b: { name: 'Jupitel Thunder', icon: '⚡', desc: 'Storm Gust เป็นลูกบอลสายฟ้ารัวใส่ตัวเดียว (บอสก่อน) ผลักเกจทุกฮิต · แรงขึ้นตามแต้มสาย ⚡ สายฟ้าเทพ' },
+    },
+  },
+  mechanic: {
+    id: 'mechanic', parent: 'innovator', sibling: 'beastmaster', name: 'Mechanic', icon: '🤖',
+    blurb: 'Innovator ที่ตื่นรู้ · กับดักทำงาน = Overclock · สิ่งประดิษฐ์ปิดด้วยฝนมิสไซล์ · กล่องสุ่มแตกเป็น 2 สาย · แต้มในใยเดิมยิ่งเยอะยิ่งแรง',
+    focus: 'วิศวกรสนามรบ · Arm Cannon',
+    ultName: 'Arm Cannon', ultDesc: 'สิ่งประดิษฐ์สุดเพี้ยนจบแล้ว ยิงมิสไซล์รัวใส่มอนสุ่ม (ตัวที่เปียก/ช้าโดนแรงขึ้น)', rootDesc: 'มิสไซล์ที่ชั้น 3 เพิ่ม',
+    signature: { icon: '🤖', name: 'Overclock', desc: 'ต้นเวฟวางกับดัก +1 · กับดัก/หุ่นจิ๋วแรง +15% · ใช้กล่องสุ่ม = Overclock 2 เทิร์น: ความเร็ว +15%' },
+    variants: {
+      a: { name: 'Rocket Barrage', icon: '🚀', desc: 'กล่องสุ่มเดิม + ยิงจรวด 3 ลูกใส่มอนสุ่ม · แรงขึ้นตามแต้มสาย 🎲 ประดิษฐ์' },
+      b: { name: 'Fortress Mode', icon: '🏰', desc: 'กล่องสุ่มเดิม + กางหุ่นจิ๋ว 1 ตัว + โล่ตาม HP สูงสุด · แรงขึ้นตามแต้มสาย 🤖 ป้อมปืน' },
     },
   },
 }
