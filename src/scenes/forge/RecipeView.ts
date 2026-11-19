@@ -286,18 +286,21 @@ export class RecipeView {
     c.add(txt(sc, lx, ly, `📦 ชิ้นส่วนในเซ็ต (ใส่อยู่ ${wornCount}/${itemSet.memberIds?.length ?? 0})`, 14, UI.gold, true))
     const members = itemSet.memberIds ?? []
     const recipeIds = new Set(this.list().map((x) => x.id))
+    // Rows shrink when a set has many pieces (Moonshadow has 7) so the list stays inside the modal.
+    const rowH = Math.min(58, Math.floor((my + mh - 10 - (ly + 28)) / Math.max(1, members.length)))
+    const ph = rowH - 6, half = ph / 2
     members.forEach((id, i) => {
       const item = itemById(id)
-      const ry = ly + 28 + i * 58
-      c.add(panel(sc, lx, ry, lw, 52, 0x1a1f3d, isWorn(s, id) ? 0x6fd08c : s.owned.includes(id) ? 0xf2b84b : UI.line, 8))
+      const ry = ly + 28 + i * rowH
+      c.add(panel(sc, lx, ry, lw, ph, 0x1a1f3d, isWorn(s, id) ? 0x6fd08c : s.owned.includes(id) ? 0xf2b84b : UI.line, 8))
       if (!item) return
-      c.add(itemIcon(sc, lx + 28, ry + 26, 38, item, { grade: gradeOf(s, id), refine: refineOf(s, id) }))
-      c.add(fit(txt(sc, lx + 56, ry + 8, item.name, 13, UI.text, true).setWordWrapWidth(lw - 140), 18))
+      c.add(itemIcon(sc, lx + 28, ry + half, Math.min(38, ph - 8), item, { grade: gradeOf(s, id), refine: refineOf(s, id) }))
+      c.add(fit(txt(sc, lx + 56, ry + Math.max(3, half - 18), item.name, 13, UI.text, true).setWordWrapWidth(lw - 140), 18))
       const status = isWorn(s, id) ? '✅ ใส่อยู่' : s.owned.includes(id) ? '🎒 มีแล้ว' : '🔨 ยังไม่มี'
       const stColor = isWorn(s, id) ? UI.green : s.owned.includes(id) ? UI.gold : UI.sub
-      c.add(txt(sc, lx + 56, ry + 28, `${slotBadge(item)} · ${status}`, 11, stColor))
+      c.add(txt(sc, lx + 56, ry + Math.max(22, half + 2), `${slotBadge(item)} · ${status}`, 11, stColor))
       if (recipeIds.has(id) && id !== this.sel) {
-        c.add(button(sc, lx + lw - 42, ry + 26, 68, 26, 'ดูสูตร ›', () => {
+        c.add(button(sc, lx + lw - 42, ry + half, 68, Math.min(26, ph - 10), 'ดูสูตร ›', () => {
           close()
           this.sel = id
           this.rebuild()
