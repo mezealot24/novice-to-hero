@@ -22,7 +22,7 @@ const BASE_JOBS: JobId[] = ['swordsman', 'thief', 'cleric', 'mage', 'archer']
 test('class craft: all ids unique, inside ITEMS, valid craft recipes & materials', () => {
   const ids = ITEMS.map((i) => i.id)
   assert.equal(new Set(ids).size, ids.length, 'no duplicate IDs')
-  assert.equal(CLASS_CRAFT_ITEMS.length, 39, '10 J2 armors + 15 D7-D9 + 14 J3 pieces')
+  assert.equal(CLASS_CRAFT_ITEMS.length, 45, '10 J2 armors + 15 D7-D9 + 14 J3 pieces + 6 Swordsman zone-set pieces')
 
   for (const it of CLASS_CRAFT_ITEMS) {
     assert.equal(itemById(it.id), it)
