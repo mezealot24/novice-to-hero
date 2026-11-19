@@ -133,3 +133,8 @@
 - 🌑 `th_t4c` ร่างเงา -> **หมอกลวงตา** (name clashed with the gauge state; effect unchanged)
 - `thiefFinisherMul` 0.25 -> 0.2 (max stack + card ultHits was 0.3% over the ceiling)
 - 2 new `KIT` keys with Thai labels · budget table test (Lv 20 / 40 / 80 + Rogue, gauge off / on, every profile, + card ultHits)
+
+## 📝 docs(thief): P2'c sync tools + docs
+- `tools/bot.cjs`: bot saves carry `thiefRogueRework: 5` (else `load()` wipes the bot's Thief web) · TREEX example with `thief_u1` · not run
+- `design/p2/NOTES.md` `## P2'c`: Ult budget table (Lv 20 / 40 / 80 + Rogue, ร่างเงา off / on) + plan-vs-code notes
+- `design/thief-rogue-rework-v1.md`: R4.4 row P2'c + R4.9 (what shipped vs Rev 3 / P2c-spec)
