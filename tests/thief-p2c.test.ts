@@ -4,7 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { PLAYER, type Stats } from '../src/data/game-data'
 import { CRIT_RULES } from '../src/data/battle-rules'
-import { KIT, thiefOnHitEff, thiefUltBudget, thiefUltCondCritDmg, thiefUltCritRate, thiefUltFinisher, thiefUltHitCount, type UltHero } from '../src/data/skill-math'
+import { KIT, thiefOnHitEff, thiefUltBudget, thiefUltCondCritDmg, thiefUltCritRate, thiefUltFinisher, thiefUltHitCount, ultCdCut, type UltHero } from '../src/data/skill-math'
 
 const near = (a: number, b: number, msg = '') => assert.ok(Math.abs(a - b) < 1e-9, `${msg} ${a} != ${b}`)
 const st = (o: Partial<Stats> = {}): Stats => ({ ...PLAYER, ...o })
@@ -46,4 +46,19 @@ test('On-Hit share and the closing stab', () => {
   assert.deepEqual(thiefUltFinisher(st({ thUltFinisher: 1 }), KIT.thiefFinisherAt), { mul: KIT.thiefFinisherMul, sure: true })
   assert.deepEqual(thiefUltFinisher(st({ thUltKillFinisher: 0.5 }), 0), { mul: 0.5, sure: false }, 'th_t3a: always, rolls crit')
   assert.equal(thiefUltHitCount(st({ ultHits: 2 })), KIT.thiefUltHits + 2)
+})
+
+test('Global Ult CD cap: per hero turn budget, floor in the cast turn, never negative', () => {
+  assert.equal(KIT.thiefUltCdCutCap, 2)
+  assert.equal(ultCdCut(4, 1, 2, false), 1)
+  assert.equal(ultCdCut(4, 3, 2, false), 2, 'turn cap')
+  assert.equal(ultCdCut(1, 2, 2, false), 1, 'not below 0')
+  assert.equal(ultCdCut(0, 1, 2, false), 0)
+  assert.equal(ultCdCut(4, 1, 0, false), 0, 'budget spent')
+  assert.equal(ultCdCut(4, 5, 5, true), 4 - KIT.thiefUltCdFloor, 'cast turn: CD floor')
+  assert.equal(ultCdCut(KIT.thiefUltCdFloor, 1, 2, true), 0)
+  // three sources in one turn (th_t2a + thief_b3 + Rogue Kill Reset) share one budget
+  let cd = 6, left = KIT.thiefUltCdCutCap
+  for (const want of [1, 1, 1]) { const c = ultCdCut(cd, want, left, false); cd -= c; left -= c }
+  assert.equal(cd, 6 - KIT.thiefUltCdCutCap)
 })

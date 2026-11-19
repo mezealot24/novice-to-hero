@@ -89,3 +89,9 @@
 - Pure math in `skill-math.ts` (BattleScene + test share it): `thiefUltHitCount` · `thiefUltCritRate` (Ult-only skillCrit counts as skillCrit, crit rework rules) · `thiefUltCondCritDmg` (B3 Ult-own, cap `thiefUltCondCap`) · `thiefOnHitEff` · `thiefUltFinisher` · `thiefUltBudget(st, hero, shadow)` in stab units (gauge on = every stab a full crit)
 - 8 new `KIT` keys with Thai admin labels (Ult table) · 10 new `Stats` keys (0 = no change yet: nodes come in later P2'c commits)
 - Tests: `tests/thief-p2c.test.ts` (model = live without P2'c stats, both states)
+
+## ✨ feat(thief): P2'c Global Ult CD cap
+- `cutUltCd()` is now capped: all Thief-line Ult CD cuts (th_t2a ขโมยจังหวะ, Rogue Kill Reset, later thief_b3) share `KIT.thiefUltCdCutCap` 2 turns per hero turn · in the cast turn the CD never drops below `KIT.thiefUltCdFloor` 2 (no back-to-back Ults)
+- th_t2a: a capped-out / zero cut no longer spends its ICD
+- Not routed (other classes / Mobster rule): relics, Archer kill CD, Mage Foresight, Mobster ทวงหนี้ refund
+- Pure `ultCdCut()` + test in `tests/thief-p2c.test.ts`

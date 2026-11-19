@@ -23,7 +23,7 @@ import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/ski
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
-import { thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost, rogueKnifeMul, rogueSteelMul, rogueStabAmp, rogueComboDebuff, rogueAmbushCrit } from '../data/skill-math'
+import { ultCdCut, thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost, rogueKnifeMul, rogueSteelMul, rogueStabAmp, rogueComboDebuff, rogueAmbushCrit } from '../data/skill-math'
 import { addCard, addMat, addXp, loseXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -1086,6 +1086,7 @@ export class BattleScene extends Phaser.Scene {
     const rt = this.px('resTurn'); if (rt > 0 && !(this.asuraExhaust > 0 && this.job.resource === 'mana')) { const left = this.resGain(rt); if (left > 0 && this.pk.prayHeal > 0) this.heal(this.st.maxHp * this.pk.prayHeal * left, true) } // ภาวนา (v78: the share that didn't fit / Novice -> heal)
     if (this.zenTurns > 0) this.zenTurns--
     if (this.smashCdLeft > 0) this.smashCdLeft--
+    this.ultCdCutLeft = KIT.thiefUltCdCutCap; this.ultJustCast = false // P2'c Global Ult CD cap: new hero turn
     if (this.relic === 'storm' && this.fightTurns % RELIC_RULES.storm.every === 0) { await this.lightningWrath(); if (!this.alive().length) return }
     // resource tick
     this.sageFireBoltsTurn = 0; this.sageFireNovaUsed = false
@@ -1114,7 +1115,7 @@ export class BattleScene extends Phaser.Scene {
     const ultWaiting = this.smashQueued && this.smashCdLeft <= 0 && this.hx.silence <= 0 // ult ready and booked
     if (ultWaiting && this.res >= ultCost && this.charges >= asuraNeed) {
       this.smashQueued = false
-      this.smashCdLeft = this.ultTurns()
+      this.smashCdLeft = this.ultTurns(); this.ultJustCast = true // P2'c: CD floor for the rest of this hero turn
       this.spendRes(ultCost)
       this.ultOpen = 1 + this.pk.ultBoost // legend เปิดฉากเต็มแรง (v78: every ult)
       this.fightUlts++
@@ -3191,13 +3192,19 @@ export class BattleScene extends Phaser.Scene {
   private isSkillHit() { return !this.isProcHit() && (this.src === 'skill' || this.src === 'ult' || (this.skillSlot !== null && this.src === 'other')) }
   /** Sage rework v1 crit split (data/battle-rules.ts CRIT_RULES): basic -> crit · skill/Ult -> skillCrit · proc -> spellCrit. */
   /** P2'a th_t2a: one Ult cooldown cut, the single place Thief Ult CD cuts go through (P2'c adds the global cap / floor here). */
-  private cutUltCd(n: number) { this.smashCdLeft = Math.max(0, this.smashCdLeft - n) }
+  private ultCdCutLeft = 0 // P2'c Global Ult CD cap: turns of Ult CD cut left this hero turn (KIT.thiefUltCdCutCap)
+  private ultJustCast = false // P2'c: the Ult was cast this hero turn (CD floor KIT.thiefUltCdFloor)
+  /** P2'c Global Ult CD cap: the one place Thief-line Ult CD cuts go through (th_t2a, thief_b3, Rogue Kill Reset). */
+  private cutUltCd(n: number) {
+    const cut = ultCdCut(this.smashCdLeft, n, this.ultCdCutLeft, this.ultJustCast)
+    this.smashCdLeft -= cut; this.ultCdCutLeft -= cut
+    return cut
+  }
   /** P2'a th_t2a: a dodge cuts Skill 2 (when its CD is the longer one) or the Ult cooldown, once per ICD. */
   private dodgeCdCut() {
     if (this.st.thDodgeCdCut <= 0 || this.dodgeCdIcd > 0) return
     if (this.s2Cd > 0 && this.s2Cd >= this.smashCdLeft) this.s2Cd = Math.max(0, this.s2Cd - this.st.thDodgeCdCut)
-    else if (this.smashCdLeft > 0) this.cutUltCd(this.st.thDodgeCdCut)
-    else return
+    else if (this.cutUltCd(this.st.thDodgeCdCut) <= 0) return // P2'c: nothing to cut / turn cap spent -> the ICD is not used
     this.dodgeCdIcd = this.st.thDodgeCdIcd
   }
   /** P2'b: the debuffs one monster carries, for the pure debuffKinds() (stabMark: P3 Rogue). */

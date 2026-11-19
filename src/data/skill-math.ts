@@ -104,6 +104,9 @@ export const KIT = {
   thiefExecBelow: 0.35, thiefUltExecBelow: 0.5, // thief_u3 / th_t3a: target HP share under which they add crit dmg
   thiefOnHitBase: 0.38, thiefOnHitCap: 0.55, // On-Hit share (thief_u2 / th_t3b): base + node + talent, capped
   thiefFinisherAt: 3, thiefFinisherMul: 0.25, // thief_u4 ★: crits in one cast for the closing stab · its power x one stab (sure crit)
+  // Global Ult CD cap (Rev 3 §5.1): every Thief-line Ult CD cut (th_t2a, thief_b3, Rogue Kill Reset) shares thiefUltCdCutCap turns per hero
+  // turn, and in the turn the Ult was cast the CD never drops below thiefUltCdFloor (2 = at least one hero turn between two casts)
+  thiefUltCdCutCap: 2, thiefUltCdFloor: 2,
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
   // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
   // 💰 Thief ทักษะ 2 ล้วงกระเป๋า (Q 2026-11-18, GW2 Steal): what you steal depends on the front monster's top stat. admin `kit` · thiefSteal.*
@@ -538,6 +541,9 @@ export function thiefUltBudget(st: UltSt, hero: UltHero, shadow: boolean): numbe
   const b = Math.max(a, KIT.thiefFinisherMul)
   return n * per + (1 - fires) * a * per + fires * b * cd
 }
+/** Global Ult CD cap: turns a wanted cut really takes (`budget` = what is left of KIT.thiefUltCdCutCap this hero turn). */
+export const ultCdCut = (cdLeft: number, want: number, budget: number, justCast: boolean): number =>
+  Math.max(0, Math.min(Math.max(0, want), Math.max(0, budget), cdLeft - (justCast ? KIT.thiefUltCdFloor : 0)))
 /** Mana the ult costs (Mage, Swordsman, Cleric since v86); 0 for every other job. v102: pass st for the base Cleric ult (+clUltMana by Ult node Lv). */
 export const ultCost = (job: JobDef, st?: Stats) => (job.resource === 'mana' ? (job.ult.cost ?? 0) + (job.id === 'cleric' && (job.ult.cost ?? 0) > 0 ? st?.clUltMana ?? 0 : 0) : 0)
 /** Ult cooldown in hero turns before relics (gear smashCd lowers it for every job). */

@@ -144,7 +144,8 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
       kit('thiefUltCondCap', 'เงาพริ้ว: ดาเมจคริเงื่อนไขของ Ult รวมสูงสุด'), kit('thiefUltKindsMax', 'เงาจุดตาย: นับดีบัฟสูงสุด (ชนิด)'),
       kit('thiefExecBelow', 'เพชฌฆาตเงา: HP เป้าต่ำกว่า'), kit('thiefUltExecBelow', 'เงาสังหาร: HP เป้าต่ำกว่า'),
       kit('thiefOnHitBase', 'On-Hit: สัดส่วนฐาน'), kit('thiefOnHitCap', 'On-Hit: สัดส่วนสูงสุด'),
-      kit('thiefFinisherAt', 'เงาพันคม: คริกี่ครั้งได้ทีปิด'), kit('thiefFinisherMul', 'เงาพันคม: ทีปิด × ทีปกติ')],
+      kit('thiefFinisherAt', 'เงาพันคม: คริกี่ครั้งได้ทีปิด'), kit('thiefFinisherMul', 'เงาพันคม: ทีปิด × ทีปกติ'),
+      kit('thiefUltCdCutCap', 'ลด CD Ult สูงสุด/เทิร์น (รวมทุกแหล่ง)'), kit('thiefUltCdFloor', 'CD Ult ต่ำสุดในเทิร์นที่เพิ่งกด')],
     tree: [ // P2'a: numbers the Thief web core column / talents read at run time
       kit('thiefKindsAt', '"ดีบัฟหลายชนิด" = กี่ชนิดขึ้นไป'),
       kit('thiefCondLeechMulti', 'คมเลือด: × เมื่อดีบัฟหลายชนิด'),

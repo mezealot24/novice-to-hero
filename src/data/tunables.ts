@@ -144,7 +144,7 @@ const HARD_FIELDS: [string, FieldDef][] = [
   ['hitPerLv', num(0, 20)],
 ]
 
-const KIT_INTS = 'archerAutoShots|archerVolleyShots|mageFireStacks|mageIceChill|mageLightHits|clericSmiteTargets|clericJudgeEvery|clericWarmLightLv|spearMax|thiefAutoPoison|thiefUltHits|thiefUltDodge|thiefAutoMinCost|thiefStrikeRes|thiefKindsAt|thiefKillRes|thiefBossCritRes|thiefStackCritTalMax|thiefStackHpMax|thiefUltKindsMax|thiefFinisherAt'
+const KIT_INTS = 'archerAutoShots|archerVolleyShots|mageFireStacks|mageIceChill|mageLightHits|clericSmiteTargets|clericJudgeEvery|clericWarmLightLv|spearMax|thiefAutoPoison|thiefUltHits|thiefUltDodge|thiefAutoMinCost|thiefStrikeRes|thiefKindsAt|thiefKillRes|thiefBossCritRes|thiefStackCritTalMax|thiefStackHpMax|thiefUltKindsMax|thiefFinisherAt|thiefUltCdCutCap|thiefUltCdFloor'
 const KIT_NUMS = 'archerAuto|archerUlt|mageFire|mageIce|mageLightLo|mageLightHi|clericHealBelow|clericJudge|clericUltAtkLv|clericWarmCounterLv|clericSpearShieldLv|spearBase|thiefAuto|thiefUlt|thiefUltAgiK|thiefUltAgiShareCap|thiefStrikeLs|thiefCondLeechMulti|thiefKillPoisonHeal|thiefKillPoisonHealCap|thiefBossCritLeech|thiefBloodKingBelow|thiefBloodKingMul|thiefBloodKingStrikeLs|thiefTakenCap|thiefPrivShare|thiefPoisonAmpShare|thiefUltCondCap|thiefExecBelow|thiefUltExecBelow|thiefOnHitBase|thiefOnHitCap|thiefFinisherMul'
 
 export const TABLES: Record<TableId, TableDef> = {
