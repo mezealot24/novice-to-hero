@@ -85,47 +85,48 @@ test('J2_COL classifies all 10 second jobs into s3 / ult / other cleanly without
 
 test('bulk.ts: pct, mul, add, set respect clampField, implicit defaults, and clean patch storage', () => {
   const draft: Patch = {}
-  const live: Patch = { monsters: { 'king.hp': 900 } }
+  const live: Patch = { monsters: { 'king.xp': 9 } }
 
   // 1) Monster pct +20% on bodyMul.hp (absent optional with implicit default 1) and clamped pointsMul
   const res1 = applyBulkOp(draft, live, [
-    { table: 'monsters', path: 'king.bodyMul.hp' },
+    { table: 'monsters', path: 'pharaoh.bodyMul.hp' },
     { table: 'monsters', path: 'pharaoh.pointsMul' },
   ], 'pct', 20)
   assert.equal(res1.changed, 2)
-  assert.equal(draft.monsters?.['king.bodyMul.hp'], 1.2)
+  assert.equal(draft.monsters?.['pharaoh.bodyMul.hp'], 1.2)
   assert.equal(draft.monsters?.['pharaoh.pointsMul'], 1.2)
 
   // 2) Setting bodyMul.hp back to 1 strips the optional identity leaf from draft patch cleanly
-  const resResetIdentity = applyBulkOp(draft, live, [{ table: 'monsters', path: 'king.bodyMul.hp' }], 'set', 1)
+  const resResetIdentity = applyBulkOp(draft, live, [{ table: 'monsters', path: 'pharaoh.bodyMul.hp' }], 'set', 1)
   assert.equal(resResetIdentity.changed, 1)
-  assert.equal(draft.monsters?.['king.bodyMul.hp'], undefined)
+  assert.equal(draft.monsters?.['pharaoh.bodyMul.hp'], undefined)
 
   // 3) Clamping on int and out-of-range values
-  const resClamp = applyBulkOp(draft, live, [{ table: 'monsters', path: 'king.hp' }], 'set', 9e9)
+  const resClamp = applyBulkOp(draft, live, [{ table: 'monsters', path: 'king.xp' }], 'set', 9e9)
   assert.equal(resClamp.clamped, 1)
-  assert.equal(draft.monsters?.['king.hp'], 1_000_000)
+  assert.equal(draft.monsters?.['king.xp'], 100_000)
 
-  // 4) Skipping unused native hp/dmg/matk for D6+ stat monsters and unset curse pow
+  // 4) Skipping unused native hp/dmg/matk for stat monsters (v126: D1-D5 too) and unset curse pow
   assert.equal(isUnusedNativeField('monsters', 'pharaoh.hp'), true)
-  assert.equal(isUnusedNativeField('monsters', 'king.hp'), false)
+  assert.equal(isUnusedNativeField('monsters', 'king.hp'), true)
+  assert.equal(isUnusedNativeField('monsters', 'king.xp'), false)
   assert.equal(implicitDefault('monsters', 'king.skills.0.lv'), 1)
   assert.equal(implicitDefault('monsters', 'pharaoh.hit'), 0)
-  assert.equal(implicitDefault('monsters', 'king.hit'), 15)
+  assert.equal(implicitDefault('monsters', 'king.hit'), 0)
 
   const skipStep = computeBulkNext(draft, live, { table: 'monsters', path: 'pharaoh.hp' }, 'pct', 10)
   assert.equal(skipStep.skip, true)
 
   // 5) dryRun never mutates draft
   const snap = JSON.stringify(draft)
-  const dry = applyBulkOp(draft, live, [{ table: 'monsters', path: 'king.hp' }], 'pct', -50, true)
+  const dry = applyBulkOp(draft, live, [{ table: 'monsters', path: 'king.xp' }], 'pct', -50, true)
   assert.equal(dry.changed, 1)
   assert.equal(JSON.stringify(draft), snap)
 
   // 6) resetLive and resetDef restore properly and pass checkPatch
-  applyBulkOp(draft, live, [{ table: 'monsters', path: 'king.hp' }], 'resetLive')
-  assert.equal(draft.monsters?.['king.hp'], 900)
-  applyBulkOp(draft, live, [{ table: 'monsters', path: 'king.hp' }, { table: 'monsters', path: 'pharaoh.pointsMul' }], 'resetDef')
+  applyBulkOp(draft, live, [{ table: 'monsters', path: 'king.xp' }], 'resetLive')
+  assert.equal(draft.monsters?.['king.xp'], 9)
+  applyBulkOp(draft, live, [{ table: 'monsters', path: 'king.xp' }, { table: 'monsters', path: 'pharaoh.pointsMul' }], 'resetDef')
   assert.deepEqual(draft, {})
   assert.equal(checkPatch(draft, guardsFor(draft)).ok, true)
 })
@@ -140,7 +141,7 @@ test('bulk.ts filters: filterMonsters, filterSkills, filterTableRows work accura
   const diffMon = filterMonsters({ search: '', dungeon: 'all', tier: 'all', model: 'all', status: 'diffLive' }, draft, live)
   assert.deepEqual(diffMon.map((m) => m.kind), ['king'])
   const nativeOnly = filterMonsters({ search: '', dungeon: 'all', tier: 'all', model: 'native', status: 'all' }, draft, live)
-  assert.ok(nativeOnly.some((m) => m.kind === 'pharaoh') && !nativeOnly.some((m) => m.kind === 'king'))
+  assert.ok(nativeOnly.some((m) => m.kind === 'pharaoh') && nativeOnly.some((m) => m.kind === 'king'), 'v126: D1-D5 are stat monsters too')
 
   // Presets check
   for (const p of Object.values(MON_PRESETS)) {

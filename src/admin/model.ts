@@ -1,7 +1,7 @@
 // admin.html: pure helpers (no DOM). Defaults are read from this build's untouched src/data (admin never applies a patch).
 import { BATTLE, DUNGEONS, MONSTERS, type MonSkill, type MonsterDef, type MonsterKind } from '../data/game-data'
 import type { BaseStat } from '../data/meta'
-import { homeDungeon, legacyLevel, monBase, monPoints, monTier, roomLevel, scaleOf, skillAtLv, skillMul, statMonster, statNative, withStats } from '../data/mon-stats'
+import { homeDungeon, homeLv, monBase, monPoints, monTier, roomLevel, scaleOf, skillAtLv, skillMul, statMonster, statNative } from '../data/mon-stats'
 import { castLv, describeFormula, skillLvBonus } from '../data/mon-skill-scale'
 import { applyPatch, guardsFor, listFields, type FieldRow } from '../data/patch'
 import { MINI_POOL } from '../data/relics'
@@ -105,7 +105,7 @@ const FIXED: [id: string, title: string][] = [
   ['special', '🧬 ความสามารถพิเศษ'], ['onHit', '🩸 ตีโดนแล้วติดสถานะ'], ['slam', '💥 ท่าชาร์จ'],
 ]
 
-/** D6+ stat monsters build hp / dmg / matk from their stats only (statMonster): those leaves are placeholders, never read. */
+/** Stat monsters (every monster since v126) build hp / dmg / matk from their stats only (statMonster): those leaves are placeholders, never read. */
 const NATIVE_UNUSED = new Set(['hp', 'dmg', 'matk'])
 const NATIVE_BONUS = new Set(['def', 'hit', 'flee', 'crit', 'combo', 'counter'])
 
@@ -151,10 +151,10 @@ export interface MonPreview {
   crit: number; combo: number; counter: number; speed: number; base: Partial<Record<BaseStat, number>>
 }
 
-/** Levels the monster is fought at: D6+ = the rooms of its home dungeon it spawns in (lowest, highest); D1-5 / events = home level. */
+/** Levels the monster is fought at: the rooms of its home dungeon it spawns in (lowest, highest); events = D1's first Lv. */
 export function previewLevels(k: MonsterKind): number[] {
   const d = MONSTERS[k], dg = DUNGEONS.find((x) => x.id === homeDungeon(k))
-  if (!dg?.level || !statNative(k)) return [legacyLevel(k, d, { id: '' })]
+  if (!dg?.level) return [homeLv(k)] // event monsters: no home dungeon
   const lvs = dg.rooms.flatMap((r, i) => (r.spawn.some(([s]) => s === k) || (r.mini && (r.miniPool ?? MINI_POOL).includes(k)) ? [roomLevel(dg.level!, dg.rooms, i)] : []))
   if (!lvs.length) return [d.ai === 'boss' ? dg.level[1] : dg.level[0]] // only ever summoned
   const lo = Math.min(...lvs), hi = Math.max(...lvs)
@@ -163,7 +163,7 @@ export function previewLevels(k: MonsterKind): number[] {
 
 function computeMonPreview(k: MonsterKind): MonPreview[] {
   return previewLevels(k).map((lv) => {
-    const m = statNative(k) ? statMonster(MONSTERS[k], lv) : withStats(MONSTERS[k], k, lv)
+    const m = statMonster(MONSTERS[k], lv)
     return {
       lv, hp: m.hp, dmg: m.dmg, matk: m.matk ?? m.dmg, def: m.def ?? 0, mdef: m.mdef ?? 0, hit: m.hit ?? 15, flee: m.flee ?? 5,
       crit: m.crit ?? 0, combo: m.combo ?? 0, counter: m.counter ?? 0, speed: m.speed ?? BATTLE.monSpeed[k] ?? 10, base: { ...m.base },
@@ -196,7 +196,7 @@ export function previewSkills(k: MonsterKind, patch: Patch): SkillPreview[] {
   const r = applyPatch(patch, guardsFor(patch))
   try {
     const out: SkillPreview[] = []
-    const d0 = MONSTERS[k], mons = previewLevels(k).map((lv) => (statNative(k) ? statMonster(d0, lv) : withStats(d0, k, lv)))
+    const d0 = MONSTERS[k], mons = previewLevels(k).map((lv) => statMonster(d0, lv))
     const fxOf = (sk: MonSkill) => Object.entries(sk.fx ?? {}).filter(([, v]) => v).map(([f, v]) => `${FX_ICON[f] ?? f}${v}`).join(' ')
     for (const raw of d0.skills ?? []) for (const p of raw.pick ?? [raw]) {
       const own = p.lv ?? raw.lv ?? 1, sk = skillAtLv(p, own)

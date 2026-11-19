@@ -48,9 +48,9 @@ export const TABLE_EXPLAIN: Record<TableId, TableExplain> = {
     summary: 'พาสซีฟสุ่ม 1–2 อย่างที่มินิบอส/บอสโหมด Hard ได้รับตอนเริ่มสู้ (ดูดเลือด สะท้อน เร็วขึ้น พิษติดตัว คลั่ง ผิวเหล็ก)',
   },
   monStat: {
-    label: '📐 สูตรสเตตัสมอน (MON_STAT / LEGACY)',
+    label: '📐 สูตรสเตตัสมอน (MON_STAT)',
     short: 'สูตร stat มอน',
-    summary: 'ควบคุมสูตรแปลง Base Lv → แต้มสเตตัส → HP/ATK/M.ATK/DEF/Hit ของมอน D6+ และ D1–5 รวมถึงการลดรางวัลเมื่อเลเวลห่างเกินไป',
+    summary: 'ควบคุมสูตรแปลง Base Lv → แต้มสเตตัส → HP/ATK/M.ATK/DEF/Hit ของมอนทุกดัน (D1–5 ใช้ระบบเดียวกับ D6+ ตั้งแต่ v126) รวมถึงการลดรางวัลเมื่อเลเวลห่างเกินไป',
   },
   archetypes: {
     label: '🧩 แม่แบบสเตตัสมอน (ARCHETYPES)',

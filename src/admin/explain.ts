@@ -28,15 +28,13 @@ export function explainField(t: TableId, path: string, ctx?: { native?: boolean;
         return {
           label: `ความเร็ว · ${name}`,
           effect: 'เพิ่ม = มอนตัวนี้เกจเทิร์นวิ่งเร็วขึ้น ออกเทิร์นถี่ขึ้น (ค่าอ้างอิงกลางฮีโร่ = 10)',
-          detail: 'มอน D6+ ใช้ค่า speed จาก AGI แทน (ใช้ค่านี้เป็น fallback เท่านั้น) ส่วน D1–5 อ่านค่านี้โดยตรง',
+          detail: 'มอนทุกตัว (v126: D1–5 ด้วย) ใช้ค่า speed จาก AGI × speedMul แทน ค่านี้เป็น fallback เท่านั้น',
         }
       }
       if (path.startsWith('monBuff.')) {
         const [, kind, idxStr] = path.split('.')
         const dg = `D${Number(idxStr) + 1}`
         const dgName = DUNGEON_LABEL[dg.toLowerCase()] ?? dg
-        if (kind === 'hp') return { label: `บัฟ HP มอนทั้งดัน · ${dgName}`, effect: 'เพิ่ม = มอนทุกตัวในดันเจี้ยนนี้ (ปกติ/มินิ/บอส) เลือดหนาขึ้นตามตัวคูณนี้' }
-        if (kind === 'dmg') return { label: `บัฟ ATK/M.ATK มอนทั้งดัน · ${dgName}`, effect: 'เพิ่ม = มอนทุกตัวในดันเจี้ยนนี้ตีและสกิลแรงขึ้นตามตัวคูณนี้' }
         if (kind === 'turns') return { label: `คูณเทิร์นจำกัดของดัน · ${dgName}`, effect: 'เพิ่ม = ยืดเวลาเทิร์นจำกัดของห้องในดันเจี้ยนนี้ให้สู้ได้นานขึ้น' }
       }
       return { label: ctx?.defaultLabel ?? path, effect: 'ตัวคูณระบบต่อสู้ (BATTLE)' }
@@ -66,7 +64,7 @@ export function explainTableGroup(t: TableId, key: string): { title: string; des
   const MAP: Partial<Record<TableId, Record<string, { title: string; desc?: string }>>> = {
     battle: {
       monSpeed: { title: '⚡ monSpeed · ความเร็วมอนรายตัว', desc: 'ความเร็วเทิร์นเกจพื้นฐานเทียบกับ heroSpeed (10)' },
-      monBuff: { title: '🏰 monBuff · ตัวคูณทั้งดันเจี้ยน D1–D5', desc: 'ปรับ HP / ดาเมจ / เทิร์นทั้งดันพร้อมกัน (0 = D1 .. 4 = D5)' },
+      monBuff: { title: '🏰 monBuff · ตัวคูณเทิร์นทั้งดันเจี้ยน D1–D5', desc: 'ยืดเทิร์นจำกัดทั้งดัน (0 = D1 .. 4 = D5) · HP/ATK ย้ายไปอยู่ใน bodyMul ของมอนแล้ว (v126)' },
       duel: { title: '🎯 duel · กิมมิก Celeste (มินิบอส D3)', desc: 'ค่ากลางสคริปต์ Into Arena, Riposte, Grandado Espada' },
       toxicSkin: { title: '🧪 toxicSkin · พาสซีฟผิวพิษ (มินิบอส)', desc: 'ลดดาเมจ ต้านดีบัฟ ลดคริ และสะท้อนพิษใส่คนตี' },
       iceSkin: { title: '❄️ iceSkin · หนามน้ำแข็ง (Frost Giant)', desc: 'ตีโดนแล้วลดดาเมจฮีโร่' },
@@ -87,9 +85,7 @@ export function explainTableGroup(t: TableId, key: string): { title: string; des
       curve: { title: '📈 curve · กราฟความเก่งมอน Hard (D1–D5)', desc: '0 = Lv อ้างอิง · 1 = HP บอสอ้างอิง · 2 = ATK บอสอ้างอิง' },
     },
     monStat: {
-      monStat: { title: '📐 monStat · สูตรสเตตัสมอน D6+', desc: 'สัดส่วนแต้ม stat, levelBase, ตัวคูณ body และเพดาน' },
-      levelGap: { title: '⚖️ levelGap · ลดรางวัลเมื่อเวลเกินดัน', desc: 'ชะลอการฟาร์มดันต่ำกว่าตัวเกินควรใน D6+' },
-      legacy: { title: '🏚️ legacy · ค่าอ้างอิงเลเวล D1–D5', desc: 'ใช้คำนวณสเตตัสเสริมและสกิลของมอน D1–5' },
+      monStat: { title: '📐 monStat · สูตรสเตตัสมอน (ทุกดัน)', desc: 'สัดส่วนแต้ม stat, levelBase, ตัวคูณ body และเพดาน' },
     },
     skillScale: {
       fx: { title: '💫 fx · สกิลพิเศษในเฟส / Blood Razor', desc: 'ตัวคูณเพิ่มเติมตาม WIS (เฟสบอส) และ INT (Blood Razor)' },

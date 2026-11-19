@@ -2,8 +2,7 @@
 // monster skills level and scale like hero skills.
 //
 // 1) Skill Lv from the monster's Lv (every mode). Lv = the skill's own lv + 1 per MON_SKILL_LV.every Lv above an anchor:
-//    - D1-D5 / event monsters (anchored numbers): their home Lv, so a home dungeon plays as tuned and the tower grows them.
-//    - D6+ stat monsters: MON_SKILL_LV.nativeAnchor (0 = absolute, like RO: a Lv 80 monster casts Lv 9).
+//    MON_SKILL_LV.nativeAnchor (0 = absolute, like RO: a Lv 80 monster casts Lv 9). v126: D1-D5 too (no home-Lv anchor any more).
 //    The level then works through skillAtLv: pow +10%/Lv, +1 hit / 10 Lv, +1 fx stack / 5 Lv, warcry +1 turn / 5 Lv.
 //
 // 2) An optional multi-ratio damage formula per skill (MonSkill.f), ready for new skills:
@@ -14,19 +13,16 @@
 //    A skill with no `f` keeps the old pow path (ATK × monDmgMul × pow × stat scale), so no tuned number moves.
 import { BATTLE, type MonsterDef, type MonsterKind } from './game-data'
 import type { BaseStat } from './meta'
-import { homeDungeon, legacyLevel, statNative } from './mon-stats'
 
 export const MON_SKILL_LV = {
   every: 10, // +1 skill Lv per this many monster Lv above the anchor
   max: 10, // the level bonus never takes a skill past this (a skill written above it, RO style, keeps its own Lv)
-  nativeAnchor: 0, // D6+ stat monsters: 0 = absolute (Lv 40 -> +4, Lv 80 -> +8)
+  nativeAnchor: 0, // 0 = absolute (Lv 19 -> +1, Lv 40 -> +4, Lv 80 -> +8)
 }
 
 /** Skill Lv bonus a monster of `kind` gets at Lv `lv`. */
-export function skillLvBonus(kind: MonsterKind, lv: number, d: MonsterDef): number {
-  const home = homeDungeon(kind)
-  const anchor = statNative(kind) || !home ? MON_SKILL_LV.nativeAnchor : legacyLevel(kind, d, { id: home })
-  return Math.floor(Math.max(0, lv - anchor) / MON_SKILL_LV.every)
+export function skillLvBonus(_kind: MonsterKind, lv: number, _d?: MonsterDef): number {
+  return Math.floor(Math.max(0, lv - MON_SKILL_LV.nativeAnchor) / MON_SKILL_LV.every)
 }
 
 /** The Lv a skill is cast at: its own Lv + the monster's level bonus, the bonus capped at MON_SKILL_LV.max. */

@@ -2,7 +2,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BATTLE, MONSTERS, type MonsterKind } from '../src/data/game-data'
 import { castLv, casterOf, describeFormula, formulaDamage, lvVal, MON_SKILL_LV, skillLvBonus, type CasterSnap, type SkillFormula } from '../src/data/mon-skill-scale'
-import { homeDungeon, legacyLevel, statNative } from '../src/data/mon-stats'
 
 test('lvVal: flat, Dota array (last repeats), LoL / RO linear', () => {
   assert.equal(lvVal(5, 9), 5)
@@ -27,14 +26,12 @@ test('casterOf: atk 1 = the monster normal hit', () => {
   assert.equal(c.matk, (d.matk ?? d.dmg) * BATTLE.monDmgMul)
 })
 
-test('skill Lv bonus: D1-D5 anchored at home Lv (home dungeon unchanged), D6+ absolute', () => {
-  for (const k of Object.keys(MONSTERS) as MonsterKind[]) {
-    const d = MONSTERS[k], home = homeDungeon(k)
-    if (!home || statNative(k)) continue
-    assert.equal(skillLvBonus(k, legacyLevel(k, d, { id: home }), d), 0, `${k} at home`)
+test('skill Lv bonus: absolute for every monster (v126: D1-D5 too, like D6+)', () => {
+  for (const k of ['jellop', 'skeleton', 'lich', 'mummy'] as MonsterKind[]) {
+    assert.equal(skillLvBonus(k, 9, MONSTERS[k]), 0, k)
+    assert.equal(skillLvBonus(k, 21, MONSTERS[k]), 2, k)
+    assert.equal(skillLvBonus(k, 80, MONSTERS[k]), Math.floor((80 - MON_SKILL_LV.nativeAnchor) / MON_SKILL_LV.every), k)
   }
-  const deep = (Object.keys(MONSTERS) as MonsterKind[]).find(statNative)!
-  assert.equal(skillLvBonus(deep, 80, MONSTERS[deep]), Math.floor((80 - MON_SKILL_LV.nativeAnchor) / MON_SKILL_LV.every))
 })
 
 test('castLv: the bonus is capped at max, a skill written above max keeps its Lv', () => {

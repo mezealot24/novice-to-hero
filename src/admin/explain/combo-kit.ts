@@ -130,23 +130,9 @@ const MON_STAT_MAP: Record<string, FieldExplain> = {
   'monStat.mdefCap': { label: 'เพดานกันเวท (M.DEF Cap) ของมอน', effect: 'เพิ่ม = มอนสาย WIS สูงสามารถลดดาเมจเวทได้ลึกขึ้น (0.75 = กันได้สูงสุด 75%)' },
   'monStat.luckyCap': { label: 'เพดานหลบโชคดี (Lucky Dodge) ของมอน', effect: 'เพิ่ม = มอนสาย LUK สูงหลบได้แม้แต่คริ/เวทถี่ขึ้น (0.25 = สูงสุด 25%)' },
   'monStat.rateCap': { label: 'เพดาน Crit / Combo / Counter มอน', effect: 'เพิ่ม = ยอมให้มอนสะสมเรตคอมโบ/สวนกลับเกิน 100% เพื่อสู้กับการต้านของฮีโร่ได้มากขึ้น' },
-  'levelGap.free': { label: 'ระยะห่าง Lv ปลอดการหักรางวัล', effect: 'เพิ่ม = ฮีโร่เวลเกินดัน D6+ ได้หลายเลเวลขึ้นโดยยังได้ของ/EXP เต็ม 100%' },
-  'levelGap.per': { label: 'หักรางวัลต่อ Lv ที่เกิน (%)', effect: 'เพิ่ม = พอเวลเกินระยะปลอดภาษีปุ๊บ รางวัลร่วงฮวบไวขึ้น (-0.1 = -10%/Lv)' },
-  'levelGap.min': { label: 'พื้นต่ำสุดรางวัลเมื่อเวลเกินเยอะ', effect: 'เพิ่ม = ต่อให้เวลทิ้งห่างแค่ไหนก็ยังได้รางวัลขั้นต่ำเท่านี้ (0.4 = อย่างน้อย 40%)' },
-  'legacy.tierDrop.normal': { label: 'Lv ลดหลั่นของมอนปกติ (D1–5)', effect: 'เพิ่ม = มอนลูกกระจ๊อกใน D1–5 จะมีเลเวลต่ำกว่าบอสในดันนั้นมากขึ้น (คำนวณ stat อ่อนลง)' },
-  'legacy.tierDrop.mini': { label: 'Lv ลดหลั่นของมินิบอส (D1–5)', effect: 'เพิ่ม = มินิบอสใน D1–5 มีเลเวลอ้างอิงต่ำกว่าบอสดันนั้นมากขึ้น' },
-  'legacy.tierDrop.boss': { label: 'Lv ลดหลั่นของบอส (D1–5)', effect: 'ปกติ 0 = บอส D1–5 ใช้เลเวลเต็มของ legacy.lv ดันเจี้ยนนั้น' },
 }
 export function explainMonStat(path: string): FieldExplain {
   if (MON_STAT_MAP[path]) return MON_STAT_MAP[path]
-  if (path.startsWith('legacy.lv.')) {
-    const d = path.slice('legacy.lv.'.length)
-    return {
-      label: `Lv อ้างอิงของ ${DUNGEON_LABEL[d] ?? d} (D1–5)`,
-      effect: 'เพิ่ม = มอนในดันนี้ได้แต้มสเตตัสคำนวณ M.DEF / Tenacity / Skill Scale มากขึ้น',
-      detail: 'มีผลกับค่า stat เสริม (M.DEF/Lucky/Skill Scale) ของมอน D1–5 โดยคง HP/ATK จุดอ้างอิงเดิมไว้',
-    }
-  }
   return { label: path, effect: 'ค่าสูตรสเตตัสมอน' }
 }
 
@@ -181,6 +167,8 @@ export const PROGRESSION_MAP: Record<string, FieldExplain> = {
   'run.runXpStep': { label: 'EXP ในรอบวิ่ง (+ต่อ Lv)', effect: 'เพิ่ม = ท้ายดันเจี้ยนได้เลือกสกิลอัปในรันน้อยครั้งลง' },
   'run.xpOnClear': { label: 'EXP ในรันที่ได้ทันทีเมื่อเคลียร์ห้อง', effect: 'เพิ่ม = การันตี EXP โบนัสทุกห้อง ช่วยให้เลเวลในรันพุ่งแม้เจอห้องมอนน้อยตัว' },
   'run.failXpMul': { label: 'EXP เมื่อตาย/ล้มเหลวใน Dxx (× Base + Job EXP)', effect: 'เพิ่ม = ตายแล้วยังได้ EXP เยอะ (0.25 = ได้ 1/4 · 1 = เต็มแบบเดิม) · zeny / ของดรอปไม่โดนลด' },
+  'run.hellDeathBase': { label: '😈 ตายในโหมดนรก: เสีย Base EXP (% ของหลอด Lv ปัจจุบัน)', effect: 'เพิ่ม = ตายใน Hell แล้วเสีย Base EXP มากขึ้น (ไม่ลดเลเวล)' },
+  'run.hellDeathJob': { label: '😈 ตายในโหมดนรก: เสีย Job EXP (% ของหลอด Job Lv ปัจจุบัน)', effect: 'เพิ่ม = ตายใน Hell แล้วเสีย Job EXP มากขึ้น (ไม่ลดเลเวล)' },
   'run.healOnClear': { label: 'ฮีลหลังผ่านห้อง (% Max HP)', effect: 'เพิ่ม = ยืนระยะในดันเจี้ยนยาว ๆ ง่ายขึ้น หลังจบห้องเด้งเลือดคืนเยอะ (0.2 = 20%)' },
   'run.healOnLevel': { label: 'ฮีลเมื่ออัป Lv ในรัน (% Max HP)', effect: 'เพิ่ม = จังหวะเวลอัปในดันช่วยกู้สถานการณ์เลือดใกล้หมดได้ดีขึ้น (0.2 = 20%)' },
   // ☀️ dungeon days (data/dungeon-days.ts)

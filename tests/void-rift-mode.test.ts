@@ -211,7 +211,7 @@ test('MODES.rift & dynamic endgame pools: panel, unlock, biomes, scaling, reward
   assert.equal(MODES.rift.unlock(unlockedSave).ok, true)
 
   // Dynamic sync on DAILY.deepPool & BOUNTY.pool
-  const levelDungeonIds = DUNGEONS.filter((d) => d.level).map((d) => d.id)
+  const levelDungeonIds = DUNGEONS.filter((d) => d.tier >= 6).map((d) => d.id) // v126: D1-D5 have a level band too; the deep pools stay D6+
   assert.deepEqual(DAILY.deepPool, levelDungeonIds)
   assert.deepEqual(BOUNTY.pool, levelDungeonIds)
   assert.ok(dailyOf(20261115, true, unlockedSave).dg.level)
