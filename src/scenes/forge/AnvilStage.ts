@@ -1,6 +1,7 @@
 // The anvil: big item icon, its name / grade / stats, an optional "what happens next" preview line, and every fx a verb plays.
 // A failed refine is shown HERE (shake + crack + hit-stop), never in a popup (Q 2026-11-07).
 import Phaser from 'phaser'
+import { ascendOf, ascendZone, zoneName } from '../../data/ascend'
 import { FONT_UI } from '../../data/game-data'
 import { gradeCap, GRADE } from '../../data/craft'
 import { ASPECTS, describeItemEffects, itemConversionsOf, itemEffectsOf, type AspectId, type SaveExt } from '../../data/item-effects'
@@ -103,9 +104,10 @@ export class AnvilStage implements StageFx {
     fit(this.fxT, 18)
     const curAspId = s.imbue?.[it.id] as AspectId | undefined
     const curAsp = curAspId ? ASPECTS[curAspId] : undefined
-    const setInfo = itemSetOf(it)
+    const setInfo = itemSetOf(it), asc = ascendOf(s, it.id)
     this.tagT.setText([
       s.awakened?.[it.id] ? '🌟 ปลุกพลัง' : it.unique ? '👑 ยูนีค' : '',
+      asc ? `⇧${asc} โซน ${zoneName(ascendZone(it, asc))}` : '',
       curAsp ? `${curAsp.icon} ${curAsp.name}` : '',
       setInfo ? `🧩 ${setInfo.name}` : '',
       tainted ? '🌑 ล็อก' : '',
