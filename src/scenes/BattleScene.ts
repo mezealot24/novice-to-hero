@@ -1295,9 +1295,10 @@ export class BattleScene extends Phaser.Scene {
     const S = KIT.thiefShadow
     if (this.job.id !== 'thief' || n <= 0 || S.max <= 0 || this.shadowTurns > 0) return
     this.shadowGauge = Math.min(S.max, this.shadowGauge + n)
-    if (this.shadowGauge < S.max) { this.floatText(HERO_X - 40, GROUND - 175, `👤 ${this.shadowGauge}/${S.max}`, '#9a9ab8'); return }
+    if (this.shadowGauge < S.max) { sfx.shadowTick(this.shadowGauge, S.max); this.floatText(HERO_X - 40, GROUND - 175, `👤 ${this.shadowGauge}/${S.max}`, '#9a9ab8'); return }
     this.shadowGauge = 0; this.shadowTurns = S.turns + this.st.thShadowTurns + 1 // +1: heroTurn ticks it down before acting · P2'c thief_b4 ★ longer
     this.heroSpr.setAlpha(0.75)
+    sfx.shadowForm()
     if (this.st.thShadowShield > 0) this.addShield(Math.min(this.st.maxHp * KIT.thiefShadowShieldHpCap, this.st.thShadowShield * this.fleeNow())) // P2'c thief_b2 โล่เงา
     this.callout('👤 ร่างเงา! คริแน่ + ทักษะ 1 ฟรี', HERO_X + 60, GROUND - 190, '#c9b8ff')
   }
@@ -1322,7 +1323,8 @@ export class BattleScene extends Phaser.Scene {
     if (this.thMarkMon) this.dotIcon(this.thMarkMon)
   }
   /** 💰 ล้วงกระเป๋า: one loot by the monster's stat (KIT.thiefSteal). */
-  private stealFrom(m: Mon, k: string) {
+  private stealFrom(m: Mon, k: string, idx = 0) {
+    sfx.stealLoot(idx)
     const T = KIT.thiefSteal, say = (t: string, c: string) => this.floatText(HERO_X, GROUND - 150, `💰 ${t}`, c)
     if (k === 'str') { this.buf.lootAtk = T.turns; say(`ขโมยแรง! P.ATK +${Math.round(T.atk * 100)}%`, '#ffb36b') }
     else if (k === 'agi') { this.res = Math.min(this.resMax(), this.res + T.res); say(`ขโมยจังหวะ! Energy +${T.res}`, '#8fe3ff') }
@@ -1406,7 +1408,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.skillHits) { this.skillHits.dmg += r.dmg; this.skillHits.mons.add(m) }
     if (!magic && this.st.poison > 0 && !m.dead && !this.noHitPoison) this.addPoison(m, this.st.poison) // P3'a Sinister Steel swing: none
     if (markHit) { // 🔻 หมายหัว: build Malice, or spend it on the release hit
-      if (release) { this.malice = 0; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 40, '🔻 ปลดหมายหัว!', '#ff6b8a') }
+      if (release) { this.malice = 0; sfx.maliceRelease(); this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 40, '🔻 ปลดหมายหัว!', '#ff6b8a') }
       else this.malice = Math.min(KIT.thiefMark.max, this.malice + 1)
       if (!m.dead) this.dotIcon(m)
     }
@@ -2188,6 +2190,7 @@ export class BattleScene extends Phaser.Scene {
     for (let i = 0; i < n; i++) {
       const t = this.alive(); if (!t.length) return
       const m = pick?.() ?? this.knifeTarget(t)
+      sfx.knifeThrow()
       this.floatText(m.spr.x - 20, m.spr.y - m.spr.displayHeight - 34, '🔪', '#e0e0f0')
       this.knifeHit(m, mul)
     }
@@ -2217,6 +2220,7 @@ export class BattleScene extends Phaser.Scene {
       const o = this.alive().filter((x) => x !== m)
       if (o.length) {
         const b = o[Phaser.Math.Between(0, o.length - 1)]
+        sfx.knifeBounce()
         this.floatText(b.spr.x - 20, b.spr.y - b.spr.displayHeight - 34, '🔪↪', '#e0e0f0')
         this.knifeHit(b, mul * (R.knifeBounce + this.st.j2KnifeBounce), true)
       }
@@ -2236,6 +2240,7 @@ export class BattleScene extends Phaser.Scene {
     m.dagger = 0; m.daggerTurns = 0; this.dotIcon(m)
     this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 52, `🔪 เก็บมีด ×${n}`, '#ffd36b')
     daggerCrossFx(this, m.spr.x, m.spr.y - m.spr.displayHeight / 2)
+    sfx.voracityPickup(n)
     const steel = rogueSteelMul(n, this.st.pskill)
     const prev = { ls: this.lsMul, force: this.forceCrit, stab: this.backStabbing, poison: this.noHitPoison }
     this.lsMul = 0; this.forceCrit = false; this.backStabbing = false; this.noHitPoison = true
@@ -2260,6 +2265,7 @@ export class BattleScene extends Phaser.Scene {
   private killReset() {
     this.voracityKillUsed = true
     this.s3Cd = Math.max(0, this.s3Cd - 1); this.cutUltCd(1)
+    sfx.killReset()
     this.floatText(HERO_X, GROUND - 190, '🔪 Kill Reset! CD -1', '#ffd36b')
     this.throwKnives(KIT2.rogue.markKillKnives, this.knifeMul(), () => this.alive().sort((a, b) => a.hp - b.hp)[0])
   }
@@ -2297,16 +2303,17 @@ export class BattleScene extends Phaser.Scene {
       this.rgFlee = this.st.j2ComboDodge
       if (++this.rgComboN >= R.comboDodgeEvery && this.rgDodgeIcd <= 0) {
         this.rgComboN = 0; this.rgDodgeIcd = R.comboDodgeIcdTurns; this.dodgeCharges++
+        sfx.shadowStep()
         this.floatText(HERO_X, GROUND - 150, '💨 เงาพริ้วสลับร่าง', '#c9c9d6')
       }
     }
   }
   /** P3'a Back Stab hit (also the rg_c4 ★ shadow): sure crit, sure hit, opens a Mark pickup. */
-  private async backStab(t: Mon, mul: number, shadow = false) {
+  private async backStab(t: Mon, mul: number, shadow = false, sfxOpts?: { ambush?: boolean; cp?: number }) {
     const prevLs = this.lsMul
     this.forceCrit = true; this.backStabbing = true; this.shadowStabbing = shadow; this.pickupOpen = true
     if (shadow) this.lsMul = 0
-    try { await this.lunge(t, () => { backstabFx(this, t.spr); this.strike(t, mul, false, shadow ? '#b9a8ff' : '#ffd36b') }, true, true) }
+    try { await this.lunge(t, () => { backstabFx(this, t.spr); sfx.backStab({ ambush: sfxOpts?.ambush, cp: sfxOpts?.cp, shadow }); this.strike(t, mul, false, shadow ? '#b9a8ff' : '#ffd36b') }, true, true) }
     finally { this.forceCrit = false; this.backStabbing = false; this.shadowStabbing = false; this.pickupOpen = false; this.lsMul = prevLs }
   }
   /** P3'a Back Stab target: most Marks, then highest HP. */
@@ -2324,7 +2331,7 @@ export class BattleScene extends Phaser.Scene {
     this.heroRig.playWindup(false)
     const collapseMs = knifeStormFx(this, cx, GROUND)
     this.callout('🌪️ พายุมีด!', W / 2, 165, '#ffd36b')
-    sfx.swing()
+    sfx.knifeStormBuild(collapseMs / (this.fast ? 2000 : 1000))
     await this.wait(collapseMs)
     this.heroRig.playStrike(1, false)
     this.shake(90, 0.006)
@@ -2332,7 +2339,7 @@ export class BattleScene extends Phaser.Scene {
     for (let i = 0; i < n; i++) {
       const t = this.alive(); if (!t.length) break
       const m = t[Phaser.Math.Between(0, t.length - 1)], last = i === n - 1
-      flights.push(this.diveKnife(m, mul, i, last))
+      flights.push(this.diveKnife(m, mul, i, last, n))
       await this.wait(step * 0.07)
     }
     await Promise.all(flights)
@@ -2340,15 +2347,18 @@ export class BattleScene extends Phaser.Scene {
     await this.wait(step * 0.2)
   }
   /** One storm knife: dives at `m` from high on the left, then strikes on arrival (or another live monster if `m` died). */
-  private async diveKnife(m: Mon, mul: number, i: number, last: boolean) {
+  private async diveKnife(m: Mon, mul: number, i: number, last: boolean, total = 8) {
     const tx = m.spr.x + Phaser.Math.Between(-8, 8), ty = m.spr.y - m.spr.displayHeight * THIEF_FX.knife.chest
     const sx = tx - Phaser.Math.Between(70, 150), sy = ty - Phaser.Math.Between(190, 250)
     const k = flyingKnife(this, sx, sy, Math.atan2(ty - sy, tx - sx))
+    sfx.knifeThrow()
     if (k) await this.tween({ targets: k, x: tx, y: ty, duration: BATTLE.stepMs * 0.22, ease: 'Quad.easeIn' })
     k?.destroy()
     const t = m.dead ? this.alive() : [m]; if (!t.length) return
     const hit = t[Phaser.Math.Between(0, t.length - 1)]
     knifeLandFx(this, hit.spr, i, last)
+    if (last) sfx.knifeStormFinale()
+    else sfx.knifeLand(i, total)
     this.knifeHit(hit, mul) // P3'a: storm knives mark too
     if (last) {
       this.cameras.main.flash(120, 255, 211, 107)
@@ -2374,12 +2384,14 @@ export class BattleScene extends Phaser.Scene {
   /** Mobster Execute: a normal monster under the debt line dies at once (bosses / minis take x bossExecMul in j2Mul instead). */
   private mobExec(m: Mon) {
     if (m.dead || m.def.ai === 'boss' || this.hp <= 0 || m.hp >= m.def.hp * this.execLine(m)) return false
+    sfx.mobsterExecute()
     this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '⚰️ เก็บงาน!', '#c9a8ff')
     this.damageMon(m, m.hp + m.shield, false, '#c9a8ff')
     if (!m.dead) return false
     if (this.st.j2ExecTurn > 0 && !this.execTurnUsed && this.alive().length) { // ★ งานต่อไป
       this.execTurnUsed = true
       this.heroGauge = Math.max(this.heroGauge, 100)
+      sfx.nextJob()
       this.floatText(HERO_X, GROUND - 160, '🕴️ งานต่อไป!', '#c9a8ff')
     }
     return true
@@ -2504,19 +2516,21 @@ export class BattleScene extends Phaser.Scene {
           const ambush = this.inShroud() || this.rgAmbush // 🌑 Shadow Ambush: in Shroud, or dodged since the last hero turn
           const amp = rogueStabAmp(ambush) // B4 (R4.6): conditional Back Stab amps add under one cap · Combo Point stays outside (MAIN-VS-REV4 R1)
           if (ambush) { this.rgAmbush = false; this.resGain(R.stabAmbushRes); this.floatText(HERO_X, GROUND - 175, '🌑 Shadow Ambush!', '#b9a8ff') }
-          await this.backStab(t, R.stabMul * pow * (1 + this.st.pskill) * (1 + R.stabCpPer * cp) * (1 + amp))
+          await this.backStab(t, R.stabMul * pow * (1 + this.st.pskill) * (1 + R.stabCpPer * cp) * (1 + amp), false, { ambush, cp })
           if (!t.dead) { t.stabMark = R.stabMarkTurns; t.strip = R.stabStripTurns; this.dotIcon(t) } // Backstab Mark + Strip Armor
           this.comboKnives(false) // ★ คริเป็นมีด: the Back Stab crit owes a knife
         }
       } else if (j2.id === 'mobster') { // ⛓️ ตัดเส้นเอ็น: boss first, DEF break + chill
         const M = KIT2.mobster, t = this.bossTarget() ?? live[0], turns = M.cutTurns + this.st.j2DebuffTurns
         if (t) await this.lunge(t, () => {
+          sfx.tendonCut()
+          daggerCrossFx(this, t.spr.x - 20, GROUND - 40, this.hits, 'mobster')
           this.strike(t, M.cutMul * pow * (1 + this.st.pskill), false, '#c9a8ff')
           if (t.dead) return
           t.armorBrk = Math.max(t.armorBrk, turns); t.chill = Math.max(t.chill, turns); this.dotIcon(t)
           this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 30, '⛓️ เกราะแตก + ช้า', '#c9a8ff')
           this.mobExec(t)
-        })
+        }, false, true)
       } else if (j2.id === 'berserker') {
         if (this.st.j3Wl > 0) await this.warlordVariant(live, pow)
         else {
@@ -2576,11 +2590,12 @@ export class BattleScene extends Phaser.Scene {
     }
     if (this.j2!.id === 'mobster') { // 💀 ทวงหนี้: slash all, burst every poison stack, then collect
       const M = KIT2.mobster
-      if (live[0]) await this.lunge(live[0], () => live.forEach((m, i) => { shadowSlashFx(this, m.spr, i); this.strike(m, M.ultSlash * h2 * (1 + this.st.pskill), false, '#c9a8ff') }), false, true)
+      if (live[0]) await this.lunge(live[0], () => { sfx.debtCollectSlash(); live.forEach((m, i) => { shadowSlashFx(this, m.spr, i); this.strike(m, M.ultSlash * h2 * (1 + this.st.pskill), false, '#c9a8ff') }) }, false, true)
       let kills = 0
       for (const m of live) {
         if (!m.dead && m.poison > 0) {
           const dmg = Math.max(1, Math.round(m.poison * m.poisonDmg * M.burstTurns * M.burstMul * h2 * this.dotMul()))
+          sfx.debtPoisonDetonate()
           this.burst(m.spr.x, m.spr.y - 30, 0xa77be0, 14, 200)
           this.debtBursting = true // a debt kill must not re-spread the stacks it bursts (killMon ระเบิดพิษ) · stacks stay readable for amps
           try { this.withSrc('poison', () => this.damageMon(m, dmg, false, '#a77be0', true)) } finally { this.debtBursting = false }
@@ -2588,7 +2603,7 @@ export class BattleScene extends Phaser.Scene {
         }
         if (m.dead || this.mobExec(m)) kills++
       }
-      if (kills > 0) { this.smashCdLeft = Math.max(0, this.smashCdLeft - M.ultCdRefund); this.floatText(HERO_X, GROUND - 170, `💀 ทวงครบ! ult -${M.ultCdRefund}`, '#c9a8ff') }
+      if (kills > 0) { this.smashCdLeft = Math.max(0, this.smashCdLeft - M.ultCdRefund); sfx.debtRefund(); this.floatText(HERO_X, GROUND - 170, `💀 ทวงครบ! ult -${M.ultCdRefund}`, '#c9a8ff') }
       this.cameras.main.flash(120, 167, 123, 224)
       await this.wait(BATTLE.stepMs * 0.4)
       return
@@ -3293,6 +3308,7 @@ export class BattleScene extends Phaser.Scene {
     m.woundCut = Math.max(m.woundCut, S2N.bladeHealCut); m.woundCutTurns = S2N.bladeCutTurns
     this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 40, "🩸 Blade's End", '#ff7a7a')
     shadowSlashFx(this, m.spr)
+    sfx.bladesEnd()
     const prevLs = this.lsMul, prevForce = this.forceCrit
     this.lsMul = 0
     const blade = () => this.withSrc('other', () => this.strike(m, S2N.bladeMul * (1 + this.st.pskill), false, '#ff7a7a', 1))
@@ -3309,6 +3325,7 @@ export class BattleScene extends Phaser.Scene {
     m.blind = Math.max(m.blind, S2N.smokeBlindTurns); this.dotIcon(m)
     this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 40, '👁️ Sightless Raid', '#e6e6f2')
     daggerCrossFx(this, m.spr.x, m.spr.y - m.spr.displayHeight / 2, 0, this.j2?.id === 'mobster' ? 'mobster' : 'thief')
+    sfx.sightlessRaid()
     this.withSrc('other', () => this.strike(m, S2N.raidMul * (1 + this.st.pskill), false, '#e6e6f2'))
   }
   private critRateFor(magic: boolean, physAdd: number, target?: Mon): number {
@@ -3405,6 +3422,7 @@ export class BattleScene extends Phaser.Scene {
   private doubleAttack(m: Mon, mul: number) {
     if (this.st.doubleAtk <= 0 || m.dead || Math.random() >= doubleAtkChance(this.st.doubleAtk)) return
     this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 22, 'DOUBLE!', '#ffd36b')
+    sfx.doubleStrike()
     this.addShadow(KIT.thiefShadow.double) // 👤 เกจเงา
     if (this.job.resource === 'energy') this.resGain(KIT.thiefStrikeRes)
     const prev = this.lsMul
@@ -3433,6 +3451,7 @@ export class BattleScene extends Phaser.Scene {
     let dmg = Math.max(1, Math.round(detonateDmg(det, m.poisonDmg, this.st.thDetonate) * this.dotMul()))
     if (crit) dmg = Math.max(1, Math.round(dmg * this.st.critMul))
     venomStabFx(this, m.spr)
+    sfx.poisonContaminate(crit)
     this.burst(m.spr.x, m.spr.y - 30, 0xa77be0, 14, 200)
     this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 36, '☣️ ระเบิดสารพิษ!', '#c9a8ff')
     const share = contaminateLeechShare(star)
@@ -3467,7 +3486,11 @@ export class BattleScene extends Phaser.Scene {
     } else await this.tween({ targets: this.heroSpr, x: tx, duration: step * 0.35, ease: 'Quad.easeIn' })
     this.heroRig.playStrike(Math.max(1, this.comboLevel), thrust)
     if (!quietFx) this.heroSlashFx(m.spr.x - 20, GROUND - 40, thrust)
-    sfx.swing()
+    if (this.job.id === 'thief') {
+      if (!quietFx) sfx.daggerSlash(this.hits, this.j2?.id === 'mobster')
+    } else {
+      sfx.swing()
+    }
     fn()
     this.shake(60, 0.004)
     if (!this.stayIn) await this.goHome()
@@ -3822,15 +3845,18 @@ export class BattleScene extends Phaser.Scene {
         this.shroudTurns = S2N.smokeTurns; this.raidReady = true // P2'b Shroud + Sightless Raid
         if (lv > 0) { this.heal(this.st.maxHp * S2N.smokeHeal(lv)); if (this.job.resource === 'energy') this.resGain(S2N.smokeRes(lv)) } // "+" ควันหอม
         smokeBombFx(this, HERO_X, GROUND)
+        sfx.smokeBomb()
         this.floatText(HERO_X, GROUND - 190, `🌫️ Shroud ${this.shroudTurns}`, '#c9c9d6')
         break
       case 'th_pick': {
         const m = front(); if (!m) break
         await this.lunge(m, () => {
+          sfx.pickpocket()
+          daggerCrossFx(this, m.spr.x - 20, GROUND - 40, this.hits, this.j2?.id === 'mobster' ? 'mobster' : 'thief')
           this.strike(m, S2N.pickMul(star))
           if (star && !m.dead) { this.addPoison(m, S2N.pickPoison) }
-          for (const k of [...new Set(topStats(m.def).map((x) => (x === 'dex' ? 'luk' : x)))].slice(0, star ? 2 : 1)) this.stealFrom(m, k) // DEX and LUK share one loot // 💰 GW2-style steal by the monster's top stat
-        })
+          ;[...new Set(topStats(m.def).map((x) => (x === 'dex' ? 'luk' : x)))].slice(0, star ? 2 : 1).forEach((k, i) => this.stealFrom(m, k, i)) // DEX and LUK share one loot // 💰 GW2-style steal by the monster's top stat
+        }, false, true)
         this.res = Math.min(this.resMax(), this.res + S2N.pickRes(lv))
         break
       }
@@ -3838,6 +3864,7 @@ export class BattleScene extends Phaser.Scene {
         const m = front(); if (!m) break
         await this.lunge(m, () => {
           venomStabFx(this, m.spr)
+          sfx.deepWound()
           this.strike(m, S2N.woundMul(star), false, '#ff7a7a', 1)
           if (!m.dead) { this.addPoison(m, S2N.woundPoison(lv)) }
           this.addWound(m, star ? S2N.woundStarStacks : S2N.woundStacks) // P2'b Wound
@@ -3924,7 +3951,7 @@ export class BattleScene extends Phaser.Scene {
         break
       case 'thief':
         this.pickupOpen = this.j2?.id === 'rogue' // P3'a: แทงพิษ can pick up Marks
-        try { await this.lunge(live[0], () => { const m = live[0], mul = KIT.thiefAuto * pow * (1 + this.st.pskill); venomStabFx(this, m.spr); this.strike(m, mul); this.doubleAttack(m, mul); if (!m.dead) { this.addPoison(m, KIT.thiefAutoPoison) } if (this.st.thS1Matk > 0 && this.st.matk > 0 && !m.dead) this.strike(m, this.st.thS1Matk * matkToPmRatio(this.st), true, '#c9a8ff'); this.contaminate(m) }, true, true) } finally { this.pickupOpen = false }
+        try { await this.lunge(live[0], () => { const m = live[0], mul = KIT.thiefAuto * pow * (1 + this.st.pskill); venomStabFx(this, m.spr); sfx.venomStab(); this.strike(m, mul); this.doubleAttack(m, mul); if (!m.dead) { this.addPoison(m, KIT.thiefAutoPoison) } if (this.st.thS1Matk > 0 && this.st.matk > 0 && !m.dead) this.strike(m, this.st.thS1Matk * matkToPmRatio(this.st), true, '#c9a8ff'); this.contaminate(m) }, true, true) } finally { this.pickupOpen = false }
         break
     }
   }
@@ -3948,7 +3975,7 @@ export class BattleScene extends Phaser.Scene {
     const hitPow = pow * (1 + this.st.ultAmp + this.auraNow) // run pick บดกระดูก (+ Mage 🔮 ออร่าเวท): damage only, shields/heals stay
     await this.skillName(this.job.ult)
     if (this.job.id === 'mage' && !this.j2) { this.charge({ kind: 'ult', pow: pow * MAGE_CAST.ultMul, hit: hitPow * MAGE_CAST.ultMul, paid: this.ultCost() }, this.res + this.ultCost()); return } // v78: the element ult chants 1 turn
-    sfx.slam()
+    if (this.job.id !== 'thief') sfx.slam()
     await this.ultNow(pow, hitPow)
     this.ultWebAfter()
   }
@@ -4209,12 +4236,16 @@ export class BattleScene extends Phaser.Scene {
     const st = this.st
     this.dodgeCharges = Math.max(0, KIT.thiefUltDodge + st.ultDodge) // talents: เงาหมอกลวงตา + / เงาสังหาร −
     this.addShadow(KIT.thiefShadow.ult + st.thUltGauge) // 👤 เกจเงา (+ P2'c th_t3c)
+    sfx.shadowDanceStart()
     this.stayIn = true // dart from monster to monster, walk home once at the end
     // P2'c (thiefUlt* in skill-math = the budget math): every stab (finisher too) x Ratio AGI · On-Hit = lifesteal x eff + Wound chance
     const per = KIT.thiefUlt * hitPow * (1 + st.thUltAgi), eff = thiefOnHitEff(st), prevLs = this.lsMul
     let crits = 0, res = 0
-    const stab = (m: Mon, mul: number, i: number, sure: boolean) => {
+    const n = thiefUltHitCount(st)
+    const stab = (m: Mon, mul: number, i: number, sure: boolean, finisher = false) => {
       shadowSlashFx(this, m.spr, i) // เงาพริ้ว: a shadow cut per dart
+      if (finisher) sfx.shadowFinisher()
+      else sfx.shadowSlash(i, n)
       const wasForce = this.forceCrit
       if (sure) this.forceCrit = true
       if (eff > 0) this.lsMul = eff
@@ -4228,7 +4259,6 @@ export class BattleScene extends Phaser.Scene {
       if (st.ultPoison > 0 && !m.dead) { this.addPoison(m, st.ultPoison) } // talent: มีดอาบพิษ / เงาหมอกลวงตา
       if (eff > 0 && dealt > 0 && !m.dead && this.s2?.id === 'th_wound' && Math.random() < eff) this.addWound(m, 1) // thief_u2 On-Hit
     }
-    const n = thiefUltHitCount(st)
     for (let i = 0; i < n; i++) { // talent: มีดรัว / คมมีดประสาน
       const t = this.alive(); if (!t.length) break
       const m = t[Phaser.Math.Between(0, t.length - 1)]
@@ -4239,7 +4269,7 @@ export class BattleScene extends Phaser.Scene {
     const last = this.alive().sort((a, b) => a.hp / Math.max(1, a.def.hp) - b.hp / Math.max(1, b.def.hp))[0]
     if (fin.mul > 0 && last) {
       this.floatText(last.spr.x, last.spr.y - last.spr.displayHeight - 40, '🗡️ ทีปิด!', '#c9b8ff')
-      await this.lunge(last, () => stab(last, fin.mul, n, fin.sure), false, true)
+      await this.lunge(last, () => stab(last, fin.mul, n, fin.sure, true), false, true)
     }
     this.stayIn = false
     this.heroSpr.setAlpha(this.shadowTurns > 0 ? 0.75 : 1) // keep the ร่างเงา look
@@ -4552,7 +4582,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.poisonSpread > 0 && m.poison > 0 && !this.debtBursting) { // 💣 ระเบิดพิษ (KIT.poison.spreadShare / spreadBurst): pass the stacks on, then blast them (kills can chain)
       const P = KIT.poison, pass = Math.ceil(m.poison * P.spreadShare), blast = Math.round(m.poison * m.poisonDmg * P.spreadBurst * this.dotMul())
       const live = others.filter((o) => !o.dead)
-      if (live.length) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '💣 ระเบิดพิษ!', '#b48aff')
+      if (live.length) { sfx.poisonSpread(); this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, '💣 ระเบิดพิษ!', '#b48aff') }
       for (const o of live) { if (pass > 0) { o.poison = Math.min(this.poisonMax(), o.poison + pass); o.poisonDmg = Math.max(o.poisonDmg, m.poisonDmg); this.dotIcon(o) } }
       if (blast > 0) for (const o of live) if (!o.dead) this.withSrc('poison', () => this.damageMon(o, blast, false, '#b48aff', true))
     }
@@ -4651,6 +4681,7 @@ export class BattleScene extends Phaser.Scene {
       const pa = agonyBonus(this.st.critMul, this.st.thPerfectAgony)
       const tickDmg = poisonTickTotal(m.poison * m.poisonDmg * bleedScale, pa, hpBite, this.dotMul(), hpBleed) // PA multiplies flat poison only, never hpBite / hpBleed
       const hp0 = m.hp
+      if (this.job.id === 'thief') sfx.poisonTick()
       this.withSrc('poison', () => this.damageMon(m, tickDmg, false, '#a77be0', true, true))
       if (this.st.thPoisonLeech > 0) {
         const net = hp0 - Math.max(0, m.hp)
@@ -4801,7 +4832,8 @@ export class BattleScene extends Phaser.Scene {
         if (!m.dead) {
           this.heroRig.playStrike(2, this.rigSpec.isKnightLine)
           this.heroSlashFx(m.spr.x - 10, GROUND - 40, this.rigSpec.isKnightLine)
-          sfx.swing()
+          if (this.job.id === 'thief') sfx.shadowCounter()
+          else sfx.swing()
           const dmg = this.withSrc('counter', () => this.strike(m, BATTLE.counterMul))
           if (this.st.j2Hindsight > 0 && dmg > 0) this.sageSpell(m, false, 1, true)
           this.shake(60, 0.004)
@@ -5456,6 +5488,7 @@ export class BattleScene extends Phaser.Scene {
     m.poison = Math.min(cap, m.poison + n); m.poisonDmg = Math.max(m.poisonDmg, this.myPoisonDmg()); this.dotIcon(m)
     if (over > 0 && this.st.poisonOverflow > 0) { // 💥 Mobster พิษล้น: stacks over the cap burst at once
       const dmg = Math.max(1, Math.round(over * m.poisonDmg * KIT.poison.overflowMul * this.dotMul()))
+      sfx.poisonOverflow()
       this.withSrc('poison', () => this.damageMon(m, dmg, false, '#c77dff', true))
     }
   }
@@ -7115,7 +7148,12 @@ export class BattleScene extends Phaser.Scene {
   /** Evade: sidestep with an afterimage + whoosh; no shake (small tier). */
   private evadeJuice(label: string, color: string) {
     this.popWord(HERO_X, GROUND - 100, label, color, 22, 1.4)
-    sfx.evade()
+    if (this.job.id === 'thief') {
+      if (label === 'LUCKY!') sfx.luckyDodge()
+      else sfx.shadowEvade()
+    } else {
+      sfx.evade()
+    }
     this.afterimage(0x9fe3ff, 26)
     this.tweens.add({ targets: this.heroSpr, x: HERO_X - 34, duration: 90, yoyo: true, ease: 'Quad.easeOut', onComplete: () => { this.heroSpr.x = HERO_X } })
   }
