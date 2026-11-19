@@ -179,6 +179,9 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
       kit('thiefLeechCap', 'เลือดพิษ: อัตราสูงสุด'),
       kit('thiefLeechTurnCap', 'เลือดพิษ: ฮีลสูงสุด/เทิร์น (% HP)'),
       kit('thiefDetBossRefund', '★ นักเล่นแร่พิษ: คืนพิษใส่บอส'),
+      kit('thiefAgonyFrom', 'วิถีพิษคริ: นับ critMul ที่เกิน'),
+      kit('thiefAgonyCap', 'B5 วิถีพิษคริ + vsPoison: โบนัสพิษสูงสุด'),
+      kit('thiefAgonyHitCut', 'วิถีพิษคริ: ฮิตกายภาพไม่คริเบาลง'),
     ],
   },
 }

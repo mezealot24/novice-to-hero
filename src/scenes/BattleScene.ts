@@ -24,7 +24,7 @@ import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepA
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
 import { ultCdCut, condCritB3, thiefUltCondCritDmg, thiefUltCritAdd, thiefUltHitCount, thiefOnHitEff, thiefUltFinisher, thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, matkToPmRatio, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost, rogueKnifeMul, rogueSteelMul, rogueStabAmp, rogueComboDebuff, rogueAmbushCrit } from '../data/skill-math'
-import { canDetonate, contaminateBossRefund, contaminateCritChance, contaminateLeechShare, detonateDmg, detonateStacks } from '../data/thief-offmeta'
+import { agonyBonus, canDetonate, contaminateBossRefund, contaminateCritChance, contaminateLeechShare, detonateDmg, detonateStacks, paApplies, poisonPowerBonus, poisonTickTotal } from '../data/thief-offmeta'
 import { addCard, addMat, addXp, loseXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -1350,6 +1350,7 @@ export class BattleScene extends Phaser.Scene {
     const opener = !magic && this.waveOpen && !this.allyHitting && this.job.id === 'thief' // P2'c th_t1b: first physical hit of the wave
     if (opener) this.waveOpen = false
     const crit = this.forceCrit || release || shadowSure || opener || (!this.petNoCrit && this.critAllowed() && Math.random() < critRate) // magic crits only with spellCrit (or Falcon Crit on Marked targets) · Skill 2 ตาเหยี่ยว · 2nd job
+    if (!crit && !magic && !this.allyHitting && this.st.thPerfectAgony > 0 && this.src !== 'poison') mul *= 1 - KIT.thiefAgonyHitCut // P2'd th_t4b วิถีพิษคริ: non-crit physical hits deal less
     const effFlee = m.huntMark > 0 ? (m.def.flee ?? 5) * Math.max(0, 1 - this.st.j2MarkPierceFlee) : (m.def.flee ?? 5)
     const noFlee = m.huntMark > 0 && this.st.j2MarkPierceFlee >= 1
     const critSkipsFlee = crit && (!this.isSkillHit() || this.backStabbing) // Q 2026-11-19: only a basic / combo / counter crit skips Flee; a physical skill hit rolls Hit (Back Stab is a stated sure hit)
@@ -4390,10 +4391,16 @@ export class BattleScene extends Phaser.Scene {
     await this.tween({ targets: this.heroSpr, x: HERO_X, duration: 200 })
   }
 
-  /** dot = damage over time / reflected damage: no executioner bonus and never reflected back. */
-  private damageMon(m: Mon, dmg: number, crit: boolean, color?: string, dot = false) {
+  /** dot = damage over time / reflected damage: no executioner bonus and never reflected back. skipB5 = poison tick already applied PA to flat portion only. */
+  private damageMon(m: Mon, dmg: number, crit: boolean, color?: string, dot = false, skipB5 = false) {
     if (m.dead) return
     dmg = Math.ceil(dmg * this.srcMul(m, dot)) // พร v2 tags (masteries, style switches) · whole numbers only (Q: round up), so shown == applied
+    if (this.src === 'poison' && !skipB5 && !this.debtBursting) { // P2'd B5 Poison power: Perfect Agony + vsPoison (Contaminate), one cap thiefAgonyCap
+      const pa = paApplies(crit, this.debtBursting) ? agonyBonus(this.st.critMul, this.st.thPerfectAgony) : 0
+      const vp = !dot && m.poison > 0 ? this.px('vsPoison') : 0
+      const b5 = poisonPowerBonus(pa, vp)
+      if (b5 > 0) dmg = Math.ceil(dmg * (1 + b5))
+    }
     if (this.biomeState && !dot && m.instanceId) {
       const bHit = onMonsterHitBiome(this.biomeState, m.instanceId, dmg, 1)
       dmg = bHit.finalDamage
@@ -4633,8 +4640,10 @@ export class BattleScene extends Phaser.Scene {
       const bleedScale = 1 + this.st.j2BleedDmg
       const P = KIT.poison, hpBite = m.hp > m.def.hp * P.hpAbove ? m.poison * (m.def.hp * this.st.poisonHpPct + P.hpFlat) : 0 // 🩸 %HP bite while above 50%
       const hpBleed = this.st.j2WolfBleedPct > 0 ? Math.min(Math.round(m.poison * m.def.hp * this.st.j2WolfBleedPct), Math.round(KIT2.beastmaster.wolfBleedCap * this.st.atk)) : 0
+      const pa = agonyBonus(this.st.critMul, this.st.thPerfectAgony)
+      const tickDmg = poisonTickTotal(m.poison * m.poisonDmg * bleedScale, pa, hpBite, this.dotMul(), hpBleed) // PA multiplies flat poison only, never hpBite / hpBleed
       const hp0 = m.hp
-      this.withSrc('poison', () => this.damageMon(m, Math.max(1, Math.round((m.poison * m.poisonDmg * bleedScale + hpBite) * this.dotMul()) + hpBleed), false, '#a77be0', true))
+      this.withSrc('poison', () => this.damageMon(m, tickDmg, false, '#a77be0', true, true))
       if (this.st.thPoisonLeech > 0) {
         const net = hp0 - Math.max(0, m.hp)
         if (net > 0) this.leechHeal(net * this.st.thPoisonLeech)
@@ -5285,7 +5294,7 @@ export class BattleScene extends Phaser.Scene {
       if (mo && this.job.resource === 'mana' && this.res >= this.resMax() * (mo.threshold ?? 0.6)) k *= 1 + mo.power
     }
     if (!dot && this.px('vsBurn') > 0 && (m.burnStackTurns > 0 || m.burnTurns > 0 || m.hell > 0)) k *= 1 + this.px('vsBurn')
-    if (!dot && m.poison > 0) k *= 1 + this.px('vsPoison')
+    if (!dot && src !== 'poison' && m.poison > 0) k *= 1 + this.px('vsPoison') // src 'poison' (!dot = Contaminate) applies vsPoison inside B5 instead
     if (rel === 'glass' && this.hp < this.st.maxHp * RELIC_RULES.glass.below) k *= 1 + RELIC_RULES.glass.dmg
     if (this.demonOn) k *= 1 + IMMORTAL_RULES.demonDmg
     if (src === 'ult') k *= this.ultOpen

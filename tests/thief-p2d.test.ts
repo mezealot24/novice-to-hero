@@ -5,8 +5,8 @@ import { PLAYER, type Stats } from '../src/data/game-data'
 import { CRIT_RULES } from '../src/data/battle-rules'
 import { heroStats, STAT_RULES, statEff, type StatsInput } from '../src/data/meta'
 import { autoInfo, KIT, magicPower, matkToPmRatio } from '../src/data/skill-math'
-import { canDetonate, contaminateBossRefund, contaminateCritChance, contaminateLeechShare, detonateDmg, detonateStacks, leechRate } from '../src/data/thief-offmeta'
-import { nodeById } from '../src/data/tree'
+import { canDetonate, contaminateBossRefund, contaminateCritChance, contaminateLeechShare, detonateDmg, detonateStacks, leechRate, agonyBonus, paApplies, poisonPowerBonus, poisonTickTotal } from '../src/data/thief-offmeta'
+import { nodeById, TALENTS } from '../src/data/tree'
 
 const baseInput = (over: Partial<StatsInput> = {}): StatsInput => ({
   race: 'human',
@@ -109,4 +109,58 @@ test('thief_v3 เลือดพิษ & thief_v4 ★ นักเล่นแ�
   assert.equal(v4.max, 1, 'tier 4 ★ is never stretched')
   assert.equal(v4.mod(1).thDetonateStar, 1)
   assert.ok(!/undefined|NaN/.test(v4.desc(1)))
+})
+
+test('th_t4b วิถีพิษคริ (Perfect Agony B5): flat-only poison scaling, crit/debt exclusions, and cap', () => {
+  near(agonyBonus(1.4, 0.5), 0, 'nothing at floor 1.4')
+  near(agonyBonus(2.0, 0.5), 0.3, '(2.0 - 1.4) x 0.5 = 0.3')
+  near(agonyBonus(4.0, 0.8), 1.0, 'capped at 1.0')
+  near(poisonPowerBonus(0.7, 0.7), 1.0, 'B5 shares cap 1.0 with vsPoison on Contaminate')
+  assert.equal(paApplies(false, false), true)
+  assert.equal(paApplies(true, false), false, 'crit skips PA')
+  assert.equal(paApplies(false, true), false, 'Mobster debt burst skips PA')
+
+  // Flat-only tick invariant: hpBite and hpBleed must NEVER be multiplied by Perfect Agony
+  const flat = 100, hpBite = 500, hpBleed = 40
+  assert.equal(poisonTickTotal(flat, 0, hpBite, 1, hpBleed), 640)
+  assert.equal(poisonTickTotal(flat, 0.8, hpBite, 1, hpBleed), 720, 'only flat 100 x 1.8 = 180 (+ 500 + 40 = 720)')
+
+  const t4b = TALENTS.find((t) => t.id === 'th_t4b')!
+  assert.equal(t4b.name, 'วิถีพิษคริ')
+  near(t4b.mod(1).thPerfectAgony ?? 0, 0.5)
+  near(t4b.mod(2).thPerfectAgony ?? 0, 0.8)
+})
+
+const mem: Record<string, string> = {}
+;(globalThis as { localStorage?: unknown }).localStorage = {
+  getItem: (k: string) => mem[k] ?? null,
+  setItem: (k: string, v: string) => { mem[k] = v },
+  removeItem: (k: string) => { delete mem[k] },
+}
+const { migrateThiefRogueRework, newSave, THIEF_REWORK_VER } = await import('../src/save')
+type SaveData = ReturnType<typeof newSave>
+
+test('migration v6: a v5 Thief / Rogue resets class 1 web + talents once · Rogue job2 web + talents stay', () => {
+  assert.equal(THIEF_REWORK_VER, 6)
+  const s = newSave('p2d', 'human')
+  Object.assign(s, {
+    job: 'thief', job2: 'rogue', thiefRogueRework: 5, skillPoints: 3,
+    jobTree: { thief_core1: 5, thief_b1: 2 }, jobTalents: { 4: { id: 'th_t4b', rank: 2 } },
+    job2Points: 2, job2Tree: { rogue_s3p: 5, rg_k1: 3 }, job2Talents: { 1: { id: 'rg_t1_combo', rank: 2 } },
+  } as Partial<SaveData>)
+  migrateThiefRogueRework(s)
+  assert.equal(s.thiefRogueRework, 6)
+  assert.deepEqual(s.jobTree, {}); assert.deepEqual(s.jobTalents, {})
+  assert.equal(s.skillPoints, 3 + 7)
+  assert.deepEqual(s.job2Tree, { rogue_s3p: 5, rg_k1: 3 })
+  assert.deepEqual(s.job2Talents, { 1: { id: 'rg_t1_combo', rank: 2 } })
+  assert.equal(s.job2Points, 2)
+  s.jobTree = { thief_v1: 1 }
+  migrateThiefRogueRework(s)
+  assert.deepEqual(s.jobTree, { thief_v1: 1 }, 'idempotent')
+
+  const bad = newSave('bad', 'human')
+  Object.assign(bad, { job: 'thief', thiefRogueRework: 5, jobTree: { thief_v1: 'x', thief_v2: -3, thief_a1: 4 } as unknown as SaveData['jobTree'], skillPoints: Number.NaN })
+  assert.doesNotThrow(() => migrateThiefRogueRework(bad))
+  assert.equal(bad.skillPoints, 4)
 })

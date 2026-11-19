@@ -191,12 +191,12 @@ const { migrateThiefRogueRework, newSave, THIEF_REWORK_VER } = await import('../
 type SaveData = ReturnType<typeof newSave>
 
 test('migration v5: a v3 Thief / Rogue gets class 1 web + talents back once · Rogue job2 web + talents untouched', () => {
-  assert.equal(THIEF_REWORK_VER, 5)
+  assert.ok(THIEF_REWORK_VER >= 5) // P2'd bumped it to 6 (tests/thief-p2d.test.ts)
   const s = newSave('rg', 'human')
   Object.assign(s, { job: 'thief', job2: 'rogue', thiefRogueRework: 3, skillPoints: 2, jobTree: { thief_core1: 5, thief_b1: 3, thief_b4: 1 }, jobTalents: { 3: { id: 'th_t3b', rank: 2 } },
     job2Points: 1, job2Tree: { rogue_s3p: 5, rg_k1: 2 }, job2Talents: { 1: { id: 'rg_t1_combo', rank: 2 } } } as Partial<SaveData>)
   migrateThiefRogueRework(s)
-  assert.equal(s.thiefRogueRework, 5)
+  assert.equal(s.thiefRogueRework, THIEF_REWORK_VER)
   assert.deepEqual(s.jobTree, {}); assert.deepEqual(s.jobTalents, {})
   assert.equal(s.skillPoints, 2 + 9)
   assert.deepEqual(s.job2Tree, { rogue_s3p: 5, rg_k1: 2 }, 'Rogue web: P3\'a already reset it at v3')
@@ -209,7 +209,7 @@ test('migration v5: a v3 Thief / Rogue gets class 1 web + talents back once · R
   migrateThiefRogueRework(v4)
   assert.deepEqual(v4.jobTree, {}, 'a v4 save (Rogue P3\'b) still gets the P2\'c reset')
   const fresh = newSave('n', 'human')
-  assert.equal(fresh.thiefRogueRework, 5)
+  assert.equal(fresh.thiefRogueRework, THIEF_REWORK_VER)
   const bad = newSave('b', 'human'); Object.assign(bad, { job: 'thief', thiefRogueRework: 3, jobTree: { thief_b1: 'x', thief_b2: -1, thief_b3: 2 } as unknown as SaveData['jobTree'], skillPoints: Number.NaN })
   assert.doesNotThrow(() => migrateThiefRogueRework(bad))
   assert.equal(bad.skillPoints, 2, 'corrupt entries dropped, refund finite')

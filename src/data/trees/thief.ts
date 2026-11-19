@@ -6,6 +6,7 @@
 // thief_c3 / thief_c4 / th_t2* get new meanings, gated by save.ts migrateThiefRogueRework (jobTree + talents reset). thief_b3 / thief_l1-l4 retired.
 // P2'b: th_t4a / th_t1c new meanings + ม่านควัน / แผลลึก rework -> migrateThiefRogueRework v2 (same reset).
 // P2'c: thief_b1-b4 = เกจเงา modifiers (thief_b3 back as เงาวนลูป) -> migrateThiefRogueRework v5 (same reset).
+// P2'd: thief_v สายเล่นแร่พิษ (INT/เวท) + th_t4b วิถีพิษคริ (Perfect Agony) -> migrateThiefRogueRework v6 (same reset).
 // Node mods are written per OLD level 1..3 (★ = 1): stretchNode() (data/tree.ts) shows 5 levels.
 import { node as n, rk, talent as t, type ClassTree } from '../tree-types'
 import { CRIT_RULES } from '../battle-rules'
@@ -68,7 +69,7 @@ export const tree: ClassTree = {
     t('th_t3c', 3, '🌫️', 'เงาหมอกลวงตา', 2, (r) => `เงาพริ้ว: หลบแน่นอน ${KIT.thiefUltDodge} → ${KIT.thiefUltDodge + r} ครั้ง · แต่ละทีติดพิษ +${rk(r, 2, 3)} stack · เกจเงา +1 ต่อการกด`, (r) => ({ ultDodge: r, ultPoison: rk(r, 2, 3), thUltGauge: 1 })),
     // ----- row 4 · Job Lv 30 · ล้มบอส -----
     t('th_t4a', 4, '🧫', 'สถานะทับซ้อน', 2, (r) => `ศัตรูที่พิษ ≥ ${Math.round(KIT.thiefPrivShare * 100)}% ของเพดานพิษ (${poisonAt(KIT.thiefPrivShare, KIT.poison.baseCap)} จาก ${KIT.poison.baseCap}) หรือติดดีบัฟต่างชนิด ≥ ${KIT.thiefKindsAt} อย่าง รับดาเมจ +${rk(r, 18, 30)}% (รวมพิษ · รวมกับโบนัสรับดาเมจอื่นไม่เกิน +${Math.round(KIT.thiefTakenCap * 100)}%)`, (r) => ({ thPrivileged: rk(r, 0.18, 0.3) })), // P2'b Privileged Status (B1); id kept (save data, reset by migrateThiefRogueRework v2)
-    t('th_t4b', 4, '🗡️', 'นักฆ่า', 2, (r) => `ดาเมจคริ +${r === 1 ? 30 : 50}%`, (r) => ({ critMul: r === 1 ? 0.3 : 0.5 })),
+    t('th_t4b', 4, '🗡️', 'วิถีพิษคริ', 2, (r) => `แปลงดาเมจคริส่วนที่เกิน ${Math.round(KIT.thiefAgonyFrom * 100)}% เป็นโบนัสดาเมจพิษ ${rk(r, 50, 80)}% (เฉพาะพิษไม่คริ ไม่รวม %HP · รวม vsPoison สูงสุด +${Math.round(KIT.thiefAgonyCap * 100)}%) · ฮิตกายภาพไม่คริเบาลง ${Math.round(KIT.thiefAgonyHitCut * 100)}%`, (r) => ({ thPerfectAgony: rk(r, 0.5, 0.8) })),
     t('th_t4c', 4, '🌑', 'หมอกลวงตา', 2, (r) => `มอนตีโดนขั้นต่ำ −${r === 1 ? 5 : 8}% (ต่ำสุด 60%)`, (r) => ({ fleeFloor: r === 1 ? 0.05 : 0.08 })),
   ],
 }

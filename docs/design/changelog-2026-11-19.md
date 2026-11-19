@@ -170,3 +170,9 @@
 - Added `thief_v3` เลือดพิษ (tier 3): INT scales poison leech rate in `heroBuild` (plus gear `poisonLeech`, max `thiefLeechCap` 60%), heals from net HP lost by monsters on poison ticks and Contaminate, capped at `thiefLeechTurnCap` 25% Max HP per hero turn
 - Added `thief_v4` ★ นักเล่นแร่พิษ (tier 4, no Alchemy Blade): Contaminate can crit (`skillCrit + spellCrit`, capped at `CRIT_RULES.cap.skillCrit`), gets 100% of เลือดพิษ rate, and refunds `thiefDetBossRefund` 25% of consumed stacks onto bosses/mini-bosses
 - 5 new `KIT` keys registered across all 4 admin/layout files
+
+## ✨ feat(thief): P2'd th_t4b วิถีพิษคริ (Perfect Agony B5, flat-only) + save v6
+- Reworked `th_t4b` นักฆ่า -> วิถีพิษคริ (ranks 1/2 = 0.5/0.8 conversion of `critMul` above `thiefAgonyFrom` 1.4, capped at `thiefAgonyCap` 1.0 shared with `vsPoison` on Contaminate; non-crit physical hits −15% `thiefAgonyHitCut`)
+- Flat-only tick rule (`MAIN-VS-REV4.md` §5.1 #4): Perfect Agony multiplies ONLY flat poison (`m.poison × m.poisonDmg × bleedScale`) on poison ticks, NEVER `%HP bite` or Wolf `%HP bleed`; skips crits (Contaminate ★) and Mobster `ทวงหนี้` (`debtBursting`); `srcMul` skips `vsPoison` when `src === 'poison'` so Contaminate applies `vsPoison` once inside B5
+- Bumped `THIEF_REWORK_VER` 5 -> 6 (`migrateThiefRogueRework` resets Thief class 1 web + talents once for saves < 6; Rogue job2 web + talents untouched)
+- 3 new `KIT` keys registered across all 4 admin/layout files

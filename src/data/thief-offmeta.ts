@@ -29,3 +29,18 @@ export const contaminateLeechShare = (star: boolean): number => (star ? 1 : KIT.
 
 /** thief_v4 ★: poison stacks refunded onto a boss / mini-boss after Contaminate consumes `det` stacks. */
 export const contaminateBossRefund = (det: number): number => Math.ceil(Math.max(0, det) * KIT.thiefDetBossRefund)
+
+/** th_t4b วิถีพิษคริ (Perfect Agony): converts critMul above thiefAgonyFrom into flat poison bonus (cap thiefAgonyCap). */
+export const agonyBonus = (critMul: number, rate: number): number =>
+  rate <= 0 ? 0 : Math.min(KIT.thiefAgonyCap, Math.max(0, critMul - KIT.thiefAgonyFrom) * rate)
+
+/** B5 Poison power bracket (R4.6): Perfect Agony + vsPoison (Contaminate only) share one cap thiefAgonyCap. */
+export const poisonPowerBonus = (agony: number, vsPoison: number): number =>
+  Math.min(KIT.thiefAgonyCap, Math.max(0, agony) + Math.max(0, vsPoison))
+
+/** Perfect Agony never multiplies crits (e.g. Contaminate ★ crit) or Mobster ทวงหนี้ burst. */
+export const paApplies = (crit: boolean, debtBursting: boolean): boolean => !crit && !debtBursting
+
+/** Poison tick total: Perfect Agony multiplies ONLY flat poison (never %HP bite or Wolf %HP bleed). */
+export const poisonTickTotal = (flatPoison: number, paBonus: number, hpBite: number, dotMul: number, hpBleed = 0): number =>
+  Math.max(1, Math.round((flatPoison * (1 + Math.max(0, paBonus)) + hpBite) * dotMul) + hpBleed)
