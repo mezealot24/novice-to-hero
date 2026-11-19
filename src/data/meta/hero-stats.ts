@@ -45,6 +45,7 @@ export interface StatsInput {
 	taint?: Record<string, TaintRec>;
 	awakened?: Record<string, number>;
 	imbue?: Record<string, string>;
+	ascend?: Record<string, number>; // ⇧ ascension level per item id (data/ascend.ts)
 	tempBase?: Partial<Record<BaseStat, number>>;
 	crossSpent?: { j2In1?: number; j3In1?: number; j3In2?: number };
 	pet?: PetId;

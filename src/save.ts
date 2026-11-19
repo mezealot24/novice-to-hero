@@ -114,6 +114,7 @@ export interface SaveData {
 	modes?: Record<string, ModeRecord>; // game modes v51 (data/modes.ts): tower bestFloor / clears, daily lastSeed (YYYYMMDD) / clears
 	imbue?: Record<string, string>; // crafted gear imbued Aspect ID (keyed by item id)
 	awakened?: Record<string, number>; // unique gear awakened count/flag (keyed by item id)
+	ascend?: Record<string, number>; // ⇧ item id -> ascend level 1..2 (missing = 0, data/ascend.ts): the piece re-forged into a higher gear zone
 	riftRun?: RiftActiveRunState; // active Void Rift checkpoint run state (wiped on death/exit)
 	talentWallet?: TalentWallet; // permanent Rune Dust, Gold Medals, Hell Pity & first-clear flags
 	fortune?: number; // Fortune meter 0..100 (data/events.ts FORTUNE), kept across runs: full = the next event is a JACKPOT
@@ -972,7 +973,7 @@ export function addFodder(s: SaveData, id: string, n = 1) {
 	bag[id] = (bag[id] ?? 0) + n;
 	if (bag[id] <= 0) delete bag[id];
 }
-/** Normalize and guard optional endgame save fields (`imbue`, `awakened`, `riftRun`, `talentWallet`) against corrupt data. */
+/** Normalize and guard optional endgame save fields (`imbue`, `awakened`, `ascend`, `riftRun`, `talentWallet`) against corrupt data. */
 export function normalizeEndgameFields(s: SaveData): void {
 	const isPlainObj = (v: unknown): v is Record<string, unknown> =>
 		typeof v === "object" && v !== null && !Array.isArray(v);
@@ -994,6 +995,18 @@ export function normalizeEndgameFields(s: SaveData): void {
 			for (const [k, v] of Object.entries(s.awakened)) {
 				if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
 					delete s.awakened[k];
+				}
+			}
+		}
+	}
+
+	if (s.ascend !== undefined) {
+		if (!isPlainObj(s.ascend)) {
+			delete s.ascend;
+		} else {
+			for (const [k, v] of Object.entries(s.ascend)) {
+				if (typeof v !== "number" || !Number.isInteger(v) || v < 1) {
+					delete s.ascend[k]; // 0 / junk = never ascended (forged() also clamps to the item's own max)
 				}
 			}
 		}
@@ -1057,4 +1070,5 @@ export function forgetForge(s: SaveData, id: string) {
 	if (s.taint) delete s.taint[id]; // v89: a tainted item that leaves the bag is gone with its curse
 	if (s.imbue) delete s.imbue[id];
 	if (s.awakened) delete s.awakened[id];
+	if (s.ascend) delete s.ascend[id]; // ⇧ a re-crafted piece starts again at its home zone
 }

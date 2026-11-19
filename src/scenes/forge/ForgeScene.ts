@@ -23,6 +23,7 @@ import { AspectPanel } from './verbs/AspectPanel'
 const RAIL_X = 12, RAIL_Y = 112, RAIL_W = 204, RAIL_H = 454
 const STAGE_X = 228, STAGE_Y = 112
 const VERB_X = 608, VERB_Y = 140, BOX_Y = 172
+const TAB_GAP = 6, TAB_W = Math.floor((BOX_W - TAB_GAP * (SLOT_COUNT - 1)) / SLOT_COUNT) // verb tabs fill the box width (iconTabs puts 6px between tabs)
 const BAR_X = STAGE_X, BAR_Y = 498, BAR_W = VERB_X + BOX_W - STAGE_X, BAR_H = 68
 const STRIP_X = BAR_X + 14, STRIP_W = 436
 const ACT_W = 250, ACT_H = 48, ACT_X = BAR_X + BAR_W - 14 - ACT_W / 2, ACT_Y = BAR_Y + BAR_H / 2
@@ -152,7 +153,7 @@ export class ForgeScene extends Phaser.Scene {
     this.stage = new AnvilStage(this, STAGE_X, STAGE_Y, () => { if (!this.isBusy()) go(this, 'character', { tab: 1, back: { key: 'forge', data: { item: this.itemId } } }) }, this.cmpMode, (m) => { this.cmpMode = m })
     this.modeObjs.push(this.stage.container)
     const slots = Array.from({ length: SLOT_COUNT }, (_, i) => VERB_TAB[slotVerb(i, false)])
-    this.verbTabs = iconTabs(this, VERB_X, VERB_Y, slots, (i) => { const it = this.item(); if (it) this.setVerb(slotVerb(i, isBroken(save(), it.id))) }, { w: 63, h: 52, start: -1, gate: () => !this.isBusy() })
+    this.verbTabs = iconTabs(this, VERB_X, VERB_Y, slots, (i) => { const it = this.item(); if (it) this.setVerb(slotVerb(i, isBroken(save(), it.id))) }, { w: TAB_W, h: 52, start: -1, gate: () => !this.isBusy() })
     this.modeObjs.push(this.verbTabs)
     this.modeObjs.push(panel(this, BAR_X, BAR_Y, BAR_W, BAR_H, 0x262b52, UI.line, 12))
     this.strip = costStrip(this, STRIP_X, BAR_Y, STRIP_W)

@@ -1,8 +1,10 @@
 // Pure helpers shared by the rail, the stage and the verb panels (no Phaser objects here). Rules live in src/data/*.
+import { ASCEND, ascendCheck, homeZone, TOP_ZONE, zoneName, type AscendWhy } from '../../data/ascend'
+import { DUNGEONS } from '../../data/game-data'
 import { gradeCost, REFINE } from '../../data/craft'
 import { ASPECT_LIST, ASPECTS, aspectModOf, type AspectId, type SaveExt } from '../../data/item-effects'
 import { matById } from '../../data/materials'
-import { canWearAs, EMPTY_ITEM, forged, gradeOf, isBroken, isTainted, itemStatLine, ITEMS, linesOf, refineOf, SLOTS, splitStatLine, statEntries, type Item, type StatEntry } from '../../data/meta'
+import { canWearAs, EMPTY_ITEM, itemById, forged, gradeOf, isBroken, isTainted, itemStatLine, ITEMS, linesOf, refineOf, SLOTS, splitStatLine, statEntries, type Item, type StatEntry } from '../../data/meta'
 import { canAffordAuto, costGap, fodderToBuy, gradeCheck, lineText, refineCheck, refineCost, taintCheck, totalZeny, type ForgeCost, type TaintResult } from '../../data/refine'
 import { ITEM_SETS, setById, type ItemSet } from '../../data/sets'
 import type { Stats } from '../../data/stats'
@@ -58,14 +60,26 @@ export function verbLock(s: SaveData, it: Item, v: Verb): string | undefined {
   }
 }
 
-/** The five tab slots. Slot 1 is ⚒️ ตีบวก, and 🔧 ซ่อม takes its place while the item is broken (spec 3.4). */
+/** Why an item can't ascend, said to the player (tab lock toast and the ⇧ panel). */
+export function ascendWhyText(it: Item, why: AscendWhy): string {
+  switch (why) {
+    case 'cant': return homeZone(it) >= TOP_ZONE ? `ของโซน ${zoneName(TOP_ZONE)} อยู่โซนสูงสุดแล้วค่ะ` : `ยกขั้นได้เฉพาะของตีเองหรือยูนีคจากดัน ${zoneName(0)} / ${zoneName(1)} ค่ะ`
+    case 'tainted': return '🌑 ติดคำสาปแล้ว ยกขั้นไม่ได้อีกค่ะ'
+    case 'broken': return '💔 ของแตกอยู่ ซ่อมก่อนนะคะ'
+    case 'max': return `ยกขั้นถึงโซน ${zoneName(TOP_ZONE)} แล้วค่ะ สุดทางแล้ว ✨`
+    case 'grade': return `อัปเป็น ★${ASCEND.minGrade} ก่อนนะคะ ถึงจะยกขั้นได้`
+  }
+}
+
+/** The five tab slots. Slot 1 is ⚒️ ตีบวก, and 🔧 ซ่อม takes its place while the item is broken (spec 3.4).
+ *  ⬆️ อัปขั้น also carries ⇧ ยกขั้น (ascension) once the piece is ★5 (Q 2026-11-19: one tab for both). */
 export const SLOT_COUNT = 5
 export function slotVerb(slot: number, broken: boolean): Verb {
   return (['grade', broken ? 'repair' : 'refine', 'option', 'taint', 'aspect'] as Verb[])[slot]
 }
 export const slotOf = (v: Verb) => (v === 'grade' ? 0 : v === 'refine' || v === 'repair' ? 1 : v === 'option' ? 2 : v === 'taint' ? 3 : 4)
 export const VERB_TAB: Record<Verb, { icon: string; label: string }> = {
-  grade: { icon: '⬆️', label: 'อัปขั้น' },
+  grade: { icon: '⬆️', label: 'อัป/ยกขั้น' },
   refine: { icon: '⚒️', label: 'ตีบวก' },
   repair: { icon: '🔧', label: 'ซ่อม' },
   option: { icon: '🎲', label: 'ค่าพิเศษ' },
@@ -114,7 +128,11 @@ export function smithLine(s: SaveData, it: Item, v: Verb): string {
     if (!canAffordAuto(s, refineCost(it, refineOf(s, it.id) + 1))) return 'ของยังไม่ครบนะ ไปป้อมวีรชนหาวัตถุดิบสักรอบ'
   }
   if (v === 'grade') {
-    if (gradeCheck(s, it) === 'max') return 'ขั้นสูงสุดของชิ้นนี้แล้ว'
+    if (gradeCheck(s, it) === 'max') {
+      const c = ascendCheck(s, it) // ★5: the same tab goes on to ⇧ ascension
+      if (c.ok) return 'ของเก่า ★5 อย่าเพิ่งทิ้งนะคะ ยกขั้นด้วยวัตถุดิบโซนใหม่ได้ ยังนับเซ็ตเดิมด้วยค่ะ'
+      return c.why === 'max' || c.why === 'broken' ? ascendWhyText(it, c.why) : 'ขั้นสูงสุดของชิ้นนี้แล้ว'
+    }
     if (gradeCheck(s, it) === 'ok' && !canAffordAuto(s, gradeCost(it, gradeOf(s, it.id) + 1))) return 'ของยังไม่ครบนะ ไปป้อมวีรชนหาวัตถุดิบสักรอบ'
   }
   if (v === 'option' && !linesOf(s, it.id).some(Boolean)) return `ตีถึง +${REFINE.lineAt[0]} ก่อน ถึงจะมีค่าพิเศษให้สุ่มนะ`
@@ -182,6 +200,12 @@ export function wornRival(s: SaveData, it: Item): Item | null {
 export function itemSetOf(it: Item): ItemSet | undefined {
   return it.setId ? setById(it.setId) : ITEM_SETS.find((st) => st.memberIds?.includes(it.id))
 }
+/** Every set the item counts for (Q 2026-11-19: a shared early piece can be in its own set AND a class set). Primary first. */
+export function itemSetsOf(it: Item): ItemSet[] {
+  const out = ITEM_SETS.filter((st) => st.id === it.setId || !!st.memberIds?.includes(it.id))
+  const p = itemSetOf(it)
+  return p ? [p, ...out.filter((x) => x !== p)] : out
+}
 
 function sameModStats(a: Partial<Stats> | undefined, b: Partial<Stats> | undefined): boolean {
   const keys = new Set([...Object.keys(a ?? {}), ...Object.keys(b ?? {})]) as Set<keyof Stats>
@@ -221,4 +245,55 @@ export function forgedWithAspect(s: SaveExt, it: Item, nextAspectId?: AspectId):
   if (forgeAppliesAspect) return forged(targetSave, it)
   const aspMod = nextAspectId ? ASPECTS[nextAspectId]?.mod : aspectModOf(targetSave, it)
   return addModToItem(noImbueItem, aspMod)
+}
+
+// ---------- 📜 recipe list: 🧩 filter grouped by set (Q 2026-11-19) ----------
+/** Recipe sort key: dungeon order, then rift, then shop items. */
+export const dgIx = (it: Item) => {
+  if (!it.craft) return DUNGEONS.length + 2
+  if (it.craft.dg === 'rift') return DUNGEONS.length
+  const ix = DUNGEONS.findIndex((d) => d.id === it.craft!.dg)
+  return ix >= 0 ? ix : DUNGEONS.length + 1
+}
+const PER = 6, ROW_H = 52
+export const HEAD_H = 26
+/** List area height: a set header + 6 item rows (pager sits under it). The 🧩 filter packs set headers + items into this height. */
+const LIST_H = HEAD_H + 4 + PER * (ROW_H + 4) // header + 6 rows
+/** One line of the left list: a recipe, or (🧩 filter) a set header. `cont` = the set carried over from the previous page. */
+export type Row = { kind: 'item'; it: Item } | { kind: 'head'; set: ItemSet; ids: string[]; cont: boolean }
+const rowH = (r: Row) => (r.kind === 'item' ? ROW_H + 4 : HEAD_H + 4)
+/** "D1-D5" span of a set's forge recipes (from each piece's craft dungeon). */
+export function setSpan(ids: readonly string[]): string {
+  const ns = ids.map((id) => itemById(id)?.craft?.dg).filter((d): d is string => !!d && /^d\d+$/.test(d)).map((d) => Number(d.slice(1)))
+  if (!ns.length) return ''
+  const lo = Math.min(...ns), hi = Math.max(...ns)
+  return lo === hi ? `D${lo}` : `D${lo}-D${hi}`
+}
+/** Group recipes by set (sets in the order of their earliest piece), then pack them into pages by height.
+ *  A set starts on a fresh page unless it fits whole; a set longer than a page repeats its header (↪) on the next one. */
+export function setPages(items: readonly Item[], setsOf: (it: Item) => readonly ItemSet[], h = LIST_H): Row[][] {
+  const groups = new Map<string, { set: ItemSet; items: Item[] }>()
+  for (const it of items) {
+    for (const st of setsOf(it)) { // a piece in two sets shows under both headers
+      const g = groups.get(st.id) ?? { set: st, items: [] }
+      g.items.push(it)
+      groups.set(st.id, g)
+    }
+  }
+  const order = [...groups.values()].sort((a, b) => dgIx(a.items[0]) - dgIx(b.items[0]) || ITEM_SETS.indexOf(a.set) - ITEM_SETS.indexOf(b.set))
+  const pages: Row[][] = []
+  let page: Row[] = [], used = 0
+  const push = (r: Row) => { page.push(r); used += rowH(r) }
+  const flush = () => { if (page.length) pages.push(page); page = []; used = 0 }
+  for (const g of order) {
+    const ids = g.items.map((it) => it.id)
+    if (used > 0 && used + HEAD_H + 4 + ids.length * (ROW_H + 4) > h) flush() // a set that won't fit the rest of this page starts a fresh one
+    push({ kind: 'head', set: g.set, ids, cont: false })
+    for (const it of g.items) {
+      if (used + ROW_H + 4 > h) { flush(); push({ kind: 'head', set: g.set, ids, cont: true }) }
+      push({ kind: 'item', it })
+    }
+  }
+  flush()
+  return pages
 }
