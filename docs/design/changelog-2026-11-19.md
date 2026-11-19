@@ -186,5 +186,5 @@
 ## ✨ feat(hell): 😈 Hell mode on D1-D5 (v129)
 - `hellOpen` opens on every level dungeon (D1-D5 too) after a 🔥 hard clear of that dungeon; `dungeonRun` keeps `hell` when `dg.level` (was `deepDungeon`)
 - Same mechanics as D6+: hard +50% stat points + escalation + corruption, every monster a Hell copy (Lv +10, one hell trait), hell MVP 🔴, hell death EXP loss
-- Normal hell drop rates: reward / mats x1.5, unique 20%, MVP / mini card x2 (`HELL_MODE`); no ผลึกโลกันตร์ on D1-D5 (Hub text hides it)
+- Normal hell drop rates: reward x1.5, mats x2 (was 1.5, Q 2026-11-19; x3 of a normal run), unique 20%, MVP / mini card x2 (`HELL_MODE`); no ผลึกโลกันตร์ on D1-D5 (Hub text hides it)
 - New `HELL_MODE.overLvXp` 0.01: a hero above `hellLvCap` (top room Lv + `HELL_MODE.lv`, D1-D5 only via `overLvTierMax` 5) banks 1% of the run's account Base + Job EXP; zeny / loot unchanged; shown in the Hub confirm and the result screen

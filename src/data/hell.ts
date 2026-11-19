@@ -50,7 +50,7 @@ export function hellify(d: MonsterDef, rand: number): MonsterDef {
 // 🔥 hard clear of it. Pays more (zeny / EXP / mats, unique chance, +1 ผลึกโลกันตร์). No 💎 entry, no gem skip.
 export const HELL_MODE = {
   lv: 10, // room Lv + this (same gap as tower Hell copies)
-  reward: 1.5, mats: 1.5, // on top of the hard-mode reward
+  reward: 1.5, mats: 2, // on top of the hard-mode reward · v129 (Q 2026-11-19): mats 1.5 -> 2 (x3 of a normal run)
   uniqueRate: 0.2, // final-boss unique chance (hard 10%)
   bossCardMul: 2, // v128 (Q 2026-11-19): MVP / mini boss card drop rate x this
   taintAdd: 1, // + ผลึกโลกันตร์ from the final boss

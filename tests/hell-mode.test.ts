@@ -41,6 +41,7 @@ test('😈 D1-D5 hell: a hero above the Hell band (top room Lv + HELL_MODE.lv) b
     assert.equal(hellXpMul(d, cap + 1), HELL_MODE.overLvXp, `${id}: above the cap = 1%`)
   }
   assert.equal(HELL_MODE.overLvXp, 0.01)
+  assert.equal(HELL_MODE.mats, 2, 'Q 2026-11-19: hell mats x2 on top of hard')
   assert.equal(hellLvCap(DUNGEONS[di('d6')]), Infinity)
   assert.equal(hellXpMul(DUNGEONS[di('d6')], 99), 1)
 })
