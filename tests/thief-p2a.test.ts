@@ -20,7 +20,8 @@ test('web: one core column (c1 / c2 หมายหัว / c3 / c4), old column
   for (const id of [...A_LINE, ...CORE]) assert.ok(TREE.some((n) => n.id === id), id)
   for (const id of TAL) assert.ok(TALENTS.some((t) => t.id === id), id)
   for (const id of ['thief_crit', 'thief_blood']) assert.ok(!BRANCHES.some((b) => b.id === id), id)
-  for (const id of ['thief_l1', 'thief_l2', 'thief_l3', 'thief_l4', 'thief_b3']) assert.ok(!TREE.some((n) => n.id === id), id)
+  for (const id of ['thief_l1', 'thief_l2', 'thief_l3', 'thief_l4']) assert.ok(!TREE.some((n) => n.id === id), id)
+  assert.equal(node('thief_b3').branch, 'thief_b', 'P2\'c re-adds thief_b3 in the shadow line (เงาวนลูป), not as the old มีดคู่')
   const core = branchesOf('thief').filter((b) => b.line === 'core')
   assert.deepEqual(core.map((b) => b.id), ['thief_core'])
   for (const [i, id] of CORE.entries()) { assert.equal(node(id).branch, 'thief_core', id); assert.equal(node(id).tier, i + 1, id) }

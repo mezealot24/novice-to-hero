@@ -163,6 +163,7 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
       kit('thiefPoisonAmpShare', 'กัดกร่อน (ของใส่/การ์ด): พิษขั้นต่ำ (สัดส่วนเพดานพิษ)'),
       kit('thiefStackHpMax', 'กายต้านพิษ: นับ stack สูงสุด'),
       kit('thiefCondCritDmgCap', 'B3: ดาเมจคริจากเงื่อนไข รวมสูงสุด'),
+      kit('thiefShadowShieldHpCap', 'หายใจในเงา: โล่ร่างเงาสูงสุด (% HP)'),
     ],
   },
 }

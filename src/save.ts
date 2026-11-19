@@ -79,7 +79,7 @@ export interface SaveData {
 	stretchRefund?: { skill: number; job2: number }; // points that migration gave back, shown once in town
 	bmRework?: 1 | 2; // Beastmaster rework v1 (1) / v2.1 (2): 1-time free job2Tree reset for existing Beastmasters
 	sageRework?: 1; // Sage rework v1 (Beta): 1-time free job2Tree + talent reset & point refund for existing Sages
-	thiefRogueRework?: number; // Thief / Rogue rework version (THIEF_REWORK_VER): 1 = P2'a Thief class 1 web + talent reset & refund (job2 untouched) · 2 = P2'b same reset (th_t4a / th_t1c / ม่านควัน / แผลลึก) · 3 = P3'a Rogue ใยชั้น 2 web reset & refund
+	thiefRogueRework?: number; // Thief / Rogue rework version (THIEF_REWORK_VER): 1 = P2'a Thief class 1 web + talent reset & refund (job2 untouched) · 2 = P2'b same reset (th_t4a / th_t1c / ม่านควัน / แผลลึก) · 3 = P3'a Rogue ใยชั้น 2 web reset & refund · 5 = P2'c same Thief class 1 reset (thief_b / th_t1a-b / th_t3* / th_t4c)
 	job2Talents?: Record<string, { id: string; rank: number }>; // v119 ทาเลนต์ชั้น 2: same shape, Talent Points from Job2 Lv; cleared when the 2nd job changes
 	jobTalents?: Record<string, { id: string; rank: number }>; // talent row "1".."4" -> pick + rank; Talent Points are derived from Job Lv (data/tree.ts)
 	stats: Record<BaseStat, number>;
@@ -499,8 +499,8 @@ export function migrateSageRework(s: SaveData) {
 	}
 }
 /** Thief / Rogue rework version. Bump (and add an `if (v < N)` block) when a later release changes the meaning of shipped ids again. */
-export const THIEF_REWORK_VER = 3;
-/** Thief / Rogue rework: v1 P2'a + v2 P2'b = Thief class 1 web + talents reset & refund · v3 P3'a = Rogue ใยชั้น 2 web reset & refund
+export const THIEF_REWORK_VER = 5; // 4 is left for Rogue P3'b (planned): P2'c took the next free number
+/** Thief / Rogue rework: v1 P2'a + v2 P2'b + v5 P2'c = Thief class 1 web + talents reset & refund · v3 P3'a = Rogue ใยชั้น 2 web reset & refund
  *  (rg_k / rg_c / rg_x ids now mean mechanics; Rogue talents untouched). Idempotent, never throws on bad data. */
 export function migrateThiefRogueRework(s: SaveData) {
 	if (!s || typeof s !== "object") return;
@@ -508,7 +508,7 @@ export function migrateThiefRogueRework(s: SaveData) {
 	if (v >= THIEF_REWORK_VER) return;
 	s.thiefRogueRework = THIEF_REWORK_VER; // first: idempotent even if something below throws
 	if (s.job !== "thief") return;
-	if (v < 2) { // P2'a / P2'b (owner rule: same minimal reset)
+	if (v < 5) { // P2'a / P2'b / P2'c (owner rule: same minimal reset, once even if several versions behind) · never touches the Rogue job2 web
 		const t: Record<string, number> = {};
 		if (s.jobTree && typeof s.jobTree === "object") for (const [k, n] of Object.entries(s.jobTree)) if (typeof n === "number" && Number.isFinite(n) && n > 0) t[k] = n;
 		s.jobTree = t; // corrupt entries dropped so resetTree() sums numbers only

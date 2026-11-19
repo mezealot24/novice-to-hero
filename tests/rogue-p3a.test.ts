@@ -96,16 +96,16 @@ const v2 = (over: Partial<SaveData> = {}): SaveData => {
   return s
 }
 
-test('migration v3: a P2\'b (v2) Rogue gets its ใยชั้น 2 back once · class 1 web and every talent stay', () => {
-  assert.equal(THIEF_REWORK_VER, 3)
+test('migration v3: a P2\'b (v2) Rogue gets its ใยชั้น 2 back once · Rogue talents stay', () => {
+  assert.ok(THIEF_REWORK_VER >= 3) // P2'c bumped it to 5 (tests/thief-p2c.test.ts): class 1 web + Thief talents reset again
   const s = v2()
   migrateThiefRogueRework(s)
-  assert.equal(s.thiefRogueRework, 3)
+  assert.equal(s.thiefRogueRework, THIEF_REWORK_VER)
   assert.deepEqual(s.job2Tree, {})
   assert.equal(s.job2Points, 2 + 13)
-  assert.deepEqual(s.jobTree, { thief_core1: 5 }, 'class 1 web untouched (already reset at v2)')
-  assert.equal(s.skillPoints, 1)
-  assert.deepEqual(s.jobTalents, { 1: { id: 'th_t1c', rank: 1 } })
+  assert.deepEqual(s.jobTree, {}, 'P2\'c v5: class 1 web reset + refund')
+  assert.equal(s.skillPoints, 1 + 5)
+  assert.deepEqual(s.jobTalents, {})
   assert.deepEqual(s.job2Talents, { 1: { id: 'rg_t1_combo', rank: 2 } }, 'Rogue talents change in P3\'b')
   s.job2Tree = { rg_k1: 1 }
   migrateThiefRogueRework(s)
@@ -116,9 +116,9 @@ test('migration v3: a P2\'b (v2) Rogue gets its ใยชั้น 2 back once �
 test('migration v3: Mobster, other classes and new saves keep their web', () => {
   const m = v2({ job2: 'mobster', job2Tree: { mb_e1: 5 } })
   migrateThiefRogueRework(m)
-  assert.deepEqual(m.job2Tree, { mb_e1: 5 }); assert.equal(m.job2Points, 2); assert.equal(m.thiefRogueRework, 3)
+  assert.deepEqual(m.job2Tree, { mb_e1: 5 }); assert.equal(m.job2Points, 2); assert.equal(m.thiefRogueRework, THIEF_REWORK_VER)
   const fresh = newSave('n', 'human')
-  assert.equal(fresh.thiefRogueRework, 3)
+  assert.equal(fresh.thiefRogueRework, THIEF_REWORK_VER)
   Object.assign(fresh, { job: 'thief', job2: 'rogue', job2Tree: { rg_k1: 2 } })
   migrateThiefRogueRework(fresh)
   assert.deepEqual(fresh.job2Tree, { rg_k1: 2 })

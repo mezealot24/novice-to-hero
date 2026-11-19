@@ -109,6 +109,7 @@ export const KIT = {
   thiefUltCdCutCap: 2, thiefUltCdFloor: 2,
   // R4.6 B3: conditional crit dmg (Shroud ★, Rogue rg_x2 ใจสลาย, Ult-own, thief_u3 on basic / combo, th_t1b R2) ADDS into critMul, one cap
   thiefCondCritDmgCap: 0.75,
+  thiefShadowShieldHpCap: 0.2, // thief_b2: the ร่างเงา shield is at most this share of max HP
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
   // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
   // 💰 Thief ทักษะ 2 ล้วงกระเป๋า (Q 2026-11-18, GW2 Steal): what you steal depends on the front monster's top stat. admin `kit` · thiefSteal.*

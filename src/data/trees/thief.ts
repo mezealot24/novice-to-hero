@@ -5,6 +5,7 @@
 // P2'a (design/p2/MAIN-VS-REV4.md §4): one core column thief_core (c1 / c2 หมายหัว / c3 / c4) replaces thief_crit + thief_blood;
 // thief_c3 / thief_c4 / th_t2* get new meanings, gated by save.ts migrateThiefRogueRework (jobTree + talents reset). thief_b3 / thief_l1-l4 retired.
 // P2'b: th_t4a / th_t1c new meanings + ม่านควัน / แผลลึก rework -> migrateThiefRogueRework v2 (same reset).
+// P2'c: thief_b1-b4 = เกจเงา modifiers (thief_b3 back as เงาวนลูป) -> migrateThiefRogueRework v5 (same reset).
 // Node mods are written per OLD level 1..3 (★ = 1): stretchNode() (data/tree.ts) shows 5 levels.
 import { node as n, rk, talent as t, type ClassTree } from '../tree-types'
 import { doubleAtkChance } from '../game-data'
@@ -18,7 +19,7 @@ export const tree: ClassTree = {
   s2Gate,
   branches: [
     { id: 'thief_a', job: 'thief', name: 'พิษ', icon: '☠️', blurb: `พิษซ้อนหนา ล้มบอสช้าแต่ชัวร์ · พิษ 1 stack = DEF มอน −${Math.round(KIT.poison.defPer * 100)}% (สูงสุด −${Math.round(KIT.poison.defCap * 100)}%) · ระเบิดพิษ` },
-    { id: 'thief_b', job: 'thief', name: 'เงา', icon: '👤', blurb: 'หลบ · หลบแล้วฟื้น · หลบแล้วสวน' },
+    { id: 'thief_b', job: 'thief', name: 'เงา', icon: '👤', blurb: 'ปรับเกจเงา: เติมไว · โล่ตอนเข้าร่างเงา · หลบในร่างเงาลด CD · ร่างเงานาน' },
     // P2'a: one core column (no ATTACH in data/tree.ts -> line 'core'); replaces thief_crit + thief_blood
     { id: 'thief_core', job: 'thief', name: 'เลือด·คริ', icon: '🩸', blurb: 'ดูดเลือดตามสถานะ · หมายหัว · ฆ่าแล้วฟื้น' },
   ],
@@ -27,13 +28,15 @@ export const tree: ClassTree = {
     n('thief_a2', 'thief_a', 2, '🐌', 'พิษชา', 3, (lv) => `ดาเมจพิษ +${lv}/stack · 🐌 มอนติดพิษ ≥ ${slowAtLv(lv)} stack ช้าลง (ติดช้า ${KIT.poison.slowTurns} เทิร์นทุกครั้งที่พิษกัด) · พิษโจร +${Math.round(KIT.poison.atkPer * 100)}% P.ATK +${Math.round(KIT.poison.matkPer * 100)}% M.ATK/stack`, (lv) => ({ poisonDmg: lv, poisonSlow: lv })),
     n('thief_a3', 'thief_a', 3, '🏺', 'พิษสะสม', 3, (lv) => `เพดานพิษ ${KIT.poison.baseCap} → ${KIT.poison.baseCap + lv * 3} stack`, (lv) => ({ poisonCap: 3 * lv })),
     n('thief_a4', 'thief_a', 4, '💣', 'ระเบิดพิษ', 1, () => `มอนตาย: พิษ ${Math.round(KIT.poison.spreadShare * 100)}% กระจายไปทุกตัวที่เหลือ + ระเบิดใส่ทุกตัว (stack × ดาเมจ/stack × ${KIT.poison.spreadBurst}) · ฆ่าได้ = ระเบิดต่อเป็นลูกโซ่`, () => ({ poisonSpread: 1 })),
-    n('thief_b1', 'thief_b', 1, '🌫️', 'ย่องเบา', 3, (lv) => `Flee +${lv * 4} · มอนตีโดนขั้นต่ำ −${lv * 2}%`, (lv) => ({ flee: 4 * lv, fleeFloor: 0.02 * lv })),
-    n('thief_b2', 'thief_b', 2, '🌙', 'หายใจในเงา', 3, (lv) => `หลบได้แล้วฟื้น ${lv * 2}% HP สูงสุด`, (lv) => ({ dodgeHeal: 0.02 * lv })),
+    // P2'c (MAIN-VS-REV4 U1 + Q1): thief_b = 👤 เกจเงา modifiers (one shadow gauge; Rev 3 Ghost Shroud merged into it). ids kept, reset by migration v5
+    n('thief_b1', 'thief_b', 1, '🌫️', 'ย่องเบาในเงา', 3, (lv) => `หลบได้: โอกาส ${Math.round(Math.min(1, lv / 3) * 100)}% เกจเงา +1 เพิ่ม · ในร่างเงา Flee +${Math.round(6 * lv)}`, (lv) => ({ thShadowFill: Math.min(1, lv / 3), thShadowFlee: 6 * lv })),
+    n('thief_b2', 'thief_b', 2, '🌙', 'หายใจในเงา', 3, (lv) => `หลบได้แล้วฟื้น ${Math.round(lv * 2)}% HP สูงสุด · เข้าร่างเงา: โล่เงา ${Math.round(lv * 10)}% ของ Flee (สูงสุด ${Math.round(KIT.thiefShadowShieldHpCap * 100)}% HP)`, (lv) => ({ dodgeHeal: 0.02 * lv, thShadowShield: 0.1 * lv })),
+    n('thief_b3', 'thief_b', 3, '🌀', 'เงาวนลูป', 3, (lv) => `ในร่างเงา หลบได้: โอกาส ${Math.round(Math.min(1, lv / 3) * 100)}% ลด CD เงาพริ้ว 1 เทิร์น (รวมทุกแหล่งไม่เกิน ${KIT.thiefUltCdCutCap}/เทิร์น)`, (lv) => ({ thShadowDodgeCd: Math.min(1, lv / 3) })), // P2'c re-adds the id retired in P2'a (มีดคู่)
     n('thief_c1', 'thief_core', 1, '🩸', 'คมเลือดซ้อนสถานะ', 3, (lv) => `ตีเป้าที่ติดสถานะ (พิษ · ช้า · Wound · Exposed): ดูดเลือด +${Math.round(3 * lv)}% (ติด ${KIT.thiefKindsAt} ชนิดขึ้นไป ×${KIT.thiefCondLeechMulti}) · กายภาพเท่านั้น`, (lv) => ({ thCondLeech: 0.03 * lv })),
     n('thief_c2', 'thief_core', 2, '🔻', 'หมายหัว', 3, (lv) => `หมายมอน HP มากสุด · ตีตัวที่หมาย = Malice +1 · เต็ม ${KIT.thiefMark.max}: ทีถัดไปคริแน่ ดาเมจ +${Math.round(KIT.thiefMark.dmg * lv * 100)}% · ตัวที่หมายตาย = ย้ายหมาย`, (lv) => ({ thMark: lv })),
     n('thief_c3', 'thief_core', 3, '🦇', 'กระหายเลือด', 3, (lv) => `ฆ่ามอน: ฟื้น ${Math.round(4 * lv)}% HP + พิษบนศพ ${+(KIT.thiefKillPoisonHeal * 100).toFixed(1)}%/stack (สูงสุด +${Math.round(KIT.thiefKillPoisonHealCap * 100)}%) · Energy +${KIT.thiefKillRes} · คริบอส/มินิครั้งแรกของเทิร์น: ฟื้น ${+(4 * lv * KIT.thiefBossCritLeech).toFixed(1)}% HP + Energy +${KIT.thiefBossCritRes}`, (lv) => ({ thKillLeech: 0.04 * lv })),
     n('thief_c4', 'thief_core', 4, '👑', 'ราชันย์โลหิต', 1, () => `HP ต่ำกว่า ${Math.round(KIT.thiefBloodKingBelow * 100)}% หรืออยู่ในม่านควัน: ดูดเลือด ×${KIT.thiefBloodKingMul} · D.Strike ดูดเลือด ${Math.round(KIT.thiefStrikeLs * 100)}% → ${Math.round(KIT.thiefBloodKingStrikeLs * 100)}% (ไม่ซ้อนกับราชันย์โลหิตของใส่)`, () => ({ thBloodKing: 1 })),
-    n('thief_b4', 'thief_b', 4, '👤', 'เงาสวน', 1, () => 'หลบได้ทุกครั้ง = แทงสวน 0.8x (ติดพิษได้)', () => ({ dodgeStrike: 1 })),
+    n('thief_b4', 'thief_b', 4, '👤', 'เงาสวน', 1, () => `หลบได้ทุกครั้ง = แทงสวน 0.8x (ติดพิษได้) · ร่างเงานานขึ้น +1 เทิร์น`, () => ({ dodgeStrike: 1, thShadowTurns: 1 })),
   ],
   talents: [
     // ----- row 1 · Job Lv 5 · ตั้งตัว -----

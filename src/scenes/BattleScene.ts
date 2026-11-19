@@ -1284,9 +1284,16 @@ export class BattleScene extends Phaser.Scene {
     if (this.job.id !== 'thief' || n <= 0 || S.max <= 0 || this.shadowTurns > 0) return
     this.shadowGauge = Math.min(S.max, this.shadowGauge + n)
     if (this.shadowGauge < S.max) { this.floatText(HERO_X - 40, GROUND - 175, `👤 ${this.shadowGauge}/${S.max}`, '#9a9ab8'); return }
-    this.shadowGauge = 0; this.shadowTurns = S.turns + 1 // +1: heroTurn ticks it down before acting
+    this.shadowGauge = 0; this.shadowTurns = S.turns + this.st.thShadowTurns + 1 // +1: heroTurn ticks it down before acting · P2'c thief_b4 ★ longer
     this.heroSpr.setAlpha(0.75)
+    if (this.st.thShadowShield > 0) this.addShield(Math.min(this.st.maxHp * KIT.thiefShadowShieldHpCap, this.st.thShadowShield * this.fleeNow())) // P2'c thief_b2 โล่เงา
     this.callout('👤 ร่างเงา! คริแน่ + ทักษะ 1 ฟรี', HERO_X + 60, GROUND - 190, '#c9b8ff')
+  }
+  /** 👤 a dodge: gauge +KIT.thiefShadow.dodge (P2'c thief_b1: maybe +1 more) · thief_b3: inside ร่างเงา it may cut the Ult CD (Global cap). */
+  private shadowDodged() {
+    if (this.job.id !== 'thief') return
+    if (this.shadowTurns > 0 && this.st.thShadowDodgeCd > 0 && Math.random() < this.st.thShadowDodgeCd && this.cutUltCd(1) > 0) this.floatText(HERO_X - 40, GROUND - 195, '🌀 เงาวนลูป! Ult CD −1', '#c9b8ff')
+    this.addShadow(KIT.thiefShadow.dodge + (this.st.thShadowFill > 0 && Math.random() < this.st.thShadowFill ? 1 : 0))
   }
   /** 🔻 Thief หมายหัว: keep a live mark on the highest-HP monster. */
   private ensureMark() {
@@ -3249,7 +3256,7 @@ export class BattleScene extends Phaser.Scene {
   /** P2'b ม่านควัน Shroud is up (FLEE / skillCrit / ★ crit dmg / thief_c4 read it). */
   private inShroud(): boolean { return this.shroudTurns > 0 }
   /** P2'b: hero FLEE right now (Shroud x(1 + S2N.smokeFlee)); never write st.flee itself. */
-  private fleeNow(): number { return (this.st.flee + this.rgFlee) * (this.inShroud() ? 1 + S2N.smokeFlee : 1) } // + P3'a rg_c3 combo FLEE
+  private fleeNow(): number { return (this.st.flee + this.rgFlee + (this.shadowTurns > 0 ? this.st.thShadowFlee : 0)) * (this.inShroud() ? 1 + S2N.smokeFlee : 1) } // + P3'a rg_c3 combo FLEE · P2'c thief_b1 in ร่างเงา
   /** P2'b แผลลึก: add Wound stacks (cap S2N.woundMax(s2Lv)), refresh to S2N.woundTurns hero turns. P2'c On-Hit Ult / thief_b4 ★ call it too. */
   private addWound(m: Mon, n: number) {
     if (m.dead || n <= 0) return
@@ -4867,7 +4874,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.st.arDodgeRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arDodgeRes) // archer ★ ยิงถอย
       if (this.st.dodgeEnergy > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.dodgeEnergy) // Thief talent: ขโมยจังหวะ
       this.dodgeCdCut() // P2'a th_t2a: also cuts a cooldown (ICD)
-      this.addShadow(KIT.thiefShadow.dodge) // 👤 เกจเงา
+      this.shadowDodged() // 👤 เกจเงา (+ P2'c thief_b1 / b3)
       this.rgDodged = true // P3'a Rogue: next Back Stab is a Shadow Ambush
       return false
     }
@@ -5703,8 +5710,8 @@ export class BattleScene extends Phaser.Scene {
   private trueHurt(m: Mon, n: number, lethal: boolean, crit = false): number {
     n = Math.ceil(n)
     if (n <= 0 || this.hp <= 0) return 0
-    if (this.dodgeCharges > 0) { this.dodgeCharges--; this.evadeJuice('เงาพริ้ว!', '#c9c9d6'); this.addShadow(KIT.thiefShadow.dodge); return 0 }
-    if (this.hx.web <= 0 && Math.random() < this.st.luckyDodge) { this.evadeJuice('LUCKY!', '#6fd08c'); this.addShadow(KIT.thiefShadow.dodge); return 0 }
+    if (this.dodgeCharges > 0) { this.dodgeCharges--; this.evadeJuice('เงาพริ้ว!', '#c9c9d6'); this.shadowDodged(); return 0 }
+    if (this.hx.web <= 0 && Math.random() < this.st.luckyDodge) { this.evadeJuice('LUCKY!', '#6fd08c'); this.shadowDodged(); return 0 }
     if (this.shield > 0) { const a = Math.min(Math.ceil(this.shield), n); this.shield = Math.max(0, this.shield - a); n -= a; if (n <= 0) { this.floatText(HERO_X, GROUND - 110, '🛡️ กันไว้', '#9fe3ff'); return 0 } }
     this.castBreak(n)
     const before = this.hp

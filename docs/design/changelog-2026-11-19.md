@@ -101,3 +101,12 @@
 - Removed the `thExecute` x1.5 line (no source since P2'a); `Stats.thExecute` stays as a retired key
 - หมายหัว release stays x mul = B4 (MAIN-VS-REV4 §2 C2) · comment only
 - Today nothing changes in play: Shroud ★ 0.25 + ใจสลาย 0.36 = 0.61 < 0.75 (Ult-own terms come with thief_u)
+
+## ✨ feat(thief): P2'c thief_b = 👤 เกจเงา modifiers (Q1: one gauge) · save v5
+- Owner Q1: Rev 3 Ghost Shroud merges into main's เกจเงา — no second shadow resource; the `thief_b` line now tunes the gauge:
+  - 🌫️ `thief_b1` ย่องเบาในเงา: a dodge has 20–100% chance of gauge +1 more · Flee +4–18 while ร่างเงา
+  - 🌙 `thief_b2` หายใจในเงา: dodge heal 1.2–6% (kept) · entering ร่างเงา = shadow shield 6–30% of Flee (max `thiefShadowShieldHpCap` 20% HP)
+  - 🌀 `thief_b3` เงาวนลูป (id back, was มีดคู่): a dodge inside ร่างเงา has 20–100% chance of Ult CD −1 (Global Ult CD cap)
+  - 👤 `thief_b4` ★ เงาสวน: counter 0.8x (kept) · ร่างเงา +1 hero turn
+- All three dodge paths (hurt, duelist true damage, LUCKY) use one `shadowDodged()`
+- Save: `THIEF_REWORK_VER` 3 -> **5** (4 is left for Rogue P3'b) · same minimal Thief class 1 web + talents reset & refund once (`v < 5`), Rogue job2 web / talents untouched · rogue-p3a / thief-p2a tests follow the new version
