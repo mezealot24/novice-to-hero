@@ -83,3 +83,9 @@
 - 30 new `KIT2.rogue` keys with Thai admin labels (kit2 table) · pure helpers `rogueKnifeMul` / `rogueSteelMul` / `rogueStabAmp` / `rogueComboDebuff` / `rogueAmbushCrit`
 - Save: `THIEF_REWORK_VER` 2 -> 3 · Rogue ใยชั้น 2 web reset + refund once (class 1 web, Thief + Rogue talents untouched) · Mobster untouched · `tools/bot.cjs` flag 3
 - Tests: `tests/rogue-p3a.test.ts` (+ thief-p2a / p2b migration tests updated) · Not balanced: needs Q's playtest
+
+## 🌘 Moonshadow Thief off-hand (Q 2026-11-19)
+- New D3 forge item `c_moondirk` มีดปัดเงาจันทร์ (off-hand dagger, Thief only): AGI +3, Flee +6, Combo +5% · bonus ★3 dodgeHeal +2% / ★5 Combo +4% · recipe D3 12 common + 3 boss + 900z (same as other D3 pieces)
+- Joins ชุดเงาจันทร์ (Moonshadow) `memberIds`; set tiers unchanged. Same off-hand slot as โล่ / กระบอกธนู, so no stacking
+- Tests: `tests/moonshadow-dirk.test.ts`
+- `c_rustfang` มีดสนิมเงา (D3 Thief weapon) poison -> crit line: poison +1 removed, **skillCrit +6%** · ★5 bonus poisonAmp +15% -> skillCrit +4% / critMul +10%
