@@ -381,6 +381,71 @@ export const JOB3_CRAFT_ITEMS: Item[] = [
   },
 ]
 
+// =========================================================================
+// 6. Q 2026-11-19: Swordsman-line zone sets (data/sets.ts twin_banner D6-D10 / dragon_sovereign D8-D14)
+//    Skills crit only with skillCrit (#132/#139), so these carry skillCrit or a "stat -> skillCrit" option.
+//    j2 ['berserker', 'knight'] = middle pieces both Swordsman branches can wear.
+// =========================================================================
+const D11 = { dg: 'd11', common: 20, boss: 5, zeny: 8000 }
+const D12 = { dg: 'd12', common: 22, boss: 6, zeny: 9200 }
+const D13 = { dg: 'd13', common: 24, boss: 6, zeny: 11000 }
+const D14 = { dg: 'd14', common: 26, boss: 7, zeny: 12500 }
+export const SWORD_ZONE_SET_GEAR: Item[] = [
+  // --- B ชุดเหล็กศึกสองธง (D6-D10): two-handed spear = Berserker 2H mastery + Knight spear mastery ---
+  {
+    id: 'cc_tb_glaive', wtype: 'spear', twoHand: true, slot: 'weapon', name: 'ง้าวศึกสองธง', icon: '🔱', price: 0, slots: 2,
+    jobs: SW, j2: ['berserker', 'knight'],
+    desc: 'ชุดเหล็กศึกสองธง · สายกลาง เบอร์เซิร์กเกอร์/อัศวิน ใส่ได้ทั้งคู่: ง้าวสองมือนับเป็นทั้งอาวุธ 2 มือและหอก · สวนกลับแปลงเป็นคริสกิล',
+    base: { str: 8, vit: 5, dex: 3 },
+    mod: { atk: 38, maxHp: 160, def: 12, counter: 0.06, skillCrit: 0.06 },
+    conversions: [{ from: 'counter', to: 'skillCrit', ratio: 0.5, cap: 0.1, label: '50% สวนกลับ → คริสกิล (สูงสุด +10%)' }],
+    craft: { ...D10, bonus: [{ critMul: 0.2 }, { skillCrit: 0.04, counterDmg: 0.2 }] },
+  },
+  // --- C ชุดราชันศึกมังกร (D8-D14): 3 middle pieces + Berserker axe + Knight shield ---
+  {
+    id: 'cc_ds_helm', slot: 'head', name: 'หมวกเกล็ดราชันศึก', icon: '🐲', price: 0, slots: 1,
+    jobs: SW, j2: ['berserker', 'knight'],
+    desc: 'ชุดราชันศึกมังกร · สายกลาง เบอร์เซิร์กเกอร์/อัศวิน: ถึก ฟันสกิลแรง คริสกิลติดง่าย',
+    base: { str: 6, vit: 4 },
+    mod: { maxHp: 160, def: 12, pskill: 0.08, skillCrit: 0.05 },
+    craft: { ...D8, bonus: [{ critMul: 0.15 }, { skillCrit: 0.04, physPen: 0.05 }] },
+  },
+  {
+    id: 'cc_ds_cleaver', wtype: 'twohand', twoHand: true, slot: 'weapon', name: 'ขวานมังกรคลั่งโลหิต', icon: '🪓', price: 0, slots: 2,
+    jobs: SW, j2: ['berserker'],
+    desc: 'ชุดราชันศึกมังกร · เฉพาะเบอร์เซิร์กเกอร์: เลือดยิ่งน้อยยิ่งแรง คริตีปกติไหลเข้าสกิลก้อนใหญ่',
+    base: { str: 10, vit: 5, agi: 4 },
+    mod: { atk: 48, maxHp: 180, def: 14, crit: 0.1, j2LowHp: 0.12 },
+    conversions: [{ from: 'crit', to: 'skillCrit', ratio: 0.4, cap: 0.15, label: '40% คริตีปกติ → คริสกิล (สูงสุด +15%)' }],
+    craft: { ...D11, bonus: [{ critMul: 0.2 }, { j2FrenzyMax: 1, skillCrit: 0.04 }] },
+  },
+  {
+    id: 'cc_ds_aegis', slot: 'offhand', name: 'โล่เกล็ดมังกรพิทักษ์', icon: '🛡️', price: 0, slots: 1,
+    jobs: SW, j2: ['knight'],
+    desc: 'ชุดราชันศึกมังกร · เฉพาะอัศวิน: ยิ่งเกราะหนายิ่งคริสกิล บล็อกบ่อย',
+    base: { vit: 9, str: 4 },
+    mod: { maxHp: 260, def: 30, j2Guard: 0.05, skillCrit: 0.04 },
+    conversions: [{ from: 'def', to: 'skillCrit', ratio: 0.0005, cap: 0.1, label: 'ทุก 20 P.DEF → คริสกิล +1% (สูงสุด +10%)' }],
+    craft: { ...D12, bonus: [{ tenacity: 0.1 }, { j2HpDmg: 0.01, counterDmg: 0.2 }] },
+  },
+  {
+    id: 'cc_ds_plate', slot: 'armor', name: 'เกราะราชันศึกมังกร', icon: '🐉', price: 0, slots: 1,
+    jobs: SW, j2: ['berserker', 'knight'],
+    desc: 'ชุดราชันศึกมังกร · สายกลาง เบอร์เซิร์กเกอร์/อัศวิน: เลือดหนา ดูดเลือด คริสกิลแรง',
+    base: { vit: 8, str: 5 },
+    mod: { maxHp: 420, def: 30, lifesteal: 0.03, skillCrit: 0.06, critMul: 0.15 },
+    craft: { ...D13, bonus: [{ counter: 0.06 }, { skillCrit: 0.05, critMul: 0.15 }] },
+  },
+  {
+    id: 'cc_ds_sigil', slot: 'acc', name: 'ตราประทับราชันมังกร', icon: '🏅', price: 0, slots: 1,
+    jobs: SW, j2: ['berserker', 'knight'],
+    desc: 'ชุดราชันศึกมังกร · สายกลาง เบอร์เซิร์กเกอร์/อัศวิน: ฟันแรง คริแรง เจาะเกราะ',
+    base: { str: 7, vit: 5 },
+    mod: { atk: 22, skillCrit: 0.06, critMul: 0.22, physPen: 0.08 },
+    craft: { ...D14, bonus: [{ physPen: 0.06 }, { skillCrit: 0.05, critMul: 0.15 }] },
+  },
+]
+
 export const CLASS_CRAFT_ITEMS: Item[] = [
   ...JOB2_ARMORS,
   ...D7_CLASS_GEAR,
@@ -388,4 +453,5 @@ export const CLASS_CRAFT_ITEMS: Item[] = [
   ...D9_CLASS_GEAR,
   ...JOB3_CRAFT_ITEMS,
   ...MAGE_ZONE_ITEMS, // Q 2026-11-19: Mage zone sets D6-D10 / D8-D14
+  ...SWORD_ZONE_SET_GEAR,
 ]

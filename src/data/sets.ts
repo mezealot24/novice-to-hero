@@ -275,6 +275,40 @@ export const ITEM_SETS: readonly ItemSet[] = [
   // Q 2026-11-19: Mage-line zone sets D6-D10 / D8-D14 (data/mage-zone-sets.ts)
   ...MAGE_ZONE_SETS,
   {
+    id: 'twin_banner',
+    name: 'ชุดเหล็กศึกสองธง (Twin Banner)',
+    icon: '🛡️',
+    desc: 'เซ็ตสายนักดาบ D6-D10 · เกราะเบอร์เซิร์กเกอร์/อัศวิน + ของคราฟ D7-D9 + ง้าวสายกลาง · ยูนีคบอส D6-D10 นับด้วย',
+    memberIds: ['cc_tb_glaive', 'cc_bz_plate', 'cc_kn_barding', 'cc_d7_iceshield', 'cc_d8_magmahelm', 'cc_d9_skygauntlet', 'u_cactus', 'u_mirrorshield', 'u_titanheart', 'u_lk_dragonhelm', 'u_lk_dragonscale', 'u_lk_warmedal', 'u_wl_bloodcrown', 'u_wl_carnageplate', 'u_wl_undyingcharm'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: คริสกิล +5%, HP +150', mod: { skillCrit: 0.05, maxHp: 150 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: ดาเมจคริ +20%, ดาเมจสกิลกาย +8%, แปลง 2% Max HP → P.ATK (สูงสุด +50)',
+        mod: { critMul: 0.2, pskill: 0.08 },
+        conversions: [{ from: 'maxHp', to: 'atk', ratio: 0.02, cap: 50, label: '2% Max HP → P.ATK (สูงสุด +50)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: คริสกิล +5%, ดาเมจสวนกลับ +25%', mod: { skillCrit: 0.05, counterDmg: 0.25 } },
+    ],
+  },
+  {
+    id: 'dragon_sovereign',
+    name: 'ชุดราชันศึกมังกร (Dragon Sovereign)',
+    icon: '🐉',
+    desc: 'เซ็ตสายนักดาบ D8-D14 · ชิ้นกลางใส่ได้ทั้งเบอร์เซิร์กเกอร์/อัศวิน + ขวานเฉพาะเบอร์เซิร์กเกอร์ โล่เฉพาะอัศวิน · ของคราฟลอร์ดไนท์/วอร์ลอร์ด D10 และหัวใจเหล็ก D12 นับด้วย',
+    memberIds: ['cc_ds_helm', 'cc_ds_cleaver', 'cc_ds_aegis', 'cc_ds_plate', 'cc_ds_sigil', 'cc_lk_helm', 'cc_lk_plate', 'cc_lk_crest', 'cc_lk_lance', 'cc_wl_helm', 'cc_wl_plate', 'cc_wl_crest', 'cc_wl_axe', 'u_c3_heartsteel'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: คริสกิล +6%, HP +300', mod: { skillCrit: 0.06, maxHp: 300 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: เจาะเกราะ +8%, แปลง 3% Max HP → P.ATK (สูงสุด +90)',
+        mod: { physPen: 0.08 },
+        conversions: [{ from: 'maxHp', to: 'atk', ratio: 0.03, cap: 90, label: '3% Max HP → P.ATK (สูงสุด +90)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: ดาเมจคริ +25%, สวนกลับ +8%', mod: { critMul: 0.25, counter: 0.08 } },
+    ],
+  },
+  {
     id: 'clockwork_chronos',
     name: 'ชุดนาฬิกาโครนอส (Clockwork Chronos)',
     icon: '⏳',

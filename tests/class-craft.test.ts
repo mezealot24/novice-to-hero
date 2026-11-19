@@ -23,8 +23,8 @@ const BASE_JOBS: JobId[] = ['swordsman', 'thief', 'cleric', 'mage', 'archer']
 test('class craft: all ids unique, inside ITEMS, valid craft recipes & materials', () => {
   const ids = ITEMS.map((i) => i.id)
   assert.equal(new Set(ids).size, ids.length, 'no duplicate IDs')
-  // Q 2026-11-19: zone-set pieces (data/mage-zone-sets.ts) ride along in CLASS_CRAFT_ITEMS
-  assert.equal(CLASS_CRAFT_ITEMS.filter((it) => !MAGE_ZONE_ITEMS.includes(it)).length, 39, '10 J2 armors + 15 D7-D9 + 14 J3 pieces')
+  // Q 2026-11-19: Mage zone-set pieces (data/mage-zone-sets.ts) ride along in CLASS_CRAFT_ITEMS; pin the rest
+  assert.equal(CLASS_CRAFT_ITEMS.filter((it) => !MAGE_ZONE_ITEMS.includes(it)).length, 45, '10 J2 armors + 15 D7-D9 + 14 J3 pieces + 6 Swordsman zone-set pieces')
 
   for (const it of CLASS_CRAFT_ITEMS) {
     assert.equal(itemById(it.id), it)
