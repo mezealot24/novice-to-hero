@@ -20,6 +20,7 @@ import {
   passiveSpent,
   passiveTreeOf,
   refundPassive,
+  trimPassiveNodesToBudget,
   type PassiveCtx,
 } from '../src/data/passive-tree'
 import { KIT, thiefUltBudget, ultCooldown, ultInfo, type UltHero } from '../src/data/skill-math'
@@ -360,20 +361,28 @@ test('save migration: Thief legacy talents migrate cleanly without touching THIE
   assert.deepEqual(s.jobTalents, {})
   assert.deepEqual(s.job2Talents, {})
 
-  // Idempotent on second call after allocating
+  // Idempotent on second call after allocating (with enough jobLevel for budget)
+  s.jobLevel = 10
   s.passiveNodes = allocatePassive('thief', s.passiveNodes, 'th_m_blade1', 5)
   migratePassiveTree(s)
   assert.deepEqual(s.passiveNodes, ['th_origin', 'th_m_blade1'])
 
-  // 2. Corrupt & disconnected passiveNodes sanitized without throwing
+  // 2. Corrupt, disconnected & over-budget passiveNodes sanitized without throwing
   const bad = newSave('bad', 'human')
-  Object.assign(bad, { job: 'thief', passiveNodes: 'not-an-array' as unknown as string[] })
+  Object.assign(bad, { job: 'thief', jobLevel: 10, passiveNodes: 'not-an-array' as unknown as string[] })
   assert.doesNotThrow(() => migratePassiveTree(bad))
   assert.deepEqual(bad.passiveNodes, [])
 
   bad.passiveNodes = ['th_m_blade1', 'th_k_agony', 'bogus']
   migratePassiveTree(bad)
   assert.deepEqual(bad.passiveNodes, ['th_origin', 'th_m_blade1'], 'disconnected island and junk pruned')
+
+  // Over-budget trim in migratePassiveTree (jobLevel 2 -> earned 1, 3-node chain trims to 1)
+  bad.jobLevel = 2
+  bad.passiveNodes = ['th_origin', 'th_m_blade1', 'th_m_blade2', 'th_n_open']
+  migratePassiveTree(bad)
+  assert.equal(passiveSpent('thief', bad.passiveNodes), 1, 'migratePassiveTree trims over-budget nodes')
+  assert.deepEqual(bad.passiveNodes, ['th_origin', 'th_m_blade1'])
 
   // 3. Non-Thief saves keep their legacy talents completely untouched
   const arc = newSave('arc', 'human')
@@ -385,19 +394,54 @@ test('save migration: Thief legacy talents migrate cleanly without touching THIE
   assert.equal(arc.passiveNodes, undefined)
   assert.deepEqual(arc.jobTalents, { 1: { id: 'ar_t1_a', rank: 2 } })
 
-  // 4. changeJob2 preserves passiveNodes across Rogue <-> Mobster, while repickJob clears them
+  // 4. changeJob2 preserves passiveNodes within budget, trims cleanly when Awakening parks (42 -> 36), while repickJob clears them
   const live = newSave('live', 'human')
   Object.assign(live, {
     job: 'thief',
     jobLevel: 40,
     clearsBy: { d5: 1 },
     job2: 'rogue',
+    job2Level: 50,
+    job3: 'stalker',
+    job3Level: 30,
     gems: 500,
-    passiveNodes: ['th_origin', 'th_m_blade1'],
+    passiveNodes: [] as string[],
   } as Partial<SaveData>)
+  // Allocate all 42 non-origin nodes of the Thief constellation (earned = 20 + 16 + 6 = 42)
+  const tree = passiveTreeOf('thief')!
+  const earnedStalker = passiveEarnedFor(live)
+  assert.equal(earnedStalker, 42)
+  let filled: string[] = []
+  const bfsOrder: string[] = []
+  const seen = new Set<string>([tree.originId])
+  const q: string[] = [tree.originId]
+  while (q.length > 0) {
+    const cur = passiveNodeById('thief', q.shift()!)!
+    for (const nb of cur.edges) {
+      if (!seen.has(nb)) {
+        seen.add(nb)
+        bfsOrder.push(nb)
+        q.push(nb)
+      }
+    }
+  }
+  for (const id of bfsOrder) filled = allocatePassive('thief', filled, id, earnedStalker)
+  assert.equal(passiveSpent('thief', filled), 42)
+  live.passiveNodes = filled
+
   setSave(live)
   assert.equal(changeJob2('mobster', 0), true)
-  assert.deepEqual(live.passiveNodes, ['th_origin', 'th_m_blade1'], 'Job2 switch keeps Thief constellation')
+  assert.equal(passiveEarnedFor(live), 36, 'Stalker is now parked on Mobster -> earned drops 42 -> 36')
+  assert.equal(passiveSpent('thief', live.passiveNodes), 36, 'changeJob2 trims over-budget nodes from 42 down to 36')
+  assert.deepEqual(
+    live.passiveNodes,
+    normalizePassiveNodes('thief', live.passiveNodes),
+    'trimmed 36 nodes remain a single valid connected component rooted at origin',
+  )
+  // Verify trimPassiveNodesToBudget handles budget 0 and no-op when already under budget
+  assert.deepEqual(trimPassiveNodesToBudget('thief', filled, 0), ['th_origin'])
+  assert.equal(passiveSpent('thief', trimPassiveNodesToBudget('thief', live.passiveNodes, 40)), 36)
+
   assert.equal(repickJob('archer'), true)
   assert.equal(live.passiveNodes, undefined, 'repick to non-migrated class clears passiveNodes')
   changeJob('thief')
