@@ -44,17 +44,26 @@ export function hellify(d: MonsterDef, rand: number): MonsterDef {
   return out
 }
 
-// ===== 😈 Hell mode on D6-D10 (Q 2026-11-08 "เพิ่ม D6-D10 hell mode") =====
+// ===== 😈 Hell mode on D6-D10 (Q 2026-11-08 "เพิ่ม D6-D10 hell mode") · v129: D1-D5 too (Q 2026-11-19) =====
 // The tier above 🔥 hard on a level dungeon: the same hard run (+50% stat points, boss affixes, corruption) with every monster a
 // Hell copy (hellify: one trait, HP x1.3, ATK x1.15, EXP x1.5) at HELL_MODE.lv levels above its room. Opens per dungeon after a
 // 🔥 hard clear of it. Pays more (zeny / EXP / mats, unique chance, +1 ผลึกโลกันตร์). No 💎 entry, no gem skip.
 export const HELL_MODE = {
   lv: 10, // room Lv + this (same gap as tower Hell copies)
-  reward: 1.5, mats: 1.5, // on top of the hard-mode reward
+  reward: 1.5, mats: 2, // on top of the hard-mode reward · v129 (Q 2026-11-19): mats 1.5 -> 2 (x3 of a normal run)
   uniqueRate: 0.2, // final-boss unique chance (hard 10%)
   bossCardMul: 2, // v128 (Q 2026-11-19): MVP / mini boss card drop rate x this
   taintAdd: 1, // + ผลึกโลกันตร์ from the final boss
   turnMul: 1.15, // a bit more time: Hell monsters are tankier
+  // v129 (Q 2026-11-19 "D1-D5 มี Hell mode · ถ้า Lv เกินให้ได้ Exp แค่ 1%"): a hero above the Hell band of a D1-D5 dungeon
+  // (top room Lv + HELL_MODE.lv) banks only this share of the run's account Base + Job EXP. Zeny / loot unchanged.
+  overLvXp: 0.01,
+  overLvTierMax: 5, // dungeons up to this tier get the cap (D1-D5); D6+ keep full EXP
 }
-/** Hell mode is open on a D6+ dungeon (tier 6+; D1-D5 have a level band too since v126) once it has a 🔥 hard clear. */
-export const hellOpen = (s: { hardClearsBy?: Record<string, number> }, dg: { id: string; tier: number }) => dg.tier >= 6 && ((s.hardClearsBy ?? {})[dg.id] ?? 0) > 0
+/** Hero Base Lv above this on a 😈 run = HELL_MODE.overLvXp EXP. Infinity = no cap (D6+ or no level band). */
+export const hellLvCap = (dg: { tier: number; level?: [number, number] }): number =>
+  dg.level && dg.tier <= HELL_MODE.overLvTierMax ? dg.level[1] + HELL_MODE.lv : Infinity
+/** Account EXP multiplier for a 😈 hell run on `dg` by a Base Lv `baseLv` hero. */
+export const hellXpMul = (dg: { tier: number; level?: [number, number] }, baseLv: number): number => (baseLv > hellLvCap(dg) ? HELL_MODE.overLvXp : 1)
+/** Hell mode is open on a level dungeon (v129: D1-D5 too) once it has a 🔥 hard clear. */
+export const hellOpen = (s: { hardClearsBy?: Record<string, number> }, dg: { id: string; level?: [number, number] }) => !!dg.level && ((s.hardClearsBy ?? {})[dg.id] ?? 0) > 0
