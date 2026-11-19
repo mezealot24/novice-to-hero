@@ -88,3 +88,4 @@
 - New D3 forge item `c_moondirk` มีดปัดเงาจันทร์ (off-hand dagger, Thief only): AGI +3, Flee +6, Combo +5% · bonus ★3 dodgeHeal +2% / ★5 Combo +4% · recipe D3 12 common + 3 boss + 900z (same as other D3 pieces)
 - Joins ชุดเงาจันทร์ (Moonshadow) `memberIds`; set tiers unchanged. Same off-hand slot as โล่ / กระบอกธนู, so no stacking
 - Tests: `tests/moonshadow-dirk.test.ts`
+- `c_rustfang` มีดสนิมเงา (D3 Thief weapon) poison -> crit line: poison +1 removed, **skillCrit +6%** · ★5 bonus poisonAmp +15% -> skillCrit +4% / critMul +10%

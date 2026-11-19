@@ -23,3 +23,10 @@ test('moonshadow: cloak + dirk give the 2-piece bonus, + pendant the 3-piece', (
   const s3 = setBonuses(worn3).active.find((a) => a.set.id === 'moonshadow')!
   assert.equal(s3.activeTiers.length, 2)
 })
+
+test('มีดสนิมเงา c_rustfang is now a skillCrit dagger (no poison)', () => {
+  const it = itemById('c_rustfang')!
+  assert.equal(it.mod?.poison, undefined)
+  assert.ok((it.mod?.skillCrit ?? 0) > 0)
+  assert.ok((it.craft!.bonus[1].skillCrit ?? 0) > 0)
+})

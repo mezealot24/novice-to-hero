@@ -61,8 +61,8 @@ export const CRAFT_ITEMS: Item[] = [
     craft: { dg: 'd3', common: 12, boss: 3, zeny: 900, bonus: [{ spellCrit: 0.05 }, { mgUltAmp: 0.15 }] } },
   { id: 'c_dawnmace', wtype: 'mace', slot: 'weapon', name: 'คทาแสงอรุณ', icon: '🌅', price: 0, slots: 2, desc: 'ทุบแรง ฮีลแรง โล่หนา', base: { str: 3, wis: 3 }, mod: { atk: 16, matk: 12, healAmp: 0.18 }, jobs: CL,
     craft: { dg: 'd3', common: 12, boss: 3, zeny: 900, bonus: [{ shieldAmp: 0.1 }, { overhealShield: 1 }] } },
-  { id: 'c_rustfang', wtype: 'dagger', slot: 'weapon', name: 'มีดสนิมเงา', icon: '🗡️', price: 0, slots: 2, desc: 'แทงรัว พิษติด', base: { agi: 6 }, mod: { atk: 11, combo: 0.08, poison: 1 }, jobs: TH,
-    craft: { dg: 'd3', common: 12, boss: 3, zeny: 900, bonus: [{ dodgeHeal: 0.02 }, { poisonAmp: 0.15 }] } },
+  { id: 'c_rustfang', wtype: 'dagger', slot: 'weapon', name: 'มีดสนิมเงา', icon: '🗡️', price: 0, slots: 2, desc: 'แทงรัว เข้าจุดตาย (สายคริ)', base: { agi: 6 }, mod: { atk: 11, combo: 0.08, skillCrit: 0.06 }, jobs: TH, // Q 2026-11-19: poison -> skillCrit line
+    craft: { dg: 'd3', common: 12, boss: 3, zeny: 900, bonus: [{ dodgeHeal: 0.02 }, { skillCrit: 0.04, critMul: 0.1 }] } },
   { id: 'c_sealorb', slot: 'offhand', name: 'ลูกแก้วตราผนึก', icon: '💠', price: 0, slots: 1, desc: 'ลูกแก้วผนึกวิญญาณ เวทแรง', base: { int: 3 }, mod: { matk: 8, maxRes: 10 }, jobs: MG,
     craft: { dg: 'd3', common: 12, boss: 3, zeny: 900, bonus: [{ resRegen: 1 }, { spellCrit: 0.05 }] } },
   // Q 2026-11-19: Thief off-hand for the Moonshadow set (same slot as shield / quiver, so they never stack).
