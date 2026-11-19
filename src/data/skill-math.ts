@@ -14,6 +14,8 @@ import { STAT_RULES } from './meta/stat-spec'
 export const MAGIC_MIX = { matk: 0.7, atk: 0.3 }
 /** Magic power (Pm): what magic hits, burn stacks, Hellfire and Lightning Wrath scale with. */
 export const magicPower = (st: Stats) => st.matk * MAGIC_MIX.matk + st.atk * MAGIC_MIX.atk
+/** Multiplier converting `magicPower(st)` units into raw M.ATK units for `BattleScene.strike(..., magic=true)`. */
+export const matkToPmRatio = (st: Stats) => st.matk / Math.max(1, magicPower(st))
 /** Magic hit base before the skill multiplier: Pm 0.9–1.1x (a crit uses the top). */
 export const magicBase = (st: Stats) => { const pm = magicPower(st); return { lo: pm * 0.9, hi: pm * 1.1 } }
 /** Physical hit base: P.ATK minPct–1x (DEX raises the floor; a crit uses the top, DEF still applies). */
@@ -114,6 +116,8 @@ export const KIT = {
   thiefShadowShieldHpCap: 0.2, // thief_b2: the ร่างเงา shield is at most this share of max HP
   thiefDodgeFleeTurns: 2, // th_t1a: hero turns the Flee after a dodge lasts (refreshed, never stacks)
   thiefOpenCritDmg: 0.25, // th_t1b R2: crit dmg + on the wave's sure-crit opener (B3)
+  // P2'd off-meta (สาย INT / WIS Shadow Ward / LUK Gambler's Edge)
+  thiefVenomBasicShare: 0.58, // thief_v1 แทงฉาบอาคม: share of the S1 M.ATK hit that basic attacks also deal
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
   // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
   // 💰 Thief ทักษะ 2 ล้วงกระเป๋า (Q 2026-11-18, GW2 Steal): what you steal depends on the front monster's top stat. admin `kit` · thiefSteal.*
@@ -818,6 +822,7 @@ export function autoInfo(jobId: JobId, st: Stats, job2?: string): InfoRow[] {
       break
     case 'thief':
       out.push({ label: 'แทง 1 ที', value: hitText(st, KIT.thiefAuto * pow * (1 + st.pskill), false) })
+      if (st.thS1Matk > 0) out.push({ label: 'เวทเสริม (แทงฉาบอาคม)', value: hitText(st, st.thS1Matk * matkToPmRatio(st), true) })
       out.push({ label: 'พิษ', value: `+${KIT.thiefAutoPoison} stack (${thiefPoisonPerStack(st).toFixed(1)}/stack/เทิร์น)` })
       out.push({ label: 'สลับคม', value: 'หลังแทงพิษ ตีปกติ 1 เทิร์นก่อน (ร่างเงา: แทงรัวได้)' })
       break

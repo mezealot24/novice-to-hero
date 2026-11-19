@@ -292,6 +292,7 @@ export const KIT_EXPLAIN: Record<string, FieldExplain> = {
   thiefUltCritResCap: { label: 'Thief · เพชฌฆาตเงา: Energy จากคริเงาพริ้วสูงสุดต่อครั้ง', effect: 'เพิ่ม = Ult ที่คริหลายที (เช่นในร่างเงา) คืน Energy ได้มากขึ้น' },
   thiefDodgeFleeTurns: { label: 'Thief · ก้าวเงา: Flee หลังหลบ นาน (เทิร์นฮีโร่)', effect: 'เพิ่ม = หลบได้แล้ว Flee ของทาเลนต์ก้าวเงาค้างนานขึ้น' },
   thiefOpenCritDmg: { label: 'Thief · เปิดฉากซุ่มโจมตี R2: ดาเมจคริ + (B3)', effect: 'เพิ่ม = ฮิตแรกของเวฟ (คริแน่) แรงขึ้น' },
+  thiefVenomBasicShare: { label: 'Thief · แทงฉาบอาคม: ตีปกติได้กี่ส่วนของแทงพิษ', effect: 'เพิ่ม = ดาเมจเวทเสริมบนตีปกติของสายเล่นแร่พิษแรงขึ้น' },
   'poison.atkPer': { label: 'Poison · ดาเมจ/stack +× P.ATK (สายโจร)', effect: 'เพิ่ม = พิษโตตาม P.ATK แรงขึ้นช่วงเลท · 0 = พิษ flat แบบเดิม' },
   'thiefShadow.max': { label: 'Shadow · เกจเงาเต็มที่', effect: 'ลดเลข = เข้าร่างเงาบ่อยขึ้น' },
   'thiefShadow.turns': { label: 'Shadow · ร่างเงาอยู่กี่เทิร์น', effect: 'เพิ่ม = ช่วงคริแน่ + ทักษะ 1 ฟรีนานขึ้น' },

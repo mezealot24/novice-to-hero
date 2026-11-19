@@ -24,6 +24,8 @@ export const tree: ClassTree = {
     { id: 'thief_core', job: 'thief', name: 'เลือด·คริ', icon: '🩸', blurb: 'ดูดเลือดตามสถานะ · หมายหัว · ฆ่าแล้วฟื้น' },
     // P2'c: second Ult branch (data/tree.ts ATTACH thief_u: 'ult'); numbers cut for the Ult budget (thiefUltBudget, gauge on / off)
     { id: 'thief_u', job: 'thief', name: 'เงาสังหาร', icon: '🗡️', blurb: 'เงาพริ้ว: คริ · On-Hit · ทีปิด' },
+    // P2'd: off-meta INT/magic poison alchemy branch (data/tree.ts ATTACH thief_v: 's1')
+    { id: 'thief_v', job: 'thief', name: 'เล่นแร่พิษ', icon: '⚗️', blurb: 'สาย INT/เวท: แทงฉาบอาคม · ระเบิดสารพิษ · เลือดพิษ' },
   ],
   nodes: [
     n('thief_a1', 'thief_a', 1, '🧪', 'เคลือบพิษ', 3, (lv) => `พิษ +${lv} stack ต่อ hit`, (lv) => ({ poison: lv })),
@@ -43,6 +45,8 @@ export const tree: ClassTree = {
     n('thief_u3', 'thief_u', 3, '💀', 'เพชฌฆาตเงา', 3, (lv) => `คริใส่เป้า HP < ${Math.round(KIT.thiefExecBelow * 100)}%: ดาเมจคริ +${Math.round(5 * lv)}% (เงาพริ้ว + ตีปกติ/คอมโบ) · เงาพริ้วคริ: Energy +${Math.round(2 * lv)} (สูงสุด ${KIT.thiefUltCritResCap}/ครั้ง)`, (lv) => ({ thExecUlt: 0.05 * lv, thUltCritRes: 2 * lv })),
     n('thief_u4', 'thief_u', 4, '🗡️', 'เงาพันคม', 1, () => `เงาพริ้วคริ ≥ ${KIT.thiefFinisherAt} ที: แทงปิดท้ายอีก 1 ที ${KIT.thiefFinisherMul}x ของทีปกติ (คริแน่) ใส่ตัว HP น้อยสุด`, () => ({ thUltFinisher: 1 })),
     n('thief_b4', 'thief_b', 4, '👤', 'เงาสวน', 1, () => `หลบได้ทุกครั้ง = แทงสวน 0.8x (ติดพิษได้) · ร่างเงานานขึ้น +1 เทิร์น`, () => ({ dodgeStrike: 1, thShadowTurns: 1 })),
+    // P2'd: thief_v สาย INT/เวท (เล่นแร่พิษ)
+    n('thief_v1', 'thief_v', 1, '🔮', 'แทงฉาบอาคม', 3, (lv) => `แทงพิษ +${Math.round(60 * lv)}% M.ATK (เวท) · ตีปกติ +${Math.round(60 * lv * KIT.thiefVenomBasicShare)}% M.ATK (เวท)`, (lv) => ({ thS1Matk: 0.6 * lv })),
   ],
   talents: [
     // ----- row 1 · Job Lv 5 · ตั้งตัว -----

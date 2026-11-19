@@ -270,6 +270,10 @@ export function blessBase(
 	};
 }
 
+/** Stat points above start used by off-meta hooks (single door so RO-lite can swap how spent points count). */
+export const statEff = (b: Record<BaseStat, number>, k: BaseStat): number =>
+	Math.max(0, b[k] - STAT_RULES.start);
+
 /** Stat points the hero has had to spend: pointsPerLevel per Base Lv (a new save starts with one level's worth).
  *  No baseLevel (hand-built inputs in tests / sims): the points already allocated above the start instead. */
 export function statPool(s: StatsInput): number {

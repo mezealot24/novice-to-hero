@@ -123,7 +123,8 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
   },
   thief: {
     s1: [sk('job.thief.auto.cost', 'ค่า Energy', COST), kit('thiefAuto', 'ดาเมจแทง ×'), kit('thiefAutoPoison', 'พิษ (stack)'),
-      kit('thiefAutoMinCost', 'แทงพิษ: Energy ต่ำสุดหลังลด'), kit('thiefStrikeRes', 'D.Strike ติด: คืน Energy'), kit('thiefStrikeLs', 'D.Strike: สัดส่วนดูดเลือด')],
+      kit('thiefAutoMinCost', 'แทงพิษ: Energy ต่ำสุดหลังลด'), kit('thiefStrikeRes', 'D.Strike ติด: คืน Energy'), kit('thiefStrikeLs', 'D.Strike: สัดส่วนดูดเลือด'),
+      kit('thiefVenomBasicShare', 'แทงฉาบอาคม: ตีปกติได้กี่ส่วนของแทงพิษ')],
     s2: [
       s2('th_smoke', ...lin('smokeHeal', 'ฟื้น % HP'), ...lin('smokeRes', 'ควันหอม: คืน Energy'),
         sk('s2n.smokeTurns', 'Shroud: นาน (เทิร์น)', int(0, 20)), sk('s2n.smokeFlee', 'Shroud: FLEE +% (คูณ)', num(0, 5)),

@@ -155,3 +155,8 @@
 ## Mage LUK -> skillCrit + DEX chant-break nerf (Q 2026-11-19)
 - Mage LUK now also gives **skillCrit +1% per 10 LUK (cap 15%)** on top of spellCrit +1%/6 LUK (`PER_POINT.off.mageLukSkillCrit` / `mageLukSkillCritCap`), so a LUK Mage's skills can crit under the skillCrit-only rule.
 - Chant break: `MAGE_CAST.breakDex` 0.012 -> 0.005. Break chance = 25% − 0.5%/DEX − tenacity: DEX 21 used to reach 0%, now DEX 50 does (DEX 10 = 20%, 30 = 10%).
+
+## ✨ feat(thief): P2'd statEff + matkToPmRatio + thief_v1 แทงฉาบอาคม
+- Added `statEff(b, k)` single stat-point door in `hero-stats.ts`, `matkToPmRatio(st)` in `skill-math.ts`, and 7 new P2'd `Stats` keys initialized to `0` in `PLAYER`
+- Added branch `thief_v` เล่นแร่พิษ (`ATTACH thief_v: 's1'`) and `thief_v1` แทงฉาบอาคม: adds a magic hit scaled on M.ATK to แทงพิษ and basic attacks (`KIT.thiefVenomBasicShare` 0.58, registered across all 4 admin/layout files) + `autoInfo` row
+- Tests: `tests/thief-p2d.test.ts`
