@@ -191,6 +191,11 @@ const CLASS_LINES: { j2?: Job2Id; j3?: Job3Id; lines: [stat: string, vals: Vals]
   { j3: 'champion', lines: [['j3Banding', [0.01, 0.02, 0.03]], ['j3GospelHeal', [0.005, 0.01, 0.015]], ['j3AfterBless', [0.03, 0.05, 0.08]]] },
   { j3: 'ranger', lines: [['j2PetPow', [0.05, 0.08, 0.12]], ['j3Banding', [0.01, 0.02, 0.03]], ['j3GospelHeal', [0.005, 0.01, 0.015]], ['j3AfterBless', [0.03, 0.05, 0.08]]] },
   { j3: 'warlord', lines: [['j2LowHp', [0.06, 0.1, 0.15]], ['j3GospelHeal', [0.01, 0.015, 0.025]], ['j3AfterBless', [0.03, 0.05, 0.08]], ['j3WlBlitz', [0.005, 0.01, 0.015]]] },
+  // the last four Awakenings (docs/design/awakening-last-four-v1.md): same shared lines + one line of the class's own mechanic
+  { j3: 'stalker', lines: [['j2KnifeMul', [0.05, 0.1, 0.15]], ['j3Banding', [0.01, 0.02, 0.03]], ['j3GospelHeal', [0.005, 0.01, 0.015]], ['j3AfterBless', [0.03, 0.05, 0.08]]] },
+  { j3: 'kingpin', lines: [['j3KpDebtAmp', [0.0025, 0.005, 0.0075]], ['j3Banding', [0.01, 0.02, 0.03]], ['j3GospelHeal', [0.005, 0.01, 0.015]], ['j3AfterBless', [0.03, 0.05, 0.08]]] },
+  { j3: 'highwizard', lines: [['j3HwAmp', [0.02, 0.03, 0.05]], ['j3HwDrain', [1, 2, 3]], ['j3Banding', [0.01, 0.02, 0.03]], ['j3AfterBless', [0.03, 0.05, 0.08]]] },
+  { j3: 'mechanic', lines: [['j3McOver', [0.02, 0.04, 0.06]], ['j3Banding', [0.01, 0.02, 0.03]], ['j3GospelHeal', [0.005, 0.01, 0.015]], ['j3AfterBless', [0.03, 0.05, 0.08]]] },
 ]
 export const CLASS_LINE_POOL: LineDef[] = CLASS_LINES.flatMap((c) => c.lines.map(([stat, vals]): LineDef => ({
   stat, vals, kind: 'any', w: CLASS_LINE_W / c.lines.length, ...(c.j2 ? { j2: [c.j2] } : {}), ...(c.j3 ? { j3: [c.j3] } : {}),

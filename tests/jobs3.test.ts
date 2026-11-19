@@ -134,7 +134,7 @@ test('pure vs hybrid: pure cannot borrow Monk nodes; hybrid stops at tier 2 and 
   assert.deepEqual(mods.map((m) => Object.keys(m)[0]), ['combo'], 'tier-3 Paladin node off on hybrid, Monk node on')
   assert.equal(tree3Mods({ mk_c1: 3 }, 'paladin', 'pure').length, 0, 'borrowed node off on pure')
   assert.ok(heroStats({ ...s, job3Path: 'hybrid', job3Tree: { mk_c1: 3 } }).combo > heroStats(s).combo)
-  assert.ok(TREE3.every((n) => /^(paladin_u3p|lordknight_u3p|champion_u3p|ranger_u3p|warlord_u3p|professor_u3p|pa_|lk_|ch_|rn_|wl_|pf_)/.test(n.id)), 'ids are save data')
+  assert.ok(TREE3.every((n) => /^(paladin_u3p|lordknight_u3p|champion_u3p|ranger_u3p|warlord_u3p|professor_u3p|stalker_u3p|kingpin_u3p|highwizard_u3p|mechanic_u3p|pa_|lk_|ch_|rn_|wl_|pf_|sk_|kp_|hw_|mc_)/.test(n.id)), 'ids are save data')
 })
 
 // ---------- 🐉 Lord Knight + retroactive trial (Q 2026-11-08) ----------
@@ -161,7 +161,7 @@ test('Knight awakens into Lord Knight; a 🔥 hard / 😈 hell ดัน 10 clea
   assert.equal(changeJob3('lordknight'), true)
   assert.equal(activeJob3(s), 'lordknight')
   assert.equal(j3Of('monk')?.id, 'champion', 'Monk awakens into Champion')
-  assert.equal(j3Of('rogue'), undefined, 'other 2nd jobs: none yet')
+  assert.equal(j3Of('rogue')?.id, 'stalker', 'every 2nd job has its Awakening since awakening-last-four-v1 (tests/awakening-last-four.test.ts)')
 })
 
 test('Lord Knight: Aura Blade (spear HP share + HP) and legacy reads the Knight branches with caps', () => {

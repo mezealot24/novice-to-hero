@@ -101,13 +101,18 @@ if (process.env.JOB2) {
   if (o && o !== '0') { save.owned.push(o); save.equipped.offhand = o }
   if (process.env.PET) save.pet = process.env.PET
 }
-// 3rd job (design/awakening-crusader-v1.md): JOB3=paladin|lordknight|champion|ranger|warlord|professor (needs JOB2 = its parent) · J3LV=n (default 30) · J3P=pure|hybrid · J3V=a|b · J3T='{"node":lv}' (or J3T=0 empty)
+// 3rd job (design/awakening-crusader-v1.md): JOB3=paladin|lordknight|champion|ranger|warlord|professor|stalker|kingpin|highwizard|mechanic (needs JOB2 = its parent) · J3LV=n (default 30) · J3P=pure|hybrid · J3V=a|b · J3T='{"node":lv}' (or J3T=0 empty)
 // sets the Master Trial win + ดัน 10 clear so the save is a legal Awakening
 if (process.env.JOB3) {
   const j3 = process.env.JOB3
   const preset3 = {
     ranger: { ranger_u3p: 5, rn_l1: 3, rn_l2: 3, rn_l3: 3, rn_l4: 1, rn_g1: 3, rn_g2: 3, rn_g3: 2, rn_g4: 1, rn_r1: 3, rn_r2: 2 }, // 29 pts, max 2 ★
     professor: { professor_u3p: 5, pf_l1: 3, pf_l2: 2, pf_l3: 3, pf_l4: 1, pf_r1: 3, pf_r2: 1, pf_r3: 3, pf_r4: 1, pf_p1: 3, pf_p2: 2, pf_p3: 2 }, // 29 pts, 2 ★ (needs Sage perk points in J2T for reactions)
+    // the last four (docs/design/awakening-last-four-v1.md): 29 pts, 2 ★ (legacy ★ สืบสาน + the Ult ★)
+    stalker: { stalker_u3p: 5, sk_l1: 3, sk_l2: 3, sk_l3: 3, sk_l4: 1, sk_p1: 3, sk_p2: 3, sk_p3: 2, sk_p4: 1, sk_s1: 3, sk_s2: 2 },
+    kingpin: { kingpin_u3p: 5, kp_l1: 3, kp_l2: 3, kp_l3: 3, kp_l4: 1, kp_t1: 3, kp_t2: 3, kp_t3: 2, kp_t4: 1, kp_f1: 3, kp_f2: 2 },
+    highwizard: { highwizard_u3p: 5, hw_l1: 3, hw_l2: 3, hw_l3: 3, hw_l4: 1, hw_g1: 3, hw_g2: 3, hw_g3: 2, hw_g4: 1, hw_a1: 3, hw_a2: 2 },
+    mechanic: { mechanic_u3p: 5, mc_l1: 3, mc_l2: 3, mc_l3: 3, mc_l4: 1, mc_c1: 3, mc_c2: 3, mc_c3: 2, mc_c4: 1, mc_o1: 3, mc_o2: 2 },
   }[j3] || {}
   const t3 = process.env.J3T === '0' ? {} : process.env.J3T ? JSON.parse(process.env.J3T) : preset3
   Object.assign(save, { job3: j3, job3Level: +(process.env.J3LV || 30), job3Xp: 0, job3Points: 0, job3Tree: t3,

@@ -306,6 +306,15 @@ export interface Stats {
   j3PfDcAt: number // 🎓 🔁 Double Casting threshold cut (0.7 - this)
   j3PfDcMul: number // 🎓 🔁 Double Casting echo power +
   j3PfForesight: number // 🎓 🔮 Foresight: Soul Burst keeps Mana · high-Mana cast cuts the Ult CD
+  j3Sk: number // 1 = Stalker is the active 3rd job (Preserve + Phantom Storm)
+  j3Kp: number // 1 = Kingpin is the active 3rd job (Loan Shark + Hostile Takeover)
+  j3Hw: number // 1 = High Wizard is the active 3rd job (Mystical Amplification + Gravitation Field)
+  j3Mc: number // 1 = Mechanic is the active 3rd job (Overclock + Arm Cannon)
+  j3Pierce: number // 🥷🌌🤖 the Awakening move ignores this share of DEF / M.DEF (knives · Gravitation · missiles)
+  j3KpDebtAmp: number // 🎩 Loan Shark: + hit damage per debt
+  j3HwDrain: number // 🌌 Soul Drain: Mana per monster a Gravitation wave hits
+  j3HwAmp: number // 🌌 Amplify: + magic damage while it is up
+  j3McOver: number // 🤖 Overclock: + hero speed while it is up
   j3LegCross: number // ⚜️ รากกางเขน: Holy Cross / Grand Cross + this per point in the Crusader กางเขน branch (meta.ts multiplies, capped)
   j3LegGuard: number // ⚜️ โล่บรรพชน: Auto Guard + this per point in the โล่ศักดิ์สิทธิ์ branch
   j3LegHp: number // ⚜️ กายบรรพชน: max HP % + this per point in the อุทิศ branch
@@ -503,6 +512,7 @@ export const PLAYER: Stats = {
   j2ComboRamp: 0, j2ComboFinish: 0, j2ThunderAtk: 0, j2ComboThunder: 0, j2BellMdef: 0, j2MdefDmg: 0, j2HpPunch: 0, j2GritRate: 0, j2HaymakerStar: 0, j2AsuraMdef: 0, j2AsuraPow: 0, j2Asura: 0, // Monk rework
   physPen: 0, magPen: 0, elemDmg: 0,
   j3Wl: 0, j3WlBlitz: 0,
+  j3Sk: 0, j3Kp: 0, j3Hw: 0, j3Mc: 0, j3Pierce: 0, j3KpDebtAmp: 0, j3HwDrain: 0, j3HwAmp: 0, j3McOver: 0, // 🥷🎩🌌🤖 the last four Awakenings
   strManaMiss: 0, j3Pf: 0, j3PfLegFire: 0, j3PfLegLight: 0, j3PfLegIce: 0, j3PfMarkTurns: 0, j3PfResidue: 0, j3PfChain: 0, j3PfCritMana: 0, j3PfTrinity: 0, j3PfSoulChange: 0, j3PfMemorize: 0, j3PfDcAt: 0, j3PfDcMul: 0, j3PfForesight: 0, // 🎓 Professor
 }
 

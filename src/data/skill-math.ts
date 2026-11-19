@@ -647,6 +647,44 @@ export const KIT3 = {
     soulChangePer: 0.5, // 💧 Soul Change: Mana past max -> ward of overflow x KIT2.sage.rodVitShield x this x Lv
     chainSpread: 1, // 💥 ลูกโซ่ธาตุ: a monster killed by a reaction hands its mark to this many neighbours
   },
+  // ----- the last four Awakenings (docs/design/awakening-last-four-v1.md, Q 2026-11-19) -----
+  // 🥷 Stalker (Rogue Awakening): more Marks to play with, a second knife volley aimed by the Marks
+  stalker: {
+    markMaxAdd: 2, markTurnsAdd: 1, fullMarkRes: 3, // 🥷 Preserve: Mark cap +2 · Marks last +1 monster turn · a knife on a full-Mark monster = Energy
+    phantomKnives: 3, phantomMul: 1.2, // ✨ Phantom Storm: after the storm, N aimed knives (most Marks first) x this share of a storm knife · root u3Pow multiplies them
+    varA: { mul: 1.0, marks: 1, heirMarks: 2, per: 0.02, cap: 0.2, branch: 'rg_k' as const }, // 🌀 Fan of Knives: sure-crit slash on every monster + Marks · +2% per มีด point
+    varB: { mul: 2.6, pierce: 0.5, heirCdCut: 1, per: 0.02, cap: 0.2, branch: 'rg_x' as const }, // 🎯 Assassinate: boss first, DEF -50%, a kill resets the cooldown · +2% per คริ point
+    leg: { crossCap: 0.15, guardCap: 12, hpCap: 0.09, cross: 'rg_k' as const, guard: 'rg_c' as const, hp: 'rg_x' as const }, // legacy guard = FLEE here (flat points)
+    heirNeed: 6, gospelHealMax: 5, ambushKnifeMul: 1, // opener knives use the normal flying knife x this
+  },
+  // 🎩 Kingpin (Mobster Awakening): debts pay interest (damage), the ult collects twice
+  kingpin: {
+    debtAmp: 0.025, debtCap: 6, execRes: 10, // 🎩 Loan Shark: + hit damage per debt on the target (counted up to cap) · an Execute = Energy
+    takeMul: 0.5, takePerDebt: 0.1, // ✨ Hostile Takeover: after ทวงหนี้, slash every survivor again x(1 + per debt), then Execute check · root u3Pow multiplies it
+    varA: { mul: 0.8, per: 0.02, cap: 0.2, branch: 'mb_d' as const, heirWeak: 0.2, heirWeakTurns: 2 }, // 💰 Shakedown: every monster + armor break + chill · +2% per ดีบัฟ point
+    varB: { mul: 2.0, poison: 3, weak: 0.2, weakTurns: 2, per: 0.02, cap: 0.2, branch: 'mb_p' as const }, // 📜 Hit Contract: boss first, heavy + poison + weaken · +2% per พิษ point
+    leg: { crossCap: 0.15, guardCap: 0.03, hpCap: 0.09, cross: 'mb_p' as const, guard: 'mb_e' as const, hp: 'mb_d' as const }, // legacy guard = Execute line here
+    heirNeed: 6, gospelHealMax: 5, openerChill: 1, // opener: poison stacks (node) + chill turns
+  },
+  // 🌌 High Wizard (Wizard Awakening): a released big spell leaves Amplify, the ult drags a gravity field behind it
+  highwizard: {
+    amp: 0.12, ampTurns: 2, castTakenMul: 0.5, // 🌌 Mystical Amplification: after Storm Gust / the Ult lands, magic damage + for N hero turns · charge-turn damage penalty x this
+    gravMul: 0.7, gravPierce: 0.3, gravPush: 10, // ✨ Gravitation Field: after the Ult, every monster x Pm through part of M.DEF + boss gauge push · root u3Pow multiplies it
+    varA: { hits: 1, heirHits: 1, vsChill: 0.25, per: 0.02, cap: 0.2, branch: 'wz_i' as const }, // ❄️ Frost Nova: Storm Gust +hits · + damage on chilled / frozen monsters · +2% per พายุหิมะ point
+    varB: { hits: 6, mul: 0.7, push: 6, per: 0.02, cap: 0.2, branch: 'wz_l' as const }, // ⚡ Jupitel Thunder: one target (boss first), N bolts, gauge push per bolt · +2% per สายฟ้าเทพ point
+    leg: { crossCap: 0.15, guardCap: 0.06, hpCap: 0.09, cross: 'byBest' as const, guard: 'byBest' as const, hp: 'byBest' as const }, // legacy reads the Wizard element branch with the most points · guard = M.DEF here
+    bestOf: ['wz_m', 'wz_l', 'wz_i'] as const,
+    heirNeed: 6,
+  },
+  // 🤖 Mechanic (Innovator Awakening): more traps, Overclock tempo, a missile salvo behind the ult
+  mechanic: {
+    trapsAdd: 1, deviceMul: 0.15, overTurns: 2, overAspd: 0.15, // 🤖 Overclock: +1 wave-start trap · traps / turret + power · a box cast = hero speed + for N hero turns
+    missiles: 4, missileMul: 0.9, missileVsSoaked: 0.25, // ✨ Arm Cannon: after the ult, N missiles at random monsters (wet / chilled targets take more) · root u3Pow multiplies them
+    varA: { rockets: 3, heirRockets: 2, mul: 0.8, per: 0.02, cap: 0.2, branch: 'in_g' as const }, // 🚀 Rocket Barrage: the box + N rockets · +2% per ประดิษฐ์ point
+    varB: { turrets: 1, heirTurrets: 1, shield: 0.1, per: 0.02, cap: 0.2, branch: 'in_r' as const }, // 🏰 Fortress Mode: the box + a turret + shield x max HP · +2% per ป้อมปืน point
+    leg: { crossCap: 0.15, guardCap: 0.3, hpCap: 0.09, cross: 'in_g' as const, guard: 'in_t' as const, hp: 'in_r' as const }, // legacy guard = trap power here
+    heirNeed: 6, gospelHealMax: 6,
+  },
   /** shared by every 3rd job */
   common: { afterTurns: 2, bandingMax: 5, inspireAt: 0.3, inspireTurns: 3, inspireHeal: 0.03, inspireGuard: 0.5 },
 }
@@ -1036,3 +1074,14 @@ export const glacialDue = (r: number, heroTurns: number) => rank(r) > 0 && heroT
 export const glacialNovaMul = (r: number, dmg = 1) => (rank(r) > 0 ? (MAGE_DEF.glacial.novaBase + MAGE_DEF.glacial.novaPer * rank(r)) * dmg : 0)
 /** Internal cooldown in hero turns: `last` = turn it last fired (use -Infinity for never). */
 export const icdReady = (turn: number, last: number, icdTurns: number) => turn - last >= icdTurns
+
+// ===== the last four Awakenings: pure math (docs/design/awakening-last-four-v1.md) =====
+/** 🥷 Preserve: the ตราคมมีด cap. */
+export const stalkerMarkCap = (st: Pick<Stats, 'j3Sk'>) => KIT2.rogue.markMax + (st.j3Sk > 0 ? KIT3.stalker.markMaxAdd : 0)
+/** 🎩 Loan Shark: + hit damage from `debt` debts on the target (counted up to KIT3.kingpin.debtCap). */
+export const kingpinDebtAmp = (st: Pick<Stats, 'j3Kp' | 'j3KpDebtAmp'>, debt: number) =>
+  st.j3Kp > 0 ? Math.min(KIT3.kingpin.debtCap, Math.max(0, debt)) * (KIT3.kingpin.debtAmp + st.j3KpDebtAmp) : 0
+/** 🎩 Hostile Takeover: x P.ATK of the second slash on a monster carrying `debt` debts. */
+export const kingpinTakeMul = (debt: number) => KIT3.kingpin.takeMul * (1 + KIT3.kingpin.takePerDebt * Math.min(KIT3.kingpin.debtCap, Math.max(0, debt)))
+/** 🔮 ร่ายใหญ่: + damage taken while a Wizard spell charges (🌌 High Wizard: half). */
+export const wizCastTaken = (st: Pick<Stats, 'j3Hw'>) => KIT2.wizard.castTaken * (st.j3Hw > 0 ? KIT3.highwizard.castTakenMul : 1)
