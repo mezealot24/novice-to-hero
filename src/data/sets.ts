@@ -2,6 +2,7 @@
 import type { Stats } from './stats'
 import type { Item } from './meta/item-types'
 import type { ItemEffectSpec, StatConvert } from './item-effects'
+import { MAGE_ZONE_SETS } from './mage-zone-sets'
 
 export interface SetBonusTier {
   pieces: number
@@ -198,6 +199,8 @@ export const ITEM_SETS: readonly ItemSet[] = [
       { pieces: 4, label: '4 ชิ้น: ดาเมจคริ +25%, คอมโบ +8%', mod: { critMul: 0.25, combo: 0.08 } },
     ],
   },
+  // Q 2026-11-19: Mage-line zone sets D6-D10 / D8-D14 (data/mage-zone-sets.ts)
+  ...MAGE_ZONE_SETS,
   {
     id: 'clockwork_chronos',
     name: 'ชุดนาฬิกาโครนอส (Clockwork Chronos)',
