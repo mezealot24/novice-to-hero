@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { canWear, canWearAs, heroStats, itemById, ITEMS, itemStatLine, itemUnlocked } from '../src/data/meta'
 import { CLASS_CRAFT_ITEMS, D7_CLASS_GEAR, D8_CLASS_GEAR, D9_CLASS_GEAR, JOB2_ARMORS, JOB3_CRAFT_ITEMS } from '../src/data/class-craft'
 import { craftCost, forgeItem, gradeCap, matDungeon, refinable } from '../src/data/craft'
+import { MAGE_ZONE_ITEMS } from '../src/data/mage-zone-sets'
 import { pinnedReady } from '../src/data/cardforge'
 import { JOB2 } from '../src/data/jobs2'
 import { JOB3 } from '../src/data/jobs3'
@@ -22,7 +23,8 @@ const BASE_JOBS: JobId[] = ['swordsman', 'thief', 'cleric', 'mage', 'archer']
 test('class craft: all ids unique, inside ITEMS, valid craft recipes & materials', () => {
   const ids = ITEMS.map((i) => i.id)
   assert.equal(new Set(ids).size, ids.length, 'no duplicate IDs')
-  assert.equal(CLASS_CRAFT_ITEMS.length, 39, '10 J2 armors + 15 D7-D9 + 14 J3 pieces')
+  // Q 2026-11-19: zone-set pieces (data/mage-zone-sets.ts) ride along in CLASS_CRAFT_ITEMS
+  assert.equal(CLASS_CRAFT_ITEMS.filter((it) => !MAGE_ZONE_ITEMS.includes(it)).length, 39, '10 J2 armors + 15 D7-D9 + 14 J3 pieces')
 
   for (const it of CLASS_CRAFT_ITEMS) {
     assert.equal(itemById(it.id), it)
