@@ -165,3 +165,8 @@
 - Added `src/data/thief-offmeta.ts` pure helpers (`canDetonate`, `detonateStacks`, `detonateDmg`) and `thief_v2` ระเบิดสารพิษ (tier 2, unique name)
 - Triggers once per hero turn on Basic / แทงพิษ when target poison ≥ 50% of `poisonMax()` (`thiefDetAtShare`), consuming 40% (min 3) stacks AFTER `damageMon(..., dot=false)` so B1 + B5 amps still see full stacks, plus 50% splash to other alive monsters (no separate M.ATK terms: M.ATK already scales `poisonDmg` via `KIT.poison.matkPer`)
 - 7 new `KIT` keys registered across all 4 admin/layout files
+
+## ✨ feat(thief): P2'd thief_v3 เลือดพิษ (INT leech + cap) + thief_v4 ★ นักเล่นแร่พิษ
+- Added `thief_v3` เลือดพิษ (tier 3): INT scales poison leech rate in `heroBuild` (plus gear `poisonLeech`, max `thiefLeechCap` 60%), heals from net HP lost by monsters on poison ticks and Contaminate, capped at `thiefLeechTurnCap` 25% Max HP per hero turn
+- Added `thief_v4` ★ นักเล่นแร่พิษ (tier 4, no Alchemy Blade): Contaminate can crit (`skillCrit + spellCrit`, capped at `CRIT_RULES.cap.skillCrit`), gets 100% of เลือดพิษ rate, and refunds `thiefDetBossRefund` 25% of consumed stacks onto bosses/mini-bosses
+- 5 new `KIT` keys registered across all 4 admin/layout files

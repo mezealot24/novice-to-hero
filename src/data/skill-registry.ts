@@ -174,6 +174,11 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
       kit('thiefDetPoisonLv', 'ระเบิดสารพิษ: × ดาเมจพิษ (ต่อ Lv เดิม)'),
       kit('thiefDetSplash', 'ระเบิดสารพิษ: สาดตัวอื่นกี่ส่วน'),
       kit('thiefDetLeechShare', 'ระเบิดสารพิษ: เลือดพิษได้กี่ส่วน (ไม่มี ★)'),
+      kit('thiefLeechLv', 'เลือดพิษ: อัตราฐานต่อ Lv เดิม'),
+      kit('thiefLeechInt', 'เลือดพิษ: ขยายต่อ 1 INT'),
+      kit('thiefLeechCap', 'เลือดพิษ: อัตราสูงสุด'),
+      kit('thiefLeechTurnCap', 'เลือดพิษ: ฮีลสูงสุด/เทิร์น (% HP)'),
+      kit('thiefDetBossRefund', '★ นักเล่นแร่พิษ: คืนพิษใส่บอส'),
     ],
   },
 }

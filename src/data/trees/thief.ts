@@ -8,6 +8,7 @@
 // P2'c: thief_b1-b4 = เกจเงา modifiers (thief_b3 back as เงาวนลูป) -> migrateThiefRogueRework v5 (same reset).
 // Node mods are written per OLD level 1..3 (★ = 1): stretchNode() (data/tree.ts) shows 5 levels.
 import { node as n, rk, talent as t, type ClassTree } from '../tree-types'
+import { CRIT_RULES } from '../battle-rules'
 import { doubleAtkChance } from '../game-data'
 import { KIT, poisonAt, slowAtLv } from '../skill-math'
 
@@ -48,6 +49,8 @@ export const tree: ClassTree = {
     // P2'd: thief_v สาย INT/เวท (เล่นแร่พิษ)
     n('thief_v1', 'thief_v', 1, '🔮', 'แทงฉาบอาคม', 3, (lv) => `แทงพิษ +${Math.round(60 * lv)}% M.ATK (เวท) · ตีปกติ +${Math.round(60 * lv * KIT.thiefVenomBasicShare)}% M.ATK (เวท)`, (lv) => ({ thS1Matk: 0.6 * lv })),
     n('thief_v2', 'thief_v', 2, '☣️', 'ระเบิดสารพิษ', 3, (lv) => `ตีปกติ/แทงพิษใส่เป้าพิษ ≥ ${Math.round(KIT.thiefDetAtShare * 100)}% เพดาน (${poisonAt(KIT.thiefDetAtShare, KIT.poison.baseCap)} จาก ${KIT.poison.baseCap}): ระเบิดพิษ ${Math.round(KIT.thiefDetShare * 100)}% (ขั้นต่ำ ${KIT.thiefDetMin}) ทำดาเมจ ${Math.round((KIT.thiefDetPoisonBase + KIT.thiefDetPoisonLv * lv) * 100)}%/stack + สาดตัวอื่น ${Math.round(KIT.thiefDetSplash * 100)}% (1 ครั้ง/เทิร์น)`, (lv) => ({ thDetonate: lv })),
+    n('thief_v3', 'thief_v', 3, '💉', 'เลือดพิษ', 3, (lv) => `ดูดเลือดจากพิษ ${Math.round(KIT.thiefLeechLv * lv * 100)}% ของ HP ที่มอนเสียจริง (ขยาย +${(KIT.thiefLeechInt * 100).toFixed(1)}%/INT สูงสุด ${Math.round(KIT.thiefLeechCap * 100)}% · ไม่เกิน ${Math.round(KIT.thiefLeechTurnCap * 100)}% HP/เทิร์น · ระเบิดสารพิษได้ ${Math.round(KIT.thiefDetLeechShare * 100)}%)`, (lv) => ({ thPoisonLeechLv: lv })),
+    n('thief_v4', 'thief_v', 4, '⚗️', 'นักเล่นแร่พิษ', 1, () => `ระเบิดสารพิษคริได้ (โอกาสจากสกิลคริ+เวทคริ สูงสุด ${Math.round(CRIT_RULES.cap.skillCrit * 100)}%) · เลือดพิษจากระเบิดสารพิษเต็ม 100% · ใส่บอส/มินิบอส คืนพิษ ${Math.round(KIT.thiefDetBossRefund * 100)}% ของที่ระเบิด`, () => ({ thDetonateStar: 1 })),
   ],
   talents: [
     // ----- row 1 · Job Lv 5 · ตั้งตัว -----

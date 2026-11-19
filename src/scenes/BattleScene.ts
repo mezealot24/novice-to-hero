@@ -24,7 +24,7 @@ import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepA
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
 import { ultCdCut, condCritB3, thiefUltCondCritDmg, thiefUltCritAdd, thiefUltHitCount, thiefOnHitEff, thiefUltFinisher, thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, matkToPmRatio, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost, rogueKnifeMul, rogueSteelMul, rogueStabAmp, rogueComboDebuff, rogueAmbushCrit } from '../data/skill-math'
-import { canDetonate, detonateDmg, detonateStacks } from '../data/thief-offmeta'
+import { canDetonate, contaminateBossRefund, contaminateCritChance, contaminateLeechShare, detonateDmg, detonateStacks } from '../data/thief-offmeta'
 import { addCard, addMat, addXp, loseXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -772,7 +772,7 @@ export class BattleScene extends Phaser.Scene {
   private async fight(id: number): Promise<boolean> {
     this.undrain()
     this.fightTurns = 0; this.timedOut = false
-    this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.s1Weave = false; this.weaveBonus = 0; this.dodgeCdIcd = 0; this.detUsed = false; this.rampage = 0
+    this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.s1Weave = false; this.weaveBonus = 0; this.dodgeCdIcd = 0; this.detUsed = false; this.leechLeft = this.st.maxHp * KIT.thiefLeechTurnCap; this.rampage = 0
     this.rgTempo = 0; this.rgComboN = 0; this.rgDodgeIcd = 0; this.rgFlee = 0; this.rgDodged = false; this.rgAmbush = false // P3'a Rogue: per wave
     this.martyrUsed = false; this.j2Hurt = false; this.monkGrit = 0; this.asuraExhaust = 0; this.awakenTurns = 0; this.awakenAbsorbed = 0; this.awakenUltPow = 1; this.clearAllies() // Crusader ★ ผู้พลีชีพ once per wave · allies last one wave · Awakening resets per wave
     this.inspireUsed = false; this.inspire = 0; this.earthDone = false // ⚜️ Paladin: once per fight
@@ -905,6 +905,7 @@ export class BattleScene extends Phaser.Scene {
   private async heroTurn() {
     this.tickFxCd()
     this.detUsed = false
+    this.leechLeft = this.st.maxHp * KIT.thiefLeechTurnCap
     if (this.shadowTurns > 0 && --this.shadowTurns === 0) this.heroSpr.setAlpha(1) // 👤 ร่างเงา wears off
     const X = this.hx
     if (this.relic === 'purify') this.heal(this.st.maxHp * RELIC_RULES.purify.regen, true)
@@ -1480,6 +1481,7 @@ export class BattleScene extends Phaser.Scene {
   private weaveBonus = 0 // P2'a th_t2c: basic bracket bonus for the swing right after แทงพิษ (set / cleared in basicAttack)
   private dodgeCdIcd = 0 // P2'a th_t2a: hero turns until a dodge may cut a cooldown again
   private detUsed = false // P2'd thief_v2 Contaminate: 1/hero turn across Basic + แทงพิษ
+  private leechLeft = 0 // P2'd thief_v3 เลือดพิษ: remaining HP heal budget this hero turn (max KIT.thiefLeechTurnCap x maxHp)
   private killHealCritUsed = false // กระหายเลือด: boss/mini crit heal once per hero turn
   private forceCrit = false
   /** Q 2026-11-14: Beastmaster Ult + Skill 3 hawk / boar hits never crit (the wolf still can; sure crits still go through). */
@@ -3403,20 +3405,45 @@ export class BattleScene extends Phaser.Scene {
     if (this.s2?.id === 'th_wound' && this.st.s2Lv > 0 && !m.dead && Math.random() < S2N.woundStrikeChance) this.addWound(m, 1) // P2'b "+" แผลฉีก
   }
 
+  /** P2'd thief_v3 เลือดพิษ: heal from poison damage capped at thiefLeechTurnCap of max HP per hero turn. */
+  private leechHeal(n: number) {
+    if (n <= 0 || this.leechLeft <= 0 || this.hp <= 0) return
+    const amt = Math.min(n, this.leechLeft)
+    this.leechLeft -= amt
+    this.heal(amt, true)
+  }
+
   /** P2'd thief_v2 ระเบิดสารพิษ (Contaminate): consume a share of poison stacks for a poison burst + AoE splash (1/hero turn). */
   private contaminate(m: Mon) {
     if (m.dead || this.hp <= 0 || !canDetonate(this.detUsed, m.poison, this.poisonMax(), this.st.thDetonate)) return
     const det = detonateStacks(m.poison)
     if (det <= 0) return
     this.detUsed = true
-    const dmg = Math.max(1, Math.round(detonateDmg(det, m.poisonDmg, this.st.thDetonate) * this.dotMul()))
+    const star = this.st.thDetonateStar > 0
+    const crit = star && Math.random() < contaminateCritChance(this.st.skillCrit, this.st.spellCrit)
+    let dmg = Math.max(1, Math.round(detonateDmg(det, m.poisonDmg, this.st.thDetonate) * this.dotMul()))
+    if (crit) dmg = Math.max(1, Math.round(dmg * this.st.critMul))
     venomStabFx(this, m.spr)
     this.burst(m.spr.x, m.spr.y - 30, 0xa77be0, 14, 200)
     this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 36, '☣️ ระเบิดสารพิษ!', '#c9a8ff')
-    this.withSrc('poison', () => this.damageMon(m, dmg, false, '#a77be0', false))
-    if (!m.dead) { m.poison = Math.max(0, m.poison - det); this.dotIcon(m) }
+    const share = contaminateLeechShare(star)
+    const hp0 = m.hp
+    this.withSrc('poison', () => this.damageMon(m, dmg, crit, '#a77be0', false))
+    const net = hp0 - Math.max(0, m.hp)
+    if (this.st.thPoisonLeech > 0 && net > 0) this.leechHeal(net * this.st.thPoisonLeech * share)
+    if (!m.dead) {
+      m.poison = Math.max(0, m.poison - det)
+      if (star && (m.def.ai === 'boss' || !!m.def.mini)) m.poison = Math.min(this.poisonMax(), m.poison + contaminateBossRefund(det))
+      this.dotIcon(m)
+    }
     const splash = Math.max(1, Math.round(dmg * KIT.thiefDetSplash))
-    for (const o of this.alive()) if (o !== m && !o.dead) this.withSrc('poison', () => this.damageMon(o, splash, false, '#a77be0', false))
+    for (const o of this.alive()) {
+      if (o === m || o.dead) continue
+      const ohp0 = o.hp
+      this.withSrc('poison', () => this.damageMon(o, splash, crit, '#a77be0', false))
+      const onet = ohp0 - Math.max(0, o.hp)
+      if (this.st.thPoisonLeech > 0 && onet > 0) this.leechHeal(onet * this.st.thPoisonLeech * share)
+    }
   }
 
   /** While true, melee hits stay at the monster (combo chain, Thief ult) and the hero walks home once at the end via goHome(). */
@@ -4606,8 +4633,14 @@ export class BattleScene extends Phaser.Scene {
       const bleedScale = 1 + this.st.j2BleedDmg
       const P = KIT.poison, hpBite = m.hp > m.def.hp * P.hpAbove ? m.poison * (m.def.hp * this.st.poisonHpPct + P.hpFlat) : 0 // 🩸 %HP bite while above 50%
       const hpBleed = this.st.j2WolfBleedPct > 0 ? Math.min(Math.round(m.poison * m.def.hp * this.st.j2WolfBleedPct), Math.round(KIT2.beastmaster.wolfBleedCap * this.st.atk)) : 0
+      const hp0 = m.hp
       this.withSrc('poison', () => this.damageMon(m, Math.max(1, Math.round((m.poison * m.poisonDmg * bleedScale + hpBite) * this.dotMul()) + hpBleed), false, '#a77be0', true))
-      if (this.st.poisonLeech > 0) this.heal(m.poison * m.poisonDmg * this.st.poisonLeech, true)
+      if (this.st.thPoisonLeech > 0) {
+        const net = hp0 - Math.max(0, m.hp)
+        if (net > 0) this.leechHeal(net * this.st.thPoisonLeech)
+      } else if (this.st.poisonLeech > 0) {
+        this.heal(m.poison * m.poisonDmg * this.st.poisonLeech, true)
+      }
       if (this.st.poisonSlow > 0 && !m.dead && m.poison >= slowAtLv(this.st.poisonSlow)) { m.chill = Math.max(m.chill, KIT.poison.slowTurns); this.dotIcon(m) } // 🐌 Thief พิษชา
     } // Thief เลือดพิษ · 🐺 IV talent % Max HP bleed
     if (!m.dead && m.burnStackTurns > 0) { // ไฟลุก: stacks x magic power (พร v2: 70% M.ATK + 30% P.ATK)

@@ -1,5 +1,6 @@
 import { COMBO, LIFESTEAL_CAP, PLAYER, STAT_CAPS, softCapDiminish, type Stats } from "../game-data";
 import { BM_STANCE, KIT, KIT2, KIT3, S2N } from "../skill-math";
+import { leechRate } from "../thief-offmeta";
 import { COUNTER_RULES } from "../stack-math";
 import { branchPts, crossTierBonus, talent2Mods, talentMods, tree2Mods, tree3Mods, treeMods, type TalentSave, type TreeSave } from "../tree";
 import { JOB2, type Job2Id, type PetId } from "../jobs2";
@@ -479,6 +480,9 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 	}
 	if (st.swVitToMdef > 0) {
 		st.mdef += Math.min(KIT.swordCore.vitToMdefCap, b.vit * st.swVitToMdef);
+	}
+	if (job.id === "thief" && st.thPoisonLeechLv > 0) {
+		st.thPoisonLeech = leechRate(st.thPoisonLeechLv, statEff(b, "int"), st.poisonLeech);
 	}
 	const rawMdef = st.mdef;
 	const rawTenacity = st.tenacity;
