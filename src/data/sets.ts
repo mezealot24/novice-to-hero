@@ -198,6 +198,41 @@ export const ITEM_SETS: readonly ItemSet[] = [
       { pieces: 4, label: '4 ชิ้น: ดาเมจคริ +25%, คอมโบ +8%', mod: { critMul: 0.25, combo: 0.08 } },
     ],
   },
+  // Q 2026-11-19: Cleric-line zone sets, same shape as the Thief ones. Middle pieces fit Crusader and Monk; boss uniques join as hunt pieces.
+  {
+    id: 'twin_seraph',
+    name: 'ชุดเทวทูตสองปีก (Twin Seraph)',
+    icon: '🪽',
+    desc: 'เซ็ตสายนักบวช D6-D10 · เกราะครูเซเดอร์/มังค์ + ของคราฟ D7-D9 + มงกุฎสายกลาง + โล่กระจกสะท้อน (บอส D7) · Max HP แปลงเป็น M.ATK',
+    memberIds: ['cc_cr_sanctum', 'cc_mk_gi', 'cc_d7_glacierrelic', 'cc_d8_embercenser', 'cc_d9_haloring', 'cc_sr_crown', 'u_mirrorshield'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: ฮีลแรง +12%, HP +150', mod: { healAmp: 0.12, maxHp: 150 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: โล่แรง +12%, คริสกิล +4%, แปลง 4% Max HP → M.ATK (สูงสุด +35)',
+        mod: { shieldAmp: 0.12, skillCrit: 0.04 },
+        conversions: [{ from: 'maxHp', to: 'matk', ratio: 0.04, cap: 35, label: '4% Max HP → M.ATK (สูงสุด +35)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: พลัง Ult +15%, M.DEF +6%', mod: { ultAmp: 0.15, mdef: 0.06 } },
+    ],
+  },
+  {
+    id: 'thunder_cathedral',
+    name: 'ชุดวิหารฟ้าคำราม (Thunder Cathedral)',
+    icon: '🔔',
+    desc: 'เซ็ตสายนักบวช D8-D14 · ชิ้นกลางใส่ได้ทั้งครูเซเดอร์/มังค์ + สนับมือเฉพาะมังค์ โล่เฉพาะครูเซเดอร์ + ยูนีคบอส · ฮีลแรงแปลงเป็นคริสกิล',
+    memberIds: ['cc_tc_mitre', 'cc_tc_knuckle', 'cc_tc_bulwark', 'cc_tc_vestment', 'cc_tc_bell', 'u_pl_gospelrelic', 'u_ch_spiritband', 'u_c3_heartsteel'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: คริสกิล +6%, ฮีลแรง +15%', mod: { skillCrit: 0.06, healAmp: 0.15 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: เจาะเกราะ กาย/เวท +6%, แปลง 30% ฮีลแรง → คริสกิล (สูงสุด +12%)',
+        mod: { physPen: 0.06, magPen: 0.06 },
+        conversions: [{ from: 'healAmp', to: 'skillCrit', ratio: 0.3, cap: 0.12, label: '30% ฮีลแรง → คริสกิล (สูงสุด +12%)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: ดาเมจคริ +25%, โล่ต้นเวฟ +6%', mod: { critMul: 0.25, waveShield: 0.06 } },
+    ],
+  },
   {
     id: 'clockwork_chronos',
     name: 'ชุดนาฬิกาโครนอส (Clockwork Chronos)',
