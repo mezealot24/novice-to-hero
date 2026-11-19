@@ -65,6 +65,9 @@ export const CRAFT_ITEMS: Item[] = [
     craft: { dg: 'd3', common: 12, boss: 3, zeny: 900, bonus: [{ dodgeHeal: 0.02 }, { poisonAmp: 0.15 }] } },
   { id: 'c_sealorb', slot: 'offhand', name: 'ลูกแก้วตราผนึก', icon: '💠', price: 0, slots: 1, desc: 'ลูกแก้วผนึกวิญญาณ เวทแรง', base: { int: 3 }, mod: { matk: 8, maxRes: 10 }, jobs: MG,
     craft: { dg: 'd3', common: 12, boss: 3, zeny: 900, bonus: [{ resRegen: 1 }, { spellCrit: 0.05 }] } },
+  // Q 2026-11-19: Thief off-hand for the Moonshadow set (same slot as shield / quiver, so they never stack).
+  { id: 'c_moondirk', wtype: 'dagger', slot: 'offhand', name: 'มีดปัดเงาจันทร์', icon: '🌘', price: 0, slots: 1, desc: 'มีดสั้นมือรองชุดเงาจันทร์ หลบพริ้ว แทงรัว', base: { agi: 3 }, mod: { flee: 6, combo: 0.05 }, jobs: TH,
+    craft: { dg: 'd3', common: 12, boss: 3, zeny: 900, bonus: [{ dodgeHeal: 0.02 }, { combo: 0.04 }] } },
   // ----- d4 บึงพิษมรกต -----
   { id: 'c_emeraldmail', slot: 'armor', name: 'เสื้อเกล็ดมรกต', icon: '🐊', price: 0, slots: 1, desc: 'ถึก กันพิษ', base: { vit: 4 }, mod: { maxHp: 140, def: 10, debuffRes: 0.15 },
     craft: { dg: 'd4', common: 14, boss: 3, zeny: 1500, bonus: [{ regen: 0.5 }, { debuffRes: 0.15, waveShield: 0.05 }] } },
