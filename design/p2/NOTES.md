@@ -53,3 +53,40 @@ Slice P2'b (design/p2/MAIN-VS-REV4.md §4: status layer + Skill 2) on top of P2'
 - **ม่านควัน** (old `6d335c8`): Shroud ticks in `heroAct` next to the Wound tick (before `skill2Turn`), not in `heroTurn` where 👤 ร่างเงา ticks: cast on turn N = 2 → 1 at N+1 → 0 at N+2, so it covers the monster turns after N and N+1 (spec "2 เทิร์นเต็ม"). Shroud and ร่างเงา are separate (MAIN-VS-REV4 U1: Shroud stays a Skill 2 status). The Raid hook sits in `strike()` after the Toxic / Ice Skin lines, flag cleared before the bonus hit. ควันหอม Energy only for Energy users (Mobster / Rogue are Energy too). ★ crit dmg only for physical hits.
 - **ราชันย์โลหิต**: `thiefBloodKingOn(st, hp, maxHp, inShroud)` got the 4th (required) parameter + c4 text "หรืออยู่ในม่านควัน" (NOTES P2'a asked for it). Gear ★ ราชันย์โลหิต is unchanged (HP only).
 - **แผลลึก** (old `d4521f7`): `addWound` / `bladesEnd` as before (strict no-crit without ★: `forceCrit` cleared for the hit, restored after). Hook sits right after the Sightless Raid hook. Blade's End uses `shadowSlashFx` (MAIN-VS-REV4 R4 reuse list) on top of main's `venomStabFx` for the cast.
+
+## P2'c
+
+Slice P2'c Ult × เกจเงา (design/p2/MAIN-VS-REV4.md §4 + owner answers Q1 / Q2) on top of P2'b + crit rework (`0be41df`) + Ratio AGI pool floor + Rogue P3'a. Entries where the plan / old P2c-spec did not match the real code.
+
+### Ult budget (Q2: ceiling = live เงาพริ้ว incl. ร่างเงา)
+
+Unit = one non-crit stab (`KIT.thiefUlt × hitPow × (1 + thUltAgi)`): hitPow, Ratio AGI (also the `thiefUltAgiPoolMin` 60 floor), P.ATK, DEF and the Hit roll scale every stab the same, so they cancel; Rogue พายุมีด = the same dance × `h2` (its knives are outside the budget). Ceiling = main's best build: old `th_t3b` มีดรัว R2 = 7 stabs. Crit rework rules: an Ult stab crits only with skillCrit (`sc`); ร่างเงา = every stab a sure crit at full crit power. Worst-case target (HP low, 3 kinds), crit + ★ finisher trigger as expected values. `thiefUltBudget()` (skill-math) = the model; `tests/thief-p2c.test.ts` locks every build ≤ 100% over sc 0–0.6 × critMul 1.4–3.0 × other B3 0 / 0.25 / 0.61 × card ultHits 0 / 1, both states.
+
+| Build | Lv 20 (sc 0, cm 1.4) off / on | Lv 40 (sc 0.10, cm 1.8) off / on | Lv 80 (sc 0.25, cm 2.2) off / on | Rogue Lv 80 (sc 0.30, cm 2.2) off / on |
+|---|---|---|---|---|
+| live ceiling (old th_t3b R2, 7 stabs) | 7.00 (100%) / 9.80 (100%) | 7.56 (100%) / 12.60 (100%) | 9.10 (100%) / 15.40 (100%) | 9.52 (100%) / 15.40 (100%) |
+| base (no talent) | 4.00 (57%) / 5.60 (57%) | 4.32 (57%) / 7.20 (57%) | 5.20 (57%) / 8.80 (57%) | 5.44 (57%) / 8.80 (57%) |
+| th_t3b R2 only | 6.00 (86%) / 8.40 (86%) | 6.48 (86%) / 10.80 (86%) | 7.80 (86%) / 13.20 (86%) | 8.16 (86%) / 13.20 (86%) |
+| th_t3a R2 + u full | 4.82 (69%) / 6.97 (71%) | 5.50 (73%) / 8.78 (70%) | 6.87 (76%) / 10.58 (69%) | 7.20 (76%) / 10.58 (69%) |
+| th_t3b R2 + u full (max) | 6.17 (88%) / 9.61 (98%) | 6.87 (91%) / 12.09 (96%) | 8.55 (94%) / 14.57 (95%) | 9.00 (95%) / 14.57 (95%) |
+| th_t3c R2 + u full | 4.11 (59%) / 6.51 (66%) | 4.57 (61%) / 8.19 (65%) | 5.66 (62%) / 9.87 (64%) | 5.95 (62%) / 9.87 (64%) |
+
+(u full = thief_u1 5 · u2 5 · u3 5 · u4★. Reference crit profiles per level are guesses: the crit rework left physical classes with few skillCrit sources; the test covers the whole grid.)
+
+### Plan vs real code
+
+- **ร่างเงา makes crit-rate bonuses worthless, crit dmg full** (MAIN-VS-REV4 §5.2): so the u-line has small Ult skillCrit (≤ +5%, th_t3a ≤ +8%) and one Ult-own crit-dmg cap `thiefUltCondCap` 0.15; the old P2c numbers (cond crit dmg 0.30, finisher 0.3, On-Hit D.Strike) went 115% over the ceiling with the gauge on.
+- **`th_t3b` re-cut +2 | +3 → +1 | +2 stabs** (+ On-Hit): any u-line damage on top of the live 7 stabs breaks the ceiling. th_t3b alone = 86% of live; with the full u-line 88–98%. Players without u-line points lose up to 14% Ult (the v5 reset gives every point back).
+- **Old th_t3a เงาซ้อน (sure dodges) / th_t3c มีดอาบพิษ (poison)** are merged into the new `th_t3c` เงาหมอกลวงตา (+ gauge +1 per cast); `th_t3a` is now the crit / execution style (sure dodges −1 trade-off, never below 1).
+- **On-Hit = lifesteal × share + Wound chance only**: Rev 3's On-Hit D.Strike / card `procs('basic')` / knife crits add damage outside the stab model → not in P2'c. Ult stabs had no lifesteal before (`lsMul` 0 in skills).
+- **Finisher**: one per cast, at the lowest HP share. `th_t3a` always fires and rolls crit; `thief_u4` ★ needs `thiefFinisherAt` 3 crits and is a sure crit (always inside ร่างเงา). `thiefFinisherMul` 0.2 (0.25 was 0.3% over with card ultHits +1).
+- **Q1 one gauge**: no `ghostShroud` counter, no `thiefShroud*` keys, no `onShroudBreak()`. b-line: b1 dodge gauge +1 chance + Flee in ร่างเงา (the old flat Flee / fleeFloor are gone) · b2 keeps dodge heal + shield on entering ร่างเงา · b3 (id back) dodges inside ร่างเงา cut the Ult CD · b4★ keeps the counter + ร่างเงา +1 turn. `th_t1a` fills the gauge at wave start (it was a Shroud charge in Rev 3).
+- **All 3 dodge paths** (hurtHeroCore `dodged()`, duelist `trueHurt` sure dodge + LUCKY) call `shadowDodged()` (they all filled the gauge before).
+- **Global Ult CD cap**: `cutUltCd()` was P2'a's single entry point; it now spends `thiefUltCdCutCap` 2 per hero turn (reset at the hero-turn CD tick) and the cast turn keeps CD ≥ `thiefUltCdFloor`. The plan's floor 1 would still let the next tick reach 0 = back-to-back Ults, so the floor is **2**. Routed: th_t2a, thief_b3, Rogue Kill Reset (R4.8). Not routed: relics, Archer, Mage Foresight, Mobster ทวงหนี้ refund (Mobster rule). th_t2a no longer spends its ICD on a zero cut.
+- **B3**: `condCritDmg(m, opener)` sums Shroud ★ + Rogue rg_x2 ใจสลาย + Ult-own + thief_u3 on basic / combo + th_t1b R2 under `thiefCondCritDmgCap` 0.75. Today's max without P2'c terms is 0.61, so rg_x2 is unchanged unless stacked with the new terms. `thExecute` ×1.5 removed; `Stats.thExecute` kept as a retired key. หมายหัว release stays ×mul (B4).
+- **th_t1b opener**: the first physical hero hit of each wave (ally hits excluded) is a sure crit; if the first action is the Ult, one stab gets it (outside the per-cast budget, ≤ 1 stab per wave).
+- **th_t4c**: renamed to หมอกลวงตา only (effect = old flat fleeFloor). Rev 3 Mistwalker (window, trueSight DR, poison reflect) is not in P2'c's slice list.
+- **Not done** (not in the slice list): DEX → Ult stabs (`thiefUltDex*`), `thief_b1` trueSight DR, Shadow window `fleeFloor`.
+- **Save**: `THIEF_REWORK_VER` 3 → **5**: 4 is left for Rogue P3'b (planned). Same minimal reset as P2'a/b, now `if (v < 5)` (once even several versions behind); the Rogue `job2Tree` / talents are never touched by it. `tests/rogue-p3a.test.ts` now expects the class 1 reset for a v2 save too. `tools/bot.cjs` flag 5 (not run).
+- **Mobster** (`job === 'thief'`): gets b-line / th_t1* / th_t2a CD cap / thief_u3 basic crit dmg; its Ult (ทวงหนี้) does not call `shadowDance`, so the u-line / th_t3* do nothing for it. `trees2/mobster.ts` / `JOB2.mobster` / `KIT2.mobster` untouched.
+- **Uptime of ร่างเงา** (b1 / b4★ / th_t1a / th_t3c make it more frequent / longer) is not in the per-cast budget: needs Q's playtest.

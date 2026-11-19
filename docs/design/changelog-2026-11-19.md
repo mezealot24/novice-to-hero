@@ -84,6 +84,61 @@
 - Save: `THIEF_REWORK_VER` 2 -> 3 · Rogue ใยชั้น 2 web reset + refund once (class 1 web, Thief + Rogue talents untouched) · Mobster untouched · `tools/bot.cjs` flag 3
 - Tests: `tests/rogue-p3a.test.ts` (+ thief-p2a / p2b migration tests updated) · Not balanced: needs Q's playtest
 
+## ✨ feat(thief): P2'c Ult budget in 2 states (ร่างเงา on / off) + Ult KIT keys
+- Plan: `design/p2/MAIN-VS-REV4.md` §4 P2'c + §5.2 · owner Q2: ceiling = today's live เงาพริ้ว **including ร่างเงา** (no nerf to live)
+- Pure math in `skill-math.ts` (BattleScene + test share it): `thiefUltHitCount` · `thiefUltCritRate` (Ult-only skillCrit counts as skillCrit, crit rework rules) · `thiefUltCondCritDmg` (B3 Ult-own, cap `thiefUltCondCap`) · `thiefOnHitEff` · `thiefUltFinisher` · `thiefUltBudget(st, hero, shadow)` in stab units (gauge on = every stab a full crit)
+- 8 new `KIT` keys with Thai admin labels (Ult table) · 10 new `Stats` keys (0 = no change yet: nodes come in later P2'c commits)
+- Tests: `tests/thief-p2c.test.ts` (model = live without P2'c stats, both states)
+
+## ✨ feat(thief): P2'c Global Ult CD cap
+- `cutUltCd()` is now capped: all Thief-line Ult CD cuts (th_t2a ขโมยจังหวะ, Rogue Kill Reset, later thief_b3) share `KIT.thiefUltCdCutCap` 2 turns per hero turn · in the cast turn the CD never drops below `KIT.thiefUltCdFloor` 2 (no back-to-back Ults)
+- th_t2a: a capped-out / zero cut no longer spends its ICD
+- Not routed (other classes / Mobster rule): relics, Archer kill CD, Mage Foresight, Mobster ทวงหนี้ refund
+- Pure `ultCdCut()` + test in `tests/thief-p2c.test.ts`
+
+## ✨ feat(thief): P2'c B3 crit-dmg bracket · drop hardcoded thExecute x1.5
+- R4.6 B3 in `strike()`: one `condCritDmg(m)` sum (Shroud ★ `smokeCritDmg` + Rogue rg_x2 ใจสลาย + Ult-own `thiefUltCondCritDmg` + thief_u3 on basic / combo) added to critMul, cap `KIT.thiefCondCritDmgCap` 0.75 (new key, Thai label)
+- Removed the `thExecute` x1.5 line (no source since P2'a); `Stats.thExecute` stays as a retired key
+- หมายหัว release stays x mul = B4 (MAIN-VS-REV4 §2 C2) · comment only
+- Today nothing changes in play: Shroud ★ 0.25 + ใจสลาย 0.36 = 0.61 < 0.75 (Ult-own terms come with thief_u)
+
+## ✨ feat(thief): P2'c thief_b = 👤 เกจเงา modifiers (Q1: one gauge) · save v5
+- Owner Q1: Rev 3 Ghost Shroud merges into main's เกจเงา — no second shadow resource; the `thief_b` line now tunes the gauge:
+  - 🌫️ `thief_b1` ย่องเบาในเงา: a dodge has 20–100% chance of gauge +1 more · Flee +4–18 while ร่างเงา
+  - 🌙 `thief_b2` หายใจในเงา: dodge heal 1.2–6% (kept) · entering ร่างเงา = shadow shield 6–30% of Flee (max `thiefShadowShieldHpCap` 20% HP)
+  - 🌀 `thief_b3` เงาวนลูป (id back, was มีดคู่): a dodge inside ร่างเงา has 20–100% chance of Ult CD −1 (Global Ult CD cap)
+  - 👤 `thief_b4` ★ เงาสวน: counter 0.8x (kept) · ร่างเงา +1 hero turn
+- All three dodge paths (hurt, duelist true damage, LUCKY) use one `shadowDodged()`
+- Save: `THIEF_REWORK_VER` 3 -> **5** (4 is left for Rogue P3'b) · same minimal Thief class 1 web + talents reset & refund once (`v < 5`), Rogue job2 web / talents untouched · rogue-p3a / thief-p2a tests follow the new version
+
+## ✨ feat(thief): P2'c thief_u line (Ult crit · On-Hit · finisher) + new เงาพริ้ว dance
+- New Ult branch `thief_u` เงาสังหาร (`ATTACH thief_u: 'ult'`, 2nd Ult column):
+  - 🎯 `thief_u1` เงาจุดตาย: Ult skillCrit +1–5% (opens Ult crits with no gear skillCrit) · Ult crit dmg +1–5% per debuff kind (max 3)
+  - 🩸 `thief_u2` เงาประสานอาวุธ: On-Hit 40–50% = Ult stabs lifesteal x share · same chance Wound +1 (แผลลึก)
+  - 💀 `thief_u3` เพชฌฆาตเงา: crit dmg +3–15% vs HP < 35% (Ult + basic / combo, B3) · Energy +1–6 per Ult crit (max 12 / cast)
+  - 🗡️ `thief_u4` ★ เงาพันคม: 3+ Ult crits = closing stab 0.2x (sure crit) at the lowest-HP share — always fires inside ร่างเงา
+- Ult-own crit dmg total capped at `thiefUltCondCap` 0.15, then the B3 cap · every stab (finisher too) x Ratio AGI
+- `shadowDance()` (Rogue พายุมีด too) reads the shared pure math; Ult info panel lists the new rows
+- 1 new `KIT` key `thiefUltCritResCap` · `thUltCritRes` in `INT_FIELDS`
+- Budget test: u full ≤ live ceiling for every hero profile, gauge on and off (`th_t3b` re-cut comes with the talents commit)
+
+## ✨ feat(thief): P2'c talents rows 1 / 3 + rename th_t4c
+- Row 1 (ids kept, reset by save v5):
+  - 🐈 `th_t1a` ก้าวเงา: every wave starts with เกจเงา +1 | +2 · after a dodge Flee +12 | +20 for `thiefDodgeFleeTurns` 2 hero turns (refresh)
+  - 💨 `th_t1b` เปิดฉากซุ่มโจมตี (was ควันตั้งต้น): wave-start sure dodges 1 | 2 (kept) · first physical hit of each wave = sure crit · R2 + `thiefOpenCritDmg` 25% crit dmg (B3)
+- Row 3 = the 3 Ult styles (numbers cut for the Ult budget, see `design/p2/NOTES.md` P2'c table):
+  - 💀 `th_t3a` เงาสังหาร: Ult skillCrit +5 | +8% · crit dmg +10 | +15% vs HP < 50% or 2+ kinds (Ult cap) · closing stab 0.35 | 0.5x · sure dodges −1
+  - 🌪️ `th_t3b` คมมีดประสาน (was มีดรัว +2 | +3): stabs +1 | +2 · On-Hit +3 | +5% (alone 41 | 43%)
+  - 🌫️ `th_t3c` เงาหมอกลวงตา: sure dodges +1 | +2 (was th_t3a) · poison +2 | +3 per stab (was th_t3c) · เกจเงา +1 per cast
+- 🌑 `th_t4c` ร่างเงา -> **หมอกลวงตา** (name clashed with the gauge state; effect unchanged)
+- `thiefFinisherMul` 0.25 -> 0.2 (max stack + card ultHits was 0.3% over the ceiling)
+- 2 new `KIT` keys with Thai labels · budget table test (Lv 20 / 40 / 80 + Rogue, gauge off / on, every profile, + card ultHits)
+
+## 📝 docs(thief): P2'c sync tools + docs
+- `tools/bot.cjs`: bot saves carry `thiefRogueRework: 5` (else `load()` wipes the bot's Thief web) · TREEX example with `thief_u1` · not run
+- `design/p2/NOTES.md` `## P2'c`: Ult budget table (Lv 20 / 40 / 80 + Rogue, ร่างเงา off / on) + plan-vs-code notes
+- `design/thief-rogue-rework-v1.md`: R4.4 row P2'c + R4.9 (what shipped vs Rev 3 / P2c-spec)
+
 ## Monster skills no longer crit by default + ดาบมรณะ nerf (Q 2026-11-19)
 - `CRIT_RULES.monSkill = false`: a monster skill hit (strike / bolt, hero-kit casts) only rolls crit when the skill sets `crit: true`. Basic attack / combo / counter / Bullet Time still roll the monster's crit. Same idea as the hero rule (#132).
 - Death knight ⚔️ ดาบมรณะ: pow 2.8 -> 2.2, alone x2 -> x1.5. At D3 boss Lv 13 it was 192 dmg (6x its basic hit, 308 on a crit) and one-shot 75% HP of a Lv 11 hero; now ~113 and no crit.

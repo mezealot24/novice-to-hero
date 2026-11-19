@@ -101,6 +101,7 @@ export const INT_FIELDS: ReadonlySet<keyof Stats> = new Set<keyof Stats>([
 	"j2Meteors",
 	"j2LovHits",
 	"j2HcVit",
+	"thUltCritRes",
 ]);
 /** Non-★ nodes that keep their max (tier-4 ★, pow / pow2 / s2root / s2star kinds are never stretched either). Reason per id. */
 export const NO_STRETCH: Readonly<Record<string, string>> = {
@@ -180,6 +181,7 @@ const ATTACH: Record<string, "s1" | "ult"> = {
 	cleric_d: "ult", // v84
 	thief_a: "s1",
 	thief_b: "ult",
+	thief_u: "ult", // P2'c
 	mage_l: "ult",
 	mage_f: "ult",
 	mage_i: "ult",

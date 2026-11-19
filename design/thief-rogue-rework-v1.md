@@ -33,6 +33,7 @@
 | P1 | Ratio AGI · knife fix · Back Stab · ทวงหนี้ cleanup | ✅ commit (รอคิวเล่นทดสอบ) |
 | P1b | แทงพิษ `pskill` ✅ · energy loop (`s1Weave`, floor cost) ⏸ ทำพร้อม P2 (talent `th_t2c` เปลี่ยน) |
 | P2 | Thief web + talents ใหม่ + migration | ✅ merged (#130 #131) |
+| P2'c | Thief Ult × เกจเงา: Ult budget 2 สถานะ (ร่างเงาเปิด/ปิด) · `thief_b` = ตัวปรับเกจ (Q1) · `thief_u` u1–u4★ · ทาเลนต์แถว 1/3 + `th_t4c` → หมอกลวงตา · Global Ult CD cap · B3 (ลบ `thExecute` ×1.5) · migration v5 | ✅ PR (รอคิวเล่นทดสอบ) · ดู `design/p2/NOTES.md` ## P2'c |
 | P3'a | Rogue: 🔪 Dagger Mark + Voracity + Kill Reset · Back Stab (Mark target, Strip, Backstab Mark, Shadow Ambush, B4) · web `rg_k`/`rg_c`/`rg_x` เป็นกลไก · migration v3 | ✅ PR (รอคิวเล่นทดสอบ) · ดู R4.8 |
 | P3'b | Rogue: โหนดใต้ Back Stab (`rg_s1-3`) + พายุมีด (`rg_u1-3`, Death Mark) + ทาเลนต์ `rg_t*` ใหม่ + migration v4 | ⏸ หลัง P3'a |
 | P4 | Plagiarism | ⏸ PR แยก ทำท้ายสุด |
@@ -40,10 +41,16 @@
 ### R4.8 P3'a ที่ทำจริง (2026-11-19) · ต่างจาก Rev 3 ตรงไหน
 - **Combo Point อยู่ต่อ (MAIN-VS-REV4 R1):** เก็บมีด = Combo Point +`markCp` (1/ครั้ง) · Back Stab B4 cap 0.75 นับแค่ Shadow Ambush วันนี้ · CP เป็นตัวคูณแยกนอก B4
 - **เก็บมีด:** ตีปกติ/คอมโบ (1 ครั้งต่อสวิง), แทงพิษ, Back Stab (+ เงาเลียนแบบ) · มีดบินเก็บเองไม่ได้ · วงสวิงไม่แปะพิษ ไม่ดูดเลือด ไม่ forced crit
-- **Kill Reset:** 1 ครั้ง/เทิร์นฮีโร่ (flag ตั้งก่อนปามีด) · ยังไม่มี Global Ult CD cap (P2'c ยังไม่ทำ) → ใช้ `cutUltCd(1)` ตรง ๆ
+- **Kill Reset:** 1 ครั้ง/เทิร์นฮีโร่ (flag ตั้งก่อนปามีด) · ยังไม่มี Global Ult CD cap (P2'c ยังไม่ทำ) → ใช้ `cutUltCd(1)` ตรง ๆ (P2'c: `cutUltCd` มี Global cap แล้ว · Kill Reset ผ่าน cap อัตโนมัติ)
 - **พายุมีด:** มีดปักตราด้วย แต่สูตรดาเมจเดิม (ไม่คูณ pskill) · Death Mark / Voracity Storm / Death Lotus = P3'b
 - **ยังไม่ทำ:** `rg_s*` / `rg_u*` (โหนดใหม่) · ทาเลนต์ Rogue · `j2RgMarkCap` · Twin-Blade Voracity มีดคู่ · Plagiarism (P4)
 - **ชำนาญมีด:** `mastery.crit 0.03` → `mastery.skillCrit 0.05` (key ใน KIT2 เปลี่ยนชื่อ · ไม่ใช่ save key)
+
+### R4.9 P2'c ที่ทำจริง (2026-11-19) · ต่างจาก Rev 3 / P2c-spec ตรงไหน
+- **Ghost Shroud ไม่มี (Q1):** ทรัพยากรเงา = เกจเงาอันเดียว · `thief_b1` เติมเกจไว + Flee ในร่างเงา · `b2` โล่ตอนเข้าร่างเงา · `b3` เงาวนลูป (หลบในร่างเงา → ลด CD Ult) · `b4★` ร่างเงา +1 เทิร์น · `th_t1a` เกจต้นเวฟ · `th_t3c` เกจ +1 ต่อการกด Ult
+- **Ult budget (Q2):** เพดาน = เงาพริ้ว live ที่ดีสุด (`th_t3b` R2 เดิม 7 ที) **ทั้งร่างเงาเปิด/ปิด** · `th_t3b` ตัดเหลือ +1/+2 ที · u-line เติมคืน (max stack 88–98%) · ตาราง + เทสต์อยู่ใน `design/p2/NOTES.md` / `tests/thief-p2c.test.ts`
+- **ไม่ทำ:** DEX → ฮิตเงาพริ้ว (`thiefUltDex*`) · On-Hit D.Strike / procs · `onShroudBreak` · Mistwalker (`th_t4c` แค่เปลี่ยนชื่อ)
+- **Save:** `THIEF_REWORK_VER` 5 (4 เว้นให้ Rogue P3'b)
 
 ### R4.5 คำถามที่ค้างถึงคิว
 - ไม่มี (ตอบครบ 2026-11-19: Mobster A · แทงพิษ pskill + ลด thiefAuto)

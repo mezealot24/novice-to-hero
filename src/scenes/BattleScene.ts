@@ -23,7 +23,7 @@ import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/ski
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
-import { thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost, rogueKnifeMul, rogueSteelMul, rogueStabAmp, rogueComboDebuff, rogueAmbushCrit } from '../data/skill-math'
+import { ultCdCut, condCritB3, thiefUltCondCritDmg, thiefUltCritAdd, thiefUltHitCount, thiefOnHitEff, thiefUltFinisher, thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost, rogueKnifeMul, rogueSteelMul, rogueStabAmp, rogueComboDebuff, rogueAmbushCrit } from '../data/skill-math'
 import { addCard, addMat, addXp, loseXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -406,7 +406,7 @@ export class BattleScene extends Phaser.Scene {
     this.blessOn = false; this.blessDelta = undefined; this.kyrie = { hp: 0, hits: 0 } // v77 พรแสง
     if (this.s2?.id === 'cl_spear') this.st.spearMul += S2N.spearPlus(this.st.s2Lv) // หอกคม: +10%/lv of the 0.3x base
     this.res = this.job.resource === 'rage' ? 0 : this.resMax()
-    this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0; this.shadowGauge = 0; this.shadowTurns = 0; this.thMarkMon = undefined; this.malice = 0; this.rogueCp = 0; this.thHpBonus = 0; this.thTenBonus = 0; this.shroudTurns = 0; this.raidReady = false
+    this.shield = 0; this.dodgeCharges = 0; this.ctrCharges = 0; this.shadowGauge = 0; this.shadowTurns = 0; this.waveOpen = false; this.dodgeFleeTurns = 0; this.thMarkMon = undefined; this.malice = 0; this.rogueCp = 0; this.thHpBonus = 0; this.thTenBonus = 0; this.shroudTurns = 0; this.raidReady = false
     this.rigSpec = heroRigSpec(s)
     this.heroRig.setAppearance(this.rigSpec, heroCostumeTint(s.costume))
     this.heroRig.resetPose(HERO_X, GROUND)
@@ -538,6 +538,10 @@ export class BattleScene extends Phaser.Scene {
     if (this.auraLeft > 0) this.floatText(HERO_X, GROUND - 150, `🔮 ออร่าเวท +${Math.round(this.st.mgAura * 100)}%`, '#c9a8ff')
     const waveDodge = this.st.waveDodge + staticDodgeCharges(this.st.mgStatic) // Thief talent: ม่านควัน + Mage passive ⚡ Static Mirage (stack)
     if (waveDodge > 0) this.dodgeCharges = Math.max(this.dodgeCharges, waveDodge)
+    if (this.job.id === 'thief') { // P2'c th_t1a ก้าวเงา gauge · th_t1b เปิดฉากซุ่มโจมตี opener
+      this.waveOpen = this.st.thWaveOpenCrit > 0
+      if (this.st.thWaveGauge > 0) this.addShadow(this.st.thWaveGauge)
+    }
     if (this.st.bossShield > 0 && this.mons.some((m) => !m.dead && m.def.ai === 'boss')) this.addShield(this.st.maxHp * this.st.bossShield) // cleric talent: ร่างพร
     if (this.st.spearStart > 0) this.spears += this.st.spearStart // cleric talent: หอกเปิดศึก
     if (this.st.clManaShield > 0) this.addShield(this.st.maxRes * this.st.clManaShield, true) // v86 💠 มานาพิทักษ์: wave-start shield from Max Mana
@@ -1065,6 +1069,7 @@ export class BattleScene extends Phaser.Scene {
     this.execTurnUsed = false; this.critPetUsed = false; this.killHealCritUsed = false
     if (this.j2?.id === 'rogue') this.rogueTurnStart() // P3'a
     if (this.dodgeCdIcd > 0) this.dodgeCdIcd-- // P2'a th_t2a ICD counts hero turns
+    if (this.dodgeFleeTurns > 0) this.dodgeFleeTurns-- // P2'c th_t1a
     for (const m of this.alive()) { // P2'b: Blade's End once per hero turn per monster · Wound counts hero turns (ticks before skill2Turn)
       m.bladeSpent = false
       if (m.woundTurns > 0 && --m.woundTurns === 0) { m.wound = 0; this.dotIcon(m) }
@@ -1086,6 +1091,7 @@ export class BattleScene extends Phaser.Scene {
     const rt = this.px('resTurn'); if (rt > 0 && !(this.asuraExhaust > 0 && this.job.resource === 'mana')) { const left = this.resGain(rt); if (left > 0 && this.pk.prayHeal > 0) this.heal(this.st.maxHp * this.pk.prayHeal * left, true) } // ภาวนา (v78: the share that didn't fit / Novice -> heal)
     if (this.zenTurns > 0) this.zenTurns--
     if (this.smashCdLeft > 0) this.smashCdLeft--
+    this.ultCdCutLeft = KIT.thiefUltCdCutCap; this.ultJustCast = false // P2'c Global Ult CD cap: new hero turn
     if (this.relic === 'storm' && this.fightTurns % RELIC_RULES.storm.every === 0) { await this.lightningWrath(); if (!this.alive().length) return }
     // resource tick
     this.sageFireBoltsTurn = 0; this.sageFireNovaUsed = false
@@ -1114,7 +1120,7 @@ export class BattleScene extends Phaser.Scene {
     const ultWaiting = this.smashQueued && this.smashCdLeft <= 0 && this.hx.silence <= 0 // ult ready and booked
     if (ultWaiting && this.res >= ultCost && this.charges >= asuraNeed) {
       this.smashQueued = false
-      this.smashCdLeft = this.ultTurns()
+      this.smashCdLeft = this.ultTurns(); this.ultJustCast = true // P2'c: CD floor for the rest of this hero turn
       this.spendRes(ultCost)
       this.ultOpen = 1 + this.pk.ultBoost // legend เปิดฉากเต็มแรง (v78: every ult)
       this.fightUlts++
@@ -1162,6 +1168,8 @@ export class BattleScene extends Phaser.Scene {
   private thHpBonus = 0; private thTenBonus = 0 // P2'b th_t1c: Max HP / tenacity added right now (delta-tracked)
   private shadowGauge = 0 // 👤 Thief เกจเงา (KIT.thiefShadow)
   private shadowTurns = 0 // hero turns of ร่างเงา left
+  private waveOpen = false // P2'c th_t1b: the next physical hero hit this wave is a sure crit
+  private dodgeFleeTurns = 0 // P2'c th_t1a: hero turns of Flee after a dodge left
   private thMarkMon?: Mon // 🔻 Thief หมายหัว target
   private malice = 0
   private rogueCp = 0 // 🔁 Rogue Combo Point
@@ -1283,9 +1291,17 @@ export class BattleScene extends Phaser.Scene {
     if (this.job.id !== 'thief' || n <= 0 || S.max <= 0 || this.shadowTurns > 0) return
     this.shadowGauge = Math.min(S.max, this.shadowGauge + n)
     if (this.shadowGauge < S.max) { this.floatText(HERO_X - 40, GROUND - 175, `👤 ${this.shadowGauge}/${S.max}`, '#9a9ab8'); return }
-    this.shadowGauge = 0; this.shadowTurns = S.turns + 1 // +1: heroTurn ticks it down before acting
+    this.shadowGauge = 0; this.shadowTurns = S.turns + this.st.thShadowTurns + 1 // +1: heroTurn ticks it down before acting · P2'c thief_b4 ★ longer
     this.heroSpr.setAlpha(0.75)
+    if (this.st.thShadowShield > 0) this.addShield(Math.min(this.st.maxHp * KIT.thiefShadowShieldHpCap, this.st.thShadowShield * this.fleeNow())) // P2'c thief_b2 โล่เงา
     this.callout('👤 ร่างเงา! คริแน่ + ทักษะ 1 ฟรี', HERO_X + 60, GROUND - 190, '#c9b8ff')
+  }
+  /** 👤 a dodge: gauge +KIT.thiefShadow.dodge (P2'c thief_b1: maybe +1 more) · thief_b3: inside ร่างเงา it may cut the Ult CD (Global cap). */
+  private shadowDodged() {
+    if (this.job.id !== 'thief') return
+    if (this.st.thDodgeFlee > 0) this.dodgeFleeTurns = KIT.thiefDodgeFleeTurns // P2'c th_t1a (refresh, no stack)
+    if (this.shadowTurns > 0 && this.st.thShadowDodgeCd > 0 && Math.random() < this.st.thShadowDodgeCd && this.cutUltCd(1) > 0) this.floatText(HERO_X - 40, GROUND - 195, '🌀 เงาวนลูป! Ult CD −1', '#c9b8ff')
+    this.addShadow(KIT.thiefShadow.dodge + (this.st.thShadowFill > 0 && Math.random() < this.st.thShadowFill ? 1 : 0))
   }
   /** 🔻 Thief หมายหัว: keep a live mark on the highest-HP monster. */
   private ensureMark() {
@@ -1326,9 +1342,11 @@ export class BattleScene extends Phaser.Scene {
     const critRate = canFalconCrit ? falconCrit : this.critRateFor(magic, physCritAdd, m)
     if (!magic && this.st.thMark > 0 && this.job.id === 'thief') this.ensureMark()
     const markHit = !magic && this.st.thMark > 0 && this.job.id === 'thief' && m === this.thMarkMon, release = markHit && this.malice >= KIT.thiefMark.max // 🔻 หมายหัว: full Malice
-    if (release) mul *= 1 + KIT.thiefMark.dmg * this.st.thMark
+    if (release) mul *= 1 + KIT.thiefMark.dmg * this.st.thMark // R4.6 B4 (skill-own: 1 own hit per full Malice), stays x mul (MAIN-VS-REV4 §2 C2)
     const shadowSure = !magic && this.shadowTurns > 0 && this.job.id === 'thief' // 👤 ร่างเงา
-    const crit = this.forceCrit || release || shadowSure || (!this.petNoCrit && this.critAllowed() && Math.random() < critRate) // magic crits only with spellCrit (or Falcon Crit on Marked targets) · Skill 2 ตาเหยี่ยว · 2nd job
+    const opener = !magic && this.waveOpen && !this.allyHitting && this.job.id === 'thief' // P2'c th_t1b: first physical hit of the wave
+    if (opener) this.waveOpen = false
+    const crit = this.forceCrit || release || shadowSure || opener || (!this.petNoCrit && this.critAllowed() && Math.random() < critRate) // magic crits only with spellCrit (or Falcon Crit on Marked targets) · Skill 2 ตาเหยี่ยว · 2nd job
     const effFlee = m.huntMark > 0 ? (m.def.flee ?? 5) * Math.max(0, 1 - this.st.j2MarkPierceFlee) : (m.def.flee ?? 5)
     const noFlee = m.huntMark > 0 && this.st.j2MarkPierceFlee >= 1
     const critSkipsFlee = crit && (!this.isSkillHit() || this.backStabbing) // Q 2026-11-19: only a basic / combo / counter crit skips Flee; a physical skill hit rolls Hit (Back Stab is a stated sure hit)
@@ -1342,12 +1360,10 @@ export class BattleScene extends Phaser.Scene {
     if (m.chill > 0 && brittle > 0) mul *= 1 + brittle
     if (this.ultFiring && m.charging && this.st.arUltBreak > 0) mul *= 1 + this.st.arUltBreak // archer tree/talent: ult vs a charging boss
     if (this.st.arLowHpBonus > 0 && m.hp < m.def.hp * 0.5) mul *= 1 + this.st.arLowHpBonus // archer talent เก็บตัวเปราะ r2
-    if (crit && this.st.thExecute > 0 && m.hp < m.def.hp * 0.3) mul *= 1.5 // Thief ★ เพชฌฆาต
     if (crit && this.st.arCritRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arCritRes) // archer talent ลมหายใจนักล่า
     const chargeDmgAdd = (magic || this.isProcHit()) && this.st.lightChargeLv > 0 && this.lightChargeStacks >= 5 ? this.st.lightChargeLv * 0.2 : 0
-    const condCritDmg = !magic && this.inShroud() && this.st.s2Star > 0 && this.s2?.id === 'th_smoke' ? S2N.smokeCritDmg : 0 // P2'b B3 (R4.6): Shroud ★ crit dmg, added (P2'c adds its own terms + the cap)
-    const critDmgAdd = condCritDmg + (!magic && this.st.j2HeartRend > 0 && this.rgDebuffed(m) ? this.st.j2HeartRend : 0) + (falconCrit > 0 && m.huntMark > 0 ? Math.max(0, 1.5 - this.st.critMul) : 0) + (m.huntMark > 0 ? this.st.j2StanceMarkCritDmg : 0) + (!magic && this.st.j3Wl > 0 ? this.res * KIT3.warlord.rageCritDmgPer : 0) + (this.isProcHit() && (!this.reacting || this.st.j3PfCritMana > 0) ? this.st.procCritMul : 0) + chargeDmgAdd // 🎓 reactions take procCritMul only with 🎯 จุดอ่อนธาตุ
-    const wasForce = this.forceCrit; if (release || shadowSure) this.forceCrit = true // sure crits keep full crit power (critPow)
+    const critDmgAdd = (magic ? 0 : this.condCritDmg(m, opener)) + (falconCrit > 0 && m.huntMark > 0 ? Math.max(0, 1.5 - this.st.critMul) : 0) + (m.huntMark > 0 ? this.st.j2StanceMarkCritDmg : 0) + (!magic && this.st.j3Wl > 0 ? this.res * KIT3.warlord.rageCritDmgPer : 0) + (this.isProcHit() && (!this.reacting || this.st.j3PfCritMana > 0) ? this.st.procCritMul : 0) + chargeDmgAdd // 🎓 reactions take procCritMul only with 🎯 จุดอ่อนธาตุ
+    const wasForce = this.forceCrit; if (release || shadowSure || opener) this.forceCrit = true // sure crits keep full crit power (critPow)
     const r = this.roll(mul, magic, crit, critDmgAdd); this.forceCrit = wasForce
     const up = this.src === 'ult' ? this.st.ultPierce : 0 // v78 บดกระดูก: ult pierce
     const awPierce = !magic && this.st.j3Rn > 0 && (this.awakenTurns > 0 || this.stampedeFiring) ? this.st.j2Spiral : 0
@@ -3191,13 +3207,19 @@ export class BattleScene extends Phaser.Scene {
   private isSkillHit() { return !this.isProcHit() && (this.src === 'skill' || this.src === 'ult' || (this.skillSlot !== null && this.src === 'other')) }
   /** Sage rework v1 crit split (data/battle-rules.ts CRIT_RULES): basic -> crit · skill/Ult -> skillCrit · proc -> spellCrit. */
   /** P2'a th_t2a: one Ult cooldown cut, the single place Thief Ult CD cuts go through (P2'c adds the global cap / floor here). */
-  private cutUltCd(n: number) { this.smashCdLeft = Math.max(0, this.smashCdLeft - n) }
+  private ultCdCutLeft = 0 // P2'c Global Ult CD cap: turns of Ult CD cut left this hero turn (KIT.thiefUltCdCutCap)
+  private ultJustCast = false // P2'c: the Ult was cast this hero turn (CD floor KIT.thiefUltCdFloor)
+  /** P2'c Global Ult CD cap: the one place Thief-line Ult CD cuts go through (th_t2a, thief_b3, Rogue Kill Reset). */
+  private cutUltCd(n: number) {
+    const cut = ultCdCut(this.smashCdLeft, n, this.ultCdCutLeft, this.ultJustCast)
+    this.smashCdLeft -= cut; this.ultCdCutLeft -= cut
+    return cut
+  }
   /** P2'a th_t2a: a dodge cuts Skill 2 (when its CD is the longer one) or the Ult cooldown, once per ICD. */
   private dodgeCdCut() {
     if (this.st.thDodgeCdCut <= 0 || this.dodgeCdIcd > 0) return
     if (this.s2Cd > 0 && this.s2Cd >= this.smashCdLeft) this.s2Cd = Math.max(0, this.s2Cd - this.st.thDodgeCdCut)
-    else if (this.smashCdLeft > 0) this.cutUltCd(this.st.thDodgeCdCut)
-    else return
+    else if (this.cutUltCd(this.st.thDodgeCdCut) <= 0) return // P2'c: nothing to cut / turn cap spent -> the ICD is not used
     this.dodgeCdIcd = this.st.thDodgeCdIcd
   }
   /** P2'b: the debuffs one monster carries, for the pure debuffKinds() (stabMark: P3 Rogue). */
@@ -3229,12 +3251,23 @@ export class BattleScene extends Phaser.Scene {
   }
   /** Status kinds on a monster for thief_c1: poison / Wound / Exposed / chill (🐌 พิษชา counts). */
   private statusKinds(m: Mon): number { return debuffKinds(this.debuffFlags(m), false) }
+  /** P2'c R4.6 B3 Crit Dmg (physical hits): every conditional crit-dmg term adds, one cap KIT.thiefCondCritDmgCap (หมายหัว's release is B4: own x mul). */
+  private condCritDmg(m: Mon, opener = false): number {
+    const st = this.st, thief = this.job.id === 'thief', hpShare = m.hp / Math.max(1, m.def.hp)
+    return condCritB3([
+      this.inShroud() && st.s2Star > 0 && this.s2?.id === 'th_smoke' ? S2N.smokeCritDmg : 0, // P2'b Shroud ★
+      st.j2HeartRend > 0 && this.rgDebuffed(m) ? st.j2HeartRend : 0, // P3'a Rogue rg_x2 ใจสลาย
+      thief && this.src === 'ult' && !this.isProcHit() ? thiefUltCondCritDmg(st, this.statusKinds(m), hpShare) : 0, // thief_u1 / u3 / th_t3a (Ult cap)
+      thief && (this.src === 'basic' || this.src === 'combo') && hpShare < KIT.thiefExecBelow ? st.thExecUlt : 0, // thief_u3 on basic / combo
+      opener ? st.thWaveOpenCritDmg : 0, // th_t1b R2
+    ])
+  }
   /** P2'a thief_c4 ★ ราชันย์โลหิต active right now. */
   private bloodKingOn(): boolean { return thiefBloodKingOn(this.st, this.hp, this.st.maxHp, this.inShroud()) }
   /** P2'b ม่านควัน Shroud is up (FLEE / skillCrit / ★ crit dmg / thief_c4 read it). */
   private inShroud(): boolean { return this.shroudTurns > 0 }
   /** P2'b: hero FLEE right now (Shroud x(1 + S2N.smokeFlee)); never write st.flee itself. */
-  private fleeNow(): number { return (this.st.flee + this.rgFlee) * (this.inShroud() ? 1 + S2N.smokeFlee : 1) } // + P3'a rg_c3 combo FLEE
+  private fleeNow(): number { return (this.st.flee + this.rgFlee + (this.shadowTurns > 0 ? this.st.thShadowFlee : 0) + (this.dodgeFleeTurns > 0 ? this.st.thDodgeFlee : 0)) * (this.inShroud() ? 1 + S2N.smokeFlee : 1) } // + P3'a rg_c3 combo FLEE · P2'c thief_b1 in ร่างเงา + th_t1a after a dodge
   /** P2'b แผลลึก: add Wound stacks (cap S2N.woundMax(s2Lv)), refresh to S2N.woundTurns hero turns. P2'c On-Hit Ult / thief_b4 ★ call it too. */
   private addWound(m: Mon, n: number) {
     if (m.dead || n <= 0) return
@@ -3273,7 +3306,7 @@ export class BattleScene extends Phaser.Scene {
     const chargeCrit = (magic || this.isProcHit()) && this.st.lightChargeLv > 0 && this.lightChargeStacks > 0 ? this.lightChargeStacks * (0.02 + this.st.lightChargeLv * 0.01) : 0
     if (this.isProcHit()) return Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit)
     if (this.isSkillHit()) {
-      const skillCrit = this.st.skillCrit + (this.inShroud() ? S2N.smokeSkillCrit : 0) // P2'b Shroud: skillCrit + (still under C.skillCrit)
+      const skillCrit = this.st.skillCrit + (this.inShroud() ? S2N.smokeSkillCrit : 0) + (this.src === 'ult' && !magic && this.job.id === 'thief' ? thiefUltCritAdd(this.st) : 0) // P2'b Shroud · P2'c thief_u1 / th_t3a Ult-only skillCrit (still under C.skillCrit)
       if (skillCrit <= 0) return 0 // Q 2026-11-19: any skill (physical or magic) needs skillCrit to crit at all (spellCrit / talent / buff bonuses ride on top of it)
       return Math.min(C.skillCrit, skillCrit + sc + iceBonus + (magic ? this.st.spellCrit + chargeCrit : (this.st.crit + physAdd) * CRIT_RULES.skillFromCrit))
     }
@@ -4118,18 +4151,40 @@ export class BattleScene extends Phaser.Scene {
 
   /** Thief ult เงาพริ้ว (Rogue พายุมีด reuses it). */
   private async shadowDance(hitPow: number) {
-    this.dodgeCharges = KIT.thiefUltDodge + this.st.ultDodge // talent: เงาซ้อน
-    this.addShadow(KIT.thiefShadow.ult) // 👤 เกจเงา
+    const st = this.st
+    this.dodgeCharges = Math.max(0, KIT.thiefUltDodge + st.ultDodge) // talents: เงาหมอกลวงตา + / เงาสังหาร −
+    this.addShadow(KIT.thiefShadow.ult + st.thUltGauge) // 👤 เกจเงา (+ P2'c th_t3c)
     this.stayIn = true // dart from monster to monster, walk home once at the end
-    for (let i = 0; i < KIT.thiefUltHits + this.st.ultHits; i++) { // talent: พายุมีด
+    // P2'c (thiefUlt* in skill-math = the budget math): every stab (finisher too) x Ratio AGI · On-Hit = lifesteal x eff + Wound chance
+    const per = KIT.thiefUlt * hitPow * (1 + st.thUltAgi), eff = thiefOnHitEff(st), prevLs = this.lsMul
+    let crits = 0, res = 0
+    const stab = (m: Mon, mul: number, i: number, sure: boolean) => {
+      shadowSlashFx(this, m.spr, i) // เงาพริ้ว: a shadow cut per dart
+      const wasForce = this.forceCrit
+      if (sure) this.forceCrit = true
+      if (eff > 0) this.lsMul = eff
+      const dealt = this.strike(m, per * mul) // Q: scales with AGI
+      this.lsMul = prevLs; this.forceCrit = wasForce
+      if (dealt > 0 && this.lastCrit) {
+        crits++
+        const g = Math.min(st.thUltCritRes, KIT.thiefUltCritResCap - res) // thief_u3: Energy per crit, capped per cast
+        if (g > 0 && this.job.resource === 'energy') { res += g; this.resGain(g) }
+      }
+      if (st.ultPoison > 0 && !m.dead) { this.addPoison(m, st.ultPoison) } // talent: มีดอาบพิษ / เงาหมอกลวงตา
+      if (eff > 0 && dealt > 0 && !m.dead && this.s2?.id === 'th_wound' && Math.random() < eff) this.addWound(m, 1) // thief_u2 On-Hit
+    }
+    const n = thiefUltHitCount(st)
+    for (let i = 0; i < n; i++) { // talent: มีดรัว / คมมีดประสาน
       const t = this.alive(); if (!t.length) break
       const m = t[Phaser.Math.Between(0, t.length - 1)]
       this.heroSpr.setAlpha(0.4)
-      await this.lunge(m, () => {
-        shadowSlashFx(this, m.spr, i) // เงาพริ้ว: a shadow cut per dart
-        this.strike(m, KIT.thiefUlt * hitPow * (1 + this.st.thUltAgi)) // Q: scales with AGI
-        if (this.st.ultPoison > 0 && !m.dead) { this.addPoison(m, this.st.ultPoison) } // talent: มีดอาบพิษ
-      }, false, true)
+      await this.lunge(m, () => stab(m, 1, i, false), false, true)
+    }
+    const fin = thiefUltFinisher(st, crits) // th_t3a / thief_u4 ★: one closing stab at the lowest-HP share
+    const last = this.alive().sort((a, b) => a.hp / Math.max(1, a.def.hp) - b.hp / Math.max(1, b.def.hp))[0]
+    if (fin.mul > 0 && last) {
+      this.floatText(last.spr.x, last.spr.y - last.spr.displayHeight - 40, '🗡️ ทีปิด!', '#c9b8ff')
+      await this.lunge(last, () => stab(last, fin.mul, n, fin.sure), false, true)
     }
     this.stayIn = false
     this.heroSpr.setAlpha(this.shadowTurns > 0 ? 0.75 : 1) // keep the ร่างเงา look
@@ -4852,7 +4907,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.st.arDodgeRes > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.arDodgeRes) // archer ★ ยิงถอย
       if (this.st.dodgeEnergy > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.dodgeEnergy) // Thief talent: ขโมยจังหวะ
       this.dodgeCdCut() // P2'a th_t2a: also cuts a cooldown (ICD)
-      this.addShadow(KIT.thiefShadow.dodge) // 👤 เกจเงา
+      this.shadowDodged() // 👤 เกจเงา (+ P2'c thief_b1 / b3)
       this.rgDodged = true // P3'a Rogue: next Back Stab is a Shadow Ambush
       return false
     }
@@ -5691,8 +5746,8 @@ export class BattleScene extends Phaser.Scene {
   private trueHurt(m: Mon, n: number, lethal: boolean, crit = false): number {
     n = Math.ceil(n)
     if (n <= 0 || this.hp <= 0) return 0
-    if (this.dodgeCharges > 0) { this.dodgeCharges--; this.evadeJuice('เงาพริ้ว!', '#c9c9d6'); this.addShadow(KIT.thiefShadow.dodge); return 0 }
-    if (this.hx.web <= 0 && Math.random() < this.st.luckyDodge) { this.evadeJuice('LUCKY!', '#6fd08c'); this.addShadow(KIT.thiefShadow.dodge); return 0 }
+    if (this.dodgeCharges > 0) { this.dodgeCharges--; this.evadeJuice('เงาพริ้ว!', '#c9c9d6'); this.shadowDodged(); return 0 }
+    if (this.hx.web <= 0 && Math.random() < this.st.luckyDodge) { this.evadeJuice('LUCKY!', '#6fd08c'); this.shadowDodged(); return 0 }
     if (this.shield > 0) { const a = Math.min(Math.ceil(this.shield), n); this.shield = Math.max(0, this.shield - a); n -= a; if (n <= 0) { this.floatText(HERO_X, GROUND - 110, '🛡️ กันไว้', '#9fe3ff'); return 0 } }
     this.castBreak(n)
     const before = this.hp
