@@ -164,6 +164,8 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
       kit('thiefStackHpMax', 'กายต้านพิษ: นับ stack สูงสุด'),
       kit('thiefCondCritDmgCap', 'B3: ดาเมจคริจากเงื่อนไข รวมสูงสุด'),
       kit('thiefShadowShieldHpCap', 'หายใจในเงา: โล่ร่างเงาสูงสุด (% HP)'),
+      kit('thiefDodgeFleeTurns', 'ก้าวเงา: Flee หลังหลบ นาน (เทิร์น)'),
+      kit('thiefOpenCritDmg', 'เปิดฉากซุ่มโจมตี R2: ดาเมจคริ + (B3)'),
     ],
   },
 }

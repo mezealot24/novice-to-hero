@@ -46,20 +46,21 @@ export const tree: ClassTree = {
   ],
   talents: [
     // ----- row 1 · Job Lv 5 · ตั้งตัว -----
-    t('th_t1a', 1, '🐈', 'ฝีเท้าแมว', 2, (r) => `Flee +${r === 1 ? 8 : 14} · หลบโชคดี +${r === 1 ? 3 : 5}%`, (r) => ({ flee: r === 1 ? 8 : 14, luckyDodge: r === 1 ? 0.03 : 0.05 })),
-    t('th_t1b', 1, '💨', 'ควันตั้งต้น', 2, (r) => `เริ่มทุกเวฟ หลบแน่นอน ${r} ครั้ง`, (r) => ({ waveDodge: r })),
+    // P2'c (ids kept, reset by migrateThiefRogueRework v5): row 1 ก้าวเงา / เปิดฉากซุ่มโจมตี · row 3 = the 3 Ult styles · th_t4c renamed (its old name = the gauge state)
+    t('th_t1a', 1, '🐈', 'ก้าวเงา', 2, (r) => `เริ่มทุกเวฟ เกจเงา +${rk(r, 1, 2)} · หลบได้: Flee +${rk(r, 12, 20)} นาน ${KIT.thiefDodgeFleeTurns} เทิร์น`, (r) => ({ thWaveGauge: rk(r, 1, 2), thDodgeFlee: rk(r, 12, 20) })),
+    t('th_t1b', 1, '💨', 'เปิดฉากซุ่มโจมตี', 2, (r) => `เริ่มทุกเวฟ หลบแน่นอน ${r} ครั้ง · การโจมตีแรกของเวฟคริแน่${r >= 2 ? ` + ดาเมจคริ +${Math.round(KIT.thiefOpenCritDmg * 100)}%` : ''} (กายภาพ)`, (r) => (r >= 2 ? { waveDodge: r, thWaveOpenCrit: 1, thWaveOpenCritDmg: KIT.thiefOpenCritDmg } : { waveDodge: r, thWaveOpenCrit: 1 })),
     t('th_t1c', 1, '🩸', 'กายต้านพิษ', 2, (r) => `มีมอนติดพิษ/Wound บนสนาม: ต้านทาน +${rk(r, 8, 14)}% · Max HP +${rk(r, 8, 14)} ต่อ stack พิษ/Wound บนสนาม (สูงสุด ${KIT.thiefStackHpMax} stack)`, (r) => ({ thCondTenacity: rk(r, 0.08, 0.14), thStackHp: rk(r, 8, 14) })), // P2'b; id kept (save data, reset by migrateThiefRogueRework v2)
     // ----- row 2 · Job Lv 10 · จังหวะ -----
     t('th_t2a', 2, '⚡', 'ขโมยจังหวะ', 2, (r) => `หลบได้ → Energy +${rk(r, 15, 25)} · ลด CD ทักษะ 2 หรือ Ult 1 เทิร์น (ทุก ${rk(r, 3, 2)} เทิร์น)`, (r) => ({ dodgeEnergy: rk(r, 15, 25), thDodgeCdCut: 1, thDodgeCdIcd: rk(r, 3, 2) })),
     t('th_t2b', 2, '🎯', 'จุดบอดซ้อนพิษ', 2, (r) => `คริ + คริสกิล +${rk(r, 1, 1.6).toFixed(1)}% ต่อ stack พิษ + Wound บนเป้า (สูงสุด ${KIT.thiefStackCritTalMax} stack) · กายภาพ`, (r) => ({ thStackCritTal: rk(r, 0.01, 0.016) })),
     t('th_t2c', 2, '🧪', 'จังหวะสลับมีด', 2, (r) => `หลังแทงพิษ: ตีปกติถัดไปแรง +${rk(r, 25, 40)}% · Energy +${rk(r, 10, 16)}`, (r) => ({ thWeaveDmg: rk(r, 0.25, 0.4), thWeaveRes: rk(r, 10, 16) })),
     // ----- row 3 · Job Lv 20 · เงาพริ้ว (ult) -----
-    t('th_t3a', 3, '👥', 'เงาซ้อน', 2, (r) => `เงาพริ้ว หลบแน่นอน 2 → ${2 + r} ครั้ง`, (r) => ({ ultDodge: r })),
-    t('th_t3b', 3, '🌪️', 'มีดรัว', 2, (r) => `เงาพริ้ว แทง 4 → ${r === 1 ? 6 : 7} ที`, (r) => ({ ultHits: r === 1 ? 2 : 3 })),
-    t('th_t3c', 3, '☠️', 'มีดอาบพิษ', 2, (r) => `เงาพริ้ว แต่ละทีติดพิษ +${r === 1 ? 2 : 3} stack`, (r) => ({ ultPoison: r === 1 ? 2 : 3 })),
+    t('th_t3a', 3, '💀', 'เงาสังหาร', 2, (r) => `เงาพริ้ว: สกิลคริ +${rk(r, 5, 8)}% · ดาเมจคริ +${rk(r, 10, 15)}% ใส่เป้า HP < ${Math.round(KIT.thiefUltExecBelow * 100)}% หรือติดดีบัฟ ≥ ${KIT.thiefKindsAt} ชนิด · แทงปิดท้าย 1 ที ${rk(r, 0.35, 0.5)}x ใส่ตัว HP น้อยสุด · หลบแน่นอน −1 ครั้ง`, (r) => ({ thUltExecCrit: rk(r, 0.05, 0.08), thUltExecDmg: rk(r, 0.1, 0.15), thUltKillFinisher: rk(r, 0.35, 0.5), ultDodge: -1 })),
+    t('th_t3b', 3, '🌪️', 'คมมีดประสาน', 2, (r) => `เงาพริ้ว แทง ${KIT.thiefUltHits} → ${KIT.thiefUltHits + r} ที · On-Hit +${rk(r, 3, 5)}% (ไม่มีเงาประสานอาวุธ = ${Math.round((KIT.thiefOnHitBase + rk(r, 0.03, 0.05)) * 100)}%)`, (r) => ({ ultHits: r, thUltOnHitTal: rk(r, 0.03, 0.05) })),
+    t('th_t3c', 3, '🌫️', 'เงาหมอกลวงตา', 2, (r) => `เงาพริ้ว: หลบแน่นอน ${KIT.thiefUltDodge} → ${KIT.thiefUltDodge + r} ครั้ง · แต่ละทีติดพิษ +${rk(r, 2, 3)} stack · เกจเงา +1 ต่อการกด`, (r) => ({ ultDodge: r, ultPoison: rk(r, 2, 3), thUltGauge: 1 })),
     // ----- row 4 · Job Lv 30 · ล้มบอส -----
     t('th_t4a', 4, '🧫', 'สถานะทับซ้อน', 2, (r) => `ศัตรูที่พิษ ≥ ${Math.round(KIT.thiefPrivShare * 100)}% ของเพดานพิษ (${poisonAt(KIT.thiefPrivShare, KIT.poison.baseCap)} จาก ${KIT.poison.baseCap}) หรือติดดีบัฟต่างชนิด ≥ ${KIT.thiefKindsAt} อย่าง รับดาเมจ +${rk(r, 18, 30)}% (รวมพิษ · รวมกับโบนัสรับดาเมจอื่นไม่เกิน +${Math.round(KIT.thiefTakenCap * 100)}%)`, (r) => ({ thPrivileged: rk(r, 0.18, 0.3) })), // P2'b Privileged Status (B1); id kept (save data, reset by migrateThiefRogueRework v2)
     t('th_t4b', 4, '🗡️', 'นักฆ่า', 2, (r) => `ดาเมจคริ +${r === 1 ? 30 : 50}%`, (r) => ({ critMul: r === 1 ? 0.3 : 0.5 })),
-    t('th_t4c', 4, '🌑', 'ร่างเงา', 2, (r) => `มอนตีโดนขั้นต่ำ −${r === 1 ? 5 : 8}% (ต่ำสุด 60%)`, (r) => ({ fleeFloor: r === 1 ? 0.05 : 0.08 })),
+    t('th_t4c', 4, '🌑', 'หมอกลวงตา', 2, (r) => `มอนตีโดนขั้นต่ำ −${r === 1 ? 5 : 8}% (ต่ำสุด 60%)`, (r) => ({ fleeFloor: r === 1 ? 0.05 : 0.08 })),
   ],
 }

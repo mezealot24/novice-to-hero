@@ -116,8 +116,20 @@
   - 🎯 `thief_u1` เงาจุดตาย: Ult skillCrit +1–5% (opens Ult crits with no gear skillCrit) · Ult crit dmg +1–5% per debuff kind (max 3)
   - 🩸 `thief_u2` เงาประสานอาวุธ: On-Hit 40–50% = Ult stabs lifesteal x share · same chance Wound +1 (แผลลึก)
   - 💀 `thief_u3` เพชฌฆาตเงา: crit dmg +3–15% vs HP < 35% (Ult + basic / combo, B3) · Energy +1–6 per Ult crit (max 12 / cast)
-  - 🗡️ `thief_u4` ★ เงาพันคม: 3+ Ult crits = closing stab 0.25x (sure crit) at the lowest-HP share — always fires inside ร่างเงา
+  - 🗡️ `thief_u4` ★ เงาพันคม: 3+ Ult crits = closing stab 0.2x (sure crit) at the lowest-HP share — always fires inside ร่างเงา
 - Ult-own crit dmg total capped at `thiefUltCondCap` 0.15, then the B3 cap · every stab (finisher too) x Ratio AGI
 - `shadowDance()` (Rogue พายุมีด too) reads the shared pure math; Ult info panel lists the new rows
 - 1 new `KIT` key `thiefUltCritResCap` · `thUltCritRes` in `INT_FIELDS`
 - Budget test: u full ≤ live ceiling for every hero profile, gauge on and off (`th_t3b` re-cut comes with the talents commit)
+
+## ✨ feat(thief): P2'c talents rows 1 / 3 + rename th_t4c
+- Row 1 (ids kept, reset by save v5):
+  - 🐈 `th_t1a` ก้าวเงา: every wave starts with เกจเงา +1 | +2 · after a dodge Flee +12 | +20 for `thiefDodgeFleeTurns` 2 hero turns (refresh)
+  - 💨 `th_t1b` เปิดฉากซุ่มโจมตี (was ควันตั้งต้น): wave-start sure dodges 1 | 2 (kept) · first physical hit of each wave = sure crit · R2 + `thiefOpenCritDmg` 25% crit dmg (B3)
+- Row 3 = the 3 Ult styles (numbers cut for the Ult budget, see `design/p2/NOTES.md` P2'c table):
+  - 💀 `th_t3a` เงาสังหาร: Ult skillCrit +5 | +8% · crit dmg +10 | +15% vs HP < 50% or 2+ kinds (Ult cap) · closing stab 0.35 | 0.5x · sure dodges −1
+  - 🌪️ `th_t3b` คมมีดประสาน (was มีดรัว +2 | +3): stabs +1 | +2 · On-Hit +3 | +5% (alone 41 | 43%)
+  - 🌫️ `th_t3c` เงาหมอกลวงตา: sure dodges +1 | +2 (was th_t3a) · poison +2 | +3 per stab (was th_t3c) · เกจเงา +1 per cast
+- 🌑 `th_t4c` ร่างเงา -> **หมอกลวงตา** (name clashed with the gauge state; effect unchanged)
+- `thiefFinisherMul` 0.25 -> 0.2 (max stack + card ultHits was 0.3% over the ceiling)
+- 2 new `KIT` keys with Thai labels · budget table test (Lv 20 / 40 / 80 + Rogue, gauge off / on, every profile, + card ultHits)

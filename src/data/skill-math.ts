@@ -103,7 +103,7 @@ export const KIT = {
   thiefUltKindsMax: 3, // thief_u1: debuff kinds that count
   thiefExecBelow: 0.35, thiefUltExecBelow: 0.5, // thief_u3 / th_t3a: target HP share under which they add crit dmg
   thiefOnHitBase: 0.38, thiefOnHitCap: 0.55, // On-Hit share (thief_u2 / th_t3b): base + node + talent, capped
-  thiefFinisherAt: 3, thiefFinisherMul: 0.25, // thief_u4 ★: crits in one cast for the closing stab · its power x one stab (sure crit)
+  thiefFinisherAt: 3, thiefFinisherMul: 0.2, // thief_u4 ★: crits in one cast for the closing stab · its power x one stab (sure crit)
   thiefUltCritResCap: 12, // thief_u3: Energy from Ult crits, at most this per cast
   // Global Ult CD cap (Rev 3 §5.1): every Thief-line Ult CD cut (th_t2a, thief_b3, Rogue Kill Reset) shares thiefUltCdCutCap turns per hero
   // turn, and in the turn the Ult was cast the CD never drops below thiefUltCdFloor (2 = at least one hero turn between two casts)
@@ -111,6 +111,8 @@ export const KIT = {
   // R4.6 B3: conditional crit dmg (Shroud ★, Rogue rg_x2 ใจสลาย, Ult-own, thief_u3 on basic / combo, th_t1b R2) ADDS into critMul, one cap
   thiefCondCritDmgCap: 0.75,
   thiefShadowShieldHpCap: 0.2, // thief_b2: the ร่างเงา shield is at most this share of max HP
+  thiefDodgeFleeTurns: 2, // th_t1a: hero turns the Flee after a dodge lasts (refreshed, never stacks)
+  thiefOpenCritDmg: 0.25, // th_t1b R2: crit dmg + on the wave's sure-crit opener (B3)
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
   // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
   // 💰 Thief ทักษะ 2 ล้วงกระเป๋า (Q 2026-11-18, GW2 Steal): what you steal depends on the front monster's top stat. admin `kit` · thiefSteal.*

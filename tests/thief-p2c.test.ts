@@ -137,6 +137,49 @@ test('Ult budget (Q2): thief_u full stays under the live ceiling in both gauge s
   assert.ok(worst(build(U_FULL), 1) <= 1, 'with card เงาพันหน้า (ultHits +1) on both sides')
 })
 
+const tal = (id: string) => { const t = TALENTS.find((x) => x.id === id); assert.ok(t, id); return t }
+
+test('talents rows 1 / 3 (P2\'c) + th_t4c renamed: texts clean, values > 0 except th_t3a\'s dodge trade-off', () => {
+  for (const id of ['th_t1a', 'th_t1b', 'th_t3a', 'th_t3b', 'th_t3c', 'th_t4c']) {
+    const t = tal(id)
+    for (const r of [1, 2]) {
+      assert.ok(!/undefined|NaN/.test(t.desc(r)), t.desc(r))
+      for (const [k, v] of Object.entries(t.mod(r))) {
+        assert.ok(k in PLAYER, `${id} ${k}`)
+        if (!(id === 'th_t3a' && k === 'ultDodge')) assert.ok((v as number) > 0, `${id} r${r} ${k}=${v}`)
+      }
+    }
+  }
+  assert.equal(tal('th_t3a').mod(2).ultDodge, -1)
+  assert.ok(KIT.thiefUltDodge + (tal('th_t3a').mod(2).ultDodge ?? 0) >= 1, 'never below 1 sure dodge')
+  assert.notEqual(tal('th_t4c').name, 'ร่างเงา', 'name no longer clashes with the 👤 gauge state')
+  for (const t of TALENTS.filter((x) => x.job === 'thief')) assert.notEqual(t.name, 'ร่างเงา', t.id)
+  assert.equal(tal('th_t3b').mod(2).ultHits, 2, 're-cut: +1 | +2 stabs (live was +2 | +3)')
+  assert.deepEqual(tal('th_t1b').mod(1), { waveDodge: 1, thWaveOpenCrit: 1 })
+  near(tal('th_t1b').mod(2).thWaveOpenCritDmg ?? 0, KIT.thiefOpenCritDmg)
+})
+
+/** Reference heroes per level (crit rework: skillCrit only from gear / cards / mastery / th_t2b). */
+const LV: Record<number, UltHero> = { 20: { skillCrit: 0, critMul: 1.4 }, 40: { skillCrit: 0.1, critMul: 1.8 }, 80: { skillCrit: 0.25, critMul: 2.2 } }
+const ROGUE80: UltHero = { skillCrit: 0.3, critMul: 2.2 } // + ชำนาญมีด skillCrit 0.05 · พายุมีด = the same dance x h2 (cancels), knives outside the budget
+const BUILDS: Record<string, Stats> = {
+  'th_t3b R2': build([], [['th_t3b', 2]]),
+  'th_t3a R2 + u full': build(U_FULL, [['th_t3a', 2]]),
+  'th_t3b R2 + u full (max)': build(U_FULL, [['th_t3b', 2]]),
+  'th_t3c R2 + u full': build(U_FULL, [['th_t3c', 2]]),
+}
+
+test('Ult budget table (Q2): every build <= live ceiling at Lv 20 / 40 / 80 and for Rogue, gauge off AND on', () => {
+  for (const [name, b] of Object.entries(BUILDS)) {
+    for (const h of [...Object.values(LV), ROGUE80]) for (const shadow of [false, true]) {
+      const r = thiefUltBudget(b, h, shadow) / ceiling(h, shadow)
+      assert.ok(r <= 1, `${name} ${JSON.stringify(h)} shadow=${shadow}: ${r.toFixed(3)}`)
+    }
+    assert.ok(worst(b) <= 1, `${name}: worst over every profile ${worst(b).toFixed(3)}`)
+    assert.ok(worst(b, 1) <= 1, `${name} + card ultHits`)
+  }
+  assert.ok(worst(BUILDS['th_t3b R2 + u full (max)']) >= 0.9, 'max stack still close to live (not cut to death)')
+})
 // ---------- save migration thiefRogueRework v5 (localStorage mock for load()) ----------
 const mem: Record<string, string> = {}
 ;(globalThis as { localStorage?: unknown }).localStorage = {
