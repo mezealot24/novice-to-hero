@@ -125,6 +125,18 @@ export const KIT = {
   thiefAgonyFrom: 1.4, thiefAgonyCap: 1, thiefAgonyHitCut: 0.15, // th_t4b วิถีพิษคริ (B5): critMul floor, cap (shared with vsPoison), non-crit physical cut
   thiefWardPer: 0.003, thiefWardCap: 0.15, // WIS Shadow Ward: DR per WIS above start (cap 15%) vs magic / monHit >= 999 / trueSight
   thiefLuckyRes: 6, // LUK Gambler's Edge: Energy on LUCKY! dodge (1/hero turn)
+  // PoE Passive Tree Phase 1 (Thief-Line Constellation, data/passives/thief.ts)
+  thiefDeathMarkTurns: 2, // Death Mark Keystone: hero turns the mark records non-DoT hero net HP damage
+  thiefDeathMarkAt: 0.15, // Death Mark Keystone: early detonation HP threshold (15% max HP)
+  thiefDeathMarkEcho: 0.35, // Death Mark Keystone: share of recorded net HP dmg echoed as pure B6 burst
+  thiefMistDr: 0.25, // Mistwalker Keystone: DR vs magic / monHit >= 999 / trueSight
+  thiefMistDefCut: 0.3, // Mistwalker Keystone downside: -30% P.DEF & -30% shields gained
+  thiefFlurryDmgCut: 0.1, // Blade Flurry Keystone downside: -10% Ult per-hit multiplier
+  thiefMobFlurryMul: 0.5, // Blade Flurry Keystone Mobster bonus: extra ทวงหนี้ slash multiplier
+  thiefOverhealCap: 0.2, // Eldritch Venom Keystone: Toxic Overheal shield cap (% max HP)
+  thiefEldritchMatkShare: 0.5, // Eldritch Venom Keystone: extra M.ATK -> flat poison scaling share (x KIT.poison.matkPer)
+  thiefPhysLeechCut: 0.5, // Eldritch Venom Keystone downside: -50% normal physical lifesteal
+  thiefLuckyPoison: 2, // Lucky Reprisal Notable: poison stacks Mobster applies on LUCKY! dodge
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
   // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
   // 💰 Thief ทักษะ 2 ล้วงกระเป๋า (Q 2026-11-18, GW2 Steal): what you steal depends on the front monster's top stat. admin `kit` · thiefSteal.*
@@ -506,7 +518,7 @@ export interface TakenIn { exposed: number; stabMark: number; woundPriv: number;
 export const takenAmp = (i: TakenIn): number =>
   Math.max(0, Math.min(KIT.thiefTakenCap, i.exposed + i.stabMark + i.woundPriv + i.privileged + i.poisonAmp))
 // ---------- P2'c Thief Ult (เงาพริ้ว) pure math: BattleScene and the budget test read the same functions ----------
-export type UltSt = Pick<Stats, 'ultHits' | 'thUltCrit' | 'thUltExecCrit' | 'thUltCondCritDmg' | 'thExecUlt' | 'thUltExecDmg' | 'thUltFinisher' | 'thUltKillFinisher' | 'thUltOnHit' | 'thUltOnHitTal'>
+export type UltSt = Pick<Stats, 'ultHits' | 'thUltCrit' | 'thUltExecCrit' | 'thUltCondCritDmg' | 'thExecUlt' | 'thUltExecDmg' | 'thUltFinisher' | 'thUltKillFinisher' | 'thUltOnHit' | 'thUltOnHitTal'> & Partial<Pick<Stats, 'thFlurryDmgCut'>>
 /** Stabs of one เงาพริ้ว (Rogue พายุมีด runs the same dance). */
 export const thiefUltHitCount = (st: UltSt): number => KIT.thiefUltHits + Math.max(0, st.ultHits)
 /** Ult-only skillCrit from thief_u1 / th_t3a (it counts as skillCrit: a physical Ult with only this can crit). */
@@ -554,13 +566,14 @@ export interface UltHero { skillCrit: number; critMul: number; b3Other?: number 
  *  trigger are expected values. `shadow` = cast inside 👤 ร่างเงา: every physical stab is a sure crit at full crit power. */
 export function thiefUltBudget(st: UltSt, hero: UltHero, shadow: boolean): number {
   const n = thiefUltHitCount(st)
+  const flurryCut = Math.max(0, 1 - Math.max(0, st.thFlurryDmgCut ?? 0))
   const cd = hero.critMul + condCritB3([hero.b3Other ?? 0, thiefUltCondCritDmg(st, KIT.thiefUltKindsMax, 0)])
   const p = shadow ? 1 : thiefUltCritRate(hero.skillCrit, st)
   const per = 1 + p * (cd - 1)
   const a = Math.max(0, st.thUltKillFinisher)
   const fires = st.thUltFinisher > 0 ? atLeast(n, p, KIT.thiefFinisherAt) : 0
   const b = Math.max(a, KIT.thiefFinisherMul)
-  return n * per + (1 - fires) * a * per + fires * b * cd
+  return (n * per + (1 - fires) * a * per + fires * b * cd) * flurryCut
 }
 /** Global Ult CD cap: turns a wanted cut really takes (`budget` = what is left of KIT.thiefUltCdCutCap this hero turn). */
 export const ultCdCut = (cdLeft: number, want: number, budget: number, justCast: boolean): number =>
@@ -570,7 +583,7 @@ export const ultCost = (job: JobDef, st?: Stats) => (job.resource === 'mana' ? (
 /** Ult cooldown in hero turns before relics (gear smashCd lowers it for every job). */
 export const ultCooldown = (job: JobDef, st: Stats) => {
   const cdCut = Math.round((PLAYER.smashCd - st.smashCd) / BATTLE.msPerTurn)
-  return Math.max(2, job.ult.cd + st.mgUltCd - cdCut)
+  return Math.max(2, job.ult.cd + st.mgUltCd + st.thUltCdAdd - cdCut)
 }
 export const s2Cooldown = (k: Skill2Def, _st: Stats) => Math.max(1, k.cd)
 /** Light spear multiplier x M.ATK (Skill 2 หอกคม adds on top at run start). */
@@ -964,15 +977,19 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
       if (st.clPurify > 0) out.push({ label: 'ไฟชำระ: ล้างดีบัฟ + ฮีล (M.ATK)', value: `${heal(st, st.matk * CLERIC_KIT.purifyHeal)} HP` })
       if (st.ultHoly > 0) out.push({ label: 'แสงลงทัณฑ์/ตัว', value: hitText(st, st.ultHoly, true) })
       break
-    case 'thief':
-      out.push({ label: `แทง ${thiefUltHitCount(st)} ที ดาเมจ/ที`, value: hitText(st, KIT.thiefUlt * hitPow * (1 + st.thUltAgi), false) })
+    case 'thief': {
+      const flurryCut = Math.max(0, 1 - Math.max(0, st.thFlurryDmgCut))
+      const stabMul = KIT.thiefUlt * hitPow * (1 + st.thUltAgi) * flurryCut
+      out.push({ label: `แทง ${thiefUltHitCount(st)} ที ดาเมจ/ที`, value: hitText(st, stabMul, false) })
       out.push({ label: 'หลบแน่นอน', value: `${Math.max(0, KIT.thiefUltDodge + st.ultDodge)} ครั้ง` })
       // P2'c thief_u / th_t3*
       if (thiefUltCritAdd(st) > 0) out.push({ label: 'สกิลคริ (เฉพาะเงาพริ้ว)', value: `+${pct(thiefUltCritAdd(st))}` })
       { const cc = thiefUltCondCritDmg(st, KIT.thiefUltKindsMax, 0); if (cc > 0) out.push({ label: 'ดาเมจคริเงื่อนไข (สูงสุด)', value: `+${pct(cc)}` }) }
       if (thiefOnHitEff(st) > 0) out.push({ label: 'On-Hit (ดูดเลือด · Wound)', value: pct(thiefOnHitEff(st)) })
-      if (st.thUltKillFinisher > 0 || st.thUltFinisher > 0) out.push({ label: 'ทีปิด', value: hitText(st, KIT.thiefUlt * hitPow * (1 + st.thUltAgi) * Math.max(st.thUltKillFinisher, st.thUltFinisher > 0 ? KIT.thiefFinisherMul : 0), false) })
+      if (st.thUltKillFinisher > 0 || st.thUltFinisher > 0) out.push({ label: 'ทีปิด', value: hitText(st, stabMul * Math.max(st.thUltKillFinisher, st.thUltFinisher > 0 ? KIT.thiefFinisherMul : 0), false) })
+      if (st.thDeathMark > 0) out.push({ label: 'ตราความตาย (Death Mark)', value: `เก็บดาเมจ ${KIT.thiefDeathMarkTurns} เทิร์น → ระเบิด ${pct(st.thDeathMark)} True (หรือ HP < ${pct(KIT.thiefDeathMarkAt)})` })
       break
+    }
     default: return []
   }
   return out

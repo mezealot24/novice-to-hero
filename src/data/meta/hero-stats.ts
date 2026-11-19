@@ -3,6 +3,7 @@ import { BM_STANCE, KIT, KIT2, KIT3, S2N } from "../skill-math";
 import { leechRate, shadowWard } from "../thief-offmeta";
 import { COUNTER_RULES } from "../stack-math";
 import { branchPts, crossTierBonus, talent2Mods, talentMods, tree2Mods, tree3Mods, treeMods, type TalentSave, type TreeSave } from "../tree";
+import { hasPassiveTree, passiveMods } from "../passive-tree";
 import { JOB2, type Job2Id, type PetId } from "../jobs2";
 import { activeJob3, JOB3_RULES, type Job3Id, type Job3Path, type Job3Variant } from "../jobs3";
 import { JOBS, JOB_CHANGE, RES_RULES, type JobId } from "../jobs";
@@ -36,6 +37,7 @@ export interface StatsInput {
 	jobLevel?: number;
 	job2Talents?: TalentSave;
 	job2Level?: number;
+	passiveNodes?: string[]; // PoE-style class-line passive constellation (data/passive-tree.ts)
 	baseLevel?: number; // Base Lv (SaveData has it): sizes the stat-point pool for Ratio AGI (thiefUltAgiBonus)
 	sockets?: Record<string, string[]>;
 	grade?: Record<string, number>;
@@ -349,9 +351,24 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 	add(RACES[s.race].traitMod);
 	add(job.mod);
 	for (const m of treeMods(s.jobTree, job.id)) add(m);
-	for (const m of talentMods(s.jobTalents, job.id, s.jobLevel ?? 1)) add(m);
 	const j2 =
 		s.job2 && JOB2[s.job2]?.parent === job.id ? JOB2[s.job2] : undefined; // 2nd job (design/second-jobs-v1.md)
+	const j3 = j2 ? activeJob3(s) : undefined;
+	const hasLegacyTalents =
+		(s.jobTalents !== undefined && Object.keys(s.jobTalents).length > 0) ||
+		(s.job2Talents !== undefined && Object.keys(s.job2Talents).length > 0);
+	const usePassive =
+		hasPassiveTree(job.id) &&
+		(s.passiveNodes !== undefined || !hasLegacyTalents);
+	if (usePassive) {
+		for (const m of passiveMods(job.id, s.passiveNodes, {
+			job2: j2?.id,
+			job3: j3,
+		}))
+			add(m);
+	} else {
+		for (const m of talentMods(s.jobTalents, job.id, s.jobLevel ?? 1)) add(m);
+	}
 	const j2pct = { maxHp: 0, aspd: 0, atk: 0 };
 	if (j2) {
 		add(j2.mod);
@@ -373,7 +390,10 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 		st.ultAmp += cBonus.ultAmpAdd;
 		st.s1Pow += cBonus.s1Add;
 		st.s3Pow += cBonus.s3Add;
-		for (const m of talent2Mods(s.job2Talents, j2.id, s.job2Level ?? 1)) add(m); // v119 ทาเลนต์ชั้น 2
+		if (!usePassive) {
+			for (const m of talent2Mods(s.job2Talents, j2.id, s.job2Level ?? 1))
+				add(m); // v119 ทาเลนต์ชั้น 2
+		}
 		const wpn = itemById(s.equipped.weapon ?? "");
 		if (j2.mastery.ok(wpn)) {
 			add(j2.mastery.mod);
@@ -381,7 +401,6 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 		} // weapon mastery
 		j2pct.maxHp += j2.pct?.maxHp ?? 0;
 		j2pct.aspd += j2.pct?.aspd ?? 0;
-		const j3 = activeJob3(s);
 		if (j3) {
 			// 3rd job (design/awakening-*.md): ใยชั้น 3 + legacy reads of the 2nd-job web
 			const P = KIT3[j3],
@@ -505,6 +524,12 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 	}
 	if (job.id === "thief") {
 		st.thShadowWard = shadowWard(statEff(b, "wis"));
+		if (st.thEldritchVenom > 0 && st.matk > 0) {
+			st.poisonDmg += st.matk * KIT.poison.matkPer * KIT.thiefEldritchMatkShare;
+		}
+	}
+	if (st.thDefShieldCut > 0) {
+		st.def = Math.round(st.def * Math.max(0, 1 - st.thDefShieldCut));
 	}
 	const rawMdef = st.mdef;
 	const rawTenacity = st.tenacity;
