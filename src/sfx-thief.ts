@@ -1,9 +1,19 @@
-// Thief-line procedural Web Audio SFX: Base Thief, Rogue, and Mobster.
-// Pure synth (no audio files) using headroom-safe primitives from ./sfx-core.
-import { canPlay, fmTone, noiseBurst, tone } from './sfx-core'
+// Thief-line procedural Web Audio SFX: Ragnarok Online (RO) crisp dagger style for Base Thief, Rogue, and Mobster.
+// Pure synth (no audio files) using waveshaped zero-attack blade slices + tight flesh cuts from ./sfx-core.
+import { audioTimeMs, bladeSlice, canPlay, fleshImpact, fmTone, isAudioReady, noiseBurst, playSample, registerSample, tone } from './sfx-core'
+import daggerHitUrl from './assets/sfx/dagger_hit.mp3'
+import daggerHit2Url from './assets/sfx/dagger_hit_2.mp3'
+import doubleSlashUrl from './assets/sfx/double_slash.mp3'
+
+registerSample('dagger_hit', daggerHitUrl)
+registerSample('dagger_hit_2', daggerHit2Url)
+registerSample('double_slash', doubleSlashUrl)
 
 export const THIEF_SFX_THROTTLE = {
-  daggerSlash: 35,
+  daggerSlash: 30,
+  daggerHit: 0,
+  daggerCrit: 0,
+  daggerCritSpark: 55,
   doubleStrike: 35,
   shadowTick: 45,
   shadowForm: 120,
@@ -48,26 +58,73 @@ export interface BackStabSfxOpts {
   shadow?: boolean
 }
 
+let lastCutMs = -1000
+let cutBurst = 0
+
+/** Reset RO double-attack burst stagger state (for unit tests). */
+export function resetThiefSfxForTest(): void {
+  lastCutMs = -1000
+  cutBurst = 0
+}
+
+/** Stagger rapid Thief cuts by 66ms for RO Double-Attack cadence, capped at 3 per burst. */
+function nextCutSlot(): { delay: number; pitch: number } | null {
+  if (!isAudioReady()) return null
+  const now = audioTimeMs()
+  if (now - lastCutMs > 38) {
+    lastCutMs = now
+    cutBurst = 0
+  } else if (cutBurst >= 2) {
+    return null
+  } else {
+    cutBurst++
+  }
+  return { delay: cutBurst * 0.066, pitch: 1 + cutBurst * 0.085 }
+}
+
 export const thiefSfx = {
   // ===== Base Thief Core & Passives =====
-  /** Twin-blade slash matching Thief's 2-hit basic & daggerCrossFx (Mobster shifts darker). */
+  /** Pure crisp RO air-cut swing ("ชึ้บ! / ซวับ!"), alternating even/odd pitch (Mobster shifts darker). */
   daggerSlash: (hitN = 0, mobster = false): void => {
     if (!canPlay('daggerSlash', THIEF_SFX_THROTTLE.daggerSlash)) return
-    const alt = hitN % 2 === 0 ? 1 : 1.07
-    const baseMul = mobster ? 0.84 : 1
-    const m = alt * baseMul
-    noiseBurst(0.065, 0.22, 'bandpass', 5200 * baseMul, 1500 * baseMul, 2.2, 0)
-    fmTone(1650 * m, 920 * m, 2.76, 900, 0.055, 0.16, 0, { jitterPct: 0.06 })
-    noiseBurst(0.06, 0.2, 'bandpass', 6000 * baseMul, 1800 * baseMul, 2.4, 0.042)
-    fmTone(1980 * m, 1180 * m, 2.76, 1000, 0.05, 0.15, 0.042, { jitterPct: 0.06 })
+    const m = (hitN % 2 === 0 ? 1 : 1.09) * (mobster ? 0.85 : 1)
+    bladeSlice({ dur: 0.068, vol: 0.34, f0: 9200 * m, f1: 2100 * m, q: 0.9, edgeFreq: 5400 * m, drive: 2.4 })
   },
 
-  /** Snappy ascending steel twin-glint for DOUBLE! Strike. */
+  /** Razor-sharp RO dagger cut + meaty flesh impact, auto-staggered 66ms for Double Attack. */
+  daggerHit: (mobster = false): void => {
+    const slot = nextCutSlot()
+    if (!slot) return
+    const p = slot.pitch * (mobster ? 0.88 : 1)
+    const sampleKey = Math.random() < 0.5 ? 'dagger_hit' : 'dagger_hit_2'
+    if (playSample(sampleKey, { vol: 0.8, rate: p, delay: slot.delay, jitterPct: 0.06 })) return
+    bladeSlice({ dur: 0.058, vol: 0.46, f0: 6800 * p, f1: 1450 * p, q: 0.9, edgeFreq: 4900 * p, drive: 3.5, delay: slot.delay })
+    fleshImpact(0.44, 300 * p, 72, 0.044, slot.delay)
+  },
+
+  /** Iconic RO CRITICAL dagger gouge ("ชวิ๊ง-ฉั๊บ!") with tight steel crit glint. */
+  daggerCrit: (mobster = false): void => {
+    const slot = nextCutSlot()
+    if (!slot) return
+    const p = slot.pitch * (mobster ? 0.9 : 1)
+    bladeSlice({ dur: 0.095, vol: 0.54, f0: 9600 * p, f1: 1600 * p, q: 0.85, edgeFreq: 6400 * p, drive: 4.2, delay: slot.delay })
+    fleshImpact(0.5, 340, 58, 0.068, slot.delay)
+    fmTone(2800 * p, 2400 * p, 1.5, 650, 0.105, 0.2, slot.delay + 0.004, { jitterPct: 0.04 })
+  },
+
+  /** Tight crit punch + crisp flash shimmer under critJuice for Thief line (replaces 8-bit critBoom). */
+  daggerCritSpark: (): void => {
+    if (!canPlay('daggerCritSpark', THIEF_SFX_THROTTLE.daggerCritSpark)) return
+    tone('sine', 148, 42, 0.16, 0.42, 0)
+    bladeSlice({ dur: 0.075, vol: 0.28, f0: 10500, f1: 3800, q: 1.5, edgeFreq: 7200, drive: 2.2, delay: 0.008 })
+  },
+
+  /** Razor glint accent landing on the 3rd beat (132ms) of Double Attack. */
   doubleStrike: (): void => {
     if (!canPlay('doubleStrike', THIEF_SFX_THROTTLE.doubleStrike)) return
-    fmTone(1760, 2349, 2.41, 750, 0.065, 0.2, 0, { jitterPct: 0.05 })
-    fmTone(2349, 3136, 2.41, 850, 0.08, 0.22, 0.045, { jitterPct: 0.05 })
-    noiseBurst(0.05, 0.18, 'highpass', 4200, 2000, 1.0, 0.01)
+    if (playSample('double_slash', { vol: 0.85, rate: 1, delay: 0.132, jitterPct: 0.05 })) return
+    bladeSlice({ dur: 0.06, vol: 0.32, f0: 9800, f1: 2600, q: 1.05, edgeFreq: 6600, drive: 3.0, delay: 0.132 })
+    tone('triangle', 2349, 3136, 0.055, 0.14, 0.134)
   },
 
   /** Subtle ascending shadowy glass chime as Shadow Gauge fills. */
@@ -106,12 +163,12 @@ export const thiefSfx = {
     tone('triangle', 2093, 2349, 0.1, 0.22, 0.055)
   },
 
-  /** Counter strike from the shadows (phantom zip + razor slash + thump). */
+  /** Counter strike from the shadows (phantom zip + razor blade cut + flesh impact). */
   shadowCounter: (): void => {
     if (!canPlay('shadowCounter', THIEF_SFX_THROTTLE.shadowCounter)) return
-    noiseBurst(0.1, 0.26, 'bandpass', 1800, 5200, 2.2)
-    fmTone(2100, 1050, 2.76, 1300, 0.11, 0.26, 0.025, { jitterPct: 0.05 })
-    tone('sine', 180, 70, 0.12, 0.28, 0.02)
+    noiseBurst(0.085, 0.22, 'bandpass', 1800, 5200, 2.2)
+    bladeSlice({ dur: 0.095, vol: 0.48, f0: 8800, f1: 1500, q: 0.9, edgeFreq: 5800, drive: 3.8, delay: 0.02 })
+    fleshImpact(0.46, 300, 62, 0.06, 0.02)
   },
 
   /** Sharp crimson snap + sub impact when releasing full Malice mark stacks. */
@@ -123,11 +180,11 @@ export const thiefSfx = {
   },
 
   // ===== Base Thief Skill 1, Skill 2, Ult & Poison Ecosystem =====
-  /** Skill 1 Venom Stab: steel thrust + caustic acid hiss + bubbling venom blips. */
+  /** Skill 1 Venom Stab (RO Envenom): razor pierce + caustic acid hiss + bubbling venom blips. */
   venomStab: (): void => {
     if (!canPlay('venomStab', THIEF_SFX_THROTTLE.venomStab)) return
-    fmTone(1850, 820, 2.76, 1100, 0.07, 0.24, 0, { jitterPct: 0.05 })
-    noiseBurst(0.24, 0.26, 'bandpass', 2800, 900, 3.2, 0.04, 0.01)
+    bladeSlice({ dur: 0.065, vol: 0.42, f0: 8200, f1: 1700, q: 0.95, edgeFreq: 5400, drive: 3.4 })
+    noiseBurst(0.24, 0.25, 'bandpass', 2800, 850, 3.0, 0.035, 0.01)
     tone('sine', 620, 340, 0.06, 0.14, 0.05)
     tone('sine', 510, 840, 0.055, 0.12, 0.1)
     tone('sine', 440, 260, 0.07, 0.11, 0.15)
@@ -141,13 +198,14 @@ export const thiefSfx = {
     noiseBurst(0.32, 0.18, 'bandpass', 1400, 480, 2.0, 0.04, 0.02)
   },
 
-  /** Shroud follow-up Sightless Raid: blinding high flash ping + sudden twin ambush cut. */
+  /** Shroud follow-up Sightless Raid: blinding high flash ping + rapid twin ambush cross-cut. */
   sightlessRaid: (): void => {
     if (!canPlay('sightlessRaid', THIEF_SFX_THROTTLE.sightlessRaid)) return
-    tone('sine', 2637, 1760, 0.16, 0.18, 0, { attack: 0.004 })
-    fmTone(2200, 1100, 2.76, 1300, 0.09, 0.24, 0.015)
-    noiseBurst(0.12, 0.28, 'bandpass', 5000, 1100, 2.0, 0.01)
-    tone('sine', 160, 58, 0.16, 0.32, 0.02)
+    tone('sine', 2637, 1760, 0.14, 0.18, 0, { attack: 0.004 })
+    bladeSlice({ dur: 0.072, vol: 0.46, f0: 8600, f1: 1500, q: 0.9, edgeFreq: 5600, drive: 3.8, delay: 0.01 })
+    fleshImpact(0.42, 280, 64, 0.05, 0.012)
+    bladeSlice({ dur: 0.075, vol: 0.44, f0: 9400, f1: 1700, q: 0.9, edgeFreq: 6200, drive: 3.8, delay: 0.068 })
+    fleshImpact(0.38, 310, 68, 0.048, 0.068)
   },
 
   /** Skill 2 Pickpocket: sly blade flick + zippy upward snatch + cheeky coin-pouch clink. */
@@ -168,22 +226,21 @@ export const thiefSfx = {
     tone('triangle', 1568 + index * 220, 2093 + index * 260, 0.09, 0.15, delay + 0.03)
   },
 
-  /** Skill 2 Deep Wound: gritty armor-piercing rend + tearing noise + toxic drip. */
+  /** Skill 2 Deep Wound: brutal low-mid heavy tearing rend + bleed tear + toxic drip. */
   deepWound: (): void => {
     if (!canPlay('deepWound', THIEF_SFX_THROTTLE.deepWound)) return
-    tone('sawtooth', 320, 95, 0.16, 0.26, 0, { jitterPct: 0.05 })
-    fmTone(1550, 620, 1.73, 1500, 0.13, 0.26, 0)
-    noiseBurst(0.18, 0.3, 'bandpass', 2400, 650, 2.6, 0.015)
-    tone('sine', 540, 280, 0.08, 0.13, 0.08)
+    bladeSlice({ dur: 0.13, vol: 0.5, f0: 5600, f1: 880, q: 0.85, edgeFreq: 3800, drive: 4.3 })
+    fleshImpact(0.48, 250, 54, 0.085)
+    tone('sawtooth', 260, 82, 0.14, 0.16, 0.01, { jitterPct: 0.05 })
+    tone('sine', 540, 280, 0.08, 0.12, 0.08)
   },
 
-  /** Wound threshold Blade's End finisher: steel draw SHING + visceral execution slash. */
+  /** Wound threshold Blade's End finisher: quick unsheathe SHING! + devastating downward execution tear. */
   bladesEnd: (): void => {
     if (!canPlay('bladesEnd', THIEF_SFX_THROTTLE.bladesEnd)) return
-    fmTone(2400, 3200, 2.76, 1200, 0.08, 0.2, 0)
-    tone('sine', 155, 38, 0.28, 0.5, 0.055)
-    noiseBurst(0.18, 0.32, 'bandpass', 3600, 700, 2.0, 0.055)
-    fmTone(1320, 520, 1.414, 1600, 0.2, 0.26, 0.06)
+    bladeSlice({ dur: 0.055, vol: 0.34, f0: 2400, f1: 8800, q: 1.2, edgeFreq: 6400, drive: 2.6 })
+    bladeSlice({ dur: 0.16, vol: 0.54, f0: 8800, f1: 950, q: 0.85, edgeFreq: 5600, drive: 4.5, delay: 0.052 })
+    tone('sine', 155, 36, 0.28, 0.5, 0.052)
   },
 
   /** Thief Ult Shadow Dance intro: ghostly vanish sweep + dark sub drop. */
@@ -194,24 +251,24 @@ export const thiefSfx = {
     tone('triangle', 587, 880, 0.18, 0.16, 0.03)
   },
 
-  /** Per-dart Shadow Dance cut climbing in pitch across the sequence. */
+  /** Per-dart Shadow Dance cut (RO Sonic Blow / Grimtooth): phantom zip + rising razor blade slice. */
   shadowSlash: (step = 0, total = 4): void => {
     if (!canPlay('shadowSlash', THIEF_SFX_THROTTLE.shadowSlash)) return
     const ratio = Math.min(1, Math.max(0, step) / Math.max(1, total - 1))
     const semi = Math.min(8, ratio * 6 + step * 0.4)
     const p = Math.pow(2, semi / 12)
-    noiseBurst(0.065, 0.2, 'highpass', 3000 * p, 5200, 1.5)
-    fmTone(1450 * p, 780 * p, 2.76, 1100, 0.095, 0.23, 0.01, { jitterPct: 0.04 })
-    tone('sine', 150, 62, 0.09, 0.22, 0.01)
+    noiseBurst(0.055, 0.18, 'highpass', 3000 * p, 5200, 1.5)
+    bladeSlice({ dur: 0.078, vol: 0.46, f0: 7600 * p, f1: 1600 * p, q: 0.9, edgeFreq: 5200 * p, drive: 3.8, delay: 0.008 })
+    fleshImpact(0.4, 280, 68, 0.05, 0.008)
   },
 
-  /** Shadow Dance closing finisher stab: phantom boom + piercing twin steel ring. */
+  /** Shadow Dance closing finisher stab: twin-X cross-slash + phantom boom + high steel ring. */
   shadowFinisher: (): void => {
     if (!canPlay('shadowFinisher', THIEF_SFX_THROTTLE.shadowFinisher)) return
-    tone('sine', 175, 36, 0.34, 0.52, 0)
-    fmTone(2217, 1320, 2.76, 1700, 0.24, 0.28, 0.01)
-    fmTone(3136, 1975, 2.76, 1100, 0.2, 0.18, 0.045)
-    noiseBurst(0.2, 0.3, 'bandpass', 4800, 900, 1.8, 0.01)
+    bladeSlice({ dur: 0.11, vol: 0.5, f0: 8800, f1: 1250, q: 0.85, edgeFreq: 5800, drive: 4.4, delay: 0 })
+    bladeSlice({ dur: 0.13, vol: 0.52, f0: 9400, f1: 1050, q: 0.85, edgeFreq: 6200, drive: 4.4, delay: 0.042 })
+    tone('sine', 175, 36, 0.34, 0.52, 0.01)
+    fmTone(2637, 1760, 2.41, 900, 0.18, 0.2, 0.03)
   },
 
   /** Soft caustic sizzle + toxic bubble when poison ticks on a monster. */
@@ -248,11 +305,10 @@ export const thiefSfx = {
   },
 
   // ===== 2nd Job 1: Rogue =====
-  /** Spinning flying dagger throw: fast bandpass air-cut + steel whistle. */
+  /** Crisp spinning thrown dagger fwip! */
   knifeThrow: (): void => {
     if (!canPlay('knifeThrow', THIEF_SFX_THROTTLE.knifeThrow)) return
-    noiseBurst(0.075, 0.2, 'bandpass', 4600, 2200, 3.0, 0, 0.004)
-    fmTone(2600, 1950, 2.76, 650, 0.055, 0.14, 0, { jitterPct: 0.1 })
+    bladeSlice({ dur: 0.052, vol: 0.3, f0: 7600, f1: 2800, q: 1.5, edgeFreq: 5400, drive: 2.2 })
   },
 
   /** Ricocheting dagger metallic tink-zip. */
@@ -262,26 +318,25 @@ export const thiefSfx = {
     tone('sine', 1800, 3100, 0.05, 0.12, 0.015)
   },
 
-  /** Diving storm dagger impact climbing in pitch across the barrage. */
+  /** Diving storm dagger arrival glint + light metallic ping. */
   knifeLand: (step = 0, total = 8): void => {
     if (!canPlay('knifeLand', THIEF_SFX_THROTTLE.knifeLand)) return
     const ratio = Math.min(1, Math.max(0, step) / Math.max(1, total - 1))
     const p = 1 + ratio * 0.35
-    fmTone(1900 * p, 980 * p, 2.76, 1050, 0.075, 0.2, 0, { jitterPct: 0.06 })
-    tone('sine', 165, 68, 0.07, 0.22, 0)
+    bladeSlice({ dur: 0.05, vol: 0.32, f0: 8400 * p, f1: 2400 * p, q: 1.2, edgeFreq: 6000 * p, drive: 3.0 })
+    fmTone(2200 * p, 1650 * p, 2.41, 450, 0.05, 0.12, 0)
   },
 
-  /** Voracity Mark pickup + Sinister Steel circular sweep. */
+  /** Voracity Mark pickup: upward steel pull-shing + circular Sinister Steel cut + warm gold chime. */
   voracityPickup: (marks = 1): void => {
     if (!canPlay('voracityPickup', THIEF_SFX_THROTTLE.voracityPickup)) return
     const intensity = Math.min(5, Math.max(1, marks))
-    fmTone(1320 + intensity * 140, 2640 + intensity * 180, 2.76, 900, 0.08, 0.2, 0)
-    noiseBurst(0.18, 0.28, 'bandpass', 4800, 1200, 2.0, 0.05)
-    fmTone(1760, 1047, 2.41, 1300, 0.16, 0.24, 0.055)
-    tone('triangle', 1568, 2093, 0.12, 0.18, 0.08)
+    bladeSlice({ dur: 0.055, vol: 0.34, f0: 2200 + intensity * 180, f1: 7800 + intensity * 240, q: 1.2, edgeFreq: 5800, drive: 2.8 })
+    bladeSlice({ dur: 0.14, vol: 0.48, f0: 7400, f1: 1200, q: 0.9, edgeFreq: 5200, drive: 3.8, delay: 0.048 })
+    tone('triangle', 1568, 2093, 0.11, 0.16, 0.07)
   },
 
-  /** Iconic Rogue Back Stab (supports Shadow Ambush swell, Combo Point pitch boost, or Living Shadow echo). */
+  /** Iconic RO Rogue Back Stab (supports Shadow Ambush swell, Combo Point boost, or Living Shadow echo). */
   backStab: (opts?: BackStabSfxOpts): void => {
     if (!canPlay('backStab', THIEF_SFX_THROTTLE.backStab)) return
     const cpBoost = 1 + Math.min(5, Math.max(0, opts?.cp ?? 0)) * 0.045
@@ -290,15 +345,15 @@ export const thiefSfx = {
       tone('triangle', 294, 440, 0.18, 0.18, 0)
     }
     if (opts?.shadow) {
-      tone('triangle', 587, 392, 0.22, 0.18, 0.01)
-      fmTone(2400, 1600, 2.76, 1200, 0.16, 0.22, 0.015)
-      tone('sine', 150, 48, 0.22, 0.36, 0.015)
+      bladeSlice({ dur: 0.12, vol: 0.46, f0: 7800, f1: 1350, q: 0.9, edgeFreq: 5400, drive: 3.6, delay: 0.008 })
+      tone('triangle', 587, 392, 0.2, 0.16, 0.012)
+      tone('sine', 150, 48, 0.22, 0.36, 0.012)
       return
     }
-    fmTone(2349 * cpBoost, 1175 * cpBoost, 2.76, 1800, 0.16, 0.3, 0)
-    fmTone(3520 * cpBoost, 2093 * cpBoost, 2.41, 1000, 0.12, 0.18, 0.025)
-    tone('sine', 185, 40, 0.28, 0.5, 0.008)
-    noiseBurst(0.14, 0.3, 'highpass', 2600, 900, 1.4, 0.005)
+    noiseBurst(0.025, 0.28, 'highpass', 3200, 1800, 1.0, 0, 0)
+    bladeSlice({ dur: 0.14, vol: 0.55, f0: 9400 * cpBoost, f1: 1050 * cpBoost, q: 0.82, edgeFreq: 6200 * cpBoost, drive: 4.6 })
+    tone('sine', 180, 38, 0.25, 0.52, 0.006)
+    fmTone(2960 * cpBoost, 1975 * cpBoost, 2.0, 900, 0.14, 0.22, 0.012)
   },
 
   /** Whirling knife-ring buildup synced to the storm's collapse duration (seconds). */
@@ -314,15 +369,14 @@ export const thiefSfx = {
     fmTone(2637, 3520, 2.76, 1400, 0.12, 0.26, Math.max(0.05, d - 0.08))
   },
 
-  /** Final diving knife impact of Knife Storm (thunderous boom + golden triumphant steel ring). */
+  /** Final diving knife impact of Knife Storm: massive golden blade-drop tear + sub boom + steel chord. */
   knifeStormFinale: (): void => {
     if (!canPlay('knifeStormFinale', THIEF_SFX_THROTTLE.knifeStormFinale)) return
+    bladeSlice({ dur: 0.18, vol: 0.54, f0: 9600, f1: 950, q: 0.85, edgeFreq: 6400, drive: 4.6 })
     tone('sine', 190, 34, 0.42, 0.55, 0)
-    fmTone(2093, 1568, 2.76, 1900, 0.32, 0.28, 0.01)
-    fmTone(3136, 2637, 2.41, 1100, 0.28, 0.2, 0.03)
-    tone('triangle', 1047, 1047, 0.26, 0.16, 0.02)
-    tone('triangle', 1319, 1319, 0.26, 0.14, 0.04)
-    noiseBurst(0.22, 0.3, 'bandpass', 4200, 800, 1.6, 0)
+    fmTone(2093, 1568, 2.41, 1100, 0.24, 0.22, 0.01)
+    tone('triangle', 1047, 1047, 0.24, 0.15, 0.02)
+    tone('triangle', 1319, 1319, 0.24, 0.13, 0.04)
   },
 
   /** Crisp assassin refresh double-chime + blade flick on Kill Reset. */
@@ -341,23 +395,22 @@ export const thiefSfx = {
   },
 
   // ===== 2nd Job 2: Mobster =====
-  /** Skill 3 Tendon Cut: metallic chain-snap + heavy lilac slash + cripple groan. */
+  /** Skill 3 Tendon Cut: heavy chain-snap + brutal dark saturated blade slice + cripple groan. */
   tendonCut: (): void => {
     if (!canPlay('tendonCut', THIEF_SFX_THROTTLE.tendonCut)) return
-    fmTone(1950, 1480, 3.14, 1500, 0.08, 0.24, 0)
-    fmTone(2550, 1800, 3.14, 1200, 0.07, 0.2, 0.03)
-    noiseBurst(0.16, 0.3, 'bandpass', 2800, 750, 2.0, 0.02)
-    tone('sawtooth', 260, 85, 0.18, 0.25, 0.03)
+    fmTone(1950, 1480, 3.14, 1400, 0.07, 0.22, 0)
+    fmTone(2550, 1800, 3.14, 1100, 0.06, 0.18, 0.025)
+    bladeSlice({ dur: 0.13, vol: 0.5, f0: 5200, f1: 780, q: 0.85, edgeFreq: 3600, drive: 4.4, delay: 0.018 })
+    fleshImpact(0.46, 220, 52, 0.08, 0.018)
     tone('triangle', 340, 130, 0.24, 0.2, 0.08)
   },
 
-  /** Mobster Ult Debt Collection AoE sweep: ominous Mafia bell toll + wide sweeping blade. */
+  /** Mobster Ult Debt Collection AoE sweep: ominous Mafia bell toll + wide sweeping dark blade slice. */
   debtCollectSlash: (): void => {
     if (!canPlay('debtCollectSlash', THIEF_SFX_THROTTLE.debtCollectSlash)) return
     fmTone(294, 290, 2.76, 620, 0.45, 0.26, 0, { attack: 0.008 })
     tone('sine', 147, 55, 0.36, 0.44, 0)
-    noiseBurst(0.24, 0.32, 'bandpass', 3600, 620, 1.8, 0.02)
-    fmTone(1480, 680, 1.73, 1400, 0.18, 0.24, 0.03)
+    bladeSlice({ dur: 0.2, vol: 0.5, f0: 6400, f1: 850, q: 0.85, edgeFreq: 4200, drive: 4.2, delay: 0.02 })
   },
 
   /** Debt Collection purple poison burst per poisoned monster. */
@@ -376,11 +429,11 @@ export const thiefSfx = {
     tone('triangle', 1976, 1976, 0.2, 0.2, 0.11)
   },
 
-  /** Mobster Execute: guillotine blade drop + lethal slam + chilling funeral bell. */
+  /** Mobster Execute: razor guillotine slice + lethal slam + chilling funeral bell. */
   mobsterExecute: (): void => {
     if (!canPlay('mobsterExecute', THIEF_SFX_THROTTLE.mobsterExecute)) return
-    noiseBurst(0.11, 0.28, 'bandpass', 5400, 900, 2.4, 0)
-    tone('sine', 150, 32, 0.38, 0.52, 0.04)
+    bladeSlice({ dur: 0.14, vol: 0.54, f0: 8800, f1: 720, q: 0.85, edgeFreq: 5600, drive: 4.6 })
+    tone('sine', 150, 32, 0.38, 0.52, 0.035)
     fmTone(440, 434, 2.756, 900, 0.55, 0.26, 0.045, { attack: 0.004 })
     tone('triangle', 622, 616, 0.42, 0.14, 0.055)
   },

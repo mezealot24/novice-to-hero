@@ -2,7 +2,7 @@ import { afterEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { sfx, setMuted, unlock } from '../src/sfx'
 import { isMuted, jitter, resetAudioForTest } from '../src/sfx-core'
-import { THIEF_SFX_KEYS, type ThiefSfxKey } from '../src/sfx-thief'
+import { THIEF_SFX_KEYS, resetThiefSfxForTest, type ThiefSfxKey } from '../src/sfx-thief'
 
 interface ParamEvent {
   op: 'set' | 'exp'
@@ -161,6 +161,29 @@ class FakeBufferSourceNode extends BaseFakeNode {
   }
 }
 
+class FakeWaveShaperNode extends BaseFakeNode {
+  private _curve: Float32Array | null = null
+  oversample: OverSampleType = 'none'
+
+  constructor() {
+    super('WaveShaperNode')
+  }
+
+  get curve(): Float32Array | null {
+    return this._curve
+  }
+
+  set curve(val: Float32Array | null) {
+    if (val !== null) {
+      assert.ok(val.length >= 16, `WaveShaper curve length too short: ${val.length}`)
+      for (let i = 0; i < val.length; i++) {
+        assert.ok(Number.isFinite(val[i]), `WaveShaper curve sample ${i} is not finite: ${val[i]}`)
+      }
+    }
+    this._curve = val
+  }
+}
+
 class FakeAudioContext {
   currentTime = 1.0
   sampleRate = 48000
@@ -169,6 +192,7 @@ class FakeAudioContext {
   readonly compressors: FakeCompressorNode[] = []
   readonly oscillators: FakeOscillatorNode[] = []
   readonly filters: FakeBiquadFilterNode[] = []
+  readonly shapers: FakeWaveShaperNode[] = []
   readonly bufferSources: FakeBufferSourceNode[] = []
   resumed = 0
 
@@ -199,6 +223,12 @@ class FakeAudioContext {
     const f = new FakeBiquadFilterNode()
     this.filters.push(f)
     return f
+  }
+
+  createWaveShaper(): FakeWaveShaperNode {
+    const s = new FakeWaveShaperNode()
+    this.shapers.push(s)
+    return s
   }
 
   createBuffer(channels: number, length: number, sampleRate: number): FakeAudioBuffer {
@@ -232,6 +262,7 @@ function installFakeAudioContext(): FakeAudioContext {
 }
 
 afterEach(() => {
+  resetThiefSfxForTest()
   resetAudioForTest()
   if (originalAudioContext === undefined) {
     delete globalAudio.AudioContext
@@ -270,7 +301,7 @@ describe('Thief-line procedural SFX', () => {
     assert.ok(comp.connections.includes(ctx.destination), 'compressor should connect to destination')
     assert.equal(comp.threshold.value, -10)
     assert.equal(comp.ratio.value, 8)
-    assert.equal(THIEF_SFX_KEYS.length, 37)
+    assert.equal(THIEF_SFX_KEYS.length, 40)
   })
 
   it('emits valid Web Audio nodes for every Thief/Rogue/Mobster SFX and parameter variant', () => {
@@ -283,6 +314,11 @@ describe('Thief-line procedural SFX', () => {
     const invocations: { label: string; key: ThiefSfxKey; run: () => void }[] = [
       { label: 'daggerSlash(0, false)', key: 'daggerSlash', run: () => sfx.daggerSlash(0, false) },
       { label: 'daggerSlash(1, true)', key: 'daggerSlash', run: () => sfx.daggerSlash(1, true) },
+      { label: 'daggerHit(false)', key: 'daggerHit', run: () => sfx.daggerHit(false) },
+      { label: 'daggerHit(true)', key: 'daggerHit', run: () => sfx.daggerHit(true) },
+      { label: 'daggerCrit(false)', key: 'daggerCrit', run: () => sfx.daggerCrit(false) },
+      { label: 'daggerCrit(true)', key: 'daggerCrit', run: () => sfx.daggerCrit(true) },
+      { label: 'daggerCritSpark', key: 'daggerCritSpark', run: () => sfx.daggerCritSpark() },
       { label: 'doubleStrike', key: 'doubleStrike', run: () => sfx.doubleStrike() },
       { label: 'shadowTick(2, 5)', key: 'shadowTick', run: () => sfx.shadowTick(2, 5) },
       { label: 'shadowForm', key: 'shadowForm', run: () => sfx.shadowForm() },
@@ -339,6 +375,7 @@ describe('Thief-line procedural SFX', () => {
     for (const key of THIEF_SFX_KEYS) {
       assert.ok(coveredKeys.has(key), `Missing test coverage for Thief SFX key: ${key}`)
     }
+    assert.ok(ctx.shapers.length > 0, 'RO blade slices should instantiate WaveShaperNodes')
   })
 
   it('throttles rapid repeated triggers of the same key within minMs', () => {
@@ -374,6 +411,34 @@ describe('Thief-line procedural SFX', () => {
     ctx.currentTime += 0.2
     sfx.venomStab()
     assert.ok(ctx.oscillators.length + ctx.bufferSources.length > before, 'unmuted call should emit nodes')
+  })
+
+  it('staggers rapid Thief daggerHit calls into RO double/triple-cut cadence and caps burst spam', () => {
+    const ctx = installFakeAudioContext()
+    ctx.currentTime = 1.0
+
+    sfx.daggerHit()
+    sfx.daggerHit()
+    sfx.daggerHit()
+    const countAfterThree = ctx.bufferSources.length
+    const countOscAfterThree = ctx.oscillators.length
+
+    sfx.daggerHit()
+    assert.equal(ctx.bufferSources.length, countAfterThree, '4th synchronous daggerHit in same burst must be capped')
+    assert.equal(ctx.oscillators.length, countOscAfterThree, '4th synchronous daggerHit must not emit oscillators')
+
+    // Each daggerHit emits 2 bufferSources in bladeSlice (tear + edge) + 1 in fleshImpact = 3 bufferSources
+    const startTimes = ctx.bufferSources.map((b) => b.startedArgs?.when ?? -1)
+    assert.equal(startTimes.length, 9)
+    assert.ok(Math.abs(startTimes[0] - 1.0) < 1e-6, `1st hit should start at 1.000s, got ${startTimes[0]}`)
+    assert.ok(Math.abs(startTimes[3] - 1.066) < 1e-6, `2nd hit should stagger to 1.066s, got ${startTimes[3]}`)
+    assert.ok(Math.abs(startTimes[6] - 1.132) < 1e-6, `3rd hit should stagger to 1.132s, got ${startTimes[6]}`)
+
+    ctx.currentTime += 0.1
+    sfx.daggerHit()
+    assert.ok(ctx.bufferSources.length > countAfterThree, 'daggerHit after >38ms should reset burst')
+    const resetWhen = ctx.bufferSources[countAfterThree].startedArgs?.when ?? -1
+    assert.ok(Math.abs(resetWhen - 1.1) < 1e-6, `Reset burst should start at 1.100s, got ${resetWhen}`)
   })
 
   it('keeps jitter(0.06) strictly within [0.94, 1.06]', () => {

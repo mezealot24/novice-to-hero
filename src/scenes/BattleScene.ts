@@ -1418,7 +1418,12 @@ export class BattleScene extends Phaser.Scene {
     const ls = (condLs > 0 ? Math.min(LIFESTEAL_CAP, this.st.lifesteal + condLs) : this.st.lifesteal) + woundLs + (this.buf.blood > 0 ? S2N.bloodVamp(this.st.s2Lv) : 0) // Skill 2 เลือดเดือด · Wolf Bloodpack Stance wound leech
     const bkMul = Math.max(this.bloodKingOn() ? KIT.thiefBloodKingMul : 1, this.st.bloodKing > 0 && this.hp < this.st.maxHp * 0.4 ? 2 : 1) // P2'a thief_c4 vs gear ★ ราชันย์โลหิต: the bigger one, never both
     if (ls > 0 && this.lsMul > 0) this.heal(r.dmg * ls * this.lsMul * (this.berserking() ? 2 : 1) * bkMul, true)
-    if (r.crit) sfx.crit(); else sfx.hit()
+    if (this.job.id === 'thief' && !magic) {
+      if (r.crit) sfx.daggerCrit(this.j2?.id === 'mobster')
+      else sfx.daggerHit(this.j2?.id === 'mobster')
+    } else {
+      if (r.crit) sfx.crit(); else sfx.hit()
+    }
     this.gainRage(RES_RULES.rageOnHit)
     if (r.crit && !magic && this.j2?.id === 'berserker') { // คลั่งเลือด: crits stack Frenzy
       const max = KIT2.berserker.frenzyMax + this.st.j2FrenzyMax
@@ -7141,7 +7146,8 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: ring, scale: 6, alpha: 0, duration: 260, ease: 'Quad.easeOut', onComplete: () => ring.destroy() })
     this.popWord(m.spr.x, m.spr.y - m.spr.displayHeight - 80, 'CRITICAL', '#ffd34d', 18, 2)
     this.shake(110, 0.008)
-    sfx.critBoom()
+    if (this.job.id === 'thief') sfx.daggerCritSpark()
+    else sfx.critBoom()
     this.hitStop(80)
   }
 
