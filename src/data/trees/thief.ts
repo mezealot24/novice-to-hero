@@ -22,6 +22,8 @@ export const tree: ClassTree = {
     { id: 'thief_b', job: 'thief', name: 'เงา', icon: '👤', blurb: 'ปรับเกจเงา: เติมไว · โล่ตอนเข้าร่างเงา · หลบในร่างเงาลด CD · ร่างเงานาน' },
     // P2'a: one core column (no ATTACH in data/tree.ts -> line 'core'); replaces thief_crit + thief_blood
     { id: 'thief_core', job: 'thief', name: 'เลือด·คริ', icon: '🩸', blurb: 'ดูดเลือดตามสถานะ · หมายหัว · ฆ่าแล้วฟื้น' },
+    // P2'c: second Ult branch (data/tree.ts ATTACH thief_u: 'ult'); numbers cut for the Ult budget (thiefUltBudget, gauge on / off)
+    { id: 'thief_u', job: 'thief', name: 'เงาสังหาร', icon: '🗡️', blurb: 'เงาพริ้ว: คริ · On-Hit · ทีปิด' },
   ],
   nodes: [
     n('thief_a1', 'thief_a', 1, '🧪', 'เคลือบพิษ', 3, (lv) => `พิษ +${lv} stack ต่อ hit`, (lv) => ({ poison: lv })),
@@ -36,6 +38,10 @@ export const tree: ClassTree = {
     n('thief_c2', 'thief_core', 2, '🔻', 'หมายหัว', 3, (lv) => `หมายมอน HP มากสุด · ตีตัวที่หมาย = Malice +1 · เต็ม ${KIT.thiefMark.max}: ทีถัดไปคริแน่ ดาเมจ +${Math.round(KIT.thiefMark.dmg * lv * 100)}% · ตัวที่หมายตาย = ย้ายหมาย`, (lv) => ({ thMark: lv })),
     n('thief_c3', 'thief_core', 3, '🦇', 'กระหายเลือด', 3, (lv) => `ฆ่ามอน: ฟื้น ${Math.round(4 * lv)}% HP + พิษบนศพ ${+(KIT.thiefKillPoisonHeal * 100).toFixed(1)}%/stack (สูงสุด +${Math.round(KIT.thiefKillPoisonHealCap * 100)}%) · Energy +${KIT.thiefKillRes} · คริบอส/มินิครั้งแรกของเทิร์น: ฟื้น ${+(4 * lv * KIT.thiefBossCritLeech).toFixed(1)}% HP + Energy +${KIT.thiefBossCritRes}`, (lv) => ({ thKillLeech: 0.04 * lv })),
     n('thief_c4', 'thief_core', 4, '👑', 'ราชันย์โลหิต', 1, () => `HP ต่ำกว่า ${Math.round(KIT.thiefBloodKingBelow * 100)}% หรืออยู่ในม่านควัน: ดูดเลือด ×${KIT.thiefBloodKingMul} · D.Strike ดูดเลือด ${Math.round(KIT.thiefStrikeLs * 100)}% → ${Math.round(KIT.thiefBloodKingStrikeLs * 100)}% (ไม่ซ้อนกับราชันย์โลหิตของใส่)`, () => ({ thBloodKing: 1 })),
+    n('thief_u1', 'thief_u', 1, '🎯', 'เงาจุดตาย', 3, (lv) => `เงาพริ้ว: สกิลคริ +${Math.round((5 / 3) * lv)}% · ดาเมจคริ +${Math.round((5 / 3) * lv)}% ต่อชนิดดีบัฟบนเป้า (สูงสุด ${KIT.thiefUltKindsMax} ชนิด · ดาเมจคริเงื่อนไขของ Ult รวมไม่เกิน +${Math.round(KIT.thiefUltCondCap * 100)}%)`, (lv) => ({ thUltCrit: (0.05 / 3) * lv, thUltCondCritDmg: (0.05 / 3) * lv })),
+    n('thief_u2', 'thief_u', 2, '🩸', 'เงาประสานอาวุธ', 3, (lv) => `เงาพริ้ว On-Hit ${Math.round((KIT.thiefOnHitBase + 0.04 * lv) * 100)}%: ทีแทงดูดเลือดตามสัดส่วนนี้ · โอกาสเท่ากันแปะ Wound 1 (ทักษะ 2 แผลลึก)`, (lv) => ({ thUltOnHit: 0.04 * lv })),
+    n('thief_u3', 'thief_u', 3, '💀', 'เพชฌฆาตเงา', 3, (lv) => `คริใส่เป้า HP < ${Math.round(KIT.thiefExecBelow * 100)}%: ดาเมจคริ +${Math.round(5 * lv)}% (เงาพริ้ว + ตีปกติ/คอมโบ) · เงาพริ้วคริ: Energy +${Math.round(2 * lv)} (สูงสุด ${KIT.thiefUltCritResCap}/ครั้ง)`, (lv) => ({ thExecUlt: 0.05 * lv, thUltCritRes: 2 * lv })),
+    n('thief_u4', 'thief_u', 4, '🗡️', 'เงาพันคม', 1, () => `เงาพริ้วคริ ≥ ${KIT.thiefFinisherAt} ที: แทงปิดท้ายอีก 1 ที ${KIT.thiefFinisherMul}x ของทีปกติ (คริแน่) ใส่ตัว HP น้อยสุด`, () => ({ thUltFinisher: 1 })),
     n('thief_b4', 'thief_b', 4, '👤', 'เงาสวน', 1, () => `หลบได้ทุกครั้ง = แทงสวน 0.8x (ติดพิษได้) · ร่างเงานานขึ้น +1 เทิร์น`, () => ({ dodgeStrike: 1, thShadowTurns: 1 })),
   ],
   talents: [

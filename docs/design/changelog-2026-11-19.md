@@ -110,3 +110,14 @@
   - 👤 `thief_b4` ★ เงาสวน: counter 0.8x (kept) · ร่างเงา +1 hero turn
 - All three dodge paths (hurt, duelist true damage, LUCKY) use one `shadowDodged()`
 - Save: `THIEF_REWORK_VER` 3 -> **5** (4 is left for Rogue P3'b) · same minimal Thief class 1 web + talents reset & refund once (`v < 5`), Rogue job2 web / talents untouched · rogue-p3a / thief-p2a tests follow the new version
+
+## ✨ feat(thief): P2'c thief_u line (Ult crit · On-Hit · finisher) + new เงาพริ้ว dance
+- New Ult branch `thief_u` เงาสังหาร (`ATTACH thief_u: 'ult'`, 2nd Ult column):
+  - 🎯 `thief_u1` เงาจุดตาย: Ult skillCrit +1–5% (opens Ult crits with no gear skillCrit) · Ult crit dmg +1–5% per debuff kind (max 3)
+  - 🩸 `thief_u2` เงาประสานอาวุธ: On-Hit 40–50% = Ult stabs lifesteal x share · same chance Wound +1 (แผลลึก)
+  - 💀 `thief_u3` เพชฌฆาตเงา: crit dmg +3–15% vs HP < 35% (Ult + basic / combo, B3) · Energy +1–6 per Ult crit (max 12 / cast)
+  - 🗡️ `thief_u4` ★ เงาพันคม: 3+ Ult crits = closing stab 0.25x (sure crit) at the lowest-HP share — always fires inside ร่างเงา
+- Ult-own crit dmg total capped at `thiefUltCondCap` 0.15, then the B3 cap · every stab (finisher too) x Ratio AGI
+- `shadowDance()` (Rogue พายุมีด too) reads the shared pure math; Ult info panel lists the new rows
+- 1 new `KIT` key `thiefUltCritResCap` · `thUltCritRes` in `INT_FIELDS`
+- Budget test: u full ≤ live ceiling for every hero profile, gauge on and off (`th_t3b` re-cut comes with the talents commit)

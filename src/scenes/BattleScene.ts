@@ -23,7 +23,7 @@ import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/ski
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
-import { ultCdCut, condCritB3, thiefUltCondCritDmg, thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost, rogueKnifeMul, rogueSteelMul, rogueStabAmp, rogueComboDebuff, rogueAmbushCrit } from '../data/skill-math'
+import { ultCdCut, condCritB3, thiefUltCondCritDmg, thiefUltCritAdd, thiefUltHitCount, thiefOnHitEff, thiefUltFinisher, thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost, rogueKnifeMul, rogueSteelMul, rogueStabAmp, rogueComboDebuff, rogueAmbushCrit } from '../data/skill-math'
 import { addCard, addMat, addXp, loseXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -3295,7 +3295,7 @@ export class BattleScene extends Phaser.Scene {
     const chargeCrit = (magic || this.isProcHit()) && this.st.lightChargeLv > 0 && this.lightChargeStacks > 0 ? this.lightChargeStacks * (0.02 + this.st.lightChargeLv * 0.01) : 0
     if (this.isProcHit()) return Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit)
     if (this.isSkillHit()) {
-      const skillCrit = this.st.skillCrit + (this.inShroud() ? S2N.smokeSkillCrit : 0) // P2'b Shroud: skillCrit + (still under C.skillCrit)
+      const skillCrit = this.st.skillCrit + (this.inShroud() ? S2N.smokeSkillCrit : 0) + (this.src === 'ult' && !magic && this.job.id === 'thief' ? thiefUltCritAdd(this.st) : 0) // P2'b Shroud · P2'c thief_u1 / th_t3a Ult-only skillCrit (still under C.skillCrit)
       if (!magic && skillCrit <= 0) return 0 // Q 2026-11-19: a physical skill needs skillCrit to crit at all (talent / buff bonuses ride on top of it)
       return Math.min(C.skillCrit, skillCrit + sc + iceBonus + (magic ? this.st.spellCrit + chargeCrit : (this.st.crit + physAdd) * CRIT_RULES.skillFromCrit))
     }
@@ -4140,18 +4140,40 @@ export class BattleScene extends Phaser.Scene {
 
   /** Thief ult เงาพริ้ว (Rogue พายุมีด reuses it). */
   private async shadowDance(hitPow: number) {
-    this.dodgeCharges = KIT.thiefUltDodge + this.st.ultDodge // talent: เงาซ้อน
+    const st = this.st
+    this.dodgeCharges = Math.max(0, KIT.thiefUltDodge + st.ultDodge) // talents: เงาหมอกลวงตา + / เงาสังหาร −
     this.addShadow(KIT.thiefShadow.ult) // 👤 เกจเงา
     this.stayIn = true // dart from monster to monster, walk home once at the end
-    for (let i = 0; i < KIT.thiefUltHits + this.st.ultHits; i++) { // talent: พายุมีด
+    // P2'c (thiefUlt* in skill-math = the budget math): every stab (finisher too) x Ratio AGI · On-Hit = lifesteal x eff + Wound chance
+    const per = KIT.thiefUlt * hitPow * (1 + st.thUltAgi), eff = thiefOnHitEff(st), prevLs = this.lsMul
+    let crits = 0, res = 0
+    const stab = (m: Mon, mul: number, i: number, sure: boolean) => {
+      shadowSlashFx(this, m.spr, i) // เงาพริ้ว: a shadow cut per dart
+      const wasForce = this.forceCrit
+      if (sure) this.forceCrit = true
+      if (eff > 0) this.lsMul = eff
+      const dealt = this.strike(m, per * mul) // Q: scales with AGI
+      this.lsMul = prevLs; this.forceCrit = wasForce
+      if (dealt > 0 && this.lastCrit) {
+        crits++
+        const g = Math.min(st.thUltCritRes, KIT.thiefUltCritResCap - res) // thief_u3: Energy per crit, capped per cast
+        if (g > 0 && this.job.resource === 'energy') { res += g; this.resGain(g) }
+      }
+      if (st.ultPoison > 0 && !m.dead) { this.addPoison(m, st.ultPoison) } // talent: มีดอาบพิษ / เงาหมอกลวงตา
+      if (eff > 0 && dealt > 0 && !m.dead && this.s2?.id === 'th_wound' && Math.random() < eff) this.addWound(m, 1) // thief_u2 On-Hit
+    }
+    const n = thiefUltHitCount(st)
+    for (let i = 0; i < n; i++) { // talent: มีดรัว / คมมีดประสาน
       const t = this.alive(); if (!t.length) break
       const m = t[Phaser.Math.Between(0, t.length - 1)]
       this.heroSpr.setAlpha(0.4)
-      await this.lunge(m, () => {
-        shadowSlashFx(this, m.spr, i) // เงาพริ้ว: a shadow cut per dart
-        this.strike(m, KIT.thiefUlt * hitPow * (1 + this.st.thUltAgi)) // Q: scales with AGI
-        if (this.st.ultPoison > 0 && !m.dead) { this.addPoison(m, this.st.ultPoison) } // talent: มีดอาบพิษ
-      }, false, true)
+      await this.lunge(m, () => stab(m, 1, i, false), false, true)
+    }
+    const fin = thiefUltFinisher(st, crits) // th_t3a / thief_u4 ★: one closing stab at the lowest-HP share
+    const last = this.alive().sort((a, b) => a.hp / Math.max(1, a.def.hp) - b.hp / Math.max(1, b.def.hp))[0]
+    if (fin.mul > 0 && last) {
+      this.floatText(last.spr.x, last.spr.y - last.spr.displayHeight - 40, '🗡️ ทีปิด!', '#c9b8ff')
+      await this.lunge(last, () => stab(last, fin.mul, n, fin.sure), false, true)
     }
     this.stayIn = false
     this.heroSpr.setAlpha(this.shadowTurns > 0 ? 0.75 : 1) // keep the ร่างเงา look

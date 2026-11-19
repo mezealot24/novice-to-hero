@@ -104,6 +104,7 @@ export const KIT = {
   thiefExecBelow: 0.35, thiefUltExecBelow: 0.5, // thief_u3 / th_t3a: target HP share under which they add crit dmg
   thiefOnHitBase: 0.38, thiefOnHitCap: 0.55, // On-Hit share (thief_u2 / th_t3b): base + node + talent, capped
   thiefFinisherAt: 3, thiefFinisherMul: 0.25, // thief_u4 ★: crits in one cast for the closing stab · its power x one stab (sure crit)
+  thiefUltCritResCap: 12, // thief_u3: Energy from Ult crits, at most this per cast
   // Global Ult CD cap (Rev 3 §5.1): every Thief-line Ult CD cut (th_t2a, thief_b3, Rogue Kill Reset) shares thiefUltCdCutCap turns per hero
   // turn, and in the turn the Ult was cast the CD never drops below thiefUltCdFloor (2 = at least one hero turn between two casts)
   thiefUltCdCutCap: 2, thiefUltCdFloor: 2,
@@ -911,8 +912,13 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
       if (st.ultHoly > 0) out.push({ label: 'แสงลงทัณฑ์/ตัว', value: hitText(st, st.ultHoly, true) })
       break
     case 'thief':
-      out.push({ label: `แทง ${KIT.thiefUltHits + st.ultHits} ที ดาเมจ/ที`, value: hitText(st, KIT.thiefUlt * hitPow * (1 + st.thUltAgi), false) })
-      out.push({ label: 'หลบแน่นอน', value: `${KIT.thiefUltDodge + st.ultDodge} ครั้ง` })
+      out.push({ label: `แทง ${thiefUltHitCount(st)} ที ดาเมจ/ที`, value: hitText(st, KIT.thiefUlt * hitPow * (1 + st.thUltAgi), false) })
+      out.push({ label: 'หลบแน่นอน', value: `${Math.max(0, KIT.thiefUltDodge + st.ultDodge)} ครั้ง` })
+      // P2'c thief_u / th_t3*
+      if (thiefUltCritAdd(st) > 0) out.push({ label: 'สกิลคริ (เฉพาะเงาพริ้ว)', value: `+${pct(thiefUltCritAdd(st))}` })
+      { const cc = thiefUltCondCritDmg(st, KIT.thiefUltKindsMax, 0); if (cc > 0) out.push({ label: 'ดาเมจคริเงื่อนไข (สูงสุด)', value: `+${pct(cc)}` }) }
+      if (thiefOnHitEff(st) > 0) out.push({ label: 'On-Hit (ดูดเลือด · Wound)', value: pct(thiefOnHitEff(st)) })
+      if (st.thUltKillFinisher > 0 || st.thUltFinisher > 0) out.push({ label: 'ทีปิด', value: hitText(st, KIT.thiefUlt * hitPow * (1 + st.thUltAgi) * Math.max(st.thUltKillFinisher, st.thUltFinisher > 0 ? KIT.thiefFinisherMul : 0), false) })
       break
     default: return []
   }

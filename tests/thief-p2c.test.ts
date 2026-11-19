@@ -5,8 +5,8 @@ import assert from 'node:assert/strict'
 import { PLAYER, type Stats } from '../src/data/game-data'
 import { CRIT_RULES } from '../src/data/battle-rules'
 import { readFileSync } from 'node:fs'
-import { nodeById } from '../src/data/tree'
-import { condCritB3, KIT, thiefOnHitEff, thiefUltBudget, thiefUltCondCritDmg, thiefUltCritRate, thiefUltFinisher, thiefUltHitCount, ultCdCut, type UltHero } from '../src/data/skill-math'
+import { branchesOf, nodeById, TALENTS } from '../src/data/tree'
+import { condCritB3, KIT, thiefOnHitEff, ultInfo, thiefUltBudget, thiefUltCondCritDmg, thiefUltCritRate, thiefUltFinisher, thiefUltHitCount, ultCdCut, type UltHero } from '../src/data/skill-math'
 
 const near = (a: number, b: number, msg = '') => assert.ok(Math.abs(a - b) < 1e-9, `${msg} ${a} != ${b}`)
 const st = (o: Partial<Stats> = {}): Stats => ({ ...PLAYER, ...o })
@@ -95,6 +95,46 @@ test('thief_b = เกจเงา modifiers (Q1: one gauge): fill faster · shi
   assert.match(node('thief_b3').desc(5), new RegExp(`${KIT.thiefUltCdCutCap}/เทิร์น`))
   assert.ok(!/ร่างเงา/.test(node('thief_b1').name + node('thief_b2').name + node('thief_b3').name + node('thief_b4').name), 'node names do not reuse the state name')
   assert.ok(!/Ghost Shroud|Shroud/.test(lvs('thief_b2').map((_, i) => node('thief_b2').desc(i + 1)).join()), 'no second shadow resource')
+})
+
+/** Stats of a build: web nodes at a level + talents at a rank, mods summed like heroBuild. */
+const build = (nodes: [string, number][], tals: [string, number][] = [], base: Partial<Stats> = {}): Stats => {
+  const out: Stats = st(base)
+  const add = (m: Partial<Stats>) => { for (const [k, v] of Object.entries(m) as [keyof Stats, number][]) (out[k] as number) += v }
+  for (const [id, lv] of nodes) add(node(id).mod(lv))
+  for (const [id, r] of tals) { const t = TALENTS.find((x) => x.id === id); assert.ok(t, id); add(t.mod(r)) }
+  return out
+}
+const U_FULL: [string, number][] = [['thief_u1', 5], ['thief_u2', 5], ['thief_u3', 5], ['thief_u4', 1]]
+const SC = [0, 0.1, 0.2, 0.3, 0.45, 0.55, 0.6], CM = [1.4, 1.8, 2.2, 2.6, 3], B3 = [0, 0.25, 0.61]
+/** Worst ratio build / live ceiling over every hero profile and both gauge states. */
+const worst = (b: Stats, gearHits = 0) => {
+  let w = 0
+  for (const skillCrit of SC) for (const critMul of CM) for (const b3Other of B3) for (const shadow of [false, true]) {
+    const h: UltHero = { skillCrit, critMul, b3Other }
+    w = Math.max(w, thiefUltBudget({ ...b, ultHits: b.ultHits + gearHits }, h, shadow) / ceiling(h, shadow, gearHits))
+  }
+  return w
+}
+
+test('thief_u line: second Ult branch, node values L1..L5, INT Energy, texts clean', () => {
+  const ult = branchesOf('thief').filter((b) => b.line === 'ult').map((b) => b.id)
+  assert.ok(ult.includes('thief_b') && ult.includes('thief_u'), ult.join())
+  assert.equal(node('thief_u1').parent, 'thief_ultp')
+  for (const id of ['thief_u1', 'thief_u2', 'thief_u3', 'thief_u4']) for (let lv = 1; lv <= node(id).max; lv++) assert.ok(!/undefined|NaN/.test(node(id).desc(lv)), node(id).desc(lv))
+  assert.deepEqual(lvs('thief_u1').map((m) => Math.round((m.thUltCrit ?? 0) * 1000)), [10, 20, 30, 40, 50])
+  assert.deepEqual(lvs('thief_u3').map((m) => m.thUltCritRes), [1, 2, 4, 5, 6], 'INT_FIELDS: whole Energy')
+  near(lvs('thief_u3')[4].thExecUlt ?? 0, 0.15)
+  near(thiefOnHitEff(build([['thief_u2', 5]])), 0.5); near(thiefOnHitEff(build([['thief_u2', 1]])), 0.404)
+  assert.ok(!/\d+\.\d+/.test(node('thief_u3').desc(1)), 'whole numbers on an INT_FIELDS node')
+  const rows = ultInfo('thief', build(U_FULL))
+  for (const k of ['สกิลคริ', 'ดาเมจคริเงื่อนไข', 'On-Hit', 'ทีปิด']) assert.ok(rows.some((r) => r.label.includes(k)), k)
+  assert.ok(rows.every((r) => !/undefined|NaN/.test(r.label + r.value)))
+})
+
+test('Ult budget (Q2): thief_u full stays under the live ceiling in both gauge states, every hero profile', () => {
+  assert.ok(worst(build(U_FULL)) <= 1, `u full ${worst(build(U_FULL))}`)
+  assert.ok(worst(build(U_FULL), 1) <= 1, 'with card เงาพันหน้า (ultHits +1) on both sides')
 })
 
 // ---------- save migration thiefRogueRework v5 (localStorage mock for load()) ----------
