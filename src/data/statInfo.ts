@@ -59,7 +59,7 @@ export const STAT_INFO: Record<BaseStat, StatInfo> = {
       swordsman: [(b) => `คริ +1% ต่อ 3 แต้ม (ตอนนี้ ${f1(P.luk.crit * 100 * b)}%)`],
       archer: [(b) => `คริ +1% ต่อ 3 แต้ม (ตอนนี้ ${f1(P.luk.crit * 100 * b)}%)`],
       thief: [(b) => `คริ +1% ต่อ 3 แต้ม (ตอนนี้ ${f1(P.luk.crit * 100 * b)}%)`],
-      mage: [(b) => `คริเวท +1% ต่อ 6 แต้ม (ตอนนี้ ${f1(P.off.mageLukSpellCrit * 100 * b)}%)`],
+      mage: [(b) => `คริเวท +1% ต่อ 6 แต้ม (ตอนนี้ ${f1(P.off.mageLukSpellCrit * 100 * b)}%)`, (b) => `สกิลคริ +1% ต่อ 10 แต้ม (สูงสุด ${Math.round(P.off.mageLukSkillCritCap * 100)}%, ตอนนี้ ${f1(Math.min(P.off.mageLukSkillCritCap, P.off.mageLukSkillCrit * b) * 100)}%)`],
       cleric: [(b) => `คริ +1% ต่อ 3 แต้ม (ตอนนี้ ${f1(P.luk.crit * 100 * b)}%)`, (b) => `เรียกหอกแสง ${f1(P.luk.spear * 100)}%/แต้ม ต่อเทิร์น (ตอนนี้ ${f1(Math.min(P.luk.spearCap, P.luk.spear * b) * 100)}%, สูงสุด ${P.luk.spearCap * 100}%)`],
     },
     byJob2: { sage: [(_b, d) => `คริ On-hit/Auto Spell แรง +${f1(KIT2.sage.lukProcCritMul * 100)}%/แต้ม (สูงสุด +${Math.round(KIT2.sage.lukProcCritCap * 100)}%, ตอนนี้ +${f1(Math.min(KIT2.sage.lukProcCritCap, KIT2.sage.lukProcCritMul * d) * 100)}%)`] },

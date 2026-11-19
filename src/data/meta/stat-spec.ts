@@ -27,6 +27,8 @@ export const PER_POINT = {
 		archerStrUlt: 0.01,
 		clericDexSpear: 0.003,
 		mageLukSpellCrit: 0.01 / 6,
+		mageLukSkillCrit: 0.01 / 10 /* Q 2026-11-19: Mage LUK also gives skillCrit (skills need skillCrit to crit) */,
+		mageLukSkillCritCap: 0.15,
 	},
 	luk: {
 		spear: 0.005,

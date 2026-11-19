@@ -95,3 +95,7 @@
 - Joins ชุดเงาจันทร์ (Moonshadow) `memberIds`; set tiers unchanged. Same off-hand slot as โล่ / กระบอกธนู, so no stacking
 - Tests: `tests/moonshadow-dirk.test.ts`
 - `c_rustfang` มีดสนิมเงา (D3 Thief weapon) poison -> crit line: poison +1 removed, **skillCrit +6%** · ★5 bonus poisonAmp +15% -> skillCrit +4% / critMul +10%
+
+## Mage LUK -> skillCrit + DEX chant-break nerf (Q 2026-11-19)
+- Mage LUK now also gives **skillCrit +1% per 10 LUK (cap 15%)** on top of spellCrit +1%/6 LUK (`PER_POINT.off.mageLukSkillCrit` / `mageLukSkillCritCap`), so a LUK Mage's skills can crit under the skillCrit-only rule.
+- Chant break: `MAGE_CAST.breakDex` 0.012 -> 0.005. Break chance = 25% − 0.5%/DEX − tenacity: DEX 21 used to reach 0%, now DEX 50 does (DEX 10 = 20%, 30 = 10%).
