@@ -3274,7 +3274,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.isProcHit()) return Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit)
     if (this.isSkillHit()) {
       const skillCrit = this.st.skillCrit + (this.inShroud() ? S2N.smokeSkillCrit : 0) // P2'b Shroud: skillCrit + (still under C.skillCrit)
-      if (!magic && skillCrit <= 0) return 0 // Q 2026-11-19: a physical skill needs skillCrit to crit at all (talent / buff bonuses ride on top of it)
+      if (skillCrit <= 0) return 0 // Q 2026-11-19: any skill (physical or magic) needs skillCrit to crit at all (spellCrit / talent / buff bonuses ride on top of it)
       return Math.min(C.skillCrit, skillCrit + sc + iceBonus + (magic ? this.st.spellCrit + chargeCrit : (this.st.crit + physAdd) * CRIT_RULES.skillFromCrit))
     }
     return magic ? Math.min(spellCap, this.st.spellCrit + burnBonus + iceBonus + chargeCrit) : Math.min(C.crit, this.st.crit + physAdd + sc)

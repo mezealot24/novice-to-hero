@@ -35,7 +35,8 @@ export const COMBO = {
  *  - `skillCrit` active skills / Ult (magic skills add `spellCrit`; physical skills borrow `skillFromCrit` of `crit` = 0 now)
  *  - `spellCrit` magic basics + on-hit procs (zap / fire / ice / spear / light ...) + Sage Auto Spell
  *  `crit` no longer leaks into `spellCrit`. A Mage's `crit` mods (gear / card / tree / talent) go to `skillCrit`.
- *  Q 2026-11-19: a physical skill crits ONLY with skillCrit (no skillCrit = never crits, except sure-crit effects),
+ *  Q 2026-11-19: a skill crits ONLY with skillCrit (no skillCrit = never crits, except sure-crit effects); later the same day
+ *  this was extended to magic skills too (spellCrit only adds on top once skillCrit > 0),
  *  a physical skill crit no longer skips the Hit/Flee roll, and NO crit ignores DEF any more (hero and monster). */
 export const CRIT_RULES = {
   skillFromCrit: 0, // physical skills: share of basic `crit` (+ crit buffs) that also counts for skills (Q 2026-11-19: 0, was 0.5)

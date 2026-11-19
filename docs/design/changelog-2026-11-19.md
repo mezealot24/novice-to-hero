@@ -88,3 +88,4 @@
 - `CRIT_RULES.monSkill = false`: a monster skill hit (strike / bolt, hero-kit casts) only rolls crit when the skill sets `crit: true`. Basic attack / combo / counter / Bullet Time still roll the monster's crit. Same idea as the hero rule (#132).
 - Death knight ⚔️ ดาบมรณะ: pow 2.8 -> 2.2, alone x2 -> x1.5. At D3 boss Lv 13 it was 192 dmg (6x its basic hit, 308 on a crit) and one-shot 75% HP of a Lv 11 hero; now ~113 and no crit.
 - Every other D1-D5 boss / mini top skill sits at 1.5-2.5x its basic hit, left as is.
+- Hero magic skills now need skillCrit too (Q picked "Need skillCrit too"): no skillCrit = the skill never crits; spellCrit / ice / charge bonuses add on top once skillCrit > 0. Procs, Auto Spell and magic basics still roll spellCrit as before. Mage skillCrit comes from crit gear / cards / talents (converted), Sage also from DEX; Mage LUK only gives spellCrit.

@@ -696,7 +696,7 @@ export const sageRodGain = (st: Stats, vit: number) => {
 /** Damage of one hit at `mul`, before monster DEF: "lo–hi (คริ X)". Uses CRIT_RULES split when `skill` is true. */
 export function hitText(st: Stats, mul: number, magic: boolean, skill = false) {
   const b = hitBase(st, magic)
-  const c = skill ? (!magic && st.skillCrit <= 0 ? 0 : Math.min(CRIT_RULES.cap.skillCrit, st.skillCrit + (magic ? st.spellCrit : st.crit * CRIT_RULES.skillFromCrit))) : (magic ? st.spellCrit : st.crit) // Q 2026-11-19: physical skill crit needs skillCrit
+  const c = skill ? (st.skillCrit <= 0 ? 0 : Math.min(CRIT_RULES.cap.skillCrit, st.skillCrit + (magic ? st.spellCrit : st.crit * CRIT_RULES.skillFromCrit))) : (magic ? st.spellCrit : st.crit) // Q 2026-11-19: any skill crit (physical or magic) needs skillCrit
   return `${range(b.lo * mul, b.hi * mul)}${c > 0 ? ` (คริ ${r(b.hi * mul * st.critMul)})` : ''}`
 }
 const heal = (st: Stats, n: number) => r(n * (1 + st.healAmp))

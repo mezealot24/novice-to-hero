@@ -28,3 +28,14 @@ test('death knight ดาบมรณะ at D3 boss Lv 13 stays within ~3.5x its
   assert.ok(hit / basic <= 3.5, `ratio ${(hit / basic).toFixed(2)}`)
   assert.ok(!sk.crit)
 })
+
+test('hero: a magic skill with no skillCrit never crits either (Q 2026-11-19 picked "Need skillCrit too")', async () => {
+  const { hitText } = await import('../src/data/skill-math')
+  const { PLAYER } = await import('../src/data/stats')
+  const st = { ...PLAYER, skillCrit: 0, spellCrit: 0.3, crit: 0.3 }
+  assert.ok(!hitText(st, 1, true, true).includes('คริ'), 'magic skill without skillCrit')
+  assert.ok(!hitText(st, 1, false, true).includes('คริ'), 'physical skill without skillCrit')
+  assert.ok(hitText({ ...st, skillCrit: 0.05 }, 1, true, true).includes('คริ'), 'magic skill with skillCrit')
+  const src = readFileSync('src/scenes/BattleScene.ts', 'utf8')
+  assert.ok(src.includes('if (skillCrit <= 0) return 0'), 'critRateFor gates every skill on skillCrit')
+})
