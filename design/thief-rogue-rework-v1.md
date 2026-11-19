@@ -33,7 +33,8 @@
 | P1 | Ratio AGI · knife fix · Back Stab · ทวงหนี้ cleanup | ✅ commit (รอคิวเล่นทดสอบ) |
 | P1b | แทงพิษ `pskill` ✅ · energy loop (`s1Weave`, floor cost) ⏸ ทำพร้อม P2 (talent `th_t2c` เปลี่ยน) |
 | P2 | Thief web + talents ใหม่ + migration | ✅ merged (#130 #131) |
-| P2'c | Thief Ult × เกจเงา: Ult budget 2 สถานะ (ร่างเงาเปิด/ปิด) · `thief_b` = ตัวปรับเกจ (Q1) · `thief_u` u1–u4★ · ทาเลนต์แถว 1/3 + `th_t4c` → หมอกลวงตา · Global Ult CD cap · B3 (ลบ `thExecute` ×1.5) · migration v5 | ✅ PR (รอคิวเล่นทดสอบ) · ดู `design/p2/NOTES.md` ## P2'c |
+| P2'c | Thief Ult × เกจเงา: Ult budget 2 สถานะ (ร่างเงาเปิด/ปิด) · `thief_b` = ตัวปรับเกจ (Q1) · `thief_u` u1–u4★ · ทาเลนต์แถว 1/3 + `th_t4c` → หมอกลวงตา · Global Ult CD cap · B3 (ลบ `thExecute` ×1.5) · migration v5 | ✅ merged (#138) · ดู `design/p2/NOTES.md` ## P2'c |
+| P2'd | สาย INT (lite): `statEff` · `thief_v` (`v1` แทงฉาบอาคม · `v2` ระเบิดสารพิษ · `v3` เลือดพิษ · `v4★` นักเล่นแร่พิษ) · `th_t4b` วิถีพิษคริ (B5 เฉพาะพิษฐาน) · WIS Shadow Ward · LUK Gambler's Edge · migration v6 | ✅ PR · ดู R4.10 / `design/p2/NOTES.md` ## P2'd |
 | P3'a | Rogue: 🔪 Dagger Mark + Voracity + Kill Reset · Back Stab (Mark target, Strip, Backstab Mark, Shadow Ambush, B4) · web `rg_k`/`rg_c`/`rg_x` เป็นกลไก · migration v3 | ✅ PR (รอคิวเล่นทดสอบ) · ดู R4.8 |
 | P3'b | Rogue: โหนดใต้ Back Stab (`rg_s1-3`) + พายุมีด (`rg_u1-3`, Death Mark) + ทาเลนต์ `rg_t*` ใหม่ + migration v4 | ⏸ หลัง P3'a |
 | P4 | Plagiarism | ⏸ PR แยก ทำท้ายสุด |
@@ -51,6 +52,12 @@
 - **Ult budget (Q2):** เพดาน = เงาพริ้ว live ที่ดีสุด (`th_t3b` R2 เดิม 7 ที) **ทั้งร่างเงาเปิด/ปิด** · `th_t3b` ตัดเหลือ +1/+2 ที · u-line เติมคืน (max stack 88–98%) · ตาราง + เทสต์อยู่ใน `design/p2/NOTES.md` / `tests/thief-p2c.test.ts`
 - **ไม่ทำ:** DEX → ฮิตเงาพริ้ว (`thiefUltDex*`) · On-Hit D.Strike / procs · `onShroudBreak` · Mistwalker (`th_t4c` แค่เปลี่ยนชื่อ)
 - **Save:** `THIEF_REWORK_VER` 5 (4 เว้นให้ Rogue P3'b)
+
+### R4.10 P2'd ที่ทำจริง (2026-11-19) · ต่างจาก P2d-spec ตรงไหน (`MAIN-VS-REV4` ชนะ)
+- **สาย `thief_v` (`ATTACH: 's1'`):** `v1` แทงฉาบอาคม (+M.ATK เวทในแทงพิษ/ตีปกติ) · `v2` ระเบิดสารพิษ (เกณฑ์ `thiefDetAtShare` 0.5 ของ `poisonMax()` · ไม่มีเทอม M.ATK แยกเพราะ main คูณ M.ATK ในพิษแล้ว) · `v3` เลือดพิษ (INT × `net HP` + cap 25% HP/เทิร์น) · `v4★` นักเล่นแร่พิษ (คริ + leech 100% + คืนพิษบอส 25% · ไม่มี Alchemy Blade)
+- **B5 `th_t4b` วิถีพิษคริ:** คูณเฉพาะพิษฐาน (`m.poison × m.poisonDmg × bleedScale`) ห้ามคูณ `%HP bite` / `hpBleed` · ข้ามคริและ `ทวงหนี้` (`debtBursting`) · `vsPoison` ของ Contaminate ย้ายมารวมใน B5 (cap 1.0)
+- **Off-meta นอกโหนด:** WIS ได้เฉพาะ `Shadow Ward` (สูงสุด 15% · ทิ้ง `wisPoisonCap`/`poisonDmg`/Venom Melt ตาม §2 P3) · LUK ได้ `Gambler's Edge` (`LUCKY!` → +6 Energy 1/เทิร์น ครอบทั้ง `hurtHeroCore` และ `trueHurt`) · ใช้ `statEff(b, k)` ประตูเดียว
+- **Save:** `THIEF_REWORK_VER` 5 → **6** (คืนแต้ม web ชั้น 1 + talents โจรอีกครั้ง · web/talents Rogue ไม่แตะ) · **19 KIT key** (ไม่แตะ Mobster / `power.ts`)
 
 ### R4.5 คำถามที่ค้างถึงคิว
 - ไม่มี (ตอบครบ 2026-11-19: Mobster A · แทงพิษ pskill + ลด thiefAuto)

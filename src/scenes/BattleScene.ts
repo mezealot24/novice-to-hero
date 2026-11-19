@@ -23,7 +23,8 @@ import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/ski
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
 import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
-import { ultCdCut, condCritB3, thiefUltCondCritDmg, thiefUltCritAdd, thiefUltHitCount, thiefOnHitEff, thiefUltFinisher, thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost, rogueKnifeMul, rogueSteelMul, rogueStabAmp, rogueComboDebuff, rogueAmbushCrit } from '../data/skill-math'
+import { ultCdCut, condCritB3, thiefUltCondCritDmg, thiefUltCritAdd, thiefUltHitCount, thiefOnHitEff, thiefUltFinisher, thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, matkToPmRatio, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost, rogueKnifeMul, rogueSteelMul, rogueStabAmp, rogueComboDebuff, rogueAmbushCrit } from '../data/skill-math'
+import { agonyBonus, canDetonate, contaminateBossRefund, contaminateCritChance, contaminateLeechShare, detonateDmg, detonateStacks, gamblerLuckyRes, paApplies, poisonPowerBonus, poisonTickTotal, shadowWardApplies } from '../data/thief-offmeta'
 import { addCard, addMat, addXp, loseXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -771,7 +772,7 @@ export class BattleScene extends Phaser.Scene {
   private async fight(id: number): Promise<boolean> {
     this.undrain()
     this.fightTurns = 0; this.timedOut = false
-    this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.s1Weave = false; this.weaveBonus = 0; this.dodgeCdIcd = 0; this.rampage = 0
+    this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.s1Weave = false; this.weaveBonus = 0; this.dodgeCdIcd = 0; this.detUsed = false; this.luckyIcd = false; this.leechLeft = this.st.maxHp * KIT.thiefLeechTurnCap; this.rampage = 0
     this.rgTempo = 0; this.rgComboN = 0; this.rgDodgeIcd = 0; this.rgFlee = 0; this.rgDodged = false; this.rgAmbush = false // P3'a Rogue: per wave
     this.martyrUsed = false; this.j2Hurt = false; this.monkGrit = 0; this.asuraExhaust = 0; this.awakenTurns = 0; this.awakenAbsorbed = 0; this.awakenUltPow = 1; this.clearAllies() // Crusader ★ ผู้พลีชีพ once per wave · allies last one wave · Awakening resets per wave
     this.inspireUsed = false; this.inspire = 0; this.earthDone = false // ⚜️ Paladin: once per fight
@@ -903,6 +904,9 @@ export class BattleScene extends Phaser.Scene {
   /** Dungeon 4-5: debuffs tick before the hero acts and count down after. */
   private async heroTurn() {
     this.tickFxCd()
+    this.detUsed = false
+    this.luckyIcd = false
+    this.leechLeft = this.st.maxHp * KIT.thiefLeechTurnCap
     if (this.shadowTurns > 0 && --this.shadowTurns === 0) this.heroSpr.setAlpha(1) // 👤 ร่างเงา wears off
     const X = this.hx
     if (this.relic === 'purify') this.heal(this.st.maxHp * RELIC_RULES.purify.regen, true)
@@ -1303,6 +1307,11 @@ export class BattleScene extends Phaser.Scene {
     if (this.shadowTurns > 0 && this.st.thShadowDodgeCd > 0 && Math.random() < this.st.thShadowDodgeCd && this.cutUltCd(1) > 0) this.floatText(HERO_X - 40, GROUND - 195, '🌀 เงาวนลูป! Ult CD −1', '#c9b8ff')
     this.addShadow(KIT.thiefShadow.dodge + (this.st.thShadowFill > 0 && Math.random() < this.st.thShadowFill ? 1 : 0))
   }
+  /** P2'd LUK Gambler's Edge: Thief-line gains Energy on LUCKY! dodge (1/hero turn). */
+  private gamblerLucky(label: string) {
+    const g = gamblerLuckyRes(label, this.job.id, this.luckyIcd)
+    if (g > 0 && this.job.resource === 'energy') { this.luckyIcd = true; this.resGain(g) }
+  }
   /** 🔻 Thief หมายหัว: keep a live mark on the highest-HP monster. */
   private ensureMark() {
     if (this.st.thMark <= 0 || (this.thMarkMon && !this.thMarkMon.dead)) return
@@ -1347,6 +1356,7 @@ export class BattleScene extends Phaser.Scene {
     const opener = !magic && this.waveOpen && !this.allyHitting && this.job.id === 'thief' // P2'c th_t1b: first physical hit of the wave
     if (opener) this.waveOpen = false
     const crit = this.forceCrit || release || shadowSure || opener || (!this.petNoCrit && this.critAllowed() && Math.random() < critRate) // magic crits only with spellCrit (or Falcon Crit on Marked targets) · Skill 2 ตาเหยี่ยว · 2nd job
+    if (!crit && !magic && !this.allyHitting && this.st.thPerfectAgony > 0 && this.src !== 'poison') mul *= 1 - KIT.thiefAgonyHitCut // P2'd th_t4b วิถีพิษคริ: non-crit physical hits deal less
     const effFlee = m.huntMark > 0 ? (m.def.flee ?? 5) * Math.max(0, 1 - this.st.j2MarkPierceFlee) : (m.def.flee ?? 5)
     const noFlee = m.huntMark > 0 && this.st.j2MarkPierceFlee >= 1
     const critSkipsFlee = crit && (!this.isSkillHit() || this.backStabbing) // Q 2026-11-19: only a basic / combo / counter crit skips Flee; a physical skill hit rolls Hit (Back Stab is a stated sure hit)
@@ -1477,6 +1487,9 @@ export class BattleScene extends Phaser.Scene {
   private s1Weave = false // P2'a Thief สลับคม: แทงพิษ was cast outside ร่างเงา, the next hero action is a basic attack (cleared by basicAttack)
   private weaveBonus = 0 // P2'a th_t2c: basic bracket bonus for the swing right after แทงพิษ (set / cleared in basicAttack)
   private dodgeCdIcd = 0 // P2'a th_t2a: hero turns until a dodge may cut a cooldown again
+  private detUsed = false // P2'd thief_v2 Contaminate: 1/hero turn across Basic + แทงพิษ
+  private luckyIcd = false // P2'd LUK Gambler's Edge: LUCKY! Energy gain, 1/hero turn
+  private leechLeft = 0 // P2'd thief_v3 เลือดพิษ: remaining HP heal budget this hero turn (max KIT.thiefLeechTurnCap x maxHp)
   private killHealCritUsed = false // กระหายเลือด: boss/mini crit heal once per hero turn
   private forceCrit = false
   /** Q 2026-11-14: Beastmaster Ult + Skill 3 hawk / boar hits never crit (the wolf still can; sure crits still go through). */
@@ -3400,6 +3413,47 @@ export class BattleScene extends Phaser.Scene {
     if (this.s2?.id === 'th_wound' && this.st.s2Lv > 0 && !m.dead && Math.random() < S2N.woundStrikeChance) this.addWound(m, 1) // P2'b "+" แผลฉีก
   }
 
+  /** P2'd thief_v3 เลือดพิษ: heal from poison damage capped at thiefLeechTurnCap of max HP per hero turn. */
+  private leechHeal(n: number) {
+    if (n <= 0 || this.leechLeft <= 0 || this.hp <= 0) return
+    const amt = Math.min(n, this.leechLeft)
+    this.leechLeft -= amt
+    this.heal(amt, true)
+  }
+
+  /** P2'd thief_v2 ระเบิดสารพิษ (Contaminate): consume a share of poison stacks for a poison burst + AoE splash (1/hero turn). */
+  private contaminate(m: Mon) {
+    if (m.dead || this.hp <= 0 || !canDetonate(this.detUsed, m.poison, this.poisonMax(), this.st.thDetonate)) return
+    const det = detonateStacks(m.poison)
+    if (det <= 0) return
+    this.detUsed = true
+    const star = this.st.thDetonateStar > 0
+    const crit = star && Math.random() < contaminateCritChance(this.st.skillCrit, this.st.spellCrit)
+    let dmg = Math.max(1, Math.round(detonateDmg(det, m.poisonDmg, this.st.thDetonate) * this.dotMul()))
+    if (crit) dmg = Math.max(1, Math.round(dmg * this.st.critMul))
+    venomStabFx(this, m.spr)
+    this.burst(m.spr.x, m.spr.y - 30, 0xa77be0, 14, 200)
+    this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 36, '☣️ ระเบิดสารพิษ!', '#c9a8ff')
+    const share = contaminateLeechShare(star)
+    const hp0 = m.hp
+    this.withSrc('poison', () => this.damageMon(m, dmg, crit, '#a77be0', false))
+    const net = hp0 - Math.max(0, m.hp)
+    if (this.st.thPoisonLeech > 0 && net > 0) this.leechHeal(net * this.st.thPoisonLeech * share)
+    if (!m.dead) {
+      m.poison = Math.max(0, m.poison - det)
+      if (star && (m.def.ai === 'boss' || !!m.def.mini)) m.poison = Math.min(this.poisonMax(), m.poison + contaminateBossRefund(det))
+      this.dotIcon(m)
+    }
+    const splash = Math.max(1, Math.round(dmg * KIT.thiefDetSplash))
+    for (const o of this.alive()) {
+      if (o === m || o.dead) continue
+      const ohp0 = o.hp
+      this.withSrc('poison', () => this.damageMon(o, splash, crit, '#a77be0', false))
+      const onet = ohp0 - Math.max(0, o.hp)
+      if (this.st.thPoisonLeech > 0 && onet > 0) this.leechHeal(onet * this.st.thPoisonLeech * share)
+    }
+  }
+
   /** While true, melee hits stay at the monster (combo chain, Thief ult) and the hero walks home once at the end via goHome(). */
   private stayIn = false
 
@@ -3601,7 +3655,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }) // 📖 Sage: melee x P.ATK (+ Passive Skill 1 Mana infusion + on-impact Auto Spell & Perks)
     else if (kind === 'mage') await this.shoot(f, 0x9f7bff, () => { if (this.strike(f, MAGE_SPELL.basicMul, true, '#c9a8ff') > 0) this.gainRes(MAGE_CAST.boltMana) }) // weak free magic bolt (v78: + Mana on hit); real damage = Mana spells
-    else if (kind === 'thief') await this.lunge(f, () => { this.strike(f, 0.6); this.strike(f, 0.6); this.doubleAttack(f, 0.6) })
+    else if (kind === 'thief') await this.lunge(f, () => { this.strike(f, 0.6); this.strike(f, 0.6); this.doubleAttack(f, 0.6); if (this.st.thS1Matk > 0 && this.st.matk > 0 && !f.dead) this.strike(f, this.st.thS1Matk * KIT.thiefVenomBasicShare * matkToPmRatio(this.st), true, '#c9a8ff'); this.contaminate(f) })
     else if (kind === 'cleric') {
       const surge = this.firstSwing && this.st.j2ChargeFirst > 0
       if (this.st.j2Charge > 0 && this.firstSwing) chargeOpenerFx(this, HERO_X, f.spr.x, GROUND, surge)
@@ -3869,7 +3923,7 @@ export class BattleScene extends Phaser.Scene {
         break
       case 'thief':
         this.pickupOpen = this.j2?.id === 'rogue' // P3'a: แทงพิษ can pick up Marks
-        try { await this.lunge(live[0], () => { const m = live[0], mul = KIT.thiefAuto * pow * (1 + this.st.pskill); venomStabFx(this, m.spr); this.strike(m, mul); this.doubleAttack(m, mul); if (!m.dead) { this.addPoison(m, KIT.thiefAutoPoison) } }, true, true) } finally { this.pickupOpen = false }
+        try { await this.lunge(live[0], () => { const m = live[0], mul = KIT.thiefAuto * pow * (1 + this.st.pskill); venomStabFx(this, m.spr); this.strike(m, mul); this.doubleAttack(m, mul); if (!m.dead) { this.addPoison(m, KIT.thiefAutoPoison) } if (this.st.thS1Matk > 0 && this.st.matk > 0 && !m.dead) this.strike(m, this.st.thS1Matk * matkToPmRatio(this.st), true, '#c9a8ff'); this.contaminate(m) }, true, true) } finally { this.pickupOpen = false }
         break
     }
   }
@@ -4344,10 +4398,16 @@ export class BattleScene extends Phaser.Scene {
     await this.tween({ targets: this.heroSpr, x: HERO_X, duration: 200 })
   }
 
-  /** dot = damage over time / reflected damage: no executioner bonus and never reflected back. */
-  private damageMon(m: Mon, dmg: number, crit: boolean, color?: string, dot = false) {
+  /** dot = damage over time / reflected damage: no executioner bonus and never reflected back. skipB5 = poison tick already applied PA to flat portion only. */
+  private damageMon(m: Mon, dmg: number, crit: boolean, color?: string, dot = false, skipB5 = false) {
     if (m.dead) return
     dmg = Math.ceil(dmg * this.srcMul(m, dot)) // พร v2 tags (masteries, style switches) · whole numbers only (Q: round up), so shown == applied
+    if (this.src === 'poison' && !skipB5 && !this.debtBursting) { // P2'd B5 Poison power: Perfect Agony + vsPoison (Contaminate), one cap thiefAgonyCap
+      const pa = paApplies(crit, this.debtBursting) ? agonyBonus(this.st.critMul, this.st.thPerfectAgony) : 0
+      const vp = !dot && m.poison > 0 ? this.px('vsPoison') : 0
+      const b5 = poisonPowerBonus(pa, vp)
+      if (b5 > 0) dmg = Math.ceil(dmg * (1 + b5))
+    }
     if (this.biomeState && !dot && m.instanceId) {
       const bHit = onMonsterHitBiome(this.biomeState, m.instanceId, dmg, 1)
       dmg = bHit.finalDamage
@@ -4587,8 +4647,16 @@ export class BattleScene extends Phaser.Scene {
       const bleedScale = 1 + this.st.j2BleedDmg
       const P = KIT.poison, hpBite = m.hp > m.def.hp * P.hpAbove ? m.poison * (m.def.hp * this.st.poisonHpPct + P.hpFlat) : 0 // 🩸 %HP bite while above 50%
       const hpBleed = this.st.j2WolfBleedPct > 0 ? Math.min(Math.round(m.poison * m.def.hp * this.st.j2WolfBleedPct), Math.round(KIT2.beastmaster.wolfBleedCap * this.st.atk)) : 0
-      this.withSrc('poison', () => this.damageMon(m, Math.max(1, Math.round((m.poison * m.poisonDmg * bleedScale + hpBite) * this.dotMul()) + hpBleed), false, '#a77be0', true))
-      if (this.st.poisonLeech > 0) this.heal(m.poison * m.poisonDmg * this.st.poisonLeech, true)
+      const pa = agonyBonus(this.st.critMul, this.st.thPerfectAgony)
+      const tickDmg = poisonTickTotal(m.poison * m.poisonDmg * bleedScale, pa, hpBite, this.dotMul(), hpBleed) // PA multiplies flat poison only, never hpBite / hpBleed
+      const hp0 = m.hp
+      this.withSrc('poison', () => this.damageMon(m, tickDmg, false, '#a77be0', true, true))
+      if (this.st.thPoisonLeech > 0) {
+        const net = hp0 - Math.max(0, m.hp)
+        if (net > 0) this.leechHeal(net * this.st.thPoisonLeech)
+      } else if (this.st.poisonLeech > 0) {
+        this.heal(m.poison * m.poisonDmg * this.st.poisonLeech, true)
+      }
       if (this.st.poisonSlow > 0 && !m.dead && m.poison >= slowAtLv(this.st.poisonSlow)) { m.chill = Math.max(m.chill, KIT.poison.slowTurns); this.dotIcon(m) } // 🐌 Thief พิษชา
     } // Thief เลือดพิษ · 🐺 IV talent % Max HP bleed
     if (!m.dead && m.burnStackTurns > 0) { // ไฟลุก: stacks x magic power (พร v2: 70% M.ATK + 30% P.ATK)
@@ -4908,6 +4976,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.st.dodgeEnergy > 0 && this.job.resource === 'energy') this.res = Math.min(this.resMax(), this.res + this.st.dodgeEnergy) // Thief talent: ขโมยจังหวะ
       this.dodgeCdCut() // P2'a th_t2a: also cuts a cooldown (ICD)
       this.shadowDodged() // 👤 เกจเงา (+ P2'c thief_b1 / b3)
+      this.gamblerLucky(label) // P2'd LUK Gambler's Edge: LUCKY! -> Energy (1/hero turn)
       this.rgDodged = true // P3'a Rogue: next Back Stab is a Shadow Ambush
       return false
     }
@@ -4942,6 +5011,7 @@ export class BattleScene extends Phaser.Scene {
     const effMdef = Math.min(RESIST_RULES.hardCap, this.st.mdef * ab + (this.st.j3Ch > 0 && this.monkGrit > 0 ? KIT3.champion.gritMdefBonus : 0))
     const raw = magic ? dmg * (1 - effMdef) : afterDef(dmg, this.st.def * ab)
     let n = Math.max(1, Math.ceil(raw * (1 - this.st.guard) * (this.buf.guard > 0 ? 1 - S2N.guardCut(this.st.s2Lv) : 1) * this.takenMul())) // Skill 2 ตั้งการ์ด · พร v2
+    if (this.st.thShadowWard > 0 && shadowWardApplies(magic, monHit, (src?.trueTurns ?? 0) > 0)) n = Math.max(1, Math.ceil(n * (1 - this.st.thShadowWard))) // P2'd WIS Shadow Ward
     if (!magic && this.st.j2BoarGuardDr > 0 && readyAllies(this.allies).some((a) => a.def.share && a.hp > a.maxHp * KIT2.beastmaster.boarGuardHpPct)) n = Math.max(1, Math.ceil(n * (1 - this.st.j2BoarGuardDr))) // 🐗 bm_b3: Boar > 50% HP lowers physical dmg taken
     if (src && this.st.j2Provoke > 0) { // Knight ข่มขวัญ: immediate 50% DR, full DR below provokeAt HP
       const cut = src.hp < src.def.hp * KIT2.knight.tree.provokeAt ? this.st.j2Provoke : this.st.j2Provoke * 0.5
@@ -5233,7 +5303,7 @@ export class BattleScene extends Phaser.Scene {
       if (mo && this.job.resource === 'mana' && this.res >= this.resMax() * (mo.threshold ?? 0.6)) k *= 1 + mo.power
     }
     if (!dot && this.px('vsBurn') > 0 && (m.burnStackTurns > 0 || m.burnTurns > 0 || m.hell > 0)) k *= 1 + this.px('vsBurn')
-    if (!dot && m.poison > 0) k *= 1 + this.px('vsPoison')
+    if (!dot && src !== 'poison' && m.poison > 0) k *= 1 + this.px('vsPoison') // src 'poison' (!dot = Contaminate) applies vsPoison inside B5 instead
     if (rel === 'glass' && this.hp < this.st.maxHp * RELIC_RULES.glass.below) k *= 1 + RELIC_RULES.glass.dmg
     if (this.demonOn) k *= 1 + IMMORTAL_RULES.demonDmg
     if (src === 'ult') k *= this.ultOpen
@@ -5747,7 +5817,7 @@ export class BattleScene extends Phaser.Scene {
     n = Math.ceil(n)
     if (n <= 0 || this.hp <= 0) return 0
     if (this.dodgeCharges > 0) { this.dodgeCharges--; this.evadeJuice('เงาพริ้ว!', '#c9c9d6'); this.shadowDodged(); return 0 }
-    if (this.hx.web <= 0 && Math.random() < this.st.luckyDodge) { this.evadeJuice('LUCKY!', '#6fd08c'); this.shadowDodged(); return 0 }
+    if (this.hx.web <= 0 && Math.random() < this.st.luckyDodge) { this.evadeJuice('LUCKY!', '#6fd08c'); this.shadowDodged(); this.gamblerLucky('LUCKY!'); return 0 }
     if (this.shield > 0) { const a = Math.min(Math.ceil(this.shield), n); this.shield = Math.max(0, this.shield - a); n -= a; if (n <= 0) { this.floatText(HERO_X, GROUND - 110, '🛡️ กันไว้', '#9fe3ff'); return 0 } }
     this.castBreak(n)
     const before = this.hp

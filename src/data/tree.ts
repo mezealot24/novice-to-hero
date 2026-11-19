@@ -180,6 +180,7 @@ const ATTACH: Record<string, "s1" | "ult"> = {
 	cleric_c: "s1",
 	cleric_d: "ult", // v84
 	thief_a: "s1",
+	thief_v: "s1", // P2'd
 	thief_b: "ult",
 	thief_u: "ult", // P2'c
 	mage_l: "ult",

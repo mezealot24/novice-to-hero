@@ -6,8 +6,10 @@
 // thief_c3 / thief_c4 / th_t2* get new meanings, gated by save.ts migrateThiefRogueRework (jobTree + talents reset). thief_b3 / thief_l1-l4 retired.
 // P2'b: th_t4a / th_t1c new meanings + ม่านควัน / แผลลึก rework -> migrateThiefRogueRework v2 (same reset).
 // P2'c: thief_b1-b4 = เกจเงา modifiers (thief_b3 back as เงาวนลูป) -> migrateThiefRogueRework v5 (same reset).
+// P2'd: thief_v สายเล่นแร่พิษ (INT/เวท) + th_t4b วิถีพิษคริ (Perfect Agony) -> migrateThiefRogueRework v6 (same reset).
 // Node mods are written per OLD level 1..3 (★ = 1): stretchNode() (data/tree.ts) shows 5 levels.
 import { node as n, rk, talent as t, type ClassTree } from '../tree-types'
+import { CRIT_RULES } from '../battle-rules'
 import { doubleAtkChance } from '../game-data'
 import { KIT, poisonAt, slowAtLv } from '../skill-math'
 
@@ -24,6 +26,8 @@ export const tree: ClassTree = {
     { id: 'thief_core', job: 'thief', name: 'เลือด·คริ', icon: '🩸', blurb: 'ดูดเลือดตามสถานะ · หมายหัว · ฆ่าแล้วฟื้น' },
     // P2'c: second Ult branch (data/tree.ts ATTACH thief_u: 'ult'); numbers cut for the Ult budget (thiefUltBudget, gauge on / off)
     { id: 'thief_u', job: 'thief', name: 'เงาสังหาร', icon: '🗡️', blurb: 'เงาพริ้ว: คริ · On-Hit · ทีปิด' },
+    // P2'd: off-meta INT/magic poison alchemy branch (data/tree.ts ATTACH thief_v: 's1')
+    { id: 'thief_v', job: 'thief', name: 'เล่นแร่พิษ', icon: '⚗️', blurb: 'สาย INT/เวท: แทงฉาบอาคม · ระเบิดสารพิษ · เลือดพิษ' },
   ],
   nodes: [
     n('thief_a1', 'thief_a', 1, '🧪', 'เคลือบพิษ', 3, (lv) => `พิษ +${lv} stack ต่อ hit`, (lv) => ({ poison: lv })),
@@ -43,6 +47,11 @@ export const tree: ClassTree = {
     n('thief_u3', 'thief_u', 3, '💀', 'เพชฌฆาตเงา', 3, (lv) => `คริใส่เป้า HP < ${Math.round(KIT.thiefExecBelow * 100)}%: ดาเมจคริ +${Math.round(5 * lv)}% (เงาพริ้ว + ตีปกติ/คอมโบ) · เงาพริ้วคริ: Energy +${Math.round(2 * lv)} (สูงสุด ${KIT.thiefUltCritResCap}/ครั้ง)`, (lv) => ({ thExecUlt: 0.05 * lv, thUltCritRes: 2 * lv })),
     n('thief_u4', 'thief_u', 4, '🗡️', 'เงาพันคม', 1, () => `เงาพริ้วคริ ≥ ${KIT.thiefFinisherAt} ที: แทงปิดท้ายอีก 1 ที ${KIT.thiefFinisherMul}x ของทีปกติ (คริแน่) ใส่ตัว HP น้อยสุด`, () => ({ thUltFinisher: 1 })),
     n('thief_b4', 'thief_b', 4, '👤', 'เงาสวน', 1, () => `หลบได้ทุกครั้ง = แทงสวน 0.8x (ติดพิษได้) · ร่างเงานานขึ้น +1 เทิร์น`, () => ({ dodgeStrike: 1, thShadowTurns: 1 })),
+    // P2'd: thief_v สาย INT/เวท (เล่นแร่พิษ)
+    n('thief_v1', 'thief_v', 1, '🔮', 'แทงฉาบอาคม', 3, (lv) => `แทงพิษ +${Math.round(60 * lv)}% M.ATK (เวท) · ตีปกติ +${Math.round(60 * lv * KIT.thiefVenomBasicShare)}% M.ATK (เวท)`, (lv) => ({ thS1Matk: 0.6 * lv })),
+    n('thief_v2', 'thief_v', 2, '☣️', 'ระเบิดสารพิษ', 3, (lv) => `ตีปกติ/แทงพิษใส่เป้าพิษ ≥ ${Math.round(KIT.thiefDetAtShare * 100)}% เพดาน (${poisonAt(KIT.thiefDetAtShare, KIT.poison.baseCap)} จาก ${KIT.poison.baseCap}): ระเบิดพิษ ${Math.round(KIT.thiefDetShare * 100)}% (ขั้นต่ำ ${KIT.thiefDetMin}) ทำดาเมจ ${Math.round((KIT.thiefDetPoisonBase + KIT.thiefDetPoisonLv * lv) * 100)}%/stack + สาดตัวอื่น ${Math.round(KIT.thiefDetSplash * 100)}% (1 ครั้ง/เทิร์น)`, (lv) => ({ thDetonate: lv })),
+    n('thief_v3', 'thief_v', 3, '💉', 'เลือดพิษ', 3, (lv) => `ดูดเลือดจากพิษ ${Math.round(KIT.thiefLeechLv * lv * 100)}% ของ HP ที่มอนเสียจริง (ขยาย +${(KIT.thiefLeechInt * 100).toFixed(1)}%/INT สูงสุด ${Math.round(KIT.thiefLeechCap * 100)}% · ไม่เกิน ${Math.round(KIT.thiefLeechTurnCap * 100)}% HP/เทิร์น · ระเบิดสารพิษได้ ${Math.round(KIT.thiefDetLeechShare * 100)}%)`, (lv) => ({ thPoisonLeechLv: lv })),
+    n('thief_v4', 'thief_v', 4, '⚗️', 'นักเล่นแร่พิษ', 1, () => `ระเบิดสารพิษคริได้ (โอกาสจากสกิลคริ+เวทคริ สูงสุด ${Math.round(CRIT_RULES.cap.skillCrit * 100)}%) · เลือดพิษจากระเบิดสารพิษเต็ม 100% · ใส่บอส/มินิบอส คืนพิษ ${Math.round(KIT.thiefDetBossRefund * 100)}% ของที่ระเบิด`, () => ({ thDetonateStar: 1 })),
   ],
   talents: [
     // ----- row 1 · Job Lv 5 · ตั้งตัว -----
@@ -60,7 +69,7 @@ export const tree: ClassTree = {
     t('th_t3c', 3, '🌫️', 'เงาหมอกลวงตา', 2, (r) => `เงาพริ้ว: หลบแน่นอน ${KIT.thiefUltDodge} → ${KIT.thiefUltDodge + r} ครั้ง · แต่ละทีติดพิษ +${rk(r, 2, 3)} stack · เกจเงา +1 ต่อการกด`, (r) => ({ ultDodge: r, ultPoison: rk(r, 2, 3), thUltGauge: 1 })),
     // ----- row 4 · Job Lv 30 · ล้มบอส -----
     t('th_t4a', 4, '🧫', 'สถานะทับซ้อน', 2, (r) => `ศัตรูที่พิษ ≥ ${Math.round(KIT.thiefPrivShare * 100)}% ของเพดานพิษ (${poisonAt(KIT.thiefPrivShare, KIT.poison.baseCap)} จาก ${KIT.poison.baseCap}) หรือติดดีบัฟต่างชนิด ≥ ${KIT.thiefKindsAt} อย่าง รับดาเมจ +${rk(r, 18, 30)}% (รวมพิษ · รวมกับโบนัสรับดาเมจอื่นไม่เกิน +${Math.round(KIT.thiefTakenCap * 100)}%)`, (r) => ({ thPrivileged: rk(r, 0.18, 0.3) })), // P2'b Privileged Status (B1); id kept (save data, reset by migrateThiefRogueRework v2)
-    t('th_t4b', 4, '🗡️', 'นักฆ่า', 2, (r) => `ดาเมจคริ +${r === 1 ? 30 : 50}%`, (r) => ({ critMul: r === 1 ? 0.3 : 0.5 })),
+    t('th_t4b', 4, '🗡️', 'วิถีพิษคริ', 2, (r) => `แปลงดาเมจคริส่วนที่เกิน ${Math.round(KIT.thiefAgonyFrom * 100)}% เป็นโบนัสดาเมจพิษ ${rk(r, 50, 80)}% (เฉพาะพิษไม่คริ ไม่รวม %HP · รวม vsPoison สูงสุด +${Math.round(KIT.thiefAgonyCap * 100)}%) · ฮิตกายภาพไม่คริเบาลง ${Math.round(KIT.thiefAgonyHitCut * 100)}%`, (r) => ({ thPerfectAgony: rk(r, 0.5, 0.8) })),
     t('th_t4c', 4, '🌑', 'หมอกลวงตา', 2, (r) => `มอนตีโดนขั้นต่ำ −${r === 1 ? 5 : 8}% (ต่ำสุด 60%)`, (r) => ({ fleeFloor: r === 1 ? 0.05 : 0.08 })),
   ],
 }
