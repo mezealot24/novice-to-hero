@@ -139,7 +139,12 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
         sk('s2n.bladeHealCut', "Blade's End: ตัดฮีลมอน", FRAC), sk('s2n.bladeCutTurns', "Blade's End: ตัดฮีลนาน (เทิร์นมอน)", int(0, 20)),
         sk('s2n.woundPriv', 'Privileged: รับดาเมจเพิ่ม (B1)', FRAC)),
     ],
-    ult: [sk('job.thief.ult.cd', 'คูลดาวน์ (เทิร์น)', CD), kit('thiefUlt', 'ดาเมจต่อทีแทง ×'), kit('thiefUltHits', 'จำนวนทีแทง'), kit('thiefUltAgiK', 'AGI ลงเต็มสัดส่วน → แรง +×'), kit('thiefUltAgiShareCap', 'เพดานสัดส่วน AGI'), kit('thiefUltAgiPoolMin', 'แต้มขั้นต่ำที่ใช้หาร AGI'),kit('thiefUltDodge', 'หลบแน่นอน (ครั้ง)')],
+    ult: [sk('job.thief.ult.cd', 'คูลดาวน์ (เทิร์น)', CD), kit('thiefUlt', 'ดาเมจต่อทีแทง ×'), kit('thiefUltHits', 'จำนวนทีแทง'), kit('thiefUltAgiK', 'AGI ลงเต็มสัดส่วน → แรง +×'), kit('thiefUltAgiShareCap', 'เพดานสัดส่วน AGI'), kit('thiefUltAgiPoolMin', 'แต้มขั้นต่ำที่ใช้หาร AGI'),kit('thiefUltDodge', 'หลบแน่นอน (ครั้ง)'),
+      // P2'c: thief_u / th_t3* (budget: tests/thief-p2c.test.ts)
+      kit('thiefUltCondCap', 'เงาพริ้ว: ดาเมจคริเงื่อนไขของ Ult รวมสูงสุด'), kit('thiefUltKindsMax', 'เงาจุดตาย: นับดีบัฟสูงสุด (ชนิด)'),
+      kit('thiefExecBelow', 'เพชฌฆาตเงา: HP เป้าต่ำกว่า'), kit('thiefUltExecBelow', 'เงาสังหาร: HP เป้าต่ำกว่า'),
+      kit('thiefOnHitBase', 'On-Hit: สัดส่วนฐาน'), kit('thiefOnHitCap', 'On-Hit: สัดส่วนสูงสุด'),
+      kit('thiefFinisherAt', 'เงาพันคม: คริกี่ครั้งได้ทีปิด'), kit('thiefFinisherMul', 'เงาพันคม: ทีปิด × ทีปกติ')],
     tree: [ // P2'a: numbers the Thief web core column / talents read at run time
       kit('thiefKindsAt', '"ดีบัฟหลายชนิด" = กี่ชนิดขึ้นไป'),
       kit('thiefCondLeechMulti', 'คมเลือด: × เมื่อดีบัฟหลายชนิด'),

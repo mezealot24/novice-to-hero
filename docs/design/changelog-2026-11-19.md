@@ -83,3 +83,9 @@
 - 30 new `KIT2.rogue` keys with Thai admin labels (kit2 table) · pure helpers `rogueKnifeMul` / `rogueSteelMul` / `rogueStabAmp` / `rogueComboDebuff` / `rogueAmbushCrit`
 - Save: `THIEF_REWORK_VER` 2 -> 3 · Rogue ใยชั้น 2 web reset + refund once (class 1 web, Thief + Rogue talents untouched) · Mobster untouched · `tools/bot.cjs` flag 3
 - Tests: `tests/rogue-p3a.test.ts` (+ thief-p2a / p2b migration tests updated) · Not balanced: needs Q's playtest
+
+## ✨ feat(thief): P2'c Ult budget in 2 states (ร่างเงา on / off) + Ult KIT keys
+- Plan: `design/p2/MAIN-VS-REV4.md` §4 P2'c + §5.2 · owner Q2: ceiling = today's live เงาพริ้ว **including ร่างเงา** (no nerf to live)
+- Pure math in `skill-math.ts` (BattleScene + test share it): `thiefUltHitCount` · `thiefUltCritRate` (Ult-only skillCrit counts as skillCrit, crit rework rules) · `thiefUltCondCritDmg` (B3 Ult-own, cap `thiefUltCondCap`) · `thiefOnHitEff` · `thiefUltFinisher` · `thiefUltBudget(st, hero, shadow)` in stab units (gauge on = every stab a full crit)
+- 8 new `KIT` keys with Thai admin labels (Ult table) · 10 new `Stats` keys (0 = no change yet: nodes come in later P2'c commits)
+- Tests: `tests/thief-p2c.test.ts` (model = live without P2'c stats, both states)

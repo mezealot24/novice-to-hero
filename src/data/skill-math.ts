@@ -97,6 +97,13 @@ export const KIT = {
   // P2'b (MAIN-VS-REV4 §4 + §5.1 #3, R4.6 B1): one additive "damage taken" bracket under thiefTakenCap · stack thresholds are a share of the
   // hero's poison cap (poisonMax()), not flat stacks (cap 20 + พิษสะสม made the old 8 / 10 always on) · th_t1c counts up to thiefStackHpMax stacks
   thiefTakenCap: 0.6, thiefPrivShare: 0.6, thiefPoisonAmpShare: 0.5, thiefStackHpMax: 20,
+  // P2'c Ult x เกจเงา (MAIN-VS-REV4 §4 + §5.2, Q2: ceiling = live เงาพริ้ว incl. ร่างเงา sure crits): thief_u / th_t3* numbers, cut so
+  // thiefUltBudget() stays <= the live best build (th_t3b R2 = 7 stabs) with the gauge off AND on (tests/thief-p2c.test.ts)
+  thiefUltCondCap: 0.15, // Ult-own conditional crit dmg (thief_u1 kinds + thief_u3 / th_t3a low HP), summed, before the B3 cap
+  thiefUltKindsMax: 3, // thief_u1: debuff kinds that count
+  thiefExecBelow: 0.35, thiefUltExecBelow: 0.5, // thief_u3 / th_t3a: target HP share under which they add crit dmg
+  thiefOnHitBase: 0.38, thiefOnHitCap: 0.55, // On-Hit share (thief_u2 / th_t3b): base + node + talent, capped
+  thiefFinisherAt: 3, thiefFinisherMul: 0.25, // thief_u4 ★: crits in one cast for the closing stab · its power x one stab (sure crit)
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
   // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
   // 💰 Thief ทักษะ 2 ล้วงกระเป๋า (Q 2026-11-18, GW2 Steal): what you steal depends on the front monster's top stat. admin `kit` · thiefSteal.*
@@ -477,6 +484,60 @@ export interface TakenIn { exposed: number; stabMark: number; woundPriv: number;
 /** B1 Taken (R4.6): the terms ADD, one cap (KIT.thiefTakenCap). Damage x (1 + this). */
 export const takenAmp = (i: TakenIn): number =>
   Math.max(0, Math.min(KIT.thiefTakenCap, i.exposed + i.stabMark + i.woundPriv + i.privileged + i.poisonAmp))
+// ---------- P2'c Thief Ult (เงาพริ้ว) pure math: BattleScene and the budget test read the same functions ----------
+export type UltSt = Pick<Stats, 'ultHits' | 'thUltCrit' | 'thUltExecCrit' | 'thUltCondCritDmg' | 'thExecUlt' | 'thUltExecDmg' | 'thUltFinisher' | 'thUltKillFinisher' | 'thUltOnHit' | 'thUltOnHitTal'>
+/** Stabs of one เงาพริ้ว (Rogue พายุมีด runs the same dance). */
+export const thiefUltHitCount = (st: UltSt): number => KIT.thiefUltHits + Math.max(0, st.ultHits)
+/** Ult-only skillCrit from thief_u1 / th_t3a (it counts as skillCrit: a physical Ult with only this can crit). */
+export const thiefUltCritAdd = (st: UltSt): number => Math.max(0, st.thUltCrit) + Math.max(0, st.thUltExecCrit)
+/** Crit chance of an Ult stab outside ร่างเงา: (skillCrit + Ult bonus), none at 0 (Q 2026-11-19 crit rework), CRIT_RULES skill cap. */
+export const thiefUltCritRate = (skillCrit: number, st: UltSt): number => {
+  const s = skillCrit + thiefUltCritAdd(st)
+  return s <= 0 ? 0 : Math.min(CRIT_RULES.cap.skillCrit, s)
+}
+/** B3 Ult-own crit dmg (added to critMul, never to mul): thief_u1 per debuff kind + thief_u3 / th_t3a vs low HP, one cap KIT.thiefUltCondCap. */
+export const thiefUltCondCritDmg = (st: UltSt, kinds: number, hpShare: number): number => {
+  const k = Math.max(0, kinds)
+  const sum = st.thUltCondCritDmg * Math.min(k, KIT.thiefUltKindsMax)
+    + (hpShare < KIT.thiefExecBelow ? st.thExecUlt : 0)
+    + (hpShare < KIT.thiefUltExecBelow || k >= KIT.thiefKindsAt ? st.thUltExecDmg : 0)
+  return Math.max(0, Math.min(KIT.thiefUltCondCap, sum))
+}
+/** On-Hit share of Ult stabs (thief_u2 / th_t3b): 0 without a source, else base + node + talent under KIT.thiefOnHitCap. */
+export const thiefOnHitEff = (st: UltSt): number =>
+  st.thUltOnHit > 0 || st.thUltOnHitTal > 0 ? Math.min(KIT.thiefOnHitCap, KIT.thiefOnHitBase + Math.max(0, st.thUltOnHit) + Math.max(0, st.thUltOnHitTal)) : 0
+/** The one closing stab after the dance: th_t3a always (rolls crit), thief_u4 ★ at KIT.thiefFinisherAt crits (sure crit); the bigger x. */
+export const thiefUltFinisher = (st: UltSt, crits: number): { mul: number; sure: boolean } => {
+  const star = st.thUltFinisher > 0 && crits >= KIT.thiefFinisherAt
+  return { mul: Math.max(Math.max(0, st.thUltKillFinisher), star ? KIT.thiefFinisherMul : 0), sure: star }
+}
+/** P(at least k successes in n tries of chance p). */
+const atLeast = (n: number, p: number, k: number): number => {
+  if (k <= 0) return 1
+  if (p >= 1) return n >= k ? 1 : 0
+  let below = 0
+  for (let i = 0; i < Math.min(k, n + 1); i++) {
+    let c = 1
+    for (let j = 0; j < i; j++) c = (c * (n - j)) / (j + 1)
+    below += c * p ** i * (1 - p) ** (n - i)
+  }
+  return Math.max(0, 1 - below)
+}
+/** Reference hero for the Ult budget: effective skillCrit on an Ult stab (gear / cards / mastery / th_t2b ...) and critMul. */
+export interface UltHero { skillCrit: number; critMul: number }
+/** Ult budget (MAIN-VS-REV4 §5.2, Q2) in "stab units": damage of one cast ÷ (one non-crit stab). hitPow, Ratio AGI (thUltAgi), P.ATK, DEF and the
+ *  Hit roll scale every stab (finisher too) the same, so they cancel. Worst-case target (HP low, thiefUltKindsMax kinds); crit and the ★ finisher
+ *  trigger are expected values. `shadow` = cast inside 👤 ร่างเงา: every physical stab is a sure crit at full crit power. */
+export function thiefUltBudget(st: UltSt, hero: UltHero, shadow: boolean): number {
+  const n = thiefUltHitCount(st)
+  const cd = hero.critMul + thiefUltCondCritDmg(st, KIT.thiefUltKindsMax, 0)
+  const p = shadow ? 1 : thiefUltCritRate(hero.skillCrit, st)
+  const per = 1 + p * (cd - 1)
+  const a = Math.max(0, st.thUltKillFinisher)
+  const fires = st.thUltFinisher > 0 ? atLeast(n, p, KIT.thiefFinisherAt) : 0
+  const b = Math.max(a, KIT.thiefFinisherMul)
+  return n * per + (1 - fires) * a * per + fires * b * cd
+}
 /** Mana the ult costs (Mage, Swordsman, Cleric since v86); 0 for every other job. v102: pass st for the base Cleric ult (+clUltMana by Ult node Lv). */
 export const ultCost = (job: JobDef, st?: Stats) => (job.resource === 'mana' ? (job.ult.cost ?? 0) + (job.id === 'cleric' && (job.ult.cost ?? 0) > 0 ? st?.clUltMana ?? 0 : 0) : 0)
 /** Ult cooldown in hero turns before relics (gear smashCd lowers it for every job). */
