@@ -2,6 +2,7 @@
 import type { Stats } from './stats'
 import type { Item } from './meta/item-types'
 import type { ItemEffectSpec, StatConvert } from './item-effects'
+import { MAGE_ZONE_SETS } from './mage-zone-sets'
 
 export interface SetBonusTier {
   pieces: number
@@ -196,6 +197,115 @@ export const ITEM_SETS: readonly ItemSet[] = [
         conversions: [{ from: 'crit', to: 'skillCrit', ratio: 0.5, cap: 0.15, label: '50% คริตีปกติ → คริสกิล (สูงสุด +15%)' }],
       },
       { pieces: 4, label: '4 ชิ้น: ดาเมจคริ +25%, คอมโบ +8%', mod: { critMul: 0.25, combo: 0.08 } },
+    ],
+  },
+  // Q 2026-11-19: Archer-line zone sets, mirroring twin_shade / midnight_tribunal. Boss uniques from the zone's drop pools
+  // count as extra "hunt" pieces (Q: เอา Unique item จาก boss เข้าไปรวมใน Set).
+  {
+    id: 'dual_trail',
+    name: 'ชุดพรานคู่วิถี (Dual Trail)',
+    icon: '🎯',
+    desc: 'เซ็ตสายธนู D6-D10 · ของคราฟธนู D6-D9 + เข็มกลัดชิ้นกลาง บีสต์/อินโน ใส่ได้ทั้งคู่ + ยูนีคบอส · Hit และคริตีปกติแปลงเป็นคริสกิล',
+    // u_hawkeye drops in D6/D9, u_ghostcloak in D9 (uniques.ts UNIQUE_DROPS)
+    memberIds: ['cc_bm_pelt', 'cc_in_apron', 'cc_d7_icequiver', 'cc_d8_volcanobow', 'cc_d9_eagleeye', 'cc_dt_brooch', 'u_hawkeye', 'u_ghostcloak'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: คริสกิล +5%, Hit +10', mod: { skillCrit: 0.05, hit: 10 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: ดาเมจคริ +20%, แปลง 25% คริตีปกติ → คริสกิล (สูงสุด +10%)',
+        mod: { critMul: 0.2 },
+        conversions: [{ from: 'crit', to: 'skillCrit', ratio: 0.25, cap: 0.1, label: '25% คริตีปกติ → คริสกิล (สูงสุด +10%)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: ท่าไม้ตายเจาะเกราะ +15%, ความเร็ว +8%', mod: { pierce: 0.15, aspd: 0.08 } },
+    ],
+  },
+  {
+    id: 'meteor_volley',
+    name: 'ชุดศรดาวตก (Meteor Volley)',
+    icon: '☄️',
+    desc: 'เซ็ตสายธนู D8-D14 · ชิ้นกลางใส่ได้ทั้งบีสต์/อินโน + ธนูเฉพาะบีสต์ มือรองเฉพาะอินโน + ยูนีคบอส · คริสกิลสายสุด',
+    // u_glasscrown drops in D8, u_c3_mjollnir in D11 (uniques.ts / uniques3.ts)
+    memberIds: ['cc_mv_goggles', 'cc_mv_cloak', 'cc_mv_sigil', 'cc_mv_longbow', 'cc_mv_gearquiver', 'u_glasscrown', 'u_c3_mjollnir'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: คริสกิล +6%, ดาเมจคริ +15%', mod: { skillCrit: 0.06, critMul: 0.15 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: เจาะเกราะ +8%, แปลง 50% คริตีปกติ → คริสกิล (สูงสุด +15%)',
+        mod: { physPen: 0.08 },
+        conversions: [{ from: 'crit', to: 'skillCrit', ratio: 0.5, cap: 0.15, label: '50% คริตีปกติ → คริสกิล (สูงสุด +15%)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: ดาเมจคริ +25%, Hit +15', mod: { critMul: 0.25, hit: 15 } },
+    ],
+  },
+  // Q 2026-11-19: Cleric-line zone sets, same shape as the Thief ones. Middle pieces fit Crusader and Monk; boss uniques join as hunt pieces.
+  {
+    id: 'twin_seraph',
+    name: 'ชุดเทวทูตสองปีก (Twin Seraph)',
+    icon: '🪽',
+    desc: 'เซ็ตสายนักบวช D6-D10 · เกราะครูเซเดอร์/มังค์ + ของคราฟ D7-D9 + มงกุฎสายกลาง + โล่กระจกสะท้อน (บอส D7) · Max HP แปลงเป็น M.ATK',
+    memberIds: ['cc_cr_sanctum', 'cc_mk_gi', 'cc_d7_glacierrelic', 'cc_d8_embercenser', 'cc_d9_haloring', 'cc_sr_crown', 'u_mirrorshield'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: ฮีลแรง +12%, HP +150', mod: { healAmp: 0.12, maxHp: 150 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: โล่แรง +12%, คริสกิล +4%, แปลง 4% Max HP → M.ATK (สูงสุด +35)',
+        mod: { shieldAmp: 0.12, skillCrit: 0.04 },
+        conversions: [{ from: 'maxHp', to: 'matk', ratio: 0.04, cap: 35, label: '4% Max HP → M.ATK (สูงสุด +35)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: พลัง Ult +15%, M.DEF +6%', mod: { ultAmp: 0.15, mdef: 0.06 } },
+    ],
+  },
+  {
+    id: 'thunder_cathedral',
+    name: 'ชุดวิหารฟ้าคำราม (Thunder Cathedral)',
+    icon: '🔔',
+    desc: 'เซ็ตสายนักบวช D8-D14 · ชิ้นกลางใส่ได้ทั้งครูเซเดอร์/มังค์ + สนับมือเฉพาะมังค์ โล่เฉพาะครูเซเดอร์ + ยูนีคบอส · ฮีลแรงแปลงเป็นคริสกิล',
+    memberIds: ['cc_tc_mitre', 'cc_tc_knuckle', 'cc_tc_bulwark', 'cc_tc_vestment', 'cc_tc_bell', 'u_pl_gospelrelic', 'u_ch_spiritband', 'u_c3_heartsteel'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: คริสกิล +6%, ฮีลแรง +15%', mod: { skillCrit: 0.06, healAmp: 0.15 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: เจาะเกราะ กาย/เวท +6%, แปลง 30% ฮีลแรง → คริสกิล (สูงสุด +12%)',
+        mod: { physPen: 0.06, magPen: 0.06 },
+        conversions: [{ from: 'healAmp', to: 'skillCrit', ratio: 0.3, cap: 0.12, label: '30% ฮีลแรง → คริสกิล (สูงสุด +12%)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: ดาเมจคริ +25%, โล่ต้นเวฟ +6%', mod: { critMul: 0.25, waveShield: 0.06 } },
+    ],
+  },
+  // Q 2026-11-19: Mage-line zone sets D6-D10 / D8-D14 (data/mage-zone-sets.ts)
+  ...MAGE_ZONE_SETS,
+  {
+    id: 'twin_banner',
+    name: 'ชุดเหล็กศึกสองธง (Twin Banner)',
+    icon: '🛡️',
+    desc: 'เซ็ตสายนักดาบ D6-D10 · เกราะเบอร์เซิร์กเกอร์/อัศวิน + ของคราฟ D7-D9 + ง้าวสายกลาง · ยูนีคบอส D6-D10 นับด้วย',
+    memberIds: ['cc_tb_glaive', 'cc_bz_plate', 'cc_kn_barding', 'cc_d7_iceshield', 'cc_d8_magmahelm', 'cc_d9_skygauntlet', 'u_cactus', 'u_mirrorshield', 'u_titanheart', 'u_lk_dragonhelm', 'u_lk_dragonscale', 'u_lk_warmedal', 'u_wl_bloodcrown', 'u_wl_carnageplate', 'u_wl_undyingcharm'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: คริสกิล +5%, HP +150', mod: { skillCrit: 0.05, maxHp: 150 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: ดาเมจคริ +20%, ดาเมจสกิลกาย +8%, แปลง 2% Max HP → P.ATK (สูงสุด +50)',
+        mod: { critMul: 0.2, pskill: 0.08 },
+        conversions: [{ from: 'maxHp', to: 'atk', ratio: 0.02, cap: 50, label: '2% Max HP → P.ATK (สูงสุด +50)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: คริสกิล +5%, ดาเมจสวนกลับ +25%', mod: { skillCrit: 0.05, counterDmg: 0.25 } },
+    ],
+  },
+  {
+    id: 'dragon_sovereign',
+    name: 'ชุดราชันศึกมังกร (Dragon Sovereign)',
+    icon: '🐉',
+    desc: 'เซ็ตสายนักดาบ D8-D14 · ชิ้นกลางใส่ได้ทั้งเบอร์เซิร์กเกอร์/อัศวิน + ขวานเฉพาะเบอร์เซิร์กเกอร์ โล่เฉพาะอัศวิน · ของคราฟลอร์ดไนท์/วอร์ลอร์ด D10 และหัวใจเหล็ก D12 นับด้วย',
+    memberIds: ['cc_ds_helm', 'cc_ds_cleaver', 'cc_ds_aegis', 'cc_ds_plate', 'cc_ds_sigil', 'cc_lk_helm', 'cc_lk_plate', 'cc_lk_crest', 'cc_lk_lance', 'cc_wl_helm', 'cc_wl_plate', 'cc_wl_crest', 'cc_wl_axe', 'u_c3_heartsteel'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: คริสกิล +6%, HP +300', mod: { skillCrit: 0.06, maxHp: 300 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: เจาะเกราะ +8%, แปลง 3% Max HP → P.ATK (สูงสุด +90)',
+        mod: { physPen: 0.08 },
+        conversions: [{ from: 'maxHp', to: 'atk', ratio: 0.03, cap: 90, label: '3% Max HP → P.ATK (สูงสุด +90)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: ดาเมจคริ +25%, สวนกลับ +8%', mod: { critMul: 0.25, counter: 0.08 } },
     ],
   },
   {

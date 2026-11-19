@@ -102,12 +102,16 @@ export const JOB2_BONUS_STATS: Record<Job2Id, readonly BaseStat[]> = {
 	beastmaster: ["dex", "vit", "luk"],
 	innovator: ["dex", "int", "agi"],
 };
-export const JOB3_BONUS_STATS: Record<'paladin' | 'lordknight' | 'champion' | 'warlord' | 'professor', readonly BaseStat[]> = {
+export const JOB3_BONUS_STATS: Record<'paladin' | 'lordknight' | 'champion' | 'warlord' | 'professor' | 'stalker' | 'kingpin' | 'highwizard' | 'mechanic', readonly BaseStat[]> = {
 	paladin: ["str", "vit", "int"],
 	lordknight: ["str", "vit", "dex"],
 	champion: ["str", "agi", "wis"],
 	warlord: ["str", "vit", "agi"],
 	professor: ["int", "dex", "wis"],
+	stalker: ["agi", "str", "luk"],
+	kingpin: ["str", "agi", "int"],
+	highwizard: ["int", "wis", "dex"],
+	mechanic: ["dex", "luk", "agi"],
 };
 
 // ---------- job + skills (Novice only for now; job change = M3) ----------

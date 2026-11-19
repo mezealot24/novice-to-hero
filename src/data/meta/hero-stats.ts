@@ -407,22 +407,40 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 				st.j2FrenzyMax += KIT3.warlord.frenzyMaxAdd;
 			} // 🪓 Undying Warlord + Undying Bloodlust
 			if (j3 === "professor") st.j3Pf = 1; // 🎓 Double Casting (marks + reactions) + Soul Burst
+			if (j3 === "stalker") st.j3Sk = 1; // 🥷 Preserve + Phantom Storm
+			if (j3 === "kingpin") st.j3Kp = 1; // 🎩 Loan Shark + Hostile Takeover
+			if (j3 === "highwizard") st.j3Hw = 1; // 🌌 Mystical Amplification + Gravitation Field
+			if (j3 === "mechanic") {
+				st.j3Mc = 1;
+				st.j2Traps += KIT3.mechanic.trapsAdd;
+				st.j2TrapMul += KIT3.mechanic.deviceMul;
+				st.j2TurretMul += KIT3.mechanic.deviceMul;
+			} // 🤖 Overclock + Arm Cannon
+			// legacy nodes read one ใยชั้น 2 branch · 🌌 High Wizard: the element branch with the most points
+			const legPts = (b: string) =>
+				b === "byBest"
+					? Math.max(...KIT3.highwizard.bestOf.map((x) => branchPts(t2, x)))
+					: branchPts(t2, b);
 			for (const m of tree3Mods(s.job3Tree, j3, s.job3Path)) add(m);
 			const leg = Math.min(
 				P.leg.crossCap,
-				st.j3LegCross * branchPts(t2, P.leg.cross),
+				st.j3LegCross * legPts(P.leg.cross),
 			);
 			if (j3 === "paladin") st.j2CrossAdd += leg;
 			else st.ult2Pow += leg; // the class's signature move
 			const legGuard = Math.min(
 				P.leg.guardCap,
-				st.j3LegGuard * branchPts(t2, P.leg.guard),
+				st.j3LegGuard * legPts(P.leg.guard),
 			);
 			if (j3 === "ranger") st.j2BoarShare += legGuard; // Ranger routes legacy guard into Boar share rather than Auto Guard
+			else if (j3 === "stalker") st.flee += legGuard; // 🥷 FLEE
+			else if (j3 === "kingpin") st.j2ExecAdd += legGuard; // 🎩 Execute line
+			else if (j3 === "highwizard") st.mdef += legGuard; // 🌌 M.DEF
+			else if (j3 === "mechanic") st.j2TrapMul += legGuard; // 🤖 trap power
 			else st.j2Guard += legGuard;
 			j2pct.maxHp += Math.min(
 				P.leg.hpCap,
-				st.j3LegHp * branchPts(t2, P.leg.hp),
+				st.j3LegHp * legPts(P.leg.hp),
 			);
 			const V = s.job3Var === "b" ? P.varB : P.varA;
 			// 🎓 Elemental Field reads the perk branch of the Endow element (BattleScene); Hero Power takes the best of the three

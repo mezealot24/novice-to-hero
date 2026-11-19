@@ -426,6 +426,10 @@ export const UNIQUE3_DROPS: Record<Job3Id, string[]> = {
   ranger: ['u_rn_falconberet', 'u_rn_primalhide', 'u_rn_wildheart', 'u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'],
   warlord: ['u_wl_bloodcrown', 'u_wl_carnageplate', 'u_wl_undyingcharm', 'u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'],
   professor: ['u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'], // 🎓 MVP: shared Awakening set only (own uniques = later)
+  stalker: ['u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'], // MVP: shared Awakening set only (own uniques = later)
+  kingpin: ['u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'], // MVP: shared Awakening set only (own uniques = later)
+  highwizard: ['u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'], // MVP: shared Awakening set only (own uniques = later)
+  mechanic: ['u_c3_awakencrown', 'u_c3_awakenplate', 'u_c3_awakenring'], // MVP: shared Awakening set only (own uniques = later)
 }
 
 /** Roll drop for 3rd Job uniques at D10.

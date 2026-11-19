@@ -20,6 +20,10 @@ const JOB3_PREVIEW_TINT: Record<Job3Id, number> = {
   ranger: 0xc8ffb8,
   warlord: 0xff8a7a,
   professor: 0xc9a8ff,
+  stalker: 0xb9a8ff,
+  kingpin: 0xc9a8ff,
+  highwizard: 0x9fb8ff,
+  mechanic: 0xffc98a,
 }
 
 /** 🔄 re-pick entry (Hub + character screen): gem check, then the job screen. Gems are paid only on the final pick. */
