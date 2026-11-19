@@ -1,6 +1,7 @@
 // Left rail of the anvil: every item the forge can work on, in a fixed order, paged, filter worn-class / all.
 // Rows are rebuilt only when the filter or page changes; refresh() repaints icons and captions in place.
 import Phaser from 'phaser'
+import { ascendOf } from '../../data/ascend'
 import { FONT_UI } from '../../data/game-data'
 import { JOBS } from '../../data/jobs'
 import { gradeCap, gradeStars } from '../../data/craft'
@@ -114,9 +115,9 @@ export class ItemRail {
   }
 
   private caption(s: SaveData, it: Item): string {
-    const g = gradeOf(s, it.id), r = refineOf(s, it.id)
+    const g = gradeOf(s, it.id), r = refineOf(s, it.id), asc = ascendOf(s, it.id)
     const fails = s.refinePity?.[it.id] ?? 0 // 🔥N = N misses in a row stored on this item (the next refine is easier)
-    const bits = [isWorn(s, it.id) ? '✅ ใส่อยู่' : '', gradeStars(g, gradeCap(it)), r ? `+${r}` : '', fails ? `🔥${fails}` : '', isBroken(s, it.id) ? '💔 แตก' : '', isTainted(s, it.id) ? '🌑' : '']
+    const bits = [isWorn(s, it.id) ? '✅ ใส่อยู่' : '', `${gradeStars(g, gradeCap(it))}${asc ? `⇧${asc}` : ''}`, r ? `+${r}` : '', fails ? `🔥${fails}` : '', isBroken(s, it.id) ? '💔 แตก' : '', isTainted(s, it.id) ? '🌑' : '']
     return bits.filter(Boolean).join(' · ')
   }
 

@@ -1,3 +1,4 @@
+import { ascendMul, ascendOf } from "../ascend";
 import { GRADE, forgeItem, type RefineLine } from "../craft";
 import { aspectModOf, UNIQUE_AWAKEN } from "../item-effects";
 import type { Stats } from "../stats";
@@ -34,6 +35,7 @@ export interface ForgeState {
 	taint?: Record<string, TaintRec>;
 	awakened?: Record<string, number>;
 	imbue?: Record<string, string>;
+	ascend?: Record<string, number>;
 }
 export const refineOf = (s: ForgeState, id: string) => s.refine?.[id] ?? 0;
 export const isBroken = (s: ForgeState, id: string) => !!s.broken?.includes(id);
@@ -124,6 +126,7 @@ export const forged = (s: ForgeState, it: Item) => {
 		gradeOf(s, it.id),
 		refineOf(s, it.id),
 		linesOf(s, it.id),
+		ascendMul(it, ascendOf(s, it.id)), // ⇧ ascension (data/ascend.ts): the item's own stats scaled up to its new zone
 	);
 	const t = s.taint?.[it.id];
 	let out = t?.kind === "curse" ? applyCurse(f, t.curse) : f; // v89 curse line: on top of the worn item, never scaled by grade / refine
@@ -137,6 +140,6 @@ export const forged = (s: ForgeState, it: Item) => {
 	}
 	return out;
 };
-/** " ★3 +7 💔" name tag for lists (empty for a plain item). */
+/** " ★3 ⇧1 +7 💔" name tag for lists (empty for a plain item). */
 export const forgeTag = (s: ForgeState, id: string) =>
-	`${isTainted(s, id) ? " 🌑" : ""}${itemById(id).unique && splitStatLine(itemById(id)).curse ? " 💀" : ""}${gradeOf(s, id) > 1 ? ` ★${gradeOf(s, id)}` : ""}${refineOf(s, id) ? ` +${refineOf(s, id)}` : ""}${isBroken(s, id) ? " 💔" : ""}${isAwakened(s, id) ? " 🌟" : ""}${imbueOf(s, id) ? " 🔮" : ""}`;
+	`${isTainted(s, id) ? " 🌑" : ""}${itemById(id).unique && splitStatLine(itemById(id)).curse ? " 💀" : ""}${gradeOf(s, id) > 1 ? ` ★${gradeOf(s, id)}` : ""}${ascendOf(s, id) ? ` ⇧${ascendOf(s, id)}` : ""}${refineOf(s, id) ? ` +${refineOf(s, id)}` : ""}${isBroken(s, id) ? " 💔" : ""}${isAwakened(s, id) ? " 🌟" : ""}${imbueOf(s, id) ? " 🔮" : ""}`;

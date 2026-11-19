@@ -253,16 +253,23 @@ export interface RefineLine { stat: string; val: number; gold?: 1 }
 const PCT_LINE: Record<string, 'maxHp' | 'atk' | 'matk'> = { hpPct: 'maxHp', atkPct: 'atk', matkPct: 'matk' }
 const BASE_KEYS = new Set(['str', 'vit', 'wis', 'dex', 'int', 'luk', 'agi'])
 
-/** The item as worn: grade + refine scale its positive stats, crafted bonuses join at grade 3 / 5, refine lines add on top (unscaled). */
-export function forgeItem(it: Item, g = 1, r = 0, lines: RefineLine[] = []): Item {
+/** Ascension (data/ascend.ts): extra multipliers on top of grade + refine. atk = P.ATK / M.ATK, flat = the other FLAT stats,
+ * ratio = the other SCALES stats, base = base stats. Only positive values scale, like grade; flags, counts and downsides never move. */
+export interface AscendScale { atk: number; flat: number; ratio: number; base: number }
+export const NO_ASCEND: AscendScale = { atk: 1, flat: 1, ratio: 1, base: 1 }
+const ascMul = (asc: AscendScale, s: keyof Stats) => (s === 'atk' || s === 'matk' ? asc.atk : FLAT.has(s) ? asc.flat : asc.ratio)
+
+/** The item as worn: grade + refine (+ ascension) scale its positive stats, crafted bonuses join at grade 3 / 5, refine lines add on top (unscaled). */
+export function forgeItem(it: Item, g = 1, r = 0, lines: RefineLine[] = [], asc: AscendScale = NO_ASCEND): Item {
   g = Math.max(1, Math.min(gradeCap(it), g))
   r = refinable(it) ? Math.max(0, Math.min(REFINE.max, r)) : 0
-  if (g <= 1 && r <= 0 && !lines.length && !it.craft?.sig) return it
+  const plain = asc.atk === 1 && asc.flat === 1 && asc.ratio === 1 && asc.base === 1
+  if (g <= 1 && r <= 0 && !lines.length && !it.craft?.sig && plain) return it
   const k = (100 + Math.round(GRADE.pct[g] * 100) + Math.round(r * REFINE.pct * 100)) / 100 // whole percents: 1+.15+.15 must be 1.3, not 1.2999…
   const base: Partial<Record<BaseStat, number>> = {}
-  for (const [s, v] of Object.entries(it.base ?? {}) as [BaseStat, number][]) base[s] = v > 0 ? Math.round(r3(v * k)) : v
+  for (const [s, v] of Object.entries(it.base ?? {}) as [BaseStat, number][]) base[s] = v > 0 ? Math.round(r3(v * k * asc.base)) : v
   const mod: Partial<Stats> = {}
-  for (const [s, v] of Object.entries(it.mod) as [keyof Stats, number][]) mod[s] = SCALES.has(s) && v > 0 ? (FLAT.has(s) ? Math.round(r3(v * k)) : r3(v * k)) : v
+  for (const [s, v] of Object.entries(it.mod) as [keyof Stats, number][]) mod[s] = SCALES.has(s) && v > 0 ? (FLAT.has(s) ? Math.round(r3(v * k * ascMul(asc, s))) : r3(v * k * ascMul(asc, s))) : v
   if (it.craft) it.craft.bonus.forEach((b, i) => { if (g >= GRADE.bonusAt[i]) for (const [s, v] of Object.entries(b) as [keyof Stats, number][]) mod[s] = r3((mod[s] ?? 0) + v) })
   const pct: NonNullable<Item['pct']> = { ...(it.pct ?? {}) }
   for (const l of lines) {

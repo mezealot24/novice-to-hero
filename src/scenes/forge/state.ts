@@ -1,4 +1,5 @@
 // Pure helpers shared by the rail, the stage and the verb panels (no Phaser objects here). Rules live in src/data/*.
+import { ASCEND, ascendCheck, homeZone, TOP_ZONE, zoneName, type AscendWhy } from '../../data/ascend'
 import { DUNGEONS } from '../../data/game-data'
 import { gradeCost, REFINE } from '../../data/craft'
 import { ASPECT_LIST, ASPECTS, aspectModOf, type AspectId, type SaveExt } from '../../data/item-effects'
@@ -56,15 +57,30 @@ export function verbLock(s: SaveData, it: Item, v: Verb): string | undefined {
       if (isTainted(s, it.id) && !hasPower) return '🌑 ติดคำสาปแล้ว ใส่รูน/ปลุกพลังไม่ได้อีกค่ะ'
       return undefined
     }
+    case 'ascend': {
+      const c = ascendCheck(s, it)
+      return !c.ok && (c.why === 'cant' || c.why === 'tainted') ? ascendWhyText(it, c.why) : undefined // 'grade' / 'max' / 'broken' stay open: the panel says why
+    }
   }
 }
 
-/** The five tab slots. Slot 1 is ⚒️ ตีบวก, and 🔧 ซ่อม takes its place while the item is broken (spec 3.4). */
-export const SLOT_COUNT = 5
-export function slotVerb(slot: number, broken: boolean): Verb {
-  return (['grade', broken ? 'repair' : 'refine', 'option', 'taint', 'aspect'] as Verb[])[slot]
+/** Why an item can't ascend, said to the player (tab lock toast and the ⇧ panel). */
+export function ascendWhyText(it: Item, why: AscendWhy): string {
+  switch (why) {
+    case 'cant': return homeZone(it) >= TOP_ZONE ? `ของโซน ${zoneName(TOP_ZONE)} อยู่โซนสูงสุดแล้วค่ะ` : `ยกขั้นได้เฉพาะของตีเองหรือยูนีคจากดัน ${zoneName(0)} / ${zoneName(1)} ค่ะ`
+    case 'tainted': return '🌑 ติดคำสาปแล้ว ยกขั้นไม่ได้อีกค่ะ'
+    case 'broken': return '💔 ของแตกอยู่ ซ่อมก่อนนะคะ'
+    case 'max': return `ยกขั้นถึงโซน ${zoneName(TOP_ZONE)} แล้วค่ะ สุดทางแล้ว ✨`
+    case 'grade': return `อัปเป็น ★${ASCEND.minGrade} ก่อนนะคะ ถึงจะยกขั้นได้`
+  }
 }
-export const slotOf = (v: Verb) => (v === 'grade' ? 0 : v === 'refine' || v === 'repair' ? 1 : v === 'option' ? 2 : v === 'taint' ? 3 : 4)
+
+/** The six tab slots. Slot 1 is ⚒️ ตีบวก, and 🔧 ซ่อม takes its place while the item is broken (spec 3.4). */
+export const SLOT_COUNT = 6
+export function slotVerb(slot: number, broken: boolean): Verb {
+  return (['grade', broken ? 'repair' : 'refine', 'option', 'taint', 'aspect', 'ascend'] as Verb[])[slot]
+}
+export const slotOf = (v: Verb) => (v === 'grade' ? 0 : v === 'refine' || v === 'repair' ? 1 : v === 'option' ? 2 : v === 'taint' ? 3 : v === 'aspect' ? 4 : 5)
 export const VERB_TAB: Record<Verb, { icon: string; label: string }> = {
   grade: { icon: '⬆️', label: 'อัปขั้น' },
   refine: { icon: '⚒️', label: 'ตีบวก' },
@@ -72,6 +88,7 @@ export const VERB_TAB: Record<Verb, { icon: string; label: string }> = {
   option: { icon: '🎲', label: 'ค่าพิเศษ' },
   taint: { icon: '🌑', label: 'Corrupt' },
   aspect: { icon: '🔮', label: 'รูน/ปลุก' },
+  ascend: { icon: '⇧', label: 'ยกขั้น' },
 }
 
 /** The verb to land on when the current one closes (broken -> repair, tainted -> taint note). */
@@ -103,6 +120,7 @@ const SMITH: Record<Verb, string> = {
   option: 'ค่าพิเศษสุ่มได้ ล็อกบรรทัดที่ชอบไว้ด้วยเพชรก็ได้',
   taint: 'คำสาปลุ้นทีเดียวแล้วล็อกของ ทำหลังสุดนะ',
   aspect: 'ฝังรูนธาตุได้ชิ้นละ 1 อย่าง · ยูนีคปลุกพลังเพิ่มสเตตัสได้นะ',
+  ascend: 'ของเก่า ★5 อย่าเพิ่งทิ้งนะคะ ยกขั้นด้วยวัตถุดิบโซนใหม่ได้ ยังนับเซ็ตเดิมด้วยค่ะ',
 }
 
 /** The smith's line for the current state (pity / broken / max / short), falling back to the verb's hint. */
@@ -117,6 +135,10 @@ export function smithLine(s: SaveData, it: Item, v: Verb): string {
   if (v === 'grade') {
     if (gradeCheck(s, it) === 'max') return 'ขั้นสูงสุดของชิ้นนี้แล้ว'
     if (gradeCheck(s, it) === 'ok' && !canAffordAuto(s, gradeCost(it, gradeOf(s, it.id) + 1))) return 'ของยังไม่ครบนะ ไปป้อมวีรชนหาวัตถุดิบสักรอบ'
+  }
+  if (v === 'ascend') {
+    const c = ascendCheck(s, it)
+    if (!c.ok && (c.why === 'grade' || c.why === 'max')) return ascendWhyText(it, c.why)
   }
   if (v === 'option' && !linesOf(s, it.id).some(Boolean)) return `ตีถึง +${REFINE.lineAt[0]} ก่อน ถึงจะมีค่าพิเศษให้สุ่มนะ`
   if (v === 'taint' && isTainted(s, it.id)) return 'ล็อกไปแล้ว ไม่มีทางกลับนะ'
