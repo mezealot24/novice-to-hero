@@ -1,4 +1,5 @@
 import { COLORS } from "../../data/game-data";
+import { hasPassiveTree } from "../../data/passive-tree";
 import { persist, save } from "../../save";
 import {
 	talents2Of,
@@ -18,11 +19,16 @@ import {
 	UI,
 } from "../../ui";
 import type { CharacterScene } from "../CharacterScene";
+import { passiveTab } from "./passive-tab";
 
-// ---------- tab 4: talents (4 tiers by Job Lv, pick 1 of 3, free swap in town) ----------
+// ---------- tab 4: talents (PoE Passive Constellation for migrated jobs; legacy 4-row pick-1 for others) ----------
 export function talentTab(scene: CharacterScene) {
 	const s = save(),
 		b = scene.body!;
+	if (hasPassiveTree(s.job)) {
+		passiveTab(scene);
+		return;
+	}
 	if (s.job === "novice") {
 		b.add(
 			txt(

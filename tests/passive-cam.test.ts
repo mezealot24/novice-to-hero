@@ -177,6 +177,18 @@ test("clampCam keeps padded graph inside viewport, centers when zoomed out, and 
 	);
 	approx(clampedAsym.panX, 100, 1e-9);
 	approx(clampedAsym.panY, 50, 1e-9);
+
+	// Non-finite pan inputs recover cleanly to bounds midpoint instead of producing NaN
+	const nanCam: PassiveCamState = {
+		panX: Number.NaN,
+		panY: Number.POSITIVE_INFINITY,
+		zoom: 1.0,
+		minZoom: 0.5,
+		maxZoom: 1.75,
+	};
+	const clampedNan = clampCam(nanCam, bounds, VIEW, pad);
+	approx(clampedNan.panX, 0, 1e-9);
+	approx(clampedNan.panY, 0, 1e-9);
 });
 
 test("pickNodeAt uses zoom-aware touch-friendly radius, rejects clicks outside view, and resolves overlaps", () => {

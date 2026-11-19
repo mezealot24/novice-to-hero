@@ -5,7 +5,9 @@ export { nodeDetail } from "./character/node-detail";
 import {
 	type EquipSlot,
 } from "../data/meta";
+import type { JobId } from "../data/jobs";
 import type { PetId } from "../data/jobs2";
+import { hasPassiveTree } from "../data/passive-tree";
 import { save } from "../save";
 import {
 	type Btn,
@@ -22,6 +24,19 @@ import { drawPreview } from "./character/preview";
 import { cardTab } from "./character/cards-tab";
 import { equipTab } from "./character/equip-tab";
 import { skillTab } from "./character/skill-basic";
+import {
+	PASSIVE_VIEW_DEFAULT,
+	type GraphBounds,
+	type PassiveCamState,
+	type PassiveView,
+} from "./character/passive-cam";
+import {
+	passiveActive,
+	passivePointerDown,
+	passivePointerMove,
+	passivePointerUp,
+	passiveWheel,
+} from "./character/passive-tab";
 import {
 	scrollToWebY,
 	webActive,
@@ -78,6 +93,32 @@ export class CharacterScene extends Phaser.Scene {
 	showUlt = false; // skill web: 🔥 รวมผล Ult popup (was the left sidebar; left side is now the node detail panel)
 	showSageGuide?: "sage" | "professor"; // Sage / Professor interactive playstyle & reaction guide modal
 	talent2 = false; // v119 talent tab: show ทาเลนต์ชั้น 2
+	// PoE Passive Constellation (Tab 4 for migrated jobs): 2D pan/zoom camera + inspect/fullscreen state
+	passiveTreeJob?: JobId;
+	passiveCam?: PassiveCamState;
+	passiveSelId = "";
+	passiveTag: string | null = null;
+	passiveFull = false;
+	passiveFullHideCard = false;
+	passiveView: PassiveView = { ...PASSIVE_VIEW_DEFAULT };
+	passiveBounds?: GraphBounds;
+	passiveUiRects: PassiveView[] = [];
+	passiveWorldC?: Phaser.GameObjects.Container;
+	passiveDetailC?: Phaser.GameObjects.Container;
+	passiveSelRingG?: Phaser.GameObjects.Graphics;
+	passiveHoverG?: Phaser.GameObjects.Graphics;
+	passiveHoverId = "";
+	passiveZoomText?: Phaser.GameObjects.Text;
+	passiveConfirm?: Phaser.GameObjects.Container;
+	passiveTween?: Phaser.Tweens.Tween;
+	passiveDrag?: {
+		pointerId: number;
+		startX: number;
+		startY: number;
+		lastX: number;
+		lastY: number;
+		moved: boolean;
+	};
 	constructor() {
 		super("character");
 	}
@@ -90,7 +131,35 @@ export class CharacterScene extends Phaser.Scene {
 		this.showDetail = false;
 		this.showUlt = false;
 		this.showSageGuide = undefined;
+		this.passiveTreeJob = undefined;
+		this.passiveCam = undefined;
+		this.passiveSelId = "";
+		this.passiveTag = null;
+		this.passiveFull = false;
+		this.passiveFullHideCard = false;
+		this.passiveView = { ...PASSIVE_VIEW_DEFAULT };
+		this.passiveBounds = undefined;
+		this.passiveUiRects = [];
+		this.passiveWorldC = undefined;
+		this.passiveDetailC = undefined;
+		this.passiveSelRingG = undefined;
+		this.passiveHoverG = undefined;
+		this.passiveHoverId = "";
+		this.passiveZoomText = undefined;
+		this.passiveConfirm = undefined;
+		this.passiveTween = undefined;
+		this.passiveDrag = undefined;
 		this.input.keyboard?.on("keydown-ESC", () => {
+			if (this.passiveConfirm?.active) {
+				this.passiveConfirm.destroy();
+				this.passiveConfirm = undefined;
+				return;
+			}
+			if (this.passiveFull) {
+				this.passiveFull = false;
+				this.render();
+				return;
+			}
 			if (this.showDetail || this.showUlt || this.showSageGuide) {
 				this.showDetail = false;
 				this.showUlt = false;
@@ -100,35 +169,73 @@ export class CharacterScene extends Phaser.Scene {
 		});
 		this.input.on(
 			"wheel",
-			(_p: unknown, _go: unknown, _dx: number, dy: number) => {
+			(
+				p: Phaser.Input.Pointer,
+				_go: Phaser.GameObjects.GameObject[],
+				_dx: number,
+				dy: number,
+			) => {
+				if (passiveActive(this)) {
+					passiveWheel(this, p, dy);
+					return;
+				}
 				if (!webActive(this)) return;
 				scrollToWebY(this, this.webScrollY + dy * 0.65, false);
 			},
 		);
-		// Skill-web swipe: scene-level so it starts anywhere in the viewport (even on top of nodes)
-		// and survives across frames — the old per-render drag zone was destroyed mid-gesture.
-		this.input.on("pointerdown", (p: Phaser.Input.Pointer) =>
-			webPointerDown(this, p),
-		);
-		this.input.on("pointermove", (p: Phaser.Input.Pointer) =>
-			webPointerMove(this, p),
-		);
-		this.input.on("pointerup", () => webPointerUp(this));
-		this.input.on("pointerupoutside", () => webPointerUp(this));
+		// Skill-web swipe & Passive Constellation 2D pan/tap: scene-level so gestures work on top of nodes
+		// and survive across frames. Routed cleanly by active tab/container guards.
+		this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
+			if (passiveActive(this)) {
+				passivePointerDown(this, p);
+				return;
+			}
+			webPointerDown(this, p);
+		});
+		this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
+			if (passiveActive(this)) {
+				passivePointerMove(this, p);
+				return;
+			}
+			webPointerMove(this, p);
+		});
+		this.input.on("pointerup", (p: Phaser.Input.Pointer) => {
+			if (this.passiveDrag || passiveActive(this)) {
+				passivePointerUp(this, p, false);
+			}
+			webPointerUp(this);
+		});
+		this.input.on("pointerupoutside", (p: Phaser.Input.Pointer) => {
+			if (this.passiveDrag || passiveActive(this)) {
+				passivePointerUp(this, p, true);
+			}
+			webPointerUp(this);
+		});
 		this.events.once("shutdown", () => {
 			this.webDrag = undefined;
 			this.webC = undefined;
+			this.passiveTween?.stop();
+			this.passiveTween = undefined;
+			this.passiveDrag = undefined;
+			this.passiveWorldC = undefined;
+			this.passiveDetailC = undefined;
+			this.passiveSelRingG = undefined;
+			this.passiveHoverG = undefined;
+			this.passiveZoomText = undefined;
+			this.passiveConfirm = undefined;
+			this.passiveUiRects = [];
 		});
 		const back = data?.back; // v101: opened from the forge's 🃏 button -> ‹ กลับ returns there (same item on the anvil)
 		topBar(this, "👤 ตัวละคร", () =>
 			back ? go(this, back.key, back.data) : go(this, "hub"),
 		);
 		drawPreview(this);
+		const tab4Label = hasPassiveTree(save().job) ? "🌌 พาสซีฟ" : "⭐ ทาเลนต์";
 		tabs(
 			this,
 			330,
 			84,
-			["🎒 อุปกรณ์", "🃏 การ์ด", "📊 สถานะ", "✨ สกิล", "⭐ ทาเลนต์"],
+			["🎒 อุปกรณ์", "🃏 การ์ด", "📊 สถานะ", "✨ สกิล", tab4Label],
 			112,
 			(i) => {
 				this.tab = i;
@@ -140,6 +247,17 @@ export class CharacterScene extends Phaser.Scene {
 	}
 
 	render() {
+		this.passiveTween?.stop();
+		this.passiveTween = undefined;
+		this.passiveDrag = undefined;
+		this.passiveConfirm?.destroy();
+		this.passiveConfirm = undefined;
+		this.passiveWorldC = undefined;
+		this.passiveDetailC = undefined;
+		this.passiveSelRingG = undefined;
+		this.passiveHoverG = undefined;
+		this.passiveZoomText = undefined;
+		this.passiveUiRects = [];
 		this.body?.destroy();
 		this.footerC = undefined;
 		this.modal?.destroy();

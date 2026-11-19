@@ -223,14 +223,15 @@ export function clampCam(
 	const minPanY = pMinY + halfH;
 	const maxPanY = pMaxY - halfH;
 
+	const midX = (pMinX + pMaxX) / 2;
+	const midY = (pMinY + pMaxY) / 2;
+	const rawPanX = Number.isFinite(cam.panX) ? cam.panX : midX;
+	const rawPanY = Number.isFinite(cam.panY) ? cam.panY : midY;
+
 	const panX =
-		minPanX <= maxPanX
-			? clampNumber(cam.panX, minPanX, maxPanX)
-			: (pMinX + pMaxX) / 2;
+		minPanX <= maxPanX ? clampNumber(rawPanX, minPanX, maxPanX) : midX;
 	const panY =
-		minPanY <= maxPanY
-			? clampNumber(cam.panY, minPanY, maxPanY)
-			: (pMinY + pMaxY) / 2;
+		minPanY <= maxPanY ? clampNumber(rawPanY, minPanY, maxPanY) : midY;
 
 	return { panX, panY, zoom, minZoom, maxZoom };
 }

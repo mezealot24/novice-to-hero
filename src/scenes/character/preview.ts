@@ -11,6 +11,7 @@ import { save } from "../../save";
 import { JOB_CHANGE, JOBS } from "../../data/jobs";
 import { JOB2, JOB2_RULES } from "../../data/jobs2";
 import { activeJob3, JOB3, JOB3_RULES } from "../../data/jobs3";
+import { hasPassiveTree } from "../../data/passive-tree";
 import { heroPower } from "../../data/power";
 import {
 	button,
@@ -21,6 +22,7 @@ import {
 import { fitHeroScale, heroCostumeTint, heroTex } from "../../gfx/hero-visual";
 import type { CharacterScene } from "../CharacterScene";
 import { clipW } from "./node-detail";
+import { drawPassiveHeroStrip } from "./passive-tab";
 
 // ---------- left: hero preview + derived stats summary (or Cumulative Ult & Scalable panel on Skill Tab) ----------
 export function drawPreview(scene: CharacterScene) {
@@ -98,6 +100,12 @@ export function drawPreview(scene: CharacterScene) {
 	// Skill web: left side is the node detail panel (drawn by nodeFooter into body) -> compact hero strip only
 	if (scene.tab === 3 && s.job !== "novice" && !scene.skillBasic) {
 		drawSkillHeroStrip(scene, c);
+		return;
+	}
+
+	// Passive constellation (Tab 4 for migrated classes): left side is the Inspect-then-Allocate panel -> compact hero strip only
+	if (scene.tab === 4 && hasPassiveTree(s.job)) {
+		drawPassiveHeroStrip(scene, c);
 		return;
 	}
 
