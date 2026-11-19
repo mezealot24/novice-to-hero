@@ -75,6 +75,58 @@ export const ITEM_SETS: readonly ItemSet[] = [
       { pieces: 3, label: '3 ชิ้น: พิษครึ่งเพดาน+ แรง +20%, หลบฟื้น +3%, ดาเมจธาตุ +12%', mod: { poisonAmp: 0.2, dodgeHeal: 0.03, elemDmg: 0.12 } },
     ],
   },
+  // Q 2026-11-19: Thief-line sets spanning dungeon tiers so every Thief / Rogue / Mafia piece belongs somewhere.
+  // Skills crit only with skillCrit (#132/#139): each set has a "crit -> skillCrit" (or combo / poison -> skillCrit) option.
+  {
+    id: 'night_prowler',
+    name: 'ชุดนักย่องราตรี (Night Prowler)',
+    icon: '🌒',
+    desc: 'เซ็ตสายโจร D1-D5 · ตีจากหลายดันผสมกัน คริตีปกติไหลเข้าคริสกิล · ชิ้น D5 มีทั้งของโร้กและมาเฟีย',
+    memberIds: ['c_np_wrap', 'c_np_vest', 'c_np_charm', 'c_shadowdaggers', 'c_blackledger', 'c_rg_hood', 'c_rg_ring', 'c_mb_fedora', 'c_mb_watch'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: คริ +4%, คริสกิล +3%', mod: { crit: 0.04, skillCrit: 0.03 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: แปลง 30% คริตีปกติ → คริสกิล (สูงสุด +8%)',
+        conversions: [{ from: 'crit', to: 'skillCrit', ratio: 0.3, cap: 0.08, label: '30% คริตีปกติ → คริสกิล (สูงสุด +8%)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: ดาเมจคริ +15%, คอมโบ +6%', mod: { critMul: 0.15, combo: 0.06 } },
+    ],
+  },
+  {
+    id: 'twin_shade',
+    name: 'ชุดเงาคู่ทวิภพ (Twin Shade)',
+    icon: '👥',
+    desc: 'เซ็ตสายโจร D6-D10 · สายกลาง โร้ก/มาเฟีย ใส่ได้ทั้งคู่ · คอมโบและคริตีปกติแปลงเป็นคริสกิล',
+    memberIds: ['cc_rg_garb', 'cc_d7_frostcloak', 'cc_d9_galeboots', 'cc_d8_ashblade', 'cc_ts_kris', 'cc_mb_trench'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: คริสกิล +5%, Flee +10', mod: { skillCrit: 0.05, flee: 10 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: ดาเมจคริ +20%, แปลง 25% คริตีปกติ → คริสกิล (สูงสุด +10%)',
+        mod: { critMul: 0.2 },
+        conversions: [{ from: 'crit', to: 'skillCrit', ratio: 0.25, cap: 0.1, label: '25% คริตีปกติ → คริสกิล (สูงสุด +10%)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: ดาเมจคอมโบ +15%, ความเร็ว +8%', mod: { comboDmg: 0.15, aspd: 0.08 } },
+    ],
+  },
+  {
+    id: 'midnight_tribunal',
+    name: 'ชุดศาลเตี้ยเที่ยงคืน (Midnight Tribunal)',
+    icon: '⚖️',
+    desc: 'เซ็ตสายโจร D8-D14 · ชิ้นกลางใส่ได้ทั้งโร้ก/มาเฟีย + อาวุธเฉพาะโร้ก มือรองเฉพาะมาเฟีย · คริสกิลสายสุด',
+    memberIds: ['cc_mt_mask', 'cc_mt_coat', 'cc_mt_seal', 'cc_mt_fang', 'cc_mt_writ'],
+    tiers: [
+      { pieces: 2, label: '2 ชิ้น: คริสกิล +6%, ดาเมจคริ +15%', mod: { skillCrit: 0.06, critMul: 0.15 } },
+      {
+        pieces: 3,
+        label: '3 ชิ้น: เจาะเกราะ +8%, แปลง 50% คริตีปกติ → คริสกิล (สูงสุด +15%)',
+        mod: { physPen: 0.08 },
+        conversions: [{ from: 'crit', to: 'skillCrit', ratio: 0.5, cap: 0.15, label: '50% คริตีปกติ → คริสกิล (สูงสุด +15%)' }],
+      },
+      { pieces: 4, label: '4 ชิ้น: ดาเมจคริ +25%, คอมโบ +8%', mod: { critMul: 0.25, combo: 0.08 } },
+    ],
+  },
   {
     id: 'clockwork_chronos',
     name: 'ชุดนาฬิกาโครนอส (Clockwork Chronos)',

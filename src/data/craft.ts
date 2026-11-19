@@ -117,6 +117,40 @@ export const CRAFT_ITEMS: Item[] = [
     desc: 'ของคราฟอาชีพขั้น 2 · ธนู (อินโนเวเตอร์): อัจฉริยะนักประดิษฐ์ · ดาเมจกับดักแรง +25% · น้ำหนักของหายากในกล่องสุ่ม x1.5',
     base: { dex: 6, luk: 8 }, mod: { atk: 24, crit: 0.08, critMul: 0.15, hit: 10, j2TrapMul: 0.25, j2BoxLuck: 0.5 }, jobs: AR, req: 'job2',
     craft: { dg: 'd5', common: 18, boss: 4, zeny: 2500, bonus: [{ dropChance: 0.06, crit: 0.05 }, { smashCd: -1500, critMul: 0.25 }] } },
+  // ===== Q 2026-11-19: Thief-line sets that span dungeon tiers (data/sets.ts night_prowler / twin_shade / midnight_tribunal) =====
+  // Skills crit only with skillCrit (crit rework #132/#139), so these pieces carry skillCrit or a "crit -> skillCrit" conversion option.
+  // j2 ['rogue', 'mobster'] = middle pieces both Thief branches can wear.
+  // --- Set A ชุดนักย่องราตรี (D1-D5, every Thief) ---
+  { id: 'c_np_wrap', slot: 'head', name: 'ผ้าโพกนักย่อง', icon: '🧣', price: 0, slots: 1, desc: 'ชุดนักย่องราตรี · ผ้าโพกเบา ๆ หลบพริ้ว เล็งจุดตาย', base: { agi: 2 }, mod: { flee: 4, crit: 0.02 }, jobs: TH,
+    craft: { dg: 'd1', common: 8, boss: 2, zeny: 250, bonus: [{ skillCrit: 0.02 }, { crit: 0.02, flee: 4 }] } },
+  { id: 'c_np_vest', slot: 'armor', name: 'เสื้อหนังนักย่อง', icon: '🦺', price: 0, slots: 1, desc: 'ชุดนักย่องราตรี · เสื้อหนังขนหมาป่า เบาแต่เหนียว', base: { agi: 3 }, mod: { maxHp: 55, def: 5, flee: 6, crit: 0.02 }, jobs: TH,
+    craft: { dg: 'd2', common: 10, boss: 2, zeny: 600, bonus: [{ dodgeHeal: 0.02 }, { skillCrit: 0.03 }] } },
+  { id: 'c_np_charm', slot: 'acc', name: 'เครื่องรางจุดตาย', icon: '🎯', price: 0, slots: 1, desc: 'ชุดนักย่องราตรี · สายตาเล็งจุดตาย คริตีปกติไหลเข้าสกิล', base: { luk: 3, dex: 2 }, mod: { crit: 0.04, critMul: 0.08 }, jobs: TH,
+    conversions: [{ from: 'crit', to: 'skillCrit', ratio: 0.2, cap: 0.06, label: '20% คริตีปกติ → คริสกิล (สูงสุด +6%)' }],
+    craft: { dg: 'd4', common: 14, boss: 3, zeny: 1500, bonus: [{ skillCrit: 0.03 }, { critMul: 0.12 }] } },
+  // --- Set B ชุดเงาคู่ทวิภพ (D6-D10, Rogue | Mafia) ---
+  { id: 'cc_ts_kris', wtype: 'dagger', slot: 'weapon', name: 'กริชเงาคู่ทวิภพ', icon: '🔪', price: 0, slots: 2,
+    desc: 'ชุดเงาคู่ทวิภพ · สายกลาง โร้ก/มาเฟีย ใส่ได้ทั้งคู่: คอมโบรัวแปลงเป็นคริสกิล', base: { agi: 8, str: 5, luk: 4 }, mod: { atk: 34, combo: 0.08, crit: 0.06, skillCrit: 0.06 }, jobs: TH, j2: ['rogue', 'mobster'],
+    conversions: [{ from: 'combo', to: 'skillCrit', ratio: 0.3, cap: 0.1, label: '30% คอมโบ → คริสกิล (สูงสุด +10%)' }],
+    craft: { dg: 'd10', common: 24, boss: 6, zeny: 6000, bonus: [{ critMul: 0.2 }, { skillCrit: 0.04, combo: 0.06 }] } },
+  // --- Set C ชุดศาลเตี้ยเที่ยงคืน (D8-D14, Rogue | Mafia + one piece each) ---
+  { id: 'cc_mt_mask', slot: 'head', name: 'หน้ากากศาลเตี้ย', icon: '🎭', price: 0, slots: 1,
+    desc: 'ชุดศาลเตี้ยเที่ยงคืน · สายกลาง โร้ก/มาเฟีย: หลบพริ้ว คริทั้งตีและสกิล', base: { agi: 6, luk: 4 }, mod: { flee: 14, crit: 0.05, skillCrit: 0.05 }, jobs: TH, j2: ['rogue', 'mobster'],
+    craft: { dg: 'd8', common: 22, boss: 5, zeny: 4500, bonus: [{ critMul: 0.15 }, { skillCrit: 0.04, physPen: 0.05 }] } },
+  { id: 'cc_mt_fang', wtype: 'dagger', slot: 'weapon', name: 'เขี้ยวเพชฌฆาตเที่ยงคืน', icon: '🌑', price: 0, slots: 2,
+    desc: 'ชุดศาลเตี้ยเที่ยงคืน · เฉพาะโร้ก: มีดบินแรง คริตีปกติไหลเข้าสกิลก้อนใหญ่', base: { agi: 9, str: 5, luk: 5 }, mod: { atk: 42, combo: 0.1, crit: 0.1, j2KnifeMul: 0.2 }, jobs: TH, j2: ['rogue'],
+    conversions: [{ from: 'crit', to: 'skillCrit', ratio: 0.4, cap: 0.15, label: '40% คริตีปกติ → คริสกิล (สูงสุด +15%)' }],
+    craft: { dg: 'd11', common: 20, boss: 5, zeny: 8000, bonus: [{ critMul: 0.2 }, { j2KnifeAdd: 1, skillCrit: 0.04 }] } },
+  { id: 'cc_mt_writ', wtype: 'dagger', slot: 'offhand', name: 'หมายศาลเงามรณะ', icon: '📜', price: 0, slots: 1,
+    desc: 'ชุดศาลเตี้ยเที่ยงคืน · เฉพาะมาเฟีย: พิษยิ่งแรงยิ่งคริสกิล เกณฑ์ประหารสูงขึ้น', base: { int: 6, str: 4, luk: 4 }, mod: { atk: 24, poison: 1, poisonDmg: 4, j2ExecAdd: 0.03, skillCrit: 0.06 }, jobs: TH, j2: ['mobster'],
+    conversions: [{ from: 'poisonDmg', to: 'skillCrit', ratio: 0.01, cap: 0.1, label: 'พิษแรงทุก 1 → คริสกิล +1% (สูงสุด +10%)' }],
+    craft: { dg: 'd12', common: 22, boss: 6, zeny: 9200, bonus: [{ vsPoison: 0.12 }, { j2DebuffTurns: 1, critMul: 0.15 }] } },
+  { id: 'cc_mt_coat', slot: 'armor', name: 'เสื้อคลุมตุลาการราตรี', icon: '🧥', price: 0, slots: 1,
+    desc: 'ชุดศาลเตี้ยเที่ยงคืน · สายกลาง โร้ก/มาเฟีย: ถึกพอตัว หลบดี คริสกิลแรง', base: { agi: 7, vit: 5 }, mod: { maxHp: 340, def: 22, flee: 18, skillCrit: 0.06, critMul: 0.15 }, jobs: TH, j2: ['rogue', 'mobster'],
+    craft: { dg: 'd13', common: 24, boss: 6, zeny: 11000, bonus: [{ dodgeHeal: 0.03 }, { skillCrit: 0.05, critMul: 0.15 }] } },
+  { id: 'cc_mt_seal', slot: 'acc', name: 'ตราประทับคำพิพากษา', icon: '⚖️', price: 0, slots: 1,
+    desc: 'ชุดศาลเตี้ยเที่ยงคืน · สายกลาง โร้ก/มาเฟีย: คริแรง เจาะเกราะ', base: { luk: 7, agi: 5 }, mod: { crit: 0.06, skillCrit: 0.06, critMul: 0.22, physPen: 0.08 }, jobs: TH, j2: ['rogue', 'mobster'],
+    craft: { dg: 'd14', common: 26, boss: 7, zeny: 12500, bonus: [{ physPen: 0.06 }, { skillCrit: 0.05, critMul: 0.15 }] } },
 ]
 
 /** Highest grade an item can reach: starters 1, plain shop gear 3, class shop gear 4, dungeon + crafted gear 5. */

@@ -15,7 +15,7 @@ import { setBonuses, type ItemSet } from '../../data/sets'
 import { canPay, equip, isWorn, pay, persist, save } from '../../save'
 import { sfx } from '../../sfx'
 import { button, chip, confirm, costStrip, fit, holdButton, itemIcon, panel, toast, txt, UI } from '../../ui'
-import { compareRows, forgedWithAspect, itemSetOf, wornRival, type CmpRow } from './state'
+import { compareRows, dgIx, forgedWithAspect, HEAD_H, itemSetOf, setPages, setSpan, wornRival, type CmpRow, type Row } from './state'
 import { matSource } from './stash'
 
 export interface ViewHost { wallet(): void; say(text: string): void; changed(): void }
@@ -28,12 +28,6 @@ const FILTERS: { id: Filter; label: string }[] = [
 const PER = 6, ROW_H = 52
 const dgName = (id: string) => (id === 'rift' ? 'รอยแยกนิรันดร์' : DUNGEONS.find((d) => d.id === id)?.name ?? id)
 const dgBoss = (id: string) => (id === 'rift' ? 'บอสรอยแยกนิรันดร์' : DUNGEONS.find((d) => d.id === id)?.boss ?? '')
-const dgIx = (it: Item) => {
-  if (!it.craft) return DUNGEONS.length + 2
-  if (it.craft.dg === 'rift') return DUNGEONS.length
-  const ix = DUNGEONS.findIndex((d) => d.id === it.craft!.dg)
-  return ix >= 0 ? ix : DUNGEONS.length + 1
-}
 const slotBadge = (it: Item) => {
   const sl = SLOTS.find((q) => q.id === it.slot)
   return sl ? `${sl.icon} ${sl.name}` : it.slot
@@ -57,6 +51,29 @@ export class RecipeView {
     if (this.filter === 'mine') return all.filter((it) => canWearAs(it, s))
     if (this.filter === 'set') return all.filter((it) => !!itemSetOf(it))
     return all
+  }
+
+  /** Pages of the left list: flat 6 per page, or (🧩 filter) grouped under set headers. */
+  private pageRows(list: Item[]): Row[][] {
+    if (this.filter === 'set' && !this.salvageMode) return setPages(list, itemSetOf)
+    const out: Row[][] = []
+    for (let i = 0; i < list.length; i += PER) out.push(list.slice(i, i + PER).map((it) => ({ kind: 'item' as const, it })))
+    return out
+  }
+
+  /** 🧩 filter: one set's header bar (name, dungeon span, owned count). Tap = set modal. */
+  private setHeader(root: Phaser.GameObjects.Container, r: Extract<Row, { kind: 'head' }>, y: number, s: ReturnType<typeof save>) {
+    const sc = this.scene, w = 244
+    const members = r.set.memberIds ?? r.ids
+    const owned = members.filter((id) => s.owned.includes(id)).length
+    const span = setSpan(members)
+    const g = sc.add.graphics()
+    g.fillStyle(0x3b4e82, 1).fillRoundedRect(-w / 2, -HEAD_H / 2, w, HEAD_H, 8)
+    const meta = sc.add.text(w / 2 - 8, 0, `${span ? `${span} · ` : ''}${owned}/${members.length} ›`, { fontSize: '11px', color: UI.text }).setOrigin(1, 0.5)
+    const name = fit(sc.add.text(-w / 2 + 8, 0, `${r.cont ? '↪ ' : ''}${r.set.icon} ${r.set.name.replace(/\s*\(.*\)$/, '')}`, { fontSize: '12px', fontStyle: 'bold', color: UI.gold, wordWrap: { width: w - 22 - meta.width } }).setOrigin(0, 0.5), 17)
+    const bar = sc.add.container(16 + 6 + w / 2, y + HEAD_H / 2, [g, name, meta]).setSize(w, HEAD_H).setInteractive({ useHandCursor: true })
+    bar.on('pointerup', () => { sfx.pop(); this.openSetModal(r.set, s) })
+    root.add(bar)
   }
 
   private unlocked = (it: Item) => {
@@ -102,9 +119,10 @@ export class RecipeView {
     this.modal?.destroy(); this.modal = undefined
     this.root?.destroy()
     const sc = this.scene, s = save(), root = (this.root = sc.add.container(0, 0))
-    const list = this.list(), pages = Math.max(1, Math.ceil(list.length / PER))
+    const list = this.list(), book = this.pageRows(list), pages = Math.max(1, book.length)
     this.page = Math.max(0, Math.min(this.page, pages - 1))
-    if (!this.sel || !list.some((it) => it.id === this.sel)) this.sel = list[this.page * PER]?.id ?? list[0]?.id
+    const firstOn = (p: number) => book[p]?.find((r): r is Extract<Row, { kind: 'item' }> => r.kind === 'item')?.it.id
+    if (!this.sel || !list.some((it) => it.id === this.sel)) this.sel = firstOn(this.page) ?? list[0]?.id
     root.add(panel(sc, 16, 112, 256, 450, 0x1d2140, UI.line, 12))
 
     if (this.salvageMode) {
@@ -115,8 +133,12 @@ export class RecipeView {
       }, { size: 12, fill: this.filter === f.id ? 0xf2b84b : 0x5a5f8a, color: this.filter === f.id ? UI.ink : UI.text })))
     }
 
-    list.slice(this.page * PER, this.page * PER + PER).forEach((it, i) => {
-      const w = 244, cy = 162 + i * (ROW_H + 4) + ROW_H / 2, on = it.id === this.sel, hide = !this.unlocked(it) && !this.salvageMode
+    let y = this.filter === 'set' && !this.salvageMode ? 148 : 162
+    for (const r of book[this.page] ?? []) {
+      if (r.kind === 'head') { this.setHeader(root, r, y, s); y += HEAD_H + 4; continue }
+      const it = r.it
+      const w = 244, cy = y + ROW_H / 2, on = it.id === this.sel, hide = !this.unlocked(it) && !this.salvageMode
+      y += ROW_H + 4
       const g = sc.add.graphics()
       g.fillStyle(on ? UI.panelHi : UI.panel, 1).fillRoundedRect(-w / 2, -ROW_H / 2, w, ROW_H, 10).lineStyle(on ? 3 : 1.5, on ? 0xf2b84b : UI.line, 1).strokeRoundedRect(-w / 2, -ROW_H / 2, w, ROW_H, 10)
       const ico = itemIcon(sc, -w / 2 + 28, 0, 40, hide ? { ...it, icon: '❓', name: '???' } : it, { grade: 1, refine: 0 })
@@ -125,7 +147,7 @@ export class RecipeView {
       const row = sc.add.container(16 + 6 + w / 2, cy, [g, ico, name, cap]).setSize(w, ROW_H).setInteractive({ useHandCursor: true })
       row.on('pointerup', () => { sfx.pop(); this.sel = it.id; this.rebuild() })
       root.add(row)
-    })
+    }
     root.add(button(sc, 16 + 60, 540, 44, 30, '◀', () => { this.page--; this.rebuild() }, { size: 14 }).setEnabled(this.page > 0))
     root.add(txt(sc, 16 + 128, 540, `${this.page + 1}/${pages}`, 14, UI.text, true).setOrigin(0.5))
     root.add(button(sc, 16 + 196, 540, 44, 30, '▶', () => { this.page++; this.rebuild() }, { size: 14 }).setEnabled(this.page < pages - 1))

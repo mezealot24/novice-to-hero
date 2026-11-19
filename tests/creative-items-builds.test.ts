@@ -122,6 +122,11 @@ test('Equip/Unequip Symmetry & Stat Identity: equipping, imbuing, awakening, and
     assert.ok(members.length >= 3, `Set ${setDef.id} must have at least 3 members`)
 
     const s = makeEndgameHero()
+    // Class-locked sets (Q 2026-11-19 Thief-line sets): wear them as a Rogue instead of the default Monk
+    const lock = members.find((m) => m.jobs?.length)?.jobs?.[0]
+    if (lock === 'thief' && members.every((m) => !m.jobs || m.jobs.includes('thief'))) {
+      Object.assign(s, { job: 'thief', job2: 'rogue', job3: undefined, job3Trial: {} })
+    }
     const baseStats = structuredClone(heroStats(s))
 
     const usedSlots: EquipSlot[] = []
@@ -293,7 +298,7 @@ test('Item Sets (setBonuses): 2-piece and 3-piece thresholds, duplicate acc ID g
     assert.ok(act3, `3 pieces of ${setDef.id} must activate 3pc bonus`)
     assert.equal(act3.count, 3)
     assert.equal(act3.activeTiers.length, 2)
-    assert.equal(act3.nextTier, undefined)
+    assert.equal(act3.nextTier?.pieces, setDef.tiers.find((t) => t.pieces > 3)?.pieces) // Q 2026-11-19: Thief-line sets add a 4pc tier
   }
 
   // Verify 3-piece set effects & conversions merge into heroBuild(s)

@@ -1,8 +1,9 @@
 // Pure helpers shared by the rail, the stage and the verb panels (no Phaser objects here). Rules live in src/data/*.
+import { DUNGEONS } from '../../data/game-data'
 import { gradeCost, REFINE } from '../../data/craft'
 import { ASPECT_LIST, ASPECTS, aspectModOf, type AspectId, type SaveExt } from '../../data/item-effects'
 import { matById } from '../../data/materials'
-import { canWearAs, EMPTY_ITEM, forged, gradeOf, isBroken, isTainted, itemStatLine, ITEMS, linesOf, refineOf, SLOTS, splitStatLine, statEntries, type Item, type StatEntry } from '../../data/meta'
+import { canWearAs, EMPTY_ITEM, itemById, forged, gradeOf, isBroken, isTainted, itemStatLine, ITEMS, linesOf, refineOf, SLOTS, splitStatLine, statEntries, type Item, type StatEntry } from '../../data/meta'
 import { canAffordAuto, costGap, fodderToBuy, gradeCheck, lineText, refineCheck, refineCost, taintCheck, totalZeny, type ForgeCost, type TaintResult } from '../../data/refine'
 import { ITEM_SETS, setById, type ItemSet } from '../../data/sets'
 import type { Stats } from '../../data/stats'
@@ -221,4 +222,55 @@ export function forgedWithAspect(s: SaveExt, it: Item, nextAspectId?: AspectId):
   if (forgeAppliesAspect) return forged(targetSave, it)
   const aspMod = nextAspectId ? ASPECTS[nextAspectId]?.mod : aspectModOf(targetSave, it)
   return addModToItem(noImbueItem, aspMod)
+}
+
+// ---------- 📜 recipe list: 🧩 filter grouped by set (Q 2026-11-19) ----------
+/** Recipe sort key: dungeon order, then rift, then shop items. */
+export const dgIx = (it: Item) => {
+  if (!it.craft) return DUNGEONS.length + 2
+  if (it.craft.dg === 'rift') return DUNGEONS.length
+  const ix = DUNGEONS.findIndex((d) => d.id === it.craft!.dg)
+  return ix >= 0 ? ix : DUNGEONS.length + 1
+}
+const PER = 6, ROW_H = 52
+export const HEAD_H = 26
+/** List area height: a set header + 6 item rows (pager sits under it). The 🧩 filter packs set headers + items into this height. */
+const LIST_H = HEAD_H + 4 + PER * (ROW_H + 4) // header + 6 rows
+/** One line of the left list: a recipe, or (🧩 filter) a set header. `cont` = the set carried over from the previous page. */
+export type Row = { kind: 'item'; it: Item } | { kind: 'head'; set: ItemSet; ids: string[]; cont: boolean }
+const rowH = (r: Row) => (r.kind === 'item' ? ROW_H + 4 : HEAD_H + 4)
+/** "D1-D5" span of a set's forge recipes (from each piece's craft dungeon). */
+export function setSpan(ids: readonly string[]): string {
+  const ns = ids.map((id) => itemById(id)?.craft?.dg).filter((d): d is string => !!d && /^d\d+$/.test(d)).map((d) => Number(d.slice(1)))
+  if (!ns.length) return ''
+  const lo = Math.min(...ns), hi = Math.max(...ns)
+  return lo === hi ? `D${lo}` : `D${lo}-D${hi}`
+}
+/** Group recipes by set (sets in the order of their earliest piece), then pack them into pages by height.
+ *  A set starts on a fresh page unless it fits whole; a set longer than a page repeats its header (↪) on the next one. */
+export function setPages(items: readonly Item[], setOf: (it: Item) => ItemSet | undefined, h = LIST_H): Row[][] {
+  const groups = new Map<string, { set: ItemSet; items: Item[] }>()
+  for (const it of items) {
+    const st = setOf(it)
+    if (!st) continue
+    const g = groups.get(st.id) ?? { set: st, items: [] }
+    g.items.push(it)
+    groups.set(st.id, g)
+  }
+  const order = [...groups.values()].sort((a, b) => dgIx(a.items[0]) - dgIx(b.items[0]) || ITEM_SETS.indexOf(a.set) - ITEM_SETS.indexOf(b.set))
+  const pages: Row[][] = []
+  let page: Row[] = [], used = 0
+  const push = (r: Row) => { page.push(r); used += rowH(r) }
+  const flush = () => { if (page.length) pages.push(page); page = []; used = 0 }
+  for (const g of order) {
+    const ids = g.items.map((it) => it.id)
+    if (used > 0 && used + HEAD_H + 4 + ids.length * (ROW_H + 4) > h) flush() // a set that won't fit the rest of this page starts a fresh one
+    push({ kind: 'head', set: g.set, ids, cont: false })
+    for (const it of g.items) {
+      if (used + ROW_H + 4 > h) { flush(); push({ kind: 'head', set: g.set, ids, cont: true }) }
+      push({ kind: 'item', it })
+    }
+  }
+  flush()
+  return pages
 }
