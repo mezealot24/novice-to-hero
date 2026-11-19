@@ -11,6 +11,7 @@
 
 import type { Item } from './meta'
 import type { JobId } from './jobs'
+import { MAGE_ZONE_ITEMS } from './mage-zone-sets'
 
 const SW: JobId[] = ['swordsman']
 const TH: JobId[] = ['thief']
@@ -451,5 +452,6 @@ export const CLASS_CRAFT_ITEMS: Item[] = [
   ...D8_CLASS_GEAR,
   ...D9_CLASS_GEAR,
   ...JOB3_CRAFT_ITEMS,
+  ...MAGE_ZONE_ITEMS, // Q 2026-11-19: Mage zone sets D6-D10 / D8-D14
   ...SWORD_ZONE_SET_GEAR,
 ]
