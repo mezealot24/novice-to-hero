@@ -47,6 +47,7 @@ export const tree: ClassTree = {
     n('thief_b4', 'thief_b', 4, '👤', 'เงาสวน', 1, () => `หลบได้ทุกครั้ง = แทงสวน 0.8x (ติดพิษได้) · ร่างเงานานขึ้น +1 เทิร์น`, () => ({ dodgeStrike: 1, thShadowTurns: 1 })),
     // P2'd: thief_v สาย INT/เวท (เล่นแร่พิษ)
     n('thief_v1', 'thief_v', 1, '🔮', 'แทงฉาบอาคม', 3, (lv) => `แทงพิษ +${Math.round(60 * lv)}% M.ATK (เวท) · ตีปกติ +${Math.round(60 * lv * KIT.thiefVenomBasicShare)}% M.ATK (เวท)`, (lv) => ({ thS1Matk: 0.6 * lv })),
+    n('thief_v2', 'thief_v', 2, '☣️', 'ระเบิดสารพิษ', 3, (lv) => `ตีปกติ/แทงพิษใส่เป้าพิษ ≥ ${Math.round(KIT.thiefDetAtShare * 100)}% เพดาน (${poisonAt(KIT.thiefDetAtShare, KIT.poison.baseCap)} จาก ${KIT.poison.baseCap}): ระเบิดพิษ ${Math.round(KIT.thiefDetShare * 100)}% (ขั้นต่ำ ${KIT.thiefDetMin}) ทำดาเมจ ${Math.round((KIT.thiefDetPoisonBase + KIT.thiefDetPoisonLv * lv) * 100)}%/stack + สาดตัวอื่น ${Math.round(KIT.thiefDetSplash * 100)}% (1 ครั้ง/เทิร์น)`, (lv) => ({ thDetonate: lv })),
   ],
   talents: [
     // ----- row 1 · Job Lv 5 · ตั้งตัว -----

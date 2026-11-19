@@ -118,6 +118,8 @@ export const KIT = {
   thiefOpenCritDmg: 0.25, // th_t1b R2: crit dmg + on the wave's sure-crit opener (B3)
   // P2'd off-meta (สาย INT / WIS Shadow Ward / LUK Gambler's Edge)
   thiefVenomBasicShare: 0.58, // thief_v1 แทงฉาบอาคม: share of the S1 M.ATK hit that basic attacks also deal
+  thiefDetAtShare: 0.5, thiefDetShare: 0.4, thiefDetMin: 3, // thief_v2 ระเบิดสารพิษ: threshold share of poisonMax(), consume 40% (min 3 stacks)
+  thiefDetPoisonBase: 1.5, thiefDetPoisonLv: 0.5, thiefDetSplash: 0.5, thiefDetLeechShare: 0.5, // Contaminate damage per consumed stack, AoE share, leech share without ★
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
   // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
   // 💰 Thief ทักษะ 2 ล้วงกระเป๋า (Q 2026-11-18, GW2 Steal): what you steal depends on the front monster's top stat. admin `kit` · thiefSteal.*

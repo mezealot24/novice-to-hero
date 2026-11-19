@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { PLAYER, type Stats } from '../src/data/game-data'
 import { STAT_RULES, statEff } from '../src/data/meta'
 import { autoInfo, KIT, magicPower, matkToPmRatio } from '../src/data/skill-math'
+import { canDetonate, detonateDmg, detonateStacks } from '../src/data/thief-offmeta'
 import { nodeById } from '../src/data/tree'
 
 const near = (a: number, b: number, msg = '') => assert.ok(Math.abs(a - b) < 1e-9, `${msg} ${a} != ${b}`)
@@ -42,4 +43,26 @@ test('thief_v1 แทงฉาบอาคม stretches cleanly Lv 1..5 and show
   assert.ok(rows.some((r) => r.label.includes('แทงฉาบอาคม')), 'autoInfo shows magic bonus row')
   const plainRows = autoInfo('thief', PLAYER)
   assert.ok(!plainRows.some((r) => r.label.includes('แทงฉาบอาคม')), 'hidden when thS1Matk = 0')
+})
+
+test('thief_v2 ระเบิดสารพิษ: threshold scales with poison cap, detonateStacks/Dmg & stretch Lv 1..5', () => {
+  assert.equal(canDetonate(false, 9, 20, 3), false, 'below 50% of 20')
+  assert.equal(canDetonate(false, 10, 20, 3), true, 'at 50% of 20 = 10')
+  assert.equal(canDetonate(false, 14, 29, 3), false, 'cap 29 needs ceil(14.5) = 15')
+  assert.equal(canDetonate(false, 15, 29, 3), true)
+  assert.equal(canDetonate(true, 20, 20, 3), false, '1/hero turn ICD')
+  assert.equal(canDetonate(false, 20, 20, 0), false, 'node off')
+
+  assert.equal(detonateStacks(8), 3, 'min 3 when floor(3.2) = 3')
+  assert.equal(detonateStacks(20), 8, 'floor(20 * 0.4) = 8')
+  assert.equal(detonateStacks(2), 2, 'capped at available stacks')
+  near(detonateDmg(8, 10, 3), 8 * 10 * 3.0, 'Lv 5 (x=3): 3.0x poisonDmg/stack, no extra M.ATK term')
+
+  const v2 = nodeById('thief_v2')!
+  assert.equal(v2.max, 5)
+  near(v2.mod(5).thDetonate ?? 0, 3, 'Lv 5 == old Lv 3')
+  for (let lv = 1; lv <= 5; lv++) {
+    const d = v2.desc(lv)
+    assert.ok(!/undefined|NaN/.test(d), `v2 Lv ${lv}: ${d}`)
+  }
 })

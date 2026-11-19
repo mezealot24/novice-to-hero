@@ -167,6 +167,13 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
       kit('thiefShadowShieldHpCap', 'หายใจในเงา: โล่ร่างเงาสูงสุด (% HP)'),
       kit('thiefDodgeFleeTurns', 'ก้าวเงา: Flee หลังหลบ นาน (เทิร์น)'),
       kit('thiefOpenCritDmg', 'เปิดฉากซุ่มโจมตี R2: ดาเมจคริ + (B3)'),
+      kit('thiefDetAtShare', 'ระเบิดสารพิษ: พิษขั้นต่ำ (สัดส่วนเพดานพิษ)'),
+      kit('thiefDetShare', 'ระเบิดสารพิษ: ใช้พิษกี่ส่วน'),
+      kit('thiefDetMin', 'ระเบิดสารพิษ: ใช้พิษอย่างน้อย (stack)'),
+      kit('thiefDetPoisonBase', 'ระเบิดสารพิษ: × ดาเมจพิษ (ฐาน)'),
+      kit('thiefDetPoisonLv', 'ระเบิดสารพิษ: × ดาเมจพิษ (ต่อ Lv เดิม)'),
+      kit('thiefDetSplash', 'ระเบิดสารพิษ: สาดตัวอื่นกี่ส่วน'),
+      kit('thiefDetLeechShare', 'ระเบิดสารพิษ: เลือดพิษได้กี่ส่วน (ไม่มี ★)'),
     ],
   },
 }

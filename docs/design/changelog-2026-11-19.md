@@ -160,3 +160,8 @@
 - Added `statEff(b, k)` single stat-point door in `hero-stats.ts`, `matkToPmRatio(st)` in `skill-math.ts`, and 7 new P2'd `Stats` keys initialized to `0` in `PLAYER`
 - Added branch `thief_v` เล่นแร่พิษ (`ATTACH thief_v: 's1'`) and `thief_v1` แทงฉาบอาคม: adds a magic hit scaled on M.ATK to แทงพิษ and basic attacks (`KIT.thiefVenomBasicShare` 0.58, registered across all 4 admin/layout files) + `autoInfo` row
 - Tests: `tests/thief-p2d.test.ts`
+
+## ✨ feat(thief): P2'd thief_v2 ระเบิดสารพิษ (Contaminate)
+- Added `src/data/thief-offmeta.ts` pure helpers (`canDetonate`, `detonateStacks`, `detonateDmg`) and `thief_v2` ระเบิดสารพิษ (tier 2, unique name)
+- Triggers once per hero turn on Basic / แทงพิษ when target poison ≥ 50% of `poisonMax()` (`thiefDetAtShare`), consuming 40% (min 3) stacks AFTER `damageMon(..., dot=false)` so B1 + B5 amps still see full stacks, plus 50% splash to other alive monsters (no separate M.ATK terms: M.ATK already scales `poisonDmg` via `KIT.poison.matkPer`)
+- 7 new `KIT` keys registered across all 4 admin/layout files
