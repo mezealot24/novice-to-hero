@@ -95,3 +95,9 @@
 - th_t2a: a capped-out / zero cut no longer spends its ICD
 - Not routed (other classes / Mobster rule): relics, Archer kill CD, Mage Foresight, Mobster ทวงหนี้ refund
 - Pure `ultCdCut()` + test in `tests/thief-p2c.test.ts`
+
+## ✨ feat(thief): P2'c B3 crit-dmg bracket · drop hardcoded thExecute x1.5
+- R4.6 B3 in `strike()`: one `condCritDmg(m)` sum (Shroud ★ `smokeCritDmg` + Rogue rg_x2 ใจสลาย + Ult-own `thiefUltCondCritDmg` + thief_u3 on basic / combo) added to critMul, cap `KIT.thiefCondCritDmgCap` 0.75 (new key, Thai label)
+- Removed the `thExecute` x1.5 line (no source since P2'a); `Stats.thExecute` stays as a retired key
+- หมายหัว release stays x mul = B4 (MAIN-VS-REV4 §2 C2) · comment only
+- Today nothing changes in play: Shroud ★ 0.25 + ใจสลาย 0.36 = 0.61 < 0.75 (Ult-own terms come with thief_u)

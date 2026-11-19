@@ -287,6 +287,7 @@ export const KIT_EXPLAIN: Record<string, FieldExplain> = {
   thiefFinisherMul: { label: 'Thief · เงาพันคม: ทีปิด × ทีปกติ', effect: 'เพิ่ม = ทีแทงปิดท้ายของ ★ เงาพันคมแรงขึ้น (คริแน่)' },
   thiefUltCdCutCap: { label: 'Thief · ลด CD Ult สูงสุดต่อเทิร์น (รวมทุกแหล่ง)', effect: 'เพิ่ม = ขโมยจังหวะ / เงาวนลูป / Kill Reset (Rogue) ลด CD Ult รวมกันได้มากขึ้นต่อ 1 เทิร์นฮีโร่' },
   thiefUltCdFloor: { label: 'Thief · CD Ult ต่ำสุดในเทิร์นที่เพิ่งกด', effect: 'ลดเลข = ลด CD จนกด Ult ติดกันได้ไวขึ้น (2 = ต้องเว้นอย่างน้อย 1 เทิร์น)' },
+  thiefCondCritDmgCap: { label: 'Thief · B3: ดาเมจคริจากเงื่อนไข รวมสูงสุด', effect: 'เพิ่ม = Shroud ★ / ใจสลาย (Rogue) / โหนด-ทาเลนต์เงาพริ้ว / เพชฌฆาตเงา / เปิดฉากซุ่มโจมตี รวมกันดันดาเมจคริได้สูงขึ้น (0.75 = สูงสุด +0.75 critMul)' },
   'poison.atkPer': { label: 'Poison · ดาเมจ/stack +× P.ATK (สายโจร)', effect: 'เพิ่ม = พิษโตตาม P.ATK แรงขึ้นช่วงเลท · 0 = พิษ flat แบบเดิม' },
   'thiefShadow.max': { label: 'Shadow · เกจเงาเต็มที่', effect: 'ลดเลข = เข้าร่างเงาบ่อยขึ้น' },
   'thiefShadow.turns': { label: 'Shadow · ร่างเงาอยู่กี่เทิร์น', effect: 'เพิ่ม = ช่วงคริแน่ + ทักษะ 1 ฟรีนานขึ้น' },

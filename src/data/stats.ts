@@ -55,7 +55,7 @@ export interface Stats {
   lockOn: number // flag: Archer basic hits on the same target stack +10% (max 5)
   dodgeStrike: number // flag: every dodge strikes back at 0.8x
   doubleAtk: number // Thief Double Strike level (0-5): chance of +1 hit (can crit), see doubleAtkChance()
-  thExecute: number // Thief ★ เพชฌฆาต: crit vs monster < 30% HP x1.5
+  thExecute: number // retired (old Thief ★ เพชฌฆาต, no source since P2'a; P2'c removed its hardcoded x1.5): key kept for old data
   poisonLeech: number // Thief เลือดพิษ: heal this share of poison tick damage
   killHeal: number // Thief กระหายเลือด: kill heals this share of max HP
   bloodKing: number // Thief ★ ราชันย์โลหิต: HP < 40% -> lifesteal x2

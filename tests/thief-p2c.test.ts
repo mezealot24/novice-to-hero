@@ -4,7 +4,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { PLAYER, type Stats } from '../src/data/game-data'
 import { CRIT_RULES } from '../src/data/battle-rules'
-import { KIT, thiefOnHitEff, thiefUltBudget, thiefUltCondCritDmg, thiefUltCritRate, thiefUltFinisher, thiefUltHitCount, ultCdCut, type UltHero } from '../src/data/skill-math'
+import { readFileSync } from 'node:fs'
+import { condCritB3, KIT, thiefOnHitEff, thiefUltBudget, thiefUltCondCritDmg, thiefUltCritRate, thiefUltFinisher, thiefUltHitCount, ultCdCut, type UltHero } from '../src/data/skill-math'
 
 const near = (a: number, b: number, msg = '') => assert.ok(Math.abs(a - b) < 1e-9, `${msg} ${a} != ${b}`)
 const st = (o: Partial<Stats> = {}): Stats => ({ ...PLAYER, ...o })
@@ -61,4 +62,16 @@ test('Global Ult CD cap: per hero turn budget, floor in the cast turn, never neg
   let cd = 6, left = KIT.thiefUltCdCutCap
   for (const want of [1, 1, 1]) { const c = ultCdCut(cd, want, left, false); cd -= c; left -= c }
   assert.equal(cd, 6 - KIT.thiefUltCdCutCap)
+})
+
+test('B3 crit dmg bracket (R4.6): terms add, one cap, never negative · hardcoded thExecute x1.5 is gone', () => {
+  assert.equal(condCritB3([]), 0)
+  near(condCritB3([0.25, 0.15]), 0.4)
+  near(condCritB3([0.25, 0.36, 0.15]), KIT.thiefCondCritDmgCap, 'Shroud ★ + rg_x2 Lv5 + Ult-own -> cap 0.75')
+  near(condCritB3([-1, 0.1]), 0.1)
+  const scene = readFileSync('src/scenes/BattleScene.ts', 'utf8')
+  assert.ok(!/thExecute/.test(scene), 'BattleScene no longer reads the retired thExecute')
+  // the Ult budget sees the other B3 terms on both sides: the Ult-own share shrinks near the cap
+  const h: UltHero = { skillCrit: 0, critMul: 2, b3Other: 0.7 }
+  near(thiefUltBudget(st({ thUltCondCritDmg: 0.05 }), h, true), 4 * (2 + 0.75))
 })

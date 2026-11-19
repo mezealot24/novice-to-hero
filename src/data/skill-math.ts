@@ -107,6 +107,8 @@ export const KIT = {
   // Global Ult CD cap (Rev 3 §5.1): every Thief-line Ult CD cut (th_t2a, thief_b3, Rogue Kill Reset) shares thiefUltCdCutCap turns per hero
   // turn, and in the turn the Ult was cast the CD never drops below thiefUltCdFloor (2 = at least one hero turn between two casts)
   thiefUltCdCutCap: 2, thiefUltCdFloor: 2,
+  // R4.6 B3: conditional crit dmg (Shroud ★, Rogue rg_x2 ใจสลาย, Ult-own, thief_u3 on basic / combo, th_t1b R2) ADDS into critMul, one cap
+  thiefCondCritDmgCap: 0.75,
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
   // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
   // 💰 Thief ทักษะ 2 ล้วงกระเป๋า (Q 2026-11-18, GW2 Steal): what you steal depends on the front monster's top stat. admin `kit` · thiefSteal.*
@@ -514,6 +516,9 @@ export const thiefUltFinisher = (st: UltSt, crits: number): { mul: number; sure:
   const star = st.thUltFinisher > 0 && crits >= KIT.thiefFinisherAt
   return { mul: Math.max(Math.max(0, st.thUltKillFinisher), star ? KIT.thiefFinisherMul : 0), sure: star }
 }
+/** R4.6 B3 Crit Dmg: conditional crit-dmg terms add (never x mul), one cap KIT.thiefCondCritDmgCap. */
+export const condCritB3 = (parts: readonly number[]): number =>
+  Math.min(KIT.thiefCondCritDmgCap, parts.reduce((a, b) => a + Math.max(0, b), 0))
 /** P(at least k successes in n tries of chance p). */
 const atLeast = (n: number, p: number, k: number): number => {
   if (k <= 0) return 1
@@ -527,13 +532,13 @@ const atLeast = (n: number, p: number, k: number): number => {
   return Math.max(0, 1 - below)
 }
 /** Reference hero for the Ult budget: effective skillCrit on an Ult stab (gear / cards / mastery / th_t2b ...) and critMul. */
-export interface UltHero { skillCrit: number; critMul: number }
+export interface UltHero { skillCrit: number; critMul: number; b3Other?: number } // b3Other: B3 terms outside the Ult (Shroud ★, Rogue rg_x2), both sides
 /** Ult budget (MAIN-VS-REV4 §5.2, Q2) in "stab units": damage of one cast ÷ (one non-crit stab). hitPow, Ratio AGI (thUltAgi), P.ATK, DEF and the
  *  Hit roll scale every stab (finisher too) the same, so they cancel. Worst-case target (HP low, thiefUltKindsMax kinds); crit and the ★ finisher
  *  trigger are expected values. `shadow` = cast inside 👤 ร่างเงา: every physical stab is a sure crit at full crit power. */
 export function thiefUltBudget(st: UltSt, hero: UltHero, shadow: boolean): number {
   const n = thiefUltHitCount(st)
-  const cd = hero.critMul + thiefUltCondCritDmg(st, KIT.thiefUltKindsMax, 0)
+  const cd = hero.critMul + condCritB3([hero.b3Other ?? 0, thiefUltCondCritDmg(st, KIT.thiefUltKindsMax, 0)])
   const p = shadow ? 1 : thiefUltCritRate(hero.skillCrit, st)
   const per = 1 + p * (cd - 1)
   const a = Math.max(0, st.thUltKillFinisher)
