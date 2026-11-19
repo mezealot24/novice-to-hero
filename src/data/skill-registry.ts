@@ -185,6 +185,18 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
       kit('thiefWardPer', 'Shadow Ward: ลดดาเมจเวท/ตาเหยี่ยว ต่อ WIS'),
       kit('thiefWardCap', 'Shadow Ward: ลดดาเมจสูงสุด'),
       kit('thiefLuckyRes', "Gambler's Edge: LUCKY! → Energy"),
+      // PoE Passive Tree Phase 1 (Thief-Line Constellation)
+      kit('thiefDeathMarkTurns', 'ตราความตาย (Death Mark): เก็บดาเมจนาน (เทิร์นฮีโร่)'),
+      kit('thiefDeathMarkAt', 'ตราความตาย (Death Mark): เกณฑ์ระเบิดก่อนกำหนด (% HP)'),
+      kit('thiefDeathMarkEcho', 'ตราความตาย (Death Mark): สัดส่วนสะท้อน True Dmg'),
+      kit('thiefMistDr', 'หมอกลวงตา (Mistwalker): ลดดาเมจเวท/ตาเหยี่ยว/ตีโดนแน่'),
+      kit('thiefMistDefCut', 'หมอกลวงตา (Mistwalker): ข้อเสียลด P.DEF & โล่'),
+      kit('thiefFlurryDmgCut', 'คมมีดประสาน (Blade Flurry): ข้อเสียลดดาเมจต่อที Ult'),
+      kit('thiefMobFlurryMul', 'คมมีดประสาน (Mobster): ตัวคูณฟันเพิ่มทวงหนี้'),
+      kit('thiefOverhealCap', 'สัญญาเล่นแร่ (Eldritch Venom): เพดานโล่จากฮีลเกินพิษ (% HP)'),
+      kit('thiefEldritchMatkShare', 'สัญญาเล่นแร่ (Eldritch Venom): โบนัส M.ATK เสริมพิษ (สัดส่วนของ matkPer)'),
+      kit('thiefPhysLeechCut', 'สัญญาเล่นแร่ (Eldritch Venom): ข้อเสียลดดูดเลือดกายภาพ'),
+      kit('thiefLuckyPoison', 'มือแห่งโชคชะตา (Lucky Reprisal): พิษที่ Mobster แปะเมื่อ LUCKY!'),
     ],
   },
 }

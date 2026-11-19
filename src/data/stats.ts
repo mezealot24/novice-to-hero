@@ -99,6 +99,17 @@ export interface Stats {
   thPoisonLeech: number // Thief thief_v3 derived in heroBuild: total poison leech share (incl. gear poisonLeech, capped)
   thPerfectAgony: number // Thief th_t4b วิถีพิษคริ: converts critMul above KIT.thiefAgonyFrom into flat poison bonus (B5)
   thShadowWard: number // Thief WIS Shadow Ward derived in heroBuild: DR vs magic / monHit >= 999 / trueSight
+  // ----- PoE Passive Tree Phase 1: Thief-Line Constellation (data/passives/thief.ts) -----
+  thDeathMark: number // Death Mark Keystone: echo ratio (e.g. 0.35) of non-DoT hero net HP dmg dealt during mark turns as pure B6 burst
+  thUltCdAdd: number // Death Mark Keystone downside: + Ult cooldown turns (wired into ultCooldown)
+  thMistDr: number // Mistwalker Keystone: DR vs magic / monHit >= 999 / trueSight (e.g. 0.25)
+  thDefShieldCut: number // Mistwalker Keystone downside: -30% P.DEF in heroBuild & -30% shields gained in BattleScene
+  thFlurryDmgCut: number // Blade Flurry Keystone downside: -10% Ult per-hit multiplier (wired into thiefUltBudget & BattleScene)
+  thMobFlurry: number // Blade Flurry Keystone Mobster bonus: +1 extra slash on ทวงหนี้ at KIT.thiefMobFlurryMul (0.5x)
+  thEldritchVenom: number // Eldritch Venom Keystone flag: M.ATK -> poison synergy + Toxic Overheal to shield (cap KIT.thiefOverhealCap)
+  thPhysLeechCut: number // Eldritch Venom Keystone downside: -50% normal physical lifesteal
+  thS3ShieldPierce: number // Shieldbreaker Notable: Skill 3 ignores this share of monster Shield (1.0 = 100%)
+  thLuckyKnife: number // Lucky Reprisal Notable: LUK LUCKY! dodge triggers Rogue 1 free knife / Mobster +KIT.thiefLuckyPoison poison
   lightMax: number // (retired) old lightning roll top
   overload: number // Mana refunded per lightning hit that rolls >= 1x
   lightLuck: number // flag: every lightning hit rolls twice, keeps the higher
@@ -514,6 +525,7 @@ export const PLAYER: Stats = {
   j3Wl: 0, j3WlBlitz: 0,
   j3Sk: 0, j3Kp: 0, j3Hw: 0, j3Mc: 0, j3Pierce: 0, j3KpDebtAmp: 0, j3HwDrain: 0, j3HwAmp: 0, j3McOver: 0, // 🥷🎩🌌🤖 the last four Awakenings
   strManaMiss: 0, j3Pf: 0, j3PfLegFire: 0, j3PfLegLight: 0, j3PfLegIce: 0, j3PfMarkTurns: 0, j3PfResidue: 0, j3PfChain: 0, j3PfCritMana: 0, j3PfTrinity: 0, j3PfSoulChange: 0, j3PfMemorize: 0, j3PfDcAt: 0, j3PfDcMul: 0, j3PfForesight: 0, // 🎓 Professor
+  thDeathMark: 0, thUltCdAdd: 0, thMistDr: 0, thDefShieldCut: 0, thFlurryDmgCut: 0, thMobFlurry: 0, thEldritchVenom: 0, thPhysLeechCut: 0, thS3ShieldPierce: 0, thLuckyKnife: 0, // PoE Passive Tree Phase 1: Thief-Line
 }
 
 export const RULES = {
