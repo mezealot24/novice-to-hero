@@ -83,3 +83,8 @@
 - 30 new `KIT2.rogue` keys with Thai admin labels (kit2 table) · pure helpers `rogueKnifeMul` / `rogueSteelMul` / `rogueStabAmp` / `rogueComboDebuff` / `rogueAmbushCrit`
 - Save: `THIEF_REWORK_VER` 2 -> 3 · Rogue ใยชั้น 2 web reset + refund once (class 1 web, Thief + Rogue talents untouched) · Mobster untouched · `tools/bot.cjs` flag 3
 - Tests: `tests/rogue-p3a.test.ts` (+ thief-p2a / p2b migration tests updated) · Not balanced: needs Q's playtest
+
+## Monster skills no longer crit by default + ดาบมรณะ nerf (Q 2026-11-19)
+- `CRIT_RULES.monSkill = false`: a monster skill hit (strike / bolt, hero-kit casts) only rolls crit when the skill sets `crit: true`. Basic attack / combo / counter / Bullet Time still roll the monster's crit. Same idea as the hero rule (#132).
+- Death knight ⚔️ ดาบมรณะ: pow 2.8 -> 2.2, alone x2 -> x1.5. At D3 boss Lv 13 it was 192 dmg (6x its basic hit, 308 on a crit) and one-shot 75% HP of a Lv 11 hero; now ~113 and no crit.
+- Every other D1-D5 boss / mini top skill sits at 1.5-2.5x its basic hit, left as is.

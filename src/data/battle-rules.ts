@@ -41,6 +41,9 @@ export const CRIT_RULES = {
   skillFromCrit: 0, // physical skills: share of basic `crit` (+ crit buffs) that also counts for skills (Q 2026-11-19: 0, was 0.5)
   cap: { crit: 1, skillCrit: 0.6, spellCrit: 0.6 }, // basic crit uncapped (feedback was skill / perk crit only)
   sageSpellCap: 0.75, // Sage: higher spellCrit cap (perk-crit identity)
+  /** Q 2026-11-19 (same rule as hero skills): a monster SKILL hit (strike / bolt, hero-kit casts too) never crits unless the skill
+   *  sets `crit: true`. Basic attack / combo / counter / Bullet Time keep rolling the monster's crit. true = old behaviour (every skill rolls). */
+  monSkill: false as boolean,
 } as const
 
 /** Diminishing returns above soft cap: smoothly scales up to hard cap using x/(x+K). */

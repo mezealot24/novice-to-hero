@@ -52,7 +52,8 @@ export interface MonSkill {
   magic?: boolean // strike: dealt as magic (vs M.DEF, Flee can't dodge) from ATK — death knight ดาบมรณะ
   alone?: number // strike: x this when no other monster stands with it
   drain?: number // strike (Q 2026-11-04, hunter): after it lands, drains this share of the hero's current HP as magic damage and heals itself by it
-  hits?: number // bolt / strike: this many hits of pow each (each rolls its own crit; strike hits each roll Flee)
+  hits?: number // bolt / strike: this many hits of pow each (strike hits each roll Flee; with `crit` each rolls its own crit)
+  crit?: boolean // bolt / strike: may crit (the monster's crit). Default off: monster skills never crit (CRIT_RULES.monSkill, Q 2026-11-19)
   pick?: MonSkill[] // cast a random one of these instead (spell rotation: Mordecus' elements)
   big?: boolean // legendary spell: big callout + screen flash
   scale?: SkillScale | false // v68: stat it scales with (default by kind, mon-stats SKILL_SCALE); false = flat
@@ -298,7 +299,7 @@ const KITS: Partial<Record<MonsterKind, Pick<MonsterDef, 'crit' | 'combo' | 'cou
   hunter: { trueSight: { after: 2, turns: 3 }, razor: 0.05, add: [{ kind: 'strike', every: 4, pow: 2.5, drain: 0.1, name: '🩸 ตะปบจุดตาย' }] }, // Q 2026-11-04 Monster DB comment
   gunner: { trueSight: { after: 2, turns: 3 }, add: [{ kind: 'strike', every: 4, hits: 4, pow: 0.4, name: '🔫 ระดมยิง', scale: { stat: 'dex' } }] },
   drainer: { add: [{ kind: 'bolt', every: 4, pow: 1.3, name: '🌑 ดูดวิญญาณ', fx: { weaken: 2 } }] },
-  deathknight: { trueSight: { after: 2, turns: 3 }, vengeance: true, add: [{ kind: 'strike', every: 5, pow: 2.8, magic: true, alone: 2, name: '⚔️ ดาบมรณะ' }] }, // Q 2026-11-04: magic, x2 with no undead at its side
+  deathknight: { trueSight: { after: 2, turns: 3 }, vengeance: true, add: [{ kind: 'strike', every: 5, pow: 2.2, magic: true, alone: 1.5, name: '⚔️ ดาบมรณะ' }] }, // Q 2026-11-04: magic, stronger with no undead at its side · Q 2026-11-19: pow 2.8 -> 2.2, alone x2 -> x1.5 (was 6x its basic hit, one-shot 75% HP)
   venomqueen: { add: [{ kind: 'strike', every: 2, hits: 2, pow: 0.7, name: '🦂 เหล็กใน', fx: { poison: 4 } }] }, // Q: no ตาเหยี่ยว (the web does that job)
   frostgiant: { add: [{ kind: 'strike', every: 5, pow: 1.6, name: '🧊 ทุบธารน้ำแข็ง', fx: { freeze: 50 } }, { kind: 'curse', every: 4, name: '💙 Frozen Heart', fx: { slow: 2 } }] }, // Q: Frozen Heart replaces ตาเหยี่ยว
   hydra: { trueSight: { after: 2, turns: 3 }, add: [{ kind: 'bolt', every: 4, hits: 3, pow: 0.5, name: '🐍 พ่นพิษสามหัว', fx: { poison: 1 } }] },
