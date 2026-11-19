@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { bagCards, canCardforge, cardforge, cardforgeCost, pinnedReady } from '../src/data/cardforge'
+import { ALL_CARDFORGE_ITEMS, bagCards, canCardforge, cardforge, cardforgeCost, pinnedReady } from '../src/data/cardforge'
 import { itemById } from '../src/data/meta'
 
-const it = itemById('cf_jellthorn') // d1: card_jellop x3 + card_king x1
+const it = itemById('cf_jellthorn') // d1: card_jellop x1 + card_king x1
 type S = Parameters<typeof cardforge>[0]
 const mk = (over: object = {}) => {
   const c = cardforgeCost(it)
@@ -47,4 +47,8 @@ test('v99 pin: pinnedReady only reports a pinned recipe that is unlocked, not ow
   assert.equal(pinnedReady(mk({ forgePin: it.id, clearsBy: {} })), undefined)
   assert.equal(pinnedReady(mk({ forgePin: it.id, cards: {} })), undefined)
   assert.equal(pinnedReady(mk({ forgePin: 'c_jellring', mats: { m_d1: 8, b_d1: 2 }, zeny: 200 }))?.id, 'c_jellring') // a classic recipe
+})
+
+test('Q 2026-11-19: every card recipe needs exactly 1 of each card', () => {
+  for (const it of ALL_CARDFORGE_ITEMS) for (const [id, n] of Object.entries(it.craft?.cards ?? {})) assert.equal(n, 1, `${it.id} ${id}`)
 })

@@ -12,7 +12,8 @@ import type { SaveData } from '../save'
 
 export const CARDFORGE = {
   zenyMul: 1.5, // x the dearest classic recipe of the same dungeon, rounded to 100
-  cardsNeed: { normal: 3, mini: 2, boss: 1 } as Record<'normal' | 'mini' | 'boss', number>,
+  // Q 2026-11-19: every card recipe needs just 1 of each card (was 3/2/1).
+  cardsNeed: { normal: 1, mini: 1, boss: 1 } as Record<'normal' | 'mini' | 'boss', number>,
   idPrefix: 'cf_',
   fallbackZeny: 4500,
 }
@@ -51,14 +52,14 @@ const row = (r: Row): Item => {
 
 /** The 8 MVP pieces (rules doc 2.3). Wearable by every class (Q 2026-11-07). */
 export const CARDFORGE_ITEMS: Item[] = [
-  row({ id: 'cf_jellthorn', slot: 'armor', name: 'เกราะหนามเยลลี่', icon: '🌵', desc: 'โล่กันคลื่นแรก + สะท้อนหนาม · ✦ ต้องมีโล่ถึงจะสะท้อน', mod: { maxHp: 50, def: 6, flee: -3 }, dg: 'd1', common: 8, boss: 2, cards: { card_jellop: 3, card_king: 1 }, sig: { waveShield: 0.04, thorns: 0.15 }, bonus: [{ regen: 0.3 }, { thorns: 0.05 }] }),
-  row({ id: 'cf_shadowfang', slot: 'acc', name: 'จี้เขี้ยวเงา', icon: '🌑', desc: '✦ หลบได้แล้วตีสวน · เสีย DEF', base: { agi: 2 }, mod: { flee: 5, def: -4 }, dg: 'd2', common: 10, boss: 2, cards: { card_shadowwolf: 3, card_bat: 3 }, sig: { dodgeStrike: 1 }, bonus: [{ dodgeHeal: 0.02 }, { flee: 6 }] }),
-  row({ id: 'cf_boarhelm', slot: 'head', name: 'หมวกเขี้ยวหมูป่า', icon: '🐗', desc: '✦ ฆ่าศัตรูแล้วฟื้น 2% HP', mod: { maxHp: 40, def: 5 }, dg: 'd2', common: 10, boss: 2, cards: { card_boar: 3, card_shroom: 3 }, sig: { killHeal: 0.02 }, bonus: [{ tenacity: 0.05 }, { killHeal: 0.01 }] }),
-  row({ id: 'cf_duelband', slot: 'acc', name: 'ปลอกแขนนักดวล', icon: '🤺', desc: '✦ สวนกลับโดนศัตรูทุกตัว · เสีย DEF', mod: { counter: 0.05, hit: 4, def: -5 }, dg: 'd3', common: 12, boss: 3, cards: { card_duelist: 2, card_skeleton: 3 }, sig: { ctrAoe: 1 }, bonus: [{ counterDmg: 0.05 }, { counter: 0.04 }] }),
-  row({ id: 'cf_deathplate', slot: 'armor', name: 'เกราะอัศวินมรณะ', icon: '💀', desc: '✦ HP ต่ำกว่า 30% ATK +40% ดูดเลือด x2 · ตีช้าลง', mod: { maxHp: 90, def: 8, aspd: -0.1 }, dg: 'd3', common: 12, boss: 3, cards: { card_deathknight: 1, card_gargoyle: 3 }, sig: { berserk: 1 }, bonus: [{ lifesteal: 0.03 }, { maxHp: 40 }] }),
-  row({ id: 'cf_plaguecharm', slot: 'acc', name: 'เครื่องรางพิษลาม', icon: '☠️', desc: '✦ ศัตรูตายแล้วพิษลามไปตัวอื่น (มีพิษในตัวเอง) · ฮีลอ่อนลง', mod: { poison: 1, poisonDmg: 1, healAmp: -0.08 }, dg: 'd4', common: 14, boss: 3, cards: { card_toad: 3, card_venomqueen: 2 }, sig: { poisonSpread: 1 }, bonus: [{ vsPoison: 0.04 }, { poisonCap: 2 }] }),
-  row({ id: 'cf_lichveil', slot: 'head', name: 'ผ้าคลุมวิญญาณลิช', icon: '👻', desc: '✦ ฮีลเกิน HP เต็มกลายเป็นโล่ · HP สูงสุดลด', mod: { mdef: 0.05, maxRes: 10 }, pct: { maxHp: -0.06 }, dg: 'd5', common: 16, boss: 4, cards: { card_lich: 1, card_wraith: 3 }, sig: { overhealShield: 1 }, bonus: [{ healAmp: 0.06 }, { regen: 0.4 }] }),
-  row({ id: 'cf_emberring', slot: 'acc', name: 'แหวนเถ้าอเวจี', icon: '🔥', desc: '✦ ไฟลุกลามไปตัวอื่นเมื่อศัตรูตาย (ต้องมีแหล่งไฟ) · M.DEF ลด', base: { int: 2 }, mod: { vsBurn: 0.04, mdef: -0.03 }, dg: 'd5', common: 16, boss: 4, cards: { card_imp: 3, card_hexwitch: 3 }, sig: { fireSpread: 1 }, bonus: [{ burnDps: 2 }, { vsBurn: 0.04 }] }),
+  row({ id: 'cf_jellthorn', slot: 'armor', name: 'เกราะหนามเยลลี่', icon: '🌵', desc: 'โล่กันคลื่นแรก + สะท้อนหนาม · ✦ ต้องมีโล่ถึงจะสะท้อน', mod: { maxHp: 50, def: 6, flee: -3 }, dg: 'd1', common: 8, boss: 2, cards: { card_jellop: 1, card_king: 1 }, sig: { waveShield: 0.04, thorns: 0.15 }, bonus: [{ regen: 0.3 }, { thorns: 0.05 }] }),
+  row({ id: 'cf_shadowfang', slot: 'acc', name: 'จี้เขี้ยวเงา', icon: '🌑', desc: '✦ หลบได้แล้วตีสวน · เสีย DEF', base: { agi: 2 }, mod: { flee: 5, def: -4 }, dg: 'd2', common: 10, boss: 2, cards: { card_shadowwolf: 1, card_bat: 1 }, sig: { dodgeStrike: 1 }, bonus: [{ dodgeHeal: 0.02 }, { flee: 6 }] }),
+  row({ id: 'cf_boarhelm', slot: 'head', name: 'หมวกเขี้ยวหมูป่า', icon: '🐗', desc: '✦ ฆ่าศัตรูแล้วฟื้น 2% HP', mod: { maxHp: 40, def: 5 }, dg: 'd2', common: 10, boss: 2, cards: { card_boar: 1, card_shroom: 1 }, sig: { killHeal: 0.02 }, bonus: [{ tenacity: 0.05 }, { killHeal: 0.01 }] }),
+  row({ id: 'cf_duelband', slot: 'acc', name: 'ปลอกแขนนักดวล', icon: '🤺', desc: '✦ สวนกลับโดนศัตรูทุกตัว · เสีย DEF', mod: { counter: 0.05, hit: 4, def: -5 }, dg: 'd3', common: 12, boss: 3, cards: { card_duelist: 1, card_skeleton: 1 }, sig: { ctrAoe: 1 }, bonus: [{ counterDmg: 0.05 }, { counter: 0.04 }] }),
+  row({ id: 'cf_deathplate', slot: 'armor', name: 'เกราะอัศวินมรณะ', icon: '💀', desc: '✦ HP ต่ำกว่า 30% ATK +40% ดูดเลือด x2 · ตีช้าลง', mod: { maxHp: 90, def: 8, aspd: -0.1 }, dg: 'd3', common: 12, boss: 3, cards: { card_deathknight: 1, card_gargoyle: 1 }, sig: { berserk: 1 }, bonus: [{ lifesteal: 0.03 }, { maxHp: 40 }] }),
+  row({ id: 'cf_plaguecharm', slot: 'acc', name: 'เครื่องรางพิษลาม', icon: '☠️', desc: '✦ ศัตรูตายแล้วพิษลามไปตัวอื่น (มีพิษในตัวเอง) · ฮีลอ่อนลง', mod: { poison: 1, poisonDmg: 1, healAmp: -0.08 }, dg: 'd4', common: 14, boss: 3, cards: { card_toad: 1, card_venomqueen: 1 }, sig: { poisonSpread: 1 }, bonus: [{ vsPoison: 0.04 }, { poisonCap: 2 }] }),
+  row({ id: 'cf_lichveil', slot: 'head', name: 'ผ้าคลุมวิญญาณลิช', icon: '👻', desc: '✦ ฮีลเกิน HP เต็มกลายเป็นโล่ · HP สูงสุดลด', mod: { mdef: 0.05, maxRes: 10 }, pct: { maxHp: -0.06 }, dg: 'd5', common: 16, boss: 4, cards: { card_lich: 1, card_wraith: 1 }, sig: { overhealShield: 1 }, bonus: [{ healAmp: 0.06 }, { regen: 0.4 }] }),
+  row({ id: 'cf_emberring', slot: 'acc', name: 'แหวนเถ้าอเวจี', icon: '🔥', desc: '✦ ไฟลุกลามไปตัวอื่นเมื่อศัตรูตาย (ต้องมีแหล่งไฟ) · M.DEF ลด', base: { int: 2 }, mod: { vsBurn: 0.04, mdef: -0.03 }, dg: 'd5', common: 16, boss: 4, cards: { card_imp: 1, card_hexwitch: 1 }, sig: { fireSpread: 1 }, bonus: [{ burnDps: 2 }, { vsBurn: 0.04 }] }),
 ]
 
 /** D6-D13 expansion Cardforge pieces with signatures, effects, conversions, and set links. */
@@ -74,7 +75,7 @@ export const CARDFORGE_EXPANSION_ITEMS: Item[] = [
     dg: 'd6',
     common: 18,
     boss: 4,
-    cards: { card_sunpriest: 3, card_pharaoh: 1 },
+    cards: { card_sunpriest: 1, card_pharaoh: 1 },
     sig: { holyCounter: 1, counter: 0.08 },
     bonus: [{ overhealShield: 1 }, { magPen: 0.06 }],
   }),
@@ -90,7 +91,7 @@ export const CARDFORGE_EXPANSION_ITEMS: Item[] = [
     dg: 'd7',
     common: 18,
     boss: 4,
-    cards: { card_icegolem: 3, card_frostwyrm: 1 },
+    cards: { card_icegolem: 1, card_frostwyrm: 1 },
     sig: { iceBarrier: 0.25, chillWeak: 0.1 },
     conversions: [{ from: 'def', to: 'maxHp', ratio: 2.2, cap: 550, label: '220% P.DEF → Max HP (สูงสุด +550)' }],
     bonus: [{ chillSlow: 0.1 }, { thorns: 0.15 }],
@@ -106,7 +107,7 @@ export const CARDFORGE_EXPANSION_ITEMS: Item[] = [
     dg: 'd8',
     common: 20,
     boss: 5,
-    cards: { card_flamecaller: 3, card_lavatitan: 1 },
+    cards: { card_flamecaller: 1, card_lavatitan: 1 },
     sig: { fireSpread: 1, burnDps: 20 },
     effects: [{ id: 'radiance_burn', power: 0.2, cd: 1 }],
     bonus: [{ vsBurn: 0.12 }, { elemDmg: 0.1 }],
@@ -123,7 +124,7 @@ export const CARDFORGE_EXPANSION_ITEMS: Item[] = [
     dg: 'd9',
     common: 20,
     boss: 5,
-    cards: { card_sparkcoil: 3, card_omnicore: 1 },
+    cards: { card_sparkcoil: 1, card_omnicore: 1 },
     sig: { mgUltMana: 20, autoCostCut: 4 },
     effects: [{ id: 'coc_cast', power: 0.75, chance: 0.4, cd: 1 }],
     bonus: [{ elemDmg: 0.12 }, { magPen: 0.08 }],
@@ -139,7 +140,7 @@ export const CARDFORGE_EXPANSION_ITEMS: Item[] = [
     dg: 'd10',
     common: 22,
     boss: 5,
-    cards: { card_voidstalker: 3, card_starweaver: 1 },
+    cards: { card_voidstalker: 1, card_starweaver: 1 },
     sig: { ultDodge: 1, dodgeStrike: 1 },
     effects: [{ id: 'echo_double', power: 0.6, chance: 0.35, cd: 2 }],
     bonus: [{ critMul: 0.18 }, { physPen: 0.08 }],
@@ -156,7 +157,7 @@ export const CARDFORGE_EXPANSION_ITEMS: Item[] = [
     dg: 'd11',
     common: 22,
     boss: 5,
-    cards: { card_cogsentinel: 3, card_chronotitan: 1 },
+    cards: { card_cogsentinel: 1, card_chronotitan: 1 },
     sig: { comboDmg: 0.18, smashCd: -1500 },
     effects: [{ id: 'echo_double', power: 0.65, chance: 0.4, cd: 2 }],
     bonus: [{ physPen: 0.08 }, { combo: 0.06 }],
@@ -173,7 +174,7 @@ export const CARDFORGE_EXPANSION_ITEMS: Item[] = [
     dg: 'd12',
     common: 24,
     boss: 6,
-    cards: { card_trenchcrusher: 3, card_leviathan: 1 },
+    cards: { card_trenchcrusher: 1, card_leviathan: 1 },
     sig: { overhealShield: 1, waveShield: 0.08 },
     conversions: [{ from: 'maxHp', to: 'matk', ratio: 0.03, cap: 190, label: '3% Max HP → M.ATK (สูงสุด +190)' }],
     bonus: [{ lifesteal: 0.04 }, { mdef: 0.06 }],
@@ -190,7 +191,7 @@ export const CARDFORGE_EXPANSION_ITEMS: Item[] = [
     dg: 'd13',
     common: 24,
     boss: 6,
-    cards: { card_eclipsewraith: 3, card_seraph: 1 },
+    cards: { card_eclipsewraith: 1, card_seraph: 1 },
     sig: { mgWaveBarrier: 0.6, spellVamp: 0.06 },
     effects: [{ id: 'mana_overload', power: 0.35, threshold: 0.6 }],
     bonus: [{ elemDmg: 0.14 }, { spellCrit: 0.06 }],
