@@ -37,7 +37,7 @@ import { sfx, unlock } from '../sfx'
 import { HARD_POWER, TOWER_POWER } from '../data/power'
 import { escalate, escalationAt } from '../data/hard-escalation'
 import { deepAnchor, deepKind, homeDungeon, homeLv, monTier, restatAt, topStats, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, towerMonLv } from '../data/mon-stats'
-import { ENDLESS_HELL, endlessHell, HELL, HELL_MODE, hellify } from '../data/hell'
+import { ENDLESS_HELL, endlessHell, HELL, HELL_MODE, hellify, hellLvCap, hellXpMul } from '../data/hell'
 import { foldAffixes } from '../data/affixes'
 import { PACKS } from '../data/dungeons'
 import { DUNGEON_DAYS, echoPay } from '../data/dungeon-days'
@@ -220,7 +220,8 @@ export class BattleScene extends Phaser.Scene {
   private dg: DungeonDef = DUNGEONS[0]
   /** Hard mode (v47): replay of a cleared dungeon, monsters scale with Base Lv (data/game-data.ts HARD). gap = levels above the dungeon's recLv. */
   hard = false
-  hell = false // 😈 hell mode (D6-D10): a hard run where every monster is a Hell copy (data/hell.ts HELL_MODE)
+  hellOverLv = false // v129 😈 D1-D5: hero Lv above hellLvCap, account EXP x HELL_MODE.overLvXp
+  hell = false // 😈 hell mode (v129: D1+): a hard run where every monster is a Hell copy (data/hell.ts HELL_MODE)
   /** v59: hard-mode monster multiplier from Hero Power (HUD shows it), normal-dungeon drop share when over-geared. */
   hardK = { hp: 1, atk: 1 }
   /** v59 tower: affixes live on the current floor (folded), monsters enraged this fight (bots read enrageCount). */
@@ -6464,6 +6465,8 @@ export class BattleScene extends Phaser.Scene {
       if (this.hell) { // 😈 hell mode pays on top of hard
         this.zeny = Math.round(this.zeny * HELL_MODE.reward); this.runXp = Math.round(this.runXp * HELL_MODE.reward)
         for (const id of Object.keys(this.runMats)) this.runMats[id] = Math.ceil(this.runMats[id] * HELL_MODE.mats)
+        this.hellOverLv = hellXpMul(this.dg, s.baseLevel) < 1 // v129 😈 D1-D5: a hero above the Hell band banks 1% EXP
+        if (this.hellOverLv) this.runXp = Math.round(this.runXp * HELL_MODE.overLvXp)
       }
     }
     this.zeny = Math.round(this.zeny * this.run.mut.zenyMul) // daily mutators · v128: no level / Hero Power drop cut any more (Q 2026-11-19)
@@ -6505,6 +6508,7 @@ export class BattleScene extends Phaser.Scene {
     ]
     const lines = [...uniq, ...(mode?.lines ?? []), `+${this.zeny} zeny · +${this.runXp} EXP${s.gems > before ? ` · +${s.gems - before} เพชร` : ''}`]
     if (this.runXp < xpFull) lines.push(`💀 ล้มเหลว: ได้ EXP แค่ ${Math.round(RULES.failXpMul * 100)}% (เต็ม ${xpFull}) · zeny กับของได้ครบ`)
+    if (this.hellOverLv) lines.push(`😈 Lv เกินนรกดันนี้ (มอนสูงสุด Lv${hellLvCap(this.dg)}): ได้ EXP แค่ ${Math.round(HELL_MODE.overLvXp * 100)}%`)
     if (hellLoss) lines.push(`😈 ตายในนรก: เสีย Base EXP ${hellLoss.base} · Job EXP ${hellLoss.job} (${Math.round(RULES.hellDeathBase * 100)}% / ${Math.round(RULES.hellDeathJob * 100)}% ของหลอด · ไม่ลดเลเวล)`)
     if (ups.base) lines.push(`🎉 Base Lv ${s.baseLevel}! ได้แต้มสถานะเพิ่ม`)
     if (ups.job) lines.push(jobUpText(s, ups.job))

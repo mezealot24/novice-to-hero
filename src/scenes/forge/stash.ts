@@ -5,7 +5,8 @@ import { cardById, cardName } from '../../data/cards'
 import { CARDFORGE_ITEMS } from '../../data/cardforge'
 import { fodderMin, FODDER } from '../../data/refine'
 import { DUNGEONS } from '../../data/game-data'
-import { MAT_RULES, MATS, type Mat } from '../../data/materials'
+import { MAT_RULES, MATS, matById, type Mat } from '../../data/materials'
+import { convertMat, convertMax, convertQuote, convertTarget, type ConvertDir } from '../../data/mat-convert'
 import { gradeOf, isBroken, refineOf, SLOTS, type Item } from '../../data/meta'
 import { TAINT, TAINT_MAT } from '../../data/taint'
 import { addFodder, forgetForge, isWorn, persist, save } from '../../save'
@@ -103,6 +104,34 @@ export class StashView {
     root.add(txt(sc, 702, 300, '🔧 ใช้ใน', 12, UI.sub, true))
     root.add(txt(sc, 702, 318, e.use, 12, UI.text).setWordWrapWidth(232))
     if (e.fodder) this.fodderButtons(root, e.fodder, s)
+    if (this.group === 'mats') this.convertButtons(root, e.id, s)
+  }
+
+  /** ⬆⬇ convert to the next / previous dungeon's material (data/mat-convert.ts): x1 and x10 per direction. */
+  private convertButtons(root: Phaser.GameObjects.Container, id: string, s: ReturnType<typeof save>) {
+    const sc = this.scene
+    const rows = (['up', 'down'] as ConvertDir[]).filter((d) => convertTarget(id, d))
+    if (!rows.length) return
+    root.add(txt(sc, 702, 400, '⬆⬇ แปลงวัตถุดิบ (ทีละดัน)', 12, UI.sub, true))
+    rows.forEach((dir, r) => {
+      const q = convertQuote(id, dir, 1)!, to = matById(q.to)!, max = convertMax(s, id, dir), y = 440 + r * 46
+      const lab = dir === 'up' ? `⬆ ${q.spend}→1 ${to.icon}` : `⬇ 1→${q.get} ${to.icon}`
+      root.add(txt(sc, 702, y - 18, `${to.name}${q.zeny ? ` · ${q.zeny}z/ชิ้น` : ''}`, 11, UI.sub).setWordWrapWidth(232))
+      root.add(button(sc, 760, y + 10, 116, 32, lab, () => this.doConvert(id, dir, 1), { size: 13, fill: dir === 'up' ? 0x2f7d4f : 0x5a5f8a, color: UI.text }).setEnabled(max >= 1))
+      const n = Math.min(10, max)
+      root.add(button(sc, 878, y + 10, 116, 32, `x${n >= 2 ? n : 10}`, () => {
+        const qq = convertQuote(id, dir, n)!
+        confirm(sc, `แปลง x${n}?`, `ใช้ ${matById(id)!.icon} ${qq.spend} → ได้ ${to.icon} ${to.name} ${qq.get}${qq.zeny ? `\nค่าหลอม ${qq.zeny}z` : ''}\n(แปลงกลับจะได้คืนไม่เท่าเดิมนะคะ)`, 'แปลงเลย', () => this.doConvert(id, dir, n))
+      }, { size: 13, fill: dir === 'up' ? 0x2f7d4f : 0x5a5f8a, color: UI.text }).setEnabled(n >= 2))
+    })
+  }
+
+  private doConvert(id: string, dir: ConvertDir, times: number) {
+    const q = convertMat(save(), id, dir, times)
+    if (!q) { toast(this.scene, 'วัตถุดิบหรือ zeny ไม่พอค่ะ', UI.red); return }
+    persist(); sfx.coin(); this.host.wallet()
+    toast(this.scene, `${dir === 'up' ? '⬆' : '⬇'} ได้ ${matById(q.to)!.icon} ${matById(q.to)!.name} +${q.get}`)
+    this.rebuild()
   }
 
   private fodderButtons(root: Phaser.GameObjects.Container, it: Item, s: ReturnType<typeof save>) {
