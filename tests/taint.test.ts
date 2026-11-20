@@ -62,24 +62,26 @@ test('v89 taint: 😐 nothing changes but the item is locked', () => {
   assert.equal(s.refine![sword.id], 7)
 })
 
-test('v89 taint: ✨ every option line turns gold (x goldMul), gold lines stay', () => {
+test('taint ⬆️ (Q 2026-11-20): every option line goes up one tier; an old gold line counts as Rare', () => {
   const s = mk([L('str', 3), L('crit', 0.02, 1), L('def', 5)], 10)
   const out = tryTaint(s, sword, seq(R.gold))
   assert.equal(out.ok && out.kind, 'gold')
   const ls = s.refineLines![sword.id]
-  assert.deepEqual(ls[0], { stat: 'str', val: Math.round(3 * REFINE.goldMul), gold: 1 })
-  assert.deepEqual(ls[1], L('crit', 0.02, 1)) // already gold: not multiplied twice
-  assert.deepEqual(ls[2], { stat: 'def', val: Math.round(5 * REFINE.goldMul), gold: 1 })
-  assert.deepEqual(goldify(L('crit', 0.02)), { stat: 'crit', val: 0.03, gold: 1 })
+  assert.deepEqual(ls[0], { stat: 'str', val: Math.round(3 * REFINE.lineTierMul[1]), tier: 1, base: 3 }) // Normal -> Magic
+  assert.equal(ls[1].tier, 3) // old gold (Rare, val 0.02 = base x1.5) -> Legendary
+  assert.equal(ls[1].val, Math.round((0.02 / 1.5) * REFINE.lineTierMul[3] * 1000) / 1000)
+  assert.deepEqual(ls[2], { stat: 'def', val: Math.round(5 * REFINE.lineTierMul[1]), tier: 1, base: 5 })
+  const myth = { stat: 'crit', val: 0.044, tier: 4 as const, base: 0.02 }
+  assert.deepEqual(goldify(myth), myth) // Mythic is the top
 })
 
-test('v89 taint: ✨ with no lines gives one fresh gold line (documented fallback)', () => {
+test('taint ⬆️ with no lines gives one fresh line, at least Magic (documented fallback)', () => {
   const s = mk([])
   const out = tryTaint(s, sword, seq(R.gold, 0.5, 0.5, 0.5, 0.99, 0.5))
   assert.equal(out.ok && out.fallback, true)
   const ls = s.refineLines![sword.id]
   assert.equal(ls.filter(Boolean).length, 1)
-  assert.equal(ls[0].gold, 1)
+  assert.ok((ls[0].tier ?? 0) >= 1)
 })
 
 test('v89 taint: 💀 one curse line (strong bonus + downside) that really changes the item', () => {

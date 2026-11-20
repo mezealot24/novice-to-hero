@@ -261,8 +261,12 @@ export const REFINE = {
   lineAt: [5, 7, 10], // first time at these + : one random bonus line (small / mid / big)
   gemsAt: { 7: 5, 10: 15 } as Record<number, number>, // free gems, first time per item id, ever
   repairGems: 10,
-  goldRate: 0.1, // a line comes out gold this often...
-  goldMul: 1.5, // ...worth this much more
+  goldRate: 0.1, // legacy (before line tiers): a line came out gold this often...
+  goldMul: 1.5, // ...worth this much more. An old save's gold line now reads as 🟡 Rare (same x1.5).
+  // Q 2026-11-20: every option line has a tier. Roll weights (%) and value multipliers, Normal -> Mythic.
+  // Shared with jewels (data/line-tier.ts). Taint "gold" now lifts every line one tier.
+  lineTierW: [55, 28, 12, 4, 1],
+  lineTierMul: [1, 1.25, 1.5, 1.8, 2.2],
   // Zeny fee per try climbs every step (Q 2026-11-04 "แพงขึ้นเรื่อยๆ ต่อขั้น"): fee(n) = feeBase x feeGrowth^(n-1), rounded to 5z.
   // 25 35 50 70 95 135 190 265 370 515. Expected total incl. fodder + repairs (sim, weapon): +5 ~500z (2-3 ดัน3 runs),
   // +7 ~1.2k, +10 ~8.7k (late game; the old flat 10/20/40 x n table was ~7.3k with a jump at +8).
@@ -287,7 +291,15 @@ export const refinable = (it: Item) => it.price > 0 || !!it.craft || !!it.unique
 export const refineRate = (n: number, pity = 0) => Math.min(1, (REFINE.rate[n] ?? 0) + pity * REFINE.pity)
 
 /** One random bonus line from refining. `stat` is a base stat, a Stats key, or hpPct / atkPct / matkPct. */
-export interface RefineLine { stat: string; val: number; gold?: 1 }
+export interface RefineLine {
+  stat: string; val: number
+  /** legacy: a gold line from before tiers (= tier 2 Rare) */
+  gold?: 1
+  /** Q 2026-11-20 line tier 1..4 (Magic / Rare / Legendary / Mythic); missing = Normal, or Rare when `gold` */
+  tier?: 1 | 2 | 3 | 4
+  /** the value before the tier multiplier (missing on old lines: worked out from the tier) */
+  base?: number
+}
 const PCT_LINE: Record<string, 'maxHp' | 'atk' | 'matk'> = { hpPct: 'maxHp', atkPct: 'atk', matkPct: 'matk' }
 const BASE_KEYS = new Set(['str', 'vit', 'wis', 'dex', 'int', 'luk', 'agi'])
 
