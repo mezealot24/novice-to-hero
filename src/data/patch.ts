@@ -125,6 +125,42 @@ function walk(patch: unknown, guards: unknown): { errors: PatchError[]; skipped:
   return { errors, skipped, entries }
 }
 
+/** Fingerprint of what this build can tune: every table's top-level keys (monster ids, dungeon ids ...). The server
+ *  returns its own in /admin/state; admin.html compares it with its build so a Worker deployed before new monsters
+ *  (D14 clones: "monsters.protozero.bodyMul.hp missing") shows a "deploy the server" warning instead of a bare reject. */
+export function dataFingerprint(): string {
+  let h = 0x811c9dc5
+  const feed = (s: string) => { for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193) >>> 0 }
+  for (const t of [...TABLE_IDS].sort()) {
+    const root: unknown = TABLES[t].target()
+    feed(`|${t}:`)
+    if (isObj(root)) feed(Object.keys(root).sort().join(','))
+  }
+  return h.toString(16).padStart(8, '0')
+}
+
+/** True when a reject is only "this path does not exist on the validating build" (missing / unknown): the server is
+ *  older than the editor, so the fix is redeploying it, not editing the value. */
+export const looksLikeStaleBuild = (skipped: readonly { reason?: unknown }[]) =>
+  skipped.length > 0 && skipped.every((s) => s.reason === 'missing' || s.reason === 'unknown')
+
+/** Drop entries this build can never apply (skip reason missing / unknown / guard / table: the code renamed or removed
+ *  them, e.g. battle.monBuff.hp.* after v126, kit2.rogue.mastery.crit after the Thief rework). A server on this build
+ *  rejects any draft holding one, and the editor seeds its draft from live, so a stale path would block every save.
+ *  Range / type errors stay (the admin must see and fix those). Returns a new patch; the input is untouched. */
+export function pruneUnappliable(patch: Patch): { patch: Patch; dropped: Skip[] } {
+  const { skipped } = walk(patch, guardsFor(patch))
+  const drop = skipped.filter((s) => s.reason !== 'type')
+  if (!drop.length) return { patch, dropped: [] }
+  const gone = new Set(drop.map((s) => `${s.table}\u0000${s.path}`))
+  const out: Record<string, Record<string, number>> = {}
+  for (const [t, rows] of Object.entries(patch)) {
+    const kept = Object.entries(rows ?? {}).filter(([p]) => !gone.has(`${t}\u0000${p}`))
+    if (kept.length) out[t] = Object.fromEntries(kept)
+  }
+  return { patch: out as Patch, dropped: drop }
+}
+
 /** Validate without writing anything. */
 export function checkPatch(patch: unknown, guards?: unknown): CheckResult {
   const { errors, skipped, entries } = walk(patch, guards)

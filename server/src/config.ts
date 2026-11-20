@@ -3,7 +3,7 @@
 // and guards are computed here from this build (never taken from the client).
 import type { Context, Hono, Next } from 'hono'
 import type { Pool } from '@neondatabase/serverless'
-import { canonicalJson, checkPatch, guardsFor, type CheckResult } from '../../src/data/patch'
+import { canonicalJson, checkPatch, dataFingerprint, guardsFor, type CheckResult } from '../../src/data/patch'
 import { CONFIG_SCHEMA, type Guards, type Patch, type Release } from '../../src/data/tunables'
 import { createAuth, origins } from './auth'
 import type { App } from './index'
@@ -130,7 +130,7 @@ export function configRoutes(app: Hono<App>) {
       one(pool, `select ${COLS} from config_release where status = 'draft' limit 1`),
       one(pool, `select ${COLS} from config_release where status = 'live' limit 1`),
     ])
-    return c.json({ me: c.get('admin'), schemaVer: CONFIG_SCHEMA, draft, live })
+    return c.json({ me: c.get('admin'), schemaVer: CONFIG_SCHEMA, dataFp: dataFingerprint(), draft, live })
   })
 
   /** ?cfg=draft in the game (src/live-config.ts): the draft as a Release. */
