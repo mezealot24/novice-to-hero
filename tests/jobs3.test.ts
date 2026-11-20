@@ -73,12 +73,12 @@ test('an awakened Paladin counts in Hero Power (JOB3_K); a parked one does not',
   assert.equal(jbOn.str, jbBefore.str + 6)
   s.job2 = 'monk'
   assert.equal(activeJob3(s), undefined)
-  assert.equal(jobBonusBase(s).str, jbBefore.str - 5 + 5, 'parked Paladin does not grant JOB3_BONUS when job2 is monk')
+  assert.equal(jobBonusBase(s).str, jbBefore.str - 5 + 5 + (JOB2_CHANGE_BONUS.monk.base.str ?? 0), 'parked Paladin does not grant JOB3_BONUS when job2 is monk')
 })
 
 // ---------- P2-P6 (design/awakening-crusader-v1.md §3-§5) ----------
 import { trialWin } from '../src/save'
-import { heroStats, jobBonusBase } from '../src/data/meta'
+import { heroStats, JOB2_CHANGE_BONUS, jobBonusBase } from '../src/data/meta'
 import { KIT2, KIT3, gcPulses } from '../src/data/skill-math'
 import { lockReason3, nodeById, tree3Mods, TREE3 } from '../src/data/tree'
 
@@ -254,7 +254,7 @@ test('Beastmaster awakens into Ranger (Camouflage, legacy routing into j2BoarSha
 
   // Signature: 🎭 Camouflage
   const bm = heroStats(beastmaster(5))
-  const rn = heroStats(beastmaster(5, { job3: 'ranger', job3Level: 30, job3Trial: { ranger: 1 }, job3Tree: {} }))
+  const rn = heroStats(beastmaster(5, { job3: 'ranger', job3Level: 4, /* < 1 race step: keeps race growth out of the delta */ job3Trial: { ranger: 1 }, job3Tree: {} }))
   assert.equal(rn.j3Rn, 1)
   assert.ok(Math.abs(rn.j2PetPow - bm.j2PetPow - KIT3.ranger.petPowAdd) < 1e-9)
   assert.ok(Math.abs(rn.crit - bm.crit - KIT3.ranger.critAdd) < 1e-9)

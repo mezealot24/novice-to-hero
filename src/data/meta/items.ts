@@ -9,11 +9,12 @@ import { CHAMPION_UNIQUES, CREATIVE_UNIQUES, UNIQUE3_ITEMS, WARLORD_UNIQUES } fr
 import { CLASS_GEAR } from "../class-gear";
 import { CLASS_CRAFT_ITEMS } from "../class-craft";
 import type { Item, ItemReq } from "./item-types";
+import { withClassHp } from "../class-hp";
 import { ARMOR } from "./items-armor";
 import { HEAD_OFF } from "./items-head-off";
 import { WEAPONS } from "./items-weapons";
 
-export const ITEMS: Item[] = [
+export const ITEMS: Item[] = withClassHp([
 	...WEAPONS,
 	...ARMOR,
 	...HEAD_OFF,
@@ -35,7 +36,7 @@ export const ITEMS: Item[] = [
 	...CLASS_CRAFT_ITEMS,
 	// ----- Awakened D10-D13 & Rift creative craft gear (data/awakened-craft.ts) -----
 	...AWAKENED_CRAFT_ITEMS,
-];
+]); // 🩸 class gear flat HP (data/class-hp.ts)
 export const itemById = (id: string) =>
 	ITEMS.find((i) => i.id === id) ?? ITEMS[0];
 /** Can this hero wear it? `jobs` = base class (none = everyone); `j2` / `j3` = class lock to specific 2nd / 3rd jobs (v125 class gear).

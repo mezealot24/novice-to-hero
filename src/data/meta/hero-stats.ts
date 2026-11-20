@@ -14,8 +14,8 @@ import type { TaintRec } from "../taint";
 import type { EquipSlot } from "./item-types";
 import { itemById } from "./items";
 import { SKILLS, smashLv, type SkillId } from "./novice";
-import { RACES, type RaceId } from "./races";
-import { JOB2_BONUS_STATS, JOB3_BONUS, JOB3_BONUS_STATS, JOB_BONUS, JOB_BONUS_STATS, PER_POINT, STAT_RULES, type BaseStat } from "./stat-spec";
+import { RACES, raceBase, raceSteps, type RaceId } from "./races";
+import { JOB2_BONUS_STATS, JOB2_CHANGE_BONUS, JOB3_BONUS, JOB3_BONUS_STATS, JOB_BONUS, JOB_BONUS_STATS, PER_POINT, STAT_RULES, type BaseStat } from "./stat-spec";
 import { wornCards, wornItems } from "./worn";
 
 // ---------- combine everything into the hero's starting stats ----------
@@ -128,7 +128,11 @@ export function jobBonusBase(
 			JOB_BONUS_STATS[s.job],
 			Math.min(s.jobLevel ?? 1, JOB_CHANGE.classMaxJobLevel),
 		);
-	if (s.job2) add(JOB2_BONUS_STATS[s.job2], s.job2Level ?? 1);
+	if (s.job2) {
+		add(JOB2_BONUS_STATS[s.job2], s.job2Level ?? 1);
+		const cb = JOB2_CHANGE_BONUS[s.job2]?.base ?? {}; // 🎁 2nd job change bonus (flat, from Job2 Lv 1)
+		for (const k of Object.keys(cb) as BaseStat[]) out[k] += cb[k] ?? 0;
+	}
 	const j3 = activeJob3(s);
 	const j3Keys = j3 ? (JOB3_BONUS_STATS as Partial<Record<Job3Id, readonly BaseStat[]>>)[j3] : undefined;
 	if (j3Keys)
@@ -142,7 +146,7 @@ export function jobBonusBase(
 }
 /** Level-up line for the result screen: the Job Lv that counts (Job3/Job2 Lv once unlocked) + any job bonus just gained. */
 export function jobUpText(
-	s: Pick<StatsInput, "job" | "jobLevel" | "job2" | "job2Level" | "job3" | "job3Level">,
+	s: Pick<StatsInput, "job" | "jobLevel" | "job2" | "job2Level" | "job3" | "job3Level"> & { race?: RaceId },
 	ups: number,
 ): string {
 	const j3 = activeJob3(s);
@@ -165,12 +169,29 @@ export function jobUpText(
 		n > 0 && keys.length
 			? ` · 📈 ${keys.map((k) => k.toUpperCase()).join(" ")} +${n}`
 			: "";
-	return `✨ ${j3 ? "Job3" : s.job2 ? "Job2" : "Job"} Lv ${lv}! ได้แต้มสกิลเพิ่ม${bonus}`;
+	return `✨ ${j3 ? "Job3" : s.job2 ? "Job2" : "Job"} Lv ${lv}! ได้แต้มสกิลเพิ่ม${bonus}${raceUpText(s, ups)}`;
+}
+/** " · 🧬 เผ่า STR +1 AGI -1" when this level-up crossed a race step (every RACE_GROWTH.every Job Lv), else "". */
+function raceUpText(
+	s: Pick<StatsInput, "job" | "jobLevel" | "job2" | "job2Level" | "job3" | "job3Level"> & { race?: RaceId },
+	ups: number,
+): string {
+	if (!s.race || !RACES[s.race] || ups <= 0) return "";
+	const before = { ...s };
+	if (activeJob3(s)) before.job3Level = Math.max(1, (s.job3Level ?? 1) - ups);
+	else if (s.job2) before.job2Level = Math.max(1, (s.job2Level ?? 1) - ups);
+	else before.jobLevel = Math.max(1, (s.jobLevel ?? 1) - ups);
+	const a = raceBase(s.race, raceSteps(before)),
+		b = raceBase(s.race, raceSteps(s));
+	const parts = (Object.keys(b) as BaseStat[])
+		.filter((k) => b[k] !== a[k])
+		.map((k) => `${k.toUpperCase()} ${b[k] > a[k] ? "+" : ""}${b[k] - a[k]}`);
+	return parts.length ? ` · 🧬 ${RACES[s.race].name} ${parts.join(" ")}` : "";
 }
 /** Spent points + race + gear + job bonus: what every derived stat is computed from. */
 export function totalBase(s: StatsInput): Record<BaseStat, number> {
 	const out = { ...s.stats };
-	const bonus = RACES[s.race].bonus,
+	const bonus = raceBase(s.race, raceSteps(s)), // start bonus + 📈 growth every 5 Job Lv (can go negative)
 		gear = gearBase(s),
 		jb = jobBonusBase(s);
 	for (const k of Object.keys(out) as BaseStat[])
@@ -348,7 +369,7 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 			else st[k] += mod[k]!;
 		}
 	};
-	add(RACES[s.race].traitMod);
+	add((RACES[s.race] ?? RACES.human).traitMod);
 	add(job.mod);
 	for (const m of treeMods(s.jobTree, job.id)) add(m);
 	const j2 =
@@ -372,6 +393,7 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 	const j2pct = { maxHp: 0, aspd: 0, atk: 0 };
 	if (j2) {
 		add(j2.mod);
+		st.maxHp += JOB2_CHANGE_BONUS[j2.id]?.maxHp ?? 0; // 🎁 2nd job change flat HP (before % HP)
 		if (j2.id === "sage") {
 			// Sage rework v1: every base stat matters (DEX -> skillCrit & combo, WIS -> elemDmg, LUK -> procCritMul; VIT -> Magic Rod & INT -> Auto Spell/Perks in BattleScene)
 			const SG = KIT2.sage;
