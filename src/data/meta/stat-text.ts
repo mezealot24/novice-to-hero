@@ -47,6 +47,7 @@ const STAT_LABEL: Partial<
 	comboDR: ["ลดดาเมจคอมโบมอน", pc],
 	counterDR: ["ลดดาเมจสวนมอน", pc],
 	critDR: ["ลดดาเมจคริมอน", pc],
+	critShield: ["ลดโอกาสคริของมอน", pc],
 	dodgeHeal: ["หลบ→ฟื้น HP", pc],
 	revive: ["ลุกใหม่", (n) => `${n} ครั้ง/รอบ`],
 	burnDps: ["ติดไฟ", (n) => `${n}/เทิร์น`],

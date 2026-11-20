@@ -31,7 +31,7 @@ export interface DeathRec {
   floor: number
   reason: 'dead' | 'timeout'
   hero: { job: string; job2?: string; lv: number; baseLv: number; power: number; offense: number; survival: number;
-    maxHp: number; def: number; mdef: number; guard: number; flee: number; luckyDodge: number; autoGuard: number; critDR: number }
+    maxHp: number; def: number; mdef: number; guard: number; flee: number; luckyDodge: number; autoGuard: number; critDR: number; critShield?: number } // critShield optional: older saved logs lack it
   affixes: string[]
   fightTurns: number
   enrage: number
@@ -81,7 +81,7 @@ export function deathText(d: DeathRec): string {
     `☠️ Novice to Hero death log · ${d.at}`,
     `${d.where} · mode ${d.mode}${d.floor ? ` · F${d.floor}` : ''} · ${d.reason === 'timeout' ? 'หมดเวลา' : 'ตาย'} · เทิร์น ${d.fightTurns} · enrage x${d.enrage}`,
     `${h.job}${h.job2 ? '/' + h.job2 : ''} Lv${h.lv} (Base ${h.baseLv}) · ⚡${h.power} (off ${round(h.offense)} / surv ${round(h.survival)})`,
-    `HP ${h.maxHp} · DEF ${h.def} · M.DEF ${pct(h.mdef, 1)}% · guard ${pct(h.guard, 1)}% · Flee ${h.flee} · lucky ${pct(h.luckyDodge, 1)}% · Auto Guard ${pct(h.autoGuard, 1)}% · Crit DR ${pct(h.critDR, 1)}%`,
+    `HP ${h.maxHp} · DEF ${h.def} · M.DEF ${pct(h.mdef, 1)}% · guard ${pct(h.guard, 1)}% · Flee ${h.flee} · lucky ${pct(h.luckyDodge, 1)}% · Auto Guard ${pct(h.autoGuard, 1)}% · Crit DR ${pct(h.critDR, 1)}%${h.critShield !== undefined ? ` · กันคริ ${pct(h.critShield, 1)}%` : ''}`,
     `affix: ${d.affixes.join(', ') || '-'}`,
     big ? `ดาเมจก้อนใหญ่สุด: ${hitLine(big)}` : 'ไม่มี hit ที่ลด HP',
     '--- hits (เก่า → ใหม่) ---',
