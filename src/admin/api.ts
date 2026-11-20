@@ -1,5 +1,6 @@
 // admin.html <-> server/ (src/config.ts). Responses are narrowed, never trusted.
 import { createAuthClient } from 'better-auth/client'
+import { looksLikeStaleBuild } from '../data/patch'
 import type { Patch } from '../data/tunables'
 
 export const API = import.meta.env.VITE_API_URL?.replace(/\/$/, '')
@@ -54,10 +55,14 @@ export async function call(path: string, method: 'GET' | 'PUT' | 'POST' = 'GET',
   } catch { return { status: 0, body: { error: 'network' } } }
 }
 
+export const STALE_SERVER_HINT = 'เซิร์ฟเวอร์ยังเป็น build เก่า (ไม่รู้จักมอน/ช่องนี้) · deploy ใหม่: cd server && npm run deploy'
+
 /** Human message for a failed call (validation errors included). */
 export function errText(r: Res): string {
   const e = str(r.body.error) || `HTTP ${r.status}`
   const list = [...(Array.isArray(r.body.errors) ? r.body.errors : []), ...(Array.isArray(r.body.skipped) ? r.body.skipped : [])]
-    .slice(0, 5).map((x) => (isObj(x) ? `${str(x.table)}.${str(x.path)} ${str(x.msg) || str(x.reason)}` : '')).filter(Boolean)
-  return list.length ? `${e}: ${list.join(' · ')}` : e
+    .slice(0, 5).map((x) => (isObj(x) ? `${str(x.table)}.${str(x.path)} ${str(x.msg) || str(x.reason)}${str(x.detail) ? ` (${str(x.detail)})` : ''}` : '')).filter(Boolean)
+  const errs = Array.isArray(r.body.errors) ? r.body.errors : [], skipped = Array.isArray(r.body.skipped) ? r.body.skipped.filter(isObj) : []
+  const hint = !errs.length && looksLikeStaleBuild(skipped) ? ` → ${STALE_SERVER_HINT}` : ''
+  return list.length ? `${e}: ${list.join(' · ')}${hint}` : e
 }

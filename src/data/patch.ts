@@ -125,6 +125,25 @@ function walk(patch: unknown, guards: unknown): { errors: PatchError[]; skipped:
   return { errors, skipped, entries }
 }
 
+/** Fingerprint of what this build can tune: every table's top-level keys (monster ids, dungeon ids ...). The server
+ *  returns its own in /admin/state; admin.html compares it with its build so a Worker deployed before new monsters
+ *  (D14 clones: "monsters.protozero.bodyMul.hp missing") shows a "deploy the server" warning instead of a bare reject. */
+export function dataFingerprint(): string {
+  let h = 0x811c9dc5
+  const feed = (s: string) => { for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193) >>> 0 }
+  for (const t of [...TABLE_IDS].sort()) {
+    const root: unknown = TABLES[t].target()
+    feed(`|${t}:`)
+    if (isObj(root)) feed(Object.keys(root).sort().join(','))
+  }
+  return h.toString(16).padStart(8, '0')
+}
+
+/** True when a reject is only "this path does not exist on the validating build" (missing / unknown): the server is
+ *  older than the editor, so the fix is redeploying it, not editing the value. */
+export const looksLikeStaleBuild = (skipped: readonly { reason?: unknown }[]) =>
+  skipped.length > 0 && skipped.every((s) => s.reason === 'missing' || s.reason === 'unknown')
+
 /** Validate without writing anything. */
 export function checkPatch(patch: unknown, guards?: unknown): CheckResult {
   const { errors, skipped, entries } = walk(patch, guards)

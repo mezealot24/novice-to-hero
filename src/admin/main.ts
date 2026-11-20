@@ -5,12 +5,12 @@ import { JOBS } from '../data/jobs'
 import { JOB2, type Job2Id } from '../data/jobs2'
 import type { BaseStat } from '../data/meta'
 import { MON_STAT, monPoints, monTier, statNative } from '../data/mon-stats'
-import { canonicalJson, checkPatch, guardsFor, type FieldRow } from '../data/patch'
+import { canonicalJson, checkPatch, dataFingerprint, guardsFor, type FieldRow } from '../data/patch'
 import { SKILL2 } from '../data/skill2'
 import { CRIT_SLOTS, critRef, JOB2_IDS, job2Layout, SKILL_CLASSES, SKILL_LAYOUT, type SkillClass, type SkillRef } from '../data/skill-registry'
 import { type Patch, type TableId } from '../data/tunables'
 import { LOCAL_KEY } from '../live-keys'
-import { API, authClient, call, errText, parseRow, type SRow } from './api'
+import { API, authClient, call, errText, parseRow, STALE_SERVER_HINT, type SRow } from './api'
 import { borrowPlan, heroClasses, type BorrowLine } from './borrow'
 import {
   applyBulkOp,
@@ -95,6 +95,7 @@ type Tab = 'mon' | 'skills' | 'tables' | 'diff' | 'history'
 const S = {
   offline: !API,
   me: '',
+  serverStale: false, // /admin/state dataFp differs from this build (or is absent: a Worker older than the field)
   live: null as SRow | null,
   draftRow: null as SRow | null,
   draft: {} as Patch,
@@ -144,6 +145,7 @@ async function boot() {
   const r = await call('/admin/state')
   if (r.status === 200) {
     S.me = typeof r.body.me === 'string' ? r.body.me : ''
+    S.serverStale = r.body.dataFp !== dataFingerprint()
     adopt(parseRow(r.body.draft), parseRow(r.body.live))
     renderApp()
     return
@@ -170,6 +172,7 @@ function renderApp() {
   const header = h('header', {},
     h('div', { class: 'row top' }, h('h1', { class: 'brand' }, '⚙️ Balance Editor · Engine'), h('span', { class: 'muted' }, S.me),
       S.offline ? null : h('button', { type: 'button', class: 'small', onclick: () => { void authClient?.signOut().then(() => location.reload()) } }, 'ออก')),
+    S.serverStale ? h('div', { class: 'warn', role: 'alert' }, `⚠️ ${STALE_SERVER_HINT} · มอน/ช่องที่ใหม่กว่า server จะบันทึกไม่ได้`) : null,
     h('div', { id: 'status', class: 'muted', role: 'status', 'aria-live': 'polite' }),
     h('div', { class: 'row' },
       h('button', { type: 'button', id: 'btnSave', disabled: S.offline, onclick: () => { void saveDraft() } }, '💾 บันทึก draft'),
