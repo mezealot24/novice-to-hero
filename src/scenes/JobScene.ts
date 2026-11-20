@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { COLORS, H, W } from '../data/game-data'
 import { JOB_LINES, LINES } from '../data/perks'
 import { BASE_JOBS, JOB_CHANGE, JOBS, type JobId } from '../data/jobs'
-import { RESOURCES } from '../data/meta'
+import { JOB2_CHANGE_BONUS, RESOURCES, type BaseStat } from '../data/meta'
 import { canRepickJob, changeJob, changeJob2, changeJob3, job3Lock, job3SwapCost, repickJob, save, setJob3Path, setJob3Variant } from '../save'
 import { activeJob3, JOB3_RULES, job3Of, type Job3Id, type Job3Variant } from '../data/jobs3'
 import { JOB2, JOB2_RULES, job2Of, type Job2Id } from '../data/jobs2'
@@ -123,6 +123,7 @@ export class JobScene extends Phaser.Scene {
       const res = RESOURCES[j.resource ?? base.resource ?? 'mana']
       txt(this, x - cw / 2 + 14, 200, [
         j.blurb,
+        `🎁 เปลี่ยนแล้วได้ทันที: HP +${JOB2_CHANGE_BONUS[j.id].maxHp} · ${(Object.keys(JOB2_CHANGE_BONUS[j.id].base) as BaseStat[]).map((k) => `${k.toUpperCase()} +${JOB2_CHANGE_BONUS[j.id].base[k]}`).join(' ')}`,
         `พลัง: ${res.name} · เก่งเมื่อใช้: ${j.mastery.weapon}`,
         `${j.signature.icon} ${j.signature.name}: ${j.signature.desc}`,
         `${j.skill3.icon} ทักษะ 3 ${j.skill3.name}: ${j.skill3.desc}`,
