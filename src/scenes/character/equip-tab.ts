@@ -31,8 +31,11 @@ import {
 	wornItems,
 } from "../../data/meta";
 import { ITEM_SETS, setBonuses } from "../../data/sets";
+import { guardCardsOff } from "../card-guard";
 import {
 	canUnequip,
+	cardsOffOnEquip,
+	cardsOffOnUnequip,
 	equip,
 	equipBlock,
 	persist,
@@ -431,12 +434,24 @@ export function equipTab(scene: CharacterScene) {
 								canUnequip(s, "offhand")
 									? itemById(s.equipped.offhand)
 									: null;
-							equip(s, it.id, slot);
-							if (pushed)
-								toast(
-									scene,
-									`ถือ 2 มือ: เก็บ ${pushed.icon} ${pushed.name} กลับกระเป๋าแล้วค่ะ`,
-								);
+							const wear = itemById(it.id);
+							guardCardsOff(
+								scene,
+								cardsOffOnEquip(s, it.id, slot),
+								`เปลี่ยนเป็น ${wear.icon} ${wear.name}?`,
+								"เปลี่ยนเลย",
+								() => {
+									equip(s, it.id, slot);
+									if (pushed)
+										toast(
+											scene,
+											`ถือ 2 มือ: เก็บ ${pushed.icon} ${pushed.name} กลับกระเป๋าแล้วค่ะ`,
+										);
+									persist();
+									scene.redraw();
+								},
+							);
+							return;
 						}
 						persist();
 						scene.redraw();
@@ -527,9 +542,13 @@ export function equipTab(scene: CharacterScene) {
 
 export function takeOff(scene: CharacterScene, slot: EquipSlot) {
 	const s = save(),
-		it = itemById(s.equipped[slot]);
-	if (!unequip(s, slot)) return;
-	persist();
-	toast(scene, `ถอด ${it.icon} ${it.name} แล้ว เก็บไว้ในกระเป๋าค่ะ`);
-	scene.redraw();
+		it = itemById(s.equipped[slot]),
+		off = cardsOffOnUnequip(s, slot);
+	const act = () => {
+		if (!unequip(s, slot)) return;
+		persist();
+		if (!off.length) toast(scene, `ถอด ${it.icon} ${it.name} แล้ว เก็บไว้ในกระเป๋าค่ะ`);
+		scene.redraw();
+	};
+	guardCardsOff(scene, off, `ถอด ${it.icon} ${it.name}?`, "ถอดเลย", act);
 }

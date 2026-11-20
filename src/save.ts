@@ -34,6 +34,9 @@ import {
 	itemById,
 	offhandLocked,
 	slotKind,
+	slotCount,
+	gradeOf,
+	type Item,
 } from "./data/meta";
 
 export interface CrossSpent {
@@ -257,6 +260,20 @@ function migrateGear(s: SaveData) {
 		if (!s.owned.includes(id)) s.owned.push(id);
 	if (eq.acc2 !== "none" && eq.acc2 === eq.acc) eq.acc2 = "none"; // one copy of each item: never worn twice
 	if (offhandLocked(s)) eq.offhand = BARE_ITEM.offhand;
+	returnStrayCards(s);
+}
+/** Q 2026-11-20: cards left in gear that is not worn (from before cards came out on unequip), or past an item's slot count,
+ * go back to the bag. Idempotent, so it runs on every load. */
+export function returnStrayCards(s: SaveData) {
+	const worn = Object.values(s.equipped);
+	for (const id of Object.keys(s.sockets ?? {})) {
+		if (!worn.includes(id)) {
+			unsocketAll(s, id);
+			continue;
+		}
+		const max = slotCount(itemById(id), gradeOf(s, id));
+		while ((s.sockets?.[id]?.length ?? 0) > max) unsocketCard(s, id, s.sockets![id].length - 1);
+	}
 }
 
 /** The slot wearing `itemId` would fill: its own kind; an accessory fills an empty side first, else the left one. Shop / forge compare use it too. */
@@ -287,9 +304,22 @@ export function equipBlock(
 
 /** Wear an item. Accessories: `slot` picks the side; with no side it fills an empty side first. The same
  * accessory can't be on both sides (one copy per id), so it moves over instead.
- * A 2-handed weapon replaces the off-hand piece (back to the bag, still owned, cards stay in it); while one is worn the off-hand takes nothing. */
+ * A 2-handed weapon replaces the off-hand piece (back to the bag, still owned); while one is worn the off-hand takes nothing.
+ * Any item that stops being worn gives its cards back to the bag (Q 2026-11-20). */
 export function equip(s: SaveData, itemId: string, slot?: EquipSlot): boolean {
 	if (equipBlock(s, itemId, slot)) return false;
+	const before = Object.values(s.equipped);
+	equipRaw(s.equipped, itemId, slot);
+	returnCardsOfRemoved(s, before);
+	return true;
+}
+/** The equipped map change of equip() alone (no checks, no cards): also used to preview what a swap takes off. */
+function equipRaw(
+	eq: Record<EquipSlot, string>,
+	itemId: string,
+	slot?: EquipSlot,
+) {
+	const s = { equipped: eq };
 	const it = itemById(itemId);
 	const at: EquipSlot = slot ?? replaceSlot(s.equipped, itemId);
 	if (it.slot === "acc" && itemId !== "none") {
@@ -298,7 +328,41 @@ export function equip(s: SaveData, itemId: string, slot?: EquipSlot): boolean {
 	}
 	s.equipped[at] = itemId;
 	if (at === "weapon" && it.twoHand) s.equipped.offhand = BARE_ITEM.offhand;
-	return true;
+}
+/** Q 2026-11-20: gear that stops being worn always gives its cards back to the bag (no more cards left behind in bag gear). */
+function returnCardsOfRemoved(s: SaveData, before: string[]) {
+	const now = Object.values(s.equipped);
+	for (const id of before) if (!now.includes(id)) unsocketAll(s, id);
+}
+/** A worn item that a change would take off, with the cards it holds (for the "cards come out" warning). */
+export interface CardsOff {
+	item: Item;
+	cards: string[];
+}
+function cardsOffAfter(s: SaveData, next: Record<EquipSlot, string>): CardsOff[] {
+	const now = Object.values(next);
+	return [...new Set(Object.values(s.equipped))]
+		.filter((id) => !now.includes(id) && (s.sockets?.[id]?.length ?? 0) > 0)
+		.map((id) => ({ item: itemById(id), cards: [...s.sockets![id]] }));
+}
+/** Which worn items (with cards in them) wearing `itemId` would take off. Empty = no card moves. */
+export function cardsOffOnEquip(
+	s: SaveData,
+	itemId: string,
+	slot?: EquipSlot,
+): CardsOff[] {
+	if (equipBlock(s, itemId, slot)) return [];
+	const next = { ...s.equipped };
+	equipRaw(next, itemId, slot);
+	return cardsOffAfter(s, next);
+}
+/** Which item (with cards in it) taking off `slot` would remove. */
+export function cardsOffOnUnequip(s: SaveData, slot: EquipSlot): CardsOff[] {
+	if (!canUnequip(s, slot)) return [];
+	return cardsOffAfter(s, {
+		...s.equipped,
+		[slot]: BARE_ITEM[slotKind(slot)],
+	});
 }
 /** v88: would wearing `itemId` at `at` put more than UNIQUE.maxEquipped uniques on? Counts the other slots only (the one being
  * replaced leaves, and the same accessory moving from the other side is not counted twice). */
@@ -322,13 +386,15 @@ export const isWorn = (s: SaveData, itemId: string) =>
 /** Is there something to take off at `slot`? (the empty item / the weapon + armor starter piece counts as nothing) */
 export const canUnequip = (s: SaveData, slot: EquipSlot) =>
 	s.equipped[slot] !== BARE_ITEM[slotKind(slot)];
-/** Take an item off: the slot goes back to its empty item (weapon / armor: the starter knife / cloth). The item stays owned, cards stay in it.
+/** Take an item off: the slot goes back to its empty item (weapon / armor: the starter knife / cloth). The item stays owned, its cards go back to the bag.
  * Returns false when there was nothing to take off. */
 export function unequip(s: SaveData, slot: EquipSlot): boolean {
 	if (!canUnequip(s, slot)) return false;
 	const bare = BARE_ITEM[slotKind(slot)];
 	if (!s.owned.includes(bare)) s.owned.push(bare); // the starter piece is free: never leave a slot pointing at something not owned
+	const before = Object.values(s.equipped);
 	s.equipped[slot] = bare;
+	returnCardsOfRemoved(s, before);
 	return true;
 }
 

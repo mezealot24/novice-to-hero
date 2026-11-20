@@ -60,14 +60,15 @@ test('unequip: head / off-hand / accessory go empty, weapon / armor fall back to
   }
 })
 
-test('unequip keeps socketed cards inside the item', () => {
+test('unequip sends socketed cards back to the bag (Q 2026-11-20)', () => {
   const s = mk('shortsword')
   s.cards = { card_wolf: 1 }
   equip(s, 'shortsword')
   const card = Object.keys(s.cards)[0]
   assert.equal(socketCard(s, 'shortsword', card, 1), true)
   unequip(s, 'weapon')
-  assert.equal(socketed(s, itemById('shortsword')).length, 1)
+  assert.equal(socketed(s, itemById('shortsword')).length, 0)
+  assert.equal(s.cards![card], 1)
 })
 
 test('taking off a 2H weapon leaves the off-hand free (starter knife in hand)', () => {

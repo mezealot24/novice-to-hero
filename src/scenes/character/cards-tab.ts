@@ -5,7 +5,11 @@ import {
 	cardIcon,
 	cardName,
 	EQUIP_CARDS,
+	filterCards,
 	TIER_COLOR,
+	type CardSeenFilter,
+	type CardSlotFilter,
+	type CardTierFilter,
 	type EquipCard,
 } from "../../data/cards";
 import {
@@ -116,28 +120,92 @@ export function cardTab(scene: CharacterScene) {
 	else cardBagView(scene);
 }
 
+// ---------- filter chips (Q 2026-11-20) ----------
+interface ChipOpt<T> {
+	v: T;
+	label: string;
+	w: number;
+}
+/** A row of small toggle buttons; the active one is gold. Returns the x after the last chip. */
+function chipRow<T>(
+	scene: CharacterScene,
+	x0: number,
+	y: number,
+	opts: ChipOpt<T>[],
+	cur: T,
+	set: (v: T) => void,
+): number {
+	let x = x0;
+	for (const o of opts) {
+		const on = o.v === cur;
+		scene.body!.add(
+			button(
+				scene,
+				x + o.w / 2,
+				y,
+				o.w,
+				22,
+				o.label,
+				() => {
+					set(o.v);
+					scene.cardPage = 0;
+					scene.render();
+				},
+				{
+					size: 11,
+					fill: on ? COLORS.gold : 0x3f4466,
+					color: on ? UI.ink : UI.text,
+				},
+			),
+		);
+		x += o.w + 4;
+	}
+	return x;
+}
+const SLOT_CHIPS: ChipOpt<CardSlotFilter>[] = [
+	{ v: "all", label: "ทุกช่อง", w: 50 },
+	{ v: "weapon", label: "🗡️อาวุธ", w: 52 },
+	{ v: "armor", label: "🥋เกราะ", w: 52 },
+	{ v: "acc", label: "💍ประดับ", w: 56 },
+];
+const TIER_CHIPS: ChipOpt<CardTierFilter>[] = [
+	{ v: "all", label: "ทุกระดับ", w: 54 },
+	{ v: "normal", label: "🃏", w: 30 },
+	{ v: "mini", label: "💠", w: 30 },
+	{ v: "boss", label: "👑", w: 30 },
+];
+const SEEN_CHIPS: ChipOpt<CardSeenFilter>[] = [
+	{ v: "all", label: "ทุกใบ", w: 46 },
+	{ v: "got", label: "✅เจอแล้ว", w: 62 },
+	{ v: "miss", label: "❓ยังไม่เจอ", w: 70 },
+];
+const slotChips = (scene: CharacterScene, x: number, y: number) =>
+	chipRow(scene, x, y, SLOT_CHIPS, scene.cardSlotF, (v) => {
+		scene.cardSlotF = v;
+	});
+
 export function cardBagView(scene: CharacterScene) {
 	const s = save(),
 		b = scene.body!;
 	const bag = s.cards ?? {};
-	const list = EQUIP_CARDS.filter((cd) => (bag[cd.id] ?? 0) > 0);
-	b.add(
-		txt(
-			scene,
-			330,
-			298,
-			'การ์ดในกระเป๋า · กด "ใส่" = ใส่ช่องว่างแรกที่การ์ดนี้ใส่ได้',
-			13,
-			UI.sub,
-		),
-	);
+	const owned = EQUIP_CARDS.filter((cd) => (bag[cd.id] ?? 0) > 0);
+	const list = filterCards(owned, {
+		slot: scene.cardSlotF,
+		tier: scene.cardTierF,
+	});
+	const x = slotChips(scene, 330, 310);
+	chipRow(scene, x + 8, 310, TIER_CHIPS, scene.cardTierF, (v) => {
+		scene.cardTierF = v;
+	});
 	if (!list.length) {
 		b.add(
 			txt(
 				scene,
 				640,
 				420,
-				"ยังไม่มีการ์ดในกระเป๋าค่ะ\nล้มมอนในดันแล้วมีโอกาสได้การ์ดของมอนตัวนั้น\n(ตีตัวเดิมไปเรื่อยๆ ยังไงก็ได้แน่นอน)",
+				owned.length
+					? "ไม่มีการ์ดที่ตรงกับตัวกรองค่ะ\nลองกด ทุกช่อง / ทุกระดับ ดูนะคะ"
+					: "ยังไม่มีการ์ดในกระเป๋าค่ะ\nล้มมอนในดันแล้วมีโอกาสได้การ์ดของมอนตัวนั้น\n(ตีตัวเดิมไปเรื่อยๆ ยังไงก็ได้แน่นอน)",
 				15,
 				UI.sub,
 			)
@@ -146,6 +214,16 @@ export function cardBagView(scene: CharacterScene) {
 		);
 		return;
 	}
+	b.add(
+		txt(
+			scene,
+			330,
+			548,
+			`${list.length}/${owned.length} แบบ · "ใส่" = ช่องว่างแรกที่ใส่ได้`,
+			11,
+			UI.sub,
+		).setOrigin(0, 0.5),
+	);
 	const per = 6,
 		pages = Math.ceil(list.length / per);
 	scene.cardPage = Math.min(scene.cardPage, pages - 1);
@@ -196,7 +274,7 @@ export function cardBagView(scene: CharacterScene) {
 		.slice(scene.cardPage * per, scene.cardPage * per + per)
 		.forEach((cd, i) => {
 			const x = 330 + (i % 2) * 310,
-				y = 326 + Math.floor(i / 2) * 70;
+				y = 328 + Math.floor(i / 2) * 64;
 			const fits = EQUIP_SLOTS.map((q) => itemById(s.equipped[q.id])).filter(
 				(w) => cardFits(cd, w) && canWearAs(w, s),
 			);
@@ -213,7 +291,7 @@ export function cardBagView(scene: CharacterScene) {
 					x,
 					y,
 					302,
-					64,
+					60,
 					UI.panel,
 					Phaser.Display.Color.HexStringToColor(TIER_COLOR[cd.tier]).color,
 					10,
@@ -248,7 +326,7 @@ export function cardBagView(scene: CharacterScene) {
 					x + 262,
 					y + 18,
 					70,
-					28,
+					26,
 					"ใส่",
 					() => {
 						if (
@@ -275,9 +353,9 @@ export function cardBagView(scene: CharacterScene) {
 				button(
 					scene,
 					x + 262,
-					y + 48,
+					y + 46,
 					70,
-					24,
+					22,
 					`ขาย ${sell}z`,
 					() =>
 						confirm(
@@ -303,25 +381,19 @@ export function cardBookView(scene: CharacterScene) {
 	const s = save(),
 		b = scene.body!;
 	const seen = new Set(s.cardSeen ?? []);
-	b.add(
-		txt(
-			scene,
-			330,
-			298,
-			`สมุดการ์ด · เจอแล้ว ${EQUIP_CARDS.filter((cd) => seen.has(cd.id)).length}/${EQUIP_CARDS.length} ใบ`,
-			13,
-			UI.sub,
-		),
-	);
+	const x = slotChips(scene, 330, 310);
+	chipRow(scene, x + 8, 310, SEEN_CHIPS, scene.bookSeenF, (v) => {
+		scene.bookSeenF = v;
+	});
 	DUNGEONS.forEach((dg, i) => {
 		const many = DUNGEONS.length > 6;
 		b.add(
 			button(
 				scene,
 				many ? 344 + i * 33 : 352 + i * 56,
-				334,
+				340,
 				many ? 31 : 50,
-				28,
+				26,
 				many ? `D${i + 1}` : `ดัน${i + 1}`,
 				() => {
 					scene.bookDg = i;
@@ -336,28 +408,49 @@ export function cardBookView(scene: CharacterScene) {
 		);
 	});
 	const dg = DUNGEONS[scene.bookDg];
-	b.add(
-		button(
+	const all = EQUIP_CARDS.filter((cd) => cd.dungeon === dg.id);
+	const hasV2 = all.some((cd) => cd.v2);
+	const v2 = hasV2 && scene.bookV2;
+	// main / class cards: only dungeons that have class cards (D1-D5) get the switch (it used to sit on top of the D11+ tabs)
+	if (hasV2)
+		chipRow(
 			scene,
-			720,
-			334,
-			110,
-			28,
-			scene.bookV2 ? "การ์ดหลัก" : "การ์ดสายอาชีพ",
-			() => {
-				scene.bookV2 = !scene.bookV2;
-				scene.render();
+			802,
+			340,
+			[
+				{ v: false, label: "การ์ดหลัก", w: 62 },
+				{ v: true, label: "สายอาชีพ", w: 64 },
+			],
+			scene.bookV2,
+			(v) => {
+				scene.bookV2 = v;
 			},
-			{ size: 12, fill: 0x5a5f8a, color: UI.text },
-		),
+		);
+	const inDg = all.filter((cd) => !!cd.v2 === v2);
+	const list: EquipCard[] = filterCards(
+		inDg,
+		{ slot: scene.cardSlotF, seen: scene.bookSeenF },
+		seen,
 	);
-	b.add(txt(scene, 940, 334, dg.name, 13, UI.gold, true).setOrigin(1, 0.5));
-	const list: EquipCard[] = EQUIP_CARDS.filter(
-		(cd) => cd.dungeon === dg.id && !!cd.v2 === scene.bookV2,
+	b.add(
+		txt(
+			scene,
+			330,
+			552,
+			`📖 ${dg.name} · เจอ ${inDg.filter((cd) => seen.has(cd.id)).length}/${inDg.length} · ทั้งเล่ม ${EQUIP_CARDS.filter((cd) => seen.has(cd.id)).length}/${EQUIP_CARDS.length} ใบ`,
+			12,
+			UI.gold,
+		).setOrigin(0, 0.5),
 	);
+	if (!list.length)
+		b.add(
+			txt(scene, 640, 440, "ไม่มีการ์ดที่ตรงกับตัวกรองค่ะ", 15, UI.sub).setOrigin(
+				0.5,
+			),
+		);
 	list.forEach((cd, i) => {
 		const x = 330 + (i % 3) * 206,
-			y = 354 + Math.floor(i / 3) * 62,
+			y = 360 + Math.floor(i / 3) * 61,
 			got = seen.has(cd.id);
 		b.add(
 			panel(

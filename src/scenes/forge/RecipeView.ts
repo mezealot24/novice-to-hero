@@ -12,7 +12,8 @@ import { matById } from '../../data/materials'
 import { canWearAs, forgeTag, gradeOf, itemById, ITEMS, itemStatLine, itemUnlocked, refineOf, REQ_TEXT, SLOTS, wearText, wornItems, type Item } from '../../data/meta'
 import { salvage, salvageable, salvagePreview, type SalvageWhy } from '../../data/salvage'
 import { setBonuses, type ItemSet } from '../../data/sets'
-import { canPay, equip, isWorn, pay, persist, save } from '../../save'
+import { canPay, cardsOffOnEquip, equip, isWorn, pay, persist, save } from '../../save'
+import { cardsOffText, cardsOffToast } from '../card-guard'
 import { sfx } from '../../sfx'
 import { button, chip, confirm, costStrip, fit, holdButton, itemIcon, panel, toast, txt, UI } from '../../ui'
 import { compareRows, dgIx, forgedWithAspect, HEAD_H, itemSetOf, itemSetsOf, setPages, setSpan, wornRival, type CmpRow, type Row } from './state'
@@ -363,7 +364,10 @@ export class RecipeView {
     persist(); sfx.coin()
     this.host.wallet()
     this.host.say(`ตี ${it.name} สำเร็จ! อัปขั้น/ตีบวกต่อที่ ⚒️ ทั่งได้เลย`)
-    if (canWearAs(it, s)) confirm(this.scene, `ตีสำเร็จ! ${it.icon} ${it.name}`, 'ใส่เลยไหมคะ?', 'ใส่เลย', () => { equip(s, it.id); persist(); this.host.changed() }, 'ไว้ก่อน')
+    if (canWearAs(it, s)) {
+      const off = cardsOffOnEquip(s, it.id), warn = cardsOffText(off)
+      confirm(this.scene, `ตีสำเร็จ! ${it.icon} ${it.name}`, warn ? `ใส่เลยไหมคะ?\n${warn}` : 'ใส่เลยไหมคะ?', 'ใส่เลย', () => { equip(s, it.id); persist(); cardsOffToast(this.scene, off); this.host.changed() }, 'ไว้ก่อน')
+    }
     else toast(this.scene, `ได้ ${it.name} แล้ว (ใส่ได้เมื่อเป็น ${wearText(it)})`)
     this.host.changed()
   }
