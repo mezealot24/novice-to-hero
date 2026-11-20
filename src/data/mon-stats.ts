@@ -250,7 +250,7 @@ function scaleExtras(d: MonsterDef): MonsterDef {
 
 // ----- v81 skill levels (SKILL_SCALE.lv) -----
 /** pow a skill has when it does not set one (BattleScene skPow defaults), so a level can scale it too. */
-const POW_DEFAULT: Partial<Record<MonSkillKind, number>> = { bolt: 1.3, strike: 1.3, heal: 0.15, shield: 0.1, warcry: 0.2, haste: 30, revive: 0.5 }
+export const POW_DEFAULT: Partial<Record<MonSkillKind, number>> = { bolt: 1.3, strike: 1.3, heal: 0.15, shield: 0.1, warcry: 0.2, haste: 30, revive: 0.5 }
 /** These pows are shares of max HP: a high level can make them full, never more. */
 const SHARE_KINDS = new Set<MonSkillKind>(['heal', 'shield', 'revive'])
 export const skillLvPow = (lv: number) => 1 + SKILL_SCALE.lv.powPer * (Math.max(1, lv) - 1)

@@ -199,7 +199,7 @@ export const TABLES: Record<TableId, TableDef> = {
   kit: {
     id: 'kit', label: 'Class KIT numbers', target: () => KIT,
     fields: [[KIT_INTS, int(0, 50)], [KIT_NUMS, num(0, 20)], ['thiefUltAgiPoolMin', int(0, 300)], ['cast.breakBase|breakDex|breakMinHp|breakRefund', num(0, 1)], ['cast.fireMul|ultMul', num(0, 20)], ['cast.brokenUltCd|boltMana', int(0, 50)], // v78 / v85 MAGE_CAST
-      ['monCast.breakBase|breakMinHp|hardResist', num(0, 1)], ['monCast.resist.*', num(0, 1)], ['monCast.pushGauge', int(0, 200)], ['monCast.steady', int(0, 1)], // Q 2026-11-20 MON_CAST (boss cast break)
+      ['monCast.breakBase|breakMinHp|hardResist', num(0, 1)], ['monCast.resist.*', num(0, 1)], ['monCast.pushGauge', int(0, 200)], ['monCast.steady|skillFreeTurn', int(0, 1)], ['monCast.steadyDmg', num(0, 1)], ['monCast.skillMinPow', num(0, 20)], // Q 2026-11-20 / 11-21 MON_CAST (boss cast break, skill casts, steady damage)
       ['cleric.heal|smite|basic|ultAtk|ultLight|purifyHeal', num(0, 20)], ['cleric.ultShield|shieldCap', num(0, 1)], ['cleric.ultLights|ultShieldTurns|shieldTurns', int(0, 20)], ['cleric.ultMana', int(0, 200)], // v86 CLERIC_KIT
       ['cleric.ultManaLv', int(0, 100)], ['clericTree.dawn.matk|share|heal|crit|weak', num(0, 20)], ['clericTree.dawn.wis.*', num(0, 5)], ['clericTree.dawn.wisTurns.*', int(0, 20)], ['clericTree.dawn.every', int(1, 20)], // v107 Cleric web
       ['clericTree.core.base|regen|guard|wisAmp|heal|shield', num(0, 50)], ['clericTree.core.intPer.*', int(1, 50)],

@@ -53,7 +53,7 @@ export interface MonSkill {
   alone?: number // strike: x this when no other monster stands with it
   drain?: number // strike (Q 2026-11-04, hunter): after it lands, drains this share of the hero's current HP as magic damage and heals itself by it
   hits?: number // bolt / strike: this many hits of pow each (strike hits each roll Flee; with `crit` each rolls its own crit)
-  crit?: boolean // bolt / strike: may crit (the monster's crit). Default off: monster skills never crit (CRIT_RULES.monSkill, Q 2026-11-19)
+  crit?: boolean // bolt / strike: may also roll the monster's basic crit (battle-rules monSkillCritRate). Default off: a skill rolls only MonsterDef.skillCrit (0 = never)
   pick?: MonSkill[] // cast a random one of these instead (spell rotation: Mordecus' elements)
   big?: boolean // legendary spell: big callout + screen flash
   scale?: SkillScale | false // v68: stat it scales with (default by kind, mon-stats SKILL_SCALE); false = flat
@@ -130,7 +130,8 @@ export interface MonsterDef {
   phases?: BossPhase[]
   passive?: boolean // event monster that never attacks (เจลล็อปทองคำ: it only runs)
   // ----- v49 combat stats (Q 2026-11-04: monsters get combo / counter / crit like the hero) -----
-  crit?: number // chance a hit / spell crits: x BATTLE.monCritMul and can't be fled (lucky dodge / shield still work)
+  crit?: number // chance a basic hit / combo / counter crits: x BATTLE.monCritMul and can't be fled (lucky dodge / shield still work); skills use skillCrit
+  skillCrit?: number // Q 2026-11-21: chance a SKILL hit (strike / bolt) crits, x BATTLE.monCritMul; default 0 = skills never crit (battle-rules monSkillCritRate)
   combo?: number // after a normal attack: chance to chain another hit, up to BATTLE.comboMax extra (each x BATTLE.monComboMul)
   counter?: number // when the hero's basic attack lands on it: chance to strike back right away (normal hit x BATTLE.monCounterMul)
   // ----- 7 base stats (data/mon-stats.ts). Every dungeon (v126: D1-D5 too): numbers come from the stats at the room's level;

@@ -1,22 +1,36 @@
 // Q 2026-11-19: "สกิลเวท ห้ามคริ by default" -> monster skills (strike / bolt, hero-kit casts) never crit unless the skill sets crit: true.
+// Q 2026-11-21: "ต้องแยก Skills crit แบบฝั่ง hero" -> MonsterDef.skillCrit (default 0) is the skill crit; crit: true adds the basic crit.
 // Death knight ⚔️ ดาบมรณะ nerf: it was 6x its basic hit (one-shot 75% HP of a D3 hero with a crit).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { MONSTERS } from '../src/data/game-data'
-import { CRIT_RULES, BATTLE } from '../src/data/battle-rules'
+import { CRIT_RULES, BATTLE, monSkillCritRate } from '../src/data/battle-rules'
 import { statMonster, skillMul, scaleOf, skillAtLv } from '../src/data/mon-stats'
 
-test('CRIT_RULES.monSkill is off: monster skills crit only with crit: true', () => {
-  assert.equal(CRIT_RULES.monSkill, false)
+test('monster skill crit is its own stat (Q 2026-11-21): skillCrit default 0, crit: true also rolls the basic crit', () => {
+  assert.ok(!('monSkill' in CRIT_RULES), 'one rule: CRIT_RULES.monSkill is gone')
+  assert.equal(monSkillCritRate({ crit: 0.3 }, {}), 0) // basic crit (incl. keen / y_reaper / LUK) never leaks into skills
+  assert.equal(monSkillCritRate({}, {}), 0)
+  assert.equal(monSkillCritRate({ crit: 0.3, skillCrit: 0.1 }, {}), 0.1)
+  assert.equal(monSkillCritRate({ crit: 0.3, skillCrit: 0.1 }, { crit: true }), 0.3) // opt-in: max(skillCrit, crit)
+  assert.equal(monSkillCritRate({ crit: 0.05, skillCrit: 0.2 }, { crit: true }), 0.2)
+  assert.equal(monSkillCritRate({ skillCrit: -1 }, {}), 0)
   const src = readFileSync('src/scenes/BattleScene.ts', 'utf8')
-  assert.match(src, /monSkillCrit\(m: Mon, sk: MonSkill\) \{ return sk\.crit \|\| CRIT_RULES\.monSkill \? this\.monCrit\(m\) : 1 \}/)
-  // monStrike and monBolt go through monSkillCrit, not monCrit
+  assert.match(src, /monSkillCrit\(m: Mon, sk: MonSkill\) \{ return this\.monCrit\(m, monSkillCritRate\(m\.def, sk\)\) \}/)
+  // monStrike and monBolt go through monSkillCrit, not the basic monCrit
   const strike = src.slice(src.indexOf('private async monStrike'), src.indexOf('/** v49 monster counter'))
   const bolt = src.slice(src.indexOf('private async monBolt'), src.indexOf('private async monStrike'))
   for (const [n, body] of [['strike', strike], ['bolt', bolt]] as const) {
     assert.ok(body.includes('monSkillCrit(m, sk)'), n)
     assert.ok(!body.includes('this.monCrit(m)'), `${n} still rolls monCrit`)
+  }
+})
+
+test('no monster data sets a skill crit by default (skillCrit absent, every statted def too)', () => {
+  for (const [k, d] of Object.entries(MONSTERS)) {
+    assert.ok(!d.skillCrit, `${k} skillCrit`)
+    assert.ok(!statMonster(d, 30).skillCrit, `${k} statted skillCrit`)
   }
 })
 

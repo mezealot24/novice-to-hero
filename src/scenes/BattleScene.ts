@@ -7,7 +7,7 @@ import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LI
 import { EVENT_RULES, FORTUNE, type DayOpts, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
 import { blessBase, FREE_GEMS, heroBuild, heroStats, jobUpText, itemById, PER_POINT, RESOURCES, splitStatLine, totalBase, type BaseStat, type HeroBuildSummary } from '../data/meta'
-import { COIN_FX, CRIT_RULES, RESIST_RULES, coinTier, splitZeny } from '../data/battle-rules'
+import { COIN_FX, CRIT_RULES, RESIST_RULES, coinTier, monSkillCritRate, splitZeny } from '../data/battle-rules'
 import { type ItemEffectId, type ItemEffectSpec } from '../data/item-effects'
 import { createBiomeCombatState, HAZARD_TUNING, modifyHeroDirectHealBiome, onHeroShieldOrBlockBiome, onHeroSkillCastBiome, onMonsterHitBiome, onTurnEndBiome, type BiomeCombatState } from '../data/biome-hazards'
 import { RIFT_BRANCHES, riftBoonById, type RiftBoonDef, type RiftBranchDef } from '../data/rift'
@@ -37,8 +37,8 @@ import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } fr
 import { sfx, unlock } from '../sfx'
 import { HARD_POWER, TOWER_POWER } from '../data/power'
 import { escalate, escalationAt } from '../data/hard-escalation'
-import { monBreakChance, monBreakGauge, monBreaksOn, monCastPity } from '../data/mon-cast'
-import { deepAnchor, deepKind, homeDungeon, homeLv, monTier, restatAt, topStats, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, towerMonLv } from '../data/mon-stats'
+import { MON_CAST, monBreakChance, monBreakGauge, monBreaksOn, monCastDmgMul, monCastPity, monSkillCasts } from '../data/mon-cast'
+import { deepAnchor, deepKind, homeDungeon, homeLv, monTier, POW_DEFAULT, restatAt, topStats, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, towerMonLv } from '../data/mon-stats'
 import { ENDLESS_HELL, endlessHell, HELL, HELL_MODE, hellify, hellLvCap, hellXpMul } from '../data/hell'
 import { foldAffixes } from '../data/affixes'
 import { PACKS } from '../data/dungeons'
@@ -116,6 +116,7 @@ interface Mon {
   chargeHits?: number // multi_hit_break hits landed while charging
   castSteady?: boolean // Q 2026-11-20 monster cast: its last cast broke, so this / its next cast can't break (MON_CAST.steady)
   castRing?: Phaser.GameObjects.Ellipse // magic circle under the monster while it casts (charging)
+  castSkill?: MonSkill // Q 2026-11-21: the strong magic skill being cast (picked + levelled at cast start), released next turn instead of the slam
   deathMark?: number; deathMarkDmg?: number // PoE Passive Death Mark: hero turns left · recorded non-DoT hero net HP dmg
   instanceId?: string // biome hazard target id
 }
@@ -727,12 +728,12 @@ export class BattleScene extends Phaser.Scene {
   private lastAffix = ''
   private lastSpeed = 1
 
-  private removeMon(m: Mon) { this.monCastFx(m, false); m.spr.destroy(); m.shadow.destroy(); m.dotTxt?.destroy(); m.dotTxt = undefined }
+  private removeMon(m: Mon) { this.monCastFx(m, false); m.castSkill = undefined; m.spr.destroy(); m.shadow.destroy(); m.dotTxt?.destroy(); m.dotTxt = undefined }
   /** Q 2026-11-20: a monster cast (the old boss charge, still the `charging` flag) ends: released, broken or countered.
-   *  Flag, tint, ring and pity cleared in one place. `say` = the cancel callout (float = small float text instead of a callout),
+   *  Flag, tint, ring, pity and the stored skill (castSkill) cleared in one place. `say` = the cancel callout (float = small float text instead of a callout),
    *  `push` = turn gauge lost (`clamp` false keeps a cancel that may push below 0, like ★ หักท่า). */
   private endMonCast(m: Mon, say?: { text: string; color: string; float?: boolean; dy?: number }, push = 0, clamp = true) {
-    m.charging = false; m.chargeHits = 0; m.castSteady = false
+    m.charging = false; m.chargeHits = 0; m.castSteady = false; m.castSkill = undefined
     m.spr.clearTint()
     this.monCastFx(m, false)
     if (push) m.gauge = clamp ? Math.max(0, m.gauge - push) : m.gauge - push
@@ -4915,7 +4916,7 @@ export class BattleScene extends Phaser.Scene {
   private killMon(m: Mon) {
     m.dead = true
     m.deathMark = 0; m.deathMarkDmg = 0
-    m.castSteady = false; this.monCastFx(m, false) // a cast dies with its caster
+    m.castSteady = false; m.castSkill = undefined; this.monCastFx(m, false) // a cast dies with its caster
     this.syncStackBody() // P2'b th_t1c: a dead monster's stacks no longer count
     if (this.st.killHeal > 0 && this.hp > 0) {
       this.heal(this.st.maxHp * this.st.killHeal) // gear / card / Mobster kill heal
@@ -5098,18 +5099,14 @@ export class BattleScene extends Phaser.Scene {
         await this.wait(700)
         return
       }
-      if (m.charging) { this.endMonCast(m); await this.slam(m); return } // the cast is released: the old charged slam, same damage
-      if (m.def.charge && m.turns % m.chargeEvery === 0) {
-        m.charging = true; m.chargeHits = 0 // Q 2026-11-20: the wind-up is a cast (ร่าย) the hero can break; `charging` stays the flag
-        m.spr.setTint(0xff8080)
-        this.monCastFx(m, true)
-        this.heroGauge = Math.max(this.heroGauge, 100) // the hero always gets one turn to answer the cast
-        this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10, `🔮 ร่าย ${m.def.slamName ?? 'มหาเวท'}...`, '#ff7a7a')
-        if (m.castSteady) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 34, '🧘 ตั้งสติ (ร่ายนี้ไม่แตก)', '#9fe3ff')
-        this.tweens.add({ targets: m.spr, scaleX: m.spr.scaleX * 1.1, duration: 200, yoyo: true, repeat: 1 })
-        await this.wait(BATTLE.stepMs)
+      if (m.charging) { // the cast is released: the stored magic skill (Q 2026-11-21) or the old charged slam, same damage code
+        const sk = m.castSkill, mul = monCastDmgMul(!!m.castSteady) // a steady cast (after a break) hits for MON_CAST.steadyDmg
+        this.endMonCast(m)
+        if (sk) await this.fireMonSkill(m, sk, mul)
+        else await this.slam(m, mul)
         return
       }
+      if (m.def.charge && m.turns % m.chargeEvery === 0) { await this.startMonCast(m); return }
     }
     const home = m.spr.x
     await this.tween({ targets: [m.spr, m.shadow], x: HERO_X + 70, duration: BATTLE.stepMs * 0.35, ease: 'Quad.easeIn' })
@@ -5212,11 +5209,29 @@ export class BattleScene extends Phaser.Scene {
     await this.wait(900)
   }
 
-  private async slam(m: Mon) {
+  /** Q 2026-11-20 / 11-21: a boss starts a cast (ร่าย, the `charging` flag): the charged slam, or `sk` = a strong magic skill
+   *  (mon-cast monSkillCasts) picked and levelled now so the telegraph names it and the next turn releases that same spell.
+   *  The charge cast gives the hero an answering turn; a skill cast only with MON_CAST.skillFreeTurn. */
+  private async startMonCast(m: Mon, sk?: MonSkill) {
+    m.charging = true; m.chargeHits = 0; m.castSkill = sk // the wind-up is a cast the hero can break; `charging` stays the flag
+    m.spr.setTint(0xff8080)
+    this.monCastFx(m, true)
+    if (!sk || MON_CAST.skillFreeTurn > 0) this.heroGauge = Math.max(this.heroGauge, 100) // the hero gets one turn to answer the cast
+    this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10, `🔮 ร่าย ${sk ? sk.name : m.def.slamName ?? 'มหาเวท'}...`, '#ff7a7a')
+    if (m.castSteady) {
+      const cut = Math.round((1 - monCastDmgMul(true)) * 100)
+      this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 34, `🧘 ตั้งสติ (ร่ายนี้ไม่แตก${cut > 0 ? ` · เบาลง ${cut}%` : ''})`, '#9fe3ff')
+    }
+    this.tweens.add({ targets: m.spr, scaleX: m.spr.scaleX * 1.1, duration: 200, yoyo: true, repeat: 1 })
+    await this.wait(BATTLE.stepMs)
+  }
+
+  /** The charge cast's release. `mul` = MON_CAST.steadyDmg on a steady cast (the slam hit only; the Soul Strike it fires keeps its stored damage). */
+  private async slam(m: Mon, mul = 1) {
     const home = m.spr.x
     await this.slamMotion(m)
     if (this.riposte(m)) { await this.wait(300); if (!m.dead) await this.tween({ targets: [m.spr, m.shadow], x: home, duration: 260 }); m.spr.setAngle(0); return }
-    const hit = this.hurtHero(((m.def.slamMagic ? this.monMatk(m) + (m.def.venom ? m.def.venom.dex * this.matkScale(m) : 0) : m.def.dmg) + 8) * BATTLE.monDmgMul * (m.def.slamMul ?? 1.6) * skillMul(m.def, slamScaleOf(m.def)) * this.monMul(m), !!m.def.slamMagic, 999, m, `🔮 ${m.def.slamName ?? 'ท่าร่าย'}`) // slam can't be fled, only lucky-dodged / shielded
+    const hit = this.hurtHero(((m.def.slamMagic ? this.monMatk(m) + (m.def.venom ? m.def.venom.dex * this.matkScale(m) : 0) : m.def.dmg) + 8) * BATTLE.monDmgMul * (m.def.slamMul ?? 1.6) * skillMul(m.def, slamScaleOf(m.def)) * this.monMul(m) * mul, !!m.def.slamMagic, m.def.slamMagic ? 999 : m.def.hit ?? 15, m, `🔮 ${m.def.slamName ?? 'ท่าร่าย'}`) // Q 2026-11-21: a physical slam rolls Hit vs Flee like a hero physical skill; a magic slam can't be fled, only lucky-dodged / shielded
     if (m.stored > 0) await this.soulStrike(m)
     if (hit) {
       this.monLeech(m, m.def.mini === 'hunter' || m.def.mini === 'drainer' ? 1 : undefined) // the big drain heals all of it
@@ -6110,18 +6125,18 @@ export class BattleScene extends Phaser.Scene {
   private monMatk(m: Mon) { return m.def.matk ?? m.def.dmg }
 
   /** Monster spell (MonSkill 'bolt'): a magic projectile = M.ATK x pow. Can't be fled; lucky dodge, shields and M.DEF work. */
-  /** v49: a monster hit crits (def.crit): returns the damage multiplier and shows CRITICAL. */
-  private monCrit(m: Mon) {
-    if (!m.def.crit || Math.random() >= m.def.crit) return 1
+  /** v49: a monster hit crits (def.crit; skills pass their skill crit rate): returns the damage multiplier and shows CRITICAL. */
+  private monCrit(m: Mon, rate = m.def.crit ?? 0) {
+    if (!rate || Math.random() >= rate) return 1
     this.floatText(HERO_X + 30, GROUND - 150, '💥 CRITICAL!', '#ff5a4e')
     this.monCritHit = true
     return Math.max(1, BATTLE.monCritMul * (1 - this.st.critDR)) // hero Crit DR (LUK / gear): a crit never hits softer than a normal hit
   }
 
-  /** Q 2026-11-19: monster skills crit only when the skill opts in (`crit: true`) or CRIT_RULES.monSkill is on. */
-  private monSkillCrit(m: Mon, sk: MonSkill) { return sk.crit || CRIT_RULES.monSkill ? this.monCrit(m) : 1 }
+  /** Q 2026-11-21: a monster skill hit rolls its own skill crit (MonsterDef.skillCrit, default 0 = never; battle-rules monSkillCritRate). */
+  private monSkillCrit(m: Mon, sk: MonSkill) { return this.monCrit(m, monSkillCritRate(m.def, sk)) }
 
-  private async monBolt(m: Mon, sk: MonSkill) {
+  private async monBolt(m: Mon, sk: MonSkill, mul = 1) { // mul: MON_CAST.steadyDmg on a steady cast release
     const fxColor = sk.fx?.burn ? 0xff6a2a : sk.fx?.freeze ? 0x9fe3ff : sk.fx?.poison ? 0x7fd04c : sk.name.includes('⚡') || sk.fx?.silence ? 0xfff07a : undefined
     const c = fxColor ?? m.def.slamColor ?? 0xb48aff
     const hits = sk.hits ?? 1
@@ -6132,13 +6147,14 @@ export class BattleScene extends Phaser.Scene {
       b.destroy()
       this.burst(HERO_X, GROUND - 50, c, sk.big ? 18 : 12, 180, true)
       if (sk.big) this.shake(120, 0.008)
-      const landed = this.hurtHero(this.skillHit(m, sk, true) * this.monMul(m) * this.monSkillCrit(m, sk), true, 999, m, `✦ ${sk.name}`)
+      const landed = this.hurtHero(this.skillHit(m, sk, true) * this.monMul(m) * this.monSkillCrit(m, sk) * mul, true, 999, m, `✦ ${sk.name}`)
       if (landed && sk.fx && !fxDone) { fxDone = true; this.applyFx(sk.fx, m) } // the debuff rides on the first hit that lands
     }
   }
 
-  /** v49 physical skill: dash in and hit `hits` times at pow x ATK (each hit rolls Flee unless it crits). */
-  private async monStrike(m: Mon, sk: MonSkill) {
+  /** v49 physical skill: dash in and hit `hits` times at pow x ATK. Q 2026-11-21: each physical hit rolls Hit vs Flee even on a crit
+   *  (same as a hero physical skill); a magic strike can't be fled. `mul` = MON_CAST.steadyDmg on a steady cast release (not the drain). */
+  private async monStrike(m: Mon, sk: MonSkill, mul = 1) {
     const home = m.spr.x
     await this.tween({ targets: [m.spr, m.shadow], x: HERO_X + 70, duration: BATTLE.stepMs * 0.3, ease: 'Quad.easeIn' })
     let fxDone = false
@@ -6147,7 +6163,7 @@ export class BattleScene extends Phaser.Scene {
       const cr = this.monSkillCrit(m, sk)
       const alone = sk.alone && !this.alive().some((x) => x !== m) ? sk.alone : 1
       if (alone > 1 && i === 0) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, `ไร้ศพข้างกาย! ×${alone}`, '#c9a8ff')
-      const landed = this.hurtHero(this.skillHit(m, sk, false) * this.monMul(m) * cr * alone, !!sk.magic, sk.magic || cr > 1 ? 999 : m.def.hit ?? 15, m, `✦ ${sk.name}`)
+      const landed = this.hurtHero(this.skillHit(m, sk, false) * this.monMul(m) * cr * alone * mul, !!sk.magic, sk.magic ? 999 : m.def.hit ?? 15, m, `✦ ${sk.name}`)
       if (landed) { this.monLeech(m); if (sk.fx && !fxDone) { fxDone = true; this.applyFx(sk.fx, m) } }
     }
     if (sk.drain && this.hp > 0 && !m.dead) { // hunter ตะปบจุดตาย: drain the hero's blood as magic damage, heal by it
@@ -6593,15 +6609,25 @@ export class BattleScene extends Phaser.Scene {
     if (m.kit && m.heroKit && await this.useHeroSkill(m, m.heroKit, m.kit)) return true // v125 hero skills first
     for (const raw of m.skills) {
       if (m.turns % raw.every) continue
-      if (await this.castMonSkill(m, raw)) return true
+      const { picked, sk } = this.monSkillOf(m, raw)
+      // Q 2026-11-21: a boss / mini boss casts (ร่าย) its strong magic skills first; the cadence counted here, the release skips it
+      if (m.def.ai === 'boss' && monSkillCasts(picked, POW_DEFAULT[picked.kind])) { await this.startMonCast(m, sk); return true }
+      if (await this.fireMonSkill(m, sk)) return true
     }
     return false
   }
 
-  /** v125: one monster skill (or one step of a hero skill). Returns true when it had a use and happened. */
-  private async castMonSkill(m: Mon, raw: MonSkill, lvBonus = true): Promise<boolean> {
+  /** The skill a raw entry casts now: one of `pick` at random (spell rotation), at its skill Lv. `picked` = before levelling. */
+  private monSkillOf(m: Mon, raw: MonSkill, lvBonus = true): { picked: MonSkill; sk: MonSkill } {
     const picked = raw.pick ? raw.pick[Phaser.Math.Between(0, raw.pick.length - 1)] : raw // spell rotation
-    const sk = skillAtLv(picked, castLv(picked.lv ?? raw.lv ?? 1, lvBonus ? skillLvBonus(m.kind, m.def.lv ?? 1, m.def) : 0)) // v81 skill Lv (RO style over-level ok) · v124 + 1 per 10 monster Lv
+    return { picked, sk: skillAtLv(picked, castLv(picked.lv ?? raw.lv ?? 1, lvBonus ? skillLvBonus(m.kind, m.def.lv ?? 1, m.def) : 0)) } // v81 skill Lv (RO style over-level ok) · v124 + 1 per 10 monster Lv
+  }
+
+  /** v125: one monster skill (or one step of a hero skill). Returns true when it had a use and happened. */
+  private async castMonSkill(m: Mon, raw: MonSkill, lvBonus = true): Promise<boolean> { return this.fireMonSkill(m, this.monSkillOf(m, raw, lvBonus).sk) }
+
+  /** A resolved monster skill goes off (also a released skill cast; `mul` = MON_CAST.steadyDmg on a steady cast's bolt / strike hits). */
+  private async fireMonSkill(m: Mon, sk: MonSkill, mul = 1): Promise<boolean> {
     if (sk.big) { this.callout(`${m.def.name}: ${sk.name}!`, W / 2, 190, '#ff7ad0'); this.cameras.main.flash(220, 200, 80, 255); await this.wait(350) }
     const allies = this.alive()
     let done = false
@@ -6617,8 +6643,8 @@ export class BattleScene extends Phaser.Scene {
       this.dotIcon(m); done = true
     } else if (sk.kind === 'haste') { for (const t of allies) if (t !== m) t.gauge += this.skPow(m, sk, 30); done = true }
     else if (sk.kind === 'curse' && sk.fx) { this.applyFx(sk.fx, m); done = true }
-    else if (sk.kind === 'bolt') { await this.monBolt(m, sk); done = true }
-    else if (sk.kind === 'strike') { await this.monStrike(m, sk); done = true }
+    else if (sk.kind === 'bolt') { await this.monBolt(m, sk, mul); done = true }
+    else if (sk.kind === 'strike') { await this.monStrike(m, sk, mul); done = true }
     else if (sk.kind === 'summon' && sk.summon) done = this.summonAdds(sk.summon[0], sk.summon[1]) > 0
     else if (sk.kind === 'revive') {
       const corpse = this.mons.slice(this.roomStart).find((x) => x.dead && !x.revived && x.def.ai !== 'boss' && x !== m)
