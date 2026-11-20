@@ -1,6 +1,7 @@
 // ===== Status tab texts: what each base stat does, generic lines + lines for the CURRENT class only (Q 2026-11-04). =====
 // Numbers come from PER_POINT (meta.ts), so a balance change updates the text too. Novice sees generic lines only.
 // A line gets the stat's total (b) and points above the start (d) so it can show what the hero gets right now.
+import { COMBO } from './game-data'
 import { PER_POINT, thiefUltAgiBonus, type BaseStat } from './meta'
 import type { JobId } from './jobs'
 import { breakChance, KIT, KIT2, MAGE_CAST } from './skill-math'
@@ -66,7 +67,11 @@ export const STAT_INFO: Record<BaseStat, StatInfo> = {
     byJob2: { sage: [(_b, d) => `คริ On-hit/Auto Spell แรง +${f1(KIT2.sage.lukProcCritMul * 100)}%/แต้ม (สูงสุด +${Math.round(KIT2.sage.lukProcCritCap * 100)}%, ตอนนี้ +${f1(Math.min(KIT2.sage.lukProcCritCap, KIT2.sage.lukProcCritMul * d) * 100)}%)`] },
   },
   agi: {
-    generic: [`ความเร็วเทิร์น +${f1(P.agi.aspdPct * 100)}%/แต้ม (ตีบ่อยขึ้น)`, `Flee +${P.agi.flee}/แต้ม`, (_b, d) => `คอมโบ ${pctK(d, P.agi.comboK)}`],
+    generic: [
+      (_b, d) => `ความเร็วเทิร์น +${f1(P.agi.aspdPct * 100)}%/แต้ม (ตอนนี้ +${f1(P.agi.aspdPct * 100 * d)}% · เติมเกจ ATB 100 ไวขึ้น ออกเทิร์นถี่ขึ้น)`,
+      (b) => `Flee +${P.agi.flee}/แต้ม (ตอนนี้ +${P.agi.flee * b})`,
+      (_b, d) => `คอมโบ ${pctK(d, P.agi.comboK)} (ตีซ้ำในเทิร์นเดิม) · กันมอนคอมโบ ${pctK(d, COMBO.defK)}`,
+    ],
     byClass: { thief: [(_b, d, pool) => `เงาพริ้วแรงตามสัดส่วน AGI ต่อแต้มทั้งหมด: ลงเต็ม = +${Math.round(KIT.thiefUltAgiK * 100)}% (สูงสุด +${Math.round(KIT.thiefUltAgiK * KIT.thiefUltAgiShareCap * 100)}%, ตอนนี้ +${Math.round(thiefUltAgiBonus(d, pool) * 100)}%)`] },
   },
 }

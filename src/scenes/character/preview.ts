@@ -34,7 +34,7 @@ export function drawPreview(scene: CharacterScene) {
 	const st = heroStats(s);
 	const rows: [string, string][] = [
 		["⚡ Hero Power", `${heroPower(s)}`],
-		...derivedRows(st),
+		...derivedRows(st, s.job, s.job2),
 	]; // v59: the number monsters scale to
 	if (scene.tab === 0) {
 		// equipment screen (RO style): hero sits between the gear slots, so this side is a stats panel
@@ -80,15 +80,15 @@ export function drawPreview(scene: CharacterScene) {
 		});
 		// RPG Stat Table with alternating row tints
 		rows.forEach(([k, v], i) => {
-			const y = 236 + i * 20;
+			const y = 234 + i * 18;
 			if (i % 2 === 0) {
 				const bg = scene.add.graphics();
-				bg.fillStyle(0xffffff, 0.02).fillRoundedRect(24, y - 2, 282, 18, 4);
+				bg.fillStyle(0xffffff, 0.02).fillRoundedRect(24, y - 2, 282, 17, 4);
 				c.add(bg);
 			}
-			c.add(txt(scene, 30, y, k, 12, i === 0 ? UI.gold : UI.sub, i === 0));
+			c.add(txt(scene, 30, y, k, 11.5, i === 0 ? UI.gold : UI.sub, i === 0));
 			c.add(
-				txt(scene, 300, y, v, 12, i === 0 ? UI.gold : UI.text, true).setOrigin(
+				txt(scene, 300, y, v, 11.5, i === 0 ? UI.gold : UI.text, true).setOrigin(
 					1,
 					0,
 				),
@@ -161,15 +161,15 @@ export function drawPreview(scene: CharacterScene) {
 	c.add(statBox);
 
 	rows.forEach(([k, v], i) => {
-		const y = 286 + i * 16.5;
+		const y = 284 + i * 15;
 		if (i % 2 === 1) {
 			const rowBg = scene.add.graphics();
-			rowBg.fillStyle(0xffffff, 0.025).fillRect(26, y - 2, 278, 16);
+			rowBg.fillStyle(0xffffff, 0.025).fillRect(26, y - 2, 278, 14.5);
 			c.add(rowBg);
 		}
-		c.add(txt(scene, 30, y, k, 11, i === 0 ? UI.gold : UI.sub, i === 0));
+		c.add(txt(scene, 30, y, k, 10.5, i === 0 ? UI.gold : UI.sub, i === 0));
 		c.add(
-			txt(scene, 300, y, v, 11, i === 0 ? UI.gold : UI.text, true).setOrigin(
+			txt(scene, 300, y, v, 10.5, i === 0 ? UI.gold : UI.text, true).setOrigin(
 				1,
 				0,
 			),

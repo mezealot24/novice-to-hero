@@ -44,9 +44,9 @@ import { PACKS } from '../data/dungeons'
 import { DUNGEON_DAYS, echoPay } from '../data/dungeon-days'
 import { buildRun, MODES, payTowerSkip, recordTowerCheckpoint, riftFloorLoot, towerFloorLoot, towerSkipGems, type ModeArgs, type RunConfig, type RunRoom } from '../data/modes'
 import { button, fullscreenButton, go, toast, type Btn } from '../ui'
-import { chipGrid, floatLane, hazardHudBadge, HUD_THEME, stagePill, statusChips, type StatusChip } from '../battle/hud-layout'
+import { chipGrid, comboBannerSpec, floatLane, hazardHudBadge, HUD_THEME, stagePill, statusChips, turnHitsHudText, turnQueueSpeedText, type StatusChip } from '../battle/hud-layout'
 import { fitWidth, openPauseMenu, type PauseExtra } from '../battle/pause-menu'
-import { derivedRows } from '../data/stat-rows'
+import { derivedRows, estimateHitsPerTurn } from '../data/stat-rows'
 import { castLv, casterOf, formulaDamage, skillLvBonus } from '../data/mon-skill-scale'
 import { CombatLog, deathText, recapLines, saveDeath, type DeathRec, type HitOut, type HitRec } from '../data/combat-log'
 import { ftue, track } from '../analytics'
@@ -187,7 +187,7 @@ export class BattleScene extends Phaser.Scene {
   private mid!: Phaser.GameObjects.TileSprite
   private ground!: Phaser.GameObjects.TileSprite
   private hud!: Phaser.GameObjects.Graphics
-  private hudTxt!: Record<'hp' | 'res' | 'lv' | 'zeny' | 'room' | 'affix' | 'hazard', Phaser.GameObjects.Text>
+  private hudTxt!: Record<'hp' | 'res' | 'lv' | 'zeny' | 'room' | 'affix' | 'hazard' | 'qSpeed' | 'hitsHud', Phaser.GameObjects.Text>
   // v112 modern HUD: hero portrait, HP drain ghost, status chips (hud-layout.ts), cached stage / affix strings, float-text lanes
   private portrait?: Phaser.GameObjects.Image
   private coinImg?: Phaser.GameObjects.Image
@@ -195,6 +195,21 @@ export class BattleScene extends Phaser.Scene {
   private stageTxt = ''
   private affixTxt = ''
   private hazardSig = ''
+  private qSpeedTxt = ''
+  private hitsHudTxt = ''
+  private turnHitsCur = 0
+  private turnDmgCur = 0
+  private turnHitsLast = 0
+  private turnHitsTotal = 0
+  private turnHitsPeak = 0
+  private inHeroTurn = false
+  private comboBanner?: {
+    c: Phaser.GameObjects.Container
+    rank: Phaser.GameObjects.Text
+    hits: Phaser.GameObjects.Text
+    dmg: Phaser.GameObjects.Text
+    fadeEv?: Phaser.Time.TimerEvent
+  }
   private build!: HeroBuildSummary
   private fxCd: Partial<Record<ItemEffectId, number>> = {}
   private spellbladeReady = false
@@ -420,6 +435,7 @@ export class BattleScene extends Phaser.Scene {
     this.settled = false; this.over = false; this.smashQueued = false; this.clearBookings()
     this.buildSkillHud() // v86: job / 2nd job / Skill 2 are known now
     this.startedAt = this.time.now
+    this.turnHitsCur = 0; this.turnDmgCur = 0; this.turnHitsLast = 0; this.turnHitsTotal = 0; this.turnHitsPeak = 0; this.inHeroTurn = false; this.hideTurnCombo()
     this.eventLog = []; this.lockTarget = undefined; this.lockStacks = 0; this.hawkTurn = 0; this.revivedCount = 0; this.spears = 0; this.spearAcc = 0; this.ultRegenTurns = 0; this.shieldLayers = []; this.smiteCount = 0; this.counterCount = 0; this.comboCount = 0; this.comboLevel = 0; this.lowShake = !!save().lowShake; this.autoUlt = ultMode() === 'auto'; this.autoSkip = false; this.ultHeld = 0; this.peakTurns = 0; this.turnsLog = []
     this.flow = 0; this.faith = 0; this.wardTurns = 0; this.holyRevived = false // v84 webs: momentum / Faith / ม่านพร / ★ คืนชีพ (1 per run)
     this.minHpPct = 1; this.relic = null; this.miniKind = null; this.miniWon = false; this.parryCount = 0; this.freezeCount = 0; this.harvest = 0; this.enemyAttacks = 0
@@ -775,6 +791,7 @@ export class BattleScene extends Phaser.Scene {
   private async fight(id: number): Promise<boolean> {
     this.undrain()
     this.fightTurns = 0; this.timedOut = false
+    this.turnHitsCur = 0; this.turnDmgCur = 0; this.turnHitsLast = 0; this.turnHitsTotal = 0; this.turnHitsPeak = 0; this.inHeroTurn = false; this.hideTurnCombo()
     this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.s1Weave = false; this.weaveBonus = 0; this.dodgeCdIcd = 0; this.detUsed = false; this.luckyIcd = false; this.leechLeft = this.st.maxHp * KIT.thiefLeechTurnCap; this.rampage = 0
     this.rgTempo = 0; this.rgComboN = 0; this.rgDodgeIcd = 0; this.rgFlee = 0; this.rgDodged = false; this.rgAmbush = false // P3'a Rogue: per wave
     this.martyrUsed = false; this.j2Hurt = false; this.monkGrit = 0; this.asuraExhaust = 0; this.awakenTurns = 0; this.awakenAbsorbed = 0; this.awakenUltPow = 1; this.clearAllies() // Crusader ★ ผู้พลีชีพ once per wave · allies last one wave · Awakening resets per wave
@@ -907,6 +924,11 @@ export class BattleScene extends Phaser.Scene {
   // ---------- hero turn ----------
   /** Dungeon 4-5: debuffs tick before the hero acts and count down after. */
   private async heroTurn() {
+    this.inHeroTurn = true
+    this.turnHitsCur = 0
+    this.turnDmgCur = 0
+    this.hideTurnCombo()
+    try {
     this.tickFxCd()
     this.detUsed = false
     this.luckyIcd = false
@@ -1042,6 +1064,12 @@ export class BattleScene extends Phaser.Scene {
       onTurnEndBiome(this.biomeState)
       this.biomeCritAdd = 0
       this.biomeSkillMul = 1
+    }
+    } finally {
+      this.inHeroTurn = false
+      this.turnHitsLast = this.turnHitsCur
+      this.turnHitsPeak = Math.max(this.turnHitsPeak, this.turnHitsCur)
+      this.fadeTurnCombo()
     }
   }
 
@@ -3880,9 +3908,9 @@ export class BattleScene extends Phaser.Scene {
     this.sageInfusePow = 0
     this.comboLevel = 0
     this.comboSum.on = false
-    let best: { dmg: number, x: number, y: number } | undefined // total for the monster that took the most (cleave splash shows only its own numbers)
+    let best: { dmg: number, hits: number, x: number, y: number } | undefined // total for the monster that took the most (cleave splash shows only its own numbers)
     for (const v of this.comboSum.per.values()) if (!best || v.dmg > best.dmg) best = v
-    if (hits >= 2 && best) this.comboTotal(best.x, best.y, best.dmg, hits)
+    if (hits >= 2 && best) this.comboTotal(best.x, best.y, best.dmg, Math.max(hits, best.hits))
     if (this.j2?.id === 'monk' && this.asuraExhaust <= 0 && this.hp > 0 && this.alive().length) {
       const O = KIT2.monk
       if (this.st.j2ComboThunder > 0 && hits >= O.comboThunderHits && this.charges >= O.thunderMin) { // ⚡ ฟ้าฟาดคอมโบ (0 CD, 0 🔵)
@@ -4801,9 +4829,16 @@ export class BattleScene extends Phaser.Scene {
         }
       }
     }
+    if (!dot && dmg > 0 && this.inHeroTurn) {
+      this.turnHitsCur++
+      this.turnDmgCur += dmg
+      this.turnHitsTotal++
+      this.turnHitsPeak = Math.max(this.turnHitsPeak, this.turnHitsCur)
+      this.popTurnCombo(this.turnHitsCur, this.turnDmgCur)
+    }
     if (this.ignorePainTurns > 0 && !dot) this.ignorePainDmg += dmg
     this.damageNumber(m.spr.x, m.spr.y - m.spr.displayHeight, dmg, crit, color)
-    if (this.comboSum.on && !dot) { const e = this.comboSum.per.get(m) ?? { dmg: 0, x: 0, y: 0 }; e.dmg += dmg; e.x = m.spr.x; e.y = m.spr.y - m.spr.displayHeight; this.comboSum.per.set(m, e) }
+    if (this.comboSum.on && !dot) { const e = this.comboSum.per.get(m) ?? { dmg: 0, hits: 0, x: 0, y: 0 }; e.dmg += dmg; e.hits++; e.x = m.spr.x; e.y = m.spr.y - m.spr.displayHeight; this.comboSum.per.set(m, e) }
     if (crit && !dot) this.critJuice(m)
     else if (this.comboLevel >= 2 && !dot) { this.hitStop(20 + 12 * this.comboLevel); this.shake(60, 0.002 + 0.0015 * this.comboLevel) }
     m.spr.setTintFill(0xffffff)
@@ -6770,7 +6805,7 @@ export class BattleScene extends Phaser.Scene {
     this.paused = true
     this.time.paused = true
     this.tweens.pauseAll()
-    const rows = derivedRows(this.st)
+    const rows = derivedRows(this.st, this.job.id, this.j2?.id)
     rows[0] = ['HP', `${Math.round(this.hp)} / ${Math.round(this.st.maxHp)}`]
     const perks = this.perks.map((o) => {
       const p = o.def, line = LINES[p.line], up = o.lv >= 2 && p.max === 2, leg = p.rarity === 'legend', gen = p.line === 'common'
@@ -7090,10 +7125,12 @@ export class BattleScene extends Phaser.Scene {
       hp: t(179, 23, 14).setOrigin(0.5), res: t(179, 42, 11).setOrigin(0.5).setStroke('#14172b', 3), lv: t(36, 63, 12, '#14172b').setOrigin(0.5).setStroke('#14172b', 0).setFontStyle('bold'),
       zeny: t(W - 20, 12, 20, '#f2b84b').setOrigin(1, 0), room: t(W / 2, 20, 15, '#f6eedc', FONT_UI).setOrigin(0.5), affix: t(W / 2, 99, 13, '#ffd0a0', FONT_UI).setOrigin(0.5),
       hazard: t(W / 2, 118, 12, '#f6eedc', FONT_UI).setOrigin(0.5),
+      qSpeed: t(W / 2, 79, 11, '#9fe3ff', FONT_UI).setOrigin(0.5),
+      hitsHud: t(20, H - 27, 13, '#ffe08a', FONT_UI).setOrigin(0, 0.5),
     }
     this.portrait = this.add.image(36, 34, 'novice').setDepth(15001)
     this.coinImg = this.add.image(W - 70, 25, 'coin').setDepth(15001).setScale(1.2)
-    this.chipViews = []; this.chipNames = []; this.chipSig = ''; this.stageTxt = ''; this.affixTxt = ''; this.floatRecent = []; this.pauseOpen = false
+    this.chipViews = []; this.chipNames = []; this.chipSig = ''; this.stageTxt = ''; this.affixTxt = ''; this.qSpeedTxt = ''; this.hitsHudTxt = ''; this.floatRecent = []; this.pauseOpen = false
     this.chipTip = this.add.text(12, 0, '', { fontFamily: FONT_UI, fontSize: '13px', fontStyle: 'bold', color: '#f6eedc', backgroundColor: '#0f1226', padding: { x: 6, y: 3 } }).setDepth(15005).setVisible(false)
     fullscreenButton(this, W - 30, 66)
     button(this, W - 30, 110, 38, 38, 'II', () => this.showPause(), { size: 16, fill: 0x2a2e50, color: '#f6eedc' }).setDepth(15003)
@@ -7102,6 +7139,11 @@ export class BattleScene extends Phaser.Scene {
     this.autoBtn = button(this, W - 250, H - 50, 124, 44, '', () => this.setAutoUlt(!this.autoUlt), { size: 15, fill: 0x2a2e50, color: '#f6eedc' }).setDepth(15003) as Btn
     this.autoBtn.setLabel(this.autoUlt ? '⚡ อัตโนมัติ' : '🖐️ กดเอง')
     this.fortuneTxt = this.add.text(W - 250, 34, '', { fontFamily: FONT_UI, fontSize: '14px', color: '#8fe08a', stroke: '#14172b', strokeThickness: 4 }).setDepth(15001)
+    const rank = this.add.text(0, -30, '', { fontFamily: FONT_UI, fontSize: '15px', fontStyle: 'bold', color: '#ffd34d', stroke: '#14172b', strokeThickness: 5 }).setOrigin(0.5)
+    const hits = this.add.text(0, 0, '', { fontFamily: FONT_NUM, fontSize: '38px', fontStyle: 'bold', color: '#ffe08a', stroke: '#14172b', strokeThickness: 7 }).setOrigin(0.5)
+    const dmg = this.add.text(0, 28, '', { fontFamily: FONT_NUM, fontSize: '15px', fontStyle: 'bold', color: '#f6eedc', stroke: '#14172b', strokeThickness: 5 }).setOrigin(0.5)
+    const cb = this.add.container(W - 125, 178, [rank, hits, dmg]).setDepth(14900).setAngle(-4).setAlpha(0)
+    this.comboBanner = { c: cb, rank, hits, dmg }
     this.setFast(false)
   }
 
@@ -7372,8 +7414,8 @@ export class BattleScene extends Phaser.Scene {
     // turn queue strip (top centre): who acts next, left to right
     const q = this.over ? [] : this.previewQueue(7)
     while (this.queueIcons.length < 7) this.queueIcons.push(this.add.image(0, 0, 'novice').setDepth(15002))
-    const qx = W / 2 - 3 * 46, qy = 62
-    if (q.length) g.fillStyle(HUD_THEME.glass, 0.6).fillRoundedRect(qx - 30, qy - 23, 7 * 46 + 14, 46, 12).lineStyle(1, HUD_THEME.edge, 0.1).strokeRoundedRect(qx - 30, qy - 23, 7 * 46 + 14, 46, 12)
+    const qx = W / 2 - 3 * 46, qy = 53
+    if (q.length) g.fillStyle(HUD_THEME.glass, 0.6).fillRoundedRect(qx - 30, 33, 7 * 46 + 14, 54, 12).lineStyle(1, HUD_THEME.edge, 0.1).strokeRoundedRect(qx - 30, 33, 7 * 46 + 14, 54, 12)
     this.queueIcons.forEach((ic, i) => {
       const a = q[i]
       if (a === undefined) { ic.setVisible(false); return }
@@ -7384,6 +7426,34 @@ export class BattleScene extends Phaser.Scene {
       if (!a) ic.setTint(curTint)
       if (i === 0) g.lineStyle(2, COLORS.gold).strokeRoundedRect(qx - 21, qy - 21, 42, 42, 8)
     })
+    const qs = this.over ? '' : turnQueueSpeedText(this.heroSpeed(), this.front().map((m) => this.monSpeed(m)), this.heroGauge)
+    if (qs !== this.qSpeedTxt) {
+      this.qSpeedTxt = qs
+      fitWidth(this.hudTxt.qSpeed.setText(qs), 7 * 46, 11, 9)
+    }
+
+    // bottom-left Hits/Turn HUD pill
+    const est = estimateHitsPerTurn(this.st, this.job.id, this.j2?.id)
+    const ht = this.over ? '' : turnHitsHudText({
+      activeTurnHits: this.turnHitsCur,
+      lastTurnHits: this.turnHitsLast,
+      totalHits: this.turnHitsTotal,
+      turnsTaken: this.fightTurns,
+      peakHits: this.turnHitsPeak,
+      estAvg: est.avgHits,
+      estMax: est.maxHits,
+      inTurn: this.inHeroTurn,
+    })
+    if (ht !== this.hitsHudTxt) {
+      this.hitsHudTxt = ht
+      fitWidth(this.hudTxt.hitsHud.setText(ht), 360, 13, 10)
+    }
+    if (ht) {
+      const hw = this.hudTxt.hitsHud.width + 20
+      const activeHit = this.inHeroTurn && this.turnHitsCur > 0
+      g.fillStyle(activeHit ? 0x2a2342 : T.glass, T.glassA).fillRoundedRect(10, H - 44, hw, 34, 10)
+      g.lineStyle(1, activeHit ? T.gold : T.edge, activeHit ? 0.85 : T.edgeA).strokeRoundedRect(10, H - 44, hw, 34, 10)
+    }
 
     // smash button state
     if (this.job.id !== 'novice') { this.refreshSkillHud(); return } // v86: the cluster replaces the long button
@@ -7443,7 +7513,7 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: t, y: y - 30, alpha: 0, delay: 520, duration: 360, onComplete: () => t.destroy() })
   }
 
-  private comboSum = { on: false, per: new Map<Mon, { dmg: number, x: number, y: number }>() }
+  private comboSum = { on: false, per: new Map<Mon, { dmg: number, hits: number, x: number, y: number }>() }
 
   /** RO double-attack style: after a combo chain, the summed damage pops big and yellow above the last target and hangs ~1.3 s. */
   private comboTotal(x: number, y: number, total: number, hits: number) {
@@ -7453,6 +7523,36 @@ export class BattleScene extends Phaser.Scene {
     const t = this.add.text(x, ty, `${total}`, { fontFamily: FONT_NUM, fontSize: `${36 + Math.min(3, hits - 2) * 6}px`, color: '#ffd34d', stroke: '#14172b', strokeThickness: 7 }).setOrigin(0.5).setDepth(10001).setScale(1.9)
     this.tweens.add({ targets: t, scale: 1, duration: 260, ease: 'Back.easeOut' })
     this.tweens.add({ targets: [t, tag], y: '-=18', alpha: 0, delay: 1300, duration: 400, onComplete: () => { t.destroy(); tag.destroy() } })
+  }
+
+  private hideTurnCombo() {
+    const b = this.comboBanner
+    if (!b) return
+    b.fadeEv?.remove(); b.fadeEv = undefined
+    this.tweens.killTweensOf(b.c)
+    b.c.setAlpha(0).setScale(1).setY(178)
+  }
+
+  private popTurnCombo(hits: number, totalDmg: number) {
+    const b = this.comboBanner, spec = comboBannerSpec(hits, totalDmg)
+    if (!b || !spec) return
+    b.fadeEv?.remove(); b.fadeEv = undefined
+    this.tweens.killTweensOf(b.c)
+    b.rank.setText(spec.rankLabel).setColor(spec.color)
+    b.hits.setText(spec.hitsLabel).setColor(spec.color)
+    b.dmg.setText(spec.dmgLabel)
+    b.c.setY(178).setAlpha(1).setScale(spec.scale)
+    this.tweens.add({ targets: b.c, scale: 1, duration: 180, ease: 'Back.easeOut' })
+  }
+
+  private fadeTurnCombo() {
+    const b = this.comboBanner
+    if (!b || this.turnHitsCur <= 0) return
+    b.fadeEv?.remove()
+    b.fadeEv = this.time.delayedCall(900, () => {
+      if (!b.c.active) return
+      this.tweens.add({ targets: b.c, alpha: 0, y: 164, duration: 300, ease: 'Quad.easeIn' })
+    })
   }
 
   /** Counter: clang + spark, hero flashes white, short freeze, then the strike back. */

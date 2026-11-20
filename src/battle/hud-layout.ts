@@ -125,3 +125,76 @@ export function hazardHudBadge(state: BiomeCombatState | undefined | null, w = 9
   const tone: HazardBadgeTone = maxStagger > 0 ? 'stagger' : maxLayer > 0 ? 'warn' : 'neutral'
   return { hazard: state.hazard, icon, name, gauge, sub, text: `${icon} ${name} · ${gauge} · ${sub}`, tone, x, y }
 }
+
+/** Turn Queue Speed & ATB summary shown under the top-centre turn icons. */
+export function turnQueueSpeedText(heroSpeed: number, monSpeeds: number[], heroGauge: number): string {
+  const g = Math.min(100, Math.max(0, Math.round(heroGauge)))
+  if (!monSpeeds.length) return `⚡ ความเร็วเทิร์น ${heroSpeed.toFixed(1)} (เกจ ATB 100)`
+  const monSpd = Math.max(0.1, monSpeeds[0])
+  const ratio = heroSpeed / monSpd
+  return `⚡ เร็ว ${heroSpeed.toFixed(1)} vs มอน ${monSpd.toFixed(1)} (${ratio.toFixed(2)}x เทิร์น) · เกจ ${g}%`
+}
+
+export interface TurnHitsHudIn {
+  activeTurnHits: number
+  lastTurnHits: number
+  totalHits: number
+  turnsTaken: number
+  peakHits: number
+  estAvg: number
+  estMax: number
+  inTurn: boolean
+}
+
+/** Live Hits/Turn counter & fight average/peak pill shown in the bottom-left Battle HUD. */
+export function turnHitsHudText(s: TurnHitsHudIn): string {
+  if (s.inTurn && s.activeTurnHits > 0) {
+    const avg = s.totalHits / Math.max(1, s.turnsTaken)
+    const peak = Math.max(s.peakHits, s.activeTurnHits)
+    return `⚔️ เทิร์นนี้: ${s.activeTurnHits} HIT! · เฉลี่ย ${avg.toFixed(1)}/เทิร์น (สูงสุด ${peak})`
+  }
+  if (s.turnsTaken > 0) {
+    const avg = s.totalHits / s.turnsTaken
+    return `⚔️ Hits/เทิร์น: ล่าสุด ${s.lastTurnHits} · เฉลี่ย ${avg.toFixed(1)} (สูงสุด ${s.peakHits})`
+  }
+  return `⚔️ Hits/เทิร์น (ประเมิน): เฉลี่ย ${s.estAvg.toFixed(1)} · สูงสุด ${s.estMax} ฮิต`
+}
+
+export interface ComboBannerSpec {
+  hits: number
+  totalDmg: number
+  hitsLabel: string
+  dmgLabel: string
+  rankLabel: string
+  color: string
+  stroke: string
+  scale: number
+}
+
+/** Fighting-game style per-turn hit counter spec (1+ hits in the current hero turn). */
+export function comboBannerSpec(hits: number, totalDmg: number): ComboBannerSpec | null {
+  if (hits <= 0) return null
+  const dmg = Math.max(0, Math.round(totalDmg))
+  const tier =
+    hits >= 10
+      ? { rank: '🔥 ULTRA COMBO!!', color: '#ff52d9', scale: 1.55 }
+      : hits >= 7
+        ? { rank: '⚡ SUPER COMBO!', color: '#ff6b4a', scale: 1.45 }
+        : hits >= 5
+          ? { rank: '💥 GREAT!', color: '#ff9a3c', scale: 1.35 }
+          : hits >= 3
+            ? { rank: '✨ RUSH!', color: '#ffd34d', scale: 1.25 }
+            : hits === 2
+              ? { rank: '⚔️ COMBO!', color: '#ffe08a', scale: 1.18 }
+              : { rank: '', color: '#f6eedc', scale: 1.1 }
+  return {
+    hits,
+    totalDmg: dmg,
+    hitsLabel: `${hits} ${hits === 1 ? 'HIT' : 'HITS'}!`,
+    dmgLabel: `TOTAL ${dmg.toLocaleString('en-US')} DMG`,
+    rankLabel: tier.rank,
+    color: tier.color,
+    stroke: '#14172b',
+    scale: tier.scale,
+  }
+}
