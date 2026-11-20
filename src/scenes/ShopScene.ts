@@ -2,7 +2,8 @@ import Phaser from 'phaser'
 import { COLORS, type Stats } from '../data/game-data'
 import { JOBS } from '../data/jobs'
 import { canWearAs, forgeTag, gradeOf, heroStats, refineOf, itemStatLine, itemUnlocked, ITEMS, REQ_TEXT, SELL_RATE, slotCount, SLOTS, wearText, type Item, type Slot } from '../data/meta'
-import { addFodder, equip, equipBlock, replaceSlot, forgetForge, isWorn, persist, save, unsocketAll } from '../save'
+import { addFodder, cardsOffOnEquip, equip, equipBlock, replaceSlot, forgetForge, isWorn, persist, save, unsocketAll } from '../save'
+import { guardCardsOff } from './card-guard'
 import { isFodder } from '../data/refine'
 import { sfx } from '../sfx'
 import { button, confirm, go, panel, tabs, toast, topBar, txt, UI } from '../ui'
@@ -114,7 +115,7 @@ export class ShopScene extends Phaser.Scene {
   private wear(it: Item) {
     const s = save()
     if (equipBlock(s, it.id) === 'twohand') { toast(this, 'ถืออาวุธ 2 มืออยู่ ใส่มือรองไม่ได้ค่ะ เปลี่ยนเป็นอาวุธ 1 มือก่อนนะคะ', UI.red); return }
-    equip(s, it.id); persist(); this.render()
+    guardCardsOff(this, cardsOffOnEquip(s, it.id), `ใส่ ${it.icon} ${it.name}?`, 'ใส่เลย', () => { equip(s, it.id); persist(); this.render() })
   }
 
   private buy(it: Item) {

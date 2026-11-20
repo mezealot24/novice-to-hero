@@ -130,3 +130,16 @@ export const cardName = (cd: EquipCard) => `${TIER_NAME[cd.tier]}${cd.name ?? MO
 export const cardRate = (cd: EquipCard) => CARD_RULES.rate[cd.tier] * (cd.v2 ? CARD_RULES.v2Rate : 1)
 export const cardPityMax = (cd: EquipCard) => Math.round(CARD_RULES.pity[cd.tier] * (cd.v2 ? CARD_RULES.v2Pity : 1))
 export const cardIcon = (cd: EquipCard) => cd.tier === 'boss' ? '👑' : cd.tier === 'mini' ? '💠' : '🃏'
+
+// ---------- bag / card book filters (Q 2026-11-20) ----------
+export type CardSlotFilter = 'all' | 'weapon' | 'armor' | 'acc'
+export type CardTierFilter = 'all' | CardTier
+export type CardSeenFilter = 'all' | 'got' | 'miss'
+export interface CardFilter { slot?: CardSlotFilter; tier?: CardTierFilter; seen?: CardSeenFilter }
+/** Cards that pass the filter. `seen` (card book) needs the found-card set. */
+export function filterCards(list: EquipCard[], f: CardFilter, seen?: Set<string>): EquipCard[] {
+  return list.filter((cd) =>
+    (!f.slot || f.slot === 'all' || cd.slot === f.slot) &&
+    (!f.tier || f.tier === 'all' || cd.tier === f.tier) &&
+    (!f.seen || f.seen === 'all' || !seen || (f.seen === 'got') === seen.has(cd.id)))
+}

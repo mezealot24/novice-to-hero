@@ -4,6 +4,7 @@
 import Phaser from 'phaser'
 import { REFINE, type RefineLine } from '../../../data/craft'
 import { isBroken, isTainted, linesOf, refineOf, type Item } from '../../../data/meta'
+import { LINE_TIER_COLOR, LINE_TIER_ICON, LINE_TIER_NAME, lineTier, type LineTier } from '../../../data/line-tier'
 import { canAfford, classOf, lineIdx, lineText, lockGems, maxLocks, nextRerollCost, reroll, rerollMul, rollLine, rollsOf } from '../../../data/refine'
 import { persist, save } from '../../../save'
 import { sfx } from '../../../sfx'
@@ -88,7 +89,7 @@ export class OptionPanel extends PanelBase implements VerbPanel {
         r.lock.setVisible(false)
         return
       }
-      if (!this.anim.has(i)) r.val.setText(lineText(l)).setColor(l.gold ? UI.gold : UI.text)
+      if (!this.anim.has(i)) r.val.setText(lineText(l)).setColor(LINE_TIER_COLOR[lineTier(l)])
       const canLock = on || this.locked.length < maxLk
       // 💎N is the extra gem charge on EVERY roll while this line stays locked
       r.lock.setVisible(true).setLabel(on ? '🔒 ล็อก' : `🔓 💎${REFINE.lockGems[this.locked.length] ?? '—'}`).setFill(on ? 0xb8860b : 0x5a5f8a).setEnabled(canLock && !tainted && !busy)
@@ -130,14 +131,14 @@ export class OptionPanel extends PanelBase implements VerbPanel {
 
   private step(order: number[], k: number, before: (RefineLine | undefined)[], res: RefineLine[]) {
     if (this.dead) return
-    if (k >= order.length) { this.finish(order.some((i) => res[i].gold)); return }
+    if (k >= order.length) { this.finish(Math.max(...order.map((i) => lineTier(res[i]))) as LineTier); return }
     const i = order[k], row = this.rows[i], line = res[i], fin = lineText(line), s = save()
     const land = () => {
       if (this.dead) return
       this.curSkip = undefined
       this.anim.delete(i)
-      row.val.setText(fin).setColor(line.gold ? UI.gold : UI.text)
-      punch(this.ctx.scene, row.val, { by: line.gold ? 1.25 : 1.12, ms: 160 }) // the row flash on landing
+      row.val.setText(fin).setColor(LINE_TIER_COLOR[lineTier(line)])
+      punch(this.ctx.scene, row.val, { by: 1.12 + 0.05 * lineTier(line), ms: 160 }) // the row flash on landing
       this.showOld(row, before[i])
       if (this.fast || k === order.length - 1) this.step(order, k + 1, before, res)
       else this.gapTimer = this.ctx.scene.time.delayedCall(GAP_MS, () => this.step(order, k + 1, before, res))
@@ -158,14 +159,15 @@ export class OptionPanel extends PanelBase implements VerbPanel {
     row.oldTimer = this.ctx.scene.time.delayedCall(1500, () => { row.oldTimer = undefined; if (row.old.scene) { row.old.setVisible(false); row.strike.clear() } })
   }
 
-  private finish(gold: boolean) {
+  private finish(best: LineTier) {
+    const gold = best >= 2
     this.anim.clear()
     this.zone?.destroy(); this.zone = undefined
     const rel = this.release
     this.release = undefined
     this.ctx.busy(600) // the skip-tap's release must not press the roll button again
-    if (gold) this.ctx.fx.shine('✨ ทอง!') // once per roll, however many lines came out gold
-    this.ctx.say(gold ? 'ทองเลย! เก็บบรรทัดนี้ไว้แล้วสุ่มต่อก็ได้นะ' : 'สุ่มเสร็จแล้ว ไม่ถูกใจก็ล็อกบรรทัดที่ชอบแล้วสุ่มต่อ')
+    if (gold) this.ctx.fx.shine(`${LINE_TIER_ICON[best]} ${LINE_TIER_NAME[best]}!`) // once per roll: the best tier that came out (Rare+)
+    this.ctx.say(gold ? `ได้ ${LINE_TIER_NAME[best]} เลย! ล็อกบรรทัดนี้ไว้แล้วสุ่มต่อก็ได้นะ` : 'สุ่มเสร็จแล้ว ไม่ถูกใจก็ล็อกบรรทัดที่ชอบแล้วสุ่มต่อ')
     this.ctx.changed()
     rel?.()
   }

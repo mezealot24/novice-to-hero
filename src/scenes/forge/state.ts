@@ -148,7 +148,7 @@ export function smithLine(s: SaveData, it: Item, v: Verb): string {
 export function taintNote(s: SaveData, it: Item): string {
   const t = s.taint?.[it.id]
   if (!t) return ''
-  if (t.kind === 'gold') return '🌑 ติดคำสาป: ✨ ค่าพิเศษทุกบรรทัดเป็นทอง (ล็อกแล้ว)'
+  if (t.kind === 'gold') return '🌑 ติดคำสาป: ⬆️ ค่าพิเศษทุกบรรทัดขึ้น 1 เลเวล (ล็อกแล้ว)'
   if (t.kind === 'brick') return '🌑 ติดคำสาป: 💥 พัง เสียของไปหนึ่งอย่าง (ล็อกแล้ว)'
   if (t.kind === 'curse') { const c = curseById(t.curse); return c ? `🌑 ${c.icon} ${c.name}: ${itemStatLine({ mod: c.mod, pct: c.pct })}` : '🌑 ติดคำสาป (ล็อกแล้ว)' }
   return '🌑 ติดคำสาป: ไม่เกิดอะไร แต่ล็อกแล้ว'
@@ -159,7 +159,7 @@ export function taintOutcome(res: Extract<TaintResult, { ok: true }>): string {
   const gold = (res.gold ?? []).map(lineText).join(' · ')
   switch (res.kind) {
     case 'none': return '😐 ไม่เกิดอะไรขึ้น... แต่ของชิ้นนี้ถูกล็อกแล้วนะคะ'
-    case 'gold': return res.fallback ? `✨ ไม่มีค่าพิเศษให้เปลี่ยน เลยได้บรรทัดทองใหม่ 1 บรรทัด! ${gold}` : `✨ ค่าพิเศษทุกบรรทัดกลายเป็นทอง! ${gold}`
+    case 'gold': return res.fallback ? `⬆️ ไม่มีค่าพิเศษให้อัป เลยได้บรรทัดใหม่ที่เลเวลสูงขึ้น 1 บรรทัด! ${gold}` : `⬆️ ค่าพิเศษทุกบรรทัดขึ้น 1 เลเวล! ${gold}`
     case 'curse': return res.curse ? `💀 ได้คำสาป ${res.curse.icon} ${res.curse.name}: ${itemStatLine({ mod: res.curse.mod, pct: res.curse.pct })}` : '💀 ได้คำสาป'
     case 'brick': return res.lost ? `💥 พัง! เสียค่าพิเศษ ${lineText(res.lost)}` : res.refineDown ? '💥 พัง! ไม่มีค่าพิเศษให้เสีย ตีบวก -1' : '💥 พัง! แต่ไม่มีอะไรให้เสียเลย'
   }

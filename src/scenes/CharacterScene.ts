@@ -37,6 +37,7 @@ import {
 	passivePointerUp,
 	passiveWheel,
 } from "./character/passive-tab";
+import type { CardSeenFilter, CardSlotFilter, CardTierFilter } from "../data/cards";
 import {
 	scrollToWebY,
 	webActive,
@@ -57,6 +58,9 @@ export class CharacterScene extends Phaser.Scene {
 	cardBook = false;
 	bookDg = 0;
 	bookV2 = false;
+	cardSlotF: CardSlotFilter = "all"; // card bag + book filters (Q 2026-11-20)
+	cardTierF: CardTierFilter = "all";
+	bookSeenF: CardSeenFilter = "all";
 	skillBasic = false; // skill tab: false = unified 3-class skill web, true = Novice skills + certificates + job
 	private _selNode = "";
 	selPet?: PetId; // Beastmaster Tier 2 pet partner dossier selected/hovered for the left sidebar

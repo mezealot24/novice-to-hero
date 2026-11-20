@@ -14,7 +14,7 @@ import { PanelBase } from './PanelBase'
 const HOLD_MS = 1200
 const KIND: Record<TaintKind, { label: string; color: number }> = {
   none: { label: '😐 ไม่เกิดอะไร (แต่ของถูกล็อก)', color: 0x8a8fb8 },
-  gold: { label: '✨ ค่าพิเศษทุกแถวเป็นทอง', color: 0xf2b84b },
+  gold: { label: '⬆️ ค่าพิเศษทุกแถวขึ้น 1 เลเวล', color: 0xf2b84b },
   curse: { label: '💀 คำสาปมหาพลัง (ซิกเนเจอร์พิเศษ + บัฟมหาศาล)', color: 0xc08cff },
   brick: { label: '💥 พัง เสียค่าพิเศษ 1 บรรทัด / บวก −1', color: 0xff7a7a },
 }

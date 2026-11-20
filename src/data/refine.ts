@@ -12,6 +12,7 @@ import { activeJob3, type Job3Id } from './jobs3'
 import { matOf } from './materials'
 import { gradeCost, gradeCap, REFINE, refineDungeon, rerollDungeon, refinable, refineFee, refineFeeMul, refineRate, type RefineLine } from './craft'
 import { BASE_NAME, gradeOf, isBroken, isTainted, itemStatLine, ITEMS, linesOf, refineOf, type BaseStat, type Item, type Slot } from './meta'
+import { lineBase, lineTier, LINE_TIER_ICON, LINE_TIER_MAX, makeLine, rollTier, type LineTier } from './line-tier'
 import { CURSES, pickTaintKind, TAINT, TAINT_MAT, type CurseDef, type TaintKind } from './taint'
 
 // ---------- fodder: basic shop items (no job lock, no unlock, not crafted) ----------
@@ -229,10 +230,7 @@ export function rollLine(it: Item, idx: number, job: JobId, rnd: () => number = 
   const pool = cls && (cls.job2 || cls.job3) ? [...LINE_POOL, ...CLASS_LINE_POOL] : LINE_POOL // class-only rows join only for a hero with a 2nd / 3rd job
   const def = pickWeighted(pool, (d) => (!classOpen(d, cls) || (d.slots && !d.slots.includes(it.slot)) ? 0 : d.w * slotBias(it.slot, d.kind) * jobBias(d.off, job)), rnd)
   const stat = def.stat === 'base' ? pickWeighted(BASES, (b) => baseBias(b, job, cls), rnd) : def.stat
-  const gold = rnd() < REFINE.goldRate
-  const v = def.vals[idx]
-  const val = gold ? (INT_STATS.has(stat) ? Math.round(v * REFINE.goldMul) : Math.round(v * REFINE.goldMul * 1000) / 1000) : v
-  return { stat, val, ...(gold ? { gold: 1 as const } : {}) }
+  return makeLine(stat, def.vals[idx], rollTier(rnd), INT_STATS.has(stat)) // Q 2026-11-20: Normal -> Mythic tier
 }
 /** "✨ P.ATK +3%" */
 export function lineText(l: RefineLine): string {
@@ -240,7 +238,7 @@ export function lineText(l: RefineLine): string {
   const body = (BASES as string[]).includes(l.stat) ? `${BASE_NAME[l.stat as BaseStat]} +${l.val}`
     : pct[l.stat] ? itemStatLine({ mod: {}, pct: { [pct[l.stat]]: l.val } })
       : itemStatLine({ mod: { [l.stat]: l.val } as Partial<Stats> })
-  return `${l.gold ? '✨' : ''}${body}`
+  return `${LINE_TIER_ICON[lineTier(l)]}${body}`
 }
 
 // ---------- actions on the save ----------
@@ -347,12 +345,14 @@ export function upgradeGrade(s: SaveData, it: Item): GradeResult {
 // ---------- taint (v89, design/unique-taint-tower-skip-v1.md §3) ----------
 /** Price of one taint: zeny + ผลึกโลกันตร์. Pure sink, nothing comes back. */
 export const taintCost = (): ForgeCost => ({ mats: { [TAINT_MAT]: TAINT.crystals }, zeny: TAINT.zeny })
-/** Turn a line gold (value x goldMul); a line that is already gold stays as it is. */
-export function goldify(l: RefineLine): RefineLine {
-  if (l.gold) return l
-  const val = INT_STATS.has(l.stat) ? Math.round(l.val * REFINE.goldMul) : Math.round(l.val * REFINE.goldMul * 1000) / 1000
-  return { stat: l.stat, val, gold: 1 }
+/** Q 2026-11-20: lift a line one tier (Normal -> Magic -> ... -> Mythic); a Mythic line stays as it is. */
+export function tierUp(l: RefineLine): RefineLine {
+  const t = lineTier(l)
+  if (t >= LINE_TIER_MAX) return l
+  return makeLine(l.stat, lineBase(l), (t + 1) as LineTier, INT_STATS.has(l.stat))
 }
+/** Taint "gold" result: now one tier up (was: value x1.5). Name kept for callers. */
+export const goldify = tierUp
 export type TaintResult =
   | { ok: false; why: 'cant' | 'tainted' | 'broken' | 'short' }
   | { ok: true; kind: TaintKind; curse?: CurseDef; gold?: RefineLine[]; fallback?: boolean; lost?: RefineLine; refineDown?: number }
