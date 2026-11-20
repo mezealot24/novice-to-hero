@@ -117,6 +117,39 @@ export function feedCheck(j: Jewel, cd: EquipCard): 'ok' | 'max' {
   if (orb === 'tierUp' && j.lines.every((l) => lineTier(l) >= LINE_TIER_MAX)) return 'max'
   return 'ok'
 }
+/** What feeding this card would do to this jewel, for the UI (no randomness, nothing changes). */
+export interface FeedPreview {
+  orb: JewelOrb
+  max: boolean
+  /** Stats this card brings that the jewel's pool does not have yet. */
+  newStats: string[]
+  /** 🃏: how many lines get re-rolled. */
+  rerollN: number
+  /** 💠: stats the new line can be (pool after the feed, minus stats already on the jewel). */
+  addable: string[]
+  /** 👑: the line that goes up, before and after. */
+  tierUp?: { from: RefineLine; to: RefineLine }
+}
+export function feedPreview(j: Jewel, cd: EquipCard): FeedPreview {
+  const orb = ORB_OF[cd.tier]
+  const add = cardPool(cd)
+  const pool = { ...j.pool }; mergePool(pool, add)
+  const onJewel = new Set(j.lines.map((l) => l.stat))
+  const out: FeedPreview = {
+    orb,
+    max: feedCheck(j, cd) === 'max',
+    newStats: Object.keys(add).filter((k) => !j.pool[k]),
+    rerollN: Math.max(1, j.lines.length),
+    addable: Object.keys(pool).filter((k) => !onJewel.has(k)),
+  }
+  if (orb === 'tierUp' && !out.max && j.lines.length) {
+    let lo = 0
+    j.lines.forEach((l, i) => { if (lineTier(l) < lineTier(j.lines[lo])) lo = i })
+    const l = j.lines[lo], p = pool[l.stat]
+    out.tierUp = { from: l, to: makeLine(l.stat, p?.base ?? l.base ?? l.val, (lineTier(l) + 1) as LineTier, p?.whole ?? Number.isInteger(l.val)) }
+  }
+  return out
+}
 /** Feed one card to a jewel: its stats join the pool, then it acts by tier. */
 export function feedJewel(s: JewelSave, jewelId: string, cardId: string, rnd: () => number = Math.random): FeedResult {
   const j = s.jewels?.find((x) => x.id === jewelId)

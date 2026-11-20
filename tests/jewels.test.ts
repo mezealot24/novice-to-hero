@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { cardById } from '../src/data/cards'
-import { activeJewels, cardPool, feedJewel, JEWEL, makeJewel, socketJewel, jewelStats } from '../src/data/jewels'
+import { activeJewels, cardPool, feedJewel, feedPreview, JEWEL, makeJewel, socketJewel, jewelStats } from '../src/data/jewels'
 import { heroStats } from '../src/data/meta'
 import { addCard, newSave } from '../src/save'
 
@@ -67,4 +67,27 @@ test('socket: stats count only when the socket node is allocated', () => {
   const st = jewelStats(r.jewel)
   assert.ok((st.mod.atk ?? 0) > 0 || (st.mod.hit ?? 0) > 0)
   if (st.mod.atk) assert.ok(heroStats(s).atk > before)
+})
+
+test('feed preview matches what feeding does (👑 exact line, 💠 options, 🃏 new pool stats)', () => {
+  const s = thief()
+  const r = makeJewel(s, ['card_wolf', 'card_wolf', 'card_wolf'], seq(0))
+  assert.ok(r.ok); if (!r.ok) return
+  const j = r.jewel
+  const before = JSON.stringify(j)
+  const pr = feedPreview(j, cardById('card_bat')!)
+  assert.equal(pr.orb, 'reroll')
+  assert.equal(pr.rerollN, j.lines.length)
+  for (const k of pr.newStats) assert.ok(!(k in j.pool))
+  const pa = feedPreview(j, cardById('card_duelist')!)
+  assert.equal(pa.orb, 'addLine')
+  assert.ok(pa.addable.includes('counter'))
+  for (const k of pa.addable) assert.ok(!j.lines.some((l) => l.stat === k))
+  const pu = feedPreview(j, cardById('card_alpha')!)
+  assert.equal(JSON.stringify(j), before) // preview changes nothing
+  assert.ok(pu.tierUp)
+  const fed = feedJewel(s, j.id, 'card_alpha', seq(0))
+  assert.ok(fed.ok)
+  const after = s.jewels![0].lines.find((l) => l.stat === pu.tierUp!.to.stat)
+  assert.deepEqual(after, pu.tierUp!.to)
 })
