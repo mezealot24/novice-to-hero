@@ -102,6 +102,20 @@ export const JOB2_BONUS_STATS: Record<Job2Id, readonly BaseStat[]> = {
 	beastmaster: ["dex", "vit", "luk"],
 	innovator: ["dex", "int", "agi"],
 };
+/** 🎁 2nd job change bonus (Q 2026-11-20): a one-off flat HP + a few base stats by class, on as long as the 2nd job is.
+ *  Derived from save.job2 (no save field); base stats count as "+N อาชีพ" (jobBonusBase), HP goes in before % HP. */
+export const JOB2_CHANGE_BONUS: Record<Job2Id, { maxHp: number; base: Partial<Record<BaseStat, number>> }> = {
+	berserker: { maxHp: 150, base: { str: 3, vit: 2 } },
+	knight: { maxHp: 220, base: { vit: 3, str: 2 } },
+	rogue: { maxHp: 100, base: { agi: 3, dex: 2 } },
+	mobster: { maxHp: 110, base: { luk: 3, str: 2 } },
+	crusader: { maxHp: 200, base: { vit: 3, int: 2 } },
+	monk: { maxHp: 160, base: { str: 2, agi: 2, vit: 1 } },
+	wizard: { maxHp: 80, base: { int: 3, wis: 2 } },
+	sage: { maxHp: 100, base: { int: 2, wis: 2, vit: 1 } },
+	beastmaster: { maxHp: 120, base: { dex: 2, vit: 2, luk: 1 } },
+	innovator: { maxHp: 100, base: { dex: 3, int: 2 } },
+};
 export const JOB3_BONUS_STATS: Record<'paladin' | 'lordknight' | 'champion' | 'warlord' | 'professor' | 'stalker' | 'kingpin' | 'highwizard' | 'mechanic', readonly BaseStat[]> = {
 	paladin: ["str", "vit", "int"],
 	lordknight: ["str", "vit", "dex"],

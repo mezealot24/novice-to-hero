@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { heroStats, itemById, totalBase } from '../src/data/meta'
+import { heroStats, itemById, JOB2_CHANGE_BONUS, totalBase } from '../src/data/meta'
 import {
   BM_CRIT_COUNTER,
   BM_STANCE,
@@ -50,7 +50,15 @@ function mkBmSave(over: Partial<SaveData> = {}): SaveData {
   return s
 }
 
-test('Case 2.1: Hawk Stance (Skyhunter) derives LUK +15, cap 75% (85% Ranger), HIT, Crit and DEX-to-MATK resonance', () => {
+/** Stance cases compare Beastmaster to an Innovator reference: zero both 2nd-job change bonuses (stats differ by class) so only the stance shows. */
+function isolateStance(fn: () => void) {
+  const keep = { bm: JOB2_CHANGE_BONUS.beastmaster, inn: JOB2_CHANGE_BONUS.innovator }
+  JOB2_CHANGE_BONUS.beastmaster = { maxHp: 0, base: {} }
+  JOB2_CHANGE_BONUS.innovator = { maxHp: 0, base: {} }
+  try { fn() } finally { JOB2_CHANGE_BONUS.beastmaster = keep.bm; JOB2_CHANGE_BONUS.innovator = keep.inn }
+}
+
+test('Case 2.1: Hawk Stance (Skyhunter) derives LUK +15, cap 75% (85% Ranger), HIT, Crit and DEX-to-MATK resonance', () => isolateStance(() => {
   const sHawk = mkBmSave({
     pet: 'hawk',
     stats: { str: 1, vit: 1, wis: 1, dex: 59, int: 1, luk: 39, agi: 1 }, // human bonus +1 dex, +1 luk -> 60 dex, 40 base luk (+15 stance = 55)
@@ -85,9 +93,9 @@ test('Case 2.1: Hawk Stance (Skyhunter) derives LUK +15, cap 75% (85% Ranger), H
   assert.ok(Math.abs(hawkChance(stHawk, 200) - 0.75) < 1e-9)
   assert.ok(Math.abs(hawkChance({ ...noStanceSt, j3Rn: 1 }, 200) - 0.70) < 1e-9)
   assert.ok(Math.abs(hawkChance({ ...stHawk, j3Rn: 1 }, 200) - 0.85) < 1e-9)
-})
+}))
 
-test('Case 2.2: Boar Stance (Iron Tusk) derives DEF bonus, 45% boarShare, +20% shieldAmp, 8% gritShield', () => {
+test('Case 2.2: Boar Stance (Iron Tusk) derives DEF bonus, 45% boarShare, +20% shieldAmp, 8% gritShield', () => isolateStance(() => {
   const sBoar = mkBmSave({
     pet: 'boar',
     stats: { str: 1, vit: 79, wis: 1, dex: 1, int: 1, luk: 1, agi: 1 }, // human +1 vit -> 80 vit
@@ -102,9 +110,9 @@ test('Case 2.2: Boar Stance (Iron Tusk) derives DEF bonus, 45% boarShare, +20% s
   assert.ok(Math.abs(boarShareOf(stBoar) - 0.45) < 1e-9)
   assert.ok(Math.abs((stBoar.shieldAmp - stRef.shieldAmp) - BM_STANCE.boar.shieldAmp) < 1e-9)
   assert.ok(Math.abs(stBoar.j2StanceGritShield - BM_STANCE.boar.gritShield) < 1e-9)
-})
+}))
 
-test('Case 2.3: Wolf Stance (Bloodpack) derives P.ATK bonus, frenzyCap 7, +25% bleedDmg, 4% woundLeech', () => {
+test('Case 2.3: Wolf Stance (Bloodpack) derives P.ATK bonus, frenzyCap 7, +25% bleedDmg, 4% woundLeech', () => isolateStance(() => {
   const sWolf = mkBmSave({
     pet: 'wolf',
     stats: { str: 1, vit: 1, wis: 1, dex: 1, int: 1, luk: 1, agi: 70 },
@@ -120,7 +128,7 @@ test('Case 2.3: Wolf Stance (Bloodpack) derives P.ATK bonus, frenzyCap 7, +25% b
   assert.equal(frenzyCapOf(stWolf), 7)
   assert.ok(Math.abs(stWolf.j2BleedDmg - BM_STANCE.wolf.bleedDmgAdd) < 1e-9)
   assert.ok(Math.abs(stWolf.j2StanceWoundLeech - BM_STANCE.wolf.woundLeech) < 1e-9)
-})
+}))
 
 test('Case 2.4: Hunter Instinct (bm_s4) and BM_CRIT_COUNTER constants match v2.1 spec', () => {
   const s4 = branches2Of('beastmaster').flatMap((b) => nodesOf(b.id)).find((n) => n.id === 'bm_s4')!

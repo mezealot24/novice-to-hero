@@ -19,8 +19,8 @@ test('base class: floor(Job Lv / 10) on its 2 stats, capped at Job Lv 40', () =>
 test('crusader Job2 Lv 50 stacks with the cleric bonus', () => {
   const b = jobBonusBase({ job: 'cleric', jobLevel: 40, job2: 'crusader', job2Level: 50 })
   assert.equal(b.str, 5) // crusader only
-  assert.equal(b.vit, 5) // crusader only
-  assert.equal(b.int, 4 + 5) // cleric + crusader
+  assert.equal(b.vit, 5 + 3) // crusader + 🎁 change bonus VIT +3
+  assert.equal(b.int, 4 + 5 + 2) // cleric + crusader + 🎁 change bonus INT +2
   assert.equal(b.wis, 4) // cleric only
 })
 
