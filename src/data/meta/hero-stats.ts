@@ -17,6 +17,7 @@ import { SKILLS, smashLv, type SkillId } from "./novice";
 import { RACES, raceBase, raceSteps, type RaceId } from "./races";
 import { JOB2_BONUS_STATS, JOB2_CHANGE_BONUS, JOB3_BONUS, JOB3_BONUS_STATS, JOB_BONUS, JOB_BONUS_STATS, PER_POINT, STAT_RULES, type BaseStat } from "./stat-spec";
 import { wornCards, wornItems } from "./worn";
+import { activeJewels, jewelStats, type Jewel } from "../jewels";
 
 // ---------- combine everything into the hero's starting stats ----------
 export interface StatsInput {
@@ -40,6 +41,8 @@ export interface StatsInput {
 	passiveNodes?: string[]; // PoE-style class-line passive constellation (data/passive-tree.ts)
 	baseLevel?: number; // Base Lv (SaveData has it): sizes the stat-point pool for Ratio AGI (thiefUltAgiBonus)
 	sockets?: Record<string, string[]>;
+	jewels?: Jewel[]; // 💎 passive-socket jewels (data/jewels.ts)
+	jewelSock?: Record<string, string>;
 	grade?: Record<string, number>;
 	refine?: Record<string, number>;
 	broken?: string[];
@@ -106,10 +109,13 @@ export interface HeroBuildSummary {
 	conversionGains: Partial<Record<keyof Stats, number>>;
 }
 
+/** 💎 Socketed jewels' stats in the same base / mod / pct shape as gear (only on the hero's own job tree). */
+const jewelParts = (s: StatsInput) =>
+	activeJewels({ job: s.job, passiveNodes: s.passiveNodes, jewels: s.jewels, jewelSock: s.jewelSock }).map(jewelStats);
 /** Base stats from gear only (shown as "+N ของ" on the status tab). */
 export function gearBase(s: StatsInput): Record<BaseStat, number> {
 	const out = { str: 0, vit: 0, wis: 0, dex: 0, int: 0, luk: 0, agi: 0 };
-	for (const it of [...wornItems(s), ...wornCards(s)])
+	for (const it of [...wornItems(s), ...wornCards(s), ...jewelParts(s)])
 		for (const k of Object.keys(it.base ?? {}) as BaseStat[])
 			out[k] += it.base![k]!;
 	return out;
@@ -499,6 +505,8 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 	add(sets.mod);
 	const cards = wornCards(s);
 	for (const cd of cards) add(cd.mod);
+	const jw = jewelParts(s);
+	for (const x of jw) add(x.mod);
 	const bmPet = activeBeastmasterPet(s);
 	if (bmPet) applyBeastmasterStance(st, bmPet, b); // Partner Passive Stance ('hawk' | 'boar' | 'wolf') before % multipliers
 	const pct = {
@@ -506,7 +514,7 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 		atk: sets.pct.atk,
 		matk: sets.pct.matk,
 	};
-	for (const x of [...cards, ...worn])
+	for (const x of [...cards, ...worn, ...jw])
 		for (const k of Object.keys(x.pct ?? {}) as (keyof typeof pct)[])
 			pct[k] += x.pct![k]!; // refine lines: HP / ATK / M.ATK %
 	st.maxHp = Math.max(1, Math.round(st.maxHp * (1 + pct.maxHp + j2pct.maxHp)));

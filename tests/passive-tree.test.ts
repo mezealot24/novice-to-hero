@@ -64,7 +64,7 @@ test('Thief constellation graph invariants: counts, bounds, >=62px spacing, symm
   assert.ok(tree.filters.length >= 5)
 
   const nodes = tree.nodes
-  assert.equal(nodes.length, 67, `node count ${nodes.length} === 67`)
+  assert.equal(nodes.length, 71, `node count ${nodes.length} === 71`) // 67 + 4 💎 jewel sockets (Q 2026-11-20)
 
   const counts = { origin: 0, minor: 0, notable: 0, keystone: 0, socket: 0 }
   const idSet = new Set<string>()
@@ -88,6 +88,7 @@ test('Thief constellation graph invariants: counts, bounds, >=62px spacing, symm
   assert.equal(counts.keystone, 6)
   assert.equal(counts.notable, 22)
   assert.equal(counts.minor, 38)
+  assert.equal(counts.socket, 4)
 
   // Every filter tag matches at least 3 nodes
   for (const f of tree.filters) {
