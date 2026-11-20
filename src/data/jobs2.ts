@@ -95,7 +95,7 @@ export const JOB2: Record<Job2Id, Job2Def> = {
   // ----- Phase 5 Mage -----
   wizard: {
     id: 'wizard', parent: 'mage', name: 'วิซาร์ด', icon: '🌩️', focus: 'INT · WIS · DEX',
-    blurb: 'เวทพื้นที่ใหญ่แบบ RO · ร่ายนาน 1 เทิร์น (วงเวทแบบบอสชาร์จ) แล้วระเบิดใหญ่ · Ult ตามธาตุที่เลือก: Meteor Storm / Lord of Vermilion / Storm Gust',
+    blurb: 'เวทพื้นที่ใหญ่แบบ RO · ร่ายนาน 1 เทิร์น (วงเวทแบบบอสร่าย) แล้วระเบิดใหญ่ · Ult ตามธาตุที่เลือก: Meteor Storm / Lord of Vermilion / Storm Gust',
     mod: { maxRes: 10 },
     mastery: { weapon: 'ไม้เท้า', ok: (it) => it.wtype === 'staff', mod: { matk: WZ.mastery.matk, spellCrit: WZ.mastery.spellCrit } },
     signature: { name: 'ร่ายใหญ่', icon: '🔮', desc: `Storm Gust กับ Ult ใช้ 1 เทิร์นชาร์จ (วงเวทใต้เท้า) แล้วระเบิดต้นเทิร์นถัดไป · โดนตีระหว่างชาร์จไม่หลุด แต่ดาเมจเข้า +${pc(WZ.castTaken)}` },
@@ -109,7 +109,7 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     mastery: { weapon: 'หนังสือ / ไม้เท้า', ok: (it) => it.wtype === 'book' || it.wtype === 'staff', mod: { matk: SG.mastery.matk }, pct: { atk: SG.mastery.atkPct } },
     signature: { name: 'ศาสตราวุธธาตุ & เวทเสริม', icon: '📖', desc: `ทักษะ 1 เป็นสกิลติดตัว: ตีปกติจะจ่าย Mana ${SG.s1Cost} อัตโนมัติเพื่อฟาดแรง +${pc(SG.s1InfuseBonus)} และร่าย Auto Spell ฟรีทันที · เวทธาตุที่ตรงกับธาตุหลักแรง 100% (อีก 2 ธาตุแรง ${pc(SG.perk.offMul)})` },
     skill3: { name: 'Endow', icon: '🗡️', cost: SG.endowCost, cd: SG.endowCd, desc: `Mana ${SG.endowCost} · คูลดาวน์ ${SG.endowCd}: เคลือบธาตุให้อาวุธ ${SG.endowTurns} เทิร์น · ฟันประชิด / Auto Spell / เวทเสริมธาตุ แรง +${pc(SG.endowAmp)} และโอกาสติด +${pc(SG.endowPerkChance)}` },
-    ult: { name: 'Dispell + Spell Breaker', icon: '🚫', cd: 4, cost: SG.ultCost, desc: `Mana ${SG.ultCost}: ลบบัฟ/โล่/สะท้อนของมอนทุกตัว + ขัดบอสที่กำลังชาร์จ · ขโมย Mana ${SG.ultMana} · ฟาดตัวที่ชาร์จ (หรือตัวหน้า) ${SG.ultAtk}x P.ATK + ${SG.ultPm}x พลังเวท` },
+    ult: { name: 'Dispell + Spell Breaker', icon: '🚫', cd: 4, cost: SG.ultCost, desc: `Mana ${SG.ultCost}: ลบบัฟ/โล่/สะท้อนของมอนทุกตัว + ขัดบอสที่กำลังร่าย · ขโมย Mana ${SG.ultMana} · ฟาดตัวที่ร่าย (หรือตัวหน้า) ${SG.ultAtk}x P.ATK + ${SG.ultPm}x พลังเวท` },
   },
   // ----- Phase 4 Archer -----
   beastmaster: {

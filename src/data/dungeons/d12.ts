@@ -96,7 +96,7 @@ export const D12: DungeonPack<D12Kind> = {
       phases: [
         { at: 0.7, name: 'น้ำวนแห่งห้วงลึก! โล่ 14% + สะท้อน', shield: 0.14, reflect: 0.05 },
         { at: 0.4, name: 'เกล็ดสะท้อนวารี! สะท้อน 6% + อัศวินจมน้ำ 2 ตัว', reflect: 0.06, summon: ['drownedknight', 2] },
-        { at: 0.15, name: 'พิโรธจ้าวสมุทร! เร็วขึ้น แรงขึ้น ชาร์จทุก 2 เทิร์น', speed: 1.25, dmg: 1.2, chargeEvery: 2, cleanse: true,
+        { at: 0.15, name: 'พิโรธจ้าวสมุทร! เร็วขึ้น แรงขึ้น ร่ายทุก 2 เทิร์น', speed: 1.25, dmg: 1.2, chargeEvery: 2, cleanse: true,
           skills: [{ kind: 'bolt', every: 3, pow: 1.3, name: '🌊 คลื่นกระแทกมหาสมุทร', fx: { slow: 1 } }] },
       ],
     },
@@ -133,8 +133,8 @@ export const D12: DungeonPack<D12Kind> = {
     deepmatron: ['iceage', 'purify'],
   },
   miniHints: {
-    coraljaeger: 'ชาร์จหอกน้ำแรงดันสูง! ใช้ Shield หรือ Guard ต้านเพื่อลดดาเมจครึ่งหนึ่ง + ปล่อยคลื่นน้ำสวน · มีสวนกลับ 15% · ต่ำกว่า 45% กางโล่ + เร็วขึ้น',
-    deepmatron: 'สาปความกดดันลึก (อ่อนแรง + ช้า) · ชาร์จพายุพิษเป็นเวท (M.DEF กัน) · ครึ่งเลือดดูดค่าสถานะ + เรียกภูตแมงกะพรุน 2 ตัว (ตายแล้วระเบิด)',
+    coraljaeger: 'ร่ายหอกน้ำแรงดันสูง! ใช้ Shield หรือ Guard ต้านเพื่อลดดาเมจครึ่งหนึ่ง + ปล่อยคลื่นน้ำสวน · มีสวนกลับ 15% · ต่ำกว่า 45% กางโล่ + เร็วขึ้น',
+    deepmatron: 'สาปความกดดันลึก (อ่อนแรง + ช้า) · ร่ายพายุพิษเป็นเวท (M.DEF กัน) · ครึ่งเลือดดูดค่าสถานะ + เรียกภูตแมงกะพรุน 2 ตัว (ตายแล้วระเบิด)',
   },
   holyFoes: ['abysssiren', 'drownedknight', 'jellywraith', 'deepmatron'],
   monSpeed: {

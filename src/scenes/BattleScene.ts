@@ -37,6 +37,7 @@ import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } fr
 import { sfx, unlock } from '../sfx'
 import { HARD_POWER, TOWER_POWER } from '../data/power'
 import { escalate, escalationAt } from '../data/hard-escalation'
+import { monBreakChance, monBreakGauge, monBreaksOn, monCastPity } from '../data/mon-cast'
 import { deepAnchor, deepKind, homeDungeon, homeLv, monTier, restatAt, topStats, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, towerMonLv } from '../data/mon-stats'
 import { ENDLESS_HELL, endlessHell, HELL, HELL_MODE, hellify, hellLvCap, hellXpMul } from '../data/hell'
 import { foldAffixes } from '../data/affixes'
@@ -113,6 +114,8 @@ interface Mon {
   sunder?: number // void_sunder DEF/M.DEF shred share
   sunderTurns?: number // void_sunder turns left
   chargeHits?: number // multi_hit_break hits landed while charging
+  castSteady?: boolean // Q 2026-11-20 monster cast: its last cast broke, so this / its next cast can't break (MON_CAST.steady)
+  castRing?: Phaser.GameObjects.Ellipse // magic circle under the monster while it casts (charging)
   deathMark?: number; deathMarkDmg?: number // PoE Passive Death Mark: hero turns left · recorded non-DoT hero net HP dmg
   instanceId?: string // biome hazard target id
 }
@@ -139,13 +142,13 @@ type Actor = { hero: true } | { hero: false; m: Mon }
 const MINI_HINT: Record<string, string> = {
   duelist: 'ทุก 3 เทิร์นแทงจุดตาย (ดาเมจจริง) · ตั้งท่า Riposte = อมตะ ตีเข้าไปโดนสวน 80% · อย่าใช้ท่าไม้ตายตอนนั้น · ต่ำกว่า 40% เปิดจุดตายแล้วพุ่งแทง 4 ครั้ง',
   hunter: 'ดูดเลือดทุกครั้งที่กัด + Blood Razor ตามเลือดที่เราเหลือ · เราเลือดต่ำกว่าครึ่ง มันเร็วขึ้น 75% คอมโบถี่ · ไฟตัดฮีลได้',
-  gunner: 'HP ต่ำกว่า 25% นับถอยหลัง 3 เทิร์นแล้วระดมยิง 25 นัด รีบปิดเกมหรือเปิดโล่ · ยิงรัว 3 นัด (Flee ช่วยหลบทีละนัด) · ชาร์จจรวดยักษ์ = เตรียมกันด้วยท่าไม้ตาย · ครึ่งเลือดยิงติดไฟ',
-  drainer: 'HP ต่ำกว่าครึ่งเรียกเมเดน (อมตะจนกว่าเมเดนจะตาย · เมเดนหลบ 50% ทุกครั้ง · เผาทุกเทิร์น) · เวทดูดชีวิต · ต่ำกว่าครึ่งฟื้น HP ทุกเทิร์น · ท่าชาร์จดูดเลือดเต็ม · ทุก 4 เทิร์นปิดปาก 1 เทิร์น',
+  gunner: 'HP ต่ำกว่า 25% นับถอยหลัง 3 เทิร์นแล้วระดมยิง 25 นัด รีบปิดเกมหรือเปิดโล่ · ยิงรัว 3 นัด (Flee ช่วยหลบทีละนัด) · ร่ายจรวดยักษ์ = เตรียมกันด้วยท่าไม้ตาย · ครึ่งเลือดยิงติดไฟ',
+  drainer: 'HP ต่ำกว่าครึ่งเรียกเมเดน (อมตะจนกว่าเมเดนจะตาย · เมเดนหลบ 50% ทุกครั้ง · เผาทุกเทิร์น) · เวทดูดชีวิต · ต่ำกว่าครึ่งฟื้น HP ทุกเทิร์น · ท่าร่ายดูดเลือดเต็ม · ทุก 4 เทิร์นปิดปาก 1 เทิร์น',
   venomqueen: 'ผิวพิษ: ตีโดน = ติดพิษ, คริเบา · พ่นใยมัดตัว = หลบไม่ได้ + AGI ครึ่ง 2 เทิร์น · เหล็กในทุก 2 เทิร์น · Venom Strike = พิษทวีคูณ 4 เทิร์น · ครึ่งเลือดฟักลูก',
-  frostgiant: 'P.DEF สูงมาก (คริ/เวททะลุ) · ตีโดนเรา = หนามน้ำแข็ง DMG -15% · Frozen Heart ATK Speed -50% · ชาร์จทุบแล้วแข็ง · 40% ได้เกราะน้ำแข็ง',
-  mirage: 'เก็บดาเมจที่โดน 30% (🔮) แล้วชาร์จยิงคืนเป็นโซลสไตรค์ 5 ลูก · เตรียมโล่/หลบตอนชาร์จ · ตีทีเราอ่อนแรง · ครึ่งเลือดเก็บ 40% + เศษกระจก',
+  frostgiant: 'P.DEF สูงมาก (คริ/เวททะลุ) · ตีโดนเรา = หนามน้ำแข็ง DMG -15% · Frozen Heart ATK Speed -50% · ร่ายทุบแล้วแข็ง · 40% ได้เกราะน้ำแข็ง',
+  mirage: 'เก็บดาเมจที่โดน 30% (🔮) แล้วร่ายยิงคืนเป็นโซลสไตรค์ 5 ลูก · เตรียมโล่/หลบตอนร่าย · ตีทีเราอ่อนแรง · ครึ่งเลือดเก็บ 40% + เศษกระจก',
   warlord: 'ทุก 3 เทิร์นคลั่งเลือดแรงขึ้นสะสม! ต้องจบไว · ดูดเลือด · ต่ำกว่า 30% เร็วมาก',
-  sphinx: 'สายเวท มี M.DEF สูง (สายกายภาพได้เปรียบ) · ลำแสง 3 ลูกทุก 3 เทิร์น · ชาร์จปริศนา = ใบ้ + อ่อนแรง · ครึ่งเลือดได้โล่และแรงขึ้น',
+  sphinx: 'สายเวท มี M.DEF สูง (สายกายภาพได้เปรียบ) · ลำแสง 3 ลูกทุก 3 เทิร์น · ร่ายปริศนา = ใบ้ + อ่อนแรง · ครึ่งเลือดได้โล่และแรงขึ้น',
   jackallord: 'AGI สูง หลบเก่ง ตีรัว + สวนกลับ · หลบได้ 2 ครั้งแล้วตาเหยี่ยวโดนแน่ · ครึ่งเลือดเรียกหมาไน 2 ตัว',
   ...Object.assign({}, ...PACKS.map((p) => p.miniHints)), // D7-D10 (v78, data/dungeons/dN.ts)
 }
@@ -521,7 +524,7 @@ export class BattleScene extends Phaser.Scene {
       this.banner(`⚔️ ดวล 1-1 · ${d.name} ${d.title ?? ''}`, MINI_HINT[d.mini!])
       kinds.push(this.miniKind)
     } else {
-      this.banner(room.title, room.boss ? 'บอสชาร์จพลัง = ตาเรา! เตรียมกันด้วยท่าไม้ตาย หรือรีบตีให้จบ' : 'ผลัดกันตีตามความเร็ว (AGI) · ' + (this.autoUlt ? 'ท่าไม้ตายออกเองอัตโนมัติ' : 'แตะปุ่มทุบเมื่อพร้อม'))
+      this.banner(room.title, room.boss ? 'บอสร่ายพลัง = ตาเรา! เตรียมกันด้วยท่าไม้ตาย หรือรีบตีให้จบ' : 'ผลัดกันตีตามความเร็ว (AGI) · ' + (this.autoUlt ? 'ท่าไม้ตายออกเองอัตโนมัติ' : 'แตะปุ่มทุบเมื่อพร้อม'))
       for (const [k, n] of room.spawn) for (let j = 0; j < n; j++) kinds.push(k)
     }
     kinds.slice(0, SLOT_X.length).forEach((k, j) => this.addMon(k, j))
@@ -724,7 +727,37 @@ export class BattleScene extends Phaser.Scene {
   private lastAffix = ''
   private lastSpeed = 1
 
-  private removeMon(m: Mon) { m.spr.destroy(); m.shadow.destroy(); m.dotTxt?.destroy(); m.dotTxt = undefined }
+  private removeMon(m: Mon) { this.monCastFx(m, false); m.spr.destroy(); m.shadow.destroy(); m.dotTxt?.destroy(); m.dotTxt = undefined }
+  /** Q 2026-11-20: a monster cast (the old boss charge, still the `charging` flag) ends: released, broken or countered.
+   *  Flag, tint, ring and pity cleared in one place. `say` = the cancel callout (float = small float text instead of a callout),
+   *  `push` = turn gauge lost (`clamp` false keeps a cancel that may push below 0, like ★ หักท่า). */
+  private endMonCast(m: Mon, say?: { text: string; color: string; float?: boolean; dy?: number }, push = 0, clamp = true) {
+    m.charging = false; m.chargeHits = 0; m.castSteady = false
+    m.spr.clearTint()
+    this.monCastFx(m, false)
+    if (push) m.gauge = clamp ? Math.max(0, m.gauge - push) : m.gauge - push
+    if (!say) return
+    const y = m.spr.y - m.spr.displayHeight - (say.dy ?? 30)
+    if (say.float) this.floatText(m.spr.x, y, say.text, say.color)
+    else this.callout(say.text, m.spr.x, y, say.color)
+  }
+  /** Magic circle under a casting monster, pulsing like the hero Mage chant (castFx). */
+  private monCastFx(m: Mon, on: boolean) {
+    if (m.castRing) { this.tweens.killTweensOf(m.castRing); m.castRing.destroy(); m.castRing = undefined }
+    if (!on || m.dead || !m.spr.active) return
+    playPfx(this, 'magicCircle', m.spr.x, m.spr.y, { scale: 1.2, speed: 1.4 })
+    const w = Math.max(130, m.spr.displayWidth * 0.95)
+    m.castRing = this.add.ellipse(m.spr.x, m.spr.y - 2, w, w * 0.28).setStrokeStyle(3, 0xff7ad9).setDepth(m.spr.depth - 0.5)
+    this.tweens.add({ targets: m.castRing, alpha: 0.35, scaleX: 1.15, scaleY: 1.15, duration: 360, yoyo: true, repeat: -1 })
+  }
+  /** Q 2026-11-20: a direct hit that reached HP may break a monster cast (mirrors the hero castBreak). DoT / reflect / echo never do. */
+  private monCastBreak(m: Mon, dmg: number) {
+    if (!m.charging || m.dead || m.hp <= 0 || m.castSteady || !monBreaksOn(dmg, m.def.hp)) return
+    if (Math.random() >= monBreakChance(monTier(m.def), this.hard || this.isHell(m.kind))) return
+    this.endMonCast(m, { text: `💔 ร่ายแตก! ${m.def.name}`, color: '#ff7a7a' })
+    m.gauge = monBreakGauge(m.gauge) // pushed back MON_CAST.pushGauge, never below 0
+    if (monCastPity()) m.castSteady = true
+  }
   private alive() { return this.mons.filter((m) => !m.dead) }
   private smashTurns() { return Math.max(2, Math.round(this.st.smashCd / BATTLE.msPerTurn)) }
   private heroSpeed() { return BATTLE.heroSpeed * (this.st.aspd / PLAYER.aspd) * (this.mcOver > 0 ? 1 + KIT3.mechanic.overAspd + this.st.j3McOver : 1) * (1 + this.frenzy * KIT2.berserker.frenzyAspd) * (this.hx.slow > 0 ? BATTLE.frozenHeart : 1) * (this.asuraExhaust > 0 ? 1 - KIT2.monk.asuraSlow : 1) * (this.relic === 'haste' ? 1 + RELIC_RULES.haste.speed : 1) * (this.st.j2Frenzy > 0 ? frenzyMul(this.st, this.front()[0]?.poison ?? 0) : 1) * (1 + this.st.j2Tempo * this.rgTempo) } // + P3'a Rogue rg_c1 Tempo // 🩸 Beastmaster Bloodscent Frenzy
@@ -881,17 +914,13 @@ export class BattleScene extends Phaser.Scene {
     }
     for (const m of this.alive()) {
       if (m.charging && m.def.chargeCounter === 'shield_or_guard') {
-        m.charging = false; m.chargeHits = 0; m.spr.clearTint()
-        m.gauge = Math.max(0, m.gauge - 30)
-        this.callout(`🛡️ สกัดท่าชาร์จ ${m.def.name}!`, m.spr.x, m.spr.y - m.spr.displayHeight - 30, '#9fe3ff')
+        this.endMonCast(m, { text: `🛡️ สกัดท่าร่าย ${m.def.name}!`, color: '#9fe3ff' }, 30)
       }
     }
   }
   private interruptStunCharge(m: Mon) {
     if (m.charging && m.def.chargeCounter === 'interrupt_stun') {
-      m.charging = false; m.chargeHits = 0; m.spr.clearTint()
-      m.gauge = Math.max(0, m.gauge - 30)
-      this.callout(`💫 ขัดจังหวะชาร์จ ${m.def.name}!`, m.spr.x, m.spr.y - m.spr.displayHeight - 30, '#ffe08a')
+      this.endMonCast(m, { text: `💫 ขัดจังหวะร่าย ${m.def.name}!`, color: '#ffe08a' }, 30)
     }
   }
 
@@ -2706,7 +2735,7 @@ export class BattleScene extends Phaser.Scene {
         this.heroRig.playStrike(1, true)
         await spearBoomerangFx(this, HERO_X, GROUND, { x: ch.spr.x, y: ch.spr.y }, () => {
           this.withSrc('skill', () => this.strike(ch, K.boomerang + this.hpMul()))
-          if (!ch.dead) { ch.charging = false; ch.spr.clearTint(); this.floatText(ch.spr.x, ch.spr.y - ch.spr.displayHeight - 24, '❌ ขัดชาร์จ!', '#9fe3ff') }
+          if (!ch.dead && ch.charging) this.endMonCast(ch, { text: '❌ ขัดร่าย!', color: '#9fe3ff', float: true, dy: 24 })
         })
         if (!this.alive().length) return
       }
@@ -3115,7 +3144,7 @@ export class BattleScene extends Phaser.Scene {
     if (m.atkUpTurns > 0) { m.atkUp = 0; m.atkUpTurns = 0; n++ }
     if (m.reflect > 0 || m.absorb > 0 || m.stored > 0) { m.reflect = 0; m.absorb = 0; m.stored = 0; n++ }
     if (m.vengTurns) { m.vengTurns = 0; m.vengCd = BATTLE.vengeance.cd; n++ }
-    if (m.charging) { m.charging = false; m.spr.clearTint(); n++; this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 24, '❌ ขัดชาร์จ!', '#9fe3ff') }
+    if (m.charging) { this.endMonCast(m, { text: '❌ ขัดร่าย!', color: '#9fe3ff', float: true, dy: 24 }); n++ }
     if (n > 0) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 40, '🚫', '#c9a8ff')
     this.dotIcon(m)
     return n
@@ -4257,8 +4286,7 @@ export class BattleScene extends Phaser.Scene {
   private ultWebAfter() {
     const S = KIT.swordTree, C = KIT.clericTree, st = this.st
     if (st.swShatter > 0) for (const m of this.alive()) if (m.charging) {
-      m.charging = false; m.spr.clearTint(); m.gauge -= S.shatterPush
-      this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 24, '⚡ หักท่า! ขัดชาร์จ', '#9fe3ff')
+      this.endMonCast(m, { text: '⚡ หักท่า! ขัดร่าย', color: '#9fe3ff', float: true, dy: 24 }, S.shatterPush, false)
     }
     if (st.swBreak > 0 && this.alive().length) {
       for (const m of this.alive()) { m.armorBrk = Math.max(m.armorBrk, S.breakTurns); this.dotIcon(m) }
@@ -4754,9 +4782,7 @@ export class BattleScene extends Phaser.Scene {
       if (m.charging && !dot && m.def.chargeCounter === 'multi_hit_break') {
         m.chargeHits = (m.chargeHits ?? 0) + 1
         if (m.chargeHits >= 3) {
-          m.charging = false; m.chargeHits = 0; m.spr.clearTint()
-          m.gauge = Math.max(0, m.gauge - 30)
-          this.callout(`💥 ทะลวงชาร์จ ${m.def.name}!`, m.spr.x, m.spr.y - m.spr.displayHeight - 30, '#ff9a3c')
+          this.endMonCast(m, { text: `💥 ทะลวงร่าย ${m.def.name}!`, color: '#ff9a3c' }, 30)
         }
       }
       if ((m.marked ?? 0) > 0) dmg = Math.ceil(dmg * 1.15) // cleric ★B: ตราบาป
@@ -4786,6 +4812,7 @@ export class BattleScene extends Phaser.Scene {
     }
     const hp0 = m.hp
     m.hp -= dmg
+    if (!dot && !pure) this.monCastBreak(m, dmg) // Q 2026-11-20: a hard direct hit may break a boss cast (hero + ally hits; DoT / reflect / echo never)
     if (shouldRecordDeathMark({ dot, pure, allyHitting: this.allyHitting, popping: this.deathMarkPopping, mobExecuting: this.mobExecuting, markTurns: m.deathMark ?? 0, ratio: this.st.thDeathMark })) {
       const net = deathMarkNetHpDmg(hp0, m.hp)
       if (net > 0) m.deathMarkDmg = (m.deathMarkDmg ?? 0) + net
@@ -4888,6 +4915,7 @@ export class BattleScene extends Phaser.Scene {
   private killMon(m: Mon) {
     m.dead = true
     m.deathMark = 0; m.deathMarkDmg = 0
+    m.castSteady = false; this.monCastFx(m, false) // a cast dies with its caster
     this.syncStackBody() // P2'b th_t1c: a dead monster's stacks no longer count
     if (this.st.killHeal > 0 && this.hp > 0) {
       this.heal(this.st.maxHp * this.st.killHeal) // gear / card / Mobster kill heal
@@ -5070,12 +5098,14 @@ export class BattleScene extends Phaser.Scene {
         await this.wait(700)
         return
       }
-      if (m.charging) { m.charging = false; m.spr.clearTint(); await this.slam(m); return }
+      if (m.charging) { this.endMonCast(m); await this.slam(m); return } // the cast is released: the old charged slam, same damage
       if (m.def.charge && m.turns % m.chargeEvery === 0) {
-        m.charging = true; m.chargeHits = 0
+        m.charging = true; m.chargeHits = 0 // Q 2026-11-20: the wind-up is a cast (ร่าย) the hero can break; `charging` stays the flag
         m.spr.setTint(0xff8080)
-        this.heroGauge = Math.max(this.heroGauge, 100) // the hero always gets one turn to answer the charge
-        this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10, `⚠️ ${m.def.slamName ?? 'ชาร์จพลัง!'}`, '#ff7a7a')
+        this.monCastFx(m, true)
+        this.heroGauge = Math.max(this.heroGauge, 100) // the hero always gets one turn to answer the cast
+        this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10, `🔮 ร่าย ${m.def.slamName ?? 'มหาเวท'}...`, '#ff7a7a')
+        if (m.castSteady) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 34, '🧘 ตั้งสติ (ร่ายนี้ไม่แตก)', '#9fe3ff')
         this.tweens.add({ targets: m.spr, scaleX: m.spr.scaleX * 1.1, duration: 200, yoyo: true, repeat: 1 })
         await this.wait(BATTLE.stepMs)
         return
@@ -5186,7 +5216,7 @@ export class BattleScene extends Phaser.Scene {
     const home = m.spr.x
     await this.slamMotion(m)
     if (this.riposte(m)) { await this.wait(300); if (!m.dead) await this.tween({ targets: [m.spr, m.shadow], x: home, duration: 260 }); m.spr.setAngle(0); return }
-    const hit = this.hurtHero(((m.def.slamMagic ? this.monMatk(m) + (m.def.venom ? m.def.venom.dex * this.matkScale(m) : 0) : m.def.dmg) + 8) * BATTLE.monDmgMul * (m.def.slamMul ?? 1.6) * skillMul(m.def, slamScaleOf(m.def)) * this.monMul(m), !!m.def.slamMagic, 999, m, `⚠️ ${m.def.slamName ?? 'ท่าชาร์จ'}`) // slam can't be fled, only lucky-dodged / shielded
+    const hit = this.hurtHero(((m.def.slamMagic ? this.monMatk(m) + (m.def.venom ? m.def.venom.dex * this.matkScale(m) : 0) : m.def.dmg) + 8) * BATTLE.monDmgMul * (m.def.slamMul ?? 1.6) * skillMul(m.def, slamScaleOf(m.def)) * this.monMul(m), !!m.def.slamMagic, 999, m, `🔮 ${m.def.slamName ?? 'ท่าร่าย'}`) // slam can't be fled, only lucky-dodged / shielded
     if (m.stored > 0) await this.soulStrike(m)
     if (hit) {
       this.monLeech(m, m.def.mini === 'hunter' || m.def.mini === 'drainer' ? 1 : undefined) // the big drain heals all of it
@@ -6056,7 +6086,7 @@ export class BattleScene extends Phaser.Scene {
     const left = mine()
     if (!left.length) { await this.wait(400); return { won: true, share: 1 } }
     for (const x of left) {
-      x.dead = true; x.dotTxt?.destroy(); x.dotTxt = undefined
+      x.dead = true; x.dotTxt?.destroy(); x.dotTxt = undefined; this.monCastFx(x, false)
       this.tweens.add({ targets: [x.spr, x.shadow], x: W + 140, duration: 520, ease: 'Quad.easeIn', onComplete: () => this.removeMon(x) })
     }
     this.callout(this.hp <= floor ? '🤕 ไม่ไหวแล้ว... มันหนีไป' : '💨 มันหนีไปแล้ว!', W / 2, 200)

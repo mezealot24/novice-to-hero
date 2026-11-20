@@ -140,7 +140,7 @@ export function explainMonsterField(path: string, native: boolean, defaultLabel?
     const rest = p.slice(2)
     if (rest[0] === 'onHit' || rest[0] === 'slamFx') {
       const fxKey = rest[1] as keyof HitFx
-      const act = rest[0] === 'onHit' ? 'ตีปกติแล้วติด' : 'ท่าชาร์จติด'
+      const act = rest[0] === 'onHit' ? 'ตีปกติแล้วติด' : 'ท่าร่ายติด'
       return {
         label: defaultLabel ?? `${phLabel} · ${act}${FX_NAME[fxKey] ?? fxKey}`,
         effect: `ตั้ง > 0 = พอเข้า${phLabel} การ${act}${FX_NAME[fxKey]?.replace(/^ติด/, '') ?? fxKey}จะแรง/นานตามเลขนี้ (แทนค่าเดิม)`,
@@ -187,14 +187,14 @@ export function explainMonsterField(path: string, native: boolean, defaultLabel?
       case 'absorb':
         return {
           label: defaultLabel ?? `${phLabel} · ดูดซับ → Soul Strike`,
-          effect: 'เพิ่ม = เก็บสัดส่วนดาเมจที่โดนไว้สะสมแล้วยิงคืนเป็น Soul Strike ตอนชาร์จ',
-          detail: 'ดาเมจที่ถูกเก็บจะระเบิดคืนในท่าชาร์จ (เพดานรวมต่อครั้งคุมด้วย battle.soulCap)',
+          effect: 'เพิ่ม = เก็บสัดส่วนดาเมจที่โดนไว้สะสมแล้วยิงคืนเป็น Soul Strike ตอนร่าย',
+          detail: 'ดาเมจที่ถูกเก็บจะระเบิดคืนในท่าร่าย (เพดานรวมต่อครั้งคุมด้วย battle.soulCap)',
         }
       case 'chargeEvery':
         return {
-          label: defaultLabel ?? `${phLabel} · ชาร์จทุก N เทิร์น`,
-          effect: 'ลดเลข = เข้าเฟสแล้วบอสชาร์จท่าใหญ่ถี่ขึ้น! · เพิ่ม = ชาร์จห่างลง',
-          detail: 'ปรับรอบการชาร์จท่าใหญ่ใหม่เมื่อเข้าเฟส (เช่นจากทุก 3 เทิร์น เหลือทุก 2 เทิร์น)',
+          label: defaultLabel ?? `${phLabel} · ร่ายทุก N เทิร์น`,
+          effect: 'ลดเลข = เข้าเฟสแล้วบอสร่ายท่าใหญ่ถี่ขึ้น! · เพิ่ม = ร่ายห่างลง',
+          detail: 'ปรับรอบการร่ายท่าใหญ่ใหม่เมื่อเข้าเฟส (เช่นจากทุก 3 เทิร์น เหลือทุก 2 เทิร์น)',
         }
       case 'drainStats':
         return {
@@ -236,8 +236,8 @@ export function explainMonsterField(path: string, native: boolean, defaultLabel?
   if (p[0] === 'slamFx') {
     const fx = p[1] as keyof HitFx
     return {
-      label: defaultLabel ?? `ท่าชาร์จ${FX_NAME[fx] ?? fx}`,
-      effect: 'ตั้ง > 0 = เมื่อบอสปล่อยท่าชาร์จโดนฮีโร่ จะยัดดีบัฟนี้พ่วงไปด้วย',
+      label: defaultLabel ?? `ท่าร่าย${FX_NAME[fx] ?? fx}`,
+      effect: 'ตั้ง > 0 = เมื่อบอสปล่อยท่าร่ายโดนฮีโร่ จะยัดดีบัฟนี้พ่วงไปด้วย',
       detail: `${FX_TH[fx] ?? ''} · ทำให้ต้องหลบ/เบรก/ถือเครื่องรางกันดีบัฟตอนสู้บอสมากขึ้น`,
     }
   }
@@ -320,7 +320,7 @@ export function explainMonsterField(path: string, native: boolean, defaultLabel?
     },
     absorb: {
       label: defaultLabel ?? 'ดูดซับ → Soul Strike',
-      effect: 'เพิ่ม = เก็บดาเมจที่โดนเข้าบาร์สะสม แล้วยิงคืนรวมเป็นลูกบอลเวทตอนท่าชาร์จ (Mirage)',
+      effect: 'เพิ่ม = เก็บดาเมจที่โดนเข้าบาร์สะสม แล้วยิงคืนรวมเป็นลูกบอลเวทตอนท่าร่าย (Mirage)',
       detail: 'เพดานดาเมจสะสมรวมที่ระเบิดคืนคุมด้วย battle.soulCap',
     },
     razor: {
@@ -339,13 +339,13 @@ export function explainMonsterField(path: string, native: boolean, defaultLabel?
       detail: 'ดาเมจ = ATK × monDmgMul × deathBlast (เป็นดาเมจเวท หลบได้ด้วย Flee/โล่)',
     },
     slamMul: {
-      label: defaultLabel ?? 'แรงท่าชาร์จ × ATK',
-      effect: 'เพิ่ม = ท่าทุบ/ชาร์จของบอสแรงขึ้น (เช่น 2.2 = ตีหนัก 2.2 เท่า + ตัดเกจสตั๊น)',
-      detail: 'ใช้เฉพาะมอนที่มีระบบชาร์จ (บอสหรือมอนที่ตั้ง chargeEvery)',
+      label: defaultLabel ?? 'แรงท่าร่าย × ATK',
+      effect: 'เพิ่ม = ท่าทุบ/ร่ายของบอสแรงขึ้น (เช่น 2.2 = ตีหนัก 2.2 เท่า + ตัดเกจสตั๊น)',
+      detail: 'ใช้เฉพาะมอนที่มีระบบร่าย (บอสหรือมอนที่ตั้ง chargeEvery)',
     },
     chargeEvery: {
-      label: defaultLabel ?? 'ชาร์จทุก N เทิร์น',
-      effect: 'ลดเลข = บอสชาร์จท่าใหญ่ถี่ขึ้น บีบให้ต้องเร่งดาเมจหรือมีสถานะต้าน/เบรก',
+      label: defaultLabel ?? 'ร่ายทุก N เทิร์น',
+      effect: 'ลดเลข = บอสร่ายท่าใหญ่ถี่ขึ้น บีบให้ต้องเร่งดาเมจหรือมีสถานะต้าน/เบรก',
       detail: 'ค่าว่างจะใช้ค่ากลางจาก battle.slamEvery (ค่าปกติ 3 เทิร์น)',
     },
     shots: {

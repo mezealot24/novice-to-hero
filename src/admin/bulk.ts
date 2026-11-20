@@ -289,13 +289,13 @@ export const MON_PRESETS: Record<MonPresetId, { label: string; cols: MonPresetCo
     ],
   },
   reward: {
-    label: '💰 รางวัล & ท่าชาร์จ/พิเศษ',
+    label: '💰 รางวัล & ท่าร่าย/พิเศษ',
     cols: [
       { rel: 'xp', short: 'EXP', tip: 'EXP ในรอบดันเจี้ยน' },
       { rel: 'zeny.0', short: 'Zeny ต่ำสุด', tip: 'เงินดรอปขั้นต่ำ' },
       { rel: 'zeny.1', short: 'Zeny สูงสุด', tip: 'เงินดรอปสูงสุด' },
-      { rel: 'slamMul', short: 'แรงชาร์จ ×', tip: 'ตัวคูณท่าชาร์จ/ทุบของบอส' },
-      { rel: 'chargeEvery', short: 'ชาร์จ/N เทิร์น', tip: 'ความถี่ท่าชาร์จ (น้อย = บ่อย)' },
+      { rel: 'slamMul', short: 'แรงร่าย ×', tip: 'ตัวคูณท่าร่าย/ทุบของบอส' },
+      { rel: 'chargeEvery', short: 'ร่าย/N เทิร์น', tip: 'ความถี่ท่าร่าย (น้อย = บ่อย)' },
       { rel: 'deathBlast', short: 'ระเบิดตาย ×', tip: 'ระเบิดเวทใส่ฮีโร่เมื่อมอนตาย' },
       { rel: 'reflect', short: 'สะท้อน', tip: 'สะท้อนดาเมจกลับฮีโร่' },
     ],

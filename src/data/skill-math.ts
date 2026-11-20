@@ -9,6 +9,7 @@ import { CLERIC_KIT, JOBS, MAGE_SPELL, SPELL_VAMP, SWORD_MANA, type JobDef, type
 import type { Skill2Def } from './skill2'
 import { PACKS } from './dungeons'
 import { STAT_RULES } from './meta/stat-spec'
+import { MON_CAST } from './mon-cast'
 
 /** Q 2026-11-04 rule: magic damage = 70% M.ATK + 30% P.ATK for ALL hero magic (Mage/Priest class skills too). */
 export const MAGIC_MIX = { matk: 0.7, atk: 0.3 }
@@ -76,6 +77,7 @@ export const breakRefundMana = (paid: number) => Math.floor(Math.max(0, paid) * 
 /** Class kit multipliers that used to sit inline in BattleScene (SWORD_MANA / MAGE_SPELL / CLERIC_KIT live in jobs.ts). */
 export const KIT = {
   cast: MAGE_CAST, // v78: tunable as kit `cast.*`
+  monCast: MON_CAST, // Q 2026-11-20: boss / mini-boss cast break (data/mon-cast.ts), tunable as kit `monCast.*`
   cleric: CLERIC_KIT, // v86: reference (defined in jobs.ts to avoid a jobs <-> skill-math import cycle), tunable as kit `cleric.*`
   archerAuto: 0.9, archerAutoShots: 2, archerVolleyShots: 3, archerUlt: 5,
   mageFire: 2, mageFireStacks: 3, mageIce: 1.6, mageIceChill: 3, mageLightHits: 6, mageLightLo: 0.3, mageLightHi: 1.2,

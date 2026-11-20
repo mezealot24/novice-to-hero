@@ -102,7 +102,7 @@ export const D13: DungeonPack<D13Kind> = {
       phases: [
         { at: 0.7, name: 'ม่านดาราศักดิ์สิทธิ์! โล่ 14% + ภูตสุริยคราส 2 ตัว', shield: 0.14, summon: ['eclipsewraith', 2] },
         { at: 0.4, name: 'ดับสิ้นแสงสวรรค์! ดูดค่าสถานะทุกเทิร์น + เร็วขึ้น', drainStats: 1, speed: 1.2 },
-        { at: 0.15, name: 'ซูเปอร์โนวา! แรงขึ้น ชาร์จทุก 2 เทิร์น + หมาไร้ดาว 2 ตัว', dmg: 1.2, chargeEvery: 2, cleanse: true, summon: ['starlesshound', 2],
+        { at: 0.15, name: 'ซูเปอร์โนวา! แรงขึ้น ร่ายทุก 2 เทิร์น + หมาไร้ดาว 2 ตัว', dmg: 1.2, chargeEvery: 2, cleanse: true, summon: ['starlesshound', 2],
           skills: [{ kind: 'bolt', every: 3, hits: 3, pow: 0.52, name: '🌟 ฝนดาวตกพิพากษา' }] },
       ],
     },
@@ -139,7 +139,7 @@ export const D13: DungeonPack<D13Kind> = {
     noctisshade: ['harvest', 'queen'],
   },
   miniHints: {
-    umbravalkyrie: 'หลบ 2 ครั้งแล้วตีโดนแน่ 3 เทิร์น · ชาร์จฝนดารา (รัวหลายฮิตลอก Astral Veil เพื่อสั่ง Stagger + ยกเลิก) · ต่ำกว่า 45% เร็วขึ้นและฟัน 3 ฮิต',
+    umbravalkyrie: 'หลบ 2 ครั้งแล้วตีโดนแน่ 3 เทิร์น · ร่ายฝนดารา (รัวหลายฮิตลอก Astral Veil เพื่อสั่ง Stagger + ยกเลิก) · ต่ำกว่า 45% เร็วขึ้นและฟัน 3 ฮิต',
     noctisshade: 'เงาของโนคทิส: ยิงศรนิทรา 2 ฮิตติดไฟ + ชุบลูกน้อง · ครึ่งเลือดดูดค่าสถานะ + เรียกภูตสุริยคราส 2 ตัว (หลบคงที่ 30%) จบให้ไว',
   },
   holyFoes: ['eclipsewraith', 'voidastrologer', 'noctisshade', 'seraph'],

@@ -38,7 +38,7 @@ export const D8: DungeonPack<D8Kind> = {
       bodyMul: { hp: 0.9, dmg: 0.85, matk: 1.1 }, def: 30, crit: 0.1, onHit: { burn: 1 }, slamName: 'ภูเขาไฟระเบิด!', slamMul: 1.7, slamMagic: true, slamFx: { burn: 3, armorBreak: 2 }, slamAnim: 'stomp', slamColor: 0xff5a1a, charge: true,
       skills: [{ kind: 'bolt', every: 3, hits: 3, pow: 0.5, name: '🌋 ฝนหินหลอมเหลว', fx: { burn: 1 } }],
       phases: [{ at: 0.66, name: 'เปลือกออบซิเดียน! สะท้อน + โล่ + โกเลมคุ้มกัน', reflect: 0.08, shield: 0.1, summon: ['obsidiangolem', 1] },
-        { at: 0.33, name: 'แกนพิภพปะทุ! เร็วขึ้น ชาร์จถี่ + ค้างคาวถ่านลุก', speed: 1.3, dmg: 1.2, chargeEvery: 2, cleanse: true, summon: ['emberbat', 2] }] },
+        { at: 0.33, name: 'แกนพิภพปะทุ! เร็วขึ้น ร่ายถี่ + ค้างคาวถ่านลุก', speed: 1.3, dmg: 1.2, chargeEvery: 2, cleanse: true, summon: ['emberbat', 2] }] },
   },
   dungeon: {
     // D8 (v80): fixed level band, stat monsters (data/mon-stats.ts), no Hero Power scaling
@@ -72,7 +72,7 @@ export const D8: DungeonPack<D8Kind> = {
     forgelord: ['bloodpact', 'executioner'],
   },
   miniHints: {
-    ifrit: 'กลืนดาเมจที่โดน 25% (🔮) แล้วชาร์จยิงคืน + ไฟ 3 + ใบ้ · ไฟ/พิษไม่ถูกกลืน · ตีโดนเราติดไฟ (ฮีลลด 40%) · ครึ่งเลือดกลืน 35% + สไลม์แมกมา 2 ตัว (ตายแล้วระเบิด)',
+    ifrit: 'กลืนดาเมจที่โดน 25% (🔮) แล้วร่ายยิงคืน + ไฟ 3 + ใบ้ · ไฟ/พิษไม่ถูกกลืน · ตีโดนเราติดไฟ (ฮีลลด 40%) · ครึ่งเลือดกลืน 35% + สไลม์แมกมา 2 ตัว (ตายแล้วระเบิด)',
     forgelord: 'ทุก 3 เทิร์นตีเหล็กร้อน แรงขึ้นสะสม! ต้องจบไว · ดูดเลือด 15% (ไฟตัดฮีลมันได้) · ตีโดน = เกราะแตก · ต่ำกว่า 30% เร็วมาก',
   },
   holyFoes: [],
