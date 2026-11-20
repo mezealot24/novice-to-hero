@@ -296,7 +296,7 @@ export function explainMonsterField(path: string, native: boolean, defaultLabel?
     crit: {
       label: defaultLabel ?? (native ? 'โอกาสคริ (โบนัส +)' : 'โอกาสคริ'),
       effect: 'เพิ่ม = มอนติดคริบ่อยขึ้น (ตีแรง × monCritMul และ Flee หลบไม่ได้ ต้องพึ่งหลบโชคดี/โล่)',
-      detail: '0.1 = +10% · คริมอนจะลดความแรงลงได้เฉพาะค่า Crit DR ของฮีโร่ (LUK)',
+      detail: '0.1 = +10% · LUK ฮีโร่ลดโอกาสคริมอนได้ (กันคริแบบ RO: 1% ต่อ 5 LUK) และ Crit DR ของฮีโร่ลดความแรงคริ',
     },
     combo: {
       label: defaultLabel ?? (native ? 'โอกาสคอมโบ (โบนัส +)' : 'โอกาสคอมโบ'),

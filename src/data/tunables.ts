@@ -128,7 +128,7 @@ const BATTLE_FIELDS: [string, FieldDef][] = [
 const COMBO_FIELDS: [string, FieldDef][] = [
   ['baseCount', int(0, 10)],
   ['rateCap', num(0, 5)],
-  ['dmgFloor|hardAdd|defCap|critDRCap', num(0, 1)],
+  ['dmgFloor|hardAdd|defCap|critDRCap|critShieldCap', num(0, 1)],
   ['ignore|basicDR|comboDR|ignoreCounter|counterDR.normal|mini|boss', num(0, 1)],
   ['defK', num(1, 10_000)],
 ]

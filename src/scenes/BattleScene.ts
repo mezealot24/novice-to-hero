@@ -7,7 +7,7 @@ import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LI
 import { EVENT_RULES, FORTUNE, type DayOpts, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
 import { blessBase, FREE_GEMS, heroBuild, heroStats, jobUpText, itemById, PER_POINT, RESOURCES, splitStatLine, totalBase, type BaseStat, type HeroBuildSummary } from '../data/meta'
-import { COIN_FX, CRIT_RULES, RESIST_RULES, coinTier, monSkillCritRate, splitZeny } from '../data/battle-rules'
+import { COIN_FX, CRIT_RULES, RESIST_RULES, coinTier, monCritRate, monSkillCritRate, splitZeny } from '../data/battle-rules'
 import { type ItemEffectId, type ItemEffectSpec } from '../data/item-effects'
 import { createBiomeCombatState, HAZARD_TUNING, modifyHeroDirectHealBiome, onHeroShieldOrBlockBiome, onHeroSkillCastBiome, onMonsterHitBiome, onTurnEndBiome, type BiomeCombatState } from '../data/biome-hazards'
 import { RIFT_BRANCHES, riftBoonById, type RiftBoonDef, type RiftBranchDef } from '../data/rift'
@@ -6162,6 +6162,7 @@ export class BattleScene extends Phaser.Scene {
   /** Monster spell (MonSkill 'bolt'): a magic projectile = M.ATK x pow. Can't be fled; lucky dodge, shields and M.DEF work. */
   /** v49: a monster hit crits (def.crit; skills pass their skill crit rate): returns the damage multiplier and shows CRITICAL. */
   private monCrit(m: Mon, rate = m.def.crit ?? 0) {
+    rate = monCritRate(rate, this.st.critShield) // Q 2026-11-21 "แบบ RO": hero LUK crit shield lowers every monster crit roll
     if (!rate || Math.random() >= rate) return 1
     this.floatText(HERO_X + 30, GROUND - 150, '💥 CRITICAL!', '#ff5a4e')
     this.monCritHit = true
@@ -6997,7 +6998,7 @@ export class BattleScene extends Phaser.Scene {
       at: new Date().toISOString(), mode: this.run.modeId + (this.hell ? ' hell' : this.hard ? ' hard' : ''), where: this.run.where(this.room), floor: this.roomDef(this.room)?.floor ?? 0,
       reason: this.timedOut ? 'timeout' : 'dead',
       hero: { job: this.job.id, job2: this.j2?.id, lv: this.level, baseLv: s.baseLevel, power: pp.power, offense: pp.offense, survival: pp.survival,
-        maxHp: st.maxHp, def: st.def, mdef: st.mdef, guard: st.guard, flee: st.flee, luckyDodge: st.luckyDodge, autoGuard: st.j2Guard, critDR: st.critDR },
+        maxHp: st.maxHp, def: st.def, mdef: st.mdef, guard: st.guard, flee: st.flee, luckyDodge: st.luckyDodge, autoGuard: st.j2Guard, critDR: st.critDR, critShield: st.critShield },
       affixes: this.aff.defs.map((a) => `${a.icon}${a.name}`), fightTurns: this.fightTurns, enrage: this.enrageCount, hits: [...this.clog.hits],
     }
   }

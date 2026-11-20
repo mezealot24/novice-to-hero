@@ -42,6 +42,7 @@ export const PER_POINT = {
 		dropCap: 0.5,
 		eventPer: 0.005,
 		eventCap: 0.3,
+		critShield: 0.002 /* Q 2026-11-21 "แบบ RO": every LUK point -0.2 pt monster crit chance (1% per 5 LUK, linear), cap COMBO.critShieldCap */,
 	},
 };
 // What each stat does is in data/statInfo.ts (generic + current class only, numbers from PER_POINT).

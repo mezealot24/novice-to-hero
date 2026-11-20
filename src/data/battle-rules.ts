@@ -28,6 +28,7 @@ export const COMBO = {
   counterDR: { normal: 0, mini: 0.1, boss: 0.15 },
   // hero side: stat x/(x+defK) (AGI Ignore Combo, DEX Ignore Counter, VIT Combo+Counter DR, LUK Crit DR) + gear; caps
   defK: 400, defCap: 0.3, critDRCap: 0.5,
+  critShieldCap: 0.5, // Q 2026-11-21 "แบบ RO": max share the hero's crit shield (LUK x PER_POINT.luk.critShield, linear) takes off a monster's crit rate
 }
 
 /** Crit split (design/sage-rework-v1.md §1). Three separate rates:
@@ -48,6 +49,10 @@ export const CRIT_RULES = {
  *  - `MonsterDef.crit`      basic attack / combo / counter / Bullet Time (perks / affixes / LUK add here)
  *  - `MonsterDef.skillCrit` skill hits (strike / bolt, hero-kit casts too): default 0 = monster skills never crit
  *  A skill with `crit: true` is an explicit opt-in that also rolls the basic crit: max(skillCrit, crit). The cast release (slam) never crits. */
+/** Q 2026-11-21 "แบบ RO" crit shield: the hero's LUK (Stats.critShield) subtracts from EVERY monster crit roll (basic / combo / counter /
+ *  Bullet Time / skill). A crit that still lands behaves as before (skips Flee on basics, Crit DR cuts its damage). */
+export const monCritRate = (rate: number, critShield: number) => Math.max(0, rate - Math.max(0, critShield))
+
 export const monSkillCritRate = (d: { crit?: number; skillCrit?: number }, sk: { crit?: boolean }) =>
   Math.max(0, d.skillCrit ?? 0, sk.crit ? d.crit ?? 0 : 0)
 

@@ -2,7 +2,7 @@
 // Numbers come from PER_POINT (meta.ts), so a balance change updates the text too. Novice sees generic lines only.
 // A line gets the stat's total (b) and points above the start (d) so it can show what the hero gets right now.
 import { COMBO } from './game-data'
-import { PER_POINT, thiefUltAgiBonus, type BaseStat } from './meta'
+import { critShieldOf, PER_POINT, thiefUltAgiBonus, type BaseStat } from './meta'
 import type { JobId } from './jobs'
 import { breakChance, KIT, KIT2, MAGE_CAST } from './skill-math'
 import { shadowWard } from './thief-offmeta'
@@ -55,7 +55,7 @@ export const STAT_INFO: Record<BaseStat, StatInfo> = {
     byJob2: { sage: [(b) => `Auto Spell +${f1(KIT2.sage.autoInt * 100)}%/INT · On-Hit Perk +${f1(KIT2.sage.perk.fireInt * 100)}%/INT (ตอน ${b} INT)`] },
   },
   luk: {
-    generic: [`หลบโชคดี · พรตำนาน · อีเวนต์หายาก · ดรอปหายาก`, `เวทคริ (หอก/สายฟ้า/ไฟ/น้ำแข็ง) ได้จากของ · perk · tree เท่านั้น LUK ช่วยเฉพาะ Mage`],
+    generic: [`หลบโชคดี · พรตำนาน · อีเวนต์หายาก · ดรอปหายาก`, (b) => `ลดโอกาสคริของมอน 1% ต่อ ${f1(0.01 / P.luk.critShield)} แต้ม (สูงสุด ${Math.round(COMBO.critShieldCap * 100)}%, ตอนนี้ ${f1(critShieldOf(b) * 100)}%)`, `เวทคริ (หอก/สายฟ้า/ไฟ/น้ำแข็ง) ได้จากของ · perk · tree เท่านั้น LUK ช่วยเฉพาะ Mage`],
     byClass: {
       novice: [(b) => `คริ +1% ต่อ 3 แต้ม (ตอนนี้ ${f1(P.luk.crit * 100 * b)}%)`],
       swordsman: [(b) => `คริ +1% ต่อ 3 แต้ม (ตอนนี้ ${f1(P.luk.crit * 100 * b)}%)`],

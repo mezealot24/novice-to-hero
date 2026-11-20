@@ -286,6 +286,10 @@ export function baseDefence(b: Record<BaseStat, number>) {
 	};
 }
 
+/** Q 2026-11-21 "แบบ RO" crit shield: linear in TOTAL LUK (RO: 1% per 5 LUK) + any mod `critShield`, clamped 0..COMBO.critShieldCap. */
+export const critShieldOf = (luk: number, mod = 0): number =>
+	Math.min(COMBO.critShieldCap, Math.max(0, mod + PER_POINT.luk.critShield * Math.max(0, luk)));
+
 /** v77 Priest พรแสง (ทักษะ 2, active): the base stats the Blessing adds while it is up (+ ★ Gloria LUK), or undefined if not learned. */
 export function blessBase(
 	s: StatsInput,
@@ -545,6 +549,7 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 		st.comboDR = Math.min(COMBO.defCap, st.comboDR + f.comboDR);
 		st.counterDR = Math.min(COMBO.defCap, st.counterDR + f.counterDR);
 		st.critDR = Math.min(COMBO.critDRCap, st.critDR + f.critDR);
+		st.critShield = critShieldOf(b.luk, st.critShield); // RO crit shield: total LUK (+ any gear mod) lowers monster crit chance
 	}
 	if (st.swVitToMdef > 0) {
 		st.mdef += Math.min(KIT.swordCore.vitToMdefCap, b.vit * st.swVitToMdef);
