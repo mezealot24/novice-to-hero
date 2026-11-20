@@ -38,7 +38,7 @@ export const D7: DungeonPack<D7Kind> = {
       speedMul: 0.8, def: 25, crit: 0.1, onHit: { slow: 1 }, slamName: 'ลมหายใจศูนย์สัมบูรณ์!', slamMul: 1.7, slamMagic: true, slamFx: { freeze: 100 }, slamAnim: 'cast', slamColor: 0xbfefff, charge: true,
       skills: [{ kind: 'bolt', every: 3, hits: 4, pow: 0.45, name: '❄️ พายุเกล็ดมังกร', fx: { freeze: 25 } }, { kind: 'curse', every: 5, name: 'คำสาปน้ำแข็งนิรันดร์', fx: { armorBreak: 2, slow: 2 } }],
       phases: [{ at: 0.6, name: 'เกล็ดมังกรแข็งตัว! โล่น้ำแข็ง + โกเลมเฝ้ารัง', shield: 0.12, summon: ['icegolem', 1] },
-        { at: 0.3, name: 'ศูนย์สัมบูรณ์! เร็วขึ้น ชาร์จถี่', speed: 1.25, dmg: 1.15, chargeEvery: 2, cleanse: true }] },
+        { at: 0.3, name: 'ศูนย์สัมบูรณ์! เร็วขึ้น ร่ายถี่', speed: 1.25, dmg: 1.15, chargeEvery: 2, cleanse: true }] },
   },
   dungeon: {
     id: 'd7', name: 'ยอดเขาน้ำแข็งนิรันดร์', boss: 'จ้าวมังกรไฮม์เฟรอส', tier: 7, sky: [0x14223e, 0xa8d4f0], hills: 0xdff2ff, unlock: 'd6', level: [50, 60],
@@ -69,8 +69,8 @@ export const D7: DungeonPack<D7Kind> = {
   ],
   miniRelics: { snowqueen: ['iceage', 'aegis'], mammoth: ['executioner', 'riposte'] },
   miniHints: {
-    snowqueen: 'สายเวท M.DEF สูง (สายกายภาพได้เปรียบ) · เกล็ดน้ำแข็ง 3 ลูกทุก 3 เทิร์น ติดแข็ง · ชาร์จพายุหิมะ = แข็งทั้งเทิร์น · ครึ่งเลือดได้โล่ + เรียกภูตน้ำแข็ง 2 ตัว',
-    mammoth: 'หนังหนา P.DEF สูง (เวท/คริทะลุ) · ทุก 3 เทิร์นชาร์จกระทืบ = แข็งทั้งเทิร์น + เกราะแตก เตรียมโล่ · ต่ำกว่า 40% คลั่ง เร็วขึ้น แรงขึ้น ล้างดีบัฟ',
+    snowqueen: 'สายเวท M.DEF สูง (สายกายภาพได้เปรียบ) · เกล็ดน้ำแข็ง 3 ลูกทุก 3 เทิร์น ติดแข็ง · ร่ายพายุหิมะ = แข็งทั้งเทิร์น · ครึ่งเลือดได้โล่ + เรียกภูตน้ำแข็ง 2 ตัว',
+    mammoth: 'หนังหนา P.DEF สูง (เวท/คริทะลุ) · ทุก 3 เทิร์นร่ายกระทืบ = แข็งทั้งเทิร์น + เกราะแตก เตรียมโล่ · ต่ำกว่า 40% คลั่ง เร็วขึ้น แรงขึ้น ล้างดีบัฟ',
   },
   holyFoes: [],
   monSpeed: { yeti: 10, frostwolf: 14, icewisp: 13, icegolem: 8, snowharpy: 15, frostshaman: 10, snowqueen: 12, mammoth: 11, frostwyrm: 11 },

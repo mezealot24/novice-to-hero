@@ -172,7 +172,7 @@ export const PERKS_V2: PerkDef[] = [
   c('wpn_quick', 'weapon', '💨', 'มือไว', ['ความเร็วเทิร์น +20%', 'ความเร็วเทิร์น +32%'], { mod: [{ aspd: 0.32 }, { aspd: 0.512 }] }),
   // ---------- 💢 focus ----------
   // v78 universal focus (design/mage-cast-focus-v78.md): every card works for every job (Novice / full bar -> shield / heal)
-  c('foc_calm', 'focus', '🧘', 'สมาธินิ่ง', ['Poise: กันแข็ง / มึนจากท่าชาร์จ / ใบ้ 100% · ร่ายไม่แตก · Flee +12', ''], { max: 1, mod: [{ poise: 1, flee: 12 }, { poise: 1, flee: 12 }] }),
+  c('foc_calm', 'focus', '🧘', 'สมาธินิ่ง', ['Poise: กันแข็ง / มึนจากท่าร่ายบอส / ใบ้ 100% · ร่ายไม่แตก · Flee +12', ''], { max: 1, mod: [{ poise: 1, flee: 12 }, { poise: 1, flee: 12 }] }),
   c('foc_bone', 'focus', '🦴', 'บดกระดูก', ['ดาเมจ{ult} +75% · เจาะ DEF / M.DEF 30%', 'ดาเมจ{ult} +120% · เจาะ 30%'], { mod: [{ ultAmp: 0.75, smashMul: 2.25, ultPierce: 0.3 }, { ultAmp: 1.2, smashMul: 3.6, ultPierce: 0.3 }] }),
   c('foc_wake', 'focus', '🔋', 'ปลุกพลัง', ['เริ่มทุกไฟต์ Mana/Energy/Rage +40 · ส่วนที่ล้น / ไม่มี → โล่สูงสุด 20% HP', 'เริ่มทุกไฟต์ +60 · โล่สูงสุด 30% HP'], { proc: { on: 'fightStart', fx: 'res', amt: [40, 60] }, pk: [{ wakeShield: 0.2 }, { wakeShield: 0.3 }] }),
   c('foc_pray', 'focus', '🙏', 'ภาวนา', ['ทุกเทิร์น Mana/Energy/Rage +6 · ส่วนที่ล้น / ไม่มี → ฮีลสูงสุด 3% HP', 'ทุกเทิร์น +10 · ฮีลสูงสุด 5% HP'], { pk: [{ resTurn: 6, prayHeal: 0.03 }, { resTurn: 10, prayHeal: 0.05 }] }),

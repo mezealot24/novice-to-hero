@@ -14,7 +14,7 @@ export const tree: ClassTree = {
     { id: 'swordsman_b', job: 'swordsman', name: 'โลหิต', icon: '🩸', blurb: 'Mana · ดูดเลือด · คลั่งตอนเลือดน้อย' },
     // v84: ATTACH in data/tree.ts: swordsman_c under ทักษะ 1, swordsman_d under Ult
     { id: 'swordsman_c', job: 'swordsman', name: 'จังหวะดาบ', icon: '⚔️', blurb: 'ฟันพายุติดกันสะสมจังหวะ · คืน Mana · คริ · ★ พันดาบ' },
-    { id: 'swordsman_d', job: 'swordsman', name: 'ทลายเกราะ', icon: '🔨', blurb: 'Ult ทุบเกราะ · ตีตัวเกราะแตกฮีล · แตกลาม · ★ ขัดชาร์จ' },
+    { id: 'swordsman_d', job: 'swordsman', name: 'ทลายเกราะ', icon: '🔨', blurb: 'Ult ทุบเกราะ · ตีตัวเกราะแตกฮีล · แตกลาม · ★ ขัดร่าย' },
   ],
   nodes: [
     // Core: 🛡️ แก่นป้องกัน — tier 0, always open at start so VIT-focused tanks survive phys + magic hits
@@ -38,7 +38,7 @@ export const tree: ClassTree = {
     n('swordsman_d1', 'swordsman_d', 1, '🔨', 'ทุบเกราะ', 3, (lv) => `Ult ทุบเกราะมอนทุกตัว ${T.breakTurns} เทิร์น: P.DEF −${pc(KIT2.mobster.armorBrk)} · โดนฮิตแรงขึ้น +${pc(T.breakAmp * lv)}`, (lv) => ({ swBreak: T.breakAmp * lv })),
     n('swordsman_d2', 'swordsman_d', 2, '🩸', 'ซ้ำรอย', 3, (lv) => `ตีตัวเกราะแตก ฮีล ${pc(T.breakLeech * lv)} ของดาเมจ`, (lv) => ({ swBreakLeech: T.breakLeech * lv })),
     n('swordsman_d3', 'swordsman_d', 3, '💥', 'ร้าวลาม', 3, (lv) => `ตัวเกราะแตกตาย → เกราะแตกลามไปทุกตัว + Mana +${r1(T.breakSpreadRes * lv)}`, (lv) => ({ swBreakSpread: T.breakSpreadRes * lv })),
-    n('swordsman_d4', 'swordsman_d', 4, '⚡', 'หักท่า', 1, () => `Ult ขัดชาร์จมอน/บอสทุกตัวที่กำลังชาร์จ + เกจถอย −${T.shatterPush}`, () => ({ swShatter: 1 })),
+    n('swordsman_d4', 'swordsman_d', 4, '⚡', 'หักท่า', 1, () => `Ult ขัดร่ายมอน/บอสทุกตัวที่กำลังร่าย + เกจถอย −${T.shatterPush}`, () => ({ swShatter: 1 })),
   ],
   talents: [
     // ----- row 1 · Job Lv 5 · basic swing -----
@@ -51,7 +51,7 @@ export const tree: ClassTree = {
     t('sw_t2c', 2, '🌪️', 'พายุโลหิต', 2, (r) => `ดูดเลือดสกิล +${r === 1 ? 15 : 25}% (ตีหลายตัวได้ 1/3) · แลกกับดาเมจสกิล/ult −30%`, (r) => ({ spellVamp: r === 1 ? 0.15 : 0.25, skillDmgCut: 0.3 })),
     // ----- row 3 · Job Lv 20 · ดาบพิทักษ์ (ult) -----
     t('sw_t3a', 3, '🏰', 'ปราการ', 2, (r) => `ult: โล่ 20% → ${r === 1 ? 35 : 40}% · ดาเมจ 1.2x → 1.0x`, (r) => ({ ultShieldAdd: r === 1 ? 0.15 : 0.2, ultMulAdd: -0.2 })),
-    t('sw_t3b', 3, '💥', 'ฟันทลาย', 2, (r) => `ult: ดาเมจ 1.2x → ${r === 1 ? '2.2' : '2.6'}x · บอสที่กำลังชาร์จโดน x1.5 · โล่ 20% → 5%`, (r) => ({ ultMulAdd: r === 1 ? 1.0 : 1.4, ultShieldAdd: -0.15, ultVsCharge: 0.5 })),
+    t('sw_t3b', 3, '💥', 'ฟันทลาย', 2, (r) => `ult: ดาเมจ 1.2x → ${r === 1 ? '2.2' : '2.6'}x · บอสที่กำลังร่ายโดน x1.5 · โล่ 20% → 5%`, (r) => ({ ultMulAdd: r === 1 ? 1.0 : 1.4, ultShieldAdd: -0.15, ultVsCharge: 0.5 })),
     t('sw_t3c', 3, '🔁', 'ท่าสวนพร้อม', 2, (r) => `หลังกด ult: โดนตี ${r === 1 ? 2 : 3} ครั้งถัดไป สวนกลับแน่นอน`, (r) => ({ ultCounters: r === 1 ? 2 : 3 })),
     // ----- row 4 · Job Lv 30 · keystone -----
     t('sw_t4a', 4, '💀', 'ไม่ยอมล้ม', 2, (r) => `ล้มครั้งแรกต่อรอบ ลุกขึ้นมาพร้อม HP ${r === 1 ? 40 : 60}%`, (r) => ({ revive: 1, reviveHp: r === 1 ? 0.4 : 0.6 })),

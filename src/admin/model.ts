@@ -89,12 +89,12 @@ const BODY: Record<string, string> = {
   deathBlast: 'ระเบิดตอนตาย ×', shots: 'จำนวนนัดต่อการตี',
   'venom.dmg': 'Venom ดาเมจ', 'venom.dex': 'Venom +DEX', 'venom.turns': 'Venom นาน (เทิร์น)',
   'trueSight.after': 'True Sight หลังโดนหลบ (ครั้ง)', 'trueSight.turns': 'True Sight นาน (เทิร์น)',
-  slamMul: 'แรงท่าชาร์จ ×', chargeEvery: 'ชาร์จทุก N เทิร์น',
+  slamMul: 'แรงท่าร่าย ×', chargeEvery: 'ร่ายทุก N เทิร์น',
 }
 const SKILL_LEAF: Record<string, string> = { every: 'ใช้ทุก N เทิร์น', pow: 'พลัง', turns: 'นาน (เทิร์น)', hits: 'จำนวนฮิต', alone: 'ตัวคูณตอนอยู่ตัวเดียว', drain: 'ดูด HP ฮีโร่', lv: '⭐ เลเวลสกิล (ว่าง = 1)' }
 const PHASE_LEAF: Record<string, string> = {
   at: 'เข้าเฟสเมื่อ HP ≤', speed: 'ความเร็ว ×', dmg: 'ดาเมจ ×', heal: 'ฮีลตอนเข้าเฟส', shield: 'โล่ตอนเข้าเฟส',
-  reflect: 'สะท้อนดาเมจ', absorb: 'ดูดซับ → Soul Strike', chargeEvery: 'ชาร์จทุก N เทิร์น', drainStats: 'ดูด stat', 'summon.1': 'จำนวนซัมมอน',
+  reflect: 'สะท้อนดาเมจ', absorb: 'ดูดซับ → Soul Strike', chargeEvery: 'ร่ายทุก N เทิร์น', drainStats: 'ดูด stat', 'summon.1': 'จำนวนซัมมอน',
 }
 const fxLabel = (rest: string[], pre: string): string | undefined => (FX[rest[1]] ? `${pre}${FX[rest[1]]}` : undefined)
 
@@ -102,7 +102,7 @@ export interface MonField { row: FieldRow; label: string }
 export interface MonSection { id: string; title: string; fields: MonField[] }
 const FIXED: [id: string, title: string][] = [
   ['core', '⚔️ ค่าพลังหลัก'], ['reward', '💰 รางวัล'], ['stat', '📊 แจกสเตตัส (statAlloc)'],
-  ['special', '🧬 ความสามารถพิเศษ'], ['onHit', '🩸 ตีโดนแล้วติดสถานะ'], ['slam', '💥 ท่าชาร์จ'],
+  ['special', '🧬 ความสามารถพิเศษ'], ['onHit', '🩸 ตีโดนแล้วติดสถานะ'], ['slam', '💥 ท่าร่าย'],
 ]
 
 /** Stat monsters (every monster since v126) build hp / dmg / matk from their stats only (statMonster): those leaves are placeholders, never read. */
@@ -129,7 +129,7 @@ export function monSections(k: MonsterKind, rows: FieldRow[]): MonSection[] {
       put(`skill${p[1]}`, `✨ สกิล · ${s?.name ?? p[1]}${s ? ` (${s.kind})` : ''}`, row, pre + (leaf ?? rest.join('.')))
     } else if (p[0] === 'phases') {
       const ph = m.phases?.[Number(p[1])], rest = p.slice(2)
-      const leaf = rest[0] === 'onHit' ? fxLabel(rest, 'ตีโดนติด ') : rest[0] === 'slamFx' ? fxLabel(rest, 'ท่าชาร์จติด ') : PHASE_LEAF[rest.join('.')]
+      const leaf = rest[0] === 'onHit' ? fxLabel(rest, 'ตีโดนติด ') : rest[0] === 'slamFx' ? fxLabel(rest, 'ท่าร่ายติด ') : PHASE_LEAF[rest.join('.')]
       put(`phase${p[1]}`, `🔥 เฟส ${Number(p[1]) + 1} · ${ph?.name ?? ''}`, row, leaf ?? rest.join('.'))
     } else if (p[0] === 'statAlloc') putFixed('stat', row, p[1].toUpperCase())
     else if (p[0] === 'pointsMul') putFixed('stat', row, 'แต้มรวม × (pointsMul)')

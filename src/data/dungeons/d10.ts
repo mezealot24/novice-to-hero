@@ -60,7 +60,7 @@ export const D10: DungeonPack<D10Kind> = {
       phases: [{ at: 0.7, name: 'ม่านราตรี! โล่ + สะท้อน + เงาไร้ร่าง 2 ตัว', shield: 0.12, reflect: 0.05, summon: ['shade', 2] },
         { at: 0.4, name: 'สุริยคราสนิรันดร์! ดูดค่าสถานะทุกเทิร์น + เร็วขึ้น', drainStats: 1, speed: 1.2 },
         // star spells move to every 3 so the every-2 charge really fires (with spells every 2 it would never charge)
-        { at: 0.15, name: 'ดาวดับ! ฟื้นตัว แรงขึ้น ชาร์จถี่ + สุนัขฝันร้าย 2 ตัว', heal: 0.1, dmg: 1.2, chargeEvery: 2, cleanse: true, summon: ['nightmarehound', 2],
+        { at: 0.15, name: 'ดาวดับ! ฟื้นตัว แรงขึ้น ร่ายถี่ + สุนัขฝันร้าย 2 ตัว', heal: 0.1, dmg: 1.2, chargeEvery: 2, cleanse: true, summon: ['nightmarehound', 2],
           skills: [{ kind: 'bolt', every: 3, name: 'เวทดวงดาว', pick: STAR_SPELLS }] }] },
   },
   dungeon: {
@@ -96,8 +96,8 @@ export const D10: DungeonPack<D10Kind> = {
     eclipseknight: ['executioner', 'trinity'],
   },
   miniHints: {
-    nightqueen: 'ทุก 3 เทิร์นร้องเพลงใบ้ 2 เทิร์น (ท่าไม้ตายติด) ต้านสถานะช่วยมาก · ชาร์จฝันร้าย = อ่อนแรง · ครึ่งเลือดดูดค่าสถานะเราทุกเทิร์น + เรียกเงาไร้ร่าง 2 ตัว (หลบ 35% · ตายแล้วระเบิด) จบให้ไว',
-    eclipseknight: 'หลบมัน 2 ครั้งแล้วมันตีโดนแน่นอน 3 เทิร์น · ดูดเลือด 15% · ตีโดน = เกราะแตก · ชาร์จฟันสุริยคราสเป็นเวท (M.DEF กัน) · ต่ำกว่า 40% เร็วขึ้น แรงขึ้น บัฟสะสมทุก 3 เทิร์น',
+    nightqueen: 'ทุก 3 เทิร์นร้องเพลงใบ้ 2 เทิร์น (ท่าไม้ตายติด) ต้านสถานะช่วยมาก · ร่ายฝันร้าย = อ่อนแรง · ครึ่งเลือดดูดค่าสถานะเราทุกเทิร์น + เรียกเงาไร้ร่าง 2 ตัว (หลบ 35% · ตายแล้วระเบิด) จบให้ไว',
+    eclipseknight: 'หลบมัน 2 ครั้งแล้วมันตีโดนแน่นอน 3 เทิร์น · ดูดเลือด 15% · ตีโดน = เกราะแตก · ร่ายฟันสุริยคราสเป็นเวท (M.DEF กัน) · ต่ำกว่า 40% เร็วขึ้น แรงขึ้น บัฟสะสมทุก 3 เทิร์น',
   },
   holyFoes: ['shade', 'dreameater', 'nightqueen', 'starweaver'],
   monSpeed: { nightmarehound: 14, voidstalker: 15, dreameater: 12, starcolossus: 7, shade: 15, lullabymoth: 11, nightqueen: 12, eclipseknight: 12, starweaver: 10 },

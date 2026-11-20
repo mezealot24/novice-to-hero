@@ -42,7 +42,7 @@ export const D9: DungeonPack<D9Kind> = {
       skills: [{ kind: 'strike', every: 3, hits: 3, pow: 0.9, name: '⚙️ หมัดลูกสูบสามจังหวะ', fx: { armorBreak: 1 } }],
       phases: [{ at: 0.6, name: 'โหมดอีเธอร์! ยิงเวท + สะท้อน + หุ่นซ่อมบำรุง', reflect: 0.1, summon: ['repairbot', 1],
         skills: [{ kind: 'bolt', every: 3, hits: 3, pow: 0.5, name: '🔷 ลำแสงอีเธอร์สามสาย' }] }, // every 3 vs charge every 4: meets only on turn 12, 24 ...
-        { at: 0.3, name: 'โอเวอร์ไดรฟ์! เร็วขึ้น ชาร์จถี่ + หุ่นใบเลื่อย', speed: 1.35, dmg: 1.15, chargeEvery: 2, cleanse: true, summon: ['sawbot', 2] }] },
+        { at: 0.3, name: 'โอเวอร์ไดรฟ์! เร็วขึ้น ร่ายถี่ + หุ่นใบเลื่อย', speed: 1.35, dmg: 1.15, chargeEvery: 2, cleanse: true, summon: ['sawbot', 2] }] },
   },
   dungeon: {
     // D9 (v82): fixed level band, stat monsters (data/mon-stats.ts), no Hero Power scaling
@@ -74,8 +74,8 @@ export const D9: DungeonPack<D9Kind> = {
   ],
   miniRelics: { gearmarshal: ['storm', 'haste'], aethermage: ['thornaura', 'iceage'] },
   miniHints: {
-    gearmarshal: 'ยิง 3 นัดทุกเทิร์น (Flee ต้านได้ทีละนัด) แต่หลบ 2 ครั้ง = ตาเหยี่ยว ตีโดนแน่ 3 เทิร์น · ทุก 4 เทิร์นชาร์จปืนใหญ่รางเหล็ก (หลบไม่ได้ + เกราะแตก) เตรียมโล่ · ครึ่งเลือดเรียกโดรนปืนกล 2 ลำ',
-    aethermage: 'กลืนดาเมจ 30% (🔮) แล้วชาร์จยิงคืน + สะท้อน 8% (🔁) · ตีแรงทีเดียว = เจ็บเอง ใช้ DoT ดีกว่า · ทุก 4 เทิร์นสาปใบ้ 2 เทิร์น · ครึ่งเลือดได้โล่ 15%',
+    gearmarshal: 'ยิง 3 นัดทุกเทิร์น (Flee ต้านได้ทีละนัด) แต่หลบ 2 ครั้ง = ตาเหยี่ยว ตีโดนแน่ 3 เทิร์น · ทุก 4 เทิร์นร่ายปืนใหญ่รางเหล็ก (Flee ต้านได้ + เกราะแตก) เตรียมโล่ · ครึ่งเลือดเรียกโดรนปืนกล 2 ลำ',
+    aethermage: 'กลืนดาเมจ 30% (🔮) แล้วร่ายยิงคืน + สะท้อน 8% (🔁) · ตีแรงทีเดียว = เจ็บเอง ใช้ DoT ดีกว่า · ทุก 4 เทิร์นสาปใบ้ 2 เทิร์น · ครึ่งเลือดได้โล่ 15%',
   },
   holyFoes: [],
   monSpeed: { clockknight: 10, gundrone: 15, sparkcoil: 9, steamtank: 7, sawbot: 15, repairbot: 10, gearmarshal: 13, aethermage: 12, omnicore: 10 },

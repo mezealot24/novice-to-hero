@@ -58,8 +58,8 @@ export const BATTLE_STATIC: Record<string, FieldExplain> = {
     detail: 'ใช้กับทุกอาชีพยกเว้น Cleric ที่ใช้ kit.cleric.shieldCap · ยิ่งเข้าใกล้ Cap โล่ที่เติมใหม่จะลดผลตาม diminishing returns',
   },
   slamEvery: {
-    label: 'บอสชาร์จท่าใหญ่ทุก N เทิร์น (กลาง)',
-    effect: 'ลดเลข = บอสทุกตัว (ที่ไม่ได้ตั้ง chargeEvery เอง) ชาร์จท่าทุบบ่อยขึ้น · เพิ่ม = นาน ๆ ชาร์จที',
+    label: 'บอสร่ายท่าใหญ่ทุก N เทิร์น (กลาง)',
+    effect: 'ลดเลข = บอสทุกตัว (ที่ไม่ได้ตั้ง chargeEvery เอง) ร่ายท่าทุบบ่อยขึ้น · เพิ่ม = นาน ๆ ร่ายที',
     detail: 'ค่าพื้นฐานเวลา MonsterDef ไม่ได้กำหนด chargeEvery ประจำตัว',
   },
   parryEvery: {
@@ -73,8 +73,8 @@ export const BATTLE_STATIC: Record<string, FieldExplain> = {
     detail: 'ฮีโร่ใช้ระบบ baseCount + ของ แต่ฝั่งมอนตันต่อชุดได้ที่ค่านี้ (ค่าปกติ +2 ฮิตเสริม)',
   },
   slamStun: {
-    label: 'ท่าชาร์จบอสตัดเกจฮีโร่',
-    effect: 'เพิ่ม = โดนบอสทุบท่าชาร์จแล้วเกจเทิร์นฮีโร่ถอยหลังเยอะขึ้น (เสียเทิร์นบ่อย)',
+    label: 'ท่าร่ายบอสตัดเกจฮีโร่',
+    effect: 'เพิ่ม = โดนบอสทุบท่าร่ายแล้วเกจเทิร์นฮีโร่ถอยหลังเยอะขึ้น (เสียเทิร์นบ่อย)',
     detail: 'ลดทอนได้ด้วยค่า Tenacity ของฮีโร่ (และ Poise กันได้ 100%)',
   },
   msPerTurn: {

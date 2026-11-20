@@ -121,7 +121,7 @@ export const D14: DungeonPack<D14Kind> = {
       phases: [
         { at: 0.7, name: 'เปิดหลอดเพาะเลี้ยง! โคลนนักบวช 2 ตัวมาฮีลให้', summon: ['clonecleric', 2] },
         { at: 0.4, name: 'แม่แบบโจร! หลบคงที่ + เร็วขึ้น + โคลนโจร 2 ตัว', speed: 1.2, summon: ['clonethief', 2] },
-        { at: 0.15, name: 'ระบบล่ม! แรงขึ้น ชาร์จทุก 2 เทิร์น + ร่างล้มเหลว 2 ตัว', dmg: 1.2, chargeEvery: 2, cleanse: true, summon: ['clonereject', 2] },
+        { at: 0.15, name: 'ระบบล่ม! แรงขึ้น ร่ายทุก 2 เทิร์น + ร่างล้มเหลว 2 ตัว', dmg: 1.2, chargeEvery: 2, cleanse: true, summon: ['clonereject', 2] },
       ],
     },
   },
@@ -157,8 +157,8 @@ export const D14: DungeonPack<D14Kind> = {
     clonewizard: ['storm', 'iceage'],
   },
   miniHints: {
-    cloneknight: 'โคลนอัศวิน: สวนกลับบ่อย · ชาร์จ Brandish Spear (ตั้งโล่ / Guard รับไว้) · Pierce 3 ฮิต · ครึ่งเลือดเร็วขึ้น + เรียกโคลนนักดาบ 2 ตัว',
-    clonewizard: 'โคลนวิซาร์ด: Jupitel 4 ฮิต · ชาร์จ Storm Gust แช่แข็ง (สตั๊น / ขัดจังหวะเพื่อยกเลิก) · ครึ่งเลือดเรียกโคลนจอมเวท 2 ตัว ฆ่าตัวเล็กก่อน',
+    cloneknight: 'โคลนอัศวิน: สวนกลับบ่อย · ร่าย Brandish Spear (ตั้งโล่ / Guard รับไว้) · Pierce 3 ฮิต · ครึ่งเลือดเร็วขึ้น + เรียกโคลนนักดาบ 2 ตัว',
+    clonewizard: 'โคลนวิซาร์ด: Jupitel 4 ฮิต · ร่าย Storm Gust แช่แข็ง (สตั๊น / ขัดจังหวะเพื่อยกเลิก) · ครึ่งเลือดเรียกโคลนจอมเวท 2 ตัว ฆ่าตัวเล็กก่อน',
   },
   holyFoes: [],
   monSpeed: {

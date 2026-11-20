@@ -96,8 +96,8 @@ export const D11: DungeonPack<D11Kind> = {
       skills: CHRONO_SKILLS,
       phases: [
         { at: 0.7, name: 'เกราะจักรกล! โล่ + ทหารยามเฟือง 2 ตัว', shield: 0.12, summon: ['cogsentinel', 2] },
-        { at: 0.4, name: 'ย้อนเวลา! ฟื้น HP 8% + ชาร์จถี่ขึ้น', heal: 0.08, chargeEvery: 3, cleanse: true },
-        { at: 0.15, name: 'โอเวอร์ไดรฟ์นิรันดร์! เร็วขึ้น แรงขึ้น ชาร์จทุก 2 เทิร์น', speed: 1.25, dmg: 1.2, chargeEvery: 2,
+        { at: 0.4, name: 'ย้อนเวลา! ฟื้น HP 8% + ร่ายถี่ขึ้น', heal: 0.08, chargeEvery: 3, cleanse: true },
+        { at: 0.15, name: 'โอเวอร์ไดรฟ์นิรันดร์! เร็วขึ้น แรงขึ้น ร่ายทุก 2 เทิร์น', speed: 1.25, dmg: 1.2, chargeEvery: 2,
           skills: [{ kind: 'strike', every: 3, hits: 2, pow: 0.75, name: '⚙️ ฟันเฟืองบดขยี้' }] },
       ],
     },
@@ -134,8 +134,8 @@ export const D11: DungeonPack<D11Kind> = {
     clockmaiden: ['haste', 'wizard'],
   },
   miniHints: {
-    overdrive: 'ชาร์จปลดไอน้ำหลอมละลาย! (Stun หรือ Freeze ขัดจังหวะได้) · ตีคริแรง + เกราะแตก · ต่ำกว่า 50% เร็วขึ้น ×1.3 และตีแรงขึ้น',
-    clockmaiden: 'หลบคงที่ 30% + ต้านใบ้ช่วยมาก · ชาร์จลานนาฬิกาสะกดเวลา (M.DEF กัน) · ครึ่งเลือดเรียกวิญญาณนาฬิกา 2 ตัว จบให้ไว',
+    overdrive: 'ร่ายปลดไอน้ำหลอมละลาย! (Stun หรือ Freeze ขัดจังหวะได้) · ตีคริแรง + เกราะแตก · ต่ำกว่า 50% เร็วขึ้น ×1.3 และตีแรงขึ้น',
+    clockmaiden: 'หลบคงที่ 30% + ต้านใบ้ช่วยมาก · ร่ายลานนาฬิกาสะกดเวลา (M.DEF กัน) · ครึ่งเลือดเรียกวิญญาณนาฬิกา 2 ตัว จบให้ไว',
   },
   holyFoes: ['ticktockwisp', 'clockmaiden'],
   monSpeed: {

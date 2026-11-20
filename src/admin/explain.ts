@@ -99,6 +99,7 @@ export function explainTableGroup(t: TableId, key: string): { title: string; des
     },
     kit: {
       cast: { title: '🔮 cast · ระบบร่ายเวท (Mage)', desc: 'โอกาสร่ายแตก คืน Mana และลูกไฟพื้นฐาน' },
+      monCast: { title: '🔮 monCast · บอสร่ายเวท (ร่ายแตก)', desc: 'โอกาสตีบอส/มินิบอสที่กำลังร่ายแล้วร่ายแตก ต้านตามระดับ เกจถอย และร่ายถัดไปไม่แตก' },
       cleric: { title: '✝️ cleric · ตัวคูณและโล่หลัก (Cleric)', desc: 'ค่าร่าย Ult, ฮีล, แสงตก, โล่ และเพดานโล่พระ' },
       clericTree: { title: '🕸️ clericTree · ใยแมงมุมพระ (รุ่งอรุณ / แก่นศรัทธา)', desc: 'ตัวเลขโนดในสกิลทรีของนักบวช' },
       mageCore: { title: '💪 mageCore · กายสู่เวท (Mage)', desc: 'STR แปลงเป็นฟื้น Mana และ M.ATK' },

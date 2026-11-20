@@ -172,7 +172,7 @@ function renderSageTab(
 	const steps = [
 		`1️⃣ ตีปกติ = ฟาด + ร่ายเวทฟรี\nทักษะ 1 "ศาสตราวุธธาตุ" เป็นติดตัว เมื่อตีปกติจะจ่าย Mana ${S.s1Cost} อัตโนมัติ ฟาดแรง +${pct(S.s1InfuseBonus)} และร่าย Auto Spell ฟรีทันที (ไม่เสียเทิร์น)`,
 		`2️⃣ เลือกธาตุหลักตอนลงดัน = พลังเต็ม 100%\nเวทเสริมที่ตรงกับธาตุหลักจะติดบ่อยและแรง 100% ส่วนอีก 2 ธาตุยังช่วยเสริมได้ในระดับ ${pct(offMul)}`,
-		`3️⃣ กด 🗡️ Endow + 🚫 Spell Breaker\nEndow เคลือบธาตุอาวุธ เพิ่มแรงตี/Auto/เวทเสริม +${pct(S.endowAmp)} · Ult ใช้ลบบัฟมอน + ขัดบอสชาร์จ + ขโมย Mana ${S.ultMana + st.j2UltMana}`,
+		`3️⃣ กด 🗡️ Endow + 🚫 Spell Breaker\nEndow เคลือบธาตุอาวุธ เพิ่มแรงตี/Auto/เวทเสริม +${pct(S.endowAmp)} · Ult ใช้ลบบัฟมอน + ขัดบอสร่าย + ขโมย Mana ${S.ultMana + st.j2UltMana}`,
 	];
 	let sy = y + 34;
 	for (const step of steps) {

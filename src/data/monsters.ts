@@ -53,7 +53,7 @@ export interface MonSkill {
   alone?: number // strike: x this when no other monster stands with it
   drain?: number // strike (Q 2026-11-04, hunter): after it lands, drains this share of the hero's current HP as magic damage and heals itself by it
   hits?: number // bolt / strike: this many hits of pow each (strike hits each roll Flee; with `crit` each rolls its own crit)
-  crit?: boolean // bolt / strike: may crit (the monster's crit). Default off: monster skills never crit (CRIT_RULES.monSkill, Q 2026-11-19)
+  crit?: boolean // bolt / strike: may also roll the monster's basic crit (battle-rules monSkillCritRate). Default off: a skill rolls only MonsterDef.skillCrit (0 = never)
   pick?: MonSkill[] // cast a random one of these instead (spell rotation: Mordecus' elements)
   big?: boolean // legendary spell: big callout + screen flash
   scale?: SkillScale | false // v68: stat it scales with (default by kind, mon-stats SKILL_SCALE); false = flat
@@ -130,7 +130,8 @@ export interface MonsterDef {
   phases?: BossPhase[]
   passive?: boolean // event monster that never attacks (เจลล็อปทองคำ: it only runs)
   // ----- v49 combat stats (Q 2026-11-04: monsters get combo / counter / crit like the hero) -----
-  crit?: number // chance a hit / spell crits: x BATTLE.monCritMul and can't be fled (lucky dodge / shield still work)
+  crit?: number // chance a basic hit / combo / counter crits: x BATTLE.monCritMul and can't be fled (lucky dodge / shield still work); skills use skillCrit
+  skillCrit?: number // Q 2026-11-21: chance a SKILL hit (strike / bolt) crits, x BATTLE.monCritMul; default 0 = skills never crit (battle-rules monSkillCritRate)
   combo?: number // after a normal attack: chance to chain another hit, up to BATTLE.comboMax extra (each x BATTLE.monComboMul)
   counter?: number // when the hero's basic attack lands on it: chance to strike back right away (normal hit x BATTLE.monCounterMul)
   // ----- 7 base stats (data/mon-stats.ts). Every dungeon (v126: D1-D5 too): numbers come from the stats at the room's level;
@@ -156,7 +157,7 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
   jellop: { name: 'เจลล็อป', tex: 'jellop', statAlloc: { vit: 5, wis: 3, str: 2 }, hp: 1, dmg: 1, bodyMul: { hp: 0.194, dmg: 0.288, matk: 0.359 }, speedMul: 0.8, def: -3, hit: 2, flee: -1, counter: -0.01, xp: 3, ai: 'hopper', moveSpeed: 250, radius: 15, zeny: [1, 2], idleMs: [500, 1100] },
   minijellop: { name: 'เจลล็อปจิ๋ว', tex: 'jellop', statAlloc: { vit: 5, wis: 3, str: 2 }, hp: 1, dmg: 1, bodyMul: { hp: 0.102, dmg: 0.165, matk: 0.205 }, speedMul: 0.9, def: -3, hit: 2, flee: -1, counter: -0.01, xp: 1, ai: 'hopper', moveSpeed: 300, radius: 11, zeny: [0, 1], idleMs: [350, 800] },
   wolf: { name: 'หมาป่าสีเทา', tex: 'wolf', statAlloc: { agi: 4, dex: 3, luk: 2, str: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.352, dmg: 0.492, matk: 0.563 }, speedMul: 1.281, def: -2, hit: 6, flee: 11, crit: 0.07, xp: 5, ai: 'dasher', moveSpeed: 560, radius: 16, zeny: [2, 3], idleMs: [700, 1300]},
-  king: { name: 'ราชาเจลล็อป', tex: 'king', statAlloc: { vit: 4, str: 3, int: 2, wis: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.437, dmg: 0.415, matk: 0.532 }, speedMul: 0.8, def: -7, flee: -1, crit: 0.06, counter: -0.02, xp: 0, ai: 'boss', moveSpeed: 230, radius: 38, zeny: [15, 20], idleMs: [700, 1000], summon: 'minijellop', slamName: 'ชาร์จพลัง! ทุบตอนนี้เลย', slamMagic: true, slamAnim: 'stomp', slamColor: 0x9fe3ff, charge: true,
+  king: { name: 'ราชาเจลล็อป', tex: 'king', statAlloc: { vit: 4, str: 3, int: 2, wis: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.437, dmg: 0.415, matk: 0.532 }, speedMul: 0.8, def: -7, flee: -1, crit: 0.06, counter: -0.02, xp: 0, ai: 'boss', moveSpeed: 230, radius: 38, zeny: [15, 20], idleMs: [700, 1000], summon: 'minijellop', slamName: 'รวมพลัง! ทุบตอนนี้เลย', slamMagic: true, slamAnim: 'stomp', slamColor: 0x9fe3ff, charge: true,
     phases: [{ at: 0.5, name: 'ร่างเยลลี่ยักษ์! เกราะวุ้น', shield: 0.1 }] }, // boss buff v1
   // ----- Dungeon 2: ป่าหมาป่าเงา. Each monster tests one stat (see design/dungeon-2-and-events.md) -----
   bat: { name: 'ค้างคาวถ้ำ', tex: 'bat', statAlloc: { agi: 4, dex: 3, luk: 2, str: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.224, dmg: 0.384, matk: 0.434 }, speedMul: 1.509, def: -5, hit: 6, flee: 20, crit: -0.01, combo: 0.14, xp: 4, ai: 'dasher', moveSpeed: 500, radius: 12, zeny: [2, 3], idleMs: [500, 900]},
@@ -242,7 +243,7 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
     ],
     phases: [
       { at: 0.7, name: 'โล่กระดูก! สะท้อนดาเมจเบาๆ + ปีศาจระเบิด', shield: 0.1, reflect: 0.06, summon: ['imp', 2] }, // v49: reflect 0.2 -> 0.06
-      { at: 0.35, name: 'พิธีกรรมสุดท้าย! เร็วขึ้น ชาร์จถี่', heal: 0.08, speed: 1.3, dmg: 1.15, chargeEvery: 2, cleanse: true, slamFx: { burn: 3, weaken: 2, silence: 2 }, summon: ['hellknight', 1] },
+      { at: 0.35, name: 'พิธีกรรมสุดท้าย! เร็วขึ้น ร่ายถี่', heal: 0.08, speed: 1.3, dmg: 1.15, chargeEvery: 2, cleanse: true, slamFx: { burn: 3, weaken: 2, silence: 2 }, summon: ['hellknight', 1] },
     ] },
   // ----- event monsters (data/events.ts eventMon scales hp / dmg / def by dungeon tier) -----
   mimic: { name: 'มิมิค', tex: 'mimic', statAlloc: { str: 4, vit: 3, dex: 2, agi: 1 }, hp: 1, dmg: 1, bodyMul: { hp: 0.358, dmg: 0.412, matk: 0.512 }, speedMul: 1.1, def: -3, hit: 14, flee: -1, xp: 2, ai: 'hopper', moveSpeed: 260, radius: 16, zeny: [0, 0], idleMs: [600, 1000]},
@@ -282,7 +283,7 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
     def: 25, crit: 0.1, lifesteal: 0.1, summon: 'mummy', slamName: 'คำพิพากษาสุริยะ! ทรายทองถล่ม', slamMul: 1.7, slamMagic: true, slamFx: { burn: 2, armorBreak: 2 }, slamAnim: 'stomp', slamColor: 0xf2b84b, charge: true,
     skills: [{ kind: 'bolt', every: 3, pow: 1.2, name: '☀️ เปลวสุริยะ', fx: { burn: 1 } }, { kind: 'curse', every: 5, name: 'คำสาปสุสาน', fx: { weaken: 3, poison: 2 } }, { kind: 'revive', every: 4, pow: 0.5, name: 'ปลุกองครักษ์' }],
     phases: [{ at: 0.6, name: 'ตื่นจากโลง! โล่ทรายทอง + มัมมี่องครักษ์', shield: 0.12, summon: ['mummy', 2] },
-      { at: 0.3, name: 'สุริยคราส! เร็วขึ้น ชาร์จถี่', speed: 1.25, dmg: 1.15, chargeEvery: 2, cleanse: true, slamFx: { burn: 3, armorBreak: 3, silence: 1 } }] },
+      { at: 0.3, name: 'สุริยคราส! เร็วขึ้น ร่ายถี่', speed: 1.25, dmg: 1.15, chargeEvery: 2, cleanse: true, slamFx: { burn: 3, armorBreak: 3, silence: 1 } }] },
   // ----- D7-D13 (v78+): one pack per dungeon, data/dungeons/dN.ts -----
   ...Object.assign({}, ...PACKS.map((p) => p.monsters)) as Record<D7Kind | D8Kind | D9Kind | D10Kind | D11Kind | D12Kind | D13Kind | D14Kind, MonsterDef>,
 }
