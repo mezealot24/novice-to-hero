@@ -144,6 +144,23 @@ export function dataFingerprint(): string {
 export const looksLikeStaleBuild = (skipped: readonly { reason?: unknown }[]) =>
   skipped.length > 0 && skipped.every((s) => s.reason === 'missing' || s.reason === 'unknown')
 
+/** Drop entries this build can never apply (skip reason missing / unknown / guard / table: the code renamed or removed
+ *  them, e.g. battle.monBuff.hp.* after v126, kit2.rogue.mastery.crit after the Thief rework). A server on this build
+ *  rejects any draft holding one, and the editor seeds its draft from live, so a stale path would block every save.
+ *  Range / type errors stay (the admin must see and fix those). Returns a new patch; the input is untouched. */
+export function pruneUnappliable(patch: Patch): { patch: Patch; dropped: Skip[] } {
+  const { skipped } = walk(patch, guardsFor(patch))
+  const drop = skipped.filter((s) => s.reason !== 'type')
+  if (!drop.length) return { patch, dropped: [] }
+  const gone = new Set(drop.map((s) => `${s.table}\u0000${s.path}`))
+  const out: Record<string, Record<string, number>> = {}
+  for (const [t, rows] of Object.entries(patch)) {
+    const kept = Object.entries(rows ?? {}).filter(([p]) => !gone.has(`${t}\u0000${p}`))
+    if (kept.length) out[t] = Object.fromEntries(kept)
+  }
+  return { patch: out as Patch, dropped: drop }
+}
+
 /** Validate without writing anything. */
 export function checkPatch(patch: unknown, guards?: unknown): CheckResult {
   const { errors, skipped, entries } = walk(patch, guards)

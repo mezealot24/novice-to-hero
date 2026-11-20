@@ -31,3 +31,36 @@ test('dataFingerprint changes when a monster id is added (server older than the 
   try { assert.notEqual(dataFingerprint(), before) } finally { delete m.zz_probe }
   assert.equal(dataFingerprint(), before)
 })
+
+test('pruneUnappliable drops paths the code removed (old live / draft) and keeps fixable ones', async () => {
+  const { pruneUnappliable } = await import('../src/data/patch')
+  const patch = {
+    monsters: { 'protozero.bodyMul.hp': 1.8, 'zz_gone_monster.bodyMul.hp': 2, 'jellop.notAField': 3, 'jellop.xp': -5 },
+    battle: { 'monBuff.hp.0': 1.2 }, // removed in v126 (baked into bodyMul)
+  } as unknown as Parameters<typeof pruneUnappliable>[0]
+  const before = JSON.stringify(patch)
+  const { patch: out, dropped } = pruneUnappliable(patch)
+  assert.equal(JSON.stringify(patch), before, 'input untouched')
+  assert.deepEqual(dropped.map((d) => `${d.table}.${d.path}`).sort(), ['battle.monBuff.hp.0', 'monsters.jellop.notAField', 'monsters.zz_gone_monster.bodyMul.hp'])
+  assert.deepEqual(out, { monsters: { 'protozero.bodyMul.hp': 1.8, 'jellop.xp': -5 } }) // the range error stays for the admin to fix
+  const clean = checkPatch(out)
+  assert.deepEqual(clean.skipped, [])
+  assert.equal(clean.errors.length, 1)
+})
+
+test('every field the editor lists (all monsters, all tables) validates on this build', async () => {
+  const { listFields, guardsFor } = await import('../src/data/patch')
+  const { TABLE_IDS } = await import('../src/data/tunables')
+  let n = 0
+  for (const t of TABLE_IDS) {
+    const rows = listFields(t)
+    for (let i = 0; i < rows.length; i += 2000) {
+      const sub = { [t]: Object.fromEntries(rows.slice(i, i + 2000).map((r) => [r.path, r.value ?? Math.max(r.def.min, Math.min(r.def.max, Math.ceil(r.def.min)))])) } as Parameters<typeof guardsFor>[0]
+      const res = checkPatch(sub, guardsFor(sub))
+      assert.deepEqual(res.errors, [], t)
+      assert.deepEqual(res.skipped, [], t)
+      n += res.count
+    }
+  }
+  assert.ok(n > 1000, `checked ${n}`)
+})

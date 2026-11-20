@@ -5,7 +5,7 @@ import { JOBS } from '../data/jobs'
 import { JOB2, type Job2Id } from '../data/jobs2'
 import type { BaseStat } from '../data/meta'
 import { MON_STAT, monPoints, monTier, statNative } from '../data/mon-stats'
-import { canonicalJson, checkPatch, dataFingerprint, guardsFor, type FieldRow } from '../data/patch'
+import { canonicalJson, checkPatch, dataFingerprint, guardsFor, pruneUnappliable, type FieldRow, type Skip } from '../data/patch'
 import { SKILL2 } from '../data/skill2'
 import { CRIT_SLOTS, critRef, JOB2_IDS, job2Layout, SKILL_CLASSES, SKILL_LAYOUT, type SkillClass, type SkillRef } from '../data/skill-registry'
 import { type Patch, type TableId } from '../data/tunables'
@@ -119,6 +119,7 @@ const S = {
   bulkOp: 'pct' as BulkOp,
   bulkArg: '10',
   busy: false,
+  pruned: [] as Skip[], // paths dropped from the loaded draft because this build no longer has them (see adopt)
 }
 const livePatch = (): Patch => S.live?.patch ?? {}
 const dirty = () => canonicalJson(S.draft) !== S.saved
@@ -130,8 +131,11 @@ const pending = () => diffPatches(livePatch(), S.draft)
 function adopt(draftRow: SRow | null, live: SRow | null) {
   S.draftRow = draftRow
   S.live = live
-  S.draft = clonePatch(draftRow?.patch ?? live?.patch ?? {})
-  S.saved = canonicalJson(draftRow?.patch ?? live?.patch ?? {})
+  const loaded = draftRow?.patch ?? live?.patch ?? {}
+  const { patch, dropped } = pruneUnappliable(clonePatch(loaded))
+  S.draft = patch
+  S.pruned = dropped
+  S.saved = canonicalJson(loaded) // dropped paths leave the draft dirty: the next save writes the cleaned patch
 }
 
 // ---------- boot / auth ----------
@@ -196,7 +200,7 @@ function updateStatus() {
   const live = S.live ? `Live #${S.live.id} (${S.live.entries} ช่อง, ${when(S.live.publishedAt)})` : 'Live: ปิด (ใช้ค่า default ของ build)'
   const draft = S.draftRow ? `Draft #${S.draftRow.id}` : 'ยังไม่มี draft บนเซิร์ฟเวอร์'
   const n = pending().length
-  el.textContent = `${live} · ${draft} · ต่างจาก live ${n} ช่อง${dirty() ? ' · ⚠️ ยังไม่บันทึก' : ''}`
+  el.textContent = `${live} · ${draft} · ต่างจาก live ${n} ช่อง${S.pruned.length ? ` · 🧹 ตัดช่องเก่า ${S.pruned.length} (ดูแท็บสรุป)` : ''}${dirty() ? ' · ⚠️ ยังไม่บันทึก' : ''}`
   el.classList.toggle('warn', dirty())
 }
 
@@ -1463,6 +1467,7 @@ function renderDiff(main: HTMLElement) {
     h('h2', {}, `📝 สรุปการแก้เทียบกับ live · ${rows.length} ช่อง`),
     h('p', { class: 'muted' }, `patch ทั้งหมด ${patchSize(S.draft)} ช่อง (ค่าที่ต่างจาก default) · ตรวจแล้ว: ${check.ok && !check.skipped.length ? '✅ ผ่าน' : 'มีปัญหา'}`),
     ...(problems.length ? [h('ul', { class: 'problems' }, ...problems.slice(0, 50).map((p) => h('li', {}, p)))] : []),
+    ...(S.pruned.length ? [h('p', { class: 'warn small', title: S.pruned.map((x) => `${x.table}.${x.path} (${x.reason})`).join('\n') }, `🧹 ตัด ${S.pruned.length} ช่องที่เกมเวอร์ชันนี้ไม่มีแล้วออกจาก draft (เช่น ${S.pruned.slice(0, 3).map((x) => `${x.table}.${x.path}`).join(', ')}) · กดบันทึกเพื่อเก็บ`)] : []),
     diffTable(rows, 'live', 'draft', (t, path) => { setIn(S.draft, t, path, valueIn(livePatch(), t, path) ?? null); updateStatus(); renderTab() }),
     h('div', { class: 'row' },
       h('button', { type: 'button', disabled: S.offline, onclick: () => { void saveDraft() } }, '💾 บันทึก draft'),
