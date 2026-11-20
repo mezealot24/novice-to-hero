@@ -39,11 +39,23 @@ import {
 } from "../../ui";
 import type { CharacterScene } from "../CharacterScene";
 import { clip } from "./node-detail";
+import { jewelWorkshop } from "./jewel-ui";
 
 // ---------- tab 2: equipment cards ----------
 export function cardTab(scene: CharacterScene) {
 	const s = save(),
 		b = scene.body!;
+	if (scene.cardJewel) {
+		b.add(txt(scene, 330, 112, "💎 Jewel · การ์ด 3 ใบ = 1 เม็ด · ใส่ในช่อง Jewel หน้าพาสซีฟ", 12, UI.sub));
+		b.add(
+			button(scene, 880, 120, 128, 26, "‹ กลับไปการ์ด", () => {
+				scene.cardJewel = false;
+				scene.render();
+			}, { size: 12, fill: 0x5a5f8a, color: UI.text }),
+		);
+		jewelWorkshop(scene, scene.jewelWs, 144);
+		return;
+	}
 	EQUIP_SLOTS.forEach((sl, i) => {
 		const it = itemById(s.equipped[sl.id]),
 			n = slotCount(it, gradeOf(s, it.id)),
@@ -101,19 +113,25 @@ export function cardTab(scene: CharacterScene) {
 		}
 	});
 	b.add(
+		button(scene, 912, 306, 64, 30, "💎 Jewel", () => {
+			scene.cardJewel = true;
+			scene.render();
+		}, { size: 12, fill: 0x3c6aa0, color: UI.text }),
+	);
+	b.add(
 		button(
 			scene,
-			860,
+			826,
 			306,
-			168,
+			100,
 			30,
-			scene.cardBook ? "🎒 การ์ดในกระเป๋า" : "📖 สมุดการ์ด",
+			scene.cardBook ? "🎒 กระเป๋า" : "📖 สมุดการ์ด",
 			() => {
 				scene.cardBook = !scene.cardBook;
 				scene.cardPage = 0;
 				scene.render();
 			},
-			{ size: 14, fill: 0x5a5f8a, color: UI.text },
+			{ size: 12, fill: 0x5a5f8a, color: UI.text },
 		),
 	);
 	if (scene.cardBook) cardBookView(scene);

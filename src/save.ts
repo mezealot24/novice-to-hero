@@ -14,6 +14,7 @@ import {
 	type Job3Variant,
 } from "./data/jobs3";
 import type { RefineLine } from "./data/craft";
+import type { Jewel } from "./data/jewels";
 import type { TaintRec } from "./data/taint";
 import type { ModeRecord } from "./data/modes";
 import type { RiftActiveRunState } from "./data/rift";
@@ -104,6 +105,9 @@ export interface SaveData {
 	sockets?: Record<string, string[]>; // item id -> card ids slotted in it
 	cardPity?: Record<string, number>; // kills of that card's monster since its last drop
 	cardSeen?: string[]; // card book: every card ever found
+	jewels?: Jewel[]; // 💎 jewels made from cards (data/jewels.ts, Q 2026-11-20)
+	jewelSock?: Record<string, string>; // passive socket node id -> jewel id
+	jewelSeq?: number; // last jewel id number
 	mats?: Record<string, number>; // forge materials by id (data/materials.ts)
 	grade?: Record<string, number>; // item id -> forge grade 2..5 (missing = 1, data/craft.ts)
 	refine?: Record<string, number>; // item id -> refine +1..+10 (missing = +0, data/refine.ts)

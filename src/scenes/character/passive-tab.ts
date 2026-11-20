@@ -30,6 +30,7 @@ import { sfx, unlock } from "../../sfx";
 import { button, confirm, panel, toast, txt, UI } from "../../ui";
 import type { CharacterScene } from "../CharacterScene";
 import { clipW } from "./node-detail";
+import { jewelLinesText, jewelName, openJewelPicker } from "./jewel-ui";
 import {
 	DEFAULT_NODE_RADIUS,
 	PASSIVE_CAM_DEFAULTS,
@@ -1332,6 +1333,16 @@ function renderPassiveDetail(scene: CharacterScene, tree: PassiveTreeDef, previe
 				boxBorder: 0xc95a66,
 			});
 		}
+	} else if (node.kind === "socket") {
+		const jw = s.jewels?.find((j) => j.id === s.jewelSock?.[node.id]);
+		sections.push({
+			head: jw ? jewelName(jw) : "💎 ช่องนี้ยังว่าง",
+			headCol: jw ? "#7fd7ff" : UI.sub,
+			body: jw
+				? `${jewelLinesText(jw)}${allocated ? "" : "\n(อัปโหนดนี้ก่อน ค่าถึงจะทำงาน)"}`
+				: node.desc(ctx),
+			bodyCol: jw ? UI.green : UI.text,
+		});
 	} else {
 		sections.push({
 			head: "📖 ผลของโหนด",
@@ -1354,7 +1365,8 @@ function renderPassiveDetail(scene: CharacterScene, tree: PassiveTreeDef, previe
 	let size = 13;
 	let made: Phaser.GameObjects.GameObject[] = [];
 	const bodyTop = top + 70;
-	const maxBottom = numTop - 8;
+	const jewelBtnY = Math.min(btnY - 48, numTop - 24); // 💎 socket nodes: "เลือก Jewel" sits above the stat preview / bottom buttons
+	const maxBottom = node.kind === "socket" ? Math.min(numTop, jewelBtnY - 18) - 8 : numTop - 8;
 
 	for (; ; size -= 0.5) {
 		made.forEach((m) => m.destroy());
@@ -1390,6 +1402,20 @@ function renderPassiveDetail(scene: CharacterScene, tree: PassiveTreeDef, previe
 		if (ty <= maxBottom || size <= 9.5) break;
 	}
 	dc.add(made);
+
+	if (node.kind === "socket")
+		dc.add(
+			button(
+				scene,
+				x + w / 2,
+				jewelBtnY,
+				w,
+				34,
+				s.jewelSock?.[node.id] ? "💎 เปลี่ยน / ถอด Jewel" : "💎 ใส่ Jewel",
+				() => openJewelPicker(scene, node.id, () => scene.render()),
+				{ size: 13, fill: 0x3c6aa0, color: UI.text },
+			),
+		);
 
 	// Bottom action buttons: Focus + Allocate/Refund
 	dc.add(

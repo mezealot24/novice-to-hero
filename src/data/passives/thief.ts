@@ -1,5 +1,6 @@
 // 🗡️ Thief-Line PoE Passive Constellation (Phase 1 Pilot: Thief / Rogue / Mobster / Stalker / Kingpin).
-// 67 nodes: 1 origin + 38 minors + 22 notables + 6 keystones across 4 sectors + Inner Ring Highway + 4 Outer Bridges + 4 Outer Wheels.
+// 71 nodes: 1 origin + 38 minors + 22 notables + 6 keystones across 4 sectors + Inner Ring Highway + 4 Outer Bridges + 4 Outer Wheels
+// + 4 💎 jewel sockets (one past each bridge).
 // Node IDs are save data (`SaveData.passiveNodes`): never rename or remove a shipped ID.
 // Does NOT duplicate Stalker Preserve (Mark Cap +2) or Stalker Ambush (wave-start knives).
 import type { PassiveCtx, PassiveNode, PassiveTreeDef } from '../passive-tree'
@@ -1024,6 +1025,63 @@ const NODES: readonly PassiveNode[] = [
     desc: () => 'M.ATK +18 · ฮีลแรงขึ้น +15% · HP สูงสุด +110 · กันเวท +6%',
     mod: () => ({ matk: 18, healAmp: 0.15, maxHp: 110, mdef: 0.06 }),
     tags: ['offmeta'],
+  },
+  // ========== 💎 JEWEL SOCKETS (Q 2026-11-20, data/jewels.ts): 1 per outer bridge. The jewel's lines are the stats. ==========
+  {
+    id: 'th_sock_n',
+    job: 'thief',
+    kind: 'socket',
+    sector: 'blade',
+    x: 0,
+    y: -300,
+    edges: ['th_m_bridge_n'],
+    icon: '💎',
+    name: 'ช่อง Jewel เหนือ (คมมีด)',
+    desc: () => 'ใส่ Jewel 1 เม็ด: ได้ค่าทุกบรรทัดของ Jewel (สร้าง Jewel จากการ์ดที่แท็บการ์ด)',
+    mod: () => ({}),
+    tags: ['jewel'],
+  },
+  {
+    id: 'th_sock_e',
+    job: 'thief',
+    kind: 'socket',
+    sector: 'shadow',
+    x: 400,
+    y: 0,
+    edges: ['th_m_bridge_e'],
+    icon: '💎',
+    name: 'ช่อง Jewel ตะวันออก (เงา)',
+    desc: () => 'ใส่ Jewel 1 เม็ด: ได้ค่าทุกบรรทัดของ Jewel (สร้าง Jewel จากการ์ดที่แท็บการ์ด)',
+    mod: () => ({}),
+    tags: ['jewel'],
+  },
+  {
+    id: 'th_sock_s',
+    job: 'thief',
+    kind: 'socket',
+    sector: 'venom',
+    x: 0,
+    y: 305,
+    edges: ['th_m_bridge_s'],
+    icon: '💎',
+    name: 'ช่อง Jewel ใต้ (พิษ)',
+    desc: () => 'ใส่ Jewel 1 เม็ด: ได้ค่าทุกบรรทัดของ Jewel (สร้าง Jewel จากการ์ดที่แท็บการ์ด)',
+    mod: () => ({}),
+    tags: ['jewel'],
+  },
+  {
+    id: 'th_sock_w',
+    job: 'thief',
+    kind: 'socket',
+    sector: 'alchemy',
+    x: -400,
+    y: 0,
+    edges: ['th_m_bridge_w'],
+    icon: '💎',
+    name: 'ช่อง Jewel ตะวันตก (เล่นแร่)',
+    desc: () => 'ใส่ Jewel 1 เม็ด: ได้ค่าทุกบรรทัดของ Jewel (สร้าง Jewel จากการ์ดที่แท็บการ์ด)',
+    mod: () => ({}),
+    tags: ['jewel'],
   },
 ]
 

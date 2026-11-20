@@ -37,6 +37,7 @@ import {
 	passivePointerUp,
 	passiveWheel,
 } from "./character/passive-tab";
+import { newJewelWs, type JewelWs } from "./character/jewel-ui";
 import type { CardSeenFilter, CardSlotFilter, CardTierFilter } from "../data/cards";
 import {
 	scrollToWebY,
@@ -61,6 +62,8 @@ export class CharacterScene extends Phaser.Scene {
 	cardSlotF: CardSlotFilter = "all"; // card bag + book filters (Q 2026-11-20)
 	cardTierF: CardTierFilter = "all";
 	bookSeenF: CardSeenFilter = "all";
+	cardJewel = false; // 💎 jewel workshop view of the card tab (Q 2026-11-20)
+	jewelWs: JewelWs = newJewelWs();
 	skillBasic = false; // skill tab: false = unified 3-class skill web, true = Novice skills + certificates + job
 	private _selNode = "";
 	selPet?: PetId; // Beastmaster Tier 2 pet partner dossier selected/hovered for the left sidebar
