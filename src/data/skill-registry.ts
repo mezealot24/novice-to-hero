@@ -71,7 +71,8 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
       s2('sw_blood', ...lin('bloodVamp', 'ดูดเลือดสกิล'), sk('s2n.bloodTurns', 'นาน (เทิร์น)', int(0, 20)), sk('s2n.bloodAtk', 'ATK เพิ่ม', FRAC)),
       s2('sw_taunt', ...lin('tauntWeak', 'มอนตีเบาลง')),
     ],
-    ult: [sk('sword.ult', 'ค่า Mana', COST), sk('job.swordsman.ult.cd', 'คูลดาวน์ (เทิร์น)', CD), sk('sword.ultMul', 'ดาเมจ × P.ATK (ทุกตัว)', MUL), sk('sword.ultShield', 'โล่ % HP สูงสุด', FRAC)],
+    ult: [sk('sword.ult', 'ค่า Mana', COST), sk('job.swordsman.ult.cd', 'คูลดาวน์ (เทิร์น)', CD), sk('sword.ultMul', 'ดาเมจ × P.ATK (ทุกตัว)', MUL), sk('sword.ultShield', 'โล่ % HP สูงสุด', FRAC),
+      sk('sword.execMax', '⚖️ คำพิพากษา: แรงเพิ่มสูงสุด (HP หาย 100%)', num(0, 5)), sk('sword.execLow', '⚖️ เส้น HP ต่ำ (สัดส่วน HP)', FRAC), sk('sword.execLowAdd', '⚖️ แรงเพิ่มใต้เส้น HP ต่ำ', num(0, 5)), sk('sword.execBigShare', '⚖️ บอส/มินิ ได้สัดส่วนโบนัส', FRAC)],
   },
   archer: {
     s1: [sk('job.archer.auto.cost', 'ค่า Energy', COST), kit('archerAuto', 'ดาเมจต่อดอก ×'), kit('archerAutoShots', 'จำนวนดอก'), kit('archerVolleyShots', 'จำนวนดอก (ศรสาด)')],

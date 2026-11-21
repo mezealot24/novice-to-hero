@@ -194,6 +194,10 @@ export function explainSkillTable(path: string, defaultLabel?: string): FieldExp
     'sword.ult': { label: defaultLabel ?? 'Swordsman · ค่าร่าย Mana Ult ผ่าสวรรค์', effect: '⚠️ ลดเลข = ใช้ Mana กด Ult น้อยลง (ซิงค์เข้า jobs)' },
     'sword.ultMul': { label: defaultLabel ?? 'Swordsman · Ult ผ่าสวรรค์ × P.ATK', effect: 'เพิ่ม = Ult ฟันหมู่ของนักดาบและคลาสต่อยอดแรงขึ้น' },
     'sword.ultShield': { label: defaultLabel ?? 'Swordsman · Ult โล่ (% Max HP)', effect: 'เพิ่ม = กด Ult แล้วได้โล่กันดาเมจหนาขึ้น (0.15 = 15% Max HP)' },
+    'sword.execMax': { label: defaultLabel ?? 'Swordsman · ⚖️ คำพิพากษา แรงเพิ่มสูงสุด', effect: 'เพิ่ม = Ult สายนักดาบ (ทุกขั้น) ยิ่งเป้า HP หายมากยิ่งแรง (0.5 = HP หมด +50%, HP หาย 60% = +30%)' },
+    'sword.execLow': { label: defaultLabel ?? 'Swordsman · ⚖️ เส้น HP ต่ำ', effect: 'เพิ่ม = โบนัสใต้เส้นเริ่มเร็วขึ้น (0.3 = เป้าเหลือ HP < 30%)' },
+    'sword.execLowAdd': { label: defaultLabel ?? 'Swordsman · ⚖️ แรงเพิ่มใต้เส้น HP ต่ำ', effect: 'เพิ่ม = Ult สายนักดาบปิดงานเป้าเลือดน้อยแรงขึ้น (0.4 = +40% บวกกับโบนัส HP หาย)' },
+    'sword.execBigShare': { label: defaultLabel ?? 'Swordsman · ⚖️ บอส/มินิ ได้สัดส่วนโบนัส', effect: 'เพิ่ม = execute แรงกับบอส/มินิมากขึ้น (0.5 = ได้ครึ่งเดียว, 1 = เต็มเหมือนมอนปกติ)' },
     'mage.barrier': { label: defaultLabel ?? 'Mage · บาเรียเมื่อปล่อย Ult (× M.ATK)', effect: 'เพิ่ม = หลังปล่อยเวทใหญ่ของ Mage/Wizard จะได้โล่หนากันตัวตามค่า M.ATK' },
   }
   if (staticSkills[path]) return staticSkills[path]

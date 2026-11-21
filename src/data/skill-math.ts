@@ -5,7 +5,7 @@
 // (LoL feel: physical builds still get something from magic procs). Heals and shields stay on M.ATK.
 import { BATTLE, PLAYER, type MonsterKind, type Stats } from './game-data'
 import { CRIT_RULES } from './battle-rules'
-import { CLERIC_KIT, JOBS, MAGE_SPELL, SPELL_VAMP, SWORD_MANA, type JobDef, type JobId } from './jobs'
+import { CLERIC_KIT, JOBS, MAGE_SPELL, SPELL_VAMP, SWORD_MANA, swordExecMul, type JobDef, type JobId } from './jobs'
 import type { Skill2Def } from './skill2'
 import { PACKS } from './dungeons'
 import { STAT_RULES } from './meta/stat-spec'
@@ -914,6 +914,10 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
     case 'swordsman':
       out.push({ label: 'ดาเมจ/ตัว (ทุกตัว)', value: hitText(st, (SWORD_MANA.ultMul + st.ultMulAdd) * hitPow * (1 + st.pskill), false) })
       out.push({ label: 'โล่', value: `${shield(st, st.maxHp * Math.max(0, SWORD_MANA.ultShield + st.ultShieldAdd) * pow)}` })
+      { // ⚖️ คำพิพากษา (every Swordsman-line ult): show the multiplier at a few target HP shares
+        const x = (f: number, big: boolean) => `×${swordExecMul(f, big).toFixed(2)}`, lo = SWORD_MANA.execLow - 0.01
+        out.push({ label: '⚖️ คำพิพากษา (ทุก Ult สายนักดาบ)', value: `เป้า HP 50% ${x(0.5, false)} · HP ${Math.round(lo * 100)}% ${x(lo, false)} · HP 10% ${x(0.1, false)} · บอส/มินิ HP 10% ${x(0.1, true)}` })
+      }
       break
     case 'archer':
       out.push({ label: 'ศรทะลวง (เป้าเดียว)', value: hitText(st, (KIT.archerUlt - st.arUltMulCut) * hitPow, false) })

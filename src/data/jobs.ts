@@ -38,6 +38,20 @@ export const SWORD_MANA = {
   autoMul: 1.25, // ฟันพายุ x P.ATK (1.3 before the class rebalance 2026-11-03, 1.15 in v40, 1.25 after the lifesteal cut 2026-11-04)
   ultMul: 1.2, // ดาบพิทักษ์ x P.ATK (1.4 until the class rebalance)
   ultShield: 0.2, // ดาบพิทักษ์ shield, share of max HP (reworked 0.15 -> 0.20 so pumping VIT translates into a meaningful barrier)
+  // ⚖️ คำพิพากษา (Q 2026-11-21, execute-style ult): every Swordsman-line ult hit (job1/2/3) deals more the more HP the target is missing,
+  // plus a flat bonus under the low line. A multiplier on our P.ATK hit (not % of the monster's HP), so the x4/x10 boss HP of PR #160 can't blow it up;
+  // bosses / minis still take only bigShare of the bonus.
+  execMax: 0.5, // + damage at 100% missing HP (linear: 60% missing = +30%)
+  execLow: 0.3, // under this HP share ...
+  execLowAdd: 0.4, // ... + this on top
+  execBigShare: 0.5, // boss / mini: share of the bonus they take
+}
+
+/** ⚖️ คำพิพากษา: damage multiplier of a Swordsman-line ult hit on a target at hpFrac (0..1) of its max HP. */
+export function swordExecMul(hpFrac: number, big: boolean): number {
+  const S = SWORD_MANA, f = Math.min(1, Math.max(0, Number.isFinite(hpFrac) ? hpFrac : 1))
+  const bonus = (1 - f) * S.execMax + (f < S.execLow ? S.execLowAdd : 0)
+  return 1 + bonus * (big ? S.execBigShare : 1)
 }
 
 /** Cleric kit numbers (class rebalance 2026-11-03: was heal 22%, ult shield 35% + heal 15%; gear/cards should make up the gap).
@@ -51,6 +65,10 @@ export const CLERIC_KIT = { heal: 0.7, smite: 1.4, basic: 1.1, ultAtk: 1.5, ultL
 /** Spell vamp (Q 2026-11-04): skill lifesteal, its own stat. AoE skills heal 1/3; Skill 2 เลือดเดือด trades skill damage for it. */
 export const SPELL_VAMP = { aoe: 1 / 3, bloodCut: 0.15 }
 
+const pc0 = (n: number) => `${Math.round(n * 100)}%`
+/** One line for every Swordsman-line ult desc (job1 here, Knight / Berserker in jobs2.ts). */
+export const SWORD_EXEC_DESC = `⚖️ คำพิพากษา: ยิ่งเป้า HP หายมากยิ่งแรง (สูงสุด +${pc0(SWORD_MANA.execMax)}) · HP < ${pc0(SWORD_MANA.execLow)} แรงอีก +${pc0(SWORD_MANA.execLowAdd)} · บอส/มินิ ได้ ${pc0(SWORD_MANA.execBigShare)} ของโบนัส`
+
 export const JOBS: Record<JobId, JobDef> = {
   novice: {
     id: 'novice', name: 'โนวิส', icon: '🌱', tex: 'novice', blurb: 'มือใหม่ ทำได้ทุกอย่างนิดหน่อย', focus: 'อะไรก็ได้',
@@ -61,7 +79,7 @@ export const JOBS: Record<JobId, JobDef> = {
     id: 'swordsman', name: 'นักดาบ', icon: '⚔️', tex: 'hero_swordsman', blurb: 'ยืนหน้า ถึก ฟันโดนหลายตัว · Mana น้อย: สกิลออกได้จำกัด ดาเมจหลักมาจากฟันธรรมดา + สวนกลับ', focus: 'STR · VIT',
     resource: 'mana', attack: 'melee', tags: ['guard', 'blood'], mod: { maxHp: 25, def: 3, counter: 0.02 }, // HP/DEF partly back 2026-11-04 after the lifesteal cut
     auto: { name: 'ฟันพายุ', icon: '🌪️', cost: SWORD_MANA.auto, desc: `Mana ${SWORD_MANA.auto}: ฟันมอนทุกตัว ${SWORD_MANA.autoMul}x P.ATK` },
-    ult: { name: 'ดาบพิทักษ์', icon: '🛡️', cd: 4, cost: SWORD_MANA.ult, desc: `Mana ${SWORD_MANA.ult}: ฟันมอนทุกตัว ${SWORD_MANA.ultMul}x + โล่ ${SWORD_MANA.ultShield * 100}% ของ HP สูงสุด` },
+    ult: { name: 'ดาบพิทักษ์', icon: '🛡️', cd: 4, cost: SWORD_MANA.ult, desc: `Mana ${SWORD_MANA.ult}: ฟันมอนทุกตัว ${SWORD_MANA.ultMul}x + โล่ ${SWORD_MANA.ultShield * 100}% ของ HP สูงสุด · ${SWORD_EXEC_DESC}` },
   },
   archer: {
     id: 'archer', name: 'นักธนู', icon: '🏹', tex: 'hero_archer', blurb: 'ยิงจากไกล แม่น เร็ว ATK โตตาม DEX · หลบแล้วได้โล่ (สายพริ้วไหว)', focus: 'DEX · AGI',

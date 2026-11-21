@@ -4,7 +4,7 @@
 //   signature passive · ทักษะ 3 (casts itself, like ทักษะ 2) · Ult วิวัฒน์ (replaces the base ult) · ใยชั้น 2 (data/trees2/)
 // Job2 Lv 1..50 has its own web points (job2Points). Numbers live in skill-math.ts KIT2.
 import type { Resource, Stats } from './game-data'
-import type { JobId, JobSkill } from './jobs'
+import { SWORD_EXEC_DESC, type JobId, type JobSkill } from './jobs'
 import { KIT, KIT2 } from './skill-math'
 
 export type Job2Id = 'berserker' | 'knight' | 'rogue' | 'mobster' | 'crusader' | 'monk' | 'wizard' | 'sage' | 'beastmaster' | 'innovator' // Phase 1 Swordsman · 2 Thief · 3 Priest · 4 Archer · 5 Mage
@@ -45,7 +45,7 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     mastery: { weapon: 'อาวุธ 2 มือ', ok: (it) => !!it.twoHand, mod: { crit: B.mastery.crit }, pct: { atk: B.mastery.atkPct } },
     signature: { name: 'คลั่งเลือด', icon: '🔥', desc: `คริ 1 ครั้ง = Frenzy +1 (สูงสุด ${B.frenzyMax}): ความเร็ว +${pc(B.frenzyAspd)} · ดาเมจคริ +${pc(B.frenzyCritDmg)} ต่อ stack · ไม่คริ ${B.frenzyKeep} เทิร์นติด stack หาย` },
     skill3: { name: 'คลื่นดาบ', icon: '🌊', cost: B.waveCost, cd: B.waveCd, desc: `Rage ${B.waveCost} · คูลดาวน์ ${B.waveCd}: คลื่นพุ่งทะลุแถว ตัวหน้า ${B.waveFront}x ตัวหลัง ${B.waveBack}x P.ATK · คริ +${pc(B.waveCrit)} (ไม่ใช่อาวุธ 2 มือ แรง ${pc(B.waveOffWeapon)})` },
-    ult: { name: 'บ้าระห่ำ', icon: '👹', cd: 4, desc: `ฟันทุกตัว ${B.ultMul}x แล้ว ${B.ultTurns} เทิร์น: ตีธรรมดาเป็น 2 ฮิต · คริ +${pc(B.ultCrit)} · ดาเมจเข้า +${pc(B.ultTaken)}` },
+    ult: { name: 'บ้าระห่ำ', icon: '👹', cd: 4, desc: `ฟันทุกตัว ${B.ultMul}x แล้ว ${B.ultTurns} เทิร์น: ตีธรรมดาเป็น 2 ฮิต · คริ +${pc(B.ultCrit)} · ดาเมจเข้า +${pc(B.ultTaken)} · ${SWORD_EXEC_DESC}` },
   },
   knight: {
     id: 'knight', parent: 'swordsman', name: 'อัศวิน', icon: '🐴', focus: 'STR · VIT',
@@ -54,7 +54,7 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     mastery: { weapon: 'หอก', ok: (it) => it.wtype === 'spear', mod: { hit: K.mastery.hit }, pct: { atk: K.mastery.atkPct } },
     signature: { name: 'ขี่เปโก', icon: '🐦', desc: `HP สูงสุด +${pc(K.hpPct)} · ความเร็ว +${pc(K.aspdPct)} · ถึกเป็นแรง: ฟันพายุ / Brandish / Pierce บวกดาเมจ ${pc(K.hpDmg)} ของ HP สูงสุด` },
     skill3: { name: 'Brandish Spear', icon: '🌀', cost: K.brandCost, cd: K.brandCd, desc: `Mana ${K.brandCost} · คูลดาวน์ ${K.brandCd}: กวาดหอก ${K.brandTargets} ตัวหน้า ${K.brandMul}x P.ATK + ${pc(K.hpDmg)} HP สูงสุด · ผลักตัวหน้าถอย` },
-    ult: { name: 'Pierce + Bowling Bash', icon: '🎯', cd: 4, cost: 25, desc: `Mana 25: แทงเป้าเดียว ${K.pierceHits} ฮิต (บอส/มินิ ${K.pierceBigHits}) ฮิตละ ${K.pierceMul}x + HP สูงสุด แล้วกระแทกตัวถัดไป ${K.bashMul}x · โล่แบบดาบพิทักษ์` },
+    ult: { name: 'Pierce + Bowling Bash', icon: '🎯', cd: 4, cost: 25, desc: `Mana 25: แทงเป้าเดียว ${K.pierceHits} ฮิต (บอส/มินิ ${K.pierceBigHits}) ฮิตละ ${K.pierceMul}x + HP สูงสุด แล้วกระแทกตัวถัดไป ${K.bashMul}x · โล่แบบดาบพิทักษ์ · ${SWORD_EXEC_DESC}` },
   },
   rogue: {
     id: 'rogue', parent: 'thief', name: 'โร้ก', icon: '🔪', focus: 'AGI · STR · LUK',
