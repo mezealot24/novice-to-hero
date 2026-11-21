@@ -206,6 +206,8 @@ export function explainSkillTable(path: string, defaultLabel?: string): FieldExp
     'sword.awakenTurns': { label: defaultLabel ?? 'Swordsman · ⚔️ ปลุกดาบ นาน (เทิร์น)', effect: 'เพิ่ม = บัฟหลังกด Ult อยู่นานขึ้น และคลื่นดาบรอจังหวะได้นานขึ้น' },
     'sword.awakenAtk': { label: defaultLabel ?? 'Swordsman · ⚔️ ปลุกดาบ P.ATK เพิ่ม', effect: 'เพิ่ม = ระหว่างปลุกดาบ ตีกายภาพทุกอย่างแรงขึ้น (0.2 = +20%)' },
     'sword.cleaveShare': { label: defaultLabel ?? 'Swordsman · ⚔️ ปลุกดาบ ฟันตัวถัดไป', effect: 'เพิ่ม = ตีปกติระหว่างปลุกดาบฟันมอนตัวที่ 2 แรงขึ้น (0.5 = 50% ของหนึ่งฮิต)' },
+    'sword.awakenHpPct': { label: defaultLabel ?? 'Swordsman · ✨ เคลือบดาบสวรรค์ % HP ที่เหลือ', effect: 'เพิ่ม = ระหว่างปลุกดาบ ทุกฮิตกายภาพตัด % HP ที่เหลือของเป้าเยอะขึ้น (0.025 = 2.5%)' },
+    'sword.awakenBigShare': { label: defaultLabel ?? 'Swordsman · ✨ เคลือบดาบสวรรค์ บอส/มินิ', effect: 'เพิ่ม = บอส/มินิโดน % HP ที่เหลือเต็มขึ้น (1 = เท่ามอนปกติ)' },
     'mage.barrier': { label: defaultLabel ?? 'Mage · บาเรียเมื่อปล่อย Ult (× M.ATK)', effect: 'เพิ่ม = หลังปล่อยเวทใหญ่ของ Mage/Wizard จะได้โล่หนากันตัวตามค่า M.ATK' },
   }
   if (staticSkills[path]) return staticSkills[path]

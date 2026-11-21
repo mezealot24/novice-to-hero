@@ -5,7 +5,7 @@
 // (LoL feel: physical builds still get something from magic procs). Heals and shields stay on M.ATK.
 import { BATTLE, PLAYER, type MonsterKind, type Stats } from './game-data'
 import { CRIT_RULES } from './battle-rules'
-import { CLERIC_KIT, JOBS, MAGE_SPELL, SPELL_VAMP, SWORD_MANA, SWORD_S1, swordExecMul, swordS1Lv, swordS1Raw, type JobDef, type JobId } from './jobs'
+import { CLERIC_KIT, JOBS, MAGE_SPELL, SPELL_VAMP, SWORD_MANA, SWORD_S1, swordCoatPct, swordExecMul, swordS1Lv, swordUltLv, swordS1Raw, type JobDef, type JobId } from './jobs'
 import type { Skill2Def } from './skill2'
 import { PACKS } from './dungeons'
 import { STAT_RULES } from './meta/stat-spec'
@@ -209,7 +209,7 @@ export const KIT = {
   // 🗡️ ดาบพิพากษา web (Q 2026-11-21, ult side: swordsman_a left = Defensive while awakened, swordsman_d right = Utility + Dmg), per OLD level (max 3, stretched to 5)
   swordUltTree: {
     dr: 0.05, leech: 0.03, ctr: 0.06, waveShield: 0.3, waveShieldCap: 0.25, // 🛡️ ใจดาบ dmg taken cut/lv while awakened · 🩸 ดาบกระหายเลือด basic/cleave leech/lv · 🔁 ตื่นสวน counter/lv · ★ ปราการคลื่น wave dmg share as shield (cap of max HP)
-    execAdd: 0.2, waveAmp: 0.1, cleave: 0.15, // ⚖️ คมพิพากษา execute max +/lv · 🌊 คลื่นคม wave dmg/lv · ⚔️ ฟันกวาดตื่น cleave share/lv · ★ คลื่นซ้ำ reload once on a wave kill
+    execAdd: 0.2, waveAmp: 0.1, cleave: 0.15, reChance: 1 / 3, awAtk: 0.5, // Q 2026-11-22: d2 = 🌊 คลื่นซ้ำ chance/old lv (full 100%) · d4 ★ = P.ATK +awAtk while awakened (waveAmp: unused now) // ⚖️ คมพิพากษา execute max +/lv · 🌊 คลื่นคม wave dmg/lv · ⚔️ ฟันกวาดตื่น cleave share/lv · ★ คลื่นซ้ำ reload once on a wave kill
   },
   // Swordsman core column (swordsman_core, tier 0, always open): Defend VIT/DEF/M.DEF/Regen passives
   swordCore: {
@@ -966,7 +966,11 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
     case 'swordsman':
       if (!job2) {
         out.push({ label: '⚔️ ปลุกดาบ', value: `${SWORD_MANA.awakenTurns} เทิร์น` })
-        out.push({ label: '⚔️ ระหว่างปลุก: P.ATK', value: `+${Math.round(SWORD_MANA.awakenAtk * 100)}%` })
+        const uLv = swordUltLv(st), strAdd = SWORD_MANA.awakenStr[uLv - 1]
+        out.push({ label: '⚔️ ระหว่างปลุก: STR', value: `+${strAdd}` })
+        if (st.swAwAtk > 0) out.push({ label: '⚔️ ระหว่างปลุก: P.ATK', value: `+${pct(st.swAwAtk)}` })
+        out.push({ label: '✨ ต่อฮิต: HP ที่เหลือเป้า', value: base ? pct(swordCoatPct(uLv, base.str + strAdd)) : `${pct(SWORD_MANA.awakenHpPct)}+` })
+        out.push({ label: '✨ บอส/มินิ ได้', value: `×${SWORD_MANA.awakenBigShare}` })
         out.push({ label: '⚔️ ตีปกติฟันตัวถัดไป', value: `${Math.round((SWORD_MANA.cleaveShare + st.swAwCleave) * 100)}%` })
         out.push({ label: '🌊 คลื่นดาบ/ตัว (ทุกตัว)', value: hitText(st, (SWORD_MANA.ultMul + st.ultMulAdd) * hitPow * (1 + st.pskill) * (1 + st.swWaveAmp), false) })
         out.push({ label: '🌊 ปล่อยเองเมื่อ', value: `มอน HP < ${Math.round(SWORD_MANA.execLow * 100)}%` })
@@ -976,9 +980,9 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
         if (st.swAwLeech > 0) out.push({ label: '🩸 ปลุกอยู่: ดูดเลือด', value: pct(st.swAwLeech) })
         if (st.swAwCtr > 0) out.push({ label: '🔁 ปลุกอยู่: สวนกลับ', value: `+${pct(st.swAwCtr)}` })
         if (st.swWaveShield > 0) out.push({ label: '🌊 โล่จากคลื่น', value: `${pct(U.waveShield)} ดาเมจ` })
-        if (st.swWaveRe > 0) out.push({ label: '🌊 คลื่นซ้ำเมื่อฆ่า', value: '1 ครั้ง/ปลุก' })
-      }
-      out.push({ label: 'โล่', value: `${shield(st, st.maxHp * Math.max(0, SWORD_MANA.ultShield + st.ultShieldAdd) * pow)}` })
+        if (st.swWaveRe > 0) out.push({ label: '🌊 คลื่นซ้ำเมื่อฆ่า', value: `โอกาส ${pct(st.swWaveRe)}` })
+        if (st.ultShieldAdd > 0) out.push({ label: 'โล่', value: `${shield(st, st.maxHp * st.ultShieldAdd * pow)}` })
+      } else out.push({ label: 'โล่', value: `${shield(st, st.maxHp * Math.max(0, SWORD_MANA.ultShield + st.ultShieldAdd) * pow)}` })
       { // ⚖️ คำพิพากษา: the multiplier at a few target HP shares (2nd / 3rd job ults take execLineShare)
         const sh = job2 ? SWORD_MANA.execLineShare : 1, add = (job2 ? 0 : st.swExecAdd) + st.swExecBonus, x = (f: number, big: boolean) => `×${swordExecMul(f, big, sh, add).toFixed(2)}`
         out.push({ label: '⚖️ execute เป้า HP 50%', value: x(0.5, false) })

@@ -14,7 +14,7 @@ export const tree: ClassTree = {
     { id: 'swordsman_b', job: 'swordsman', name: 'ตั้งรับสยบ', icon: '🛡️', blurb: 'ดาบสยบมนตร์: โล่ตอนกด · กัน CC · มอนติดใบ้ตีเบา · ★ สวนกลับแน่นอน' }, // Q 2026-11-21: ทักษะ 1 left line = Defensive (was 🩸 โลหิต)
     // v84: ATTACH in data/tree.ts: swordsman_b/c under ทักษะ 1, swordsman_a/d under Ult
     { id: 'swordsman_c', job: 'swordsman', name: 'สยบมนตร์', icon: '⚔️', blurb: 'ดาบสยบมนตร์: ตีตัวร่าย/ติดใบ้แรง · ตัดร่ายคืน Mana/CD · เฉือนตัวอื่น · ★ ฟันคู่' }, // Q 2026-11-21: ทักษะ 1 right line = Utility + Dmg (was ⚔️ จังหวะดาบ)
-    { id: 'swordsman_d', job: 'swordsman', name: 'คมพิพากษา', icon: '⚖️', blurb: 'execute แรงขึ้น · คลื่นดาบแรงขึ้น · ฟันตัวถัดไปแรงขึ้น · ★ คลื่นดาบฆ่าได้ ได้อีกลูก' }, // Q 2026-11-21: Ult right line = Utility + Dmg (was ทลายเกราะ)
+    { id: 'swordsman_d', job: 'swordsman', name: 'คมพิพากษา', icon: '⚖️', blurb: 'execute แรงขึ้น · คลื่นดาบฆ่าได้ลุ้นได้อีกลูก · ฟันตัวถัดไปแรงขึ้น · ★ ระหว่างปลุก P.ATK +50%' }, // Q 2026-11-21: Ult right line = Utility + Dmg (was ทลายเกราะ)
   ],
   nodes: [
     // Core: 🛡️ แก่นป้องกัน — tier 0, always open at start so VIT-focused tanks survive phys + magic hits
@@ -38,9 +38,9 @@ export const tree: ClassTree = {
     n('swordsman_c4', 'swordsman_c', 4, '⚔️', 'ดาบสยบคู่', 1, () => `ดาบสยบมนตร์ฟันซ้ำอีกครั้ง ${pc(S.starHit)} · ใบ้ +1 เทิร์น`, () => ({ swS1Star: 1 })),
     // 🗡️ ดาบพิพากษา right line (Q 2026-11-21): Utility + Dmg (ids kept: save data)
     n('swordsman_d1', 'swordsman_d', 1, '⚖️', 'คมพิพากษา', 3, (lv) => `⚖️ execute สูงสุด +${pc(U.execAdd * lv)} (คลื่นดาบ)`, (lv) => ({ swExecAdd: U.execAdd * lv })),
-    n('swordsman_d2', 'swordsman_d', 2, '🌊', 'คลื่นคม', 3, (lv) => `คลื่นดาบแรง +${pc(U.waveAmp * lv)}`, (lv) => ({ swWaveAmp: U.waveAmp * lv })),
+    n('swordsman_d2', 'swordsman_d', 2, '🌊', 'คลื่นซ้ำ', 3, (lv) => `คลื่นดาบฆ่ามอนได้ → โอกาส ${pc(Math.min(1, U.reChance * lv))} ได้คลื่นอีกลูก (1 ครั้ง/ปลุก)`, (lv) => ({ swWaveRe: Math.min(1, U.reChance * lv) })), // Q 2026-11-22: was คลื่นคม
     n('swordsman_d3', 'swordsman_d', 3, '⚔️', 'ฟันกวาดตื่น', 3, (lv) => `ระหว่างปลุกดาบ ฟันตัวถัดไปแรง +${pc(U.cleave * lv)} ของฮิต`, (lv) => ({ swAwCleave: U.cleave * lv })),
-    n('swordsman_d4', 'swordsman_d', 4, '🌊', 'คลื่นซ้ำ', 1, () => 'คลื่นดาบฆ่ามอนได้ → ได้คลื่นอีกลูก (1 ครั้ง/ปลุก)', () => ({ swWaveRe: 1 })),
+    n('swordsman_d4', 'swordsman_d', 4, '⚔️', 'ดาบตื่นเต็มพลัง', 1, () => `ระหว่างปลุกดาบ P.ATK +${pc(U.awAtk)}`, () => ({ swAwAtk: U.awAtk })), // Q 2026-11-22: was ★ คลื่นซ้ำ
   ],
   talents: [
     // ----- row 1 · Job Lv 5 · basic swing -----
@@ -52,8 +52,8 @@ export const tree: ClassTree = {
     t('sw_t2b', 2, '💢', 'แค้นฝังใจ', 2, (r) => `โดนตีได้ Mana +${r === 1 ? 3 : 5}`, (r) => ({ rageOnHurtAdd: r === 1 ? 3 : 5 })),
     t('sw_t2c', 2, '🌪️', 'พายุโลหิต', 2, (r) => `ดูดเลือดสกิล +${r === 1 ? 15 : 25}% (ตีหลายตัวได้ 1/3) · แลกกับดาเมจสกิล/ult −30%`, (r) => ({ spellVamp: r === 1 ? 0.15 : 0.25, skillDmgCut: 0.3 })),
     // ----- row 3 · Job Lv 20 · ดาบพิพากษา (ult) -----
-    t('sw_t3a', 3, '🏰', 'ปราการ', 2, (r) => `ult: โล่ 20% → ${r === 1 ? 35 : 40}% · คลื่นดาบ 1.5x → 1.3x`, (r) => ({ ultShieldAdd: r === 1 ? 0.15 : 0.2, ultMulAdd: -0.2 })),
-    t('sw_t3b', 3, '💥', 'ฟันทลาย', 2, (r) => `ult: คลื่นดาบ 1.5x → ${r === 1 ? '2.5' : '2.9'}x · ตัวที่กำลังร่ายโดน x1.5 · โล่ 20% → 5%`, (r) => ({ ultMulAdd: r === 1 ? 1.0 : 1.4, ultShieldAdd: -0.15, ultVsCharge: 0.5 })),
+    t('sw_t3a', 3, '🏰', 'ปราการ', 2, (r) => `ult: ได้โล่ ${r === 1 ? 15 : 20}% HP (สาย Job 2: 20% → ${r === 1 ? 35 : 40}%) · คลื่นดาบ 1.5x → 1.3x`, (r) => ({ ultShieldAdd: r === 1 ? 0.15 : 0.2, ultMulAdd: -0.2 })),
+    t('sw_t3b', 3, '💥', 'ฟันทลาย', 2, (r) => `ult: คลื่นดาบ 1.5x → ${r === 1 ? '2.5' : '2.9'}x · ตัวที่กำลังร่ายโดน x1.5 · สาย Job 2: โล่ ult 20% → 5%`, (r) => ({ ultMulAdd: r === 1 ? 1.0 : 1.4, ultShieldAdd: -0.15, ultVsCharge: 0.5 })),
     t('sw_t3c', 3, '🔁', 'ท่าสวนพร้อม', 2, (r) => `หลังกด ult: โดนตี ${r === 1 ? 2 : 3} ครั้งถัดไป สวนกลับแน่นอน`, (r) => ({ ultCounters: r === 1 ? 2 : 3 })),
     // ----- row 4 · Job Lv 30 · keystone -----
     t('sw_t4a', 4, '💀', 'ไม่ยอมล้ม', 2, (r) => `ล้มครั้งแรกต่อรอบ ลุกขึ้นมาพร้อม HP ${r === 1 ? 40 : 60}%`, (r) => ({ revive: 1, reviveHp: r === 1 ? 0.4 : 0.6 })),
