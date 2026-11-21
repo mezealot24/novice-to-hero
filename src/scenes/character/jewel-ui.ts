@@ -158,11 +158,15 @@ export function jewelWorkshop(scene: CharacterScene, ws: JewelWs, top: number) {
 		const y = top + 36 + i * 52, on = j.id === ws.sel, col = LINE_TIER_COLOR[jewelTier(j)];
 		const sock = socketOfJewel(s, j.id);
 		const p = panel(scene, lx, y, lw, 48, on ? 0x3b4f9a : UI.panel, on ? 0xf2b84b : hex(col), 8);
-		p.setInteractive(new Phaser.Geom.Rectangle(0, 0, lw, 48), Phaser.Geom.Rectangle.Contains).on("pointerup", () => {
-			ws.sel = j.id;
-			scene.render();
-		});
 		b.add(p);
+		// panel() draws at absolute x/y on a Graphics at 0,0, so its own hit area would sit at the screen corner: use a zone over the row.
+		b.add(
+			scene.add.zone(lx, y, lw, 48).setOrigin(0).setInteractive({ useHandCursor: true }).on("pointerup", () => {
+				ws.sel = j.id;
+				ws.cPage = 0;
+				scene.render();
+			}),
+		);
 		if (on) {
 			b.add(scene.add.rectangle(lx + lw / 2, y + 24, lw + 6, 54).setStrokeStyle(3, 0xf2b84b));
 			b.add(txt(scene, lx - 4, y + 24, "▶", 16, UI.gold, true).setOrigin(1, 0.5));
