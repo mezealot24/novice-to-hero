@@ -194,6 +194,11 @@ export const KIT = {
     shield: 0.04, tenacity: 0.05, guardTurns: 1, muteWeak: 0.06, counters: 2, // 🛡️ ตั้งรับ shield/lv · ใจไม่หวั่น tenacity/lv + CC guard turns · ปิดปาก silenced monster dmg cut/lv · ★ สวนเงียบ sure counters
     vsMute: 0.1, refund: 4, splash: 0.2, starHit: 0.6, // 🎯 เจาะจังหวะ dmg/lv vs casting / silenced · ⏳ ตัดจังหวะ Mana/lv on a cut cast (+ CD -1) · 🌀 ฟันเฉือน share/lv · ★ 2nd cut share
   },
+  // 🗡️ ดาบพิพากษา web (Q 2026-11-21, ult side: swordsman_a left = Defensive while awakened, swordsman_d right = Utility + Dmg), per OLD level (max 3, stretched to 5)
+  swordUltTree: {
+    dr: 0.05, leech: 0.03, ctr: 0.06, waveShield: 0.3, waveShieldCap: 0.25, // 🛡️ ใจดาบ dmg taken cut/lv while awakened · 🩸 ดาบกระหายเลือด basic/cleave leech/lv · 🔁 ตื่นสวน counter/lv · ★ ปราการคลื่น wave dmg share as shield (cap of max HP)
+    execAdd: 0.2, waveAmp: 0.1, cleave: 0.15, // ⚖️ คมพิพากษา execute max +/lv · 🌊 คลื่นคม wave dmg/lv · ⚔️ ฟันกวาดตื่น cleave share/lv · ★ คลื่นซ้ำ reload once on a wave kill
+  },
   // Swordsman core column (swordsman_core, tier 0, always open): Defend VIT/DEF/M.DEF/Regen passives
   swordCore: {
     vitPer: 4, defPer: 3, hpPctPer: 0.02, // 🛡️ กายเหล็ก
@@ -948,13 +953,19 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
       if (!job2) {
         out.push({ label: '⚔️ ปลุกดาบ', value: `${SWORD_MANA.awakenTurns} เทิร์น` })
         out.push({ label: '⚔️ ระหว่างปลุก: P.ATK', value: `+${Math.round(SWORD_MANA.awakenAtk * 100)}%` })
-        out.push({ label: '⚔️ ตีปกติฟันตัวถัดไป', value: `${Math.round(SWORD_MANA.cleaveShare * 100)}%` })
-        out.push({ label: '🌊 คลื่นดาบ/ตัว (ทุกตัว)', value: hitText(st, (SWORD_MANA.ultMul + st.ultMulAdd) * hitPow * (1 + st.pskill), false) })
+        out.push({ label: '⚔️ ตีปกติฟันตัวถัดไป', value: `${Math.round((SWORD_MANA.cleaveShare + st.swAwCleave) * 100)}%` })
+        out.push({ label: '🌊 คลื่นดาบ/ตัว (ทุกตัว)', value: hitText(st, (SWORD_MANA.ultMul + st.ultMulAdd) * hitPow * (1 + st.pskill) * (1 + st.swWaveAmp), false) })
         out.push({ label: '🌊 ปล่อยเองเมื่อ', value: `มอน HP < ${Math.round(SWORD_MANA.execLow * 100)}%` })
+        const U = KIT.swordUltTree
+        if (st.swAwDr > 0) out.push({ label: '🛡️ ปลุกอยู่: โดนเบาลง', value: `−${pct(st.swAwDr)}` })
+        if (st.swAwLeech > 0) out.push({ label: '🩸 ปลุกอยู่: ดูดเลือด', value: pct(st.swAwLeech) })
+        if (st.swAwCtr > 0) out.push({ label: '🔁 ปลุกอยู่: สวนกลับ', value: `+${pct(st.swAwCtr)}` })
+        if (st.swWaveShield > 0) out.push({ label: '🌊 โล่จากคลื่น', value: `${pct(U.waveShield)} ดาเมจ` })
+        if (st.swWaveRe > 0) out.push({ label: '🌊 คลื่นซ้ำเมื่อฆ่า', value: '1 ครั้ง/ปลุก' })
       }
       out.push({ label: 'โล่', value: `${shield(st, st.maxHp * Math.max(0, SWORD_MANA.ultShield + st.ultShieldAdd) * pow)}` })
       { // ⚖️ คำพิพากษา: the multiplier at a few target HP shares (2nd / 3rd job ults take execLineShare)
-        const sh = job2 ? SWORD_MANA.execLineShare : 1, x = (f: number, big: boolean) => `×${swordExecMul(f, big, sh).toFixed(2)}`
+        const sh = job2 ? SWORD_MANA.execLineShare : 1, add = job2 ? 0 : st.swExecAdd, x = (f: number, big: boolean) => `×${swordExecMul(f, big, sh, add).toFixed(2)}`
         out.push({ label: '⚖️ execute เป้า HP 50%', value: x(0.5, false) })
         out.push({ label: '⚖️ execute เป้า HP ≤25%', value: x(0.25, false) })
         out.push({ label: '⚖️ บอส/มินิ HP ≤25%', value: x(0.25, true) })

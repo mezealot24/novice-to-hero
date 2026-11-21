@@ -2,30 +2,30 @@
 // Spec: design/skill-tree-swordsman.md. Identity: "getting hit is an advantage" (counter, lifesteal). Rage left with v26: the Swordsman runs on Mana (design/swordsman-mana-nerf.md).
 // Node and talent ids are save data: never rename or remove a shipped id (retire it by leaving it out of the UI instead).
 import { node as n, talent as t, type ClassTree } from '../tree-types'
-import { KIT, KIT2 } from '../skill-math'
+import { KIT } from '../skill-math'
 
 // v84 (design/skill-tree-swordsman.md v84): numbers in KIT.swordTree / swordCore, written per OLD level (max 3); data/tree.ts stretches them to 5.
-const T = KIT.swordTree, C = KIT.swordCore, S = KIT.swordS1Tree, pc = (x: number) => `${+(x * 100).toFixed(1)}%`, r1 = (x: number) => +x.toFixed(1)
+const C = KIT.swordCore, S = KIT.swordS1Tree, U = KIT.swordUltTree, pc = (x: number) => `${+(x * 100).toFixed(1)}%`, r1 = (x: number) => +x.toFixed(1)
 
 export const tree: ClassTree = {
   branches: [
     { id: 'swordsman_core', job: 'swordsman', name: 'แก่นป้องกัน', icon: '🛡️', blurb: 'VIT · P.DEF · M.DEF · ฟื้นตัว' },
-    { id: 'swordsman_a', job: 'swordsman', name: 'ป้อมเหล็ก', icon: '🛡️', blurb: 'สวนกลับ · โล่รับแล้วสะท้อนคืน' },
+    { id: 'swordsman_a', job: 'swordsman', name: 'ดาบตื่นพิทักษ์', icon: '🛡️', blurb: 'ระหว่างปลุกดาบ: โดนเบาลง · ตีปกติดูดเลือด · สวนกลับง่าย · ★ คลื่นดาบให้โล่' }, // Q 2026-11-21: Ult left line = Defensive (was ป้อมเหล็ก)
     { id: 'swordsman_b', job: 'swordsman', name: 'ตั้งรับสยบ', icon: '🛡️', blurb: 'ดาบสยบมนตร์: โล่ตอนกด · กัน CC · มอนติดใบ้ตีเบา · ★ สวนกลับแน่นอน' }, // Q 2026-11-21: ทักษะ 1 left line = Defensive (was 🩸 โลหิต)
-    // v84: ATTACH in data/tree.ts: swordsman_c under ทักษะ 1, swordsman_d under Ult
+    // v84: ATTACH in data/tree.ts: swordsman_b/c under ทักษะ 1, swordsman_a/d under Ult
     { id: 'swordsman_c', job: 'swordsman', name: 'สยบมนตร์', icon: '⚔️', blurb: 'ดาบสยบมนตร์: ตีตัวร่าย/ติดใบ้แรง · ตัดร่ายคืน Mana/CD · เฉือนตัวอื่น · ★ ฟันคู่' }, // Q 2026-11-21: ทักษะ 1 right line = Utility + Dmg (was ⚔️ จังหวะดาบ)
-    { id: 'swordsman_d', job: 'swordsman', name: 'ทลายเกราะ', icon: '🔨', blurb: 'Ult ทุบเกราะ · ตีตัวเกราะแตกฮีล · แตกลาม · ★ ขัดร่าย' },
+    { id: 'swordsman_d', job: 'swordsman', name: 'คมพิพากษา', icon: '⚖️', blurb: 'execute แรงขึ้น · คลื่นดาบแรงขึ้น · ฟันตัวถัดไปแรงขึ้น · ★ คลื่นดาบฆ่าได้ ได้อีกลูก' }, // Q 2026-11-21: Ult right line = Utility + Dmg (was ทลายเกราะ)
   ],
   nodes: [
     // Core: 🛡️ แก่นป้องกัน — tier 0, always open at start so VIT-focused tanks survive phys + magic hits
     n('swordsman_core1', 'swordsman_core', 0, '🪨', 'กายเหล็ก', 3, (lv) => `VIT +${Math.round(C.vitPer * lv)} · P.DEF +${r1(C.defPer * lv)} · Max HP +${pc(C.hpPctPer * lv)}`, (lv) => ({ swCoreVit: C.vitPer * lv, def: C.defPer * lv, swCoreHpPct: C.hpPctPer * lv })),
     n('swordsman_core2', 'swordsman_core', 0, '💠', 'เกราะจิตอึด', 3, (lv) => `M.DEF +${pc(C.mdefPer * lv)} · ต้านทาน +${pc(C.tenacityPer * lv)} · VIT ทุก 1 แต้มเพิ่ม M.DEF +${pc(C.vitToMdefPer * lv)} (ส่วน VIT→M.DEF สูงสุด +${pc(C.vitToMdefCap)})`, (lv) => ({ mdef: C.mdefPer * lv, tenacity: C.tenacityPer * lv, swVitToMdef: C.vitToMdefPer * lv })),
     n('swordsman_core3', 'swordsman_core', 0, '❤️‍🩹', 'ฟื้นฟูนักรบ', 3, (lv) => `ฟื้น HP/เทิร์น +${pc((C.regenPer * lv * 1.5) / 100)} · ฮีลแรง +${pc(C.healAmpPer * lv)} · เลือด < ${pc(C.lowHpAt)} Regen แรงขึ้น +${pc(C.lowHpRegenPer * lv)}`, (lv) => ({ regen: C.regenPer * lv, healAmp: C.healAmpPer * lv, swLowRegenAmp: C.lowHpRegenPer * lv })),
-    // Core: 🛡️ แก่นป้องกัน — tier 0, always open at start so VIT-focused tanks survive phys + magic hits
-    n('swordsman_a1', 'swordsman_a', 1, '↩️', 'ท่าสวนชำนาญ', 3, (lv) => `สวนกลับ +${lv * 5}%`, (lv) => ({ counter: 0.05 * lv })),
-    n('swordsman_a2', 'swordsman_a', 2, '🌵', 'โล่หนาม', 3, (lv) => `โล่รับดาเมจแล้วสะท้อนคืนตัวที่ตี ${lv * 15}%`, (lv) => ({ thorns: 0.15 * lv })),
-    n('swordsman_a3', 'swordsman_a', 3, '🧱', 'ยืนหยัด', 3, (lv) => `P.DEF +${lv * 4} · ต้านทาน +${lv * 5}%`, (lv) => ({ def: 4 * lv, tenacity: 0.05 * lv })),
-    n('swordsman_a4', 'swordsman_a', 4, '🌪️', 'สวนพายุ', 1, () => 'สวนกลับฟันโดนทุกตัว (ตัวอื่นโดน 0.5x)', () => ({ ctrAoe: 1 })),
+    // 🗡️ ดาบพิพากษา left line (Q 2026-11-21): Defensive while ⚔️ ปลุกดาบ is up (ids kept: save data)
+    n('swordsman_a1', 'swordsman_a', 1, '🛡️', 'ใจดาบ', 3, (lv) => `ระหว่างปลุกดาบ โดนตีเบาลง −${pc(U.dr * lv)}`, (lv) => ({ swAwDr: U.dr * lv })),
+    n('swordsman_a2', 'swordsman_a', 2, '🩸', 'ดาบกระหายเลือด', 3, (lv) => `ระหว่างปลุกดาบ ตีปกติ/ฟันตัวถัดไป ดูดเลือด ${pc(U.leech * lv)}`, (lv) => ({ swAwLeech: U.leech * lv })),
+    n('swordsman_a3', 'swordsman_a', 3, '🔁', 'ตื่นสวน', 3, (lv) => `ระหว่างปลุกดาบ สวนกลับ +${pc(U.ctr * lv)}`, (lv) => ({ swAwCtr: U.ctr * lv })),
+    n('swordsman_a4', 'swordsman_a', 4, '🌊', 'ปราการคลื่น', 1, () => `คลื่นดาบให้โล่ ${pc(U.waveShield)} ของดาเมจที่ทำ (ไม่เกิน ${pc(U.waveShieldCap)} HP)`, () => ({ swWaveShield: 1 })),
     // B (left, Q 2026-11-21): 🛡️ ตั้งรับสยบ, Defensive on ดาบสยบมนตร์ (ids kept: save data; the old 🩸 โลหิต effects are gone)
     n('swordsman_b1', 'swordsman_b', 1, '🛡️', 'ตั้งรับ', 3, (lv) => `กดดาบสยบมนตร์ ได้โล่ ${pc(S.shield * lv)} ของ HP สูงสุด`, (lv) => ({ swS1Shield: S.shield * lv })),
     n('swordsman_b2', 'swordsman_b', 2, '🧘', 'ใจไม่หวั่น', 3, (lv) => `ต้านทาน +${pc(S.tenacity * lv)} · ล้าง CC แล้วกัน ใบ้/ใยมัด/ช้า ${S.guardTurns} เทิร์น`, (lv) => ({ tenacity: S.tenacity * lv, swCcGuard: lv })),
@@ -36,11 +36,11 @@ export const tree: ClassTree = {
     n('swordsman_c2', 'swordsman_c', 2, '⏳', 'ตัดจังหวะ', 3, (lv) => `ดาบสยบมนตร์ขัดร่ายได้: Mana +${r1(S.refund * lv)} · คูลดาวน์ −1`, (lv) => ({ swS1Refund: S.refund * lv })),
     n('swordsman_c3', 'swordsman_c', 3, '🌀', 'ฟันเฉือน', 3, (lv) => `ดาบสยบมนตร์เฉือนมอนตัวอื่น ${pc(S.splash * lv)} ของฮิต (ไม่ติดใบ้)`, (lv) => ({ swS1Splash: S.splash * lv })),
     n('swordsman_c4', 'swordsman_c', 4, '⚔️', 'ดาบสยบคู่', 1, () => `ดาบสยบมนตร์ฟันซ้ำอีกครั้ง ${pc(S.starHit)} · ใบ้ +1 เทิร์น`, () => ({ swS1Star: 1 })),
-    // D: ทลายเกราะ (ult armor break)
-    n('swordsman_d1', 'swordsman_d', 1, '🔨', 'ทุบเกราะ', 3, (lv) => `Ult ทุบเกราะมอนทุกตัว ${T.breakTurns} เทิร์น: P.DEF −${pc(KIT2.mobster.armorBrk)} · โดนฮิตแรงขึ้น +${pc(T.breakAmp * lv)}`, (lv) => ({ swBreak: T.breakAmp * lv })),
-    n('swordsman_d2', 'swordsman_d', 2, '🩸', 'ซ้ำรอย', 3, (lv) => `ตีตัวเกราะแตก ฮีล ${pc(T.breakLeech * lv)} ของดาเมจ`, (lv) => ({ swBreakLeech: T.breakLeech * lv })),
-    n('swordsman_d3', 'swordsman_d', 3, '💥', 'ร้าวลาม', 3, (lv) => `ตัวเกราะแตกตาย → เกราะแตกลามไปทุกตัว + Mana +${r1(T.breakSpreadRes * lv)}`, (lv) => ({ swBreakSpread: T.breakSpreadRes * lv })),
-    n('swordsman_d4', 'swordsman_d', 4, '⚡', 'หักท่า', 1, () => `Ult ขัดร่ายมอน/บอสทุกตัวที่กำลังร่าย + เกจถอย −${T.shatterPush}`, () => ({ swShatter: 1 })),
+    // 🗡️ ดาบพิพากษา right line (Q 2026-11-21): Utility + Dmg (ids kept: save data)
+    n('swordsman_d1', 'swordsman_d', 1, '⚖️', 'คมพิพากษา', 3, (lv) => `⚖️ execute สูงสุด +${pc(U.execAdd * lv)} (คลื่นดาบ)`, (lv) => ({ swExecAdd: U.execAdd * lv })),
+    n('swordsman_d2', 'swordsman_d', 2, '🌊', 'คลื่นคม', 3, (lv) => `คลื่นดาบแรง +${pc(U.waveAmp * lv)}`, (lv) => ({ swWaveAmp: U.waveAmp * lv })),
+    n('swordsman_d3', 'swordsman_d', 3, '⚔️', 'ฟันกวาดตื่น', 3, (lv) => `ระหว่างปลุกดาบ ฟันตัวถัดไปแรง +${pc(U.cleave * lv)} ของฮิต`, (lv) => ({ swAwCleave: U.cleave * lv })),
+    n('swordsman_d4', 'swordsman_d', 4, '🌊', 'คลื่นซ้ำ', 1, () => 'คลื่นดาบฆ่ามอนได้ → ได้คลื่นอีกลูก (1 ครั้ง/ปลุก)', () => ({ swWaveRe: 1 })),
   ],
   talents: [
     // ----- row 1 · Job Lv 5 · basic swing -----
@@ -51,9 +51,9 @@ export const tree: ClassTree = {
     t('sw_t2a', 2, '🔥', 'เลือดร้อน', 2, (r) => `ต้นทุกเวฟฟื้น Mana +${r === 1 ? 15 : 25}`, (r) => ({ startRage: r === 1 ? 15 : 25 })),
     t('sw_t2b', 2, '💢', 'แค้นฝังใจ', 2, (r) => `โดนตีได้ Mana +${r === 1 ? 3 : 5}`, (r) => ({ rageOnHurtAdd: r === 1 ? 3 : 5 })),
     t('sw_t2c', 2, '🌪️', 'พายุโลหิต', 2, (r) => `ดูดเลือดสกิล +${r === 1 ? 15 : 25}% (ตีหลายตัวได้ 1/3) · แลกกับดาเมจสกิล/ult −30%`, (r) => ({ spellVamp: r === 1 ? 0.15 : 0.25, skillDmgCut: 0.3 })),
-    // ----- row 3 · Job Lv 20 · ดาบพิทักษ์ (ult) -----
-    t('sw_t3a', 3, '🏰', 'ปราการ', 2, (r) => `ult: โล่ 20% → ${r === 1 ? 35 : 40}% · ดาเมจ 1.2x → 1.0x`, (r) => ({ ultShieldAdd: r === 1 ? 0.15 : 0.2, ultMulAdd: -0.2 })),
-    t('sw_t3b', 3, '💥', 'ฟันทลาย', 2, (r) => `ult: ดาเมจ 1.2x → ${r === 1 ? '2.2' : '2.6'}x · บอสที่กำลังร่ายโดน x1.5 · โล่ 20% → 5%`, (r) => ({ ultMulAdd: r === 1 ? 1.0 : 1.4, ultShieldAdd: -0.15, ultVsCharge: 0.5 })),
+    // ----- row 3 · Job Lv 20 · ดาบพิพากษา (ult) -----
+    t('sw_t3a', 3, '🏰', 'ปราการ', 2, (r) => `ult: โล่ 20% → ${r === 1 ? 35 : 40}% · คลื่นดาบ 1.5x → 1.3x`, (r) => ({ ultShieldAdd: r === 1 ? 0.15 : 0.2, ultMulAdd: -0.2 })),
+    t('sw_t3b', 3, '💥', 'ฟันทลาย', 2, (r) => `ult: คลื่นดาบ 1.5x → ${r === 1 ? '2.5' : '2.9'}x · ตัวที่กำลังร่ายโดน x1.5 · โล่ 20% → 5%`, (r) => ({ ultMulAdd: r === 1 ? 1.0 : 1.4, ultShieldAdd: -0.15, ultVsCharge: 0.5 })),
     t('sw_t3c', 3, '🔁', 'ท่าสวนพร้อม', 2, (r) => `หลังกด ult: โดนตี ${r === 1 ? 2 : 3} ครั้งถัดไป สวนกลับแน่นอน`, (r) => ({ ultCounters: r === 1 ? 2 : 3 })),
     // ----- row 4 · Job Lv 30 · keystone -----
     t('sw_t4a', 4, '💀', 'ไม่ยอมล้ม', 2, (r) => `ล้มครั้งแรกต่อรอบ ลุกขึ้นมาพร้อม HP ${r === 1 ? 40 : 60}%`, (r) => ({ revive: 1, reviveHp: r === 1 ? 0.4 : 0.6 })),

@@ -1466,7 +1466,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.j3Bless > 0) mul *= 1 + this.st.j3AfterBless // ⚜️ พรหลังศึก
     if (!magic && this.swAwaken > 0) mul *= 1 + SWORD_MANA.awakenAtk // ⚔️ ปลุกดาบ
     if (this.st.swVsMute > 0 && (m.charging || (m.mSilence ?? 0) > 0)) mul *= 1 + this.st.swVsMute // ⚔️ เจาะจังหวะ
-    if (!magic && this.src === 'ult' && this.job.id === 'swordsman' && !this.isProcHit()) mul *= swordExecMul(m.hp / Math.max(1, m.def.hp), m.def.ai === 'boss' || !!m.def.mini, this.j2 ? SWORD_MANA.execLineShare : 1) // ⚖️ คำพิพากษา: every Swordsman-line ult hit (job1/2/3), read per hit so multi-hit Pierce ramps
+    if (!magic && this.src === 'ult' && this.job.id === 'swordsman' && !this.isProcHit()) mul *= swordExecMul(m.hp / Math.max(1, m.def.hp), m.def.ai === 'boss' || !!m.def.mini, this.j2 ? SWORD_MANA.execLineShare : 1, this.j2 ? 0 : this.st.swExecAdd) // ⚖️ คำพิพากษา (+ ⚖️ คมพิพากษา node on the job1 wave): every Swordsman-line ult hit (job1/2/3), read per hit so multi-hit Pierce ramps
     if (magic && this.hwAmp > 0) mul *= 1 + KIT3.highwizard.amp + this.st.j3HwAmp // 🌌 Mystical Amplification
     if (magic && !ELEM_SRC.has(this.src)) mul *= 1 + this.st.elemDmg
     const canFalconCrit = falconCrit > 0 && m.huntMark > 0
@@ -1536,7 +1536,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.relic === 'hellfire' && !m.dead) { m.hell++; this.dotIcon(m) }
     const woundLs = !magic && m.poison >= BM_STANCE.wolf.woundMinStacks ? this.st.j2StanceWoundLeech : 0
     const condLs = !magic ? thiefCondLeechAdd(this.st, this.statusKinds(m)) : 0 // P2'a thief_c1: leech vs a target with a status (base lifesteal + this stays under LIFESTEAL_CAP)
-    const ls = (condLs > 0 ? Math.min(LIFESTEAL_CAP, this.st.lifesteal + condLs) : this.st.lifesteal) + woundLs + (this.buf.blood > 0 ? S2N.bloodVamp(this.st.s2Lv) : 0) // Skill 2 เลือดเดือด · Wolf Bloodpack Stance wound leech
+    const ls = (condLs > 0 ? Math.min(LIFESTEAL_CAP, this.st.lifesteal + condLs) : this.st.lifesteal) + woundLs + (this.buf.blood > 0 ? S2N.bloodVamp(this.st.s2Lv) : 0) + (this.swAwaken > 0 && this.src === 'basic' && !magic ? this.st.swAwLeech : 0) // Skill 2 เลือดเดือด · 🩸 ดาบกระหายเลือด · Wolf Bloodpack Stance wound leech
     const bkMul = Math.max(this.bloodKingOn() ? KIT.thiefBloodKingMul : 1, this.st.bloodKing > 0 && this.hp < this.st.maxHp * 0.4 ? 2 : 1) // P2'a thief_c4 vs gear ★ ราชันย์โลหิต: the bigger one, never both
     if (ls > 0 && this.lsMul > 0) this.heal(r.dmg * ls * this.lsMul * (this.berserking() ? 2 : 1) * bkMul * physLeechMul(magic, this.st.thPhysLeechCut), true)
     if (this.job.id === 'thief' && !magic) {
@@ -1615,6 +1615,7 @@ export class BattleScene extends Phaser.Scene {
   private swGuard = 0
   private swAura?: { stop: () => void } // ⚔️ ปลุกดาบ lasting aura (VFX only)
   private swAuraStop() { this.swAura?.stop(); this.swAura = undefined }
+  private swWaveReUsed = false // ★ คลื่นซ้ำ used this awaken
   private swAwaken = 0 // ⚔️ ปลุกดาบ: awakened hero turns left (counting the current one) · swWave = 🌊 คลื่นดาบ still loaded, swWavePow its hit power (fixed at cast)
   private swWave = false
   private swWavePow = 0
@@ -4450,18 +4451,28 @@ export class BattleScene extends Phaser.Scene {
     try {
       sfx.slam()
       this.callout('🌊 คลื่นดาบ!', W / 2, 170, '#ff9a6a')
+      let dealt = 0, killed = false
       const farX = Math.max(...live.map((m) => m.spr.x))
       await windWaveFx(this, HERO_X + 40, farX, GROUND)
       this.swAuraStop() // the blade's power is spent
       await this.lunge(live[0], () => {
         const low = this.front().filter((m) => m.hp / Math.max(1, m.def.hp) < SWORD_MANA.execLow)
-        for (const m of this.front()) this.strike(m, (SWORD_MANA.ultMul + this.st.ultMulAdd) * this.swWavePow * (1 + this.st.pskill) * (m.charging ? 1 + this.st.ultVsCharge : 1))
+        for (const m of this.front()) {
+          dealt += this.strike(m, (SWORD_MANA.ultMul + this.st.ultMulAdd) * this.swWavePow * (1 + this.st.pskill) * (1 + this.st.swWaveAmp) * (m.charging ? 1 + this.st.ultVsCharge : 1)) // + 🌊 คลื่นคม
+          if (m.dead) killed = true
+        }
         for (const m of low) executeMarkFx(this, m.spr.x, m.spr.y - m.spr.displayHeight * 0.45) // ⚖️ คำพิพากษา
         guardianUltFx(this, HERO_X, GROUND, live[0].spr.x - 10, {
           armorBreak: this.st.swBreak > 0 && this.alive().length > 0,
           shatteredTargets: this.st.swShatter > 0 ? this.alive().filter((m) => m.charging).map((m) => ({ x: m.spr.x, y: m.spr.y })) : [],
         })
       }, false, true) // talents: ปราการ / ฟันทลาย
+      const U = KIT.swordUltTree
+      if (this.st.swWaveShield > 0 && dealt > 0) this.addShield(Math.min(this.st.maxHp * U.waveShieldCap, dealt * U.waveShield)) // ★ ปราการคลื่น
+      if (this.st.swWaveRe > 0 && killed && !this.swWaveReUsed && this.swAwaken > 1 && this.alive().length) { // ★ คลื่นซ้ำ: one more wave this awaken
+        this.swWaveReUsed = true; this.swWave = true
+        this.floatText(HERO_X, GROUND - 170, '🌊 คลื่นซ้ำ!', '#8ff0d6')
+      }
     } finally { this.src = prev; this.skillSlot = prevSlot }
   }
   /** ⚔️ ปลุกดาบ: a basic swing also cuts the next monster for cleaveShare (one cut per swing turn). */
@@ -4469,7 +4480,7 @@ export class BattleScene extends Phaser.Scene {
     const next = this.front().find((m) => m !== first && !m.dead)
     if (!next || this.hp <= 0) return
     cleaveFx(this, next.spr.x, next.spr.y - next.spr.displayHeight * 0.45)
-    this.withSrc('basic', () => this.strike(next, SWORD_MANA.cleaveShare, false, '#9fd0ff'))
+    this.withSrc('basic', () => this.strike(next, SWORD_MANA.cleaveShare + this.st.swAwCleave, false, '#9fd0ff')) // + ⚔️ ฟันกวาดตื่น
   }
   /** ⚔️ ดาบสยบมนตร์ (Q 2026-11-21, Swordsman / Knight Skill 1): cleanse the hero's CC, one cut on the caster > boss > front
    *  for [P.ATK x pct + STR x k + base x Base Lv] (turned into P.ATK units for strike), then silence + cut its cast + it loses a turn. */
@@ -4556,7 +4567,7 @@ export class BattleScene extends Phaser.Scene {
       case 'swordsman':
         // ⚔️ ปลุกดาบ (Q 2026-11-21 Riven-style): wake the blade, the 🌊 wave fires itself later (swordWaveCheck)
         this.swAwaken = SWORD_MANA.awakenTurns + 1 // ticks down after this turn
-        this.swWave = true
+        this.swWave = true; this.swWaveReUsed = false
         this.swWavePow = hitPow
         this.callout(`⚔️ ปลุกดาบ! ${SWORD_MANA.awakenTurns} เทิร์น`, W / 2, 170, '#9fd0ff')
         awakenBurstFx(this, HERO_X, GROUND)
@@ -5930,7 +5941,7 @@ export class BattleScene extends Phaser.Scene {
   private comboChance() { return (this.st.combo + (this.relic === 'wolf' ? RELIC_RULES.wolf.combo : 0)) * (this.relic === 'wizard' ? RELIC_RULES.wizard.chanceMul : 1) }
   /** พร v2 number in a run: card + gear lines / monster cards, capped (perks.ts OUTSIDE_CAP). */
   private px(k: OutsideKey) { return Math.min(OUTSIDE_CAP[k], this.pk[k] + this.st[k]) }
-  private counterChance() { return counterRate(this.st.counter, this.st.counterPct, COMBO.rateCap) * (this.relic === 'wizard' ? RELIC_RULES.wizard.chanceMul : 1) }
+  private counterChance() { return counterRate(this.st.counter + (this.swAwaken > 0 ? this.st.swAwCtr : 0), this.st.counterPct, COMBO.rateCap) * (this.relic === 'wizard' ? RELIC_RULES.wizard.chanceMul : 1) }
 
   /** Damage multiplier by source tag: masteries, style-switch mythics, card mods, glass, demon form, open-strong ult. */
   private srcMul(m: Mon, dot: boolean) {
@@ -6428,6 +6439,7 @@ export class BattleScene extends Phaser.Scene {
   private monMul(m: Mon) {
     let k = m.iced ? 1 - RELIC_RULES.iceage.atkDown : 1
     if ((m.mSilence ?? 0) > 0 && this.st.swMuteWeak > 0) k *= 1 - this.st.swMuteWeak // 🛡️ ปิดปาก
+    if (this.swAwaken > 0 && this.st.swAwDr > 0) k *= 1 - this.st.swAwDr // 🛡️ ใจดาบ
     return k * m.dmgMul * (m.atkUpTurns > 0 ? 1 + m.atkUp : 1) * (m.weakTurns > 0 ? 1 - m.weakPct : 1) * ((m.disarm ?? 0) > 0 ? 1 - (m.disarmPct ?? 0) : 1) * (1 + this.flags.curseDmg) * (m.chill > 0 ? 1 - this.px('chillWeak') : 1) // card กัดเย็น
   }
 

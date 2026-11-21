@@ -34,14 +34,14 @@ export const MAGE_SPELL = {
  *  A STR/VIT build gets only the base pool and regen, so skills are rationed and the basic swing + counters carry the fight. */
 export const SWORD_MANA = {
   auto: 20, // old ฟันพายุ cost, unused since ดาบสยบมนตร์ (SWORD_S1.cost by Lv; Berserker pays JOB2 autoCost Rage)
-  ult: 25, // ดาบพิทักษ์ (plus its turn cooldown; booked ult waits for Mana like the Mage's)
+  ult: 25, // ดาบพิพากษา (plus its turn cooldown; booked ult waits for Mana like the Mage's)
   autoMul: 1.25, // ฟันพายุ x P.ATK (1.3 before the class rebalance 2026-11-03, 1.15 in v40, 1.25 after the lifesteal cut 2026-11-04)
-  ultMul: 1.5, // ดาบพิทักษ์ 🌊 คลื่นดาบ x P.ATK on every monster (Q 2026-11-21 Riven-style rework; was 1.2 instant, 1.4 before the class rebalance)
+  ultMul: 1.5, // ดาบพิพากษา 🌊 คลื่นดาบ x P.ATK on every monster (Q 2026-11-21 Riven-style rework; was 1.2 instant, 1.4 before the class rebalance)
   // ⚔️ ปลุกดาบ (Q 2026-11-21, picked "2 steps: awaken + auto wave"): the ult wakes the blade for awakenTurns hero turns
   // (P.ATK +awakenAtk, every basic swing also cuts the next monster for cleaveShare), then 🌊 คลื่นดาบ fires on its own
   // the first time a monster is under execLow HP, or on the last awakened turn. Job1 Swordsman only (Knight / Berserker keep their ults).
   awakenTurns: 3, awakenAtk: 0.2, cleaveShare: 0.5,
-  ultShield: 0.2, // ดาบพิทักษ์ shield, share of max HP (reworked 0.15 -> 0.20 so pumping VIT translates into a meaningful barrier)
+  ultShield: 0.2, // ดาบพิพากษา shield, share of max HP (reworked 0.15 -> 0.20 so pumping VIT translates into a meaningful barrier)
   // ⚖️ คำพิพากษา (Q 2026-11-21, execute curve Q sent): an ult hit deals + execMax x (missing HP / execCapMiss), capped at execCapMiss missing
   // (2.667% per 1% missing, +200% at 75% missing). A multiplier on our P.ATK hit (not % of the monster's HP), so the x4/x10 boss HP of PR #160
   // can't blow it up; bosses / minis take execBigShare of the bonus. Full curve on 🌊 คลื่นดาบ; the 2nd / 3rd job ults (Knight, Lord Knight,
@@ -76,9 +76,9 @@ export function swordS1Raw(lv: number, patk: number, str: number, baseLv: number
 
 /** ⚖️ คำพิพากษา: damage multiplier of a Swordsman-line ult hit on a target at hpFrac (0..1) of its max HP.
  *  share = execLineShare for the 2nd / 3rd job ults, 1 for 🌊 คลื่นดาบ. */
-export function swordExecMul(hpFrac: number, big: boolean, share = 1): number {
+export function swordExecMul(hpFrac: number, big: boolean, share = 1, maxAdd = 0): number {
   const S = SWORD_MANA, f = Math.min(1, Math.max(0, Number.isFinite(hpFrac) ? hpFrac : 1))
-  const bonus = Math.min(1, (1 - f) / Math.max(0.01, S.execCapMiss)) * S.execMax
+  const bonus = Math.min(1, (1 - f) / Math.max(0.01, S.execCapMiss)) * (S.execMax + maxAdd)
   return 1 + bonus * share * (big ? S.execBigShare : 1)
 }
 
@@ -108,7 +108,7 @@ export const JOBS: Record<JobId, JobDef> = {
     id: 'swordsman', name: 'นักดาบ', icon: '⚔️', tex: 'hero_swordsman', blurb: 'ยืนหน้า ถึก ฟันโดนหลายตัว · Mana น้อย: สกิลออกได้จำกัด ดาเมจหลักมาจากฟันธรรมดา + สวนกลับ', focus: 'STR · VIT',
     resource: 'mana', attack: 'melee', tags: ['guard', 'blood'], mod: { maxHp: 25, def: 3, counter: 0.02 }, // HP/DEF partly back 2026-11-04 after the lifesteal cut
     auto: { name: 'ดาบสยบมนตร์', icon: '🤐', cost: SWORD_S1.cost[0], desc: `ล้าง CC บนตัวเรา แล้วฟันเป้าเดี่ยว (ตัวที่กำลังร่ายก่อน)\nมอนติดใบ้ ${SWORD_S1.silenceTurns} เทิร์น · โดนขัดร่าย · เสียเทิร์น\nคูลดาวน์ ${SWORD_S1.cd} · แรงและ Mana ขึ้นตาม Lv (ดูตารางขวา)` },
-    ult: { name: 'ดาบพิทักษ์', icon: '🛡️', cd: 4, cost: SWORD_MANA.ult, desc: `Mana ${SWORD_MANA.ult}: ⚔️ ปลุกดาบ ${SWORD_MANA.awakenTurns} เทิร์น + โล่ ${SWORD_MANA.ultShield * 100}% HP\nระหว่างปลุก: P.ATK +${pc0(SWORD_MANA.awakenAtk)} · ตีปกติฟันตัวถัดไปด้วย\n🌊 คลื่นดาบใส่ทุกตัว ปล่อยเองเมื่อมีมอน HP < ${pc0(SWORD_MANA.execLow)} (หรือเทิร์นสุดท้าย)\n${swordExecDesc(1)}` },
+    ult: { name: 'ดาบพิพากษา', icon: '🗡️', cd: 4, cost: SWORD_MANA.ult, desc: `Mana ${SWORD_MANA.ult}: ⚔️ ปลุกดาบ ${SWORD_MANA.awakenTurns} เทิร์น + โล่ ${SWORD_MANA.ultShield * 100}% HP\nระหว่างปลุก: P.ATK +${pc0(SWORD_MANA.awakenAtk)} · ตีปกติฟันตัวถัดไปด้วย\n🌊 คลื่นดาบใส่ทุกตัว ปล่อยเองเมื่อมีมอน HP < ${pc0(SWORD_MANA.execLow)} (หรือเทิร์นสุดท้าย)\n${swordExecDesc(1)}` },
   },
   archer: {
     id: 'archer', name: 'นักธนู', icon: '🏹', tex: 'hero_archer', blurb: 'ยิงจากไกล แม่น เร็ว ATK โตตาม DEX · หลบแล้วได้โล่ (สายพริ้วไหว)', focus: 'DEX · AGI',
