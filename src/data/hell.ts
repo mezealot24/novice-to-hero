@@ -59,6 +59,16 @@ export const HELL_MODE = {
   // (top room Lv + HELL_MODE.lv) banks only this share of the run's account Base + Job EXP. Zeny / loot unchanged.
   overLvXp: 0.01,
   overLvTierMax: 5, // dungeons up to this tier get the cap (D1-D5); D6+ keep full EXP
+  // Q 2026-11-22 "Nerf max hp boss hell mode": the 😈 MVP stacked +10 Lv, hell MVP stat/HP x1.5, HELL.hp x1.3 and the hpScale ramp
+  // = x4-x11 the same boss on 🔥 hard (D2 Lv20 MVP 16.7k vs 3.3k). Its HP is now x bossHp, and never above bossHpCap x the
+  // 🔥 hard boss of the same room (0 = no cap). MVP only: minis / normals unchanged. Phase heals (คืนชีพนรก 50%) follow the lower max.
+  bossHp: 0.5,
+  bossHpCap: 2.5,
+}
+/** 😈 MVP max HP after the hell nerf: hellHp x bossHp, capped at hardHp x bossHpCap (cap 0 = off). */
+export function hellBossHp(hellHp: number, hardHp: number): number {
+  const cut = hellHp * HELL_MODE.bossHp
+  return Math.max(1, Math.round(HELL_MODE.bossHpCap > 0 ? Math.min(cut, hardHp * HELL_MODE.bossHpCap) : cut))
 }
 /** Hero Base Lv above this on a 😈 run = HELL_MODE.overLvXp EXP. Infinity = no cap (D6+ or no level band). */
 export const hellLvCap = (dg: { tier: number; level?: [number, number] }): number =>

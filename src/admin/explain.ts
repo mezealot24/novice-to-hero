@@ -86,6 +86,7 @@ export function explainTableGroup(t: TableId, key: string): { title: string; des
     },
     monStat: {
       monStat: { title: '📐 monStat · สูตรสเตตัสมอน (ทุกดัน)', desc: 'สัดส่วนแต้ม stat, levelBase, ตัวคูณ body และเพดาน' },
+      hell: { title: '😈 hell · HP บอส MVP โหมดนรก', desc: 'ตัวคูณ HP บอส MVP นรก + เพดานเทียบบอสโหมดยากห้องเดียวกัน' },
     },
     skillScale: {
       fx: { title: '💫 fx · สกิลพิเศษในเฟส / Blood Razor', desc: 'ตัวคูณเพิ่มเติมตาม WIS (เฟสบอส) และ INT (Blood Razor)' },

@@ -6,6 +6,7 @@ import { ARCHETYPES, MON_STAT, SKILL_SCALE } from './mon-stats'
 import { skillRoot, skillTableFields } from './skill-registry'
 import { KIT } from './skill-math'
 import { DUNGEON_DAYS } from './dungeon-days'
+import { HELL_MODE } from './hell'
 
 export const CONFIG_SCHEMA = 1
 
@@ -159,8 +160,8 @@ export const TABLES: Record<TableId, TableDef> = {
     fields: [['*.lifesteal|reflect', num(0, 1, true)], ['*.speed|enrage', num(0.1, 10, true)], ['*.def', num(0, 5000, true)], ...pre('*.onHit', HIT_FX)],
   },
   monStat: {
-    id: 'monStat', label: 'Stat monsters (MON_STAT)',
-    target: () => ({ monStat: MON_STAT }),
+    id: 'monStat', label: 'Stat monsters (MON_STAT) + 😈 hell MVP HP',
+    target: () => ({ monStat: MON_STAT, hell: HELL_MODE }),
     fields: [
       // MON_STAT.pointsPerLv is a getter on STAT_RULES.pointsPerLevel: tune it in `progression`.
       ['monStat.tierPct.normal|mini|boss', num(0, 10)],
@@ -172,6 +173,8 @@ export const TABLES: Record<TableId, TableDef> = {
       ['monStat.vitHp', num(0, 100)],
       ['monStat.mdefCap|luckyCap', num(0, 1)],
       ['monStat.rateCap', num(0, 5)],
+      ['hell.bossHp', num(0.05, 5)], // Q 2026-11-22 😈 MVP HP nerf (data/hell.ts hellBossHp)
+      ['hell.bossHpCap', num(0, 20)],
     ],
   },
   archetypes: { id: 'archetypes', label: 'Monster archetypes (stat weights)', target: () => ARCHETYPES, fields: [[`*.${BASE7}`, num(0, 20, true)]] },
