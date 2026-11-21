@@ -12,10 +12,10 @@ import {
 } from "../../data/cards";
 import {
 	cardPool as cardPoolOf,
-	feedCheck,
 	feedJewel,
 	feedPreview,
 	JEWEL,
+	liveLocks,
 	jewelTier,
 	makeJewel,
 	ORB_OF,
@@ -50,12 +50,14 @@ const poolStatText = (j: Jewel, stat: string, extra?: Record<string, { base: num
 const shortList = (xs: string[], n = 2) => (xs.length > n ? `${xs.slice(0, n).join(", ")} +${xs.length - n}` : xs.join(", "));
 /** One line under a card row: what this card does to the selected jewel. */
 export function feedPreviewText(j: Jewel, cd: EquipCard, pv: FeedPreview = feedPreview(j, cd)): string {
-	if (pv.max) return pv.orb === "addLine" ? "⛔ เต็มแล้ว (เพิ่มบรรทัดไม่ได้)" : "⛔ ทุกบรรทัดเป็น Mythic แล้ว";
+	if (pv.max)
+		return pv.orb === "addLine" ? "⛔ เต็มแล้ว (เพิ่มบรรทัดไม่ได้)" : pv.orb === "reroll" ? "⛔ ล็อกทุกบรรทัดอยู่ ปลดอย่างน้อย 1" : "⛔ ทุกบรรทัดเป็น Mythic แล้ว";
 	const pool = cardPoolOf(cd);
 	const fresh = pv.newStats.length ? ` · ใหม่: ${shortList(pv.newStats.map((k) => poolStatText(j, k, pool)))}` : "";
 	if (pv.orb === "tierUp" && pv.tierUp) return `⬆️ ${lineText(pv.tierUp.from)} → ${lineText(pv.tierUp.to)}`;
 	if (pv.orb === "addLine") return `➕ สุ่ม 1 จาก ${pv.addable.length}: ${shortList(pv.addable.map((k) => poolStatText(j, k, pool)))}`;
-	return `🎲 สุ่ม ${pv.rerollN} บรรทัดใหม่${fresh}`;
+	const lock = pv.locked ? ` · 🔒${pv.locked} ใช้ ${pv.cost} ใบ` : "";
+	return `🎲 สุ่ม ${pv.rerollN} บรรทัดใหม่${lock}${fresh}`;
 }
 export const socketName = (id: string) => passiveNodeById(save().job, id)?.name ?? "ช่อง Jewel";
 
@@ -130,10 +132,11 @@ export function openJewelPicker(scene: Phaser.Scene, nodeId: string, onDone: () 
 export interface JewelWs {
 	sel?: string; // selected jewel id
 	making: string[]; // card ids picked for a new jewel
+	locks: string[]; // 🔒 stats on the selected jewel kept through a 🃏 reroll
 	jPage: number;
 	cPage: number;
 }
-export const newJewelWs = (): JewelWs => ({ making: [], jPage: 0, cPage: 0 });
+export const newJewelWs = (): JewelWs => ({ making: [], locks: [], jPage: 0, cPage: 0 });
 
 /** Left: your jewels (pick one or ➕ make new). Right: bag cards (filtered) to feed / pick. */
 export function jewelWorkshop(scene: CharacterScene, ws: JewelWs, top: number) {
@@ -148,6 +151,7 @@ export function jewelWorkshop(scene: CharacterScene, ws: JewelWs, top: number) {
 		button(scene, lx + lw / 2, top + 14, lw, 28, `➕ สร้าง Jewel ใหม่ (การ์ด ${JEWEL.makeCards} ใบ)`, () => {
 			ws.sel = undefined;
 			ws.making = [];
+			ws.locks = [];
 			scene.render();
 		}, { size: 13, fill: making ? 0xf2b84b : 0x5a5f8a, color: making ? UI.ink : UI.text }),
 	);
@@ -158,11 +162,16 @@ export function jewelWorkshop(scene: CharacterScene, ws: JewelWs, top: number) {
 		const y = top + 36 + i * 52, on = j.id === ws.sel, col = LINE_TIER_COLOR[jewelTier(j)];
 		const sock = socketOfJewel(s, j.id);
 		const p = panel(scene, lx, y, lw, 48, on ? 0x3b4f9a : UI.panel, on ? 0xf2b84b : hex(col), 8);
-		p.setInteractive(new Phaser.Geom.Rectangle(0, 0, lw, 48), Phaser.Geom.Rectangle.Contains).on("pointerup", () => {
-			ws.sel = j.id;
-			scene.render();
-		});
 		b.add(p);
+		// panel() draws at absolute x/y on a Graphics at 0,0, so its own hit area would sit at the screen corner: use a zone over the row.
+		b.add(
+			scene.add.zone(lx, y, lw, 48).setOrigin(0).setInteractive({ useHandCursor: true }).on("pointerup", () => {
+				if (ws.sel !== j.id) ws.locks = [];
+				ws.sel = j.id;
+				ws.cPage = 0;
+				scene.render();
+			}),
+		);
 		if (on) {
 			b.add(scene.add.rectangle(lx + lw / 2, y + 24, lw + 6, 54).setStrokeStyle(3, 0xf2b84b));
 			b.add(txt(scene, lx - 4, y + 24, "▶", 16, UI.gold, true).setOrigin(1, 0.5));
@@ -203,8 +212,20 @@ export function jewelWorkshop(scene: CharacterScene, ws: JewelWs, top: number) {
 			}, { size: 14 }).setEnabled(names.length === JEWEL.makeCards),
 		);
 	} else if (sel) {
-		b.add(txt(scene, lx, infoY - 18, `ระดับการ์ด = สิ่งที่ทำกับ Jewel:`, 12, UI.sub));
-		b.add(txt(scene, lx, infoY, `🃏 ${ORB_TEXT.reroll}\n💠 ${ORB_TEXT.addLine}\n👑 ${ORB_TEXT.tierUp}`, 11, UI.text).setLineSpacing(1));
+		ws.locks = liveLocks(sel, ws.locks);
+		b.add(txt(scene, lx, infoY - 22, `🃏 สุ่มใหม่ · 💠 +1 บรรทัด · 👑 บรรทัดต่ำสุด +1 เลเวล`, 11, UI.sub));
+		b.add(txt(scene, lx, infoY - 6, `🔒 ล็อกบรรทัดไว้ตอนสุ่ม 🃏 (+${JEWEL.lockCost} ใบ/บรรทัด)`, 11, UI.gold));
+		sel.lines.forEach((l, i) => {
+			const y = infoY + 12 + i * 26, on = ws.locks.includes(l.stat);
+			const full = !on && ws.locks.length >= sel.lines.length - 1; // keep one line open to reroll
+			b.add(
+				button(scene, lx + 22, y + 11, 40, 22, on ? "🔒" : "🔓", () => {
+					ws.locks = on ? ws.locks.filter((k) => k !== l.stat) : [...ws.locks, l.stat];
+					scene.render();
+				}, { size: 11, fill: on ? 0xf2b84b : 0x3f4466, color: on ? UI.ink : UI.text }).setEnabled(on || !full),
+			);
+			b.add(txt(scene, lx + 50, y + 3, lineText(l), 12, on ? UI.gold : UI.green, on));
+		});
 	}
 	// ---- right column: bag cards ----
 	const rx = 626, rw = 320;
@@ -238,10 +259,10 @@ export function jewelWorkshop(scene: CharacterScene, ws: JewelWs, top: number) {
 	owned.slice(ws.cPage * cper, ws.cPage * cper + cper).forEach((cd, i) => {
 		const y = cTop + i * 38;
 		const left = (bag[cd.id] ?? 0) - ws.making.filter((x) => x === cd.id).length;
-		const can = making ? left > 0 && ws.making.length < JEWEL.makeCards : !!sel && feedCheck(sel, cd) === "ok";
+		const pv = sel && !making ? feedPreview(sel, cd, ws.locks) : undefined;
+		const can = making ? left > 0 && ws.making.length < JEWEL.makeCards : !!sel && !!pv && !pv.max && left >= pv.cost;
 		b.add(panel(scene, rx, y, rw, 34, UI.panel, hex(TIER_COLOR[cd.tier]), 6));
 		b.add(txt(scene, rx + 8, y + 3, `${cardIcon(cd)} ${cardName(cd)} ×${left}`, 11, TIER_COLOR[cd.tier], true));
-		const pv = sel && !making ? feedPreview(sel, cd) : undefined;
 		b.add(
 			txt(scene, rx + 8, y + 19, making ? "เพิ่มเข้า pool" : sel ? feedPreviewText(sel, cd, pv) : ORB_TEXT[ORB_OF[cd.tier]], 10, pv && !pv.max ? UI.green : UI.sub)
 				.setFixedSize(rw - 84, 14),
@@ -257,11 +278,11 @@ export function jewelWorkshop(scene: CharacterScene, ws: JewelWs, top: number) {
 				confirm(
 					scene,
 					`ป้อน ${cardName(cd)} ให้ ${jewelName(sel)}?`,
-					`ตอนนี้: ${jewelLinesText(sel)}\n${feedPreviewText(sel, cd)}\nการ์ดใบนี้จะหายไป และค่าของมันจะเข้า pool ของ Jewel นี้`,
+					`ตอนนี้: ${jewelLinesText(sel)}\n${feedPreviewText(sel, cd, pv)}\n${pv && pv.cost > 1 ? `ใช้การ์ดนี้ ${pv.cost} ใบ` : "การ์ดใบนี้จะหายไป"} และค่าของมันจะเข้า pool ของ Jewel นี้`,
 					"ป้อนเลย",
 					() => {
 					const before = jewelLinesText(sel);
-					const r = feedJewel(s, sel.id, cd.id);
+					const r = feedJewel(s, sel.id, cd.id, Math.random, ws.locks);
 					if (!r.ok) { toast(scene, "ทำไม่ได้ค่ะ", UI.red); return; }
 					persist();
 					toast(scene, `${jewelName(r.jewel)}: ${before} → ${jewelLinesText(r.jewel)}`);
