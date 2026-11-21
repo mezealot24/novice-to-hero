@@ -73,7 +73,7 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
     ],
     ult: [sk('sword.ult', 'ค่า Mana', COST), sk('job.swordsman.ult.cd', 'คูลดาวน์ (เทิร์น)', CD), sk('sword.ultMul', '🌊 คลื่นดาบ × P.ATK (ทุกตัว)', MUL), sk('sword.ultShield', 'โล่ % HP สูงสุด', FRAC),
       sk('sword.execMax', '⚖️ คำพิพากษา: แรงเพิ่มสูงสุด', num(0, 5)), sk('sword.execCapMiss', '⚖️ HP หายเท่านี้ = ตัน', FRAC), sk('sword.execLow', '🌊 คลื่นดาบออกเองเมื่อ HP มอนต่ำกว่า', FRAC), sk('sword.execBigShare', '⚖️ บอส/มินิ ได้สัดส่วนโบนัส', FRAC), sk('sword.execLineShare', '⚖️ Ult job2/3 ได้สัดส่วนโบนัส', FRAC),
-      sk('sword.awakenTurns', '⚔️ ปลุกดาบ นาน (เทิร์น)', int(1, 10)), sk('sword.awakenAtk', '⚔️ ปลุกดาบ P.ATK เพิ่ม', FRAC), sk('sword.cleaveShare', '⚔️ ปลุกดาบ ตีปกติฟันตัวถัดไป ×', num(0, 3))],
+      sk('sword.awakenTurns', '⚔️ ปลุกดาบ นาน (เทิร์น)', int(1, 10)), sk('sword.awakenAtk', '⚔️ ปลุกดาบ P.ATK เพิ่ม (Q 2026-11-22: 0)', FRAC), sk('sword.awakenHpPct', '✨ เคลือบดาบสวรรค์ % HP ที่เหลือ/ฮิต', FRAC), sk('sword.awakenBigShare', '✨ เคลือบดาบสวรรค์ บอส/มินิ ×', FRAC), sk('sword.cleaveShare', '⚔️ ปลุกดาบ ตีปกติฟันตัวถัดไป ×', num(0, 3))],
     tree: [ // PoE Passive Tree Phase 2 (Swordsman-Line Constellation)
       kit('swordS1CdCut', 'ตราพิพากษา: ลดคูลดาวน์ดาบสยบมนตร์ (เทิร์น)'),
       kit('swordS3BreakTurns', 'ทลายเกราะศึก: เกราะแตกจาก S1/S3 (เทิร์น)'),

@@ -15,7 +15,7 @@ import { applyRiftBranchChoice } from '../battle/rift-engine'
 import { maidenHpFloor, maidenSplit } from '../battle/maiden-link'
 import { foldMutators, mutatorById } from '../data/mutators'
 import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster, EQUIP_CARDS } from '../data/cards'
-import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, SWORD_S1, swordExecMul, swordS1Lv, swordS1Raw, swordWaveNow, type JobDef } from '../data/jobs'
+import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, SWORD_S1, swordCoatPct, swordExecMul, swordS1Lv, swordUltLv, swordS1Raw, swordWaveNow, type JobDef } from '../data/jobs'
 import { JOB2, PET_IDS, type Job2Def, type PetId } from '../data/jobs2'
 import { skill2Picked } from '../data/tree'
 import { ALLIES, falconHitMul, fillAllies, frenzyMul, gadgetById, guardHit, hawkMul, hurtAlly, liveAllies, makeAlly, petPhysScale, readyAllies, reviveAllies, rollGadget, tauntTarget, tickAllies, TRAP_IDS, useAlly, type Ally, type AllyCtx, type GadgetId } from '../battle/allies'
@@ -424,7 +424,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.j2?.id === 'sage') this.job = { ...this.job, attack: 'melee' } // 📖 Sage: melee basic + counters (P.ATK)
     const tb = totalBase(s)
     this.sageInt = tb.int; this.heroVit = tb.vit; this.heroDex = tb.dex; this.heroWis = tb.wis; this.mdPower = mageDefPower(tb.int, tb.wis, s.baseLevel); this.casts = []; this.steady = false; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
-    this.heroLuk = tb.luk; this.heroTopStat = Math.max(tb.str, tb.dex, tb.agi); this.pet = s.pet ?? 'hawk' // Phase 4 Archer: hawk / gadget odds read base LUK · bm_k1 highest STR/DEX/AGI
+    this.heroLuk = tb.luk; this.heroStr = tb.str; this.heroTopStat = Math.max(tb.str, tb.dex, tb.agi); this.pet = s.pet ?? 'hawk' // Phase 4 Archer: hawk / gadget odds read base LUK · bm_k1 highest STR/DEX/AGI
     { const wpn = itemById(s.equipped.weapon ?? ''); this.j2Weapon = !!this.j2?.mastery.ok(wpn); this.hasShield = !wpn.twoHand && !!s.equipped.offhand && s.equipped.offhand !== 'none_off'; this.dualKnife = this.hasShield && itemById(s.equipped.offhand ?? '').wtype === 'dagger' }
     this.frenzy = 0; this.frenzyAt = 0; this.s3Cd = 0; this.rampage = 0; this.swAwaken = 0; this.swWave = false; this.swAuraStop(); this.charges = 0; this.monkGrit = 0; this.asuraExhaust = 0; this.allies = []; this.allyTxt.clear(); this.chargeTxt = undefined
     this.s2 = this.job.id === 'novice' ? undefined : skill2Picked(s.jobTree, this.job.id); this.s2Cd = 0; this.s1Cd = 0; this.swGuard = 0
@@ -1467,7 +1467,11 @@ export class BattleScene extends Phaser.Scene {
     if (this.skPlagTurns > 0) mul *= 1 + this.st.j3SkPlag // 🥷 sk_d2 ลอกท่า
     if (!magic && this.st.j3Sk > 0 && this.st.j3SkPrey > 0) mul *= 1 + stalkerPreyAmp(this.st.j3SkPrey, this.stripKinds(m)) // 🥷 sk_d1 เหยื่อเปลือย
     if (this.j3Bless > 0) mul *= 1 + this.st.j3AfterBless // ⚜️ พรหลังศึก
-    if (!magic && this.swAwaken > 0) mul *= 1 + SWORD_MANA.awakenAtk // ⚔️ ปลุกดาบ
+    if (!magic && this.swAwaken > 0) { // ⚔️ ปลุกดาบ (Q 2026-11-22): STR buff -> P.ATK, ★ ดาบตื่นเต็มพลัง, ✨ เคลือบดาบสวรรค์ (% of the target's current HP, per hit)
+      const lv = swordUltLv(this.st), strAdd = SWORD_MANA.awakenStr[lv - 1], atk = Math.max(1, this.st.atk)
+      mul *= 1 + SWORD_MANA.awakenAtk + this.st.swAwAtk + (strAdd * PER_POINT.str.atk) / atk
+      if (!this.allyHitting && !this.isProcHit()) mul += (swordCoatPct(lv, this.heroStr + strAdd) * m.hp * (m.def.ai === 'boss' || m.def.mini ? SWORD_MANA.awakenBigShare : 1)) / atk
+    }
     if (!magic && !this.allyHitting && this.st.swBloodFuryDmg > 0) mul *= bloodFuryDmgMul(this.hp, this.st.maxHp, this.st.swBloodFuryDmg) // 🩸 สัญญาคลั่งเลือด
     if (this.st.swVsMute > 0 && (m.charging || (m.mSilence ?? 0) > 0)) mul *= 1 + this.st.swVsMute // ⚔️ เจาะจังหวะ
     if (!magic && this.src === 'ult' && this.job.id === 'swordsman' && !this.isProcHit()) mul *= swordExecMul(m.hp / Math.max(1, m.def.hp), m.def.ai === 'boss' || !!m.def.mini, this.j2 ? SWORD_MANA.execLineShare : 1, (this.j2 ? 0 : this.st.swExecAdd) + this.st.swExecBonus) // ⚖️ คำพิพากษา (+ ⚖️ คมพิพากษา + ⚖️ ตราพิพากษา): every Swordsman-line ult hit (job1/2/3), read per hit so multi-hit Pierce ramps
@@ -1619,6 +1623,7 @@ export class BattleScene extends Phaser.Scene {
   private swGuard = 0
   private swAura?: { stop: () => void } // ⚔️ ปลุกดาบ lasting aura (VFX only)
   private swAuraStop() { this.swAura?.stop(); this.swAura = undefined }
+  private heroStr = 0 // total STR at fight start (✨ เคลือบดาบสวรรค์ per 10 STR)
   private swWaveReUsed = false // ★ คลื่นซ้ำ used this awaken
   private swAwaken = 0 // ⚔️ ปลุกดาบ: awakened hero turns left (counting the current one) · swWave = 🌊 คลื่นดาบ still loaded, swWavePow its hit power (fixed at cast)
   private swWave = false
@@ -4480,7 +4485,7 @@ export class BattleScene extends Phaser.Scene {
       }, false, true) // talents: ปราการ / ฟันทลาย
       const U = KIT.swordUltTree
       if (this.st.swWaveShield > 0 && dealt > 0) this.addShield(Math.min(this.st.maxHp * U.waveShieldCap, dealt * U.waveShield)) // ★ ปราการคลื่น
-      if (this.st.swWaveRe > 0 && killed && !this.swWaveReUsed && this.swAwaken > 1 && this.alive().length) { // ★ คลื่นซ้ำ: one more wave this awaken
+      if (this.st.swWaveRe > 0 && killed && !this.swWaveReUsed && Math.random() < this.st.swWaveRe && this.swAwaken > 1 && this.alive().length) { // ★ คลื่นซ้ำ: one more wave this awaken
         this.swWaveReUsed = true; this.swWave = true
         this.floatText(HERO_X, GROUND - 170, '🌊 คลื่นซ้ำ!', '#8ff0d6')
       }
@@ -4588,7 +4593,7 @@ export class BattleScene extends Phaser.Scene {
         this.callout(`⚔️ ปลุกดาบ! ${SWORD_MANA.awakenTurns} เทิร์น`, W / 2, 170, '#9fd0ff')
         awakenBurstFx(this, HERO_X, GROUND)
         this.swAuraStop(); this.swAura = awakenAuraFx(this, HERO_X, GROUND)
-        this.addShield(this.st.maxHp * Math.max(0, SWORD_MANA.ultShield + this.st.ultShieldAdd) * pow)
+        if (this.st.ultShieldAdd > 0) this.addShield(this.st.maxHp * this.st.ultShieldAdd * pow) // Q 2026-11-22: no base shield; only talent ปราการ / cards
         if (this.st.ultCounters > 0) this.ctrCharges = this.st.ultCounters // talent: ท่าสวนพร้อม
         this.cameras.main.flash(120, 140, 170, 220)
         await this.swordWaveCheck(true) // a monster already low: cut now (the turn-start check covers the rest)

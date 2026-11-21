@@ -238,7 +238,7 @@ for (const c of CLASS_TREES) {
 						mod: (lv: number) =>
 							line === "s1"
 								? { s1Pow: TREE_RULES.powPer * lv, ...(job === "swordsman" ? { swS1Lv: lv } : {}) } // ⚔️ ดาบสยบมนตร์ Lv = this node's Lv
-								: { ultPow: TREE_RULES.powPer * lv },
+								: { ultPow: TREE_RULES.powPer * lv, ...(job === "swordsman" ? { swUltLv: lv } : {}) }, // ดาบพิพากษา Lv = this node's Lv
 					}),
 		});
 	}
