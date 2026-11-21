@@ -91,3 +91,32 @@ test('feed preview matches what feeding does (👑 exact line, 💠 options, �
   const after = s.jewels![0].lines.find((l) => l.stat === pu.tierUp!.to.stat)
   assert.deepEqual(after, pu.tierUp!.to)
 })
+
+test('🔒 lock: a 🃏 reroll keeps locked lines in place and costs +lockCost cards each; all locked = max', () => {
+  const s = thief()
+  addCard(s, 'card_bat', 10)
+  const r = makeJewel(s, ['card_wolf', 'card_bat', 'card_shadowwolf'], seq(0))
+  assert.ok(r.ok); if (!r.ok) return
+  const id = r.jewel.id
+  assert.ok(feedJewel(s, id, 'card_duelist', seq(0)).ok) // 3 lines
+  const j = s.jewels![0]
+  const keep = { ...j.lines[1] }
+  const pv = feedPreview(j, cardById('card_bat')!, [keep.stat])
+  assert.equal(pv.locked, 1); assert.equal(pv.rerollN, 2); assert.equal(pv.cost, 1 + JEWEL.lockCost)
+  const before = s.cards!.card_bat
+  for (let i = 0; i < 4; i++) {
+    const rr = feedJewel(s, id, 'card_bat', seq(i / 4, 0.5, 0.9), [keep.stat])
+    assert.ok(rr.ok)
+    assert.deepEqual(j.lines[1], keep) // locked line untouched, same slot
+    assert.equal(j.lines.length, 3)
+    assert.equal(new Set(j.lines.map((l) => l.stat)).size, 3)
+  }
+  assert.equal(s.cards!.card_bat, before - 4 * (1 + JEWEL.lockCost))
+  // locks on other orbs are ignored; locking every line blocks the reroll
+  assert.equal(feedPreview(j, cardById('card_alpha')!, [keep.stat]).cost, 1)
+  assert.deepEqual(feedJewel(s, id, 'card_bat', seq(0), j.lines.map((l) => l.stat)), { ok: false, why: 'max' })
+  // not enough copies for the locks = nothing spent
+  s.cards!.card_bat = 1
+  assert.deepEqual(feedJewel(s, id, 'card_bat', seq(0), [keep.stat]), { ok: false, why: 'short' })
+  assert.equal(s.cards!.card_bat, 1)
+})

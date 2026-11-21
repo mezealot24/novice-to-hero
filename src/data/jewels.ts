@@ -18,6 +18,7 @@ export const JEWEL = {
   maxLines: 4,
   share: 0.5, // a line's base value = this share of the card's value
   maxOwned: 30,
+  lockCost: 1, // 🔒 extra copies of the 🃏 card per line kept through a reroll
 }
 /** Stats that count something (stacks, revives, extra hits) never join a jewel pool; neither do downsides. */
 export const JEWEL_SKIP = new Set(['resTurn', 'poison', 'revive', 'holyCounter', 'ultPoison', 'ultDodge', 'ultHits', 'mgUltCd'])
@@ -69,8 +70,8 @@ function rollJewelLine(pool: Record<string, PoolStat>, taken: Set<string>, rnd: 
   const stat = keys[Math.min(keys.length - 1, Math.floor(rnd() * keys.length))]
   return makeLine(stat, pool[stat].base, rollTier(rnd), pool[stat].whole)
 }
-function rollLines(pool: Record<string, PoolStat>, n: number, rnd: () => number): RefineLine[] {
-  const out: RefineLine[] = [], taken = new Set<string>()
+function rollLines(pool: Record<string, PoolStat>, n: number, rnd: () => number, keep: RefineLine[] = []): RefineLine[] {
+  const out: RefineLine[] = [], taken = new Set<string>(keep.map((l) => l.stat))
   for (let i = 0; i < n; i++) {
     const l = rollJewelLine(pool, taken, rnd)
     if (!l) break
@@ -112,8 +113,14 @@ export function makeJewel(s: JewelSave, cardIds: string[], rnd: () => number = M
 
 export type FeedResult = { ok: true; orb: JewelOrb; jewel: Jewel } | { ok: false; why: 'short' | 'noJewel' | 'max' }
 /** Can this card do something to this jewel? ('max' = add a line at 4 lines, or every line already Mythic.) */
-export function feedCheck(j: Jewel, cd: EquipCard): 'ok' | 'max' {
+/** 🔒 Locked stats that are really on this jewel. Only a 🃏 reroll uses them, and at least one line must stay open. */
+export const liveLocks = (j: Jewel, locks: readonly string[] = []) => locks.filter((k) => j.lines.some((l) => l.stat === k))
+/** Cards of this kind a feed takes: 1, plus JEWEL.lockCost per locked line on a 🃏 reroll. */
+export const feedCost = (j: Jewel, cd: EquipCard, locks: readonly string[] = []) =>
+  ORB_OF[cd.tier] === 'reroll' ? 1 + liveLocks(j, locks).length * JEWEL.lockCost : 1
+export function feedCheck(j: Jewel, cd: EquipCard, locks: readonly string[] = []): 'ok' | 'max' {
   const orb = ORB_OF[cd.tier]
+  if (orb === 'reroll' && j.lines.length && liveLocks(j, locks).length >= j.lines.length) return 'max'
   if (orb === 'addLine') {
     const pool = { ...j.pool }; mergePool(pool, cardPool(cd))
     if (j.lines.length >= JEWEL.maxLines || Object.keys(pool).every((k) => j.lines.some((l) => l.stat === k))) return 'max'
@@ -127,23 +134,29 @@ export interface FeedPreview {
   max: boolean
   /** Stats this card brings that the jewel's pool does not have yet. */
   newStats: string[]
-  /** 🃏: how many lines get re-rolled. */
+  /** 🃏: how many lines get re-rolled (locked lines stay). */
   rerollN: number
+  /** 🃏: lines kept by 🔒. */
+  locked: number
+  /** Cards of this kind the feed takes. */
+  cost: number
   /** 💠: stats the new line can be (pool after the feed, minus stats already on the jewel). */
   addable: string[]
   /** 👑: the line that goes up, before and after. */
   tierUp?: { from: RefineLine; to: RefineLine }
 }
-export function feedPreview(j: Jewel, cd: EquipCard): FeedPreview {
+export function feedPreview(j: Jewel, cd: EquipCard, locks: readonly string[] = []): FeedPreview {
   const orb = ORB_OF[cd.tier]
   const add = cardPool(cd)
   const pool = { ...j.pool }; mergePool(pool, add)
   const onJewel = new Set(j.lines.map((l) => l.stat))
   const out: FeedPreview = {
     orb,
-    max: feedCheck(j, cd) === 'max',
+    max: feedCheck(j, cd, locks) === 'max',
     newStats: Object.keys(add).filter((k) => !j.pool[k]),
-    rerollN: Math.max(1, j.lines.length),
+    rerollN: Math.max(1, j.lines.length - (orb === 'reroll' ? liveLocks(j, locks).length : 0)),
+    locked: orb === 'reroll' ? liveLocks(j, locks).length : 0,
+    cost: feedCost(j, cd, locks),
     addable: Object.keys(pool).filter((k) => !onJewel.has(k)),
   }
   if (orb === 'tierUp' && !out.max && j.lines.length) {
@@ -154,17 +167,27 @@ export function feedPreview(j: Jewel, cd: EquipCard): FeedPreview {
   }
   return out
 }
-/** Feed one card to a jewel: its stats join the pool, then it acts by tier. */
-export function feedJewel(s: JewelSave, jewelId: string, cardId: string, rnd: () => number = Math.random): FeedResult {
+/** Feed one card to a jewel: its stats join the pool, then it acts by tier.
+ *  🔒 locks (stat keys) only matter for a 🃏 reroll: those lines stay as they are and cost JEWEL.lockCost more cards each. */
+export function feedJewel(s: JewelSave, jewelId: string, cardId: string, rnd: () => number = Math.random, locks: readonly string[] = []): FeedResult {
   const j = s.jewels?.find((x) => x.id === jewelId)
   const cd = cardById(cardId)
   if (!j) return { ok: false, why: 'noJewel' }
-  if (!cd || (s.cards?.[cardId] ?? 0) <= 0) return { ok: false, why: 'short' }
-  if (feedCheck(j, cd) === 'max') return { ok: false, why: 'max' }
-  takeCard(s, cardId)
+  if (!cd) return { ok: false, why: 'short' }
+  const cost = feedCost(j, cd, locks)
+  if ((s.cards?.[cardId] ?? 0) < cost) return { ok: false, why: 'short' }
+  if (feedCheck(j, cd, locks) === 'max') return { ok: false, why: 'max' }
+  takeCard(s, cardId, cost)
   mergePool(j.pool, cardPool(cd))
   const orb = ORB_OF[cd.tier]
-  if (orb === 'reroll') j.lines = rollLines(j.pool, Math.max(1, j.lines.length), rnd)
+  if (orb === 'reroll') {
+    const keep = new Set(liveLocks(j, locks))
+    const kept = j.lines.filter((l) => keep.has(l.stat))
+    const fresh = rollLines(j.pool, Math.max(1, j.lines.length - kept.length), rnd, kept)
+    // locked lines keep their slot; new lines fill the open slots in order
+    let f = 0
+    j.lines = j.lines.length ? j.lines.map((l) => (keep.has(l.stat) ? l : fresh[f++])).filter((l): l is RefineLine => !!l) : fresh
+  }
   else if (orb === 'addLine') {
     const l = rollJewelLine(j.pool, new Set(j.lines.map((x) => x.stat)), rnd)
     if (l) j.lines.push(l)
