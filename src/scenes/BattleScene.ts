@@ -961,6 +961,7 @@ export class BattleScene extends Phaser.Scene {
     this.inHeroTurn = true
     this.turnHitsCur = 0
     this.turnDmgCur = 0
+    this.guardPool = 0 // ตั้งการ์ด: dmg taken counts per monster turn
     this.hideTurnCombo()
     try {
     this.tickFxCd()
@@ -1275,6 +1276,7 @@ export class BattleScene extends Phaser.Scene {
   private thMarkMon?: Mon // 🔻 Thief หมายหัว target
   private malice = 0
   private rogueCp = 0 // 🔁 Rogue Combo Point
+  private guardPool = 0 // ตั้งการ์ด: dmg taken since this hero turn ended, not yet paid back by a counter
   private ctrCharges = 0 // Swordsman talent ท่าสวนพร้อม: sure counters left
   /** Mana the ult costs (Mage, Swordsman); 0 for every other job. */
   private ultCost() { return ultCost(this.job, this.st) } // v102: + Cleric Ult node Lv Mana
@@ -5404,6 +5406,7 @@ export class BattleScene extends Phaser.Scene {
       this.forceCrit = false
       if (this.st.j2Hindsight > 0 && dmg > 0) this.sageSpell(m, false, 1, true) // Sage ★ Hindsight
       if (this.st.ctrAoe > 0) for (const o of this.alive()) if (o !== m) this.strike(o, 0.5, magic) // tree: "สวนพายุ"
+      this.guardBackHit(m)
     })
     if (this.job.attack !== 'melee') { await this.shoot(m, magic ? 0x9f7bff : 0xf6eedc, hit, this.job.id === 'archer' && !magic ? {} : undefined); return }
     // melee: wind back, dash in with an afterimage, knock the attacker back and chase it a little, then walk home
@@ -5421,6 +5424,17 @@ export class BattleScene extends Phaser.Scene {
     if (!m.dead) this.tweens.add({ targets: [m.spr, m.shadow], x: m.spr.x + 110, duration: step * 0.25, ease: 'Quad.easeOut' })
     await this.tween({ targets: this.heroSpr, x: this.heroSpr.x + 50, duration: step * 0.15, ease: 'Quad.easeOut' })
     await this.tween({ targets: this.heroSpr, x: HERO_X, duration: step * 0.3, ease: 'Quad.easeOut' })
+  }
+
+  /** Q 2026-11-22 🛡️ ตั้งการ์ด: while guarding, a counter adds % of the dmg taken this turn (then the pool empties) + P.DEF x. Flat, skips DEF. */
+  private guardBackHit(m: Mon) {
+    if (m.dead || this.buf.guard <= 0 || this.s2?.id !== 'sw_guard') return
+    const lv = this.st.s2Lv, star = this.st.s2Star > 0
+    const bonus = Math.round(this.guardPool * S2N.guardBack(lv, star) + this.st.def * S2N.guardDef(lv))
+    this.guardPool = 0
+    if (bonus <= 0) return
+    this.damageMon(m, bonus, false, '#9fe3ff')
+    this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 34, `🛡️ สวนคืน ${bonus}`, '#9fe3ff')
   }
 
   /** Fire-and-forget melee dash for counters that happen inside a sync hit check (dodge → strike back). */
@@ -5681,6 +5695,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (src && this.allies.length) n = this.boarGuard(n, src) // 🐗 Guardian: the boar takes its share of a landed hit (DoTs have no src)
     this.lastHurt = n; this.j2Hurt = true
+    if (this.buf.guard > 0 && this.s2?.id === 'sw_guard') this.guardPool += n // Q 2026-11-22: ตั้งการ์ด counter pays back the dmg taken this turn
     if (src && !src.dead) { this.staticCounter(src); this.mageOnHit(src) } // Mage passives ⚡🔥❄️ (docs/passive_mage_3.md)
     if (this.st.j2GritRate > 0 && n > 0) {
       const { cap } = haymakerCalc(this.st, this.monkGrit)

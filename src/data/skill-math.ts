@@ -465,7 +465,8 @@ export const preyTurnsOf = (st: Stats) => KIT2.beastmaster.preyTurns + st.j2Prey
 /** Skill 2 linear "+" numbers: base + per x Stats.s2Lv. Plain numbers so the admin can tune them (skills `s2p.<key>.base|per`);
  *  the S2N functions below read them on every call. Defaults are the v83 values. */
 export const S2P = {
-  guardCut: { base: 0.4, per: 0.05 }, bloodVamp: { base: 0.2, per: 0.05 }, tauntWeak: { base: 0.2, per: 0.05 },
+  guardCut: { base: 0.4, per: 0.05 }, guardBack: { base: 0.5, per: 0.1 }, guardDef: { base: 2, per: 0.5 }, // Q 2026-11-22 ตั้งการ์ด counter: % of dmg taken this turn + P.DEF x
+  bloodVamp: { base: 0.2, per: 0.05 }, tauntWeak: { base: 0.2, per: 0.05 },
   rainMul: { base: 0.8, per: 0.15 }, hawkCrit: { base: 0.2, per: 0.05 }, trapPush: { base: 30, per: 10 },
   mshieldTake: { base: 0.4, per: 0.05 }, novaMul: { base: 0.8, per: 0.15 }, arcaneMul: { base: 0.6, per: 0.1 },
   renewHeal: { base: 0.3, per: 0.05 }, kyrieHp: { base: 0, per: 0.05 }, spearPlus: { base: 0, per: 0.03 },
@@ -478,6 +479,7 @@ const lin = (k: { base: number; per: number }, lv: number) => k.base + k.per * l
 export const S2N = {
   guardCut: (lv: number) => lin(S2P.guardCut, lv), guardTurns: (star: boolean) => (star ? 3 : 2), guardCounters: (star: boolean) => (star ? 2 : 1),
   guardShield: (star: boolean) => (star ? 0.18 : 0.1),
+  guardBack: (lv: number, star: boolean) => lin(S2P.guardBack, lv) + (star ? 0.3 : 0), guardDef: (lv: number) => lin(S2P.guardDef, lv),
   bloodVamp: (lv: number) => lin(S2P.bloodVamp, lv), bloodTurns: 3, bloodAtk: 0.2,
   tauntWeak: (lv: number) => lin(S2P.tauntWeak, lv), tauntTurns: (star: boolean) => (star ? 3 : 2),
   tauntBreakTurns: (star: boolean) => (star ? 2 : 1), tauntStarRes: 15, tauntStarShield: 0.08,
@@ -1075,7 +1077,7 @@ export function skill2Info(k: Skill2Def, st: Stats): InfoRow[] {
   const out: InfoRow[] = [{ label: 'ใช้', value: `${resName(job)} ${k.cost} · คูลดาวน์ ${s2Cooldown(k, st)} เทิร์น` }]
   const add = (label: string, value: string) => out.push({ label, value })
   switch (k.id) {
-    case 'sw_guard': add('โล่ทันที + ดาเมจเข้าลด', `${shield(st, st.maxHp * S2N.guardShield(star))} · −${pct(S2N.guardCut(lv))} · ${S2N.guardTurns(star)} เทิร์น`); add('สวนกลับแน่นอน', `${S2N.guardCounters(star)} ครั้ง`); break
+    case 'sw_guard': add('โล่ทันที + ดาเมจเข้าลด', `${shield(st, st.maxHp * S2N.guardShield(star))} · −${pct(S2N.guardCut(lv))} · ${S2N.guardTurns(star)} เทิร์น`); add('สวนกลับแน่นอน', `${S2N.guardCounters(star)} ครั้ง`); add('สวน +ดาเมจที่โดน', pct(S2N.guardBack(lv, star))); add('สวน +P.DEF', `${S2N.guardDef(lv)}x = ${Math.round(st.def * S2N.guardDef(lv))}`); break
     case 'sw_blood': add('ดูดเลือด + ดูดเลือดสกิล', `+${pct(S2N.bloodVamp(lv))} · ${S2N.bloodTurns} เทิร์น`); add('ดาเมจสกิล/ult', `−${pct(SPELL_VAMP.bloodCut)}${star ? ` · ATK +${pct(S2N.bloodAtk)}` : ''}`); break
     case 'sw_taunt': add('มอนตีเบาลง + เกราะแตก', `${pct(S2N.tauntWeak(lv))} (${S2N.tauntTurns(star)} เทิร์น) · เกราะแตก ${S2N.tauntBreakTurns(star)} เทิร์น`); if (star) add('★ ท้าซ้ำ', `ฟื้น Resource +${S2N.tauntStarRes} · โล่ ${shield(st, st.maxHp * S2N.tauntStarShield)}`); break
     case 'ar_rain': add(`ดาเมจ/ตัว (ทุกตัว ×${S2N.rainWaves(star)} รอบ)`, hitText(st, S2N.rainMul(lv), false)); break

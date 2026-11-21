@@ -29,8 +29,8 @@ const s = (id: Skill2Id, job: JobId, icon: string, name: string, cost: number, c
 
 export const SKILL2: Skill2Def[] = [
   // ⚔️ Swordsman (Reworked: distinct Guard / Blood / Taunt roles + fixed resource restoration bug)
-  s('sw_guard', 'swordsman', '🛡️', 'ตั้งการ์ด', 14, 4, 'ได้โล่ 10% HP + นาน 2 เทิร์น ดาเมจเข้า −40% + สวนกลับแน่นอน 1 ครั้ง',
-    { icon: '🧱', name: 'การ์ดแน่น', desc: (lv) => `ดาเมจเข้า −${40 + lv * 5}%` }, { icon: '⏳', name: 'การ์ดเหล็ก', desc: 'ตั้งการ์ดนาน 3 เทิร์น + โล่เพิ่มเป็น 18% HP + สวนแน่นอน 2 ครั้ง' }),
+  s('sw_guard', 'swordsman', '🛡️', 'ตั้งการ์ด', 14, 4, 'ได้โล่ 10% HP + นาน 2 เทิร์น ดาเมจเข้า −40% + สวนกลับแน่นอน 1 ครั้ง\nสวนระหว่างตั้งการ์ด แรงเพิ่ม 50% ของดาเมจที่โดนในเทิร์นนั้น + P.DEF x2',
+    { icon: '🧱', name: 'การ์ดแน่น', desc: (lv) => `ดาเมจเข้า −${pc(S2N.guardCut(lv))} · สวน +${pc(S2N.guardBack(lv, false))} ดาเมจที่โดน + P.DEF x${S2N.guardDef(lv)}` }, { icon: '⏳', name: 'การ์ดเหล็ก', desc: 'ตั้งการ์ดนาน 3 เทิร์น + โล่ 18% HP + สวนแน่นอน 2 ครั้ง + สวนคืนดาเมจที่โดน +30%' }),
   s('sw_blood', 'swordsman', '🩸', 'เลือดเดือด', 18, 4, '3 เทิร์น ดูดเลือด + ดูดเลือดสกิล +20% · แลกกับดาเมจสกิล/ult −15% ระหว่างนั้น',
     { icon: '🍷', name: 'เลือดข้น', desc: (lv) => `ดูดเลือด + ดูดเลือดสกิล +${20 + lv * 5}%` }, { icon: '👹', name: 'คลั่งเลือด', desc: 'ระหว่างเลือดเดือด ATK +20%' }),
   s('sw_taunt', 'swordsman', '📣', 'ท้าทาย', 14, 4, 'มอนทุกตัวตีเบาลง 20% นาน 2 เทิร์นของมัน + เกราะแตก 1 เทิร์น',
