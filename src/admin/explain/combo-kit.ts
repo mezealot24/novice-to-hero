@@ -137,6 +137,8 @@ const MON_STAT_MAP: Record<string, FieldExplain> = {
   'monStat.hpScale.boss': { label: 'HP ท้ายเกม · บอส (MVP)', effect: 'คูณ HP บอสเพิ่มจาก body (ค่าปกติ 10)' },
   'monStat.hpScale.fromLv': { label: 'HP ท้ายเกม · เริ่มที่ Lv', effect: 'Lv นี้ลงไปคูณ x1 (ค่าปกติ 21 = D1-D5 เหมือนเดิม) ตั้งเท่ากับ fullLv = เต็มทุกเลเวล' },
   'monStat.hpScale.fullLv': { label: 'HP ท้ายเกม · เต็มที่ Lv', effect: 'Lv นี้ขึ้นไปคูณเต็ม (ค่าปกติ 80 = D10+)' },
+  'hell.bossHp': { label: '😈 นรก · ตัวคูณ HP บอส MVP', effect: 'คูณ Max HP บอส MVP โหมดนรก (ค่าปกติ 0.5 = เหลือครึ่ง) มินิบอส/มอนปกติไม่โดน' },
+  'hell.bossHpCap': { label: '😈 นรก · เพดาน HP บอส MVP (เท่าของโหมดยาก)', effect: 'HP บอส MVP นรกไม่เกิน x เท่านี้ของบอสตัวเดียวกันในโหมดยากห้องเดียวกัน (ค่าปกติ 2.5, 0 = ไม่มีเพดาน)' },
   'monStat.vitHp': { label: 'HP ต่อ VIT ของมอน', effect: 'มอนได้ HP ต่อแต้ม VIT เท่านี้ (ค่าปกติ 10, ฮีโร่ได้ 25)' },
   'monStat.mdefCap': { label: 'เพดานกันเวท (M.DEF Cap) ของมอน', effect: 'เพิ่ม = มอนสาย WIS สูงสามารถลดดาเมจเวทได้ลึกขึ้น (0.75 = กันได้สูงสุด 75%)' },
   'monStat.luckyCap': { label: 'เพดานหลบโชคดี (Lucky Dodge) ของมอน', effect: 'เพิ่ม = มอนสาย LUK สูงหลบได้แม้แต่คริ/เวทถี่ขึ้น (0.25 = สูงสุด 25%)' },

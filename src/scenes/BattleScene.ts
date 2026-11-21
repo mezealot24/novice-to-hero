@@ -40,7 +40,7 @@ import { HARD_POWER, TOWER_POWER } from '../data/power'
 import { escalate, escalationAt } from '../data/hard-escalation'
 import { MON_CAST, monBreakChance, monBreakGauge, monBreaksOn, monCastDmgMul, monCastPity, monSkillCasts } from '../data/mon-cast'
 import { deepAnchor, deepKind, homeDungeon, homeLv, monTier, POW_DEFAULT, restatAt, topStats, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, towerMonLv } from '../data/mon-stats'
-import { ENDLESS_HELL, endlessHell, HELL, HELL_MODE, hellify, hellLvCap, hellXpMul } from '../data/hell'
+import { ENDLESS_HELL, endlessHell, HELL, HELL_MODE, hellBossHp, hellify, hellLvCap, hellXpMul } from '../data/hell'
 import { foldAffixes } from '../data/affixes'
 import { PACKS } from '../data/dungeons'
 import { DUNGEON_DAYS, echoPay } from '../data/dungeon-days'
@@ -626,6 +626,11 @@ export class BattleScene extends Phaser.Scene {
     let out = statMonster(esc ? { ...base, pointsMul: (base.pointsMul ?? 1) * esc.pointsMul } : base, lv, { hard: this.hard || this.endlessDeep(), statMul: this.run.corrupt?.statMul })
     if (this.hell && !out.passive) out = hellify(out, Math.random()) // 😈 every monster is a Hell copy (one trait, HP / ATK / EXP up)
     if (esc) { const r = escalate(out, esc); out = r.def; if (r.tag) { out.escTag = r.tag; out.escNames = r.names } }
+    if (this.hell && !out.passive && monTier(base) === 'boss') { // 😈 MVP HP nerf (Q 2026-11-22): x HELL_MODE.bossHp, cap x bossHpCap of the 🔥 hard boss here
+      const roomLv = lv - (endless ? 0 : HELL_MODE.lv), e1 = esc && escalationAt(this.room, this.roomDef(this.room)?.day ?? 1, false)
+      const hard = statMonster(e1 ? { ...base, pointsMul: (base.pointsMul ?? 1) * e1.pointsMul } : base, roomLv, { hard: true, statMul: this.run.corrupt?.statMul }).hp * (e1 ? e1.hp : 1)
+      out.hp = hellBossHp(out.hp, hard)
+    }
     const mut = this.run.mut
     if (mut.monHp !== 1) out.hp = Math.round(out.hp * mut.monHp)
     if (mut.monAtk !== 1) { out.dmg *= mut.monAtk; out.matk = (out.matk ?? out.dmg) * mut.monAtk }
