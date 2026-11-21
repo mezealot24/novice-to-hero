@@ -912,11 +912,14 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
   const out: InfoRow[] = [{ label: 'คูลดาวน์', value: `${ultCooldown(job, st)} เทิร์น${ultCost(job, st) ? ` · Mana ${ultCost(job, st)}` : ''}` }]
   switch (jobId) {
     case 'swordsman':
-      out.push({ label: 'ดาเมจ/ตัว (ทุกตัว)', value: hitText(st, (SWORD_MANA.ultMul + st.ultMulAdd) * hitPow * (1 + st.pskill), false) })
+      if (!job2) {
+        out.push({ label: '⚔️ ปลุกดาบ', value: `${SWORD_MANA.awakenTurns} เทิร์น · P.ATK +${Math.round(SWORD_MANA.awakenAtk * 100)}% · ตีปกติฟันตัวถัดไป ${Math.round(SWORD_MANA.cleaveShare * 100)}%` })
+        out.push({ label: '🌊 คลื่นดาบ/ตัว (ทุกตัว)', value: `${hitText(st, (SWORD_MANA.ultMul + st.ultMulAdd) * hitPow * (1 + st.pskill), false)} · ออกเองเมื่อมีมอน HP < ${Math.round(SWORD_MANA.execLow * 100)}% หรือเทิร์นสุดท้าย` })
+      }
       out.push({ label: 'โล่', value: `${shield(st, st.maxHp * Math.max(0, SWORD_MANA.ultShield + st.ultShieldAdd) * pow)}` })
-      { // ⚖️ คำพิพากษา (every Swordsman-line ult): show the multiplier at a few target HP shares
-        const x = (f: number, big: boolean) => `×${swordExecMul(f, big).toFixed(2)}`, lo = SWORD_MANA.execLow - 0.01
-        out.push({ label: '⚖️ คำพิพากษา (ทุก Ult สายนักดาบ)', value: `เป้า HP 50% ${x(0.5, false)} · HP ${Math.round(lo * 100)}% ${x(lo, false)} · HP 10% ${x(0.1, false)} · บอส/มินิ HP 10% ${x(0.1, true)}` })
+      { // ⚖️ คำพิพากษา: the multiplier at a few target HP shares (2nd / 3rd job ults take execLineShare)
+        const sh = job2 ? SWORD_MANA.execLineShare : 1, x = (f: number, big: boolean) => `×${swordExecMul(f, big, sh).toFixed(2)}`
+        out.push({ label: job2 ? '⚖️ คำพิพากษา (Ult job2/3)' : '⚖️ คำพิพากษา (คลื่นดาบ)', value: `เป้า HP 70% ${x(0.7, false)} · 50% ${x(0.5, false)} · ≤25% ${x(0.25, false)} · บอส/มินิ ≤25% ${x(0.25, true)}` })
       }
       break
     case 'archer':

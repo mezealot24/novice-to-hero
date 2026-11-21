@@ -71,8 +71,9 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
       s2('sw_blood', ...lin('bloodVamp', 'ดูดเลือดสกิล'), sk('s2n.bloodTurns', 'นาน (เทิร์น)', int(0, 20)), sk('s2n.bloodAtk', 'ATK เพิ่ม', FRAC)),
       s2('sw_taunt', ...lin('tauntWeak', 'มอนตีเบาลง')),
     ],
-    ult: [sk('sword.ult', 'ค่า Mana', COST), sk('job.swordsman.ult.cd', 'คูลดาวน์ (เทิร์น)', CD), sk('sword.ultMul', 'ดาเมจ × P.ATK (ทุกตัว)', MUL), sk('sword.ultShield', 'โล่ % HP สูงสุด', FRAC),
-      sk('sword.execMax', '⚖️ คำพิพากษา: แรงเพิ่มสูงสุด (HP หาย 100%)', num(0, 5)), sk('sword.execLow', '⚖️ เส้น HP ต่ำ (สัดส่วน HP)', FRAC), sk('sword.execLowAdd', '⚖️ แรงเพิ่มใต้เส้น HP ต่ำ', num(0, 5)), sk('sword.execBigShare', '⚖️ บอส/มินิ ได้สัดส่วนโบนัส', FRAC)],
+    ult: [sk('sword.ult', 'ค่า Mana', COST), sk('job.swordsman.ult.cd', 'คูลดาวน์ (เทิร์น)', CD), sk('sword.ultMul', '🌊 คลื่นดาบ × P.ATK (ทุกตัว)', MUL), sk('sword.ultShield', 'โล่ % HP สูงสุด', FRAC),
+      sk('sword.execMax', '⚖️ คำพิพากษา: แรงเพิ่มสูงสุด', num(0, 5)), sk('sword.execCapMiss', '⚖️ HP หายเท่านี้ = ตัน', FRAC), sk('sword.execLow', '🌊 คลื่นดาบออกเองเมื่อ HP มอนต่ำกว่า', FRAC), sk('sword.execBigShare', '⚖️ บอส/มินิ ได้สัดส่วนโบนัส', FRAC), sk('sword.execLineShare', '⚖️ Ult job2/3 ได้สัดส่วนโบนัส', FRAC),
+      sk('sword.awakenTurns', '⚔️ ปลุกดาบ นาน (เทิร์น)', int(1, 10)), sk('sword.awakenAtk', '⚔️ ปลุกดาบ P.ATK เพิ่ม', FRAC), sk('sword.cleaveShare', '⚔️ ปลุกดาบ ตีปกติฟันตัวถัดไป ×', num(0, 3))],
   },
   archer: {
     s1: [sk('job.archer.auto.cost', 'ค่า Energy', COST), kit('archerAuto', 'ดาเมจต่อดอก ×'), kit('archerAutoShots', 'จำนวนดอก'), kit('archerVolleyShots', 'จำนวนดอก (ศรสาด)')],

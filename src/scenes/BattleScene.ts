@@ -14,7 +14,7 @@ import { RIFT_BRANCHES, riftBoonById, type RiftBoonDef, type RiftBranchDef } fro
 import { applyRiftBranchChoice } from '../battle/rift-engine'
 import { foldMutators, mutatorById } from '../data/mutators'
 import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster, EQUIP_CARDS } from '../data/cards'
-import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, swordExecMul, type JobDef } from '../data/jobs'
+import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, swordExecMul, swordWaveNow, type JobDef } from '../data/jobs'
 import { JOB2, PET_IDS, type Job2Def, type PetId } from '../data/jobs2'
 import { skill2Picked } from '../data/tree'
 import { ALLIES, falconHitMul, fillAllies, frenzyMul, gadgetById, guardHit, hawkMul, hurtAlly, liveAllies, makeAlly, petPhysScale, readyAllies, reviveAllies, rollGadget, tauntTarget, tickAllies, TRAP_IDS, useAlly, type Ally, type AllyCtx, type GadgetId } from '../battle/allies'
@@ -423,7 +423,7 @@ export class BattleScene extends Phaser.Scene {
     this.sageInt = tb.int; this.heroVit = tb.vit; this.heroDex = tb.dex; this.heroWis = tb.wis; this.mdPower = mageDefPower(tb.int, tb.wis, s.baseLevel); this.casts = []; this.steady = false; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
     this.heroLuk = tb.luk; this.heroTopStat = Math.max(tb.str, tb.dex, tb.agi); this.pet = s.pet ?? 'hawk' // Phase 4 Archer: hawk / gadget odds read base LUK · bm_k1 highest STR/DEX/AGI
     { const wpn = itemById(s.equipped.weapon ?? ''); this.j2Weapon = !!this.j2?.mastery.ok(wpn); this.hasShield = !wpn.twoHand && !!s.equipped.offhand && s.equipped.offhand !== 'none_off'; this.dualKnife = this.hasShield && itemById(s.equipped.offhand ?? '').wtype === 'dagger' }
-    this.frenzy = 0; this.frenzyAt = 0; this.s3Cd = 0; this.rampage = 0; this.charges = 0; this.monkGrit = 0; this.asuraExhaust = 0; this.allies = []; this.allyTxt.clear(); this.chargeTxt = undefined
+    this.frenzy = 0; this.frenzyAt = 0; this.s3Cd = 0; this.rampage = 0; this.swAwaken = 0; this.swWave = false; this.charges = 0; this.monkGrit = 0; this.asuraExhaust = 0; this.allies = []; this.allyTxt.clear(); this.chargeTxt = undefined
     this.s2 = this.job.id === 'novice' ? undefined : skill2Picked(s.jobTree, this.job.id); this.s2Cd = 0
     this.buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, bless: 0, dawnWis: 0, lootAtk: 0, lootCrit: 0 }; this.s2Count = 0
     this.hcVit = { n: 0, turns: 0, amt: 0, delta: {} } // v119 💪 Holy Cross VIT stacks
@@ -828,7 +828,7 @@ export class BattleScene extends Phaser.Scene {
     this.undrain()
     this.fightTurns = 0; this.timedOut = false
     this.turnHitsCur = 0; this.turnDmgCur = 0; this.turnHitsLast = 0; this.turnHitsTotal = 0; this.turnHitsPeak = 0; this.inHeroTurn = false; this.hideTurnCombo()
-    this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.s1Weave = false; this.weaveBonus = 0; this.dodgeCdIcd = 0; this.detUsed = false; this.luckyIcd = false; this.leechLeft = this.st.maxHp * KIT.thiefLeechTurnCap; this.rampage = 0
+    this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.s1Weave = false; this.weaveBonus = 0; this.dodgeCdIcd = 0; this.detUsed = false; this.luckyIcd = false; this.leechLeft = this.st.maxHp * KIT.thiefLeechTurnCap; this.rampage = 0; this.swAwaken = 0; this.swWave = false
     this.rgTempo = 0; this.rgComboN = 0; this.rgDodgeIcd = 0; this.rgFlee = 0; this.rgDodged = false; this.rgAmbush = false; this.rgSnatchAmp = 0; this.rgSnatchTurns = 0; this.skPlagTurns = 0; this.skFullUsed = false // P3'a Rogue: per wave · 🥷 sk_d
     this.martyrUsed = false; this.j2Hurt = false; this.monkGrit = 0; this.asuraExhaust = 0; this.awakenTurns = 0; this.awakenAbsorbed = 0; this.awakenUltPow = 1; this.clearAllies() // Crusader ★ ผู้พลีชีพ once per wave · allies last one wave · Awakening resets per wave
     this.inspireUsed = false; this.inspire = 0; this.earthDone = false // ⚜️ Paladin: once per fight
@@ -1045,6 +1045,7 @@ export class BattleScene extends Phaser.Scene {
     for (const a of tickAllies(this.allies)) { this.floatText(HERO_X + 70, GROUND - 120, `${a.def.icon} หมดเวลา`, '#c9c9d6'); this.syncAlly(a) }
     this.allies = liveAllies(this.allies)
     if (this.rampage > 0) this.rampage--
+    if (this.swAwaken > 0 && --this.swAwaken === 0) this.swWave = false // ⚔️ ปลุกดาบ ends (the wave fired on the last turn at the latest)
     if (this.awakenTurns > 0 && --this.awakenTurns === 0) this.endAwakening()
     if (this.asuraExhaust > 0 && --this.asuraExhaust === 0) this.floatText(HERO_X, GROUND - 150, '💪 ฟื้นจากง่อยแดก!', '#6fd08c')
     if (this.pfField > 0 && this.alive().length && this.hp > 0) { this.pfField--; this.profFieldPulse() } // 🎓 🌋 Elemental Field: marks every monster at the turn start
@@ -1199,6 +1200,7 @@ export class BattleScene extends Phaser.Scene {
     const chantDone = this.casts.length > 0 && castUsesTurn(this.j2?.id) // v78: a Mage / Sage chant landing IS this turn's action (Wizard: free)
     if (this.casts.length) { await this.releaseCasts(); if (!this.alive().length || this.hp <= 0) return } // 🔮 last turn's chant goes off (before the silence check)
     await this.skill2Turn()
+    if (this.swWave) { await this.swordWaveCheck(); if (!this.alive().length || this.hp <= 0) return } // 🌊 คลื่นดาบ (free action)
     if (this.gc && this.alive().length && this.hp > 0) { await this.asSkill(() => this.gcPulse(), 'ult', 'ult'); if (!this.alive().length || this.hp <= 0) return } // v111 ✨ Grand Cross: next pulse
     if (this.j2 && this.alive().length && this.hp > 0) await this.skill3Turn()
     if (!this.alive().length || this.hp <= 0) return
@@ -1459,7 +1461,8 @@ export class BattleScene extends Phaser.Scene {
     if (this.skPlagTurns > 0) mul *= 1 + this.st.j3SkPlag // 🥷 sk_d2 ลอกท่า
     if (!magic && this.st.j3Sk > 0 && this.st.j3SkPrey > 0) mul *= 1 + stalkerPreyAmp(this.st.j3SkPrey, this.stripKinds(m)) // 🥷 sk_d1 เหยื่อเปลือย
     if (this.j3Bless > 0) mul *= 1 + this.st.j3AfterBless // ⚜️ พรหลังศึก
-    if (!magic && this.src === 'ult' && this.job.id === 'swordsman' && !this.isProcHit()) mul *= swordExecMul(m.hp / Math.max(1, m.def.hp), m.def.ai === 'boss' || !!m.def.mini) // ⚖️ คำพิพากษา: every Swordsman-line ult hit (job1/2/3), read per hit so multi-hit Pierce ramps
+    if (!magic && this.swAwaken > 0) mul *= 1 + SWORD_MANA.awakenAtk // ⚔️ ปลุกดาบ
+    if (!magic && this.src === 'ult' && this.job.id === 'swordsman' && !this.isProcHit()) mul *= swordExecMul(m.hp / Math.max(1, m.def.hp), m.def.ai === 'boss' || !!m.def.mini, this.j2 ? SWORD_MANA.execLineShare : 1) // ⚖️ คำพิพากษา: every Swordsman-line ult hit (job1/2/3), read per hit so multi-hit Pierce ramps
     if (magic && this.hwAmp > 0) mul *= 1 + KIT3.highwizard.amp + this.st.j3HwAmp // 🌌 Mystical Amplification
     if (magic && !ELEM_SRC.has(this.src)) mul *= 1 + this.st.elemDmg
     const canFalconCrit = falconCrit > 0 && m.huntMark > 0
@@ -1604,6 +1607,9 @@ export class BattleScene extends Phaser.Scene {
   private frenzyAt = 0 // fightTurns of the last crit
   private s3Cd = 0 // hero turns until ทักษะ 3 can cast again
   private rampage = 0 // Berserker บ้าระห่ำ turns left
+  private swAwaken = 0 // ⚔️ ปลุกดาบ: awakened hero turns left (counting the current one) · swWave = 🌊 คลื่นดาบ still loaded, swWavePow its hit power (fixed at cast)
+  private swWave = false
+  private swWavePow = 0
   private boomUsed = false // Knight Spear Boomerang used this wave
   private firstSwing = false // Knight Charge Attack: first basic swing of the wave
   private s1Weave = false // P2'a Thief สลับคม: แทงพิษ was cast outside ร่างเงา, the next hero action is a basic attack (cleared by basicAttack)
@@ -4016,7 +4022,9 @@ export class BattleScene extends Phaser.Scene {
     const rate = this.comboChance() - (target ? this.monCombo(target).ignore : 0), count = COMBO.baseCount + this.st.comboCount + (this.relic === 'wolf' ? RELIC_RULES.wolf.comboCount : 0)
     while (extra < count && Math.random() < rate) extra++ // Capybara-style: each extra hit rolls (rate - Ignore Combo), stop on a miss
     this.stayIn = extra > 0 || this.rampage > 0
+    const swFirst = this.swAwaken > 0 ? this.front()[0] : undefined
     await this.swingOnce()
+    if (swFirst) this.swordCleave(swFirst)
     this.comboKnives(false) // Rogue ★: crit knives from the first swing
     if (this.rampage > 0 && this.alive().length) { this.floatText(HERO_X, GROUND - 150, '👹', '#ff5a4e'); await this.swingOnce() } // Berserker บ้าระห่ำ: every swing hits twice
     if (this.alive().length && await this.procs('basic') > 0) await this.wait(120) // พร v2: on-basic-attack cards
@@ -4419,6 +4427,35 @@ export class BattleScene extends Phaser.Scene {
     await this.ultNow(pow, hitPow)
     this.ultWebAfter()
   }
+  /** 🌊 คลื่นดาบ: the awakened Swordsman's wave, on every monster. Fires once, when a monster is under the execute line or on the
+   *  last awakened turn (swordWaveNow). Runs as the ult (src 'ult' + its crit switch) so ⚖️ คำพิพากษา and ult nodes apply,
+   *  but not through asSkill: no second on-cast trigger. `inUlt` = called from the ult itself (src is already 'ult'). */
+  private async swordWaveCheck(inUlt = false) {
+    if (!this.swWave || this.hp <= 0) return
+    const live = this.front(), fracs = live.map((m) => m.hp / Math.max(1, m.def.hp))
+    const go = inUlt ? fracs.some((f) => f < SWORD_MANA.execLow) : swordWaveNow(this.swAwaken, fracs)
+    if (!live.length || !go) return
+    this.swWave = false
+    const prev = this.src, prevSlot = this.skillSlot
+    this.src = 'ult'; this.skillSlot = 'ult'
+    try {
+      sfx.slam()
+      this.callout('🌊 คลื่นดาบ!', W / 2, 170, '#ff9a6a')
+      await this.lunge(live[0], () => {
+        for (const m of this.front()) this.strike(m, (SWORD_MANA.ultMul + this.st.ultMulAdd) * this.swWavePow * (1 + this.st.pskill) * (m.charging ? 1 + this.st.ultVsCharge : 1))
+        guardianUltFx(this, HERO_X, GROUND, live[0].spr.x - 10, {
+          armorBreak: this.st.swBreak > 0 && this.alive().length > 0,
+          shatteredTargets: this.st.swShatter > 0 ? this.alive().filter((m) => m.charging).map((m) => ({ x: m.spr.x, y: m.spr.y })) : [],
+        })
+      }, false, true) // talents: ปราการ / ฟันทลาย
+    } finally { this.src = prev; this.skillSlot = prevSlot }
+  }
+  /** ⚔️ ปลุกดาบ: a basic swing also cuts the next monster for cleaveShare (one cut per swing turn). */
+  private swordCleave(first: Mon) {
+    const next = this.front().find((m) => m !== first && !m.dead)
+    if (!next || this.hp <= 0) return
+    this.withSrc('basic', () => this.strike(next, SWORD_MANA.cleaveShare, false, '#9fd0ff'))
+  }
   /** v84 webs, after any Swordsman / Priest ult (their 2nd jobs too): ★ หักท่า · ทุบเกราะ · ม่านพร · ชุบชีวา. */
   private ultWebAfter() {
     const S = KIT.swordTree, C = KIT.clericTree, st = this.st
@@ -4467,16 +4504,15 @@ export class BattleScene extends Phaser.Scene {
     if (this.j2) { await this.ult2(live, pow, hitPow); return }
     switch (this.job.id) {
       case 'swordsman':
-        if (live[0]) await this.lunge(live[0], () => {
-          live.forEach((m) => this.strike(m, (SWORD_MANA.ultMul + this.st.ultMulAdd) * hitPow * (1 + this.st.pskill) * (m.charging ? 1 + this.st.ultVsCharge : 1)))
-          guardianUltFx(this, HERO_X, GROUND, live[0].spr.x - 10, {
-            armorBreak: this.st.swBreak > 0 && this.alive().length > 0,
-            shatteredTargets: this.st.swShatter > 0 ? this.alive().filter((m) => m.charging).map((m) => ({ x: m.spr.x, y: m.spr.y })) : [],
-          })
-        }, false, true) // talents: ปราการ / ฟันทลาย
+        // ⚔️ ปลุกดาบ (Q 2026-11-21 Riven-style): wake the blade, the 🌊 wave fires itself later (swordWaveCheck)
+        this.swAwaken = SWORD_MANA.awakenTurns + 1 // ticks down after this turn
+        this.swWave = true
+        this.swWavePow = hitPow
+        this.callout(`⚔️ ปลุกดาบ! ${SWORD_MANA.awakenTurns} เทิร์น`, W / 2, 170, '#9fd0ff')
         this.addShield(this.st.maxHp * Math.max(0, SWORD_MANA.ultShield + this.st.ultShieldAdd) * pow)
         if (this.st.ultCounters > 0) this.ctrCharges = this.st.ultCounters // talent: ท่าสวนพร้อม
         this.cameras.main.flash(120, 140, 170, 220)
+        await this.swordWaveCheck(true) // a monster already low: cut now (the turn-start check covers the rest)
         break
       case 'archer':
         await this.archerPierce(hitPow)
