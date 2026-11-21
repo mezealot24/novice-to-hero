@@ -53,7 +53,7 @@ import { CombatLog, deathText, recapLines, saveDeath, type DeathRec, type HitOut
 import { ftue, track } from '../analytics'
 import { HeroRig } from '../battle/hero-rig'
 import { fitHeroScale, heroCostumeTint, heroRigSpec, heroTex, type HeroRigSpec } from '../gfx/hero-visual'
-import { ARCHER_PFX, BEAST_PFX, CLERIC_PFX, COIN_DROP_IDS, COIN_DROP_REST, COIN_PFX, MAGE_PFX, POISON_GREEN, RICOCHET_LEAF, THIEF_PFX, ZAP_YELLOW, ZAP_YELLOW_SPARKS, playPfx, preloadPfx } from '../gfx/pixelfx'
+import { ARCHER_PFX, BEAST_PFX, CLERIC_PFX, COIN_DROP_IDS, COIN_DROP_REST, COIN_PFX, MAGE_PFX, POISON_GREEN, RICOCHET_LEAF, SWORD_PFX, THIEF_PFX, ZAP_YELLOW, ZAP_YELLOW_SPARKS, playPfx, preloadPfx } from '../gfx/pixelfx'
 import { THIEF_FX, backstabFx, daggerCrossFx, flyingKnife, knifeLandFx, knifeStormFx, shadowSlashFx, smokeBombFx, venomStabFx } from '../battle/thief-vfx'
 import { pickChainTargets, playChainLightningFx } from '../battle/lightning-vfx'
 import { RANGER_FX, arrowImpactFx, arrowProjectile, arrowRainFx, beastRoarFx, boarGuardFx, eagleEyeFx, huntMarkOn, petHitFx, type PetKind, pierceShotFx, snareTrapFx, stampedeFx, wolfRoarPalette } from '../battle/ranger-vfx'
@@ -414,6 +414,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.job.id === 'mage') preloadPfx(this, MAGE_PFX)
     if (this.job.id === 'archer') preloadPfx(this, ARCHER_PFX)
     if (this.job.id === 'thief') preloadPfx(this, THIEF_PFX)
+    if (this.job.id === 'swordsman') preloadPfx(this, SWORD_PFX) // 🤐 ดาบสยบมนตร์ / 🗡️ ดาบพิพากษา (Knight / Berserker cast the Skill 1 too)
     if (this.j2?.id === 'beastmaster') preloadPfx(this, BEAST_PFX)
     else if (this.st.arHawk > 0) preloadPfx(this, ['hawkDive']) // archer talent เหยี่ยวคู่ใจ
     preloadPfx(this, ['zapYellow', 'zapBolt'])
