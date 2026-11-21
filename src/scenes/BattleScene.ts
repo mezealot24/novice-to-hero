@@ -58,6 +58,7 @@ import { THIEF_FX, backstabFx, daggerCrossFx, flyingKnife, knifeLandFx, knifeSto
 import { pickChainTargets, playChainLightningFx } from '../battle/lightning-vfx'
 import { RANGER_FX, arrowImpactFx, arrowProjectile, arrowRainFx, beastRoarFx, boarGuardFx, eagleEyeFx, huntMarkOn, petHitFx, type PetKind, pierceShotFx, snareTrapFx, stampedeFx, wolfRoarPalette } from '../battle/ranger-vfx'
 import { blockShieldFx, bowlingBashFx, brandishSweepFx, chargeOpenerFx, comboSlashFx, guardianUltFx, pierceHitFx, skill2AuraFx, spearBoomerangFx, whirlwindFx } from '../battle/sword-vfx'
+import { applyTankDr, isMonSkillTag } from '../data/tank-scale'
 
 // Side-scroll, turn-based (Capybara Go-like): the hero walks right, meets a group, and everyone
 // takes turns by speed (AGI). The player's job: the build (1-of-3 cards) and when to fire Smash.
@@ -5482,7 +5483,7 @@ export class BattleScene extends Phaser.Scene {
   private hurtHero(dmg: number, magic: boolean, monHit: number, src?: Mon, tag = 'โจมตี'): boolean {
     const hp0 = this.hp, crit = this.monCritHit
     this.monCritHit = false; this.hitOut = 'hit'; this.hitLost = 0
-    const landed = this.hurtHeroCore(dmg, magic, monHit, src)
+    const landed = this.hurtHeroCore(dmg, magic, monHit, src, isMonSkillTag(tag))
     const out: HitOut = landed && this.hitOut === 'hit' && this.hitLost === 0 && this.lastHurt > 0 ? 'shield' : this.hitOut
     this.logHit({ who: src?.def.name ?? '', kind: src?.kind, tag, magic, crit, out, raw: dmg, taken: this.lastHurt, shield: Math.max(0, this.lastHurt - this.hitLost), hp: this.hitLost, hp0,
       mon: src ? { lv: src.def.lv, dmg: src.def.dmg, matk: src.def.matk, mul: this.monMul(src), hell: src.def.hellish, affix: src.affix } : undefined })
@@ -5502,7 +5503,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Order (stat spec v1): lucky dodge -> hit/flee -> DEF. Returns false when the hit didn't land. */
-  private hurtHeroCore(dmg: number, magic: boolean, monHit: number, src?: Mon): boolean {
+  private hurtHeroCore(dmg: number, magic: boolean, monHit: number, src?: Mon, skill = false): boolean {
     this.lastHurt = 0
     const dodged = (label: string, color: string) => {
       this.hitOut = label === 'LUCKY!' ? 'lucky' : label === 'EVADE!' ? 'evade' : 'dodge'
@@ -5561,6 +5562,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.thShadowWard > 0 && shadowWardApplies(magic, monHit, (src?.trueTurns ?? 0) > 0)) n = Math.max(1, Math.ceil(n * (1 - this.st.thShadowWard))) // P2'd WIS Shadow Ward
     if (this.st.thMistDr > 0 && shadowWardApplies(magic, monHit, (src?.trueTurns ?? 0) > 0)) n = applyMistDr(n, this.st.thMistDr) // PoE Passive Mistwalker DR (multiplicative with Shadow Ward)
     if (!magic && this.st.j2BoarGuardDr > 0 && readyAllies(this.allies).some((a) => a.def.share && a.hp > a.maxHp * KIT2.beastmaster.boarGuardHpPct)) n = Math.max(1, Math.ceil(n * (1 - this.st.j2BoarGuardDr))) // 🐗 bm_b3: Boar > 50% HP lowers physical dmg taken
+    n = applyTankDr(n, this.st.tankDr, this.st.tankSkillDr, skill) // 🛡️ Q 2026-11-21 tank class bulk (data/tank-scale.ts)
     if (src && this.st.j2Provoke > 0) { // Knight ข่มขวัญ: immediate 50% DR, full DR below provokeAt HP
       const cut = src.hp < src.def.hp * KIT2.knight.tree.provokeAt ? this.st.j2Provoke : this.st.j2Provoke * 0.5
       n = Math.max(1, Math.ceil(n * (1 - cut)))

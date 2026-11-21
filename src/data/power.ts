@@ -59,7 +59,7 @@ export function powerParts(st: Stats, job: JobId = 'novice', job2?: Job2Id, job3
   const magicTaken = (1 - st.mdef) * (1 - st.guard)
   const land = hitChance(R.hit, st.flee, 0.8 - st.fleeFloor) * (1 - st.luckyDodge) // same floor as BattleScene.hurtHero
   const bandCut = Math.min(0.4, st.j3Banding * 2) // Banding DR averaged across ~2 active enemies
-  const taken = (physTaken * land * (1 - R.magicShare) + magicTaken * R.magicShare) * (1 - bandCut)
+  const taken = (physTaken * land * (1 - R.magicShare) + magicTaken * R.magicShare) * (1 - bandCut) * (1 - st.tankDr) * (1 - 0.3 * st.tankSkillDr) // 🛡️ tank bulk: ~30% of hits taken are monster skills
   // sustain over a ~15-attack fight: lifesteal / vamp, regen (%/turn), dodge heals (Thief gear: every dodge heals)
   const sustain = 1 + st.lifesteal + 0.5 * st.spellVamp + st.regen * BATTLE.regenPerTurn * 0.15 + 0.5 * st.healAmp + 0.5 * st.counter
     + st.dodgeHeal * (1 - land) * (1 - R.magicShare) * R.fightHits + (job === 'cleric' ? 0.3 : 0)
