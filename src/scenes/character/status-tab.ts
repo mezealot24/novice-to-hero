@@ -19,6 +19,7 @@ import { setBonuses } from "../../data/sets";
 import { persist, save } from "../../save";
 import { JOBS, type JobId } from "../../data/jobs";
 import { DERIVED_STAT_CAPS, statLines } from "../../data/statInfo";
+import { activeJob3 } from "../../data/jobs3";
 import {
 	button,
 	confirm,
@@ -215,7 +216,7 @@ export function statDesc(
 	w: number,
 	h: number,
 ) {
-	const { generic, cls } = statLines(stat, job, total, save().job2, statPool(save()));
+	const { generic, cls } = statLines(stat, job, total, save().job2, statPool(save()), activeJob3(save()));
 	for (const size of [12, 11, 10, 9]) {
 		const g = txt(scene, x, y, generic.join(" · "), size, "#d8d4f0")
 			.setWordWrapWidth(w)

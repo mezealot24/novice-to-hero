@@ -8,7 +8,7 @@ export type BaseStat = "str" | "vit" | "wis" | "dex" | "int" | "luk" | "agi";
 export const PER_POINT = {
 	str: { atk: 2, pskill: 0.005 },
 	dex: { hit: 1, minPct: 0.005 },
-	vit: { maxHp: 10, maxHpPct: 0.005, def: 0.5, regen: 0.02, counterK: 300 },
+	vit: { maxHp: 25 /* Q 2026-11-21: 10 -> 25 (end-game HP could not take end-game damage) */, maxHpPct: 0.005, def: 0.5, regen: 0.02, counterK: 300 },
 	int: { matk: 2, maxRes: 3 },
 	wis: {
 		healAmp: 0.01,

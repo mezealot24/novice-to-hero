@@ -139,7 +139,7 @@ export const D13: DungeonPack<D13Kind> = {
     noctisshade: ['harvest', 'queen'],
   },
   miniHints: {
-    umbravalkyrie: 'หลบ 2 ครั้งแล้วตีโดนแน่ 3 เทิร์น · ร่ายฝนดารา (รัวหลายฮิตลอก Astral Veil เพื่อสั่ง Stagger + ยกเลิก) · ต่ำกว่า 45% เร็วขึ้นและฟัน 3 ฮิต',
+    umbravalkyrie: 'หลบ 2 ครั้งแล้วได้ Hit +40 นาน 3 เทิร์น · ร่ายฝนดารา (รัวหลายฮิตลอก Astral Veil เพื่อสั่ง Stagger + ยกเลิก) · ต่ำกว่า 45% เร็วขึ้นและฟัน 3 ฮิต',
     noctisshade: 'เงาของโนคทิส: ยิงศรนิทรา 2 ฮิตติดไฟ + ชุบลูกน้อง · ครึ่งเลือดดูดค่าสถานะ + เรียกภูตสุริยคราส 2 ตัว (หลบคงที่ 30%) จบให้ไว',
   },
   holyFoes: ['eclipsewraith', 'voidastrologer', 'noctisshade', 'seraph'],

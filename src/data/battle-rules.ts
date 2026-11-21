@@ -1,10 +1,21 @@
 import { PACKS } from './dungeons'
 import type { MonsterKind } from './monsters'
 
-/** Stat spec v1: hit chance = clamp(0.80 + (Hit - Flee) * 1%, 80%, 98%), both sides. */
+/** Hit chance = clamp(0.80 + (Hit - Flee) * 1%, FLEE_RULES.floor, 98%), both sides (Q 2026-11-21 "ใช้แบบ RO": floor 20%, was 80%).
+ *  Monster hits on the hero go through monHitChance (Thief fleeFloor + mob penalty). */
 /** Thief Double Strike: Lv 1 20% ... Lv 5 60% (Q: Lv 5 = RO Lv 10). */
 export const doubleAtkChance = (lv: number) => (lv <= 0 ? 0 : 0.1 + 0.1 * Math.min(5, lv))
-export const hitChance = (hit: number, flee: number, floor = 0.8) => Math.min(0.98, Math.max(floor, 0.8 + (hit - flee) * 0.01))
+export const hitChance = (hit: number, flee: number, floor = FLEE_RULES.floor) => Math.min(0.98, Math.max(floor, 0.8 + (hit - flee) * 0.01))
+/** Q 2026-11-21 "RO style" monster -> hero hit: 80% + Hit - Flee (as before), but the floor is 20% instead of 80% so high Flee
+ *  really dodges. fleeFloor (Thief เงาบาง + nodes, cap 0.2) lowers it by floorCutMul per point (Thief 15% ... 10% at the cap),
+ *  never below minFloor. RO mob penalty: from mobFrom monsters alive, Flee -mobPer per extra monster (max mobMax). */
+export const FLEE_RULES = { floor: 0.2, floorCutMul: 0.5, minFloor: 0.05, mobFrom: 3, mobPer: 0.1, mobMax: 0.5, trueSightHit: 40 /* 🎯 ตาเหยี่ยว: + Hit while up (no longer a sure hit, Q 2026-11-21) */ }
+/** Flee after the RO mob penalty (`alive` = monsters still standing). */
+export const mobFlee = (flee: number, alive: number) =>
+  flee * (1 - Math.min(FLEE_RULES.mobMax, FLEE_RULES.mobPer * Math.max(0, alive - FLEE_RULES.mobFrom + 1)))
+/** Chance a monster's physical hit lands on the hero (lucky dodge rolls separately). */
+export const monHitChance = (monHit: number, flee: number, fleeFloor = 0, alive = 1) =>
+  hitChance(monHit, mobFlee(flee, alive), Math.max(FLEE_RULES.minFloor, FLEE_RULES.floor - FLEE_RULES.floorCutMul * fleeFloor))
 /** Stat spec v1: damage after DEF = dmg * 100 / (100 + DEF). Never subtract flat. */
 export const afterDef = (dmg: number, def: number) => dmg * 100 / (100 + Math.max(0, def))
 

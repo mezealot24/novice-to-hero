@@ -103,6 +103,8 @@ export interface Stats {
   // ----- PoE Passive Tree Phase 1: Thief-Line Constellation (data/passives/thief.ts) -----
   thDeathMark: number // Death Mark Keystone: echo ratio (e.g. 0.35) of non-DoT hero net HP dmg dealt during mark turns as pure B6 burst
   thUltCdAdd: number // Death Mark Keystone downside: + Ult cooldown turns (wired into ultCooldown)
+  tankDr: number // 🛡️ tank class bulk (data/tank-scale.ts): damage taken -this on every landed hit
+  tankSkillDr: number // 🛡️ tank class bulk: monster skill damage taken -this more (multiplies with tankDr)
   thMistDr: number // Mistwalker Keystone: DR vs magic / monHit >= 999 / trueSight (e.g. 0.25)
   thDefShieldCut: number // Mistwalker Keystone downside: -30% P.DEF in heroBuild & -30% shields gained in BattleScene
   thFlurryDmgCut: number // Blade Flurry Keystone downside: -10% Ult per-hit multiplier (wired into thiefUltBudget & BattleScene)
@@ -534,7 +536,7 @@ export const PLAYER: Stats = {
   j3Wl: 0, j3WlBlitz: 0,
   j3Sk: 0, j3Kp: 0, j3Hw: 0, j3Mc: 0, j3Pierce: 0, j3KpDebtAmp: 0, j3HwDrain: 0, j3HwAmp: 0, j3McOver: 0, // 🥷🎩🌌🤖 the last four Awakenings
   strManaMiss: 0, j3Pf: 0, j3PfLegFire: 0, j3PfLegLight: 0, j3PfLegIce: 0, j3PfMarkTurns: 0, j3PfResidue: 0, j3PfChain: 0, j3PfCritMana: 0, j3PfTrinity: 0, j3PfSoulChange: 0, j3PfMemorize: 0, j3PfDcAt: 0, j3PfDcMul: 0, j3PfForesight: 0, // 🎓 Professor
-  thDeathMark: 0, thUltCdAdd: 0, thMistDr: 0, thDefShieldCut: 0, thFlurryDmgCut: 0, thMobFlurry: 0, thEldritchVenom: 0, thPhysLeechCut: 0, thS3ShieldPierce: 0, thLuckyKnife: 0, // PoE Passive Tree Phase 1: Thief-Line
+  thDeathMark: 0, thUltCdAdd: 0, thMistDr: 0, tankDr: 0, tankSkillDr: 0, thDefShieldCut: 0, thFlurryDmgCut: 0, thMobFlurry: 0, thEldritchVenom: 0, thPhysLeechCut: 0, thS3ShieldPierce: 0, thLuckyKnife: 0, // PoE Passive Tree Phase 1: Thief-Line
 }
 
 export const RULES = {

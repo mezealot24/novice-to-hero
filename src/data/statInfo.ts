@@ -4,6 +4,9 @@
 import { COMBO } from './game-data'
 import { critShieldOf, PER_POINT, thiefUltAgiBonus, type BaseStat } from './meta'
 import type { JobId } from './jobs'
+import type { Job2Id } from './jobs2'
+import type { Job3Id } from './jobs3'
+import { tankBulk } from './tank-scale'
 import { breakChance, KIT, KIT2, MAGE_CAST } from './skill-math'
 import { shadowWard } from './thief-offmeta'
 
@@ -84,9 +87,11 @@ export const DERIVED_STAT_CAPS = {
 } as const
 
 /** Lines for this stat and class, already filled with the hero's numbers. */
-export function statLines(stat: BaseStat, job: JobId, total: number, job2?: string, pool = 0) {
+export function statLines(stat: BaseStat, job: JobId, total: number, job2?: string, pool = 0, job3?: Job3Id) {
   const info = STAT_INFO[stat], d = Math.max(0, total - 1)
   const fill = (l: Line) => (typeof l === 'string' ? l : l(total, d, pool))
   const j2Lines = job2 && info.byJob2?.[job2] ? info.byJob2[job2]!.map(fill) : []
-  return { generic: info.generic.map(fill), cls: [...(info.byClass[job] ?? []).map(fill), ...j2Lines] }
+  const tank = stat === 'vit' ? tankBulk(job, job2 as Job2Id | undefined, job3) : undefined // 🛡️ tank class bulk (data/tank-scale.ts)
+  const tankLines = tank ? [`🛡️ ${tank.name}: HP +${tank.vitHp}/VIT เพิ่ม (ตอนนี้ +${tank.vitHp * d}) · ลดดาเมจ ${Math.round(tank.dr * 100)}% · ลดดาเมจสกิลมอน อีก ${Math.round(tank.skillDr * 100)}%`] : []
+  return { generic: info.generic.map(fill), cls: [...(info.byClass[job] ?? []).map(fill), ...j2Lines, ...tankLines] }
 }

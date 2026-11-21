@@ -17,6 +17,7 @@ import { SKILLS, smashLv, type SkillId } from "./novice";
 import { RACES, raceBase, raceSteps, type RaceId } from "./races";
 import { JOB2_BONUS_STATS, JOB2_CHANGE_BONUS, JOB3_BONUS, JOB3_BONUS_STATS, JOB_BONUS, JOB_BONUS_STATS, PER_POINT, STAT_RULES, type BaseStat } from "./stat-spec";
 import { wornCards, wornItems } from "./worn";
+import { tankBulk } from "../tank-scale";
 import { activeJewels, jewelStats, type Jewel } from "../jewels";
 
 // ---------- combine everything into the hero's starting stats ----------
@@ -239,6 +240,7 @@ export function applyBase(
 	st: Stats,
 	b: Record<BaseStat, number>,
 	atkStat: BaseStat = "str",
+	vitHp: number = PER_POINT.vit.maxHp, // HP per VIT point: hero 25 (+ tank class bonus), stat monsters MON_STAT.vitHp
 ) {
 	const d = (k: BaseStat) => b[k] - STAT_RULES.start;
 	const P = PER_POINT;
@@ -246,7 +248,7 @@ export function applyBase(
 	st.pskill += P.str.pskill * b.str;
 	st.hit += P.dex.hit * b.dex;
 	st.minPct = Math.min(0.95, st.minPct + P.dex.minPct * b.dex);
-	st.maxHp = (st.maxHp + P.vit.maxHp * d("vit")) * (1 + P.vit.maxHpPct * b.vit);
+	st.maxHp = (st.maxHp + vitHp * d("vit")) * (1 + P.vit.maxHpPct * b.vit);
 	st.def += P.vit.def * b.vit;
 	st.regen += P.vit.regen * b.vit;
 	st.matk += P.int.matk * d("int");
@@ -335,7 +337,10 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 	const d = (k: BaseStat) => b[k] - STAT_RULES.start;
 	const P = PER_POINT;
 	const job = JOBS[s.job ?? "novice"];
-	applyBase(st, b, job.attack === "ranged" ? "dex" : "str"); // ranged jobs draw P.ATK from DEX instead of STR (stat spec v1)
+	const tankJ2 = s.job2 && JOB2[s.job2]?.parent === job.id ? s.job2 : undefined;
+	const tank = tankBulk(job.id, tankJ2, tankJ2 ? activeJob3(s) : undefined); // 🛡️ Q 2026-11-21 tank class bulk (data/tank-scale.ts)
+	applyBase(st, b, job.attack === "ranged" ? "dex" : "str", P.vit.maxHp + (tank?.vitHp ?? 0)); // ranged jobs draw P.ATK from DEX instead of STR (stat spec v1)
+	if (tank) { st.tankDr += tank.dr; st.tankSkillDr += tank.skillDr; }
 	if (job.id === "thief") st.poisonDmg += KIT.poison.intPer * d("int"); // Q 2026-11-03: off-stat use, Thief poison + per INT point per stack (kit poison.intPer)
 	st.poisonHpPct = KIT.poison.hpPct + KIT.poison.hpPctInt * Math.floor(Math.max(0, b.int) / 10); // Q 2026-11-18: poison %HP bite per stack, +per 10 INT (every job)
 	if (job.id === "thief") st.thUltAgi = thiefUltAgiBonus(d("agi"), statPool(s)); // Q 2026-11-19 Ratio AGI (was kit thiefUltAgi per point, uncapped)

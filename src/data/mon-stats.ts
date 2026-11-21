@@ -34,8 +34,22 @@ export const MON_STAT = {
   levelBase: { hp: 8, atk: 3.5, matk: 3.5, def: 0.6, hit: 0.8 },
   /** HP x this by tier (after Level Base): stat HP alone would make a boss die in a few hits. */
   body: { normal: 1, mini: 5, boss: 8 } as Record<MonTier, number>,
+  /** Q 2026-11-21 end-game HP rebalance: HP x this on top of body, normal x2 · mini x4 · MVP x10.
+   *  Ramps in by level: x1 at Lv <= fromLv (D1-D5 home rooms unchanged), full at Lv >= fullLv (D10+). */
+  hpScale: { normal: 2, mini: 4, boss: 10, fromLv: 21, fullLv: 80 },
+  /** HP per VIT point a monster gets from its stats: stays at the old 10 when the hero's VIT HP went to 25 (Q 2026-11-21);
+   *  the monster's own HP rise is hpScale above, so VIT-heavy monsters don't double dip. */
+  vitHp: 10,
   /** Monster caps (same as the hero's where the hero has one). */
   mdefCap: RESIST_RULES.hardCap, luckyCap: 0.25, rateCap: 1.5,
+}
+
+/** End-game HP multiplier of a tier at this level (MON_STAT.hpScale, linear ramp fromLv -> fullLv). */
+export function monHpScale(tier: MonTier, lv: number): number {
+  const S = MON_STAT.hpScale
+  const span = Math.max(1, S.fullLv - S.fromLv)
+  const t = S.fullLv <= S.fromLv ? 1 : Math.min(1, Math.max(0, (lv - S.fromLv) / span))
+  return 1 + (S[tier] - 1) * t
 }
 
 export const monTier = (d: MonsterDef): MonTier => (d.mini ? 'mini' : d.ai === 'boss' ? 'boss' : 'normal')
@@ -72,11 +86,11 @@ interface Derived {
 function derive(alloc: StatAlloc, lv: number, tier: MonTier, o: StatMonOpts, pm = 1): Derived {
   const b = monBase(alloc, Math.round(monPoints(lv, tier, o.hard, o.tierPct) * pm), o.statMul)
   const st: Stats = { ...PLAYER }
-  applyBase(st, b)
+  applyBase(st, b, 'str', MON_STAT.vitHp)
   const L = MON_STAT.levelBase
   return {
     b, st,
-    hp: (st.maxHp + L.hp * lv) * MON_STAT.body[tier],
+    hp: (st.maxHp + L.hp * lv) * MON_STAT.body[tier] * monHpScale(tier, lv),
     dmg: st.atk + L.atk * lv, matk: st.matk + L.matk * lv, def: st.def + L.def * lv, hit: st.hit + L.hit * lv,
     flee: st.flee, crit: st.crit, combo: st.combo, counter: st.counter,
     speed: BATTLE.heroSpeed * (Math.max(0.6, st.aspd) / PLAYER.aspd),

@@ -7,7 +7,7 @@ import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LI
 import { EVENT_RULES, FORTUNE, type DayOpts, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
 import { blessBase, FREE_GEMS, heroBuild, heroStats, jobUpText, itemById, PER_POINT, RESOURCES, splitStatLine, totalBase, type BaseStat, type HeroBuildSummary } from '../data/meta'
-import { COIN_FX, CRIT_RULES, RESIST_RULES, coinTier, monCritRate, monSkillCritRate, splitZeny } from '../data/battle-rules'
+import { COIN_FX, CRIT_RULES, FLEE_RULES, monHitChance, RESIST_RULES, coinTier, monCritRate, monSkillCritRate, splitZeny } from '../data/battle-rules'
 import { type ItemEffectId, type ItemEffectSpec } from '../data/item-effects'
 import { createBiomeCombatState, HAZARD_TUNING, modifyHeroDirectHealBiome, onHeroShieldOrBlockBiome, onHeroSkillCastBiome, onMonsterHitBiome, onTurnEndBiome, type BiomeCombatState } from '../data/biome-hazards'
 import { RIFT_BRANCHES, riftBoonById, type RiftBoonDef, type RiftBranchDef } from '../data/rift'
@@ -58,6 +58,7 @@ import { THIEF_FX, backstabFx, daggerCrossFx, flyingKnife, knifeLandFx, knifeSto
 import { pickChainTargets, playChainLightningFx } from '../battle/lightning-vfx'
 import { RANGER_FX, arrowImpactFx, arrowProjectile, arrowRainFx, beastRoarFx, boarGuardFx, eagleEyeFx, huntMarkOn, petHitFx, type PetKind, pierceShotFx, snareTrapFx, stampedeFx, wolfRoarPalette } from '../battle/ranger-vfx'
 import { blockShieldFx, bowlingBashFx, brandishSweepFx, chargeOpenerFx, comboSlashFx, guardianUltFx, pierceHitFx, skill2AuraFx, spearBoomerangFx, whirlwindFx } from '../battle/sword-vfx'
+import { applyTankDr, isMonSkillTag } from '../data/tank-scale'
 
 // Side-scroll, turn-based (Capybara Go-like): the hero walks right, meets a group, and everyone
 // takes turns by speed (AGI). The player's job: the build (1-of-3 cards) and when to fire Smash.
@@ -96,7 +97,7 @@ interface Mon {
   skills: MonSkill[]; onHit?: HitFx; slamFx?: HitFx
   heroKit?: HeroKit; kit?: KitState // v125 hero skills the monster casts (resolved: 'mirror' -> the player's kit)
   revived: boolean // came back once (necro): can't be raised again
-  clone?: boolean; evaded?: number; trueTurns?: number // v56 trueSight: hero evades counted, then 🎯 its physical hits always land
+  clone?: boolean; evaded?: number; trueTurns?: number // v56 trueSight: hero evades counted, then 🎯 its physical hits get FLEE_RULES.trueSightHit
   weakTurns: number; weakPct: number // hero Skill 2 ท้าทาย: hits weaker for its next N turns
   armorBrk: number // Mobster ตัดเส้นเอ็น: turns of DEF -KIT2.mobster.armorBrk
   blind: number // Crusader Holy Cross: turns of Hit -KIT2.crusader.blindHit (Thief ม่านควัน Sightless Raid shares it)
@@ -5482,7 +5483,7 @@ export class BattleScene extends Phaser.Scene {
   private hurtHero(dmg: number, magic: boolean, monHit: number, src?: Mon, tag = 'โจมตี'): boolean {
     const hp0 = this.hp, crit = this.monCritHit
     this.monCritHit = false; this.hitOut = 'hit'; this.hitLost = 0
-    const landed = this.hurtHeroCore(dmg, magic, monHit, src)
+    const landed = this.hurtHeroCore(dmg, magic, monHit, src, isMonSkillTag(tag))
     const out: HitOut = landed && this.hitOut === 'hit' && this.hitLost === 0 && this.lastHurt > 0 ? 'shield' : this.hitOut
     this.logHit({ who: src?.def.name ?? '', kind: src?.kind, tag, magic, crit, out, raw: dmg, taken: this.lastHurt, shield: Math.max(0, this.lastHurt - this.hitLost), hp: this.hitLost, hp0,
       mon: src ? { lv: src.def.lv, dmg: src.def.dmg, matk: src.def.matk, mul: this.monMul(src), hell: src.def.hellish, affix: src.affix } : undefined })
@@ -5502,14 +5503,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Order (stat spec v1): lucky dodge -> hit/flee -> DEF. Returns false when the hit didn't land. */
-  private hurtHeroCore(dmg: number, magic: boolean, monHit: number, src?: Mon): boolean {
+  private hurtHeroCore(dmg: number, magic: boolean, monHit: number, src?: Mon, skill = false): boolean {
     this.lastHurt = 0
     const dodged = (label: string, color: string) => {
       this.hitOut = label === 'LUCKY!' ? 'lucky' : label === 'EVADE!' ? 'evade' : 'dodge'
       this.evadeJuice(label, color)
       if (src && !src.dead && src.def.trueSight && !(src.trueTurns ?? 0) && (src.evaded = (src.evaded ?? 0) + 1) >= src.def.trueSight.after) { // anti-AGI: it reads the hero's footwork
         src.evaded = 0; src.trueTurns = src.def.trueSight.turns + 1; this.dotIcon(src)
-        this.time.delayedCall(350, () => this.callout(`🎯 ${src.def.name}: ตาเหยี่ยว! ตีโดนแน่นอน ${src.def.trueSight!.turns} เทิร์น`, W / 2, 205))
+        this.time.delayedCall(350, () => this.callout(`🎯 ${src.def.name}: ตาเหยี่ยว! Hit +${FLEE_RULES.trueSightHit} ${src.def.trueSight!.turns} เทิร์น`, W / 2, 205))
       }
       if (this.st.dodgeStrike > 0 && src && !src.dead) { // tree ★: strike back from the shadows (melee dashes in after the sidestep)
         this.floatText(HERO_X + 40, GROUND - 130, 'สวนจากเงา!', '#c9c9d6'); this.counterCount++
@@ -5534,9 +5535,10 @@ export class BattleScene extends Phaser.Scene {
       if (this.st.j3Inspire > 0) this.heal(this.st.maxHp * KIT3.common.inspireHeal, true)
       return dodged(this.st.j3Sk > 0 ? '🌑 Hide!' : '🎭 พรางตัว!', this.st.j3Sk > 0 ? '#b9a8ff' : '#9fe08a')
     }
-    const sure =this.hx.web > 0 || (!magic && (src?.trueTurns ?? 0) > 0) // 🕸️ webbed: Can't Evade · 🎯 ตาเหยี่ยว: physical hits skip Flee + lucky dodge
+    const sure = this.hx.web > 0 // 🕸️ webbed: Can't Evade
+    if (!magic && (src?.trueTurns ?? 0) > 0) monHit += FLEE_RULES.trueSightHit // 🎯 ตาเหยี่ยว: + Hit (Q 2026-11-21: was a sure hit that skipped Flee + lucky dodge)
     if (!sure && Math.random() < this.st.luckyDodge) return dodged('LUCKY!', '#6fd08c')
-    if (!sure && Math.random() > hitChance(monHit, this.fleeNow(), 0.8 - this.st.fleeFloor)) return dodged('EVADE!', '#9fe3ff') // Thief เงาบาง lowers the floor
+    if (!sure && Math.random() > monHitChance(monHit, this.fleeNow(), this.st.fleeFloor, this.alive().length)) return dodged('EVADE!', '#9fe3ff') // Q 2026-11-21 RO-style: floor 20% (Thief เงาบาง lowers it) + mob penalty
     if (!magic && (this.st.j2Guard > 0 || this.inspire > 0) && Math.random() < (this.inspire > 0 ? KIT3.common.inspireGuard : this.st.j2Guard + (this.gc ? this.st.j2GcGuard : 0)) * (this.hasShield || this.j2?.id === 'monk' || this.inspire > 0 ? 1 : KIT2.knight.guardShieldless)) { this.hitOut = 'block'; this.floatText(HERO_X, GROUND - 120, '🛡️ BLOCK!', '#9fe3ff'); sfx.hit(); this.onBlock(src); return false } // Knight / Crusader / Champion / Warlord Auto Guard
     if (magic && this.j2?.id === 'sage') { // 🛡️ Sage Magic Rod (+ VIT scaling)
       const rod = sageRodGain(this.st, this.heroVit)
@@ -5561,6 +5563,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.thShadowWard > 0 && shadowWardApplies(magic, monHit, (src?.trueTurns ?? 0) > 0)) n = Math.max(1, Math.ceil(n * (1 - this.st.thShadowWard))) // P2'd WIS Shadow Ward
     if (this.st.thMistDr > 0 && shadowWardApplies(magic, monHit, (src?.trueTurns ?? 0) > 0)) n = applyMistDr(n, this.st.thMistDr) // PoE Passive Mistwalker DR (multiplicative with Shadow Ward)
     if (!magic && this.st.j2BoarGuardDr > 0 && readyAllies(this.allies).some((a) => a.def.share && a.hp > a.maxHp * KIT2.beastmaster.boarGuardHpPct)) n = Math.max(1, Math.ceil(n * (1 - this.st.j2BoarGuardDr))) // 🐗 bm_b3: Boar > 50% HP lowers physical dmg taken
+    n = applyTankDr(n, this.st.tankDr, this.st.tankSkillDr, skill) // 🛡️ Q 2026-11-21 tank class bulk (data/tank-scale.ts)
     if (src && this.st.j2Provoke > 0) { // Knight ข่มขวัญ: immediate 50% DR, full DR below provokeAt HP
       const cut = src.hp < src.def.hp * KIT2.knight.tree.provokeAt ? this.st.j2Provoke : this.st.j2Provoke * 0.5
       n = Math.max(1, Math.ceil(n * (1 - cut)))
