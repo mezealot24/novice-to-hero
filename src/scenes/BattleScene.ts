@@ -4447,8 +4447,8 @@ export class BattleScene extends Phaser.Scene {
     const go = inUlt ? fracs.some((f) => f < SWORD_MANA.execLow) : swordWaveNow(this.swAwaken, fracs)
     if (!live.length || !go) return
     this.swWave = false
-    const prev = this.src, prevSlot = this.skillSlot
-    this.src = 'ult'; this.skillSlot = 'ult'
+    const prev = this.src, prevSlot = this.skillSlot, pSure = this.sureHit
+    this.src = 'ult'; this.skillSlot = 'ult'; this.sureHit = true // 🌊 คลื่นดาบ never misses (Q 2026-11-22)
     try {
       sfx.slam()
       this.callout('🌊 คลื่นดาบ!', W / 2, 170, '#ff9a6a')
@@ -4474,7 +4474,7 @@ export class BattleScene extends Phaser.Scene {
         this.swWaveReUsed = true; this.swWave = true
         this.floatText(HERO_X, GROUND - 170, '🌊 คลื่นซ้ำ!', '#8ff0d6')
       }
-    } finally { this.src = prev; this.skillSlot = prevSlot }
+    } finally { this.src = prev; this.skillSlot = prevSlot; this.sureHit = pSure }
   }
   /** ⚔️ ปลุกดาบ: a basic swing also cuts the next monster for cleaveShare (one cut per swing turn). */
   private swordCleave(first: Mon) {
@@ -4501,12 +4501,15 @@ export class BattleScene extends Phaser.Scene {
     const mul = (swordS1Raw(lv, atkAvg, totalBase(s).str, s.baseLevel) / atkAvg) * (1 + st.pskill) + this.hpMul() // Knight: + max HP share
     const wasCasting = t.charging
     const cutY = (m: Mon) => m.spr.y - m.spr.displayHeight * 0.45
+    const pSure = this.sureHit; this.sureHit = true // 🤐 ดาบสยบมนตร์ never misses (Q 2026-11-22)
+    try {
     await this.lunge(t, () => {
       sealCutFx(this, t.spr.x, cutY(t))
       this.strike(t, mul)
       if (st.swS1Splash > 0) for (const m of this.alive()) if (m !== t) { cleaveFx(this, m.spr.x, cutY(m)); this.strike(m, mul * st.swS1Splash) } // ⚔️ ฟันเฉือน
     }, false, true)
     if (st.swS1Star > 0 && !t.dead && this.hp > 0) await this.lunge(t, () => { sealCutFx(this, t.spr.x, cutY(t), true); this.strike(t, mul * S.starHit) }, false, true) // ★ ดาบสยบคู่
+    } finally { this.sureHit = pSure }
     if (!t.dead) {
       if (t.charging) castBreakFx(this, t.spr.x, cutY(t))
       if (t.charging) this.endMonCast(t, { text: '🤐 ขัดร่าย!', color: '#9fd0ff', float: true, dy: 24 })

@@ -341,6 +341,7 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 	const tank = tankBulk(job.id, tankJ2, tankJ2 ? activeJob3(s) : undefined); // 🛡️ Q 2026-11-21 tank class bulk (data/tank-scale.ts)
 	applyBase(st, b, job.attack === "ranged" ? "dex" : "str", P.vit.maxHp + (tank?.vitHp ?? 0)); // ranged jobs draw P.ATK from DEX instead of STR (stat spec v1)
 	if (tank) { st.tankDr += tank.dr; st.tankSkillDr += tank.skillDr; }
+	st.hit += STAT_RULES.hitPerBaseLv * Math.max(1, s.baseLevel ?? 1); // RO Hit = Base Lv + DEX (Q 2026-11-22: Hell AGI bosses were at the 20% floor for STR heroes)
 	if (job.id === "thief") st.poisonDmg += KIT.poison.intPer * d("int"); // Q 2026-11-03: off-stat use, Thief poison + per INT point per stack (kit poison.intPer)
 	st.poisonHpPct = KIT.poison.hpPct + KIT.poison.hpPctInt * Math.floor(Math.max(0, b.int) / 10); // Q 2026-11-18: poison %HP bite per stack, +per 10 INT (every job)
 	if (job.id === "thief") st.thUltAgi = thiefUltAgiBonus(d("agi"), statPool(s)); // Q 2026-11-19 Ratio AGI (was kit thiefUltAgi per point, uncapped)
