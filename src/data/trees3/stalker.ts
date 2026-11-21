@@ -2,9 +2,9 @@
 // 3 branches x 4 nodes (tier 1-3 + ★). Ids are save data: never rename. Caps / shared numbers live in KIT3.
 // ⚔️ ตำนาน = legacy: the more points the hero put in the 2nd-job web (ใยชั้น 2), the more these give (hero-stats.ts reads branch points).
 import { node, type ClassTree } from '../tree-types'
-import { KIT3 } from '../skill-math'
+import { KIT3, stalkerResMul } from '../skill-math'
 
-const P = KIT3.stalker, C = KIT3.common
+const P = KIT3.stalker, C = KIT3.common, V = P.divest
 const pct = (x: number) => `${Math.round(x * 1000) / 10}%`
 
 export const tree3: ClassTree = {
@@ -12,6 +12,7 @@ export const tree3: ClassTree = {
     { id: 'sk_l', job: 'thief', job2: 'rogue', name: 'ตำนาน', icon: '⚔️', blurb: 'แต้มในใยชั้น 2 ยิ่งเยอะยิ่งแรง' },
     { id: 'sk_p', job: 'thief', job2: 'rogue', name: 'ภูตมีด', icon: '👻', blurb: 'Phantom Storm: ดูดเลือด · ทะลุเกราะ · มีดเพิ่ม' },
     { id: 'sk_s', job: 'thief', job2: 'rogue', name: 'ย่องเงา', icon: '🌑', blurb: 'Ambush เปิดไฟต์ · Tunnel Drive · Hide' },
+    { id: 'sk_d', job: 'thief', job2: 'rogue', name: 'ปลดเปลือย', icon: '🧤', blurb: 'ต่อยอดสายปลด: ตีศัตรูที่โดนถอดแรงขึ้น · ลอกท่า · Phantom Storm ถอดทั้งจอ' },
   ],
   nodes: [
     node('sk_l1', 'sk_l', 1, '🔪', 'มีดบรรพชน', 3, (lv) => `พายุมีด / Phantom Storm +${pct(0.005 * lv)} ต่อแต้มในสาย 🔪 มีด (สูงสุด +${pct(P.leg.crossCap)})`, (lv) => ({ j3LegCross: 0.005 * lv })),
@@ -26,6 +27,11 @@ export const tree3: ClassTree = {
     node('sk_s2', 'sk_s', 2, '🕳️', 'Tunnel Drive', 3, (lv) => `ดาเมจเข้า −${lv * 2}% ต่อมอนที่ยังอยู่ (นับสูงสุด ${C.bandingMax} ตัว)`, (lv) => ({ j3Banding: 0.02 * lv })),
     node('sk_s3', 'sk_s', 3, '💀', 'Reject Sword', 3, (lv) => `ดาเมจคริ +${lv * 10}% · สกิลคริ +${lv * 3}%`, (lv) => ({ critMul: 0.1 * lv, skillCrit: 0.03 * lv })),
     node('sk_s4', 'sk_s', 4, '🌑', 'Hide', 1, () => `1 ครั้ง/ไฟต์ HP < ${C.inspireAt * 100}%: ${C.inspireTurns} เทิร์น หลบการโจมตีกายภาพ ${C.inspireGuard * 100}% + หลบได้ฮีล ${C.inspireHeal * 100}%`, () => ({ j3Inspire: 1 })),
+    // 🧤 ปลดเปลือย (Strip P2, Q 2026-11-21): pays off the Rogue rg_d สายปลด; 🔓 from Back Stab counts even without rg_d
+    node('sk_d1', 'sk_d', 1, '🎯', 'เหยื่อเปลือย', 3, (lv) => `ตีกายภาพใส่มอนที่โดนถอด แรง +${pct(V.preyPer * lv)} ต่อชนิด (🔓 ถอดเกราะ · 🧤 ปลดอาวุธ · 😰 อ่อนแรง · 👁️ เปิดช่อง · 🦴 เกราะแตก นับสูงสุด ${V.preyCap})`, (lv) => ({ j3SkPrey: V.preyPer * lv })),
+    node('sk_d2', 'sk_d', 2, '🎭', 'ลอกท่า', 3, (lv) => `⛓️ ตัดจังหวะได้ หรือ ✋ ฉกบัฟได้ → ${V.plagTurns} เทิร์นถัดไป ดาเมจ +${pct(V.plagPer * lv)} (ลอกท่าศัตรูมาใช้)`, (lv) => ({ j3SkPlag: V.plagPer * lv })),
+    node('sk_d3', 'sk_d', 3, '🪝', 'ถอดซ้ำ', 2, (lv) => `บอสที่โดนถอดซ้ำใน 2 เทิร์น ผลเหลือ x${Math.round(stalkerResMul(lv) * 100) / 100} (ปกติ x${stalkerResMul(0)})`, (lv) => ({ j3SkRes: lv })),
+    node('sk_d4', 'sk_d', 4, '🌪️', 'ปลดเปลือยหมดตัว', 1, () => `1 ครั้ง/เวฟ: Phantom Storm ถอดมอนทุกตัว อ่อนแรง ${pct(V.fullWeak)} · ปลดอาวุธ ${pct(V.fullDisarm)} · เปิดช่อง +${pct(V.fullExposed)} · ถอดเกราะ 🔓 · ลบบัฟ 1 อัน (${V.fullTurns} เทิร์น · บอสโดนครึ่งเดียว)`, () => ({ j3SkStrip: 1 })),
   ],
   talents: [],
 }

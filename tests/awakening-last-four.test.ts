@@ -42,7 +42,7 @@ test('every 2nd job now has exactly one Awakening, and the four new ones hang of
 test('each new ใยชั้น 3: Ult root + 3 branches x 4 nodes, own id prefix, a legacy branch with ★ สืบสาน', () => {
   for (const n of NEW) {
     const br = branches3Of(n.id)
-    assert.equal(br.length, 4, `${n.id}: root + 3 branches`)
+    assert.equal(br.length, n.id === 'stalker' ? 5 : 4, `${n.id}: root + 3 branches (Stalker +🧤 sk_d ปลดเปลือย)`)
     assert.ok(nodeById(`${n.id}_u3p`), 'Ult วิวัฒน์ 2 root')
     for (const b of br.filter((x) => !x.id.endsWith('_u3'))) {
       assert.ok(b.id.startsWith(`${n.prefix}_`), b.id)

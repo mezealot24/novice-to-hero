@@ -681,6 +681,11 @@ export const KIT3 = {
     varB: { mul: 2.6, pierce: 0.5, heirCdCut: 1, per: 0.02, cap: 0.2, branch: 'rg_x' as const }, // 🎯 Assassinate: boss first, DEF -50%, a kill resets the cooldown · +2% per คริ point
     leg: { crossCap: 0.15, guardCap: 12, hpCap: 0.09, cross: 'rg_k' as const, guard: 'rg_c' as const, hp: 'rg_x' as const }, // legacy guard = FLEE here (flat points)
     heirNeed: 6, gospelHealMax: 5, ambushKnifeMul: 1, // opener knives use the normal flying knife x this
+    // 🧤 sk_d ปลดเปลือย (Strip P2, Q 2026-11-21): the Rogue strip line pays off on the 3rd job
+    divest: { preyPer: 0.03, preyCap: 4, // 🎯 เหยื่อเปลือย: + hit damage per strip kind on the target (🔓 🧤 😰 👁️ 🦴), counted up to cap
+      plagPer: 0.08, plagTurns: 2, // 🎭 ลอกท่า: ⛓️ break a cast / ✋ snatch a buff -> hero damage + per Lv for N hero turns
+      resPer: 0.25, // 🪝 ถอดซ้ำ: boss repeat-strip penalty x(resMul + per x Lv), up to x1
+      fullWeak: 0.2, fullDisarm: 0.3, fullExposed: 0.15, fullTurns: 2 }, // 🌪️ ★ ปลดเปลือยหมดตัว: Phantom Storm strips every monster, 1/wave (x boss potency)
   },
   // 🎩 Kingpin (Mobster Awakening): debts pay interest (damage), the ult collects twice
   kingpin: {
@@ -1117,10 +1122,14 @@ export const wizCastTaken = (st: Pick<Stats, 'j3Hw'>) => KIT2.wizard.castTaken *
 
 // ---------- 🧤 Rogue rg_d สายปลด (Strip line, Q 2026-11-21) ----------
 /** Potency multiplier of a strip on a monster: boss / mini x bossMul, stripped again within resTurns x resMul. */
-export const divestMul = (bossy: boolean, resisting: boolean) => {
+export const divestMul = (bossy: boolean, resisting: boolean, resMul: number = KIT2.rogue.divest.resMul) => {
   const D = KIT2.rogue.divest
-  return (bossy ? D.bossMul : 1) * (resisting ? D.resMul : 1)
+  return (bossy ? D.bossMul : 1) * (resisting ? resMul : 1)
 }
+/** 🥷 sk_d3 ถอดซ้ำ: repeat-strip multiplier with `lv` (Stats.j3SkRes), capped at x1. */
+export const stalkerResMul = (lv: number) => Math.min(1, KIT2.rogue.divest.resMul + KIT3.stalker.divest.resPer * Math.max(0, lv))
+/** 🥷 sk_d1 เหยื่อเปลือย: damage amp for `kinds` strip kinds on the target at `per` (Stats.j3SkPrey). */
+export const stalkerPreyAmp = (per: number, kinds: number) => (per > 0 ? per * Math.min(KIT3.stalker.divest.preyCap, Math.max(0, kinds)) : 0)
 /** rg_d1 ปลดอาวุธ: weak share at `lv` (before divestMul). */
 export const disarmWeak = (lv: number) => (lv > 0 ? KIT2.rogue.divest.weak + KIT2.rogue.divest.weakPer * lv : 0)
 /** rg_d3 ฉกบัฟ: share of a stolen buff the hero keeps at `lv`. */
