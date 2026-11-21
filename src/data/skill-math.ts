@@ -504,11 +504,11 @@ export const S2N = {
 // ---------- costs / cooldowns ----------
 // floor 10, unless the class's own cost is lower (Mage 5, 2026-11-13) · P2'a: Thief (Rogue / Mobster too) floor KIT.thiefAutoMinCost
 export const autoCost = (job: JobDef, st: Stats) => {
-  if (swordS1On(job)) return Math.max(SWORD_S1.cost[0], SWORD_S1.cost[swordS1Lv(st) - 1] - st.autoCostCut) // ⚔️ ดาบสยบมนตร์: Mana by Lv, floor = Lv 1 cost
+  if (swordS1On(job) && job.resource === 'mana') return Math.max(SWORD_S1.cost[0], SWORD_S1.cost[swordS1Lv(st) - 1] - st.autoCostCut) // ⚔️ ดาบสยบมนตร์: Mana by Lv, floor = Lv 1 cost (Berserker: its flat Rage cost below)
   return Math.max(job.id === 'thief' ? KIT.thiefAutoMinCost : Math.min(10, job.auto.cost), job.auto.cost - st.autoCostCut)
 }
-/** ⚔️ ดาบสยบมนตร์ is this job's Skill 1: Swordsman / Knight (Mana). Berserker (Rage, battle job overrides resource) keeps ฟันพายุ. */
-export const swordS1On = (job: JobDef) => job.id === 'swordsman' && job.resource === 'mana'
+/** ⚔️ ดาบสยบมนตร์ is this job's Skill 1: the whole Swordsman line (Q 2026-11-21: Berserker too, paying its flat Rage cost). */
+export const swordS1On = (job: JobDef) => job.id === 'swordsman'
 
 // ---------- P2'a Thief pure helpers (numbers only, no Mon / Phaser: tests call them directly) ----------
 /** สลับคม: after แทงพิษ the next hero turn is a basic attack · Q3: not inside 👤 ร่างเงา (free Skill 1 spam stays). */
@@ -887,7 +887,6 @@ export function autoInfo(jobId: JobId, st: Stats, job2?: string): InfoRow[] {
   const out: InfoRow[] = [{ label: 'ใช้', value: `${resName(job)} ${autoCost(job, st)}` }]
   switch (jobId) {
     case 'swordsman': {
-      if (job2 === 'berserker') { out.push({ label: 'ฟันพายุ ดาเมจ/ตัว (ทุกตัว)', value: hitText(st, SWORD_MANA.autoMul * pow * (1 + st.pskill), false) }); break }
       const lv = swordS1Lv(st), i = lv - 1 // ⚔️ ดาบสยบมนตร์
       out.push({ label: `ดาบสยบมนตร์ Lv ${lv} (เป้าเดี่ยว)`, value: `P.ATK ${Math.round(SWORD_S1.atkPct[i] * 100)}% + STR x${SWORD_S1.str[i]} + ${SWORD_S1.base[i]} x Base Lv · ส่วน P.ATK ${hitText(st, SWORD_S1.atkPct[i] * (1 + st.pskill), false)}` })
       out.push({ label: 'ผล', value: `ล้าง CC บนตัวเรา · ใบ้ ${SWORD_S1.silenceTurns + (st.swS1Star > 0 ? 1 : 0)} เทิร์น + ขัดร่าย + เสียเทิร์น · คูลดาวน์ ${SWORD_S1.cd}` })

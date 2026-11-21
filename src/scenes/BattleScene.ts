@@ -14,7 +14,7 @@ import { RIFT_BRANCHES, riftBoonById, type RiftBoonDef, type RiftBranchDef } fro
 import { applyRiftBranchChoice } from '../battle/rift-engine'
 import { foldMutators, mutatorById } from '../data/mutators'
 import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster, EQUIP_CARDS } from '../data/cards'
-import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, SWORD_S1, SWORD_STORM, swordExecMul, swordS1Lv, swordS1Raw, swordWaveNow, type JobDef } from '../data/jobs'
+import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, SWORD_S1, swordExecMul, swordS1Lv, swordS1Raw, swordWaveNow, type JobDef } from '../data/jobs'
 import { JOB2, PET_IDS, type Job2Def, type PetId } from '../data/jobs2'
 import { skill2Picked } from '../data/tree'
 import { ALLIES, falconHitMul, fillAllies, frenzyMul, gadgetById, guardHit, hawkMul, hurtAlly, liveAllies, makeAlly, petPhysScale, readyAllies, reviveAllies, rollGadget, tauntTarget, tickAllies, TRAP_IDS, useAlly, type Ally, type AllyCtx, type GadgetId } from '../battle/allies'
@@ -418,7 +418,7 @@ export class BattleScene extends Phaser.Scene {
     else if (this.st.arHawk > 0) preloadPfx(this, ['hawkDive']) // archer talent เหยี่ยวคู่ใจ
     preloadPfx(this, ['zapYellow', 'zapBolt'])
     preloadPfx(this, COIN_PFX) // kill loot: every job sees it
-    if (this.j2) this.job = { ...this.job, resource: this.j2.resource ?? this.job.resource, auto: { ...this.job.auto, ...(this.j2.id === 'sage' ? { name: SAGE_S1.name, icon: SAGE_S1.icon, cost: KIT2.sage.s1Cost } : { cost: this.j2.autoCost ?? this.job.auto.cost, ...(this.j2.id === 'berserker' ? SWORD_STORM : {}) }) }, ult: { ...this.job.ult, ...this.j2.ult, ...(this.j2.id === 'monk' && this.st.j2Asura > 0 ? { icon: '💥', name: 'อาชูร่าสไตรก์' } : {}), ...(this.j2.id === 'sage' && this.st.j3Pf > 0 ? { icon: '💎', name: 'Soul Burst' } : {}) } } // Berserker: Rage · Sage: Spellstrike Skill 1 · Ult วิวัฒน์ · Monk ★ Asura Strike
+    if (this.j2) this.job = { ...this.job, resource: this.j2.resource ?? this.job.resource, auto: { ...this.job.auto, ...(this.j2.id === 'sage' ? { name: SAGE_S1.name, icon: SAGE_S1.icon, cost: KIT2.sage.s1Cost } : { cost: this.j2.autoCost ?? this.job.auto.cost }) }, ult: { ...this.job.ult, ...this.j2.ult, ...(this.j2.id === 'monk' && this.st.j2Asura > 0 ? { icon: '💥', name: 'อาชูร่าสไตรก์' } : {}), ...(this.j2.id === 'sage' && this.st.j3Pf > 0 ? { icon: '💎', name: 'Soul Burst' } : {}) } } // Berserker: Rage · Sage: Spellstrike Skill 1 · Ult วิวัฒน์ · Monk ★ Asura Strike
     if (this.j2?.id === 'sage') this.job = { ...this.job, attack: 'melee' } // 📖 Sage: melee basic + counters (P.ATK)
     const tb = totalBase(s)
     this.sageInt = tb.int; this.heroVit = tb.vit; this.heroDex = tb.dex; this.heroWis = tb.wis; this.mdPower = mageDefPower(tb.int, tb.wis, s.baseLevel); this.casts = []; this.steady = false; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
@@ -4339,7 +4339,7 @@ export class BattleScene extends Phaser.Scene {
     const live = this.front()
     switch (this.job.id) {
       case 'swordsman': { // v84 จังหวะดาบ: momentum stacks (this.flow) add damage / crit / Mana · ★ พันดาบ at max stacks (Berserker's ฟันพายุ now)
-        if (swordS1On(this.job)) { await this.swordS1(); break } // Swordsman / Knight: ⚔️ ดาบสยบมนตร์ (Q 2026-11-21)
+        if (swordS1On(this.job)) { await this.swordS1(); break } // the whole line: ⚔️ ดาบสยบมนตร์ (Q 2026-11-21); the ฟันพายุ code below is unused now
         const T = KIT.swordTree, storm = this.st.swFlowStar > 0 && this.flow >= T.flowMax
         const k = 1 + this.flow * this.st.swFlow, crit = this.flow * this.st.swFlowCrit
         this.critAdd += crit; this.forceCrit = storm

@@ -66,14 +66,14 @@ test('ดาบสยบมนตร์ numbers follow Q table: P.ATK 120-200% +
   near(swordS1Raw(9, 100, 0, 1), swordS1Raw(5, 100, 0, 1)) // Lv clamps
 })
 
-test('Lv = the "+" node Lv (0 points casts Lv 1), Mana by Lv; Berserker (Rage) keeps ฟันพายุ', () => {
+test('Lv = the "+" node Lv (0 points casts Lv 1), Mana by Lv; Berserker casts it too for its flat Rage cost', () => {
   assert.equal(swordS1Lv({ swS1Lv: 0 }), 1)
   assert.equal(swordS1Lv({ swS1Lv: 3 }), 3)
   assert.equal(swordS1Lv({ swS1Lv: 7 }), 5)
   for (let lv = 1; lv <= 5; lv++) assert.equal(autoCost(JOBS.swordsman, { ...STATS0, swS1Lv: lv }), SWORD_S1.cost[lv - 1])
   assert.ok(swordS1On(JOBS.swordsman))
   const zerk = { ...JOBS.swordsman, resource: 'rage' as const, auto: { ...JOBS.swordsman.auto, cost: 30 } }
-  assert.ok(!swordS1On(zerk))
+  assert.ok(swordS1On(zerk)) // Q 2026-11-21: Rage คงที่เท่าเดิม
   assert.equal(autoCost(zerk, { ...STATS0, swS1Lv: 1 }), 30)
   const root = nodeById('swordsman_s1p')!
   assert.equal(root.mod(4).swS1Lv, 4)

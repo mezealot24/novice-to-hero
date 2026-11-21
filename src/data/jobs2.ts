@@ -40,7 +40,7 @@ const pc = (n: number) => `${Math.round(n * 100)}%`
 export const JOB2: Record<Job2Id, Job2Def> = {
   berserker: {
     id: 'berserker', parent: 'swordsman', name: 'เบอร์เซิร์กเกอร์', icon: '🪓', focus: 'STR · AGI · LUK',
-    blurb: `อาวุธ 2 มือ สับคริหน้าแหก · Rage กลับมา: ตี/โดนตีแล้วเดือด (ฟันพายุ Rage ${B.stormCost}) · ยิ่งคริยิ่งเร็ว เก่งดวลบอส`,
+    blurb: `อาวุธ 2 มือ สับคริหน้าแหก · Rage กลับมา: ตี/โดนตีแล้วเดือด (ดาบสยบมนตร์ Rage ${B.stormCost}) · ยิ่งคริยิ่งเร็ว เก่งดวลบอส`,
     resource: 'rage', autoCost: B.stormCost, mod: { crit: 0.05 },
     mastery: { weapon: 'อาวุธ 2 มือ', ok: (it) => !!it.twoHand, mod: { crit: B.mastery.crit }, pct: { atk: B.mastery.atkPct } },
     signature: { name: 'คลั่งเลือด', icon: '🔥', desc: `คริ 1 ครั้ง = Frenzy +1 (สูงสุด ${B.frenzyMax}): ความเร็ว +${pc(B.frenzyAspd)} · ดาเมจคริ +${pc(B.frenzyCritDmg)} ต่อ stack · ไม่คริ ${B.frenzyKeep} เทิร์นติด stack หาย` },

@@ -33,7 +33,7 @@ export const MAGE_SPELL = {
 /** Swordsman (Q 2026-11-03): Rage is gone, the knight runs on a small Mana pool like RO (design/swordsman-mana-nerf.md).
  *  A STR/VIT build gets only the base pool and regen, so skills are rationed and the basic swing + counters carry the fight. */
 export const SWORD_MANA = {
-  auto: 20, // ฟันพายุ (Berserker's Skill 1 now: the base Swordsman / Knight cast ดาบสยบมนตร์, cost SWORD_S1.cost by Lv)
+  auto: 20, // old ฟันพายุ cost, unused since ดาบสยบมนตร์ (SWORD_S1.cost by Lv; Berserker pays JOB2 autoCost Rage)
   ult: 25, // ดาบพิทักษ์ (plus its turn cooldown; booked ult waits for Mana like the Mage's)
   autoMul: 1.25, // ฟันพายุ x P.ATK (1.3 before the class rebalance 2026-11-03, 1.15 in v40, 1.25 after the lifesteal cut 2026-11-04)
   ultMul: 1.5, // ดาบพิทักษ์ 🌊 คลื่นดาบ x P.ATK on every monster (Q 2026-11-21 Riven-style rework; was 1.2 instant, 1.4 before the class rebalance)
@@ -59,11 +59,9 @@ export function swordWaveNow(turnsLeft: number, hpFracs: number[]): boolean {
   return turnsLeft === 1 || hpFracs.some((f) => f < SWORD_MANA.execLow)
 }
 
-/** ⚔️ ดาบสยบมนตร์ (Q 2026-11-21): the Swordsman Skill 1 (Knight too; Berserker keeps ฟันพายุ). Lv 1-5 = the ทักษะ 1 "+" node Lv.
+/** ⚔️ ดาบสยบมนตร์ (Q 2026-11-21): the Skill 1 of the whole Swordsman line (Berserker pays its flat Rage cost instead of the Mana table). Lv 1-5 = the ทักษะ 1 "+" node Lv.
  *  Cleanse the hero's CC, one hit of [P.ATK x atkPct + STR x str + base x Base Lv] (option "Base Dmg x BaseLv only", the flat part
  *  turned into P.ATK units in battle), then the target is silenced silenceTurns monster turns, its cast is cut and it loses its next turn. */
-/** Berserker's Skill 1 stays ฟันพายุ (battle overrides the base auto with this name). */
-export const SWORD_STORM = { name: 'ฟันพายุ', icon: '🌪️' }
 export const SWORD_S1 = {
   atkPct: [1.2, 1.4, 1.6, 1.8, 2.0], str: [0.25, 0.5, 0.75, 1.0, 1.25], base: [20, 40, 60, 80, 100], cost: [6, 12, 18, 24, 30],
   cd: 5, silenceTurns: 2,
