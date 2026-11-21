@@ -63,6 +63,7 @@ import * as awakenAura from './fx/sword/awaken-aura'
 import * as windWave from './fx/sword/wind-wave'
 import { BLADE_GOLD, EXEC_RED, SEAL_BLUE } from './fx/sword/_pal'
 import { WOOD_GOLD } from './fx/archer/arrow-shot'
+import { PW_SHEETS, isPwId, pwKey, pwReady, type PwSheet } from './pw-sheets'
 export { WOOD_GOLD }
 
 export interface PfxMeta { size: number[]; origin: number[]; duration: number } // JS meta: [w, h] and [x, y]
@@ -232,8 +233,9 @@ export type PfxPreloadEntry = PfxId | { id: PfxId; palette?: (string | number)[]
 /** Bake ahead (battle start) so the first cast doesn't hitch. */
 export function preloadPfx(scene: Phaser.Scene, entries: PfxPreloadEntry[]) {
   for (const entry of entries) {
-    if (typeof entry === 'string') bake(scene, entry)
-    else bake(scene, entry.id, entry.palette)
+    const id = typeof entry === 'string' ? entry : entry.id, pal = typeof entry === 'string' ? undefined : entry.palette
+    bake(scene, id, pal) // still baked: the fallback while a Pixelwright sheet loads
+    if (isPwId(id)) pwReady(scene, id, pal)
   }
 }
 
@@ -248,6 +250,17 @@ export interface PfxPlay {
 
 /** Shared by playPfx / loopPfx: bakes, then makes the sprite at (x, y) = the effect's own origin. */
 function makeSprite(scene: Phaser.Scene, id: PfxId, x: number, y: number, o: PfxPlay): { spr: Phaser.GameObjects.Sprite; key: string } | undefined {
+  if (isPwId(id) && pwReady(scene, id, o.palette)) { // hand-drawn Pixelwright sheet (src/gfx/pw-sheets.ts) wins once loaded
+    const sh: PwSheet = PW_SHEETS[id], key = pwKey(id, o.palette), [ox, oy] = sh.origin
+    const spr = scene.add.sprite(x, y, key, 0)
+      .setOrigin(o.flip ? 1 - ox / sh.w : ox / sh.w, oy / sh.h)
+      .setScale((o.scale ?? 2) * sh.mul)
+      .setFlipX(!!o.flip)
+      .setAlpha(o.alpha ?? 1)
+      .setDepth(o.depth ?? 9001)
+    spr.anims.timeScale = (o.speed ?? 1.5) / 1.5 // the sheet keeps its studio timing at the default speed
+    return { spr, key }
+  }
   if (!bake(scene, id, o.palette)) return undefined
   const def: PfxDef = DEFS[id]
   const key = texKey(id, o.palette), [w, h] = def.size ?? def.mod.meta.size, [ox, oy] = def.origin ?? def.mod.meta.origin
