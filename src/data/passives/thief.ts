@@ -1090,6 +1090,7 @@ export const THIEF_PASSIVE_TREE: PassiveTreeDef = {
   job: 'thief',
   title: 'กลุ่มดาวพาสซีฟสายโจร (Thief Constellation)',
   originId: 'th_origin',
+  quadrants: ['blade', 'shadow', 'venom', 'alchemy'],
   filters: [
     { tag: 'blade', icon: '🗡️', label: 'มีด' },
     { tag: 'poison', icon: '☠️', label: 'พิษ' },

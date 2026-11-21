@@ -1,5 +1,6 @@
-// Pure Phaser-free combat math for PoE Passive Tree Phase 1 (Thief-Line Constellation) BattleScene hooks.
+// Pure Phaser-free combat math for PoE Passive Tree BattleScene hooks (Phase 1: Thief-Line, Phase 2: Swordsman-Line).
 // BattleScene.ts calls these helpers directly; tests/passive-battle.test.ts verifies exact formulas & edge cases.
+import { SWORD_S1 } from './jobs'
 import { KIT } from './skill-math'
 
 // ---------- 1. Death Mark (Keystone 💀 ตราความตาย — pure B6 echo, zero double-dip) ----------
@@ -161,3 +162,47 @@ export function luckyReprisalAction(thLuckyKnife: number, job2Id?: string): Luck
   if (job2Id === 'mobster') return 'poison'
   return 'none'
 }
+
+// ---------- 7..11. Swordsman-Line Constellation Pure Helpers ----------
+
+/** Incoming damage multiplier from Iron Fortress DR (capped 50%) and Cleavestorm vulnerability. */
+export function swordTakenMul(swIronDr: number, swCleaveTaken: number): number {
+  const dr = Math.min(0.5, Math.max(0, swIronDr))
+  const up = Math.max(0, swCleaveTaken)
+  return (1 - dr) * (1 + up)
+}
+
+/** Flat bonus damage added to counterattacks based on hero P.DEF (Keystone ⚔️ เกราะสะท้อนคม, skips monster DEF). */
+export const counterDefBonusDmg = (def: number, swCounterDefMul: number): number =>
+  def > 0 && swCounterDefMul > 0 ? Math.max(1, Math.round(def * swCounterDefMul)) : 0
+
+/** Effective cooldown of ดาบสยบมนตร์ (min 2 hero turns). */
+export const swordS1Cd = (swS1CdCut: number, baseCd = SWORD_S1.cd): number =>
+  Math.max(2, Math.round(baseCd - Math.max(0, Math.round(swS1CdCut))))
+
+/** Physical hit multiplier while Blood Fury Pact is active below HP threshold (strictly < atShare). */
+export const bloodFuryDmgMul = (
+  hp: number,
+  maxHp: number,
+  swBloodFuryDmg: number,
+  atShare = KIT.swordBloodFuryAt,
+): number => (hp > 0 && maxHp > 0 && swBloodFuryDmg > 0 && hp < maxHp * atShare ? 1 + Math.max(0, swBloodFuryDmg) : 1)
+
+/** Non-lethal current-HP cost on S1 / S3 / Ult cast for Blood Fury Pact (always leaves at least 1 HP). */
+export function bloodFurySelfCost(hp: number, swBloodFurySelf: number): number {
+  if (hp <= 1 || swBloodFurySelf <= 0) return 0
+  return Math.min(hp - 1, Math.max(1, Math.floor(hp * Math.min(0.5, swBloodFurySelf))))
+}
+
+/** Armor Break turns granted by Notable 🔨 ทลายเกราะศึก when active. */
+export const swordBreakTurnsOf = (swS3ArmorBreak: number, turns = KIT.swordS3BreakTurns): number =>
+  swS3ArmorBreak > 0 ? Math.max(1, Math.round(turns)) : 0
+
+/** Armor Break turns for Swordsman-line Skill 3 non-DoT `skill` hits only (0 for sub-procs / DoTs / outside S3). */
+export const swordS3BreakTurns = (
+  inS3: boolean,
+  src: string,
+  dot: boolean,
+  swS3ArmorBreak: number,
+  turns = KIT.swordS3BreakTurns,
+): number => (inS3 && src === 'skill' && !dot ? swordBreakTurnsOf(swS3ArmorBreak, turns) : 0)

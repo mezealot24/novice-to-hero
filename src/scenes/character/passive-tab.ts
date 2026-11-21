@@ -75,6 +75,10 @@ const SECTOR_META: Readonly<
 	shadow: { label: "👤 เงา", color: 0x8b7cf6, hex: "#c4baff", lx: 335, ly: -395 },
 	venom: { label: "☠️ พิษ", color: 0x4fd18b, hex: "#7fe6ab", lx: 345, ly: 395 },
 	alchemy: { label: "⚗️ เล่นแร่", color: 0x52c7e0, hex: "#8ce4f8", lx: -335, ly: 410 },
+	vanguard: { label: "⚔️ คมดาบ", color: 0xe66a55, hex: "#ff9e8c", lx: -335, ly: -395 },
+	bastion: { label: "🛡️ ปราการ", color: 0x5ea8f5, hex: "#9fd4ff", lx: 335, ly: -395 },
+	fury: { label: "🔥 โทสะ", color: 0xf08c42, hex: "#ffbd7a", lx: 345, ly: 395 },
+	warblood: { label: "🩸 โลหิตศึก", color: 0xd15b7a, hex: "#ff9bb5", lx: -335, ly: 410 },
 	awaken: { label: "🌟 ตื่นรู้", color: 0xffc85a, hex: "#ffd98a", lx: 0, ly: 0 }, // labels per 3rd job: AWAKEN_LABELS
 };
 
@@ -92,18 +96,27 @@ const TAG_THAI: Readonly<Record<string, string>> = {
 	shadow: "เงา",
 	crit: "คริ",
 	offmeta: "นอกกระแส",
+	vanguard: "คมดาบ",
+	bastion: "เกราะ",
+	counter: "สวนกลับ",
+	fury: "โทสะ",
+	blood: "โลหิต",
+	s1: "ทักษะ 1",
 	s3: "ทักษะ 3",
 	ult: "Ult",
+	jewel: "อัญมณี",
 };
 
 function passiveCtxOf(s: SaveData): PassiveCtx {
 	return passiveCtxFor(s);
 }
 
-/** 🌟 Awakening ring cluster labels (thief-awaken.ts): one per 3rd job, above / below its cluster. */
+/** 🌟 Awakening ring cluster labels: one per 3rd job, above / below its cluster. */
 const AWAKEN_LABELS: readonly { job3: Job3Id; x: number; y: number; glowY: number }[] = [
 	{ job3: "stalker", x: 0, y: -718, glowY: -575 },
 	{ job3: "kingpin", x: 0, y: 722, glowY: 575 },
+	{ job3: "lordknight", x: 0, y: -718, glowY: -575 },
+	{ job3: "warlord", x: 0, y: 722, glowY: 575 },
 ];
 
 /** "🔒 ปลดเมื่อเป็น 🥷 Stalker" for an Awakening node the hero can't use yet (undefined when open). */
@@ -745,10 +758,16 @@ function buildConstellationCanvas(
 
 	// Layer 1: Cosmic backdrop (sector nebula glows + deterministic starfield + concentric ring guides)
 	const bgG = scene.add.graphics();
-	bgG.fillStyle(SECTOR_META.blade.color, 0.055).fillCircle(-270, -215, 240);
-	bgG.fillStyle(SECTOR_META.shadow.color, 0.065).fillCircle(275, -215, 240);
-	bgG.fillStyle(SECTOR_META.venom.color, 0.055).fillCircle(270, 215, 240);
-	bgG.fillStyle(SECTOR_META.alchemy.color, 0.055).fillCircle(-265, 215, 240);
+	const quadPos: readonly [number, number, number][] = [
+		[-270, -215, 0.055],
+		[275, -215, 0.065],
+		[270, 215, 0.055],
+		[-265, 215, 0.055],
+	];
+	tree.quadrants.forEach((sec, idx) => {
+		const [qx, qy, qa] = quadPos[idx];
+		bgG.fillStyle(SECTOR_META[sec].color, qa).fillCircle(qx, qy, 240);
+	});
 	bgG.lineStyle(1, 0x2e375e, 0.45).strokeCircle(0, 0, 112);
 	bgG.lineStyle(1, 0x242c4e, 0.34).strokeCircle(0, 0, 225);
 	bgG.lineStyle(1, 0x1e2545, 0.28).strokeCircle(0, 0, 355);
@@ -776,8 +795,7 @@ function buildConstellationCanvas(
 	worldC.add(bgG);
 
 	// Sector quadrant labels
-	const sectors: PassiveSector[] = ["blade", "shadow", "venom", "alchemy"];
-	for (const sec of sectors) {
+	for (const sec of tree.quadrants) {
 		const meta = SECTOR_META[sec];
 		const lbl = scene.add
 			.text(meta.lx, meta.ly, meta.label, {
@@ -1184,8 +1202,8 @@ function computeStatPreview(
 	const stNow = heroStats(s);
 	const stNext = heroStats({ ...s, passiveNodes: nextPicked });
 
-	const rowsNow = derivedRows(stNow);
-	const rowsNext = derivedRows(stNext);
+	const rowsNow = derivedRows(stNow, s.job, s.job2);
+	const rowsNext = derivedRows(stNext, s.job, s.job2);
 	if (stNow.poisonDmg !== stNext.poisonDmg) {
 		rowsNow.push(["ดาเมจพิษ / stack", `${stNow.poisonDmg.toFixed(1)}`]);
 		rowsNext.push(["ดาเมจพิษ / stack", `${stNext.poisonDmg.toFixed(1)}`]);
@@ -1193,6 +1211,10 @@ function computeStatPreview(
 	if (stNow.poisonCap !== stNext.poisonCap) {
 		rowsNow.push(["เพดานพิษ (stacks)", `${stNow.poisonCap}`]);
 		rowsNext.push(["เพดานพิษ (stacks)", `${stNext.poisonCap}`]);
+	}
+	if (stNow.j2Guard !== stNext.j2Guard) {
+		rowsNow.push(["Auto Guard", `${Math.round(stNow.j2Guard * 100)}%`]);
+		rowsNext.push(["Auto Guard", `${Math.round(stNext.j2Guard * 100)}%`]);
 	}
 
 	const diff = rowsNow

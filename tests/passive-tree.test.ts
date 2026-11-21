@@ -42,10 +42,12 @@ const baseInput = (over: Partial<StatsInput> = {}): StatsInput => ({
   ...over,
 })
 
-test('hasPassiveTree / passiveTreeOf: enabled only for thief in Phase 1', () => {
-  assert.equal(hasPassiveTree('thief'), true)
-  assert.ok(passiveTreeOf('thief'))
-  for (const job of ['novice', 'swordsman', 'archer', 'mage', 'cleric'] as JobId[]) {
+test('hasPassiveTree / passiveTreeOf: enabled for thief (Phase 1) and swordsman (Phase 2)', () => {
+  for (const job of ['thief', 'swordsman'] as JobId[]) {
+    assert.equal(hasPassiveTree(job), true, job)
+    assert.ok(passiveTreeOf(job), job)
+  }
+  for (const job of ['novice', 'archer', 'mage', 'cleric'] as JobId[]) {
     assert.equal(hasPassiveTree(job), false, job)
     assert.equal(passiveTreeOf(job), undefined, job)
     assert.equal(passiveNodeById(job, 'th_origin'), undefined)

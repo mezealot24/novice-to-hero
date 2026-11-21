@@ -572,6 +572,12 @@ export function heroBuild(s: StatsInput): HeroBuildSummary {
 	if (st.thDefShieldCut > 0) {
 		st.def = Math.round(st.def * Math.max(0, 1 - st.thDefShieldCut));
 	}
+	if (st.swIronAspdCut > 0) {
+		st.aspd *= Math.max(0.2, 1 - st.swIronAspdCut);
+	}
+	if (st.swNoFlee > 0) {
+		st.flee = 0;
+	}
 	const rawMdef = st.mdef;
 	const rawTenacity = st.tenacity;
 	const clampLinearCaps = () => {

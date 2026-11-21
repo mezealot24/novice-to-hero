@@ -515,6 +515,19 @@ export interface Stats {
   swCoreHpPct: number // Max HP % bonus added in heroBuild()
   swVitToMdef: number // ratio converting total VIT -> raw M.DEF (capped by KIT.swordCore.vitToMdefCap)
   swLowRegenAmp: number // bonus multiplier to HP Regen ticks when HP < 50%
+  // ----- PoE Passive Tree Phase 2: Swordsman-Line Constellation (data/passives/swordsman.ts) -----
+  swIronDr: number // Keystone 🏰 ป้อมเหล็กไร้พ่าย: multiplicative damage-taken reduction (KIT.swordIronDr)
+  swIronAspdCut: number // Keystone 🏰 ป้อมเหล็กไร้พ่าย downside: ASPD multiplier cut in heroBuild (KIT.swordIronAspdCut)
+  swCounterDefMul: number // Keystone ⚔️ เกราะสะท้อนคม: flat bonus dmg on every counter = P.DEF * swCounterDefMul (skips monster DEF)
+  swBlockCounter: number // Keystone ⚔️ เกราะสะท้อนคม flag (1): Auto Guard block triggers a guaranteed counterattack
+  swNoFlee: number // Keystone ⚔️ เกราะสะท้อนคม downside flag (1): sets st.flee = 0 in heroBuild
+  swCleaveTaken: number // Keystone 🌪️ คมดาบผ่าทัพ downside: incoming damage taken +this (KIT.swordCleaveTaken)
+  swExecBonus: number // Keystone ⚖️ ตราพิพากษา: adds +this to swordExecMul maxAdd on ALL Swordsman-line ults (Job1/2/3)
+  swS1CdCut: number // Keystone ⚖️ ตราพิพากษา: cuts ดาบสยบมนตร์ CD by this turns (KIT.swordS1CdCut, min 2)
+  swUltCdAdd: number // Keystone ⚖️ ตราพิพากษา & Awakening Keystones downside: + Ult cooldown turns (wired into ultCooldown)
+  swBloodFuryDmg: number // Keystone 🩸 สัญญาคลั่งเลือด: physical hit dmg +this while hp < maxHp * KIT.swordBloodFuryAt
+  swBloodFurySelf: number // Keystone 🩸 สัญญาคลั่งเลือด downside: non-lethal current-HP cost on S1 / S3 / Ult cast
+  swS3ArmorBreak: number // Notable 🔨 ทลายเกราะศึก flag (1): Skill 1 and Swordsman-line Skill 3 inflict Armor Break (KIT.swordS3BreakTurns)
 }
 
 /** Lifesteal cap (heroBuild clamps st.lifesteal; P2'a thief_c1 per-hit leech stays under it too). */
@@ -544,6 +557,7 @@ export const PLAYER: Stats = {
   j3Sk: 0, j3Kp: 0, j3Hw: 0, j3Mc: 0, j3Pierce: 0, j3KpDebtAmp: 0, j3HwDrain: 0, j3HwAmp: 0, j3McOver: 0, // 🥷🎩🌌🤖 the last four Awakenings
   strManaMiss: 0, j3Pf: 0, j3PfLegFire: 0, j3PfLegLight: 0, j3PfLegIce: 0, j3PfMarkTurns: 0, j3PfResidue: 0, j3PfChain: 0, j3PfCritMana: 0, j3PfTrinity: 0, j3PfSoulChange: 0, j3PfMemorize: 0, j3PfDcAt: 0, j3PfDcMul: 0, j3PfForesight: 0, // 🎓 Professor
   thDeathMark: 0, thUltCdAdd: 0, thMistDr: 0, tankDr: 0, tankSkillDr: 0, thDefShieldCut: 0, thFlurryDmgCut: 0, thMobFlurry: 0, thEldritchVenom: 0, thPhysLeechCut: 0, thS3ShieldPierce: 0, thLuckyKnife: 0, // PoE Passive Tree Phase 1: Thief-Line
+  swIronDr: 0, swIronAspdCut: 0, swCounterDefMul: 0, swBlockCounter: 0, swNoFlee: 0, swCleaveTaken: 0, swExecBonus: 0, swS1CdCut: 0, swUltCdAdd: 0, swBloodFuryDmg: 0, swBloodFurySelf: 0, swS3ArmorBreak: 0, // PoE Passive Tree Phase 2: Swordsman-Line
 }
 
 export const RULES = {

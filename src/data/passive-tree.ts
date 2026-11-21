@@ -5,10 +5,21 @@ import type { Stats } from './stats'
 import { JOB_CHANGE, type JobId } from './jobs'
 import { JOB2, JOB2_RULES, type Job2Id } from './jobs2'
 import { activeJob3, JOB3_RULES, type Job3Id } from './jobs3'
+import { SWORDSMAN_PASSIVE_TREE } from './passives/swordsman'
 import { THIEF_PASSIVE_TREE } from './passives/thief'
 
 export type PassiveKind = 'origin' | 'minor' | 'notable' | 'keystone' | 'socket'
-export type PassiveSector = 'core' | 'blade' | 'shadow' | 'venom' | 'alchemy' | 'awaken'
+export type PassiveSector =
+  | 'core'
+  | 'blade'
+  | 'shadow'
+  | 'venom'
+  | 'alchemy'
+  | 'vanguard'
+  | 'bastion'
+  | 'fury'
+  | 'warblood'
+  | 'awaken'
 export interface PassiveCtx { job2?: Job2Id; job3?: Job3Id }
 
 export interface PassiveNode {
@@ -34,6 +45,8 @@ export interface PassiveTreeDef {
   job: JobId
   title: string
   originId: string
+  /** Four outer sector quadrants in [NW, NE, SE, SW] order for nebula glow & labels. */
+  quadrants: readonly [PassiveSector, PassiveSector, PassiveSector, PassiveSector]
   filters: readonly { tag: string; icon: string; label: string }[]
   nodes: readonly PassiveNode[]
 }
@@ -77,11 +90,12 @@ function normalizeTree(raw: PassiveTreeDef): { def: PassiveTreeDef; map: Readonl
 
 const REGISTRY: Partial<Record<JobId, { def: PassiveTreeDef; map: ReadonlyMap<string, PassiveNode> }>> = {
   thief: normalizeTree(THIEF_PASSIVE_TREE),
+  swordsman: normalizeTree(SWORDSMAN_PASSIVE_TREE),
 }
 
 const nodeMapOf = (job: JobId): ReadonlyMap<string, PassiveNode> | undefined => REGISTRY[job]?.map
 
-/** True for base classes migrated to the PoE Passive Constellation (Phase 1: Thief-line only). */
+/** True for base classes migrated to the PoE Passive Constellation (Phase 1: Thief-line, Phase 2: Swordsman-line). */
 export const hasPassiveTree = (job: JobId): boolean => job in REGISTRY
 
 /** Normalized passive tree definition (with symmetric undirected edges) for `job`, if migrated. */

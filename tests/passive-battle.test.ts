@@ -10,6 +10,9 @@ import {
   applyDeathMarkState,
   applyMistDr,
   applyToxicOverheal,
+  bloodFuryDmgMul,
+  bloodFurySelfCost,
+  counterDefBonusDmg,
   deathMarkEarlyPop,
   deathMarkEchoDmg,
   deathMarkNetHpDmg,
@@ -22,7 +25,12 @@ import {
   s3ShieldPierceOf,
   shieldCutMul,
   shouldRecordDeathMark,
+  swordBreakTurnsOf,
+  swordS1Cd,
+  swordS3BreakTurns,
+  swordTakenMul,
 } from '../src/data/passive-battle'
+import { SWORD_S1 } from '../src/data/jobs'
 
 const near = (a: number, b: number, msg = '') => assert.ok(Math.abs(a - b) < 1e-9, `${msg} ${a} != ${b}`)
 
@@ -257,4 +265,52 @@ test('Hook 6 (thLuckyKnife): Rogue/Stalker knife, Mobster/Kingpin poison, Base T
   assert.equal(gamblerLuckyRes('LUCKY!', 'thief', true), 0, 'ICD blocks second LUCKY! proc in same hero turn')
   assert.equal(gamblerLuckyRes('EVADE!', 'thief', false), 0, 'plain EVADE! never triggers LUCKY! proc')
   assert.equal(gamblerLuckyRes('LUCKY!', 'archer', false), 0, 'Thief-line only')
+})
+
+test('Hook 7 (swordTakenMul): Iron Fortress DR capped at 50% and multiplies cleanly with Cleavestorm vulnerability', () => {
+  near(swordTakenMul(0, 0), 1)
+  near(swordTakenMul(KIT.swordIronDr, 0), 1 - KIT.swordIronDr)
+  near(swordTakenMul(0, KIT.swordCleaveTaken), 1 + KIT.swordCleaveTaken)
+  near(swordTakenMul(KIT.swordIronDr, KIT.swordCleaveTaken), (1 - KIT.swordIronDr) * (1 + KIT.swordCleaveTaken))
+  near(swordTakenMul(0.95, 0), 0.5, 'DR capped at 50%, never 0/immune')
+  near(swordTakenMul(-0.5, -0.2), 1, 'negative values clamped safely')
+})
+
+test('Hook 8 (counterDefBonusDmg): P.DEF bonus flat counter damage', () => {
+  assert.equal(counterDefBonusDmg(100, 0), 0)
+  assert.equal(counterDefBonusDmg(0, KIT.swordCounterDefMul), 0)
+  assert.equal(counterDefBonusDmg(100, KIT.swordCounterDefMul), Math.round(100 * KIT.swordCounterDefMul))
+  assert.equal(counterDefBonusDmg(1, 0.2), 1, 'minimum 1 dmg when both def and mul > 0')
+})
+
+test('Hook 9 (swordS1Cd): ดาบสยบมนตร์ cooldown reduction with floor of 2', () => {
+  assert.equal(swordS1Cd(0), SWORD_S1.cd)
+  assert.equal(swordS1Cd(KIT.swordS1CdCut), SWORD_S1.cd - KIT.swordS1CdCut)
+  assert.equal(swordS1Cd(10), 2, 'clamped to minimum 2 turns')
+  assert.equal(swordS1Cd(-2), SWORD_S1.cd, 'negative cut ignored')
+})
+
+test('Hook 10 (bloodFuryDmgMul & bloodFurySelfCost): threshold < 60% HP & strictly non-lethal cast cost', () => {
+  near(bloodFuryDmgMul(599, 1000, KIT.swordBloodFuryDmg), 1 + KIT.swordBloodFuryDmg)
+  near(bloodFuryDmgMul(600, 1000, KIT.swordBloodFuryDmg), 1, 'exact 60% does not trigger')
+  near(bloodFuryDmgMul(800, 1000, KIT.swordBloodFuryDmg), 1)
+  near(bloodFuryDmgMul(0, 1000, KIT.swordBloodFuryDmg), 1, 'dead hero stays 1x')
+  near(bloodFuryDmgMul(300, 1000, 0), 1, 'off when stat is 0')
+
+  assert.equal(bloodFurySelfCost(1000, KIT.swordBloodFurySelf), 40)
+  assert.equal(bloodFurySelfCost(10, KIT.swordBloodFurySelf), 1, 'min 1 HP cost when hp > 1')
+  assert.equal(bloodFurySelfCost(2, KIT.swordBloodFurySelf), 1, 'leaves 1 HP')
+  assert.equal(bloodFurySelfCost(1, KIT.swordBloodFurySelf), 0, 'never lethal at 1 HP')
+  assert.equal(bloodFurySelfCost(0, KIT.swordBloodFurySelf), 0)
+  assert.equal(bloodFurySelfCost(1000, 0), 0)
+})
+
+test('Hook 11 (swordBreakTurnsOf & swordS3BreakTurns): S1/S3 skill hits only, excludes sub-procs & DoT', () => {
+  assert.equal(swordBreakTurnsOf(0), 0)
+  assert.equal(swordBreakTurnsOf(1), KIT.swordS3BreakTurns)
+  assert.equal(swordS3BreakTurns(true, 'skill', false, 1), KIT.swordS3BreakTurns)
+  assert.equal(swordS3BreakTurns(false, 'skill', false, 1), 0, 'outside S3')
+  assert.equal(swordS3BreakTurns(true, 'other', false, 1), 0, 'sub-procs excluded')
+  assert.equal(swordS3BreakTurns(true, 'ult', false, 1), 0, 'ult excluded')
+  assert.equal(swordS3BreakTurns(true, 'skill', true, 1), 0, 'DoT excluded')
 })

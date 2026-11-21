@@ -139,6 +139,18 @@ export const KIT = {
   thiefEldritchMatkShare: 0.5, // Eldritch Venom Keystone: extra M.ATK -> flat poison scaling share (x KIT.poison.matkPer)
   thiefPhysLeechCut: 0.5, // Eldritch Venom Keystone downside: -50% normal physical lifesteal
   thiefLuckyPoison: 2, // Lucky Reprisal Notable: poison stacks Mobster applies on LUCKY! dodge
+  // PoE Passive Tree Phase 2 (Swordsman-Line Constellation, data/passives/swordsman.ts)
+  swordS1CdCut: 1, // Judgment Keystone: ดาบสยบมนตร์ cooldown cut (turns)
+  swordS3BreakTurns: 2, // Armor Breaker Notable: Armor Break turns applied by Skill 1 & Skill 3
+  swordIronDr: 0.15, // Iron Fortress Keystone: multiplicative incoming damage reduction
+  swordIronAspdCut: 0.15, // Iron Fortress Keystone downside: ASPD multiplier cut
+  swordCounterDefMul: 1.2, // Thorned Aegis Keystone: flat counter bonus damage = P.DEF x this
+  swordCleaveTaken: 0.1, // Cleavestorm Keystone downside: incoming damage taken +this
+  swordExecBonus: 0.5, // Judgment Keystone: execute maxAdd bonus across Swordsman-line ults
+  swordBloodFuryAt: 0.6, // Blood Fury Pact Keystone: HP threshold (< 60% max HP)
+  swordBloodFuryDmg: 0.3, // Blood Fury Pact Keystone: physical hit damage bonus below threshold
+  swordBloodFurySelf: 0.04, // Blood Fury Pact Keystone downside: current HP paid on S1 / S3 / Ult cast
+  swordVampDmgCut: 0.2, // Immortal Sanguine Keystone downside: skill / ult damage cut
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
   // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
   // 💰 Thief ทักษะ 2 ล้วงกระเป๋า (Q 2026-11-18, GW2 Steal): what you steal depends on the front monster's top stat. admin `kit` · thiefSteal.*
@@ -612,7 +624,7 @@ export const ultCost = (job: JobDef, st?: Stats) => (job.resource === 'mana' ? (
 /** Ult cooldown in hero turns before relics (gear smashCd lowers it for every job). */
 export const ultCooldown = (job: JobDef, st: Stats) => {
   const cdCut = Math.round((PLAYER.smashCd - st.smashCd) / BATTLE.msPerTurn)
-  return Math.max(2, job.ult.cd + st.mgUltCd + st.thUltCdAdd - cdCut)
+  return Math.max(2, job.ult.cd + st.mgUltCd + st.thUltCdAdd + st.swUltCdAdd - cdCut)
 }
 export const s2Cooldown = (k: Skill2Def, _st: Stats) => Math.max(1, k.cd)
 /** Light spear multiplier x M.ATK (Skill 2 หอกคม adds on top at run start). */
@@ -903,7 +915,7 @@ export function autoInfo(jobId: JobId, st: Stats, job2?: string, base?: { str: n
       out.push({ label: 'สูตร: P.ATK', value: `${Math.round(SWORD_S1.atkPct[i] * 100)}%` })
       out.push({ label: 'สูตร: + STR', value: `x${SWORD_S1.str[i]}` })
       out.push({ label: 'สูตร: + Base Lv', value: `${SWORD_S1.base[i]} x Lv` })
-      out.push({ label: 'คูลดาวน์', value: `${SWORD_S1.cd} เทิร์น` })
+      out.push({ label: 'คูลดาวน์', value: `${Math.max(2, SWORD_S1.cd - Math.max(0, Math.round(st.swS1CdCut)))} เทิร์น` })
       out.push({ label: 'เป้า', value: 'ร่าย > บอส > หน้า' })
       out.push({ label: 'ใบ้ + ขัดร่าย', value: `${SWORD_S1.silenceTurns + (st.swS1Star > 0 ? 1 : 0)} เทิร์น` })
       out.push({ label: 'ล้าง CC ตัวเรา', value: 'ใบ้ · ใย · ช้า' })
@@ -968,7 +980,7 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
       }
       out.push({ label: 'โล่', value: `${shield(st, st.maxHp * Math.max(0, SWORD_MANA.ultShield + st.ultShieldAdd) * pow)}` })
       { // ⚖️ คำพิพากษา: the multiplier at a few target HP shares (2nd / 3rd job ults take execLineShare)
-        const sh = job2 ? SWORD_MANA.execLineShare : 1, add = job2 ? 0 : st.swExecAdd, x = (f: number, big: boolean) => `×${swordExecMul(f, big, sh, add).toFixed(2)}`
+        const sh = job2 ? SWORD_MANA.execLineShare : 1, add = (job2 ? 0 : st.swExecAdd) + st.swExecBonus, x = (f: number, big: boolean) => `×${swordExecMul(f, big, sh, add).toFixed(2)}`
         out.push({ label: '⚖️ execute เป้า HP 50%', value: x(0.5, false) })
         out.push({ label: '⚖️ execute เป้า HP ≤25%', value: x(0.25, false) })
         out.push({ label: '⚖️ บอส/มินิ HP ≤25%', value: x(0.25, true) })
