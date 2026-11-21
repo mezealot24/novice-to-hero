@@ -117,7 +117,7 @@ export interface MonsterDef {
   vengeance?: boolean // death knight โล่แห่งความแค้น (BATTLE.vengeance)
   fixedFlee?: number // hero hits (physical, magic, crits) miss this share of the time, whatever Hit is (Maiden: 0.5)
   razor?: number // on-hit (Q 2026-11-04, hunter Blood Razor): each landed normal / combo hit adds magic damage = this share of the hero's current HP
-  trueSight?: { after: number; turns: number } // v56 anti-AGI: after the hero evades it `after` times, its physical hits ignore Flee + lucky dodge for `turns` of its turns
+  trueSight?: { after: number; turns: number } // v56 anti-AGI: after the hero evades it `after` times, its physical hits get + FLEE_RULES.trueSightHit Hit for `turns` of its turns (Q 2026-11-21, was a sure hit)
   shots?: number // each attack is this many small hits, each rolls hit/flee on its own
   // ----- Dungeon 4-5 -----
   onHit?: HitFx // every landed hit also puts this on the hero

@@ -7,7 +7,7 @@ import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LI
 import { EVENT_RULES, FORTUNE, type DayOpts, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
 import { blessBase, FREE_GEMS, heroBuild, heroStats, jobUpText, itemById, PER_POINT, RESOURCES, splitStatLine, totalBase, type BaseStat, type HeroBuildSummary } from '../data/meta'
-import { COIN_FX, CRIT_RULES, monHitChance, RESIST_RULES, coinTier, monCritRate, monSkillCritRate, splitZeny } from '../data/battle-rules'
+import { COIN_FX, CRIT_RULES, FLEE_RULES, monHitChance, RESIST_RULES, coinTier, monCritRate, monSkillCritRate, splitZeny } from '../data/battle-rules'
 import { type ItemEffectId, type ItemEffectSpec } from '../data/item-effects'
 import { createBiomeCombatState, HAZARD_TUNING, modifyHeroDirectHealBiome, onHeroShieldOrBlockBiome, onHeroSkillCastBiome, onMonsterHitBiome, onTurnEndBiome, type BiomeCombatState } from '../data/biome-hazards'
 import { RIFT_BRANCHES, riftBoonById, type RiftBoonDef, type RiftBranchDef } from '../data/rift'
@@ -97,7 +97,7 @@ interface Mon {
   skills: MonSkill[]; onHit?: HitFx; slamFx?: HitFx
   heroKit?: HeroKit; kit?: KitState // v125 hero skills the monster casts (resolved: 'mirror' -> the player's kit)
   revived: boolean // came back once (necro): can't be raised again
-  clone?: boolean; evaded?: number; trueTurns?: number // v56 trueSight: hero evades counted, then 🎯 its physical hits always land
+  clone?: boolean; evaded?: number; trueTurns?: number // v56 trueSight: hero evades counted, then 🎯 its physical hits get FLEE_RULES.trueSightHit
   weakTurns: number; weakPct: number // hero Skill 2 ท้าทาย: hits weaker for its next N turns
   armorBrk: number // Mobster ตัดเส้นเอ็น: turns of DEF -KIT2.mobster.armorBrk
   blind: number // Crusader Holy Cross: turns of Hit -KIT2.crusader.blindHit (Thief ม่านควัน Sightless Raid shares it)
@@ -5510,7 +5510,7 @@ export class BattleScene extends Phaser.Scene {
       this.evadeJuice(label, color)
       if (src && !src.dead && src.def.trueSight && !(src.trueTurns ?? 0) && (src.evaded = (src.evaded ?? 0) + 1) >= src.def.trueSight.after) { // anti-AGI: it reads the hero's footwork
         src.evaded = 0; src.trueTurns = src.def.trueSight.turns + 1; this.dotIcon(src)
-        this.time.delayedCall(350, () => this.callout(`🎯 ${src.def.name}: ตาเหยี่ยว! ตีโดนแน่นอน ${src.def.trueSight!.turns} เทิร์น`, W / 2, 205))
+        this.time.delayedCall(350, () => this.callout(`🎯 ${src.def.name}: ตาเหยี่ยว! Hit +${FLEE_RULES.trueSightHit} ${src.def.trueSight!.turns} เทิร์น`, W / 2, 205))
       }
       if (this.st.dodgeStrike > 0 && src && !src.dead) { // tree ★: strike back from the shadows (melee dashes in after the sidestep)
         this.floatText(HERO_X + 40, GROUND - 130, 'สวนจากเงา!', '#c9c9d6'); this.counterCount++
@@ -5535,7 +5535,8 @@ export class BattleScene extends Phaser.Scene {
       if (this.st.j3Inspire > 0) this.heal(this.st.maxHp * KIT3.common.inspireHeal, true)
       return dodged(this.st.j3Sk > 0 ? '🌑 Hide!' : '🎭 พรางตัว!', this.st.j3Sk > 0 ? '#b9a8ff' : '#9fe08a')
     }
-    const sure =this.hx.web > 0 || (!magic && (src?.trueTurns ?? 0) > 0) // 🕸️ webbed: Can't Evade · 🎯 ตาเหยี่ยว: physical hits skip Flee + lucky dodge
+    const sure = this.hx.web > 0 // 🕸️ webbed: Can't Evade
+    if (!magic && (src?.trueTurns ?? 0) > 0) monHit += FLEE_RULES.trueSightHit // 🎯 ตาเหยี่ยว: + Hit (Q 2026-11-21: was a sure hit that skipped Flee + lucky dodge)
     if (!sure && Math.random() < this.st.luckyDodge) return dodged('LUCKY!', '#6fd08c')
     if (!sure && Math.random() > monHitChance(monHit, this.fleeNow(), this.st.fleeFloor, this.alive().length)) return dodged('EVADE!', '#9fe3ff') // Q 2026-11-21 RO-style: floor 20% (Thief เงาบาง lowers it) + mob penalty
     if (!magic && (this.st.j2Guard > 0 || this.inspire > 0) && Math.random() < (this.inspire > 0 ? KIT3.common.inspireGuard : this.st.j2Guard + (this.gc ? this.st.j2GcGuard : 0)) * (this.hasShield || this.j2?.id === 'monk' || this.inspire > 0 ? 1 : KIT2.knight.guardShieldless)) { this.hitOut = 'block'; this.floatText(HERO_X, GROUND - 120, '🛡️ BLOCK!', '#9fe3ff'); sfx.hit(); this.onBlock(src); return false } // Knight / Crusader / Champion / Warlord Auto Guard

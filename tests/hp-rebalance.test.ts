@@ -66,7 +66,8 @@ test('monster -> hero hit: 80% + Hit - Flee, floor 20%, Thief fleeFloor lowers i
   assert.ok(Math.abs(monHitChance(100, 615, 0.2) - 0.1) < 1e-9, 'fleeFloor cap 10%')
   assert.equal(monHitChance(100, 615, 5), FLEE_RULES.minFloor)
   assert.equal(monHitChance(500, 100), 0.98)
-  assert.equal(hitChance(100, 615), 0.8, 'hero -> monster keeps the 80% floor')
+  assert.equal(hitChance(100, 615), 0.2, 'hero -> monster: RO floor 20% too')
+  assert.equal(FLEE_RULES.trueSightHit, 40)
 })
 
 test('RO mob penalty: 3+ monsters alive -> Flee -10% per extra (max -50%)', () => {

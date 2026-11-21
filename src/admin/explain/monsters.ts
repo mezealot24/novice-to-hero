@@ -393,11 +393,11 @@ export function explainMonsterField(path: string, native: boolean, defaultLabel?
     'trueSight.after': {
       label: defaultLabel ?? 'True Sight หลังโดนหลบ (ครั้ง)',
       effect: 'ลดเลข = ฮีโร่หลบได้ไม่กี่ที มอนก็เปิด True Sight ล็อกเป้าแล้ว! (กดดันสาย AGI หลบล้วน)',
-      detail: 'เมื่อฮีโร่หลบครบ N ครั้ง มอนจะเปิดตาที่สามทำให้ตีโดนแน่นอนช่วงหนึ่ง',
+      detail: 'เมื่อฮีโร่หลบครบ N ครั้ง มอนจะเปิดตาที่สาม ได้ Hit เพิ่ม (FLEE_RULES.trueSightHit) ช่วงหนึ่ง',
     },
     'trueSight.turns': {
       label: defaultLabel ?? 'True Sight นาน (เทิร์น)',
-      effect: 'เพิ่ม = พอเปิด True Sight แล้วมอนจะตีโดนแน่/ต้านหลบนานขึ้นกี่เทิร์น',
+      effect: 'เพิ่ม = พอเปิด True Sight แล้วมอนจะได้ Hit เพิ่มนานขึ้นกี่เทิร์น',
       detail: 'ลดความได้เปรียบของบิวท์หลบ 100% เวลาเจอเกือบครบเทิร์น',
     },
   }

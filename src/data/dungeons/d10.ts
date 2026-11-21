@@ -97,7 +97,7 @@ export const D10: DungeonPack<D10Kind> = {
   },
   miniHints: {
     nightqueen: 'ทุก 3 เทิร์นร้องเพลงใบ้ 2 เทิร์น (ท่าไม้ตายติด) ต้านสถานะช่วยมาก · ร่ายฝันร้าย = อ่อนแรง · ครึ่งเลือดดูดค่าสถานะเราทุกเทิร์น + เรียกเงาไร้ร่าง 2 ตัว (หลบ 35% · ตายแล้วระเบิด) จบให้ไว',
-    eclipseknight: 'หลบมัน 2 ครั้งแล้วมันตีโดนแน่นอน 3 เทิร์น · ดูดเลือด 15% · ตีโดน = เกราะแตก · ร่ายฟันสุริยคราสเป็นเวท (M.DEF กัน) · ต่ำกว่า 40% เร็วขึ้น แรงขึ้น บัฟสะสมทุก 3 เทิร์น',
+    eclipseknight: 'หลบมัน 2 ครั้งแล้วมันได้ Hit +40 นาน 3 เทิร์น · ดูดเลือด 15% · ตีโดน = เกราะแตก · ร่ายฟันสุริยคราสเป็นเวท (M.DEF กัน) · ต่ำกว่า 40% เร็วขึ้น แรงขึ้น บัฟสะสมทุก 3 เทิร์น',
   },
   holyFoes: ['shade', 'dreameater', 'nightqueen', 'starweaver'],
   monSpeed: { nightmarehound: 14, voidstalker: 15, dreameater: 12, starcolossus: 7, shade: 15, lullabymoth: 11, nightqueen: 12, eclipseknight: 12, starweaver: 10 },
