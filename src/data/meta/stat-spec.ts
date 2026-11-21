@@ -77,6 +77,7 @@ export const STAT_RULES = {
 	baseXpNeed: (lv: number): number =>
 		STAT_RULES.xpBase + STAT_RULES.xpStep * (lv - 1), // account EXP to go from lv to lv+1
 	maxBaseLevel: 99,
+	hitPerBaseLv: 1, // Q 2026-11-22 RO Hit = Base Lv + DEX: hero Hit + this x Base Lv (monsters already get Lv in their Hit)
 };
 
 /** 📈 Job bonus stat (Q 2026-11-08, design/job-bonus-stat-v1.md): +1 to each listed stat every `every` Job Lv.

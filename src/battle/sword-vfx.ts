@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { BLADE_GOLD, EXEC_RED, SEAL_BLUE, loopPfx, playPfx } from '../gfx/pixelfx'
 
 export interface VfxPoint {
   x: number
@@ -411,4 +412,74 @@ export function bowlingBashFx(scene: Phaser.Scene, fromX: number, toX: number, g
   })
   ringPulse(scene, toX, groundY - 44, 14, 0xffd34d, 4.6, 260)
   sparkBurst(scene, toX + 10, groundY - 40, 'dot', [0xf2d24b, 0xff9a6a, 0xffffff], 14, 100, 290)
+}
+
+// ===== Swordsman rework VFX (Q 2026-11-21): 🤐 ดาบสยบมนตร์ · 🗡️ ดาบพิพากษา (ปลุกดาบ / คลื่นดาบ / ⚖️ execute) =====
+// Pixel art from pixelfx (effects in src/gfx/fx/sword, baked by src/gfx/pixelfx.ts, preloaded via SWORD_PFX).
+/** Presentation numbers for the rework VFX (scale / speed / depth / timings only, no balance). */
+export const SWORD_FX = {
+  scale: 2, speed: 1.5, depth: 9003,
+  waveMs: 320, // 🌊 คลื่นดาบ crossing time
+  cleaveScale: 1.3, execScale: 1.6, silenceScale: 2, guardSpeed: 2.6, waveScale: 1.5,
+}
+
+const pf = (o: Partial<{ scale: number; speed: number; depth: number; palette: string[]; alpha: number }> = {}) =>
+  ({ scale: o.scale ?? SWORD_FX.scale, speed: o.speed ?? SWORD_FX.speed, depth: o.depth ?? SWORD_FX.depth, palette: o.palette, alpha: o.alpha })
+
+/** 🤐 ดาบสยบมนตร์ cut: X cut + a rune seal snapping onto the crossing. `second` = ★ ดาบสยบคู่ (gold). */
+export function sealCutFx(scene: Phaser.Scene, x: number, y: number, second = false) {
+  playPfx(scene, 'sealCut', x, y, pf(second ? { palette: BLADE_GOLD } : {}))
+}
+
+/** 🤐 silence on a monster: a rune ring closes over its head, then a muted sign pops. */
+export function silenceSealFx(scene: Phaser.Scene, x: number, headY: number) {
+  playPfx(scene, 'silenceSeal', x, headY, pf({ scale: SWORD_FX.silenceScale, depth: SWORD_FX.depth + 2 }))
+}
+
+/** Cast cut: the monster's spell circle cracks and bursts into shards. */
+export function castBreakFx(scene: Phaser.Scene, x: number, y: number) {
+  playPfx(scene, 'castBreak', x, y, pf({ depth: SWORD_FX.depth + 1 }))
+}
+
+/** Cleanse: a cold ring at the hero's feet, chain links flick off, motes rise (only when CC was actually removed). */
+export function cleanseFx(scene: Phaser.Scene, heroX: number, groundY: number) {
+  playPfx(scene, 'cleanse', heroX, groundY, pf({ depth: 8995 }))
+}
+
+/** 🛡️ web ใจไม่หวั่น: CC guard on the hero (a quick seal-blue rune circle at the feet). */
+export function ccGuardFx(scene: Phaser.Scene, heroX: number, groundY: number) {
+  playPfx(scene, 'runeCircle', heroX, groundY, pf({ speed: SWORD_FX.guardSpeed, depth: 8994, palette: SEAL_BLUE }))
+}
+
+/** ⚔️ ปลุกดาบ cast: a gold light sword plunges into the ground at the hero's feet. */
+export function awakenBurstFx(scene: Phaser.Scene, heroX: number, groundY: number) {
+  playPfx(scene, 'awakenBurst', heroX, groundY, pf({ depth: 9004 }))
+}
+
+/** ⚔️ ปลุกดาบ lasting aura (looping pixel sheet at the hero's feet). Call `.stop()` when it ends. */
+export function awakenAuraFx(scene: Phaser.Scene, heroX: number, groundY: number): { stop: () => void } {
+  const spr = loopPfx(scene, 'awakenAura', heroX, groundY, pf({ depth: 8990, speed: 1 }))
+  return { stop: () => { if (spr?.active) scene.tweens.add({ targets: spr, alpha: 0, duration: 200, onComplete: () => spr.destroy() }) } }
+}
+
+/** ⚔️ ปลุกดาบ cleave on the 2nd monster: a quick gold slash. */
+export function cleaveFx(scene: Phaser.Scene, x: number, y: number) {
+  playPfx(scene, 'shadowSlash', x, y, pf({ scale: SWORD_FX.cleaveScale, palette: BLADE_GOLD, depth: 9002 }))
+}
+
+/** 🌊 คลื่นดาบ: the wind crescent flies from the hero across the field. Resolves when it has crossed `toX`. */
+export function windWaveFx(scene: Phaser.Scene, fromX: number, toX: number, groundY: number): Promise<void> {
+  const spr = loopPfx(scene, 'windWave', fromX, groundY - 56, pf({ depth: 9004, scale: SWORD_FX.waveScale }))
+  if (!spr) return Promise.resolve()
+  return new Promise((done) => {
+    scene.tweens.add({
+      targets: spr, x: toX + 60, duration: SWORD_FX.waveMs, ease: 'Quad.easeIn',
+      onComplete: () => { scene.tweens.add({ targets: spr, alpha: 0, duration: 120, onComplete: () => spr.destroy() }); done() },
+    })
+  })
+}
+
+/** ⚖️ execute accent on a low-HP target hit by the wave: a red X cut. */
+export function executeMarkFx(scene: Phaser.Scene, x: number, y: number) {
+  playPfx(scene, 'daggerCross', x, y, pf({ scale: SWORD_FX.execScale, palette: EXEC_RED, depth: 9006 }))
 }

@@ -92,7 +92,7 @@ const SPEC: Record<HeroSkillId, Spec> = {
   sw_guard: { role: 'shield', steps: [selfShield(0.12)] },
   sw_blood: { role: 'buff', steps: [{ kind: 'warcry', pow: 0.2, turns: 3, self: true }] },
   sw_taunt: { role: 'debuff', steps: [{ kind: 'curse', fx: fx({ weaken: 2, armorBreak: 1 }) }] },
-  'swordsman.ult': { role: 'damage', steps: [strike(1.2), selfShield(0.2)] }, // ดาบพิทักษ์
+  'swordsman.ult': { role: 'damage', steps: [strike(1.2), selfShield(0.2)] }, // ดาบพิพากษา (mirror copy keeps the old instant hit)
   // 🏹 Archer
   'archer.s1': { role: 'damage', steps: [strike(0.9, { hits: 2 })] }, // ยิงคู่
   ar_rain: { role: 'damage', steps: [strike(0.3, { hits: 3 })] },

@@ -53,6 +53,15 @@ import * as venomStab from './fx/thief/venom-stab'
 import * as smokeBomb from './fx/thief/smoke-bomb'
 import * as flyingKnife from './fx/thief/flying-knife'
 import * as knifeStorm from './fx/thief/knife-storm'
+// Swordsman line (Q 2026-11-21 rework: ดาบสยบมนตร์ · ดาบพิพากษา)
+import * as sealCut from './fx/sword/seal-cut'
+import * as silenceSeal from './fx/sword/silence-seal'
+import * as castBreak from './fx/sword/cast-break'
+import * as cleanse from './fx/sword/cleanse'
+import * as awakenBurst from './fx/sword/awaken-burst'
+import * as awakenAura from './fx/sword/awaken-aura'
+import * as windWave from './fx/sword/wind-wave'
+import { BLADE_GOLD, EXEC_RED, SEAL_BLUE } from './fx/sword/_pal'
 import { WOOD_GOLD } from './fx/archer/arrow-shot'
 export { WOOD_GOLD }
 
@@ -143,6 +152,14 @@ export const DEFS = {
   smokeBomb: { mod: smokeBomb },
   flyingKnife: { mod: flyingKnife, until: 0.25 }, // looping: drop the last frame (t = 0.3 repeats t = 0)
   knifeStorm: { mod: knifeStorm },
+  // Swordsman line
+  sealCut: { mod: sealCut },
+  silenceSeal: { mod: silenceSeal },
+  castBreak: { mod: castBreak },
+  cleanse: { mod: cleanse },
+  awakenBurst: { mod: awakenBurst },
+  awakenAura: { mod: awakenAura, until: 0.75 }, // looping: drop the last frame (t = 0.8 repeats t = 0)
+  windWave: { mod: windWave, until: 0.25 }, // looping: drop the last frame
   // Loot: a kill goes up in a poof and coins bounce out. Cut once they settle (~1.25 s); the battle then flies
   // them to the zeny counter. One bake per coin count (the count is an option, not a palette).
   coinDrop3: { mod: coinDrop, until: COIN_DROP_UNTIL, opts: { coins: 3 } },
@@ -326,3 +343,20 @@ export const THIEF_PFX: PfxPreloadEntry[] = [
 
 /** Every effect the Beastmaster line can show. */
 export const BEAST_PFX: PfxPreloadEntry[] = ['hawkDive', 'clawSlash', 'boarCharge', 'boarGuard', 'beastRoar', { id: 'beastRoar', palette: WOLF_SILVER }, 'stampede']
+
+/** Every effect the Swordsman rework can show (🤐 ดาบสยบมนตร์ · 🗡️ ดาบพิพากษา): cleave = shadow slash in blade gold,
+ *  ⚖️ execute = dagger cross in execute red, ★ ดาบสยบคู่ = seal cut in blade gold. */
+export const SWORD_PFX: PfxPreloadEntry[] = [
+  'sealCut',
+  { id: 'sealCut', palette: BLADE_GOLD },
+  'silenceSeal',
+  'castBreak',
+  'cleanse',
+  'awakenBurst',
+  'awakenAura',
+  'windWave',
+  { id: 'shadowSlash', palette: BLADE_GOLD },
+  { id: 'daggerCross', palette: EXEC_RED },
+  { id: 'runeCircle', palette: SEAL_BLUE },
+]
+export { BLADE_GOLD, EXEC_RED, SEAL_BLUE }

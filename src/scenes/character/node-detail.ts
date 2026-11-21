@@ -64,7 +64,7 @@ export function nodeDetail(
 				s.job2 === "sage"
 					? `${SAGE_S1.icon} ทักษะ 1: ${SAGE_S1.name}`
 					: `${JOBS[job].auto.icon} ทักษะ 1: ${JOBS[job].auto.name}`,
-			info: (st) => autoInfo(job, st, s.job2),
+			info: (st, tree) => autoInfo(job, st, s.job2, { str: totalBase(withTree(tree)).str, baseLv: s.baseLevel }),
 			all: line === "s1",
 		},
 		...(job === "cleric"
