@@ -12,6 +12,7 @@ import { type ItemEffectId, type ItemEffectSpec } from '../data/item-effects'
 import { createBiomeCombatState, HAZARD_TUNING, modifyHeroDirectHealBiome, onHeroShieldOrBlockBiome, onHeroSkillCastBiome, onMonsterHitBiome, onTurnEndBiome, type BiomeCombatState } from '../data/biome-hazards'
 import { RIFT_BRANCHES, riftBoonById, type RiftBoonDef, type RiftBranchDef } from '../data/rift'
 import { applyRiftBranchChoice } from '../battle/rift-engine'
+import { maidenHpFloor, maidenSplit } from '../battle/maiden-link'
 import { foldMutators, mutatorById } from '../data/mutators'
 import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster, EQUIP_CARDS } from '../data/cards'
 import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, SWORD_S1, swordExecMul, swordS1Lv, swordS1Raw, swordWaveNow, type JobDef } from '../data/jobs'
@@ -1347,7 +1348,6 @@ export class BattleScene extends Phaser.Scene {
     sfx.slam()
     const dmg = ablazeBlastDmg(m.def.hp, this.st.matk, m.def.ai === 'boss')
     for (const o of [...this.alive()]) {
-      if (this.maidenGuarded(o)) continue
       o.hp = Math.max(0, o.hp - dmg)
       this.floatText(o.spr.x, o.spr.y - o.spr.displayHeight - 16, `🔥 -${dmg}`, '#ff9457')
       if (o.hp <= 0) { this.killMon(o); continue }
@@ -1359,11 +1359,11 @@ export class BattleScene extends Phaser.Scene {
     }
   }
   private firstOffer = true
-  /** Drainer under Summon Maiden takes 0 damage, so auto-targeting skips her while the Maiden lives (beta report 2026-11-07). */
-  private maidenGuarded(m: Mon) { return !!m.maiden && !m.maiden.dead }
-  private front() { return this.alive().sort((a, b) => Number(this.maidenGuarded(a)) - Number(this.maidenGuarded(b)) || a.slot - b.slot) }
-  /** Boss / mini boss first, unless she is immortal right now. */
-  private bossTarget() { return this.alive().find((m) => m.def.ai === 'boss' && !this.maidenGuarded(m)) }
+  /** Drainer under Summon Maiden (Q 2026-11-21): still takes damage (a share goes to the Maiden) but cannot die while the Maiden lives. */
+  private maidenLinked(m: Mon) { return !!m.maiden && !m.maiden.dead }
+  private front() { return this.alive().sort((a, b) => a.slot - b.slot) }
+  /** Boss / mini boss first. */
+  private bossTarget() { return this.alive().find((m) => m.def.ai === 'boss') }
   private gainRage(n: number) { if (this.job.resource === 'rage') this.res = Math.min(RES_RULES.rageMax, this.res + n * (1 + this.st.rageGain)) }
   /** Flat resource gain for Mana/Energy jobs (talents that used to give Rage). */
   /** Pay Mana / Energy / Rage; v86 💠 มานาพิทักษ์ heals a share of the Mana spent. */
@@ -3447,7 +3447,7 @@ export class BattleScene extends Phaser.Scene {
       const ben = sageElementBenefit('lightning', el, this.st)
       const aliveCount = this.alive().length
       const jumps = Math.min(aliveCount, P.lightTargetsBase + (this.st.j2LightPerk >= 3 && ben >= 1 ? 1 : 0))
-      const { chain, originDead } = pickChainTargets(target, this.alive(), jumps, (m) => this.maidenGuarded(m))
+      const { chain, originDead } = pickChainTargets(target, this.alive(), jumps)
       if (chain.length > 0) {
         let curMul = (P.lightMul + this.st.j2LightDmg) * ben * hitMul * (aliveCount === 1 ? 4 : 1)
         const zapped: Mon[] = [] // 🎓 marked after the chain (reactions stay out of the lightning-hit window)
@@ -4183,7 +4183,7 @@ export class BattleScene extends Phaser.Scene {
         const pow = cl?.power ?? rbCl?.effect.power ?? 0.4
         const targets = rbCl?.effect.secondary ?? 2
         this.floatText(f.spr.x, f.spr.y - f.spr.displayHeight - 26, '⚡ สายฟ้าชิ่ง!', '#bfe6ff')
-        const { chain: chainRow, originDead } = pickChainTargets(f, this.alive(), targets, (m) => this.maidenGuarded(m))
+        const { chain: chainRow, originDead } = pickChainTargets(f, this.alive(), targets)
         if (chainRow.length > 0) {
           playChainLightningFx(this, { chain: chainRow, originDead, palette: ZAP_YELLOW, sparks: ZAP_YELLOW_SPARKS })
           this.withSrc('zap', () => { for (const cm of chainRow) this.zap(cm, pow, '#bfe6ff', false) })
@@ -4387,7 +4387,7 @@ export class BattleScene extends Phaser.Scene {
           this.st.crit -= this.st.arAimCrit
         } else {
           const shots = this.st.arVolley > 0 ? KIT.archerVolleyShots : KIT.archerAutoShots, mul = this.st.arVolley > 0 ? this.st.arVolley : KIT.archerAuto // talent ศรสามดอก
-          const lock = this.st.lockOn > 0 && this.lockTarget && !this.lockTarget.dead && !this.maidenGuarded(this.lockTarget) ? this.lockTarget : undefined // ★ ล็อกเป้า: ยิงคู่ยิงตัวที่ล็อก
+          const lock = this.st.lockOn > 0 && this.lockTarget && !this.lockTarget.dead ? this.lockTarget : undefined // ★ ล็อกเป้า: ยิงคู่ยิงตัวที่ล็อก
           for (let i = 0; i < shots; i++) { const t = this.alive(); if (!t.length) break; const m = lock && !lock.dead ? lock : t[Phaser.Math.Between(0, t.length - 1)]; await this.arrow(m, mul * pow, pow) }
         }
         break
@@ -4497,7 +4497,7 @@ export class BattleScene extends Phaser.Scene {
     if (st.swCcGuard > 0) { this.swGuard = S.guardTurns + 1; ccGuardFx(this, HERO_X, GROUND) } // +1: ticks at the next hero turn start · 🛡️ ใจไม่หวั่น
     if (st.swS1Shield > 0) { this.addShield(st.maxHp * st.swS1Shield); blockShieldFx(this, HERO_X, GROUND) } // 🛡️ ตั้งรับ
     if (st.swS1Ctr > 0) this.ctrCharges = Math.max(this.ctrCharges, st.swS1Ctr) // ★ สวนเงียบ
-    const t = this.alive().find((m) => m.charging && !this.maidenGuarded(m)) ?? this.bossTarget() ?? this.front()[0]
+    const t = this.alive().find((m) => m.charging) ?? this.bossTarget() ?? this.front()[0]
     if (!t) return
     const pb = physBase(st), atkAvg = Math.max(1, (pb.lo + pb.hi) / 2)
     const mul = (swordS1Raw(lv, atkAvg, totalBase(s).str, s.baseLevel) / atkAvg) * (1 + st.pskill) + this.hpMul() // Knight: + max HP share
@@ -4538,7 +4538,7 @@ export class BattleScene extends Phaser.Scene {
   }
   /** PoE Passive Death Mark (Keystone 💀 ตราความตาย): mark highest-HP alive monster (prefer unguarded). Refreshes turns without wiping recorded dmg. */
   private applyDeathMark() {
-    const t = pickDeathMarkTarget(this.mons, (m) => this.maidenGuarded(m))
+    const t = pickDeathMarkTarget(this.mons, () => false)
     if (!t) return
     const next = applyDeathMarkState(t.deathMark ?? 0, t.deathMarkDmg ?? 0, KIT.thiefDeathMarkTurns)
     t.deathMark = next.turns
@@ -5034,7 +5034,12 @@ export class BattleScene extends Phaser.Scene {
       const taken = this.takenAmpOf(m, dot); if (taken > 0) dmg = Math.ceil(dmg * (1 + taken)) // P2'b B1 Taken (R4.6): Exposed + Privileged + gear กัดกร่อน, added under KIT.thiefTakenCap
       if (!dot && this.relic === 'executioner' && m.hp < m.def.hp * RELIC_RULES.executioner.below) dmg = Math.ceil(dmg * (1 + RELIC_RULES.executioner.mul))
     }
-    if (m.maiden && !m.maiden.dead && dmg > 0) { this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, 'อมตะ! (ฆ่าเมเดนก่อน)', '#e0a8ff'); return }
+    if (this.maidenLinked(m) && dmg > 0) { // Q 2026-11-21: no immortality · BATTLE.maiden.share of the hit goes to the Maiden instead
+      const { toMaiden, toBoss } = maidenSplit(dmg, BATTLE.maiden.share)
+      if (toMaiden > 0) this.damageMon(m.maiden!, toMaiden, crit, '#e0a8ff', true, false, true) // already amplified here: pure, never reflected
+      dmg = toBoss
+      if (dmg <= 0) return
+    }
     if ((m.parry || m.espadaArmed) && dmg > 0) { // duelist: Riposte stance / Grandado Espada mark turn = immortal
       this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 6, m.parry ? 'ปัด!' : 'อมตะ!', '#c9e0ff')
       if (m.parry && !dot && !pure && this.hp > 0) this.riposteHit(m, dmg)
@@ -5053,7 +5058,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     const hp0 = m.hp
-    m.hp -= dmg
+    m.hp = maidenHpFloor(m.hp - dmg, this.maidenLinked(m)) // Karvos cannot die before her Maiden
     if (!dot && !pure) this.monCastBreak(m, dmg) // Q 2026-11-20: a hard direct hit may break a boss cast (hero + ally hits; DoT / reflect / echo never)
     if (shouldRecordDeathMark({ dot, pure, allyHitting: this.allyHitting, popping: this.deathMarkPopping, mobExecuting: this.mobExecuting, markTurns: m.deathMark ?? 0, ratio: this.st.thDeathMark })) {
       const net = deathMarkNetHpDmg(hp0, m.hp)
@@ -5061,7 +5066,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (!m.dead && m.hp > 0 && !dot && !pure && this.hp > 0) {
       const ex = this.itemEffect('execute_cull')
-      if (ex && !(m.maiden && !m.maiden.dead)) {
+      if (ex && !this.maidenLinked(m)) {
         const baseThresh = ex.threshold ?? 0.12
         const thresh = m.def.ai === 'boss' ? baseThresh * 0.5 : baseThresh
         if (m.hp / m.def.hp <= thresh) {
@@ -5162,6 +5167,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private killMon(m: Mon) {
+    if (this.maidenLinked(m)) { m.hp = maidenHpFloor(m.hp, true); return } // any direct kill (execute, blasts) waits for the Maiden
     m.dead = true
     m.deathMark = 0; m.deathMarkDmg = 0
     m.castSteady = false; m.castSkill = undefined; this.monCastFx(m, false) // a cast dies with its caster
@@ -6658,7 +6664,7 @@ export class BattleScene extends Phaser.Scene {
     this.drained = 0
   }
 
-  /** Drainer Summon Maiden (Q 2026-11-04): she turns immortal and calls a Maiden ghost with her max HP and M.ATK. */
+  /** Drainer Summon Maiden (Q 2026-11-04): she calls a Maiden ghost with her max HP and M.ATK. */
   private summonMaiden(m: Mon) {
     m.maidenDone = true
     const slot = this.freeSlots()[0]
@@ -6670,7 +6676,7 @@ export class BattleScene extends Phaser.Scene {
     g.spr.setTint(BATTLE.maiden.tint)
     m.maiden = g
     this.turnLimit += BATTLE.maiden.turns
-    this.callout(`👻 ${m.def.name}: Summon Maiden! อมตะจนกว่าเมเดนจะตาย`, W / 2, 205, '#e0a8ff')
+    this.callout(`👻 ${m.def.name}: Summon Maiden! ดาเมจครึ่งหนึ่งส่งให้เมเดน · ตายก่อนเมเดนไม่ได้`, W / 2, 205, '#e0a8ff')
     this.cameras.main.flash(200, 200, 120, 255)
   }
 
