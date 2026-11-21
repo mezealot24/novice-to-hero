@@ -5,7 +5,7 @@
 // (LoL feel: physical builds still get something from magic procs). Heals and shields stay on M.ATK.
 import { BATTLE, PLAYER, type MonsterKind, type Stats } from './game-data'
 import { CRIT_RULES } from './battle-rules'
-import { CLERIC_KIT, JOBS, MAGE_SPELL, SPELL_VAMP, SWORD_MANA, swordExecMul, type JobDef, type JobId } from './jobs'
+import { CLERIC_KIT, JOBS, MAGE_SPELL, SPELL_VAMP, SWORD_MANA, SWORD_S1, swordExecMul, swordS1Lv, type JobDef, type JobId } from './jobs'
 import type { Skill2Def } from './skill2'
 import { PACKS } from './dungeons'
 import { STAT_RULES } from './meta/stat-spec'
@@ -188,6 +188,11 @@ export const KIT = {
     flowMax: 5, flow: 0.03, flowMana: 0.6, flowCrit: 0.01, flowBreak: 0.15, // ไหลลื่น: ฟันพายุ in a row stacks (max 5) +dmg/stack/lv · ลมหายใจ Mana/stack/lv · เฉือนคม crit/stack/lv · a hit >= 15% max HP (after shields) resets
     stormHits: 2, // ★ พันดาบ: at max stacks ฟันพายุ swings this many times, sure crit, then stacks reset
     breakTurns: 3, breakAmp: 0.04, breakLeech: 0.02, breakSpreadRes: 4, shatterPush: 30, // ทุบเกราะ: ult breaks armor (Mon.armorBrk = DEF −KIT2.mobster.armorBrk) N turns + dmg taken/lv · ซ้ำรอย heal share/lv · ร้าวลาม Mana/lv · ★ หักท่า gauge push
+  },
+  // ⚔️ ดาบสยบมนตร์ web (Q 2026-11-21, swordsman_b left = Defensive, swordsman_c right = Utility + Dmg), per OLD level (max 3, stretched to 5)
+  swordS1Tree: {
+    shield: 0.04, tenacity: 0.05, guardTurns: 1, muteWeak: 0.06, counters: 2, // 🛡️ ตั้งรับ shield/lv · ใจไม่หวั่น tenacity/lv + CC guard turns · ปิดปาก silenced monster dmg cut/lv · ★ สวนเงียบ sure counters
+    vsMute: 0.1, refund: 4, splash: 0.2, starHit: 0.6, // 🎯 เจาะจังหวะ dmg/lv vs casting / silenced · ⏳ ตัดจังหวะ Mana/lv on a cut cast (+ CD -1) · 🌀 ฟันเฉือน share/lv · ★ 2nd cut share
   },
   // Swordsman core column (swordsman_core, tier 0, always open): Defend VIT/DEF/M.DEF/Regen passives
   swordCore: {
@@ -498,7 +503,12 @@ export const S2N = {
 
 // ---------- costs / cooldowns ----------
 // floor 10, unless the class's own cost is lower (Mage 5, 2026-11-13) · P2'a: Thief (Rogue / Mobster too) floor KIT.thiefAutoMinCost
-export const autoCost = (job: JobDef, st: Stats) => Math.max(job.id === 'thief' ? KIT.thiefAutoMinCost : Math.min(10, job.auto.cost), job.auto.cost - st.autoCostCut)
+export const autoCost = (job: JobDef, st: Stats) => {
+  if (swordS1On(job)) return Math.max(SWORD_S1.cost[0], SWORD_S1.cost[swordS1Lv(st) - 1] - st.autoCostCut) // ⚔️ ดาบสยบมนตร์: Mana by Lv, floor = Lv 1 cost
+  return Math.max(job.id === 'thief' ? KIT.thiefAutoMinCost : Math.min(10, job.auto.cost), job.auto.cost - st.autoCostCut)
+}
+/** ⚔️ ดาบสยบมนตร์ is this job's Skill 1: Swordsman / Knight (Mana). Berserker (Rage, battle job overrides resource) keeps ฟันพายุ. */
+export const swordS1On = (job: JobDef) => job.id === 'swordsman' && job.resource === 'mana'
 
 // ---------- P2'a Thief pure helpers (numbers only, no Mon / Phaser: tests call them directly) ----------
 /** สลับคม: after แทงพิษ the next hero turn is a basic attack · Q3: not inside 👤 ร่างเงา (free Skill 1 spam stays). */
@@ -876,7 +886,15 @@ export function autoInfo(jobId: JobId, st: Stats, job2?: string): InfoRow[] {
   }
   const out: InfoRow[] = [{ label: 'ใช้', value: `${resName(job)} ${autoCost(job, st)}` }]
   switch (jobId) {
-    case 'swordsman': out.push({ label: 'ดาเมจ/ตัว (ทุกตัว)', value: hitText(st, SWORD_MANA.autoMul * pow * (1 + st.pskill), false) }); break
+    case 'swordsman': {
+      if (job2 === 'berserker') { out.push({ label: 'ฟันพายุ ดาเมจ/ตัว (ทุกตัว)', value: hitText(st, SWORD_MANA.autoMul * pow * (1 + st.pskill), false) }); break }
+      const lv = swordS1Lv(st), i = lv - 1 // ⚔️ ดาบสยบมนตร์
+      out.push({ label: `ดาบสยบมนตร์ Lv ${lv} (เป้าเดี่ยว)`, value: `P.ATK ${Math.round(SWORD_S1.atkPct[i] * 100)}% + STR x${SWORD_S1.str[i]} + ${SWORD_S1.base[i]} x Base Lv · ส่วน P.ATK ${hitText(st, SWORD_S1.atkPct[i] * (1 + st.pskill), false)}` })
+      out.push({ label: 'ผล', value: `ล้าง CC บนตัวเรา · ใบ้ ${SWORD_S1.silenceTurns + (st.swS1Star > 0 ? 1 : 0)} เทิร์น + ขัดร่าย + เสียเทิร์น · คูลดาวน์ ${SWORD_S1.cd}` })
+      if (st.swS1Shield > 0) out.push({ label: '🛡️ โล่เมื่อกด', value: `${shield(st, st.maxHp * st.swS1Shield)}` })
+      if (st.swS1Splash > 0) out.push({ label: '⚔️ เฉือนตัวอื่น', value: `${pct(st.swS1Splash)} ของฮิต` })
+      break
+    }
     case 'archer':
       if (st.arAim > 0) out.push({ label: `ศรเล็ง 2 ดอก (คริ +${pct(st.arAimCrit)})`, value: hitText(st, st.arAim * pow, false) })
       else out.push({ label: `${st.arVolley > 0 ? KIT.archerVolleyShots : KIT.archerAutoShots} ดอก ดาเมจ/ดอก`, value: hitText(st, (st.arVolley > 0 ? st.arVolley : KIT.archerAuto) * pow, false) })

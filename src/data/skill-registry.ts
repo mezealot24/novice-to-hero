@@ -3,7 +3,7 @@
 // new `skills` table (tunables.ts builds its whitelist from the refs below). Adding a skill number = add one ref here.
 // Round 1: the 5 base classes (skill 1 / 2 / Ult). Round 2: 2nd-job classes + skill 3.
 // Import rule: type-only imports from ./tunables (tunables imports this file), values only from jobs / skill2 / skill-math.
-import { JOBS, MAGE_SPELL, SWORD_MANA } from './jobs'
+import { JOBS, MAGE_SPELL, SWORD_MANA, SWORD_S1 } from './jobs'
 import { JOB2, type Job2Id } from './jobs2'
 import type { Skill2Id } from './skill2'
 import { SKILL2 } from './skill2'
@@ -65,7 +65,7 @@ const s2 = (id: Skill2Id, ...more: SkillRef[]) => ({ id, refs: [...s2cost(id), .
 
 export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
   swordsman: {
-    s1: [sk('sword.auto', 'ค่า Mana', COST), sk('sword.autoMul', 'ดาเมจ × P.ATK (ทุกตัว)', MUL)],
+    s1: [sk('swordS1.cd', '⚔️ ดาบสยบมนตร์ คูลดาวน์ (เทิร์น)', CD), sk('swordS1.silenceTurns', '⚔️ ดาบสยบมนตร์ ใบ้ (เทิร์นมอน)', int(0, 10)), sk('sword.autoMul', 'ฟันพายุ (Berserker) ดาเมจ × P.ATK (ทุกตัว)', MUL)],
     s2: [
       s2('sw_guard', ...lin('guardCut', 'ดาเมจเข้าลด')),
       s2('sw_blood', ...lin('bloodVamp', 'ดูดเลือดสกิล'), sk('s2n.bloodTurns', 'นาน (เทิร์น)', int(0, 20)), sk('s2n.bloodAtk', 'ATK เพิ่ม', FRAC)),
@@ -435,7 +435,7 @@ let root: object | null = null
 /** The object the `skills` table patches in place: refs to the real consts, so writes reach the game's data. Built on first use (module cycles). */
 export function skillRoot(): object {
   return (root ??= {
-    job: JOBS, sword: SWORD_MANA, mage: MAGE_SPELL, s2p: S2P, s2n: S2N, crit: SKILL_CRIT, job2: JOB2, kit2: KIT2, // v107: 2nd jobs
+    job: JOBS, sword: SWORD_MANA, swordS1: SWORD_S1, mage: MAGE_SPELL, s2p: S2P, s2n: S2N, crit: SKILL_CRIT, job2: JOB2, kit2: KIT2, // v107: 2nd jobs
     skill2: Object.fromEntries(SKILL2.map((s) => [s.id, s])), // keyed by id: a patch path never depends on array order
   })
 }

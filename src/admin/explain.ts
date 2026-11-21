@@ -115,6 +115,7 @@ export function explainTableGroup(t: TableId, key: string): { title: string; des
       s2p: { title: '📈 s2p · สูตรทักษะ 2 (base + per × Lv "+")', desc: 'ปรับฐานและอัตราเพิ่มต่อเลเวลของทักษะ 2' },
       s2n: { title: '🔢 s2n · ค่าคงที่เฉพาะทักษะ 2', desc: 'จำนวนเทิร์น สแต็ก บัฟสเตตัส และโบนัสเสริม' },
       sword: { title: '⚔️ sword · ตัวเลขเฉพาะ Swordsman', desc: 'Mana และตัวคูณฟันพายุ / Ult' },
+      swordS1: { title: '🤐 swordS1 · ดาบสยบมนตร์ (สกิล 1 นักดาบ / Knight)', desc: 'คูลดาวน์ และจำนวนเทิร์นใบ้ของสกิล 1 เป้าเดี่ยว' },
       mage: { title: '🔮 mage · ตัวเลขเฉพาะ Mage', desc: 'บาเรีย M.ATK หลังปล่อยเวท' },
       job2: { title: '🌟 job2 · ค่าร่าย/คูลดาวน์ 10 อาชีพขั้น 2', desc: 'cost/cd ของทักษะ 3 และ cd ของ Ult วิวัฒน์' },
       kit2: { title: '🛠️ kit2 · พารามิเตอร์สกิล/พาสซีฟ/ทรี 10 อาชีพขั้น 2', desc: 'ตัวคูณทั้งหมดของทั้ง 10 อาชีพขั้น 2' },
