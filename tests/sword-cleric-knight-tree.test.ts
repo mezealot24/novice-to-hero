@@ -98,7 +98,8 @@ test('new branches hang under the right line', () => {
 
 test('each new node sets its field (default 0, grows with level, readable text)', () => {
   const want: Record<string, (keyof Stats)[]> = {
-    swordsman_c1: ['swFlow'], swordsman_c2: ['swFlowMana'], swordsman_c3: ['swFlowCrit'], swordsman_c4: ['swFlowStar'],
+    swordsman_c1: ['swVsMute'], swordsman_c2: ['swS1Refund'], swordsman_c3: ['swS1Splash'], swordsman_c4: ['swS1Star'], // Q 2026-11-21: ทักษะ 1 right line = ⚔️ สยบมนตร์
+    swordsman_b1: ['swS1Shield'], swordsman_b2: ['swCcGuard'], swordsman_b3: ['swMuteWeak'], swordsman_b4: ['swS1Ctr'], // ... left line = 🛡️ ตั้งรับสยบ
     swordsman_d1: ['swBreak'], swordsman_d2: ['swBreakLeech'], swordsman_d3: ['swBreakSpread'], swordsman_d4: ['swShatter'],
     cleric_c1: ['clFaith'], cleric_c2: ['clFaithOver'], cleric_c3: ['clFaithHeal'], cleric_c4: ['clOverBurst'],
     cleric_dn1: ['clDawn'], cleric_dn2: ['clDawnHeal'], cleric_dn3: ['clDawnWis', 'clDawnWisTurns'], cleric_dn4: ['clDawnUlt', 'clDawnCrit'], // v92 🌄 รุ่งอรุณ

@@ -88,7 +88,7 @@ const selfShield = (pow: number): HeroStep => ({ kind: 'shield', pow, self: true
 
 const SPEC: Record<HeroSkillId, Spec> = {
   // ⚔️ Swordsman
-  'swordsman.s1': { role: 'damage', steps: [strike(1.25)] }, // ฟันพายุ
+  'swordsman.s1': { role: 'damage', steps: [strike(1.6, { fx: fx({ silence: 1 }) })] }, // ⚔️ ดาบสยบมนตร์ (Q 2026-11-21): one heavy cut + silence (was ฟันพายุ 1.25)
   sw_guard: { role: 'shield', steps: [selfShield(0.12)] },
   sw_blood: { role: 'buff', steps: [{ kind: 'warcry', pow: 0.2, turns: 3, self: true }] },
   sw_taunt: { role: 'debuff', steps: [{ kind: 'curse', fx: fx({ weaken: 2, armorBreak: 1 }) }] },

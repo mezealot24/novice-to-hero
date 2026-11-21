@@ -33,11 +33,53 @@ export const MAGE_SPELL = {
 /** Swordsman (Q 2026-11-03): Rage is gone, the knight runs on a small Mana pool like RO (design/swordsman-mana-nerf.md).
  *  A STR/VIT build gets only the base pool and regen, so skills are rationed and the basic swing + counters carry the fight. */
 export const SWORD_MANA = {
-  auto: 20, // ฟันพายุ
+  auto: 20, // old ฟันพายุ cost, unused since ดาบสยบมนตร์ (SWORD_S1.cost by Lv; Berserker pays JOB2 autoCost Rage)
   ult: 25, // ดาบพิทักษ์ (plus its turn cooldown; booked ult waits for Mana like the Mage's)
   autoMul: 1.25, // ฟันพายุ x P.ATK (1.3 before the class rebalance 2026-11-03, 1.15 in v40, 1.25 after the lifesteal cut 2026-11-04)
-  ultMul: 1.2, // ดาบพิทักษ์ x P.ATK (1.4 until the class rebalance)
+  ultMul: 1.5, // ดาบพิทักษ์ 🌊 คลื่นดาบ x P.ATK on every monster (Q 2026-11-21 Riven-style rework; was 1.2 instant, 1.4 before the class rebalance)
+  // ⚔️ ปลุกดาบ (Q 2026-11-21, picked "2 steps: awaken + auto wave"): the ult wakes the blade for awakenTurns hero turns
+  // (P.ATK +awakenAtk, every basic swing also cuts the next monster for cleaveShare), then 🌊 คลื่นดาบ fires on its own
+  // the first time a monster is under execLow HP, or on the last awakened turn. Job1 Swordsman only (Knight / Berserker keep their ults).
+  awakenTurns: 3, awakenAtk: 0.2, cleaveShare: 0.5,
   ultShield: 0.2, // ดาบพิทักษ์ shield, share of max HP (reworked 0.15 -> 0.20 so pumping VIT translates into a meaningful barrier)
+  // ⚖️ คำพิพากษา (Q 2026-11-21, execute curve Q sent): an ult hit deals + execMax x (missing HP / execCapMiss), capped at execCapMiss missing
+  // (2.667% per 1% missing, +200% at 75% missing). A multiplier on our P.ATK hit (not % of the monster's HP), so the x4/x10 boss HP of PR #160
+  // can't blow it up; bosses / minis take execBigShare of the bonus. Full curve on 🌊 คลื่นดาบ; the 2nd / 3rd job ults (Knight, Lord Knight,
+  // Berserker, Warlord) take execLineShare of it (they hit far more often).
+  execMax: 2, // + damage at execCapMiss missing HP
+  execCapMiss: 0.75, // missing HP share where the bonus caps
+  execLow: 0.3, // 🌊 fires on its own once a monster is under this HP share
+  execBigShare: 0.5, // boss / mini: share of the bonus they take
+  execLineShare: 0.25, // 2nd / 3rd job ults: share of the bonus (+50% max)
+}
+
+/** 🌊 คลื่นดาบ fires now? turnsLeft = awakened hero turns left counting this one (1 = the last). */
+export function swordWaveNow(turnsLeft: number, hpFracs: number[]): boolean {
+  if (turnsLeft <= 0 || !hpFracs.length) return false
+  return turnsLeft === 1 || hpFracs.some((f) => f < SWORD_MANA.execLow)
+}
+
+/** ⚔️ ดาบสยบมนตร์ (Q 2026-11-21): the Skill 1 of the whole Swordsman line (Berserker pays its flat Rage cost instead of the Mana table). Lv 1-5 = the ทักษะ 1 "+" node Lv.
+ *  Cleanse the hero's CC, one hit of [P.ATK x atkPct + STR x str + base x Base Lv] (option "Base Dmg x BaseLv only", the flat part
+ *  turned into P.ATK units in battle), then the target is silenced silenceTurns monster turns, its cast is cut and it loses its next turn. */
+export const SWORD_S1 = {
+  atkPct: [1.2, 1.4, 1.6, 1.8, 2.0], str: [0.25, 0.5, 0.75, 1.0, 1.25], base: [20, 40, 60, 80, 100], cost: [6, 12, 18, 24, 30],
+  cd: 5, silenceTurns: 2,
+}
+/** Skill 1 Lv (1..5) from Stats.swS1Lv (the "+" node Lv; 0 points still casts Lv 1). */
+export const swordS1Lv = (st: { swS1Lv: number }) => Math.min(SWORD_S1.cost.length, Math.max(1, Math.round(st.swS1Lv || 0)))
+/** Raw damage of one ดาบสยบมนตร์ hit before DEF / crit: P.ATK x pct + STR x k + base x Base Lv. */
+export function swordS1Raw(lv: number, patk: number, str: number, baseLv: number): number {
+  const i = Math.min(SWORD_S1.cost.length, Math.max(1, Math.round(lv))) - 1
+  return patk * SWORD_S1.atkPct[i] + str * SWORD_S1.str[i] + SWORD_S1.base[i] * Math.max(1, baseLv)
+}
+
+/** ⚖️ คำพิพากษา: damage multiplier of a Swordsman-line ult hit on a target at hpFrac (0..1) of its max HP.
+ *  share = execLineShare for the 2nd / 3rd job ults, 1 for 🌊 คลื่นดาบ. */
+export function swordExecMul(hpFrac: number, big: boolean, share = 1): number {
+  const S = SWORD_MANA, f = Math.min(1, Math.max(0, Number.isFinite(hpFrac) ? hpFrac : 1))
+  const bonus = Math.min(1, (1 - f) / Math.max(0.01, S.execCapMiss)) * S.execMax
+  return 1 + bonus * share * (big ? S.execBigShare : 1)
 }
 
 /** Cleric kit numbers (class rebalance 2026-11-03: was heal 22%, ult shield 35% + heal 15%; gear/cards should make up the gap).
@@ -51,6 +93,11 @@ export const CLERIC_KIT = { heal: 0.7, smite: 1.4, basic: 1.1, ultAtk: 1.5, ultL
 /** Spell vamp (Q 2026-11-04): skill lifesteal, its own stat. AoE skills heal 1/3; Skill 2 เลือดเดือด trades skill damage for it. */
 export const SPELL_VAMP = { aoe: 1 / 3, bloodCut: 0.15 }
 
+const pc0 = (n: number) => `${Math.round(n * 100)}%`
+/** One line for every Swordsman-line ult desc (job1 here, Knight / Berserker in jobs2.ts). */
+export const swordExecDesc = (share: number) => `⚖️ คำพิพากษา: ยิ่งเป้า HP หายมากยิ่งแรง สูงสุด +${pc0(SWORD_MANA.execMax * share)} (ตันที่ HP หาย ${pc0(SWORD_MANA.execCapMiss)}) · บอส/มินิ ได้ ${pc0(SWORD_MANA.execBigShare)} ของโบนัส`
+export const SWORD_EXEC_DESC = swordExecDesc(SWORD_MANA.execLineShare) // 2nd / 3rd job ults
+
 export const JOBS: Record<JobId, JobDef> = {
   novice: {
     id: 'novice', name: 'โนวิส', icon: '🌱', tex: 'novice', blurb: 'มือใหม่ ทำได้ทุกอย่างนิดหน่อย', focus: 'อะไรก็ได้',
@@ -60,8 +107,8 @@ export const JOBS: Record<JobId, JobDef> = {
   swordsman: {
     id: 'swordsman', name: 'นักดาบ', icon: '⚔️', tex: 'hero_swordsman', blurb: 'ยืนหน้า ถึก ฟันโดนหลายตัว · Mana น้อย: สกิลออกได้จำกัด ดาเมจหลักมาจากฟันธรรมดา + สวนกลับ', focus: 'STR · VIT',
     resource: 'mana', attack: 'melee', tags: ['guard', 'blood'], mod: { maxHp: 25, def: 3, counter: 0.02 }, // HP/DEF partly back 2026-11-04 after the lifesteal cut
-    auto: { name: 'ฟันพายุ', icon: '🌪️', cost: SWORD_MANA.auto, desc: `Mana ${SWORD_MANA.auto}: ฟันมอนทุกตัว ${SWORD_MANA.autoMul}x P.ATK` },
-    ult: { name: 'ดาบพิทักษ์', icon: '🛡️', cd: 4, cost: SWORD_MANA.ult, desc: `Mana ${SWORD_MANA.ult}: ฟันมอนทุกตัว ${SWORD_MANA.ultMul}x + โล่ ${SWORD_MANA.ultShield * 100}% ของ HP สูงสุด` },
+    auto: { name: 'ดาบสยบมนตร์', icon: '🤐', cost: SWORD_S1.cost[0], desc: `Mana ${SWORD_S1.cost.join('/')} · คูลดาวน์ ${SWORD_S1.cd}: ล้าง CC บนตัวเรา แล้วฟันเป้าเดี่ยว (ตัวที่กำลังร่ายก่อน > บอส > ตัวหน้า) [P.ATK ${SWORD_S1.atkPct.map((x) => Math.round(x * 100)).join('/')}% + STR x${SWORD_S1.str.join('/')} + ${SWORD_S1.base.join('/')} x Base Lv] · ใบ้ ${SWORD_S1.silenceTurns} เทิร์น + ขัดร่าย + เสียเทิร์น` },
+    ult: { name: 'ดาบพิทักษ์', icon: '🛡️', cd: 4, cost: SWORD_MANA.ult, desc: `Mana ${SWORD_MANA.ult}: ⚔️ ปลุกดาบ ${SWORD_MANA.awakenTurns} เทิร์น (P.ATK +${pc0(SWORD_MANA.awakenAtk)} · ตีปกติฟันตัวถัดไปด้วย ${pc0(SWORD_MANA.cleaveShare)}) + โล่ ${SWORD_MANA.ultShield * 100}% ของ HP สูงสุด · 🌊 คลื่นดาบ ${SWORD_MANA.ultMul}x ใส่ทุกตัว ปล่อยเองเมื่อมีมอน HP < ${pc0(SWORD_MANA.execLow)} หรือเทิร์นสุดท้าย · ${swordExecDesc(1)}` },
   },
   archer: {
     id: 'archer', name: 'นักธนู', icon: '🏹', tex: 'hero_archer', blurb: 'ยิงจากไกล แม่น เร็ว ATK โตตาม DEX · หลบแล้วได้โล่ (สายพริ้วไหว)', focus: 'DEX · AGI',

@@ -2,7 +2,7 @@
 // patches reach the real data, derived Mana costs follow their source consts, and the per-skill crit switch defaults to "on". Run: npm test
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { JOBS } from '../src/data/jobs'
+import { JOBS, SWORD_S1 } from '../src/data/jobs'
 import { applyPatch, checkPatch, fieldFor, guardsFor, readPath } from '../src/data/patch'
 import { canRollCrit, CRIT_SLOTS, critPower, critRef, scaleCritMul, JOB2_IDS, job2Layout, SKILL_CLASSES, SKILL_CRIT, SKILL_LAYOUT, skillTableFields, type SkillRef } from '../src/data/skill-registry'
 import { SKILL2 } from '../src/data/skill2'
@@ -76,11 +76,11 @@ test('a patch reaches the real data and revert() restores it (Skill 2 cost / cd 
   assert.deepEqual({ cost: guard.cost, cd: guard.cd, rain: S2N.rainMul(2), ultCd: JOBS.archer.ult.cd }, before)
 })
 
-test('the three Mana costs jobs.ts copies at import follow their source consts (sword.auto / sword.ult / kit cleric.ultMana)', () => {
+test('the Mana costs jobs.ts copies at import follow their source consts (sword.ult / kit cleric.ultMana; Swordsman Skill 1 = ดาบสยบมนตร์ Lv 1)', () => {
   const before = [JOBS.swordsman.auto.cost, JOBS.swordsman.ult.cost, JOBS.cleric.ult.cost]
   const r = applyPatch({ skills: { 'sword.auto': 11, 'sword.ult': 12 }, kit: { 'cleric.ultMana': 13 } })
   assert.equal(r.ok, true)
-  assert.deepEqual([JOBS.swordsman.auto.cost, JOBS.swordsman.ult.cost, JOBS.cleric.ult.cost], [11, 12, 13])
+  assert.deepEqual([JOBS.swordsman.auto.cost, JOBS.swordsman.ult.cost, JOBS.cleric.ult.cost], [SWORD_S1.cost[0], 12, 13]) // Q 2026-11-21: Skill 1 cost by Lv (SWORD_S1)
   r.revert()
   assert.deepEqual([JOBS.swordsman.auto.cost, JOBS.swordsman.ult.cost, JOBS.cleric.ult.cost], before)
 })

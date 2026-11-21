@@ -6,7 +6,7 @@
 import type { Stats } from "./game-data";
 import type { ClassTree, TalentDef, TreeBranch, TreeNode } from "./tree-types";
 export * from "./tree-types";
-import { CLERIC_KIT, JOBS, type JobId } from "./jobs";
+import { CLERIC_KIT, JOBS, SWORD_S1, type JobId } from "./jobs";
 import { KIT, KIT2 } from "./skill-math";
 import { skill2Of } from "./skill2";
 import { tree as swordsman } from "./trees/swordsman";
@@ -232,10 +232,12 @@ for (const c of CLASS_TREES) {
 					}
 				: {
 						desc: (lv: number) =>
-							`${label} แรง +${Math.round(lv * TREE_RULES.powPer * 100)}%`,
+							job === "swordsman" && line === "s1"
+								? `${J.auto.name} Lv ${Math.max(1, lv)} (Mana ${SWORD_S1.cost[Math.max(1, lv) - 1]} · P.ATK ${Math.round(SWORD_S1.atkPct[Math.max(1, lv) - 1] * 100)}% + STR x${SWORD_S1.str[Math.max(1, lv) - 1]} + ${SWORD_S1.base[Math.max(1, lv) - 1]} x Base Lv · Berserker จ่าย Rage คงที่)`
+								: `${label} แรง +${Math.round(lv * TREE_RULES.powPer * 100)}%`,
 						mod: (lv: number) =>
 							line === "s1"
-								? { s1Pow: TREE_RULES.powPer * lv }
+								? { s1Pow: TREE_RULES.powPer * lv, ...(job === "swordsman" ? { swS1Lv: lv } : {}) } // ⚔️ ดาบสยบมนตร์ Lv = this node's Lv
 								: { ultPow: TREE_RULES.powPer * lv },
 					}),
 		});
