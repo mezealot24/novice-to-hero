@@ -95,7 +95,7 @@ export const SPELL_VAMP = { aoe: 1 / 3, bloodCut: 0.15 }
 
 const pc0 = (n: number) => `${Math.round(n * 100)}%`
 /** One line for every Swordsman-line ult desc (job1 here, Knight / Berserker in jobs2.ts). */
-export const swordExecDesc = (share: number) => `⚖️ คำพิพากษา: ยิ่งเป้า HP หายมากยิ่งแรง สูงสุด +${pc0(SWORD_MANA.execMax * share)} (ตันที่ HP หาย ${pc0(SWORD_MANA.execCapMiss)}) · บอส/มินิ ได้ ${pc0(SWORD_MANA.execBigShare)} ของโบนัส`
+export const swordExecDesc = (share: number) => `⚖️ คำพิพากษา: เป้า HP ยิ่งหาย ยิ่งแรง (สูงสุด +${pc0(SWORD_MANA.execMax * share)}) · บอส/มินิ ได้ครึ่งเดียว`
 export const SWORD_EXEC_DESC = swordExecDesc(SWORD_MANA.execLineShare) // 2nd / 3rd job ults
 
 export const JOBS: Record<JobId, JobDef> = {
@@ -107,8 +107,8 @@ export const JOBS: Record<JobId, JobDef> = {
   swordsman: {
     id: 'swordsman', name: 'นักดาบ', icon: '⚔️', tex: 'hero_swordsman', blurb: 'ยืนหน้า ถึก ฟันโดนหลายตัว · Mana น้อย: สกิลออกได้จำกัด ดาเมจหลักมาจากฟันธรรมดา + สวนกลับ', focus: 'STR · VIT',
     resource: 'mana', attack: 'melee', tags: ['guard', 'blood'], mod: { maxHp: 25, def: 3, counter: 0.02 }, // HP/DEF partly back 2026-11-04 after the lifesteal cut
-    auto: { name: 'ดาบสยบมนตร์', icon: '🤐', cost: SWORD_S1.cost[0], desc: `Mana ${SWORD_S1.cost.join('/')} · คูลดาวน์ ${SWORD_S1.cd}: ล้าง CC บนตัวเรา แล้วฟันเป้าเดี่ยว (ตัวที่กำลังร่ายก่อน > บอส > ตัวหน้า) [P.ATK ${SWORD_S1.atkPct.map((x) => Math.round(x * 100)).join('/')}% + STR x${SWORD_S1.str.join('/')} + ${SWORD_S1.base.join('/')} x Base Lv] · ใบ้ ${SWORD_S1.silenceTurns} เทิร์น + ขัดร่าย + เสียเทิร์น` },
-    ult: { name: 'ดาบพิทักษ์', icon: '🛡️', cd: 4, cost: SWORD_MANA.ult, desc: `Mana ${SWORD_MANA.ult}: ⚔️ ปลุกดาบ ${SWORD_MANA.awakenTurns} เทิร์น (P.ATK +${pc0(SWORD_MANA.awakenAtk)} · ตีปกติฟันตัวถัดไปด้วย ${pc0(SWORD_MANA.cleaveShare)}) + โล่ ${SWORD_MANA.ultShield * 100}% ของ HP สูงสุด · 🌊 คลื่นดาบ ${SWORD_MANA.ultMul}x ใส่ทุกตัว ปล่อยเองเมื่อมีมอน HP < ${pc0(SWORD_MANA.execLow)} หรือเทิร์นสุดท้าย · ${swordExecDesc(1)}` },
+    auto: { name: 'ดาบสยบมนตร์', icon: '🤐', cost: SWORD_S1.cost[0], desc: `ล้าง CC บนตัวเรา แล้วฟันเป้าเดี่ยว (ตัวที่กำลังร่ายก่อน)\nมอนติดใบ้ ${SWORD_S1.silenceTurns} เทิร์น · โดนขัดร่าย · เสียเทิร์น\nคูลดาวน์ ${SWORD_S1.cd} · แรงและ Mana ขึ้นตาม Lv (ดูตารางขวา)` },
+    ult: { name: 'ดาบพิทักษ์', icon: '🛡️', cd: 4, cost: SWORD_MANA.ult, desc: `Mana ${SWORD_MANA.ult}: ⚔️ ปลุกดาบ ${SWORD_MANA.awakenTurns} เทิร์น + โล่ ${SWORD_MANA.ultShield * 100}% HP\nระหว่างปลุก: P.ATK +${pc0(SWORD_MANA.awakenAtk)} · ตีปกติฟันตัวถัดไปด้วย\n🌊 คลื่นดาบใส่ทุกตัว ปล่อยเองเมื่อมีมอน HP < ${pc0(SWORD_MANA.execLow)} (หรือเทิร์นสุดท้าย)\n${swordExecDesc(1)}` },
   },
   archer: {
     id: 'archer', name: 'นักธนู', icon: '🏹', tex: 'hero_archer', blurb: 'ยิงจากไกล แม่น เร็ว ATK โตตาม DEX · หลบแล้วได้โล่ (สายพริ้วไหว)', focus: 'DEX · AGI',

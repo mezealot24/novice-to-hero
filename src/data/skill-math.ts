@@ -5,7 +5,7 @@
 // (LoL feel: physical builds still get something from magic procs). Heals and shields stay on M.ATK.
 import { BATTLE, PLAYER, type MonsterKind, type Stats } from './game-data'
 import { CRIT_RULES } from './battle-rules'
-import { CLERIC_KIT, JOBS, MAGE_SPELL, SPELL_VAMP, SWORD_MANA, SWORD_S1, swordExecMul, swordS1Lv, type JobDef, type JobId } from './jobs'
+import { CLERIC_KIT, JOBS, MAGE_SPELL, SPELL_VAMP, SWORD_MANA, SWORD_S1, swordExecMul, swordS1Lv, swordS1Raw, type JobDef, type JobId } from './jobs'
 import type { Skill2Def } from './skill2'
 import { PACKS } from './dungeons'
 import { STAT_RULES } from './meta/stat-spec'
@@ -870,7 +870,7 @@ const shield = (st: Stats, n: number) => r(n * (1 + st.shieldAmp))
 const resName = (job: JobDef) => (job.resource === 'energy' ? 'Energy' : job.resource === 'rage' ? 'Rage' : 'Mana')
 
 /** ทักษะ 1 (the auto skill) with these stats. */
-export function autoInfo(jobId: JobId, st: Stats, job2?: string): InfoRow[] {
+export function autoInfo(jobId: JobId, st: Stats, job2?: string, base?: { str: number; baseLv: number }): InfoRow[] {
   const job = JOBS[jobId], pow = 1 + st.s1Pow
   if (jobId === 'mage' && job2 === 'sage') {
     const S = KIT2.sage, sgJob = { ...job, auto: { ...job.auto, cost: S.s1Cost } }
@@ -886,12 +886,28 @@ export function autoInfo(jobId: JobId, st: Stats, job2?: string): InfoRow[] {
   }
   const out: InfoRow[] = [{ label: 'ใช้', value: `${resName(job)} ${autoCost(job, st)}` }]
   switch (jobId) {
-    case 'swordsman': {
-      const lv = swordS1Lv(st), i = lv - 1 // ⚔️ ดาบสยบมนตร์
-      out.push({ label: `ดาบสยบมนตร์ Lv ${lv} (เป้าเดี่ยว)`, value: `P.ATK ${Math.round(SWORD_S1.atkPct[i] * 100)}% + STR x${SWORD_S1.str[i]} + ${SWORD_S1.base[i]} x Base Lv · ส่วน P.ATK ${hitText(st, SWORD_S1.atkPct[i] * (1 + st.pskill), false)}` })
-      out.push({ label: 'ผล', value: `ล้าง CC บนตัวเรา · ใบ้ ${SWORD_S1.silenceTurns + (st.swS1Star > 0 ? 1 : 0)} เทิร์น + ขัดร่าย + เสียเทิร์น · คูลดาวน์ ${SWORD_S1.cd}` })
+    case 'swordsman': { // ⚔️ ดาบสยบมนตร์: short values, labels stay the same at every Lv (the detail panel diffs rows by label)
+      const lv = swordS1Lv(st), i = lv - 1
+      if (base) {
+        const b = hitBase(st, false), avg = Math.max(1, (b.lo + b.hi) / 2)
+        const m = (swordS1Raw(lv, avg, base.str, base.baseLv) / avg) * (1 + st.pskill)
+        out.push({ label: 'ดาเมจ (เป้าเดี่ยว)', value: range(b.lo * m, b.hi * m) }) // no crit text: the column is narrow
+      }
+      out.push({ label: 'สูตร: P.ATK', value: `${Math.round(SWORD_S1.atkPct[i] * 100)}%` })
+      out.push({ label: 'สูตร: + STR', value: `x${SWORD_S1.str[i]}` })
+      out.push({ label: 'สูตร: + Base Lv', value: `${SWORD_S1.base[i]} x Lv` })
+      out.push({ label: 'คูลดาวน์', value: `${SWORD_S1.cd} เทิร์น` })
+      out.push({ label: 'เป้า', value: 'ร่าย > บอส > หน้า' })
+      out.push({ label: 'ใบ้ + ขัดร่าย', value: `${SWORD_S1.silenceTurns + (st.swS1Star > 0 ? 1 : 0)} เทิร์น` })
+      out.push({ label: 'ล้าง CC ตัวเรา', value: 'ใบ้ · ใย · ช้า' })
       if (st.swS1Shield > 0) out.push({ label: '🛡️ โล่เมื่อกด', value: `${shield(st, st.maxHp * st.swS1Shield)}` })
-      if (st.swS1Splash > 0) out.push({ label: '⚔️ เฉือนตัวอื่น', value: `${pct(st.swS1Splash)} ของฮิต` })
+      if (st.swS1Splash > 0) out.push({ label: '🌀 เฉือนตัวอื่น', value: `${pct(st.swS1Splash)} ของฮิต` })
+      if (st.swS1Star > 0) out.push({ label: '⚔️ ฟันซ้ำ', value: `${pct(KIT.swordS1Tree.starHit)} ของฮิต` })
+      if (st.swCcGuard > 0) out.push({ label: '🧘 กัน CC หลังล้าง', value: `${KIT.swordS1Tree.guardTurns} เทิร์น` })
+      if (st.swMuteWeak > 0) out.push({ label: '🤐 มอนติดใบ้ตีเบาลง', value: `−${pct(st.swMuteWeak)}` })
+      if (st.swS1Ctr > 0) out.push({ label: '🔁 สวนแน่นอน', value: `${st.swS1Ctr} ครั้ง` })
+      if (st.swVsMute > 0) out.push({ label: '🎯 ตีตัวร่าย/ติดใบ้', value: `+${pct(st.swVsMute)}` })
+      if (st.swS1Refund > 0) out.push({ label: '⏳ ขัดร่ายได้: Mana', value: `+${Math.round(st.swS1Refund)} · CD −1` })
       break
     }
     case 'archer':
@@ -930,13 +946,18 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
   switch (jobId) {
     case 'swordsman':
       if (!job2) {
-        out.push({ label: '⚔️ ปลุกดาบ', value: `${SWORD_MANA.awakenTurns} เทิร์น · P.ATK +${Math.round(SWORD_MANA.awakenAtk * 100)}% · ตีปกติฟันตัวถัดไป ${Math.round(SWORD_MANA.cleaveShare * 100)}%` })
-        out.push({ label: '🌊 คลื่นดาบ/ตัว (ทุกตัว)', value: `${hitText(st, (SWORD_MANA.ultMul + st.ultMulAdd) * hitPow * (1 + st.pskill), false)} · ออกเองเมื่อมีมอน HP < ${Math.round(SWORD_MANA.execLow * 100)}% หรือเทิร์นสุดท้าย` })
+        out.push({ label: '⚔️ ปลุกดาบ', value: `${SWORD_MANA.awakenTurns} เทิร์น` })
+        out.push({ label: '⚔️ ระหว่างปลุก: P.ATK', value: `+${Math.round(SWORD_MANA.awakenAtk * 100)}%` })
+        out.push({ label: '⚔️ ตีปกติฟันตัวถัดไป', value: `${Math.round(SWORD_MANA.cleaveShare * 100)}%` })
+        out.push({ label: '🌊 คลื่นดาบ/ตัว (ทุกตัว)', value: hitText(st, (SWORD_MANA.ultMul + st.ultMulAdd) * hitPow * (1 + st.pskill), false) })
+        out.push({ label: '🌊 ปล่อยเองเมื่อ', value: `มอน HP < ${Math.round(SWORD_MANA.execLow * 100)}%` })
       }
       out.push({ label: 'โล่', value: `${shield(st, st.maxHp * Math.max(0, SWORD_MANA.ultShield + st.ultShieldAdd) * pow)}` })
       { // ⚖️ คำพิพากษา: the multiplier at a few target HP shares (2nd / 3rd job ults take execLineShare)
         const sh = job2 ? SWORD_MANA.execLineShare : 1, x = (f: number, big: boolean) => `×${swordExecMul(f, big, sh).toFixed(2)}`
-        out.push({ label: job2 ? '⚖️ คำพิพากษา (Ult job2/3)' : '⚖️ คำพิพากษา (คลื่นดาบ)', value: `เป้า HP 70% ${x(0.7, false)} · 50% ${x(0.5, false)} · ≤25% ${x(0.25, false)} · บอส/มินิ ≤25% ${x(0.25, true)}` })
+        out.push({ label: '⚖️ execute เป้า HP 50%', value: x(0.5, false) })
+        out.push({ label: '⚖️ execute เป้า HP ≤25%', value: x(0.25, false) })
+        out.push({ label: '⚖️ บอส/มินิ HP ≤25%', value: x(0.25, true) })
       }
       break
     case 'archer':
