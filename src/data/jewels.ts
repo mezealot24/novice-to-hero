@@ -7,8 +7,10 @@ import type { BaseStat } from './meta/stat-spec'
 import type { RefineLine } from './craft'
 import { cardById, type CardTier, type EquipCard } from './cards'
 import { lineTier, LINE_TIER_MAX, makeLine, rollTier, type LineTier } from './line-tier'
-import { normalizePassiveNodes, passiveNodeById } from './passive-tree'
+import { normalizePassiveNodes, passiveCtxFor, passiveNodeById } from './passive-tree'
 import type { JobId } from './jobs'
+import type { Job2Id } from './jobs2'
+import type { Job3Id } from './jobs3'
 
 export const JEWEL = {
   makeCards: 3, // cards to make one jewel
@@ -38,6 +40,8 @@ export interface JewelSave {
   jewelSock?: Record<string, string> // socket node id -> jewel id
   jewelSeq?: number
   job?: JobId
+  job2?: Job2Id
+  job3?: Job3Id
   passiveNodes?: string[]
 }
 
@@ -192,7 +196,7 @@ export function unsocketJewel(s: JewelSave, nodeId: string) {
 /** Jewels that give stats: in a socket node the hero has allocated (connected) on the current job's tree. */
 export function activeJewels(s: JewelSave): Jewel[] {
   if (!s.job || !s.jewelSock) return []
-  const open = new Set(normalizePassiveNodes(s.job, s.passiveNodes))
+  const open = new Set(normalizePassiveNodes(s.job, s.passiveNodes, passiveCtxFor(s)))
   return Object.entries(s.jewelSock)
     .filter(([node]) => open.has(node) && isSocketNode(s.job!, node))
     .map(([, id]) => s.jewels?.find((j) => j.id === id))

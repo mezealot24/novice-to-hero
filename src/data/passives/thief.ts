@@ -1,10 +1,11 @@
 // 🗡️ Thief-Line PoE Passive Constellation (Phase 1 Pilot: Thief / Rogue / Mobster / Stalker / Kingpin).
 // 71 nodes: 1 origin + 38 minors + 22 notables + 6 keystones across 4 sectors + Inner Ring Highway + 4 Outer Bridges + 4 Outer Wheels
-// + 4 💎 jewel sockets (one past each bridge).
+// + 4 💎 jewel sockets (one past each bridge) + 🌟 Awakening ring (thief-awaken.ts: Stalker / Kingpin clusters, 3rd job only).
 // Node IDs are save data (`SaveData.passiveNodes`): never rename or remove a shipped ID.
 // Does NOT duplicate Stalker Preserve (Mark Cap +2) or Stalker Ambush (wave-start knives).
 import type { PassiveCtx, PassiveNode, PassiveTreeDef } from '../passive-tree'
 import { KIT, poisonAt } from '../skill-math'
+import { THIEF_AWAKEN_NODES } from './thief-awaken'
 
 const pct = (n: number) => `${Math.round(n * 100)}%`
 
@@ -1096,5 +1097,5 @@ export const THIEF_PASSIVE_TREE: PassiveTreeDef = {
     { tag: 'crit', icon: '💥', label: 'คริ' },
     { tag: 'offmeta', icon: '⚗️', label: 'นอกกระแส' },
   ],
-  nodes: NODES,
+  nodes: [...NODES, ...THIEF_AWAKEN_NODES], // 🌟 + Awakening ring (thief-awaken.ts, 3rd job only)
 }

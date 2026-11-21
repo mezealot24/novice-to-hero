@@ -64,7 +64,7 @@ test('Thief constellation graph invariants: counts, bounds, >=62px spacing, symm
   assert.ok(tree.filters.length >= 5)
 
   const nodes = tree.nodes
-  assert.equal(nodes.length, 71, `node count ${nodes.length} === 71`) // 67 + 4 💎 jewel sockets (Q 2026-11-20)
+  assert.equal(nodes.length, 85, `node count ${nodes.length} === 85`) // 67 + 4 💎 jewel sockets (Q 2026-11-20) + 14 🌟 Awakening ring (Q 2026-11-21)
 
   const counts = { origin: 0, minor: 0, notable: 0, keystone: 0, socket: 0 }
   const idSet = new Set<string>()
@@ -77,7 +77,8 @@ test('Thief constellation graph invariants: counts, bounds, >=62px spacing, symm
     assert.equal(n.job, 'thief', n.id)
     counts[n.kind]++
     assert.ok(n.x >= -520 && n.x <= 520, `${n.id}.x=${n.x} within [-520, 520]`)
-    assert.ok(n.y >= -390 && n.y <= 390, `${n.id}.y=${n.y} within [-390, 390]`)
+    const yCap = n.awaken ? 700 : 390 // 🌟 the Awakening ring sits outside the base constellation
+    assert.ok(n.y >= -yCap && n.y <= yCap, `${n.id}.y=${n.y} within [-${yCap}, ${yCap}]`)
     assert.ok(n.tags.length > 0, `${n.id} has tags`)
     if (n.kind === 'keystone') {
       assert.ok(n.upside && n.upside.trim().length > 0, `${n.id} keystone upside`)
@@ -85,10 +86,10 @@ test('Thief constellation graph invariants: counts, bounds, >=62px spacing, symm
     }
   }
   assert.equal(counts.origin, 1)
-  assert.equal(counts.keystone, 6)
-  assert.equal(counts.notable, 22)
-  assert.equal(counts.minor, 38)
-  assert.equal(counts.socket, 4)
+  assert.equal(counts.keystone, 6 + 2)
+  assert.equal(counts.notable, 22 + 4)
+  assert.equal(counts.minor, 38 + 6)
+  assert.equal(counts.socket, 4 + 2)
 
   // Every filter tag matches at least 3 nodes
   for (const f of tree.filters) {
@@ -196,22 +197,22 @@ test('Adaptive Job2 Notables adapt cleanly across base Thief, Rogue, and Mobster
   assert.equal(stMob.j2KnifeMul, 0)
 })
 
-test('passiveEarned & passiveEarnedFor: exact derived formula (Job1/3 + Job2/4 + Job3/6 = Max 30)', () => {
-  assert.deepEqual(PASSIVE_RULES, { job1Every: 3, job2Every: 4, job3Every: 6 })
-  assert.equal(PASSIVE_MAX_POINTS, 30)
+test('passiveEarned & passiveEarnedFor: exact derived formula (Job1/3 + Job2/4 + Job3/3 = Max 35)', () => {
+  assert.deepEqual(PASSIVE_RULES, { job1Every: 3, job2Every: 4, job3Every: 3 })
+  assert.equal(PASSIVE_MAX_POINTS, 35)
   assert.equal(passiveEarned(1), 0)
   assert.equal(passiveEarned(2), 0)
   assert.equal(passiveEarned(3), 1)
   assert.equal(passiveEarned(40), 13)
   assert.equal(passiveEarned(40, 50), 13 + 12)
-  assert.equal(passiveEarned(40, 50, 30), 13 + 12 + 5)
+  assert.equal(passiveEarned(40, 50, 30), 13 + 12 + 10)
   assert.equal(passiveEarned(-5, -3, -1), 0)
 
   // passiveEarnedFor only counts job2 when job2 belongs to job, and job3 when activeJob3 matches job2
   assert.equal(passiveEarnedFor({ job: 'thief', jobLevel: 40, job2Level: 50 }), 13, 'no job2 -> job2Level ignored')
   assert.equal(passiveEarnedFor({ job: 'thief', jobLevel: 40, job2: 'rogue', job2Level: 50 }), 25)
   assert.equal(passiveEarnedFor({ job: 'thief', jobLevel: 40, job2: 'rogue', job2Level: 50, job3: 'kingpin', job3Level: 30 }), 25, 'parked kingpin does not count on rogue')
-  assert.equal(passiveEarnedFor({ job: 'thief', jobLevel: 40, job2: 'rogue', job2Level: 50, job3: 'stalker', job3Level: 30 }), 30)
+  assert.equal(passiveEarnedFor({ job: 'thief', jobLevel: 40, job2: 'rogue', job2Level: 50, job3: 'stalker', job3Level: 30 }), 35)
 })
 
 test('BFS normalization, adjacency allocation, free origin, and connectivity-preserving refund (chains & cycles)', () => {
@@ -413,10 +414,10 @@ test('save migration: Thief legacy talents migrate cleanly without touching THIE
     gems: 500,
     passiveNodes: [] as string[],
   } as Partial<SaveData>)
-  // Allocate full 30-point budget on the 67-node Thief constellation (earned = 13 + 12 + 5 = 30)
+  // Allocate full 35-point budget on the Thief constellation (earned = 13 + 12 + 10 = 35)
   const tree = passiveTreeOf('thief')!
   const earnedStalker = passiveEarnedFor(live)
-  assert.equal(earnedStalker, 30)
+  assert.equal(earnedStalker, 35)
   let filled: string[] = []
   const bfsOrder: string[] = []
   const seen = new Set<string>([tree.originId])
@@ -432,13 +433,13 @@ test('save migration: Thief legacy talents migrate cleanly without touching THIE
     }
   }
   for (const id of bfsOrder.slice(0, earnedStalker)) filled = allocatePassive('thief', filled, id, earnedStalker)
-  assert.equal(passiveSpent('thief', filled), 30)
+  assert.equal(passiveSpent('thief', filled), 35)
   live.passiveNodes = filled
 
   setSave(live)
   assert.equal(changeJob2('mobster', 0), true)
-  assert.equal(passiveEarnedFor(live), 25, 'Stalker is now parked on Mobster -> earned drops 30 -> 25')
-  assert.equal(passiveSpent('thief', live.passiveNodes), 25, 'changeJob2 trims over-budget nodes from 30 down to 25')
+  assert.equal(passiveEarnedFor(live), 25, 'Stalker is now parked on Mobster -> earned drops 35 -> 25')
+  assert.equal(passiveSpent('thief', live.passiveNodes), 25, 'changeJob2 trims over-budget nodes from 35 down to 25')
   assert.deepEqual(
     live.passiveNodes,
     normalizePassiveNodes('thief', live.passiveNodes),
