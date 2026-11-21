@@ -412,3 +412,117 @@ export function bowlingBashFx(scene: Phaser.Scene, fromX: number, toX: number, g
   ringPulse(scene, toX, groundY - 44, 14, 0xffd34d, 4.6, 260)
   sparkBurst(scene, toX + 10, groundY - 40, 'dot', [0xf2d24b, 0xff9a6a, 0xffffff], 14, 100, 290)
 }
+
+// ===== Swordsman rework VFX (Q 2026-11-21): 🤐 ดาบสยบมนตร์ · ⚔️ ปลุกดาบ · 🌊 คลื่นดาบ · ⚖️ execute · web accents =====
+/** Presentation numbers for the rework VFX (colors / sizes / timings only, no balance). */
+export const SWORD_FX = {
+  seal: 0x9fd0ff, sealDeep: 0x7b5ce6, gold: 0xf2d24b, exec: 0xff4d4d, wave: 0x8ff0d6, waveCore: 0xffffff,
+  cutMs: 210, waveMs: 300, auraPulseMs: 520,
+}
+
+/** 🤐 ดาบสยบมนตร์ cut: two crossing violet-blue crescents + a vertical seal beam on the target. `second` = ★ ดาบสยบคู่ (mirrored, gold). */
+export function sealCutFx(scene: Phaser.Scene, x: number, y: number, second = false) {
+  const F = SWORD_FX, key = texKey(scene, 'vfx_crescent'), tint = second ? F.gold : F.seal
+  for (const [rot, flip, d] of [[-0.7, false, 0], [0.7, true, 40]] as const) {
+    const arc = scene.add.image(x, y, key).setDepth(9003).setTint(tint).setScale(0.75).setRotation(second ? -rot : rot).setFlipY(flip)
+    scene.tweens.add({ targets: arc, scale: 1.35, alpha: 0, duration: F.cutMs, delay: d, ease: 'Quad.easeOut', onComplete: () => arc.destroy() })
+  }
+  const beam = scene.add.image(x, y - 10, texKey(scene, 'vfx_thrust')).setDepth(9004).setTint(F.sealDeep).setScale(0.6, 1.4).setAngle(-90).setAlpha(0.9)
+  scene.tweens.add({ targets: beam, scaleX: 1.1, alpha: 0, duration: F.cutMs + 60, ease: 'Quad.easeOut', onComplete: () => beam.destroy() })
+  ringPulse(scene, x, y, 10, tint, 4, F.cutMs + 40, 9004)
+  sparkBurst(scene, x, y, 'dot', [tint, 0xffffff, F.sealDeep], second ? 10 : 14, 100, 260)
+}
+
+/** 🤐 silence seal on a monster: a rune ring closes on its head, then a 🤐 pops and settles. */
+export function silenceSealFx(scene: Phaser.Scene, x: number, headY: number) {
+  const F = SWORD_FX
+  const ring = scene.add.ellipse(x, headY, 110, 34).setStrokeStyle(3, F.sealDeep, 0.95).setDepth(9005)
+  scene.tweens.add({ targets: ring, scaleX: 0.45, scaleY: 0.6, alpha: 0.2, duration: 260, ease: 'Back.easeIn', onComplete: () => ring.destroy() })
+  const inner = scene.add.ellipse(x, headY, 70, 22).setStrokeStyle(2, F.seal, 0.9).setDepth(9005)
+  scene.tweens.add({ targets: inner, angle: 180, scaleX: 0.3, alpha: 0, duration: 300, ease: 'Quad.easeIn', onComplete: () => inner.destroy() })
+  const icon = scene.add.text(x, headY - 6, '🤐', { fontSize: '26px' }).setOrigin(0.5).setDepth(9006).setScale(0.2)
+  scene.tweens.add({ targets: icon, scale: 1.25, duration: 160, delay: 200, ease: 'Back.easeOut' })
+  scene.tweens.add({ targets: icon, y: headY - 26, alpha: 0, duration: 380, delay: 620, ease: 'Quad.easeIn', onComplete: () => icon.destroy() })
+}
+
+/** Cast cut: the monster's spell circle shatters into shards flying outward. */
+export function castBreakFx(scene: Phaser.Scene, x: number, y: number) {
+  const F = SWORD_FX, key = texKey(scene, 'vfx_thrust')
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + 0.3
+    const shard = scene.add.image(x, y, key).setDepth(9006).setTint(i % 2 ? F.seal : 0xffffff).setScale(0.35, 0.5).setRotation(a)
+    scene.tweens.add({ targets: shard, x: x + Math.cos(a) * 70, y: y + Math.sin(a) * 50, alpha: 0, scaleX: 0.15, duration: 300, ease: 'Quad.easeOut', onComplete: () => shard.destroy() })
+  }
+  ringPulse(scene, x, y, 14, F.seal, 3.6, 260, 9006)
+}
+
+/** Cleanse: a cool ring at the hero's feet + motes rising (only when CC was actually removed). */
+export function cleanseFx(scene: Phaser.Scene, heroX: number, groundY: number) {
+  const F = SWORD_FX
+  const ring = scene.add.ellipse(heroX, groundY - 4, 70, 18).setStrokeStyle(3, F.seal, 0.95).setDepth(9001)
+  scene.tweens.add({ targets: ring, scaleX: 1.8, scaleY: 1.6, alpha: 0, duration: 320, ease: 'Quad.easeOut', onComplete: () => ring.destroy() })
+  sparkBurst(scene, heroX, groundY - 20, 'dot', [F.seal, 0xffffff], 12, 60, 160, 240, 300)
+}
+
+/** 🛡️ web ใจไม่หวั่น: CC guard on the hero (small hex flash, deeper tint than the block flash). */
+export function ccGuardFx(scene: Phaser.Scene, heroX: number, groundY: number) {
+  const hex = scene.add.image(heroX, groundY - 50, texKey(scene, 'vfx_hex')).setDepth(9004).setTint(SWORD_FX.sealDeep).setScale(0.9).setAlpha(0.85)
+  scene.tweens.add({ targets: hex, scale: 1.25, alpha: 0, duration: 300, ease: 'Quad.easeOut', onComplete: () => hex.destroy() })
+}
+
+/** ⚔️ ปลุกดาบ cast burst: a gold blade beam rises over the hero with a ground ring. */
+export function awakenBurstFx(scene: Phaser.Scene, heroX: number, groundY: number) {
+  const F = SWORD_FX
+  const beam = scene.add.image(heroX, groundY - 60, texKey(scene, 'vfx_thrust')).setDepth(9004).setTint(F.gold).setScale(0.5, 1.6).setAngle(-90)
+  scene.tweens.add({ targets: beam, y: groundY - 120, scaleX: 1.2, alpha: 0, duration: 380, ease: 'Quad.easeOut', onComplete: () => beam.destroy() })
+  ringPulse(scene, heroX, groundY - 8, 16, F.gold, 4.4, 320, 9001)
+  sparkBurst(scene, heroX, groundY - 40, 'dot', [F.gold, 0xffffff, F.wave], 16, 80, 240, 230, 310)
+}
+
+/** ⚔️ ปลุกดาบ lasting aura: a soft pulsing ground glow + rising motes that follow the hero. Call `.stop()` when it ends. */
+export function awakenAuraFx(scene: Phaser.Scene, heroX: number, groundY: number): { stop: () => void } {
+  const F = SWORD_FX
+  const glow = scene.add.ellipse(heroX, groundY - 2, 96, 24, F.gold, 0.18).setStrokeStyle(2, F.gold, 0.7).setDepth(8990)
+  const pulse = scene.tweens.add({ targets: glow, scaleX: 1.18, scaleY: 1.12, alpha: 0.55, duration: F.auraPulseMs, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
+  const motes = scene.textures.exists('dot')
+    ? scene.add.particles(heroX, groundY - 10, 'dot', { x: { min: -30, max: 30 }, speedY: { min: -70, max: -30 }, scale: { start: 0.6, end: 0 }, lifespan: 700, frequency: 90, tint: [F.gold, F.wave, 0xffffff] }).setDepth(8995)
+    : undefined
+  return { stop: () => { pulse.stop(); motes?.destroy(); scene.tweens.add({ targets: glow, alpha: 0, duration: 200, onComplete: () => glow.destroy() }) } }
+}
+
+/** ⚔️ ปลุกดาบ cleave on the 2nd monster: a thin quick crescent. */
+export function cleaveFx(scene: Phaser.Scene, x: number, y: number) {
+  const arc = scene.add.image(x, y, texKey(scene, 'vfx_crescent')).setDepth(9002).setTint(SWORD_FX.gold).setScale(0.55).setRotation(-0.3)
+  scene.tweens.add({ targets: arc, scale: 0.95, alpha: 0, duration: 170, ease: 'Quad.easeOut', onComplete: () => arc.destroy() })
+}
+
+/** 🌊 คลื่นดาบ: a big crescent wave leaves the hero and sweeps to the far side with a trail. Resolves when it has crossed `toX`. */
+export function windWaveFx(scene: Phaser.Scene, fromX: number, toX: number, groundY: number): Promise<void> {
+  const F = SWORD_FX, key = texKey(scene, 'vfx_crescent'), y = groundY - 46
+  const wave = scene.add.image(fromX, y, key).setDepth(9004).setTint(F.wave).setScale(0.9, 1.6).setAngle(0)
+  const core = scene.add.image(fromX, y, key).setDepth(9005).setTint(F.waveCore).setScale(0.55, 1.1).setAlpha(0.9)
+  const trail = scene.textures.exists('dot')
+    ? scene.add.particles(fromX, y, 'dot', { y: { min: -50, max: 50 }, speedX: { min: -140, max: -60 }, scale: { start: 0.8, end: 0 }, lifespan: 360, frequency: 14, tint: [F.wave, 0xffffff, F.gold] }).setDepth(9003)
+    : undefined
+  trail?.startFollow(wave)
+  return new Promise((done) => {
+    scene.tweens.add({
+      targets: [wave, core], x: toX + 60, scaleY: '+=0.35', duration: F.waveMs, ease: 'Quad.easeIn',
+      onComplete: () => {
+        scene.tweens.add({ targets: [wave, core], alpha: 0, duration: 140, onComplete: () => { wave.destroy(); core.destroy() } })
+        trail?.stop(); scene.time.delayedCall(400, () => trail?.destroy())
+        done()
+      },
+    })
+  })
+}
+
+/** ⚖️ execute accent on a low-HP target hit by an execute-scaled ult hit: a red cross slash + ring. */
+export function executeMarkFx(scene: Phaser.Scene, x: number, y: number) {
+  const F = SWORD_FX, key = texKey(scene, 'vfx_thrust')
+  for (const deg of [-40, 40]) {
+    const b = scene.add.image(x, y, key).setDepth(9006).setTint(F.exec).setScale(0.6, 0.9).setAngle(deg)
+    scene.tweens.add({ targets: b, scaleX: 1.3, alpha: 0, duration: 260, ease: 'Quad.easeOut', onComplete: () => b.destroy() })
+  }
+  ringPulse(scene, x, y, 12, F.exec, 4, 260, 9006)
+}
