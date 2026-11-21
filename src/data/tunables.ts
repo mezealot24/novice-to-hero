@@ -118,6 +118,7 @@ const BATTLE_FIELDS: [string, FieldDef][] = [
   ['vengeance.share|dotPct|dotMatk', num(0, 5)],
   ['maiden.at', num(0, 1)],
   ['maiden.turns', int(0, 100)],
+  ['maiden.share', num(0, 1)],
   ['bulletTime.at|bonusMin|bonusMax', num(0, 2)],
   ['bulletTime.countdown|hits', int(1, 100)],
   ['poisonPct|burnPct|burnHealCut|weakenMul|armorBreakMul|reflectCap|soulCap', num(0, 1)],

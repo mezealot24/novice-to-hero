@@ -121,7 +121,7 @@ export const BATTLE = {
   frozenHeart: 0.5, // hero attack speed x this while slowed
   iceSkin: { turns: 2, dmgCut: 0.15 }, // frostgiant (Q 2026-11-04): hitting it = ❄️ หนามน้ำแข็ง, hero damage -15% for 2 hero turns (refreshes) // พ่นใยมัดตัว: hero AGI x this while webbed
   vengeance: { share: 0.5, turns: 3, cd: 3, dotPct: 0.03, dotMatk: 0.3 }, // death knight (Q 2026-11-04): 50% of a hit it lands -> shield for 3 of its turns (then 3-turn cooldown); while it holds, hero takes 3% max HP + M.ATK x 0.3 magic each of its turns
-  maiden: { at: 0.5, turns: 22, tint: 0xff9ad0 }, // drainer: under 50% HP she turns immortal and calls the Maiden (same max HP / M.ATK); +22 turns to the limit (bot timed out at +12)
+  maiden: { at: 0.5, turns: 22, share: 0.5, tint: 0xff9ad0 }, // drainer: under 50% HP she calls the Maiden (same max HP / M.ATK); +22 turns to the limit (bot timed out at +12) · Q 2026-11-21: not immortal, `share` of each hit on her goes to the Maiden and she can't die before the Maiden
   bulletTime: { at: 0.25, countdown: 3, hits: 25, bonusMin: 0.01, bonusMax: 0.25 }, // gunner (Q 2026-11-04): under 25% HP, 3-turn countdown, then 25 shots of her normal shot x (1 + 1-25%)
   scentAt: 0.5, scentSpeed: 1.75, scentCombo: 0.5, // hunter กลิ่นเลือด (Q 2026-11-04): hero below 50% HP -> turn speed +75%, combo +50%
   demonAt: 0.5, demonRegen: 0.02, // drainer below 50% HP: regen share of max HP per turn
