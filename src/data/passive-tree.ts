@@ -8,7 +8,7 @@ import { activeJob3, JOB3_RULES, type Job3Id } from './jobs3'
 import { THIEF_PASSIVE_TREE } from './passives/thief'
 
 export type PassiveKind = 'origin' | 'minor' | 'notable' | 'keystone' | 'socket'
-export type PassiveSector = 'core' | 'blade' | 'shadow' | 'venom' | 'alchemy'
+export type PassiveSector = 'core' | 'blade' | 'shadow' | 'venom' | 'alchemy' | 'awaken'
 export interface PassiveCtx { job2?: Job2Id; job3?: Job3Id }
 
 export interface PassiveNode {
@@ -26,6 +26,8 @@ export interface PassiveNode {
   desc: (ctx?: PassiveCtx) => string
   mod: (ctx?: PassiveCtx) => Partial<Stats>
   tags: readonly string[]
+  /** 🌟 Awakening ring (Q 2026-11-21): only allocatable while one of these 3rd jobs is active (activeJob3). */
+  awaken?: readonly Job3Id[]
 }
 
 export interface PassiveTreeDef {
@@ -36,7 +38,18 @@ export interface PassiveTreeDef {
   nodes: readonly PassiveNode[]
 }
 
-export const PASSIVE_RULES = { job1Every: 3, job2Every: 4, job3Every: 6 } as const
+// job3Every 6 -> 3 (Q 2026-11-21 Awakening ring): Job3 Lv 30 now gives 10 points, Max 30 -> 35
+export const PASSIVE_RULES = { job1Every: 3, job2Every: 4, job3Every: 3 } as const
+
+/** True when `node` is open for `ctx`: plain nodes always, Awakening-ring nodes only with a matching active 3rd job. */
+export const passiveNodeUnlocked = (node: Pick<PassiveNode, 'awaken'>, ctx?: PassiveCtx): boolean =>
+  !node.awaken || (ctx?.job3 !== undefined && node.awaken.includes(ctx.job3))
+
+/** Passive ctx of a save: the 2nd job only when it belongs to the base class, the 3rd job only when active. */
+export function passiveCtxFor(s: { job?: JobId; job2?: Job2Id; job3?: Job3Id }): PassiveCtx {
+  const job2 = s.job2 && (!s.job || JOB2[s.job2]?.parent === s.job) ? s.job2 : undefined
+  return { job2, job3: job2 ? activeJob3({ job2, job3: s.job3 }) : undefined }
+}
 
 /** Normalizes a tree definition once at load time: ensures every edge is undirected (symmetric), deduplicated, and valid. */
 function normalizeTree(raw: PassiveTreeDef): { def: PassiveTreeDef; map: ReadonlyMap<string, PassiveNode> } {
@@ -89,7 +102,7 @@ export function passiveEarned(jobLevel: number, job2Level?: number, job3Level?: 
   )
 }
 
-/** Max derived Passive Points across full Job1 (40) + Job2 (50) + Job3 (30) progression (13 + 12 + 5 = 30). */
+/** Max derived Passive Points across full Job1 (40) + Job2 (50) + Job3 (30) progression (13 + 12 + 10 = 35). */
 export const PASSIVE_MAX_POINTS = passiveEarned(
   JOB_CHANGE.classMaxJobLevel,
   JOB2_RULES.maxJobLevel,
@@ -119,7 +132,7 @@ export function passiveEarnedFor(s: {
  * Always includes `originId` as index 0 (the free root — NEVER charged by `passiveSpent`).
  * Tolerates `picked` with or without `originId`, duplicates, unknown IDs, disconnected islands, or corrupt inputs.
  */
-export function normalizePassiveNodes(job: JobId, picked: readonly string[] | undefined): string[] {
+export function normalizePassiveNodes(job: JobId, picked: readonly string[] | undefined, ctx?: PassiveCtx): string[] {
   const tree = passiveTreeOf(job)
   const map = nodeMapOf(job)
   if (!tree || !map) return []
@@ -127,7 +140,7 @@ export function normalizePassiveNodes(job: JobId, picked: readonly string[] | un
   const wanted = new Set<string>([tree.originId])
   if (Array.isArray(picked)) {
     for (const id of picked) {
-      if (typeof id === 'string' && map.has(id)) wanted.add(id)
+      if (typeof id === 'string' && map.has(id) && passiveNodeUnlocked(map.get(id)!, ctx)) wanted.add(id)
     }
   }
 
@@ -160,17 +173,17 @@ export function normalizePassiveNodes(job: JobId, picked: readonly string[] | un
 }
 
 /** Count of valid, connected, non-origin allocated passive nodes (origin is always free). */
-export function passiveSpent(job: JobId, picked: readonly string[] | undefined): number {
+export function passiveSpent(job: JobId, picked: readonly string[] | undefined, ctx?: PassiveCtx): number {
   const tree = passiveTreeOf(job)
   if (!tree) return 0
-  const norm = normalizePassiveNodes(job, picked)
+  const norm = normalizePassiveNodes(job, picked, ctx)
   return Math.max(0, norm.length - 1)
 }
 
 /** Remaining unspent Passive Points (clamped >= 0). */
-export function passiveFree(job: JobId, picked: readonly string[] | undefined, earned: number): number {
+export function passiveFree(job: JobId, picked: readonly string[] | undefined, earned: number, ctx?: PassiveCtx): number {
   const e = Number.isFinite(earned) ? Math.max(0, Math.floor(earned)) : 0
-  return Math.max(0, e - passiveSpent(job, picked))
+  return Math.max(0, e - passiveSpent(job, picked, ctx))
 }
 
 /** True iff `nodeId` is a valid non-origin node not yet picked, `free >= 1`, and adjacent to `originId` or an allocated node. */
@@ -179,15 +192,16 @@ export function canAllocatePassive(
   picked: readonly string[] | undefined,
   nodeId: string,
   earned: number,
+  ctx?: PassiveCtx,
 ): boolean {
   const tree = passiveTreeOf(job)
   if (!tree || nodeId === tree.originId) return false
   const node = passiveNodeById(job, nodeId)
-  if (!node) return false
-  const norm = normalizePassiveNodes(job, picked)
+  if (!node || !passiveNodeUnlocked(node, ctx)) return false
+  const norm = normalizePassiveNodes(job, picked, ctx)
   const set = new Set(norm)
   if (set.has(nodeId)) return false
-  if (passiveFree(job, norm, earned) < 1) return false
+  if (passiveFree(job, norm, earned, ctx) < 1) return false
   return node.edges.some((nb) => set.has(nb))
 }
 
@@ -197,9 +211,10 @@ export function allocatePassive(
   picked: readonly string[] | undefined,
   nodeId: string,
   earned: number,
+  ctx?: PassiveCtx,
 ): string[] {
-  const norm = normalizePassiveNodes(job, picked)
-  if (!canAllocatePassive(job, norm, nodeId, earned)) return norm
+  const norm = normalizePassiveNodes(job, picked, ctx)
+  if (!canAllocatePassive(job, norm, nodeId, earned, ctx)) return norm
   return [...norm, nodeId]
 }
 
@@ -208,11 +223,12 @@ export function canRefundPassive(
   job: JobId,
   picked: readonly string[] | undefined,
   nodeId: string,
+  ctx?: PassiveCtx,
 ): boolean {
   const tree = passiveTreeOf(job)
   const map = nodeMapOf(job)
   if (!tree || !map || nodeId === tree.originId) return false
-  const norm = normalizePassiveNodes(job, picked)
+  const norm = normalizePassiveNodes(job, picked, ctx)
   const remaining = new Set(norm)
   if (!remaining.has(nodeId)) return false
   remaining.delete(nodeId)
@@ -238,9 +254,10 @@ export function refundPassive(
   job: JobId,
   picked: readonly string[] | undefined,
   nodeId: string,
+  ctx?: PassiveCtx,
 ): string[] {
-  const norm = normalizePassiveNodes(job, picked)
-  if (!canRefundPassive(job, norm, nodeId)) return norm
+  const norm = normalizePassiveNodes(job, picked, ctx)
+  if (!canRefundPassive(job, norm, nodeId, ctx)) return norm
   return norm.filter((id) => id !== nodeId)
 }
 
@@ -252,16 +269,17 @@ export function trimPassiveNodesToBudget(
   job: JobId,
   picked: readonly string[] | undefined,
   earned: number,
+  ctx?: PassiveCtx,
 ): string[] {
   const tree = passiveTreeOf(job)
   if (!tree) return []
   const cap = Number.isFinite(earned) ? Math.max(0, Math.floor(earned)) : 0
-  let cur = normalizePassiveNodes(job, picked)
+  let cur = normalizePassiveNodes(job, picked, ctx)
   if (cap === 0) return [tree.originId]
   while (cur.length - 1 > cap) {
     let removed = false
     for (let i = cur.length - 1; i >= 1; i--) {
-      if (canRefundPassive(job, cur, cur[i])) {
+      if (canRefundPassive(job, cur, cur[i], ctx)) {
         cur = cur.filter((_, idx) => idx !== i)
         removed = true
         break
@@ -281,7 +299,7 @@ export function passiveMods(
   const tree = passiveTreeOf(job)
   const map = nodeMapOf(job)
   if (!tree || !map) return []
-  const norm = normalizePassiveNodes(job, picked)
+  const norm = normalizePassiveNodes(job, picked, ctx)
   const out: Partial<Stats>[] = []
   for (const id of norm) {
     const node = map.get(id)

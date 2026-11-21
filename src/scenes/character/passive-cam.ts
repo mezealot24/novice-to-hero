@@ -67,7 +67,7 @@ export const PASSIVE_VIEW_DEFAULT: Readonly<PassiveView> = {
 
 export const PASSIVE_CAM_DEFAULTS = {
 	zoom: 0.85,
-	minZoom: 0.42,
+	minZoom: 0.3, // 0.42 -> 0.3 (Q 2026-11-21): the 🌟 Awakening ring pushed the tree to y ±720
 	maxZoom: 1.75,
 	padding: 88,
 	minTouchRadius: 16,

@@ -21,7 +21,7 @@ import { ALLIES, falconHitMul, fillAllies, frenzyMul, gadgetById, guardHit, hawk
 import type { Skill2Def } from '../data/skill2'
 import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/skill-registry'
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
-import { BM_CRIT_COUNTER, BM_STANCE, KIT3, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, kingpinDebtAmp, kingpinTakeMul, stalkerMarkCap, wizCastTaken, type ProfReaction } from '../data/skill-math'
+import { BM_CRIT_COUNTER, BM_STANCE, KIT3, disarmWeak, divestMul, rogueStripCut, snatchShare, stalkerPreyAmp, stalkerResMul, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, kingpinDebtAmp, kingpinTakeMul, stalkerMarkCap, wizCastTaken, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
 import { ultCdCut, condCritB3, thiefUltCondCritDmg, thiefUltCritAdd, thiefUltHitCount, thiefOnHitEff, thiefUltFinisher, thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, matkToPmRatio, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost, rogueKnifeMul, rogueSteelMul, rogueStabAmp, rogueComboDebuff, rogueAmbushCrit } from '../data/skill-math'
 import { agonyBonus, canDetonate, contaminateBossRefund, contaminateCritChance, contaminateLeechShare, detonateDmg, detonateStacks, gamblerLuckyRes, paApplies, poisonPowerBonus, poisonTickTotal, shadowWardApplies } from '../data/thief-offmeta'
@@ -106,6 +106,7 @@ interface Mon {
   bladeSpent?: boolean // P2'b Blade's End already went off on this monster this hero turn
   dagger: number; daggerTurns: number // P3'a Rogue 🔪 ตราคมมีด: Marks · monster turns left (refreshed on every add)
   stabMark: number; strip: number // P3'a Rogue Back Stab: Backstab Mark (B1 Taken, hits) · Strip Armor (P.DEF cut), monster turns left
+  disarm?: number; disarmPct?: number; divestRes?: number; snatchCd?: number; breakImmune?: number // 🧤 Rogue rg_d สายปลด: ปลดอาวุธ (its next turn hits x(1 - pct)) · strip resistance (boss) · ฉกบัฟ / ตัดจังหวะ cooldowns, monster turns
   wet: number // Innovator ☁️ เมฆฝน: turns of +KIT2.innovator.wetAmp damage taken
   huntMark: number // v82 Archer หมายหัว: turns of +st.arMark damage taken (ticks with its turns)
   stunTurns?: number // Champion Tiger Knuckle extra stun turns left
@@ -827,7 +828,7 @@ export class BattleScene extends Phaser.Scene {
     this.fightTurns = 0; this.timedOut = false
     this.turnHitsCur = 0; this.turnDmgCur = 0; this.turnHitsLast = 0; this.turnHitsTotal = 0; this.turnHitsPeak = 0; this.inHeroTurn = false; this.hideTurnCombo()
     this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.s1Weave = false; this.weaveBonus = 0; this.dodgeCdIcd = 0; this.detUsed = false; this.luckyIcd = false; this.leechLeft = this.st.maxHp * KIT.thiefLeechTurnCap; this.rampage = 0
-    this.rgTempo = 0; this.rgComboN = 0; this.rgDodgeIcd = 0; this.rgFlee = 0; this.rgDodged = false; this.rgAmbush = false // P3'a Rogue: per wave
+    this.rgTempo = 0; this.rgComboN = 0; this.rgDodgeIcd = 0; this.rgFlee = 0; this.rgDodged = false; this.rgAmbush = false; this.rgSnatchAmp = 0; this.rgSnatchTurns = 0; this.skPlagTurns = 0; this.skFullUsed = false // P3'a Rogue: per wave · 🥷 sk_d
     this.martyrUsed = false; this.j2Hurt = false; this.monkGrit = 0; this.asuraExhaust = 0; this.awakenTurns = 0; this.awakenAbsorbed = 0; this.awakenUltPow = 1; this.clearAllies() // Crusader ★ ผู้พลีชีพ once per wave · allies last one wave · Awakening resets per wave
     this.inspireUsed = false; this.inspire = 0; this.earthDone = false // ⚜️ Paladin: once per fight
     this.hwAmp = 0; this.mcOver = 0 // 🌌 Amplify · 🤖 Overclock
@@ -984,6 +985,8 @@ export class BattleScene extends Phaser.Scene {
     if (this.frenzy > 0 && this.fightTurns - this.frenzyAt > KIT2.berserker.frenzyKeep) { this.frenzy = 0; this.floatText(HERO_X, GROUND - 150, '🔥 Frenzy หมด', '#c9c9d6') }
     if (this.st.j2Es > 0 && !this.j2Hurt) this.addShield(this.st.maxHp * this.st.j2Es, true) // Monk Invoker Energy Shield (Meditate)
     if (this.j3Bless > 0) this.j3Bless--
+    if (this.rgSnatchTurns > 0 && --this.rgSnatchTurns === 0) this.rgSnatchAmp = 0
+    if (this.skPlagTurns > 0) this.skPlagTurns--
     if (this.hwAmp > 0) this.hwAmp--
     if (this.mcOver > 0) this.mcOver--
     if (this.inspire > 0) this.inspire--
@@ -1451,6 +1454,9 @@ export class BattleScene extends Phaser.Scene {
    *  still rolls Hit (Q 2026-11-19). No crit ignores DEF. Magic never misses. Returns damage dealt. */
   private strike(m: Mon, mul: number, magic = false, color?: string, pierce = 0, falconCrit = 0): number {
     if (m.dead || this.hp <= 0) return 0
+    if (this.rgSnatchTurns > 0) mul *= 1 + this.rgSnatchAmp // 🧤 ฉกบัฟ: a stolen war cry
+    if (this.skPlagTurns > 0) mul *= 1 + this.st.j3SkPlag // 🥷 sk_d2 ลอกท่า
+    if (!magic && this.st.j3Sk > 0 && this.st.j3SkPrey > 0) mul *= 1 + stalkerPreyAmp(this.st.j3SkPrey, this.stripKinds(m)) // 🥷 sk_d1 เหยื่อเปลือย
     if (this.j3Bless > 0) mul *= 1 + this.st.j3AfterBless // ⚜️ พรหลังศึก
     if (magic && this.hwAmp > 0) mul *= 1 + KIT3.highwizard.amp + this.st.j3HwAmp // 🌌 Mystical Amplification
     if (magic && !ELEM_SRC.has(this.src)) mul *= 1 + this.st.elemDmg
@@ -1487,7 +1493,7 @@ export class BattleScene extends Phaser.Scene {
     const up = this.src === 'ult' ? this.st.ultPierce : 0 // v78 บดกระดูก: ult pierce
     const awPierce = !magic && this.st.j3Rn > 0 && (this.awakenTurns > 0 || this.stampedeFiring) ? this.st.j2Spiral : 0
     const sunder = (m.sunderTurns ?? 0) > 0 ? Math.max(0, 1 - (m.sunder ?? 0)) : 1
-    if (!magic) r.dmg = m.def.def ? Math.max(1, Math.round(afterDef(r.dmg, m.def.def * (1 - Math.min(1, pierce + up + awPierce)) * Math.max(0, 1 - this.st.physPen) * sunder * (m.armorBrk > 0 ? 1 - KIT2.mobster.armorBrk : 1) * (m.strip > 0 ? 1 - KIT2.rogue.stabStrip : 1) * (this.job.id === 'thief' ? 1 - poisonDefCut(m.poison) : 1)))) : r.dmg // crits face DEF too (Q 2026-11-19) · Mobster เกราะแตก · Ranger j2Spiral · physPen · void_sunder
+    if (!magic) r.dmg = m.def.def ? Math.max(1, Math.round(afterDef(r.dmg, m.def.def * (1 - Math.min(1, pierce + up + awPierce)) * Math.max(0, 1 - this.st.physPen) * sunder * (m.armorBrk > 0 ? 1 - KIT2.mobster.armorBrk : 1) * (m.strip > 0 ? 1 - rogueStripCut(this.st.j2StripPlus) : 1) * (this.job.id === 'thief' ? 1 - poisonDefCut(m.poison) : 1)))) : r.dmg // crits face DEF too (Q 2026-11-19) · Mobster เกราะแตก · Ranger j2Spiral · physPen · void_sunder
     if (magic && m.def.mdef) r.dmg = Math.max(1, Math.round(r.dmg * (1 - m.def.mdef * (1 - Math.min(1, pierce + up)) * Math.max(0, 1 - this.st.magPen) * sunder))) // D6+ stat monsters: WIS M.DEF · magPen · void_sunder
     if (r.crit && m.def.statDef?.critDR) r.dmg = Math.max(1, Math.round(r.dmg * Math.max(1 / (this.st.critMul || 1), 1 - m.def.statDef.critDR))) // LUK crit DR, never below a normal hit
     if (m.def.toxicSkin) { // venomqueen Toxic Skin: crit bonus halved, -5% damage
@@ -1793,6 +1799,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.st.j3GospelHeal > 0 && healed++ < P.gospelHealMax) this.heal(this.st.maxHp * this.st.j3GospelHeal, true)
       await this.wait(BATTLE.stepMs * 0.08)
     }
+    this.stalkerFullDivest()
     this.afterBless()
   }
   /** 🎩 Kingpin ตัดเส้นเอ็น variant: 💰 Shakedown (every monster, armor break + chill) / 📜 Hit Contract (one, heavy + poison + weaken). */
@@ -2147,6 +2154,8 @@ export class BattleScene extends Phaser.Scene {
   private noHitPoison = false // Sinister Steel swing: no st.poison on every monster it touches
   private voracityKillUsed = false; private pickupCdUsed = false; private knifeLoopUsed = false; private critEnergyTurn = 0 // 1 per hero turn guards
   private rgTempo = 0; private rgComboN = 0; private rgDodgeIcd = 0; private rgFlee = 0 // rg_c1 Tempo stacks (wave) · rg_c3 combo hit count, dodge ICD, FLEE bonus until the next hero turn
+  private skPlagTurns = 0; private skFullUsed = false // 🥷 sk_d2 ลอกท่า hero turns left · sk_d4 ★ used this wave
+  private rgSnatchAmp = 0; private rgSnatchTurns = 0 // 🧤 rg_d3 ฉกบัฟ: stolen war cry (damage share) · hero turns left
   private rgDodged = false; private rgAmbush = false // the hero dodged since the last hero turn -> this turn's Back Stab is a Shadow Ambush
   private zenyWave = 0 // 🧲 แม่เหล็ก: + zeny share this wave
   private mirror = false // 🔁 กระจก: the next landed monster hit is bounced back
@@ -2623,6 +2632,98 @@ export class BattleScene extends Phaser.Scene {
     try { await this.lunge(t, () => { backstabFx(this, t.spr); sfx.backStab({ ambush: sfxOpts?.ambush, cp: sfxOpts?.cp, shadow }); this.strike(t, mul, false, shadow ? '#b9a8ff' : '#ffd36b') }, true, true) }
     finally { this.forceCrit = false; this.backStabbing = false; this.shadowStabbing = false; this.pickupOpen = false; this.lsMul = prevLs }
   }
+  /** 🧤 rg_d4 ★ ตัดจังหวะ: a casting monster with >= divest.breakMarks Marks that isn't immune yet (most Marks first). */
+  private breakCastTarget(): Mon | undefined {
+    if (this.st.j2BreakCast <= 0) return undefined
+    const D = KIT2.rogue.divest
+    return this.alive().filter((m) => m.charging && m.dagger >= D.breakMarks && !(m.breakImmune ?? 0)).sort((a, b) => b.dagger - a.dagger)[0]
+  }
+  /** 🧤 rg_d4: spend every Mark on `m` and cut its cast: a normal monster just stops, a boss / mini breaks (gauge back, next cast steady). */
+  private divestBreak(m: Mon) {
+    const D = KIT2.rogue.divest
+    m.dagger = 0; m.daggerTurns = 0; m.breakImmune = D.breakImmune
+    const bossy = monTier(m.def) !== 'normal'
+    this.endMonCast(m, { text: bossy ? '⛓️ ตัดจังหวะ! ร่ายแตก' : '⛓️ ตัดจังหวะ!', color: '#ffd36b' }, bossy ? D.breakPush : 0)
+    if (bossy && monCastPity()) m.castSteady = true
+    this.shake(70, 0.004)
+    this.dotIcon(m)
+    this.stalkerPlagiarize()
+  }
+  /** 🧤 strip potency on `m` (lazy): boss / mini x bossMul, stripped again within resTurns x resMul. Reading it starts the boss's resistance. */
+  private divestPotOf(m: Mon) {
+    let k: number | undefined
+    return () => {
+      if (k !== undefined) return k
+      const bossy = monTier(m.def) !== 'normal'
+      k = divestMul(bossy, (m.divestRes ?? 0) > 0, this.st.j3Sk > 0 && this.st.j3SkRes > 0 ? stalkerResMul(this.st.j3SkRes) : undefined)
+      if (bossy) m.divestRes = KIT2.rogue.divest.resTurns
+      return k
+    }
+  }
+  /** 🧤 rg_d3 ✋ ฉกบัฟ: steal one buff (war cry > shield > reflect / absorb > vengeance), keep snatchShare of it. */
+  private divestSnatch(m: Mon, pot: () => number) {
+    const D = KIT2.rogue.divest
+    if ((m.snatchCd ?? 0) > 0) return
+    const has = m.atkUpTurns > 0 || m.shield > 0 || m.reflect > 0 || m.absorb > 0 || m.stored > 0 || !!m.vengTurns
+    if (!has) return
+    const share = snatchShare(this.st.j2Snatch) * pot()
+    let got = ''
+    if (m.atkUpTurns > 0) {
+      const amp = Math.min(D.snatchAmpCap, m.atkUp * share)
+      m.atkUp = 0; m.atkUpTurns = 0
+      this.rgSnatchAmp = Math.max(this.rgSnatchTurns > 0 ? this.rgSnatchAmp : 0, amp); this.rgSnatchTurns = D.snatchTurns
+      got = `💢 ATK +${Math.round(amp * 100)}%`
+    } else if (m.shield > 0) {
+      const sh = Math.min(this.st.maxHp * D.snatchShieldCap, m.shield * share)
+      m.shield = 0
+      if (sh > 0) this.addShield(sh, true)
+      got = `🛡️ โล่ ${Math.round(sh)}`
+    } else if (m.reflect > 0 || m.absorb > 0 || m.stored > 0) { m.reflect = 0; m.absorb = 0; m.stored = 0; got = '🔁 สะท้อน' }
+    else { m.vengTurns = 0; m.vengCd = BATTLE.vengeance.cd; got = '🖤 ความแค้น' }
+    m.snatchCd = D.snatchCd
+    this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 44, `✋ ฉก ${got}`, '#ffd36b')
+    this.dotIcon(m)
+    this.stalkerPlagiarize()
+  }
+  /** 🥷 strip kinds on `m` for sk_d1 เหยื่อเปลือย: 🔓 Strip Armor · 🧤 disarm · 😰 weak · 👁️ Exposed · 🦴 armor break. */
+  private stripKinds(m: Mon) {
+    return (m.strip > 0 ? 1 : 0) + ((m.disarm ?? 0) > 0 ? 1 : 0) + (m.weakTurns > 0 ? 1 : 0) + (m.exposed > 0 ? 1 : 0) + (m.armorBrk > 0 ? 1 : 0)
+  }
+  /** 🥷 sk_d2 ลอกท่า: a broken cast / a snatched buff -> hero damage + for plagTurns hero turns. */
+  private stalkerPlagiarize() {
+    if (this.st.j3Sk <= 0 || this.st.j3SkPlag <= 0) return
+    if (this.skPlagTurns <= 0) this.floatText(HERO_X, GROUND - 190, `🎭 ลอกท่า! ดาเมจ +${Math.round(this.st.j3SkPlag * 100)}%`, '#b9a8ff')
+    this.skPlagTurns = KIT3.stalker.divest.plagTurns
+  }
+  /** 🥷 sk_d4 ★ ปลดเปลือยหมดตัว: once a wave, Phantom Storm strips every monster (boss potency rules apply). */
+  private stalkerFullDivest() {
+    if (this.st.j3SkStrip <= 0 || this.skFullUsed || !this.alive().length) return
+    this.skFullUsed = true
+    const V = KIT3.stalker.divest, R = KIT2.rogue
+    this.callout('🌪️ ปลดเปลือยหมดตัว!', W / 2, 200, '#ffd36b')
+    for (const m of this.alive()) {
+      const k = this.divestPotOf(m)()
+      m.weakPct = Math.max(m.weakTurns > 0 ? m.weakPct : 0, V.fullWeak * k); m.weakTurns = Math.max(m.weakTurns, V.fullTurns)
+      m.disarm = Math.max(m.disarm ?? 0, 2); m.disarmPct = Math.max(m.disarmPct ?? 0, V.fullDisarm * k)
+      m.exposedPct = Math.max(m.exposed > 0 ? m.exposedPct : 0, V.fullExposed * k); m.exposed = Math.max(m.exposed, V.fullTurns)
+      m.strip = Math.max(m.strip, R.stabStripTurns)
+      if (m.atkUpTurns > 0) { m.atkUp = 0; m.atkUpTurns = 0 } else if (m.shield > 0) { m.shield = 0 } else if (m.reflect > 0 || m.absorb > 0) { m.reflect = 0; m.absorb = 0 }
+      this.dotIcon(m)
+    }
+  }
+  /** 🧤 after Back Stab: rg_d1 ปลดอาวุธ (>= divest.marks Marks) · rg_d2 full Marks -> Exposed. `marks` = Marks before the pickup. */
+  private divestAfterStab(t: Mon, marks: number, full: boolean, pot: () => number) {
+    const D = KIT2.rogue.divest
+    if (this.st.j2Disarm > 0 && marks >= D.marks) {
+      const k = pot()
+      t.weakPct = Math.max(t.weakTurns > 0 ? t.weakPct : 0, disarmWeak(this.st.j2Disarm) * k); t.weakTurns = Math.max(t.weakTurns, D.turns)
+      t.disarm = 2; t.disarmPct = Math.max(t.disarmPct ?? 0, D.disarm * k)
+      this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 62, '🧤 ปลดอาวุธ!', '#ffd36b')
+    }
+    if (this.st.j2StripPlus > 0 && full) {
+      t.exposedPct = Math.max(t.exposed > 0 ? t.exposedPct : 0, D.exposedPct * pot()); t.exposed = Math.max(t.exposed, D.exposedTurns)
+    }
+  }
   /** P3'a Back Stab target: most Marks, then highest HP. */
   private stabTarget(): Mon | undefined { return this.alive().sort((a, b) => b.dagger - a.dagger || b.hp - a.hp)[0] }
   /** Rogue 🌪️ พายุมีด (VFX v2): the backdrop dims, a ring of daggers whirls over the monsters and collapses, then `n`
@@ -2823,15 +2924,20 @@ export class BattleScene extends Phaser.Scene {
           await this.wait(BATTLE.stepMs * 0.3)
         }
       } else if (j2.id === 'rogue') { // 🗡️ Back Stab: sure crit on the most-marked monster (P3'a), picks up its Marks
-        const R = KIT2.rogue, t = this.st.j3Sk > 0 && save().job3Var === 'b' ? this.bossTarget() ?? this.stabTarget() : this.stabTarget(), cp = this.rogueCp // 🎯 Assassinate: boss first
+        const R = KIT2.rogue, cp = this.rogueCp
+        const brk = this.breakCastTarget() // 🧤 ★ ตัดจังหวะ: a casting monster with enough Marks goes first
+        const t = brk ?? (this.st.j3Sk > 0 && save().job3Var === 'b' ? this.bossTarget() ?? this.stabTarget() : this.stabTarget()) // 🎯 Assassinate: boss first
         if (t && cp > 0) { this.floatText(HERO_X, GROUND - 160, `🔁 Combo Point x${cp}`, '#ffd36b'); this.rogueCp = 0 }
         if (t) {
+          if (brk) this.divestBreak(brk) // spends its Marks before the stab (no pickup)
+          const marks = t.dagger, full = marks >= this.markCap(), pot = this.divestPotOf(t)
+          if (this.st.j2Snatch > 0 && marks >= R.divest.marks) this.divestSnatch(t, pot) // ✋ ฉกบัฟ: before the stab, so a stolen shield no longer soaks it
           const ambush = this.inShroud() || this.rgAmbush // 🌑 Shadow Ambush: in Shroud, or dodged since the last hero turn
           const amp = rogueStabAmp(ambush) // B4 (R4.6): conditional Back Stab amps add under one cap · Combo Point stays outside (MAIN-VS-REV4 R1)
           if (ambush) { this.rgAmbush = false; this.resGain(R.stabAmbushRes); this.floatText(HERO_X, GROUND - 175, '🌑 Shadow Ambush!', '#b9a8ff') }
           if (this.st.j3Sk > 0) await this.stalkerVariant(t, pow * (1 + this.st.pskill) * (1 + R.stabCpPer * cp) * (1 + amp), { ambush, cp }) // 🥷 Stalker: Fan of Knives / Assassinate replace the stab
           else await this.backStab(t, R.stabMul * pow * (1 + this.st.pskill) * (1 + R.stabCpPer * cp) * (1 + amp), false, { ambush, cp })
-          if (!t.dead) { t.stabMark = R.stabMarkTurns; t.strip = R.stabStripTurns; this.dotIcon(t) } // Backstab Mark + Strip Armor
+          if (!t.dead) { t.stabMark = R.stabMarkTurns; t.strip = R.stabStripTurns; this.divestAfterStab(t, marks, full, pot); this.dotIcon(t) } // Backstab Mark + Strip Armor + 🧤 สายปลด
           this.comboKnives(false) // ★ คริเป็นมีด: the Back Stab crit owes a knife
         }
       } else if (j2.id === 'mobster') { // ⛓️ ตัดเส้นเอ็น: boss first, DEF break + chill
@@ -5049,6 +5155,10 @@ export class BattleScene extends Phaser.Scene {
     if (m.daggerTurns > 0 && --m.daggerTurns === 0) { m.dagger = 0; this.dotIcon(m) } // P3'a 🔪 ตราคมมีด
     if (m.stabMark > 0 && --m.stabMark === 0) this.dotIcon(m) // P3'a Backstab Mark
     if (m.strip > 0 && --m.strip === 0) this.dotIcon(m) // P3'a Strip Armor
+    if ((m.disarm ?? 0) > 0 && --m.disarm! === 0) { m.disarmPct = 0; this.dotIcon(m) } // 🧤 ปลดอาวุธ: set to 2, so this whole turn is the weakened one
+    if ((m.divestRes ?? 0) > 0) m.divestRes!--
+    if ((m.snatchCd ?? 0) > 0) m.snatchCd!--
+    if ((m.breakImmune ?? 0) > 0) m.breakImmune!--
     if (m.def.toxicSkin) { // Toxic Skin tenacity: debuffs on it wear off twice as fast (P2'b: never Wound / Exposed, design Rev 3 §2.4)
       if (m.chill > 0) m.chill--; if (m.burnTurns > 0) m.burnTurns--; if (m.burnStackTurns > 0) m.burnStackTurns--; if (m.poison > 0) m.poison--
       if (m.weakTurns > 0 && --m.weakTurns === 0) this.dotIcon(m); if ((m.marked ?? 0) > 0) m.marked!--; if (this.awakenTurns <= 0 && m.huntMark > 0 && --m.huntMark === 0) this.dotIcon(m); if (m.armorBrk > 0 && --m.armorBrk === 0) this.dotIcon(m)
@@ -5567,7 +5677,7 @@ export class BattleScene extends Phaser.Scene {
   private dotIcon(m: Mon) {
     if (m.dead || !m.spr.active) return // a DoT tick or card can land after the kill: its icon text is already gone (page error 'drawImage' of null)
     if (!m.dotTxt) m.dotTxt = this.add.text(0, 0, '', { fontSize: '14px' }).setOrigin(0.5).setDepth(9500)
-    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${(m.permafrost ?? 0) > 0 ? '💠' + m.permafrost : ''}${m.mark ? `[${PROF_ICON[m.mark]}${(m.markLayers ?? 1) > 1 ? '×' + m.markLayers : ''}]` : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${m.armorBrk > 0 ? '🦴' : ''}${(m.sunderTurns ?? 0) > 0 ? '🕳️' : ''}${m.blind > 0 ? '🙈' : ''}${m.exposed > 0 ? '👁️' : ''}${m.wound > 0 ? '🩸' + m.wound : ''}${m.dagger > 0 ? '🔪' + m.dagger : ''}${m.stabMark > 0 ? '🗡️' : ''}${m.strip > 0 ? '🔓' : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${this.thMarkMon === m ? '🔻' + this.malice : ''}${(m.deathMark ?? 0) > 0 ? '💀' + m.deathMark : ''}${m.reflect > 0 ? '🔁' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
+    m.dotTxt.setText(`${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${(m.permafrost ?? 0) > 0 ? '💠' + m.permafrost : ''}${m.mark ? `[${PROF_ICON[m.mark]}${(m.markLayers ?? 1) > 1 ? '×' + m.markLayers : ''}]` : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${(m.disarm ?? 0) > 0 ? '🧤' : ''}${m.armorBrk > 0 ? '🦴' : ''}${(m.sunderTurns ?? 0) > 0 ? '🕳️' : ''}${m.blind > 0 ? '🙈' : ''}${m.exposed > 0 ? '👁️' : ''}${m.wound > 0 ? '🩸' + m.wound : ''}${m.dagger > 0 ? '🔪' + m.dagger : ''}${m.stabMark > 0 ? '🗡️' : ''}${m.strip > 0 ? '🔓' : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${this.thMarkMon === m ? '🔻' + this.malice : ''}${(m.deathMark ?? 0) > 0 ? '💀' + m.deathMark : ''}${m.reflect > 0 ? '🔁' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
   }
 
   // ---------- xp / perks ----------
@@ -6223,7 +6333,7 @@ export class BattleScene extends Phaser.Scene {
   /** Monster hit multiplier: Ice Age weakens it. */
   private monMul(m: Mon) {
     let k = m.iced ? 1 - RELIC_RULES.iceage.atkDown : 1
-    return k * m.dmgMul * (m.atkUpTurns > 0 ? 1 + m.atkUp : 1) * (m.weakTurns > 0 ? 1 - m.weakPct : 1) * (1 + this.flags.curseDmg) * (m.chill > 0 ? 1 - this.px('chillWeak') : 1) // card กัดเย็น
+    return k * m.dmgMul * (m.atkUpTurns > 0 ? 1 + m.atkUp : 1) * (m.weakTurns > 0 ? 1 - m.weakPct : 1) * ((m.disarm ?? 0) > 0 ? 1 - (m.disarmPct ?? 0) : 1) * (1 + this.flags.curseDmg) * (m.chill > 0 ? 1 - this.px('chillWeak') : 1) // card กัดเย็น
   }
 
   /** Heal cut on a monster: Hellfire 5%/stack (max 50%), otherwise 25% while any normal burn is on it · P2'b Blade's End: the bigger cut wins, never stacked. */

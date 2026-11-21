@@ -3,7 +3,7 @@ import { COLORS, FONT_NUM, FONT_UI, H, W } from "../../data/game-data";
 import { derivedRows } from "../../data/stat-rows";
 import { JOBS } from "../../data/jobs";
 import { JOB2 } from "../../data/jobs2";
-import { activeJob3, JOB3 } from "../../data/jobs3";
+import { activeJob3, JOB3, type Job3Id } from "../../data/jobs3";
 import { heroStats } from "../../data/meta";
 import {
 	PASSIVE_MAX_POINTS,
@@ -14,6 +14,8 @@ import {
 	hasPassiveTree,
 	normalizePassiveNodes,
 	passiveEarnedFor,
+	passiveCtxFor,
+	passiveNodeUnlocked,
 	passiveFree,
 	passiveNodeById,
 	passiveSpent,
@@ -73,6 +75,7 @@ const SECTOR_META: Readonly<
 	shadow: { label: "👤 เงา", color: 0x8b7cf6, hex: "#c4baff", lx: 335, ly: -395 },
 	venom: { label: "☠️ พิษ", color: 0x4fd18b, hex: "#7fe6ab", lx: 345, ly: 395 },
 	alchemy: { label: "⚗️ เล่นแร่", color: 0x52c7e0, hex: "#8ce4f8", lx: -335, ly: 410 },
+	awaken: { label: "🌟 ตื่นรู้", color: 0xffc85a, hex: "#ffd98a", lx: 0, ly: 0 }, // labels per 3rd job: AWAKEN_LABELS
 };
 
 const KIND_META: Readonly<Record<PassiveKind, { label: string; color: string }>> = {
@@ -94,8 +97,20 @@ const TAG_THAI: Readonly<Record<string, string>> = {
 };
 
 function passiveCtxOf(s: SaveData): PassiveCtx {
-	const j3 = activeJob3(s);
-	return { job2: s.job2, job3: j3 };
+	return passiveCtxFor(s);
+}
+
+/** 🌟 Awakening ring cluster labels (thief-awaken.ts): one per 3rd job, above / below its cluster. */
+const AWAKEN_LABELS: readonly { job3: Job3Id; x: number; y: number; glowY: number }[] = [
+	{ job3: "stalker", x: 0, y: -718, glowY: -575 },
+	{ job3: "kingpin", x: 0, y: 722, glowY: 575 },
+];
+
+/** "🔒 ปลดเมื่อเป็น 🥷 Stalker" for an Awakening node the hero can't use yet (undefined when open). */
+function awakenLockText(node: PassiveNode, ctx: PassiveCtx): string | undefined {
+	if (passiveNodeUnlocked(node, ctx) || !node.awaken) return undefined;
+	const names = node.awaken.map((j) => `${JOB3[j].icon} ${JOB3[j].name}`).join(" / ");
+	return `🔒 วงแหวนตื่นรู้ · ปลดเมื่อเป็น ${names} (Awakening)`;
 }
 
 function pointInUiRects(rects: readonly PassiveView[], sx: number, sy: number): boolean {
@@ -357,7 +372,7 @@ export function passivePointerUp(
 	if (!hit) return;
 
 	const earned = passiveEarnedFor(s);
-	const picked = normalizePassiveNodes(s.job, s.passiveNodes);
+	const picked = normalizePassiveNodes(s.job, s.passiveNodes, passiveCtxOf(s));
 	const pickedSet = new Set(picked);
 
 	// Right-click (desktop PoE style): immediate refund when allocated
@@ -375,7 +390,7 @@ export function passivePointerUp(
 	}
 
 	// Left-click / tap: PoE 1-click immediate allocate on allocatable (blue) nodes
-	if (canAllocatePassive(s.job, picked, hit.id, earned)) {
+	if (canAllocatePassive(s.job, picked, hit.id, earned, passiveCtxOf(s))) {
 		scene.passiveSelId = hit.id;
 		scene.passiveFullHideCard = false;
 		handleNodeToggle(scene, tree, hit);
@@ -402,7 +417,7 @@ export function passivePointerUp(
 function handleNodeToggle(scene: CharacterScene, tree: PassiveTreeDef, node: PassiveNode) {
 	const s = save();
 	const earned = passiveEarnedFor(s);
-	const picked = normalizePassiveNodes(s.job, s.passiveNodes);
+	const picked = normalizePassiveNodes(s.job, s.passiveNodes, passiveCtxOf(s));
 	const pickedSet = new Set(picked);
 
 	if (node.id === tree.originId) {
@@ -411,8 +426,8 @@ function handleNodeToggle(scene: CharacterScene, tree: PassiveTreeDef, node: Pas
 	}
 
 	if (pickedSet.has(node.id)) {
-		if (canRefundPassive(s.job, picked, node.id)) {
-			s.passiveNodes = refundPassive(s.job, picked, node.id);
+		if (canRefundPassive(s.job, picked, node.id, passiveCtxOf(s))) {
+			s.passiveNodes = refundPassive(s.job, picked, node.id, passiveCtxOf(s));
 			persist();
 			unlock();
 			sfx.pop();
@@ -424,8 +439,8 @@ function handleNodeToggle(scene: CharacterScene, tree: PassiveTreeDef, node: Pas
 		return;
 	}
 
-	if (canAllocatePassive(s.job, picked, node.id, earned)) {
-		s.passiveNodes = allocatePassive(s.job, picked, node.id, earned);
+	if (canAllocatePassive(s.job, picked, node.id, earned, passiveCtxOf(s))) {
+		s.passiveNodes = allocatePassive(s.job, picked, node.id, earned, passiveCtxOf(s));
 		persist();
 		unlock();
 		sfx.pop();
@@ -438,7 +453,7 @@ function handleNodeToggle(scene: CharacterScene, tree: PassiveTreeDef, node: Pas
 		return;
 	}
 
-	const free = passiveFree(s.job, picked, earned);
+	const free = passiveFree(s.job, picked, earned, passiveCtxOf(s));
 	toast(
 		scene,
 		free < 1 ? "⭐ แต้มพาสซีฟไม่พอ" : "🔒 ต้องเชื่อมจากโหนดที่เรียนแล้วก่อน",
@@ -448,7 +463,7 @@ function handleNodeToggle(scene: CharacterScene, tree: PassiveTreeDef, node: Pas
 
 function openResetConfirm(scene: CharacterScene, tree: PassiveTreeDef) {
 	const s = save();
-	const spent = passiveSpent(s.job, s.passiveNodes);
+	const spent = passiveSpent(s.job, s.passiveNodes, passiveCtxOf(s));
 	if (spent <= 0) return;
 	scene.passiveConfirm?.destroy();
 	const doReset = () => {
@@ -488,7 +503,7 @@ export function drawPassiveHeroStrip(
 			? `${JOB2[s.job2].icon} ${JOB2[s.job2].name}`
 			: `${JOBS[s.job].icon} ${JOBS[s.job].name}`;
 	const earned = passiveEarnedFor(s);
-	const free = passiveFree(s.job, s.passiveNodes, earned);
+	const free = passiveFree(s.job, s.passiveNodes, earned, passiveCtxOf(s));
 
 	c.add(
 		clipW(
@@ -549,13 +564,13 @@ export function passiveTab(scene: CharacterScene) {
 	if (!tree) return;
 
 	const earned = passiveEarnedFor(s);
-	const spent = passiveSpent(s.job, s.passiveNodes);
-	const free = passiveFree(s.job, s.passiveNodes, earned);
+	const spent = passiveSpent(s.job, s.passiveNodes, passiveCtxOf(s));
+	const free = passiveFree(s.job, s.passiveNodes, earned, passiveCtxOf(s));
 	const defaultSelId = () => {
 		if (spent === 0 && free > 0) {
 			const origin = passiveNodeById(s.job, tree.originId);
 			const starterId = origin?.edges.find((id) =>
-				canAllocatePassive(s.job, s.passiveNodes, id, earned),
+				canAllocatePassive(s.job, s.passiveNodes, id, earned, passiveCtxOf(s)),
 			);
 			if (starterId) return starterId;
 		}
@@ -702,10 +717,12 @@ function buildConstellationCanvas(
 ) {
 	const s = save();
 	const earned = passiveEarnedFor(s);
-	const picked = normalizePassiveNodes(s.job, s.passiveNodes);
+	const picked = normalizePassiveNodes(s.job, s.passiveNodes, passiveCtxOf(s));
 	const pickedSet = new Set(picked);
-	const free = passiveFree(s.job, picked, earned);
+	const free = passiveFree(s.job, picked, earned, passiveCtxOf(s));
 	const filter = computeTagFilter(tree.nodes, scene.passiveTag);
+	const ctx = passiveCtxOf(s);
+	const lockedSet = new Set(tree.nodes.filter((n) => !passiveNodeUnlocked(n, ctx)).map((n) => n.id));
 
 	// Frame background
 	const frameBg = scene.add.graphics();
@@ -735,13 +752,22 @@ function buildConstellationCanvas(
 	bgG.lineStyle(1, 0x2e375e, 0.45).strokeCircle(0, 0, 112);
 	bgG.lineStyle(1, 0x242c4e, 0.34).strokeCircle(0, 0, 225);
 	bgG.lineStyle(1, 0x1e2545, 0.28).strokeCircle(0, 0, 355);
+	// 🌟 Awakening ring: golden guide + a glow behind each 3rd-job cluster (bright when it is the hero's own)
+	if (tree.nodes.some((n) => n.awaken)) {
+		const ringOpen = ctx.job3 !== undefined;
+		bgG.lineStyle(ringOpen ? 1.6 : 1, 0xffc85a, ringOpen ? 0.32 : 0.14).strokeCircle(0, 0, 580);
+		for (const a of AWAKEN_LABELS) {
+			if (!tree.nodes.some((n) => n.awaken?.includes(a.job3))) continue;
+			bgG.fillStyle(0xffc85a, ctx.job3 === a.job3 ? 0.08 : 0.025).fillEllipse(a.x, a.glowY, 520, 250);
+		}
+	}
 
 	let seed = 4219;
 	for (let i = 0; i < 96; i++) {
 		seed = (seed * 16807) % 2147483647;
 		const sx = ((seed % 1160) - 580);
 		seed = (seed * 16807) % 2147483647;
-		const sy = ((seed % 880) - 440);
+		const sy = ((seed % 1480) - 740);
 		seed = (seed * 16807) % 2147483647;
 		const r = 0.7 + (seed % 10) * 0.1;
 		const a = 0.14 + (seed % 7) * 0.05;
@@ -766,6 +792,23 @@ function buildConstellationCanvas(
 			.setAlpha(filter.active ? 0.5 : 0.82);
 		worldC.add(lbl);
 	}
+	for (const a of AWAKEN_LABELS) {
+		if (!tree.nodes.some((n) => n.awaken?.includes(a.job3))) continue;
+		const mine = ctx.job3 === a.job3;
+		const def = JOB3[a.job3];
+		const lbl = scene.add
+			.text(a.x, a.y, `${mine ? "🌟" : "🔒"} ${def.icon} ${def.name} · ตื่นรู้`, {
+				fontFamily: FONT_UI,
+				fontSize: "13px",
+				fontStyle: "bold",
+				color: mine ? SECTOR_META.awaken.hex : "#8a8fa8",
+				stroke: "#0b0e1e",
+				strokeThickness: 4,
+			})
+			.setOrigin(0.5)
+			.setAlpha(filter.active ? 0.5 : mine ? 0.9 : 0.6);
+		worldC.add(lbl);
+	}
 
 	// Precompute allocatable / adjacent sets
 	const nodeMap = new Map<string, PassiveNode>();
@@ -776,7 +819,7 @@ function buildConstellationCanvas(
 		if (pickedSet.has(n.id)) continue;
 		const adj = n.edges.some((nb) => pickedSet.has(nb));
 		if (adj) adjToAllocSet.add(n.id);
-		if (adj && free >= 1 && n.id !== tree.originId) canAllocSet.add(n.id);
+		if (adj && free >= 1 && n.id !== tree.originId && !lockedSet.has(n.id)) canAllocSet.add(n.id);
 	}
 
 	// Layer 2: Undirected edges (unreached / allocatable / allocated)
@@ -788,6 +831,7 @@ function buildConstellationCanvas(
 			if (!bNode) continue;
 
 			const bothPicked = pickedSet.has(a.id) && pickedSet.has(bId);
+			const lockedEdge = lockedSet.has(a.id) || lockedSet.has(bId);
 			const onePicked = pickedSet.has(a.id) || pickedSet.has(bId);
 			const isFrontier = onePicked && !bothPicked;
 			const matchDim =
@@ -799,6 +843,8 @@ function buildConstellationCanvas(
 			if (bothPicked) {
 				edgeG.lineStyle(6, COLORS.gold, 0.22).lineBetween(a.x, a.y, bNode.x, bNode.y);
 				edgeG.lineStyle(2.6, 0xffdf88, 0.95).lineBetween(a.x, a.y, bNode.x, bNode.y);
+			} else if (lockedEdge) {
+				edgeG.lineStyle(1.2, 0x3b466f, matchDim ? 0.1 : 0.26).lineBetween(a.x, a.y, bNode.x, bNode.y);
 			} else if (isFrontier) {
 				const col = free >= 1 ? 0x72c8ff : 0x6775a6;
 				const alp = matchDim ? 0.28 : free >= 1 ? 0.85 : 0.6;
@@ -821,8 +867,9 @@ function buildConstellationCanvas(
 		const isAlloc = canAllocSet.has(n.id);
 		const isAdj = adjToAllocSet.has(n.id);
 		const isMatch = filter.active && filter.matchedIds.has(n.id);
-		const dimmed = filter.active && !isMatch && !isOrigin;
-		const alpha = dimmed ? 0.28 : 1;
+		const isLocked = lockedSet.has(n.id);
+		const dimmed = (filter.active && !isMatch && !isOrigin) || isLocked;
+		const alpha = isLocked ? 0.38 : dimmed ? 0.28 : 1;
 		const secCol = SECTOR_META[n.sector].color;
 		const r = NODE_RADIUS[n.kind];
 
@@ -893,6 +940,13 @@ function buildConstellationCanvas(
 			.setOrigin(0.5)
 			.setAlpha(dimmed ? 0.32 : isPicked || isAlloc || isOrigin ? 1 : 0.8);
 		worldC.add(ico);
+		if (isLocked && n.kind !== "minor") {
+			const lock = scene.add
+				.text(n.x + r * 0.75, n.y - r * 0.75, "🔒", { fontFamily: FONT_UI, fontSize: "9px" })
+				.setOrigin(0.5)
+				.setAlpha(0.85);
+			worldC.add(lock);
+		}
 
 		// Name labels for landmarks (origin, keystones, notables) so constellation is readable at a glance
 		if (n.kind !== "minor") {
@@ -1122,10 +1176,10 @@ function computeStatPreview(
 	earned: number,
 ): { heading: string; rows: { label: string; now: string; next: string }[] } | null {
 	if (!canAlloc && !(allocated && canRefund)) return null;
-	const picked = normalizePassiveNodes(s.job, s.passiveNodes);
+	const picked = normalizePassiveNodes(s.job, s.passiveNodes, passiveCtxOf(s));
 	const nextPicked = allocated
-		? refundPassive(s.job, picked, node.id)
-		: allocatePassive(s.job, picked, node.id, Math.max(earned, picked.length));
+		? refundPassive(s.job, picked, node.id, passiveCtxOf(s))
+		: allocatePassive(s.job, picked, node.id, Math.max(earned, picked.length), passiveCtxOf(s));
 
 	const stNow = heroStats(s);
 	const stNext = heroStats({ ...s, passiveNodes: nextPicked });
@@ -1161,7 +1215,12 @@ function statusMetaOf(
 	canRefund: boolean,
 	free: number,
 	adj: boolean,
+	ctx?: PassiveCtx,
 ): { text: string; bg: number; border: number; color: string } {
+	const lockText = ctx ? awakenLockText(node, ctx) : undefined;
+	if (lockText && !allocated) {
+		return { text: lockText, bg: 0x2a2416, border: 0x8a7440, color: "#e5d5b3" };
+	}
 	if (node.id === tree.originId) {
 		return {
 			text: "⭐ จุดเริ่มต้นอาชีพ (เปิดใช้ฟรี)",
@@ -1235,14 +1294,14 @@ function renderPassiveDetail(scene: CharacterScene, tree: PassiveTreeDef, previe
 	if (!node) return;
 
 	const earned = passiveEarnedFor(s);
-	const picked = normalizePassiveNodes(s.job, s.passiveNodes);
+	const picked = normalizePassiveNodes(s.job, s.passiveNodes, passiveCtxOf(s));
 	const pickedSet = new Set(picked);
-	const free = passiveFree(s.job, picked, earned);
+	const free = passiveFree(s.job, picked, earned, passiveCtxOf(s));
 	const allocated = pickedSet.has(node.id);
 	const isOrigin = node.id === tree.originId;
 	const adj = !allocated && node.edges.some((nb) => pickedSet.has(nb));
-	const canAlloc = canAllocatePassive(s.job, picked, node.id, earned);
-	const canRefund = canRefundPassive(s.job, picked, node.id);
+	const canAlloc = canAllocatePassive(s.job, picked, node.id, earned, passiveCtxOf(s));
+	const canRefund = canRefundPassive(s.job, picked, node.id, passiveCtxOf(s));
 
 	const x = 28;
 	const w = 274;
@@ -1269,7 +1328,7 @@ function renderPassiveDetail(scene: CharacterScene, tree: PassiveTreeDef, previe
 	);
 
 	// Status pill
-	const stMeta = statusMetaOf(node, tree, allocated, canAlloc, canRefund, free, adj);
+	const stMeta = statusMetaOf(node, tree, allocated, canAlloc, canRefund, free, adj, passiveCtxOf(s));
 	const stG = scene.add.graphics();
 	stG.fillStyle(stMeta.bg, 0.95).fillRoundedRect(x - 2, top + 42, w + 4, 21, 5);
 	stG.lineStyle(1, stMeta.border, 0.85).strokeRoundedRect(x - 2, top + 42, w + 4, 21, 5);
@@ -1468,8 +1527,8 @@ function renderFullscreenModal(
 ) {
 	const s = save();
 	const earned = passiveEarnedFor(s);
-	const spent = passiveSpent(s.job, s.passiveNodes);
-	const free = passiveFree(s.job, s.passiveNodes, earned);
+	const spent = passiveSpent(s.job, s.passiveNodes, passiveCtxOf(s));
+	const free = passiveFree(s.job, s.passiveNodes, earned, passiveCtxOf(s));
 
 	const c = scene.add.container(0, 0).setDepth(30000);
 	scene.modal = c;
@@ -1599,14 +1658,14 @@ function renderFullscreenInspectCard(scene: CharacterScene, tree: PassiveTreeDef
 	}
 
 	const earned = passiveEarnedFor(s);
-	const picked = normalizePassiveNodes(s.job, s.passiveNodes);
+	const picked = normalizePassiveNodes(s.job, s.passiveNodes, passiveCtxOf(s));
 	const pickedSet = new Set(picked);
-	const free = passiveFree(s.job, picked, earned);
+	const free = passiveFree(s.job, picked, earned, passiveCtxOf(s));
 	const allocated = pickedSet.has(node.id);
 	const isOrigin = node.id === tree.originId;
 	const adj = !allocated && node.edges.some((nb) => pickedSet.has(nb));
-	const canAlloc = canAllocatePassive(s.job, picked, node.id, earned);
-	const canRefund = canRefundPassive(s.job, picked, node.id);
+	const canAlloc = canAllocatePassive(s.job, picked, node.id, earned, passiveCtxOf(s));
+	const canRefund = canRefundPassive(s.job, picked, node.id, passiveCtxOf(s));
 
 	const cw = 328;
 	const ch = 204;
@@ -1650,7 +1709,7 @@ function renderFullscreenInspectCard(scene: CharacterScene, tree: PassiveTreeDef
 
 	const kindMeta = KIND_META[node.kind];
 	const secMeta = SECTOR_META[node.sector];
-	const stMeta = statusMetaOf(node, tree, allocated, canAlloc, canRefund, free, adj);
+	const stMeta = statusMetaOf(node, tree, allocated, canAlloc, canRefund, free, adj, passiveCtxOf(s));
 	dc.add(
 		clipW(
 			txt(
