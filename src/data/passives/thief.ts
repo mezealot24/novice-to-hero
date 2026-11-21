@@ -448,10 +448,10 @@ const NODES: readonly PassiveNode[] = [
     edges: ['th_m_shadow3', 'th_m_bridge_e'],
     icon: '🌑',
     name: 'หมอกลวงตา',
-    upside: `ลดดาเมจเวท/ตาเหยี่ยว/ตีโดนแน่ ${pct(KIT.thiefMistDr)} · มอนตีโดนขั้นต่ำ −8% · หลบแน่ต้นเวฟ +1`,
+    upside: `ลดดาเมจเวท/ตาเหยี่ยว/ตีโดนแน่ ${pct(KIT.thiefMistDr)} · มอนตีโดนขั้นต่ำ −4% · หลบแน่ต้นเวฟ +1`,
     downside: `P.DEF −${pct(KIT.thiefMistDefCut)} และโล่ที่ได้รับทุกแหล่ง −${pct(KIT.thiefMistDefCut)}`,
     desc: () =>
-      `ลดดาเมจเวท/ตาเหยี่ยว/ตีโดนแน่ ${pct(KIT.thiefMistDr)} · มอนตีโดนขั้นต่ำ −8% · หลบแน่ต้นเวฟ +1 | ข้อเสีย: P.DEF −${pct(KIT.thiefMistDefCut)} และโล่ที่ได้รับทุกแหล่ง −${pct(KIT.thiefMistDefCut)}`,
+      `ลดดาเมจเวท/ตาเหยี่ยว/ตีโดนแน่ ${pct(KIT.thiefMistDr)} · มอนตีโดนขั้นต่ำ −4% · หลบแน่ต้นเวฟ +1 | ข้อเสีย: P.DEF −${pct(KIT.thiefMistDefCut)} และโล่ที่ได้รับทุกแหล่ง −${pct(KIT.thiefMistDefCut)}`,
     mod: () => ({
       thMistDr: KIT.thiefMistDr,
       fleeFloor: 0.08,
@@ -809,7 +809,7 @@ const NODES: readonly PassiveNode[] = [
     edges: ['th_m_shadow5', 'th_m_shadow6'],
     icon: '👻',
     name: 'เงาไร้ตัวตน',
-    desc: () => 'หลบได้ฟื้น +3% HP สูงสุด · ความเร็วโจมตี +0.10 · มอนตีโดนขั้นต่ำ −4%',
+    desc: () => 'หลบได้ฟื้น +3% HP สูงสุด · ความเร็วโจมตี +0.10 · มอนตีโดนขั้นต่ำ −2%',
     mod: () => ({ dodgeHeal: 0.03, aspd: 0.1, fleeFloor: 0.04 }),
     tags: ['shadow'],
   },

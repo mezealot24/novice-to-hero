@@ -7,7 +7,7 @@ import { ELEM_SRC, FOCUS_RULES, GENERAL_PERKS, IMMORTAL_RULES, IMMORTALS, JOB_LI
 import { EVENT_RULES, FORTUNE, type DayOpts, type EventId } from '../data/events'
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
 import { blessBase, FREE_GEMS, heroBuild, heroStats, jobUpText, itemById, PER_POINT, RESOURCES, splitStatLine, totalBase, type BaseStat, type HeroBuildSummary } from '../data/meta'
-import { COIN_FX, CRIT_RULES, RESIST_RULES, coinTier, monCritRate, monSkillCritRate, splitZeny } from '../data/battle-rules'
+import { COIN_FX, CRIT_RULES, monHitChance, RESIST_RULES, coinTier, monCritRate, monSkillCritRate, splitZeny } from '../data/battle-rules'
 import { type ItemEffectId, type ItemEffectSpec } from '../data/item-effects'
 import { createBiomeCombatState, HAZARD_TUNING, modifyHeroDirectHealBiome, onHeroShieldOrBlockBiome, onHeroSkillCastBiome, onMonsterHitBiome, onTurnEndBiome, type BiomeCombatState } from '../data/biome-hazards'
 import { RIFT_BRANCHES, riftBoonById, type RiftBoonDef, type RiftBranchDef } from '../data/rift'
@@ -5537,7 +5537,7 @@ export class BattleScene extends Phaser.Scene {
     }
     const sure =this.hx.web > 0 || (!magic && (src?.trueTurns ?? 0) > 0) // 🕸️ webbed: Can't Evade · 🎯 ตาเหยี่ยว: physical hits skip Flee + lucky dodge
     if (!sure && Math.random() < this.st.luckyDodge) return dodged('LUCKY!', '#6fd08c')
-    if (!sure && Math.random() > hitChance(monHit, this.fleeNow(), 0.8 - this.st.fleeFloor)) return dodged('EVADE!', '#9fe3ff') // Thief เงาบาง lowers the floor
+    if (!sure && Math.random() > monHitChance(monHit, this.fleeNow(), this.st.fleeFloor, this.alive().length)) return dodged('EVADE!', '#9fe3ff') // Q 2026-11-21 RO-style: floor 20% (Thief เงาบาง lowers it) + mob penalty
     if (!magic && (this.st.j2Guard > 0 || this.inspire > 0) && Math.random() < (this.inspire > 0 ? KIT3.common.inspireGuard : this.st.j2Guard + (this.gc ? this.st.j2GcGuard : 0)) * (this.hasShield || this.j2?.id === 'monk' || this.inspire > 0 ? 1 : KIT2.knight.guardShieldless)) { this.hitOut = 'block'; this.floatText(HERO_X, GROUND - 120, '🛡️ BLOCK!', '#9fe3ff'); sfx.hit(); this.onBlock(src); return false } // Knight / Crusader / Champion / Warlord Auto Guard
     if (magic && this.j2?.id === 'sage') { // 🛡️ Sage Magic Rod (+ VIT scaling)
       const rod = sageRodGain(this.st, this.heroVit)

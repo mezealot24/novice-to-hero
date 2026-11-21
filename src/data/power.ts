@@ -8,7 +8,7 @@
 //              sustain from lifesteal / spell vamp / regen / heal amp, counters)
 //   power    = K * sqrt(offense * survival)  -> doubles when both sides double, so "monster x(P / P_ref)" on
 //              HP and ATK keeps a fight exactly as hard as it was at P_ref.
-import { afterDef, BATTLE, COMBO, comboExtra, doubleAtkChance, hitChance, PLAYER, type Stats } from './game-data'
+import { afterDef, BATTLE, COMBO, comboExtra, doubleAtkChance, hitChance, monHitChance, PLAYER, type Stats } from './game-data'
 import type { JobId } from './jobs'
 import type { Job2Id } from './jobs2'
 import { activeJob3, type Job3Id } from './jobs3'
@@ -57,7 +57,7 @@ export function powerParts(st: Stats, job: JobId = 'novice', job2?: Job2Id, job3
   // ---- survival ----
   const physTaken = (100 / (100 + st.def)) * (1 - st.guard)
   const magicTaken = (1 - st.mdef) * (1 - st.guard)
-  const land = hitChance(R.hit, st.flee, 0.8 - st.fleeFloor) * (1 - st.luckyDodge) // same floor as BattleScene.hurtHero
+  const land = monHitChance(R.hit, st.flee, st.fleeFloor, 2) * (1 - st.luckyDodge) // same formula as BattleScene.hurtHero (~2 monsters: no mob penalty)
   const bandCut = Math.min(0.4, st.j3Banding * 2) // Banding DR averaged across ~2 active enemies
   const taken = (physTaken * land * (1 - R.magicShare) + magicTaken * R.magicShare) * (1 - bandCut) * (1 - st.tankDr) * (1 - 0.3 * st.tankSkillDr) // 🛡️ tank bulk: ~30% of hits taken are monster skills
   // sustain over a ~15-attack fight: lifesteal / vamp, regen (%/turn), dodge heals (Thief gear: every dodge heals)

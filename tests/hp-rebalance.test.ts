@@ -55,3 +55,25 @@ test('tank DR: every hit, skill DR only on skill tags, never below 1', () => {
   for (const t of ['✦ ดาวตก', '🔮 ท่าร่าย', '🩸 Blood Razor', '💥 ระเบิดตาย (x)', '🖤 ความแค้นกัดกิน (x)']) assert.ok(isMonSkillTag(t), t)
   for (const t of ['โจมตี', 'โจมตี 1/2', 'คอมโบ', 'สวนกลับ', '⏳ Bullet Time']) assert.ok(!isMonSkillTag(t), t)
 })
+
+// Q 2026-11-21 "RO style" Hit vs Flee on the hero: floor 20% + mob penalty
+import { FLEE_RULES, hitChance, mobFlee, monHitChance } from '../src/data/battle-rules'
+
+test('monster -> hero hit: 80% + Hit - Flee, floor 20%, Thief fleeFloor lowers it at half rate, never below 5%', () => {
+  assert.equal(monHitChance(100, 100), 0.8)
+  assert.equal(monHitChance(100, 615), FLEE_RULES.floor)
+  assert.ok(Math.abs(monHitChance(100, 615, 0.1) - 0.15) < 1e-9, 'Thief เงาบาง 15%')
+  assert.ok(Math.abs(monHitChance(100, 615, 0.2) - 0.1) < 1e-9, 'fleeFloor cap 10%')
+  assert.equal(monHitChance(100, 615, 5), FLEE_RULES.minFloor)
+  assert.equal(monHitChance(500, 100), 0.98)
+  assert.equal(hitChance(100, 615), 0.8, 'hero -> monster keeps the 80% floor')
+})
+
+test('RO mob penalty: 3+ monsters alive -> Flee -10% per extra (max -50%)', () => {
+  assert.equal(mobFlee(300, 1), 300)
+  assert.equal(mobFlee(300, 2), 300)
+  assert.equal(mobFlee(300, 3), 270)
+  assert.equal(mobFlee(300, 4), 240)
+  assert.equal(mobFlee(300, 20), 150)
+  assert.ok(monHitChance(200, 300, 0, 4) > monHitChance(200, 300, 0, 1))
+})
