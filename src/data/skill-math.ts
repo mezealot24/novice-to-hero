@@ -276,6 +276,16 @@ export const KIT2 = {
     comboTempoMax: 5, comboDebuffMax: 4, comboDodgeEvery: 3, comboDodgeIcdTurns: 2, // rg_c1 Tempo stacks per wave · rg_c2 debuff kinds counted · rg_c3 dodge every N combo hits, ICD hero turns
     comboShadowMul: 0.45, comboShadowAt: 3, // rg_c4 ★ Living Shadow: share of a Back Stab · chain hits needed
     critAmbushHi: 0.7, critAmbushLo: 0.35, critLeechResMax: 12, critKnifeMul: 1.2, // rg_x1 HP at / above · below · rg_x3 Energy cap per hero turn · rg_x4 ★ crit knife x P.ATK
+    // ----- 🧤 rg_d สายปลด (Strip line, Q 2026-11-21 "Rogue ควรมีสาย strip ตัดกำลังศัตรู"): every strip is paid in Marks on the Back Stab target -----
+    divest: {
+      marks: 2, // Back Stab target needs >= this many Marks (before the pickup) for ปลดอาวุธ / ฉกบัฟ
+      weak: 0.1, weakPer: 0.05, turns: 2, // rg_d1 ปลดอาวุธ: hits weaker (weak) base + per lv, monster turns
+      disarm: 0.5, // rg_d1: its next turn hits x(1 - this)
+      stripPer: 0.05, exposedPct: 0.2, exposedTurns: 2, // rg_d2 ถอดเกราะเปลือย: Strip Armor P.DEF cut + per lv · full Marks -> Exposed (same share as ม่านควัน)
+      snatchBase: 0.2, snatchPer: 0.2, snatchAmpCap: 0.3, snatchShieldCap: 0.15, snatchTurns: 2, snatchCd: 3, // rg_d3 ฉกบัฟ: share of the stolen buff the hero keeps (base + per lv) · ATK-buff cap · shield cap (max HP) · hero turns · monster turns before the same monster can be robbed again
+      breakMarks: 2, breakPush: 40, breakImmune: 3, // rg_d4 ★ ตัดจังหวะ: Marks a casting monster needs · boss / mini gauge pushed back · monster turns it can't be cut again
+      bossMul: 0.5, resTurns: 2, resMul: 0.5, // boss / mini take x bossMul of every strip · stripped again within resTurns monster turns: x resMul more (Slay the Spire Artifact style)
+    },
   },
   mobster: {
     execBase: 0.08, execPer: 0.03, bossExecMul: 2, // 📒 สมุดหนี้: Execute under (base + per x debt) HP · boss / mini take x this instead (doc 3x)
@@ -1104,3 +1114,16 @@ export const kingpinDebtAmp = (st: Pick<Stats, 'j3Kp' | 'j3KpDebtAmp'>, debt: nu
 export const kingpinTakeMul = (debt: number) => KIT3.kingpin.takeMul * (1 + KIT3.kingpin.takePerDebt * Math.min(KIT3.kingpin.debtCap, Math.max(0, debt)))
 /** 🔮 ร่ายใหญ่: + damage taken while a Wizard spell charges (🌌 High Wizard: half). */
 export const wizCastTaken = (st: Pick<Stats, 'j3Hw'>) => KIT2.wizard.castTaken * (st.j3Hw > 0 ? KIT3.highwizard.castTakenMul : 1)
+
+// ---------- 🧤 Rogue rg_d สายปลด (Strip line, Q 2026-11-21) ----------
+/** Potency multiplier of a strip on a monster: boss / mini x bossMul, stripped again within resTurns x resMul. */
+export const divestMul = (bossy: boolean, resisting: boolean) => {
+  const D = KIT2.rogue.divest
+  return (bossy ? D.bossMul : 1) * (resisting ? D.resMul : 1)
+}
+/** rg_d1 ปลดอาวุธ: weak share at `lv` (before divestMul). */
+export const disarmWeak = (lv: number) => (lv > 0 ? KIT2.rogue.divest.weak + KIT2.rogue.divest.weakPer * lv : 0)
+/** rg_d3 ฉกบัฟ: share of a stolen buff the hero keeps at `lv`. */
+export const snatchShare = (lv: number) => (lv > 0 ? KIT2.rogue.divest.snatchBase + KIT2.rogue.divest.snatchPer * lv : 0)
+/** rg_d2: Strip Armor P.DEF cut with ถอดเกราะเปลือย points (`plus` = Stats.j2StripPlus). */
+export const rogueStripCut = (plus: number) => Math.min(0.6, KIT2.rogue.stabStrip + Math.max(0, plus))

@@ -1,14 +1,16 @@
-// 🔪 Rogue ใยชั้น 2 (design/second-jobs-v1.md §4). Node ids are save data: never rename.
+// 🔪 Rogue ใยชั้น 2 (design/second-jobs-v1.md §4) + 🧤 rg_d สายปลด (Strip, Q 2026-11-21). Node ids are save data: never rename.
 import { node as n, rk, talent as t, type ClassTree } from '../tree-types'
-import { KIT2 } from '../skill-math'
+import { disarmWeak, KIT2, rogueStripCut, snatchShare } from '../skill-math'
 
-const R = KIT2.rogue
+const R = KIT2.rogue, D = R.divest
+const pc = (x: number) => `${Math.round(x * 100)}%`
 
 export const tree2: ClassTree = {
   branches: [
     { id: 'rg_k', job: 'thief', job2: 'rogue', name: 'มีด', icon: '🔪', blurb: 'มีดบิน แรงขึ้น / เยอะขึ้น' },
     { id: 'rg_c', job: 'thief', job2: 'rogue', name: 'คอมโบ', icon: '🔁', blurb: 'คอมโบติดบ่อย = มีดบินบ่อย' },
     { id: 'rg_x', job: 'thief', job2: 'rogue', name: 'คริ', icon: '💥', blurb: 'คริ · ดาเมจคริ · คริแล้วปามีด' },
+    { id: 'rg_d', job: 'thief', job2: 'rogue', name: 'ปลด', icon: '🧤', blurb: 'Strip: ใช้ตราคมมีดตัดกำลังศัตรู · ปลดอาวุธ · ถอดเกราะ · ฉกบัฟ · ★ ตัดจังหวะ' },
   ],
   nodes: [
     // P3'a (design/thief-rogue-rework-v1.md §3.5): mechanics instead of flat stats · ids kept (save data), save migration v3 refunds the web
@@ -24,6 +26,11 @@ export const tree2: ClassTree = {
     n('rg_x2', 'rg_x', 2, '🩸', 'ใจสลาย', 3, (lv) => `คริใส่ตัวที่ติดดีบัฟ (พิษ แผลลึก Exposed Strip ช้า) ดาเมจคริ +${lv * 12}%`, (lv) => ({ j2HeartRend: 0.12 * lv })),
     n('rg_x3', 'rg_x', 3, '🧛', 'ดูดเลือดจากคมคริ', 3, (lv) => `ติดคริ / เก็บมีด: ฮีล ${lv * 2}% ของดาเมจฮิตนั้น + Energy +${lv} (สูงสุด ${R.critLeechResMax}/เทิร์น)`, (lv) => ({ j2CritLeech: 0.02 * lv, j2CritEnergy: lv })),
     n('rg_x4', 'rg_x', 4, '✨', 'คริเป็นมีด', 1, () => `ตีธรรมดา/คอมโบ/Back Stab คริ = มีดบิน +1 เล่ม แรง ${R.critKnifeMul}x P.ATK (+ โบนัสมีดบิน)`, () => ({ j2KnifeCrit: 1 })),
+    // 🧤 สายปลด (Q 2026-11-21 Strip line): weaken the enemy instead of more damage · every strip needs Marks on the Back Stab target
+    n('rg_d1', 'rg_d', 1, '🧤', 'ปลดอาวุธ', 3, (lv) => `Back Stab ใส่ตัวที่มีตรา ≥${D.marks}: มอนอ่อนแรง −${pc(disarmWeak(lv))} (${D.turns} เทิร์นมอน) และเทิร์นถัดไปของมันตีเบาลง −${pc(D.disarm)} · บอส/มินิ: แรงครึ่งเดียว`, (lv) => ({ j2Disarm: lv })),
+    n('rg_d2', 'rg_d', 2, '🔓', 'ถอดเกราะเปลือย', 3, (lv) => `Strip Armor ลด P.DEF −${pc(rogueStripCut(D.stripPer * lv))} (เดิม −${pc(R.stabStrip)}) · Back Stab ใส่ตัวที่ตราเต็ม = Exposed (รับดาเมจฮิต +${pc(D.exposedPct)} · ${D.exposedTurns} เทิร์นมอน)`, (lv) => ({ j2StripPlus: D.stripPer * lv })),
+    n('rg_d3', 'rg_d', 3, '✋', 'ฉกบัฟ', 3, (lv) => `Back Stab ใส่ตัวที่มีตรา ≥${D.marks}: ขโมยบัฟ 1 อย่าง (💢 ATK ขึ้น > 🛡️ โล่ > 🔁 สะท้อน > 🖤 ความแค้น) · ได้ ${pc(snatchShare(lv))} ของมันมาใช้ ${D.snatchTurns} เทิร์น (ATK สูงสุด +${pc(D.snatchAmpCap)} · โล่สูงสุด ${pc(D.snatchShieldCap)} HP) · ตัวเดิมโดนฉกซ้ำได้ทุก ${D.snatchCd} เทิร์นมอน`, (lv) => ({ j2Snatch: lv })),
+    n('rg_d4', 'rg_d', 4, '⛓️', 'ตัดจังหวะ', 1, () => `★ มีมอนกำลังร่ายและมีตรา ≥${D.breakMarks}: Back Stab แทงตัวนั้นก่อน ใช้ตราทั้งหมด (ไม่เก็บมีด) · มอนธรรมดา = เลิกร่าย · บอส/มินิ = ร่ายแตก เกจถอย ${D.breakPush} · ตัวเดิมโดนตัดซ้ำไม่ได้ ${D.breakImmune} เทิร์นมอน`, () => ({ j2BreakCast: 1 })),
   ],
   talents: [
     // v119 (Q 2026-11-08) ทาเลนต์ชั้น 2 · I stats · II Ult วิวัฒน์ · III ทักษะ 3 · IV ตัวตน
