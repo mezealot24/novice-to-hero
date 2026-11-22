@@ -65,7 +65,7 @@ const s2 = (id: Skill2Id, ...more: SkillRef[]) => ({ id, refs: [...s2cost(id), .
 
 export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
   swordsman: {
-    s1: [sk('swordS1.cd', '⚔️ ดาบสยบมนตร์ คูลดาวน์ (เทิร์น)', CD), sk('swordS1.silenceTurns', '⚔️ ดาบสยบมนตร์ ใบ้ (เทิร์นมอน)', int(0, 10))],
+    s1: [sk('swordS1.mana', '⚔️ ดาบสยบมนตร์ ค่า Mana (ทุก Lv)', COST), sk('swordS1.cd', '⚔️ ดาบสยบมนตร์ คูลดาวน์ (เทิร์น)', CD), sk('swordS1.silenceTurns', '⚔️ ดาบสยบมนตร์ ใบ้ (เทิร์นมอน)', int(0, 10))],
     s2: [
       s2('sw_guard', ...lin('guardCut', 'ดาเมจเข้าลด')),
       s2('sw_blood', ...lin('bloodVamp', 'ดูดเลือดสกิล'), sk('s2n.bloodTurns', 'นาน (เทิร์น)', int(0, 20)), sk('s2n.bloodAtk', 'ATK เพิ่ม', FRAC)),

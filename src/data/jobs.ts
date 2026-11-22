@@ -33,7 +33,7 @@ export const MAGE_SPELL = {
 /** Swordsman (Q 2026-11-03): Rage is gone, the knight runs on a small Mana pool like RO (design/swordsman-mana-nerf.md).
  *  A STR/VIT build gets only the base pool and regen, so skills are rationed and the basic swing + counters carry the fight. */
 export const SWORD_MANA = {
-  auto: 20, // old ฟันพายุ cost, unused since ดาบสยบมนตร์ (SWORD_S1.cost by Lv; Berserker pays JOB2 autoCost Rage)
+  auto: 20, // old ฟันพายุ cost, unused since ดาบสยบมนตร์ (SWORD_S1.mana, flat; Berserker pays JOB2 autoCost Rage)
   ult: 25, // ดาบพิพากษา (plus its turn cooldown; booked ult waits for Mana like the Mage's)
   autoMul: 1.25, // ฟันพายุ x P.ATK (1.3 before the class rebalance 2026-11-03, 1.15 in v40, 1.25 after the lifesteal cut 2026-11-04)
   ultMul: 1.5, // ดาบพิพากษา 🌊 คลื่นดาบ x P.ATK on every monster (Q 2026-11-21 Riven-style rework; was 1.2 instant, 1.4 before the class rebalance)
@@ -67,18 +67,18 @@ export function swordWaveNow(turnsLeft: number, hpFracs: number[]): boolean {
  *  Cleanse the hero's CC, one hit of [P.ATK x atkPct + STR x str + base x Base Lv] (option "Base Dmg x BaseLv only", the flat part
  *  turned into P.ATK units in battle), then the target is silenced silenceTurns monster turns, its cast is cut and it loses its next turn. */
 export const SWORD_S1 = {
-  atkPct: [1.2, 1.4, 1.6, 1.8, 2.0], str: [0.25, 0.5, 0.75, 1.0, 1.25], base: [20, 40, 60, 80, 100], cost: [6, 12, 18, 24, 30],
+  atkPct: [1.2, 1.4, 1.6, 1.8, 2.0], str: [0.25, 0.5, 0.75, 1.0, 1.25], base: [20, 40, 60, 80, 100], mana: 15, // mana: flat Mana at every Lv (Q 2026-11-22, was 6/12/18/24/30), admin key swordS1.mana
   cd: 5, silenceTurns: 2,
 }
 /** Skill 1 Lv (1..5) from Stats.swS1Lv (the "+" node Lv; 0 points still casts Lv 1). */
-export const swordS1Lv = (st: { swS1Lv: number }) => Math.min(SWORD_S1.cost.length, Math.max(1, Math.round(st.swS1Lv || 0)))
+export const swordS1Lv = (st: { swS1Lv: number }) => Math.min(SWORD_S1.atkPct.length, Math.max(1, Math.round(st.swS1Lv || 0)))
 /** Ult Lv (1..5) from Stats.swUltLv (the Ult root node Lv; 0 points still casts Lv 1). */
 export const swordUltLv = (st: { swUltLv: number }) => Math.min(SWORD_MANA.awakenStr.length, Math.max(1, Math.round(st.swUltLv || 0)))
 /** ✨ เคลือบดาบสวรรค์ share of the target's current HP per hit, at this total STR (buff included). */
 export const swordCoatPct = (lv: number, str: number) => SWORD_MANA.awakenHpPct + Math.floor(Math.max(0, str) / 10) * SWORD_MANA.awakenStrPer[lv - 1]
 /** Raw damage of one ดาบสยบมนตร์ hit before DEF / crit: P.ATK x pct + STR x k + base x Base Lv. */
 export function swordS1Raw(lv: number, patk: number, str: number, baseLv: number): number {
-  const i = Math.min(SWORD_S1.cost.length, Math.max(1, Math.round(lv))) - 1
+  const i = Math.min(SWORD_S1.atkPct.length, Math.max(1, Math.round(lv))) - 1
   return patk * SWORD_S1.atkPct[i] + str * SWORD_S1.str[i] + SWORD_S1.base[i] * Math.max(1, baseLv)
 }
 
@@ -115,7 +115,7 @@ export const JOBS: Record<JobId, JobDef> = {
   swordsman: {
     id: 'swordsman', name: 'นักดาบ', icon: '⚔️', tex: 'hero_swordsman', blurb: 'ยืนหน้า ถึก ฟันโดนหลายตัว · Mana น้อย: สกิลออกได้จำกัด ดาเมจหลักมาจากฟันธรรมดา + สวนกลับ', focus: 'STR · VIT',
     resource: 'mana', attack: 'melee', tags: ['guard', 'blood'], mod: { maxHp: 25, def: 3, counter: 0.02 }, // HP/DEF partly back 2026-11-04 after the lifesteal cut
-    auto: { name: 'ดาบสยบมนตร์', icon: '🤐', cost: SWORD_S1.cost[0], desc: `ล้าง CC บนตัวเรา แล้วฟันเป้าเดี่ยว (ตัวที่กำลังร่ายก่อน)\nมอนติดใบ้ ${SWORD_S1.silenceTurns} เทิร์น · โดนขัดร่าย · เสียเทิร์น\nคูลดาวน์ ${SWORD_S1.cd} · แรงและ Mana ขึ้นตาม Lv (ดูตารางขวา)` },
+    auto: { name: 'ดาบสยบมนตร์', icon: '🤐', cost: SWORD_S1.mana, desc: `ล้าง CC บนตัวเรา แล้วฟันเป้าเดี่ยว (ตัวที่กำลังร่ายก่อน)\nมอนติดใบ้ ${SWORD_S1.silenceTurns} เทิร์น · โดนขัดร่าย · เสียเทิร์น\nคูลดาวน์ ${SWORD_S1.cd} · แรงขึ้นตาม Lv (ดูตารางขวา) · Mana ${SWORD_S1.mana} ทุก Lv` },
     ult: { name: 'ดาบพิพากษา', icon: '🗡️', cd: 4, cost: SWORD_MANA.ult, desc: `Mana ${SWORD_MANA.ult}: ⚔️ ปลุกดาบ ${SWORD_MANA.awakenTurns} เทิร์น\nระหว่างปลุก: STR +${SWORD_MANA.awakenStr.join('/')} (ตาม Lv) · ✨ เคลือบดาบสวรรค์: ทุกฮิตกายภาพ +${pc0(SWORD_MANA.awakenHpPct)} HP ที่เหลือของเป้า (+${SWORD_MANA.awakenStrPer.map((x) => +(x * 100).toFixed(1)).join('/')}% ต่อ 10 STR)\nตีปกติฟันตัวถัดไปด้วย · ตีโดนแน่นอนจนกว่าจะปล่อยคลื่น\n🌊 คลื่นดาบใส่ทุกตัว ปล่อยเองเมื่อมีมอน HP < ${pc0(SWORD_MANA.execLow)} (หรือเทิร์นสุดท้าย)\n${swordExecDesc(1)}` },
   },
   archer: {

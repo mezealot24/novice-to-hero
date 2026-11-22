@@ -196,6 +196,7 @@ export function explainSkillTable(path: string, defaultLabel?: string): FieldExp
     'sword.ult': { label: defaultLabel ?? 'Swordsman · ค่าร่าย Mana Ult ผ่าสวรรค์', effect: '⚠️ ลดเลข = ใช้ Mana กด Ult น้อยลง (ซิงค์เข้า jobs)' },
     'sword.ultMul': { label: defaultLabel ?? 'Swordsman · Ult 🌊 คลื่นดาบ × P.ATK', effect: 'เพิ่ม = 🌊 คลื่นดาบ (Ult นักดาบ ฟันทุกตัว) แรงขึ้น' },
     'sword.ultShield': { label: defaultLabel ?? 'Swordsman · Ult โล่ (% Max HP)', effect: 'เพิ่ม = กด Ult แล้วได้โล่กันดาเมจหนาขึ้น (0.15 = 15% Max HP)' },
+    'swordS1.mana': { label: defaultLabel ?? 'Swordsman · ⚔️ ดาบสยบมนตร์ ค่า Mana (ทุก Lv)', effect: 'ลด = ใช้สกิล 1 ได้ถี่ขึ้น (Mana เท่ากันทุก Lv · Berserker จ่าย Rage คงที่ ไม่ใช้ค่านี้)' },
     'swordS1.cd': { label: defaultLabel ?? 'Swordsman · ⚔️ ดาบสยบมนตร์ คูลดาวน์', effect: 'ลด = กดสกิล 1 (ล้าง CC + ใบ้ + ขัดร่าย) ได้ถี่ขึ้น (5 = ทุก 5 เทิร์น)' },
     'swordS1.silenceTurns': { label: defaultLabel ?? 'Swordsman · ⚔️ ดาบสยบมนตร์ ใบ้กี่เทิร์น', effect: 'เพิ่ม = มอนที่โดนใช้สกิล/ร่ายไม่ได้นานขึ้น (นับเฉพาะเทิร์นที่มอนได้เล่น)' },
     'sword.execMax': { label: defaultLabel ?? 'Swordsman · ⚖️ คำพิพากษา แรงเพิ่มสูงสุด', effect: 'เพิ่ม = 🌊 คลื่นดาบปิดงานแรงขึ้น (2 = +200% เมื่อ HP มอนหายถึงจุดตัน · Ult job2/3 ได้แค่สัดส่วน)' },
