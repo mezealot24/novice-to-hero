@@ -1495,7 +1495,7 @@ export class BattleScene extends Phaser.Scene {
     const shadowSure = !magic && this.shadowTurns > 0 && this.job.id === 'thief' // 👤 ร่างเงา
     const opener = !magic && this.waveOpen && !this.allyHitting && this.job.id === 'thief' // P2'c th_t1b: first physical hit of the wave
     if (opener) this.waveOpen = false
-    const crit = !this.noCrit && (this.forceCrit || release || shadowSure || opener || (!this.petNoCrit && this.critAllowed() && Math.random() < critRate)) // 🔱 noCrit: Pierce of Judgement can't crit at all · magic crits only with spellCrit (or Falcon Crit on Marked targets) · Skill 2 ตาเหยี่ยว · 2nd job
+    const crit = this.forceCrit || release || shadowSure || opener || (!this.petNoCrit && this.critAllowed() && Math.random() < critRate) // magic crits only with spellCrit (or Falcon Crit on Marked targets) · Skill 2 ตาเหยี่ยว · 2nd job
     if (!crit && !magic && !this.allyHitting && this.st.thPerfectAgony > 0 && this.src !== 'poison') mul *= 1 - KIT.thiefAgonyHitCut // P2'd th_t4b วิถีพิษคริ: non-crit physical hits deal less
     const effFlee = m.huntMark > 0 ? (m.def.flee ?? 5) * Math.max(0, 1 - this.st.j2MarkPierceFlee) : (m.def.flee ?? 5)
     const noFlee = m.huntMark > 0 && this.st.j2MarkPierceFlee >= 1
@@ -1652,7 +1652,6 @@ export class BattleScene extends Phaser.Scene {
   private forceCrit = false
   /** Q 2026-11-14: Beastmaster Ult + Skill 3 hawk / boar hits never crit (the wolf still can; sure crits still go through). */
   private petNoCrit = false
-  private noCrit = false // 🔱 Pierce of Judgement (Q 2026-11-23 "คริไม่ได้"): no crit of any kind, even a forced one
   private noPetCrit(fn: () => void) { const p = this.petNoCrit; this.petNoCrit = true; try { fn() } finally { this.petNoCrit = p } }
   // ----- v92 Cleric web 🌄 แสงรุ่งอรุณ (KIT.clericTree.dawn): bonus magic damage (STR + WIS + matk x M.ATK) · v108: passive on every Nth basic / combo hit -----
   /** Bonus magic hit on the targets (hitPow 1 for the passive); ★ = sure crit + crit dmg; heals a share of the first hit. */
@@ -4495,7 +4494,7 @@ export class BattleScene extends Phaser.Scene {
   private spearTarget(): Mon | undefined { return this.bossTarget() ?? this.alive().find((m) => m.def.mini) ?? this.front()[0] }
   /** 🔱 คลื่นทะลวง (Knight / Lord Knight, Q 2026-11-23): the awakened Knight's wave is ONE spear thrust at the boss-first target.
    *  Fires once, when THAT target is under the execute line or on the last awakened turn. pierceHits hits (boss / mini pierceBigHits)
-   *  + ทะลวง+ / 🐉 Hundred Spear hits, each pierceMul x the wave power + max HP share, never misses, can't crit, reads the full ⚖️ curve
+   *  + ทะลวง+ / 🐉 Hundred Spear hits, each pierceMul x the wave power + max HP share, never misses, crits only with skillCrit (like every skill hit), reads the full ⚖️ curve
    *  per hit (so the later hits ramp). The 🌊 web nodes apply: คลื่นคม amp, ★ ปราการคลื่น shield, คลื่นซ้ำ on a kill. */
   private async spearWaveCheck(inUlt: boolean) {
     const t = this.spearTarget()
@@ -4506,8 +4505,8 @@ export class BattleScene extends Phaser.Scene {
     const K = KIT2.knight, st = this.st, big = t.def.ai === 'boss' || !!t.def.mini
     const hits = (big ? K.pierceBigHits : K.pierceHits) + st.j2PierceHits
     const extra = st.j3Lk > 0 ? KIT3.lordknight.extraHits + st.j3GospelField : 0 // 🐉 Hundred Spear
-    const prev = this.src, prevSlot = this.skillSlot, pSure = this.sureHit, pNoCrit = this.noCrit
-    this.src = 'ult'; this.skillSlot = 'ult'; this.sureHit = true; this.noCrit = true
+    const prev = this.src, prevSlot = this.skillSlot, pSure = this.sureHit, pForce = this.forceCrit
+    this.src = 'ult'; this.skillSlot = 'ult'; this.sureHit = true; this.forceCrit = false // crits only with skillCrit (Q 2026-11-23: the skill-hit rule), never a forced crit
     let dealt = 0, killed = false
     try {
       sfx.slam()
@@ -4536,7 +4535,7 @@ export class BattleScene extends Phaser.Scene {
         this.swWaveReUsed = true; this.swWave = true
         this.floatText(HERO_X, GROUND - 170, '🔱 คลื่นซ้ำ!', '#ffe08a')
       }
-    } finally { this.stayIn = false; this.src = prev; this.skillSlot = prevSlot; this.sureHit = pSure; this.noCrit = pNoCrit }
+    } finally { this.stayIn = false; this.src = prev; this.skillSlot = prevSlot; this.sureHit = pSure; this.forceCrit = pForce }
   }
   /** ⚔️ ปลุกดาบ: a basic swing also cuts the next monster for cleaveShare (one cut per swing turn). */
   private swordCleave(first: Mon) {

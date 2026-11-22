@@ -267,7 +267,7 @@ export const KIT2 = {
   knight: {
     hpPct: 0.1, aspdPct: 0.05, hpDmg: 0.03, // 🐦 ขี่เปโก + ถึกเป็นแรง (spear skills add max HP share)
     brandCost: 20, brandCd: 3, brandMul: 1.5, brandTargets: 3, brandPush: 15, // 🌀 Brandish Spear
-    pierceHits: 3, pierceBigHits: 4, pierceMul: 1.2, // 🔱 Pierce of Judgement (Q 2026-11-23): the 🔱 คลื่นทะลวง thrusts ONE target (boss > mini > front) this many hits (boss / mini one more), x P.ATK per hit (+ max HP share), no crit. Bowling Bash is gone (bashMul removed)
+    pierceHits: 3, pierceBigHits: 4, pierceMul: 1.2, // 🔱 Pierce of Judgement (Q 2026-11-23): the 🔱 คลื่นทะลวง thrusts ONE target (boss > mini > front) this many hits (boss / mini one more), x P.ATK per hit (+ max HP share), crit only with skillCrit. Bowling Bash is gone (bashMul removed)
     boomerang: 0.8, chargeFirst: 3, chargeFirstGauge: 35, chargeFirstRes: 15, guardShieldless: 0.5, // Spear Boomerang mul · ★ ทะยาน · Auto Guard without an off-hand
     mastery: { atkPct: 0.05, hit: 10 }, // spear
     // v84 ใยชั้น 2: 🚩 ธงศึก + 🌀 กวาดทวน (reworked Peco & Banner). Per-lv = per OLD level (max 3).
@@ -975,10 +975,9 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
         out.push({ label: '⚔️ ตีปกติฟันตัวถัดไป', value: `${Math.round((SWORD_MANA.cleaveShare + st.swAwCleave) * 100)}%` })
         if (kn) {
           const h2 = hitPow * (1 + st.ult2Pow), hits = K.pierceHits + st.j2PierceHits, bigHits = K.pierceBigHits + st.j2PierceHits
-          const m = (K.pierceMul + st.ultMulAdd) * h2 * (1 + st.pskill) * (1 + st.swWaveAmp), b = hitBase(st, false)
-          out.push({ label: '🔱 คลื่นทะลวง/ฮิต (เป้าเดียว)', value: range(b.lo * m, b.hi * m) }) // no crit text: it can't crit
+          out.push({ label: '🔱 คลื่นทะลวง/ฮิต (เป้าเดียว)', value: hitText(st, (K.pierceMul + st.ultMulAdd) * h2 * (1 + st.pskill) * (1 + st.swWaveAmp), false, true) }) // skill hit: crit text only with skillCrit
           out.push({ label: '🔱 จำนวนฮิต', value: `${hits} (บอส/มินิ ${bigHits})${st.j3Lk > 0 ? ` +${KIT3.lordknight.extraHits + st.j3GospelField}` : ''}` })
-          out.push({ label: '🔱 เป้า', value: 'บอส > มินิ > ตัวหน้า · คริไม่ได้' })
+          out.push({ label: '🔱 เป้า', value: `บอส > มินิ > ตัวหน้า · คริ ${st.skillCrit > 0 ? 'ด้วย skillCrit' : 'ต้องมี skillCrit'}` })
           out.push({ label: '🔱 + HP สูงสุด/ฮิต', value: pct(K.hpDmg + st.j2HpDmg) })
           if (st.j2Spiral > 0) out.push({ label: '🌀 ข้าม DEF', value: pct(Math.min(1, st.j2Spiral)) })
           out.push({ label: '🔱 ปล่อยเองเมื่อ', value: `เป้า HP < ${Math.round(SWORD_MANA.execLow * 100)}%` })
