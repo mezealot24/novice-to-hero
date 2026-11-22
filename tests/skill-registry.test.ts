@@ -80,7 +80,7 @@ test('the Mana costs jobs.ts copies at import follow their source consts (sword.
   const before = [JOBS.swordsman.auto.cost, JOBS.swordsman.ult.cost, JOBS.cleric.ult.cost]
   const r = applyPatch({ skills: { 'sword.auto': 11, 'sword.ult': 12 }, kit: { 'cleric.ultMana': 13 } })
   assert.equal(r.ok, true)
-  assert.deepEqual([JOBS.swordsman.auto.cost, JOBS.swordsman.ult.cost, JOBS.cleric.ult.cost], [SWORD_S1.cost[0], 12, 13]) // Q 2026-11-21: Skill 1 cost by Lv (SWORD_S1)
+  assert.deepEqual([JOBS.swordsman.auto.cost, JOBS.swordsman.ult.cost, JOBS.cleric.ult.cost], [SWORD_S1.mana, 12, 13]) // Q 2026-11-21: Skill 1 cost by Lv (SWORD_S1)
   r.revert()
   assert.deepEqual([JOBS.swordsman.auto.cost, JOBS.swordsman.ult.cost, JOBS.cleric.ult.cost], before)
 })

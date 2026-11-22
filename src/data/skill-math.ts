@@ -523,7 +523,7 @@ export const S2N = {
 // ---------- costs / cooldowns ----------
 // floor 10, unless the class's own cost is lower (Mage 5, 2026-11-13) · P2'a: Thief (Rogue / Mobster too) floor KIT.thiefAutoMinCost
 export const autoCost = (job: JobDef, st: Stats) => {
-  if (swordS1On(job) && job.resource === 'mana') return Math.max(SWORD_S1.cost[0], SWORD_S1.cost[swordS1Lv(st) - 1] - st.autoCostCut) // ⚔️ ดาบสยบมนตร์: Mana by Lv, floor = Lv 1 cost (Berserker: its flat Rage cost below)
+  if (swordS1On(job) && job.resource === 'mana') return Math.max(SWORD_S1.mana, SWORD_S1.mana - st.autoCostCut) // ⚔️ ดาบสยบมนตร์: flat Mana at every Lv, autoCostCut can't lower it (Berserker: its flat Rage cost below)
   return Math.max(job.id === 'thief' ? KIT.thiefAutoMinCost : Math.min(10, job.auto.cost), job.auto.cost - st.autoCostCut)
 }
 /** ⚔️ ดาบสยบมนตร์ is this job's Skill 1: the whole Swordsman line (Q 2026-11-21: Berserker too, paying its flat Rage cost). */
