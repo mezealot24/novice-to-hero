@@ -7747,6 +7747,10 @@ export class BattleScene extends Phaser.Scene {
       const w = Math.max(40, m.spr.displayWidth * 0.8), x = m.spr.x - w / 2, y = m.spr.y - m.spr.displayHeight - 12
       g.fillStyle(COLORS.night, 0.85).fillRect(x - 1, y - 1, w + 2, 8)
       g.fillStyle(m.def.ai === 'boss' ? COLORS.gold : COLORS.hp).fillRect(x, y, w * Math.max(0, m.hp / m.def.hp), 6)
+      if (m.shield > 0) { // Q 2026-11-23: monster shield (bone shield, ice armor, 🟡 เกราะสวรรค์...) was invisible, so its soak read as "HP barely moved"
+        g.fillStyle(COLORS.night, 0.85).fillRect(x - 1, y + 7, w + 2, 5)
+        g.fillStyle(HUD_THEME.shield, 0.95).fillRect(x, y + 8, w * Math.min(1, m.shield / Math.max(1, m.def.hp)), 3)
+      }
       m.dotTxt?.setPosition(m.spr.x, y - 12)
     }
 
