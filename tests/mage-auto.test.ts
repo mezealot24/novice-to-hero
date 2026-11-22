@@ -14,9 +14,10 @@ test('Mage ลูกไฟระเบิด costs a single digit of Mana', () =
 })
 
 test('cost floor: a cut never goes below 10 for classes that cost >= 10, and never raises a cheap class', () => {
-  assert.equal(autoCost(JOBS.swordsman, st({ autoCostCut: 999 })), Math.min(10, JOBS.swordsman.auto.cost))
+  assert.equal(autoCost(JOBS.archer, st({ autoCostCut: 999 })), Math.min(10, JOBS.archer.auto.cost))
+  assert.equal(autoCost(JOBS.swordsman, st({ autoCostCut: 999 })), JOBS.swordsman.auto.cost) // ⚔️ ดาบสยบมนตร์: flat Mana, the floor is its own cost
   assert.equal(autoCost(JOBS.mage, st({ autoCostCut: 999 })), JOBS.mage.auto.cost) // cheap: the floor is its own cost
-  assert.ok(JOBS.swordsman.auto.cost >= 10 ? autoCost(JOBS.swordsman, st({ autoCostCut: 999 })) === 10 : true)
+  assert.ok(JOBS.archer.auto.cost >= 10 ? autoCost(JOBS.archer, st({ autoCostCut: 999 })) === 10 : true)
 })
 
 test('mix is 9 : 1 M.ATK : P.ATK and sums to 1', () => {

@@ -233,7 +233,7 @@ for (const c of CLASS_TREES) {
 				: {
 						desc: (lv: number) =>
 							job === "swordsman" && line === "s1"
-								? `Lv ${Math.max(1, lv)}: P.ATK ${Math.round(SWORD_S1.atkPct[Math.max(1, lv) - 1] * 100)}% + STR x${SWORD_S1.str[Math.max(1, lv) - 1]} + ${SWORD_S1.base[Math.max(1, lv) - 1]} x Base Lv\nMana ${SWORD_S1.cost[Math.max(1, lv) - 1]} (Berserker: Rage คงที่)`
+								? `Lv ${Math.max(1, lv)}: P.ATK ${Math.round(SWORD_S1.atkPct[Math.max(1, lv) - 1] * 100)}% + STR x${SWORD_S1.str[Math.max(1, lv) - 1]} + ${SWORD_S1.base[Math.max(1, lv) - 1]} x Base Lv\nMana ${SWORD_S1.mana} ทุก Lv (Berserker: Rage คงที่)`
 								: `${label} แรง +${Math.round(lv * TREE_RULES.powPer * 100)}%`,
 						mod: (lv: number) =>
 							line === "s1"

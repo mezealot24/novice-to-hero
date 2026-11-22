@@ -199,7 +199,7 @@ export function readPath(table: TableId, path: string): number | undefined {
  *  (SWORD_MANA.auto / .ult, CLERIC_KIT.ultMana), so tuning those consts (skills `sword.*`, kit `cleric.ultMana`) takes effect.
  *  refine.ts FODDER must be rebuilt here once ITEMS becomes tunable. */
 export function rebuildDerived(): void {
-  JOBS.swordsman.auto.cost = SWORD_S1.cost[0] // ⚔️ ดาบสยบมนตร์ Lv 1 (Q 2026-11-21; the Lv cost is read live in autoCost) · SWORD_MANA.auto is unused now
+  JOBS.swordsman.auto.cost = SWORD_S1.mana // ⚔️ ดาบสยบมนตร์ flat Mana (Q 2026-11-22; autoCost reads it live) · SWORD_MANA.auto is unused now
   JOBS.swordsman.ult.cost = SWORD_MANA.ult
   JOBS.cleric.ult.cost = CLERIC_KIT.ultMana
 }

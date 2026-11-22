@@ -59,7 +59,7 @@ test('ดาบสยบมนตร์ numbers follow Q table: P.ATK 120-200% +
   assert.deepEqual(SWORD_S1.atkPct, [1.2, 1.4, 1.6, 1.8, 2.0])
   assert.deepEqual(SWORD_S1.str, [0.25, 0.5, 0.75, 1.0, 1.25])
   assert.deepEqual(SWORD_S1.base, [20, 40, 60, 80, 100])
-  assert.deepEqual(SWORD_S1.cost, [6, 12, 18, 24, 30])
+  assert.equal(SWORD_S1.mana, 15) // flat Mana at every Lv
   assert.equal(SWORD_S1.cd, 5)
   near(swordS1Raw(1, 100, 40, 10), 120 + 10 + 200)
   near(swordS1Raw(5, 1000, 200, 99), 2000 + 250 + 9900)
@@ -70,7 +70,7 @@ test('Lv = the "+" node Lv (0 points casts Lv 1), Mana by Lv; Berserker casts it
   assert.equal(swordS1Lv({ swS1Lv: 0 }), 1)
   assert.equal(swordS1Lv({ swS1Lv: 3 }), 3)
   assert.equal(swordS1Lv({ swS1Lv: 7 }), 5)
-  for (let lv = 1; lv <= 5; lv++) assert.equal(autoCost(JOBS.swordsman, { ...STATS0, swS1Lv: lv }), SWORD_S1.cost[lv - 1])
+  for (let lv = 1; lv <= 5; lv++) assert.equal(autoCost(JOBS.swordsman, { ...STATS0, swS1Lv: lv }), SWORD_S1.mana)
   assert.ok(swordS1On(JOBS.swordsman))
   const zerk = { ...JOBS.swordsman, resource: 'rage' as const, auto: { ...JOBS.swordsman.auto, cost: 30 } }
   assert.ok(swordS1On(zerk)) // Q 2026-11-21: Rage คงที่เท่าเดิม
