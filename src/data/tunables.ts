@@ -116,7 +116,7 @@ const BATTLE_FIELDS: [string, FieldDef][] = [
   ['iceSkin.turns', int(0, 20)],
   ['iceSkin.dmgCut', num(0, 1)],
   ['vengeance.turns|cd', int(0, 20)],
-  ['vengeance.share|dotPct|dotMatk', num(0, 5)],
+  ['vengeance.share|dotPct|dotAtk', num(0, 5)],
   ['maiden.at', num(0, 1)],
   ['maiden.turns', int(0, 100)],
   ['maiden.share', num(0, 1)],
