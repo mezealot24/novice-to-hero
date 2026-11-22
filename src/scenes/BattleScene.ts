@@ -15,7 +15,7 @@ import { applyRiftBranchChoice } from '../battle/rift-engine'
 import { maidenHpFloor, maidenSplit } from '../battle/maiden-link'
 import { foldMutators, mutatorById } from '../data/mutators'
 import { cardById, cardName, cardPityMax, cardRate, cardsOfMonster, EQUIP_CARDS } from '../data/cards'
-import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, SWORD_S1, swordCoatPct, swordExecMul, swordS1Lv, swordUltLv, swordS1Raw, swordWaveNow, type JobDef } from '../data/jobs'
+import { CLERIC_KIT, JOBS, SPELL_VAMP, MAGE_SPELL, RES_RULES, SWORD_MANA, SWORD_S1, swordCoatPct, swordExecMul, swordS1Lv, swordUltLv, swordS1Raw, swordWaveNow, swordAwakenUlt, type JobDef } from '../data/jobs'
 import { JOB2, PET_IDS, type Job2Def, type PetId } from '../data/jobs2'
 import { skill2Picked } from '../data/tree'
 import { ALLIES, falconHitMul, fillAllies, frenzyMul, gadgetById, guardHit, hawkMul, hurtAlly, liveAllies, makeAlly, petPhysScale, readyAllies, reviveAllies, rollGadget, tauntTarget, tickAllies, TRAP_IDS, useAlly, type Ally, type AllyCtx, type GadgetId } from '../battle/allies'
@@ -59,7 +59,7 @@ import { ARCHER_PFX, BEAST_PFX, CLERIC_PFX, COIN_DROP_IDS, COIN_DROP_REST, COIN_
 import { THIEF_FX, backstabFx, daggerCrossFx, flyingKnife, knifeLandFx, knifeStormFx, shadowSlashFx, smokeBombFx, venomStabFx } from '../battle/thief-vfx'
 import { pickChainTargets, playChainLightningFx } from '../battle/lightning-vfx'
 import { RANGER_FX, arrowImpactFx, arrowProjectile, arrowRainFx, beastRoarFx, boarGuardFx, eagleEyeFx, huntMarkOn, petHitFx, type PetKind, pierceShotFx, snareTrapFx, stampedeFx, wolfRoarPalette } from '../battle/ranger-vfx'
-import { awakenAuraFx, awakenBurstFx, blockShieldFx, bowlingBashFx, brandishSweepFx, castBreakFx, ccGuardFx, chargeOpenerFx, cleanseFx, cleaveFx, comboSlashFx, executeMarkFx, guardianUltFx, pierceHitFx, sealCutFx, silenceSealFx, skill2AuraFx, spearBoomerangFx, whirlwindFx, windWaveFx } from '../battle/sword-vfx'
+import { awakenAuraFx, awakenBurstFx, blockShieldFx, brandishSweepFx, castBreakFx, ccGuardFx, chargeOpenerFx, cleanseFx, cleaveFx, comboSlashFx, executeMarkFx, guardianUltFx, pierceHitFx, sealCutFx, silenceSealFx, skill2AuraFx, spearBoomerangFx, spearWaveFx, whirlwindFx, windWaveFx } from '../battle/sword-vfx'
 import { applyTankDr, isMonSkillTag } from '../data/tank-scale'
 
 // Side-scroll, turn-based (Capybara Go-like): the hero walks right, meets a group, and everyone
@@ -1482,7 +1482,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (!magic && !this.allyHitting && this.st.swBloodFuryDmg > 0) mul *= bloodFuryDmgMul(this.hp, this.st.maxHp, this.st.swBloodFuryDmg) // 🩸 สัญญาคลั่งเลือด
     if (this.st.swVsMute > 0 && (m.charging || (m.mSilence ?? 0) > 0)) mul *= 1 + this.st.swVsMute // ⚔️ เจาะจังหวะ
-    if (!magic && this.src === 'ult' && this.job.id === 'swordsman' && !this.isProcHit()) mul *= swordExecMul(m.hp / Math.max(1, m.def.hp), m.def.ai === 'boss' || !!m.def.mini, this.j2 ? SWORD_MANA.execLineShare : 1, (this.j2 ? 0 : this.st.swExecAdd) + this.st.swExecBonus) // ⚖️ คำพิพากษา (+ ⚖️ คมพิพากษา + ⚖️ ตราพิพากษา): every Swordsman-line ult hit (job1/2/3), read per hit so multi-hit Pierce ramps
+    if (!magic && this.src === 'ult' && this.job.id === 'swordsman' && !this.isProcHit()) { const full = swordAwakenUlt(this.j2?.id); mul *= swordExecMul(m.hp / Math.max(1, m.def.hp), m.def.ai === 'boss' || !!m.def.mini, full ? 1 : SWORD_MANA.execLineShare, (full ? this.st.swExecAdd : 0) + this.st.swExecBonus) } // ⚖️ คำพิพากษา (+ ⚖️ คมพิพากษา + ⚖️ ตราพิพากษา): every Swordsman-line ult hit (job1/2/3; job1 + Knight 🔱 full curve), read per hit so multi-hit Pierce ramps
     if (magic && this.hwAmp > 0) mul *= 1 + KIT3.highwizard.amp + this.st.j3HwAmp // 🌌 Mystical Amplification
     if (magic && !ELEM_SRC.has(this.src)) mul *= 1 + this.st.elemDmg
     const canFalconCrit = falconCrit > 0 && m.huntMark > 0
@@ -1495,7 +1495,7 @@ export class BattleScene extends Phaser.Scene {
     const shadowSure = !magic && this.shadowTurns > 0 && this.job.id === 'thief' // 👤 ร่างเงา
     const opener = !magic && this.waveOpen && !this.allyHitting && this.job.id === 'thief' // P2'c th_t1b: first physical hit of the wave
     if (opener) this.waveOpen = false
-    const crit = this.forceCrit || release || shadowSure || opener || (!this.petNoCrit && this.critAllowed() && Math.random() < critRate) // magic crits only with spellCrit (or Falcon Crit on Marked targets) · Skill 2 ตาเหยี่ยว · 2nd job
+    const crit = !this.noCrit && (this.forceCrit || release || shadowSure || opener || (!this.petNoCrit && this.critAllowed() && Math.random() < critRate)) // 🔱 noCrit: Pierce of Judgement can't crit at all · magic crits only with spellCrit (or Falcon Crit on Marked targets) · Skill 2 ตาเหยี่ยว · 2nd job
     if (!crit && !magic && !this.allyHitting && this.st.thPerfectAgony > 0 && this.src !== 'poison') mul *= 1 - KIT.thiefAgonyHitCut // P2'd th_t4b วิถีพิษคริ: non-crit physical hits deal less
     const effFlee = m.huntMark > 0 ? (m.def.flee ?? 5) * Math.max(0, 1 - this.st.j2MarkPierceFlee) : (m.def.flee ?? 5)
     const noFlee = m.huntMark > 0 && this.st.j2MarkPierceFlee >= 1
@@ -1652,6 +1652,7 @@ export class BattleScene extends Phaser.Scene {
   private forceCrit = false
   /** Q 2026-11-14: Beastmaster Ult + Skill 3 hawk / boar hits never crit (the wolf still can; sure crits still go through). */
   private petNoCrit = false
+  private noCrit = false // 🔱 Pierce of Judgement (Q 2026-11-23 "คริไม่ได้"): no crit of any kind, even a forced one
   private noPetCrit(fn: () => void) { const p = this.petNoCrit; this.petNoCrit = true; try { fn() } finally { this.petNoCrit = p } }
   // ----- v92 Cleric web 🌄 แสงรุ่งอรุณ (KIT.clericTree.dawn): bonus magic damage (STR + WIS + matk x M.ATK) · v108: passive on every Nth basic / combo hit -----
   /** Bonus magic hit on the targets (hitPow 1 for the passive); ★ = sure crit + crit dmg; heals a share of the first hit. */
@@ -3159,32 +3160,7 @@ export class BattleScene extends Phaser.Scene {
       await this.wait(BATTLE.stepMs * 0.3)
       return
     }
-    const K = KIT2.knight
-    const t = this.bossTarget() ?? this.front()[0] // boss / mini boss first
-    if (t) {
-      const hits = (t.def.ai === 'boss' ? K.pierceBigHits : K.pierceHits) + this.st.j2PierceHits
-      const extra = this.st.j3Lk > 0 ? KIT3.lordknight.extraHits + this.st.j3GospelField : 0 // 🐉 Hundred Spear
-      this.stayIn = true
-      for (let i = 0; i < hits + extra && !t.dead; i++) await this.lunge(t, () => {
-        const k3 = i >= hits ? 1 + this.st.u3Pow : 1 // ใยชั้น 3 root powers the added hits
-        pierceHitFx(this, t.spr.x, GROUND, i, i >= hits)
-        const n = this.strike(t, ((K.pierceMul + this.st.ultMulAdd) * h2 * (1 + this.st.pskill) * (t.charging ? 1 + this.st.ultVsCharge : 1) + this.hpMul()) * k3, false, i >= hits ? '#ff9a6a' : '#f2d24b', this.st.j2Spiral)
-        if (i >= hits && n > 0 && this.st.j3GospelHeal > 0) this.heal(this.st.maxHp * this.st.j3GospelHeal, true) // ทวนดูดเลือด
-      }, true, true)
-      this.stayIn = false
-      if (extra && this.st.j3AfterBless > 0) { this.j3Bless = KIT3.common.afterTurns; this.floatText(HERO_X, GROUND - 150, `🌅 พรหลังศึก +${Math.round(this.st.j3AfterBless * 100)}%`, '#ffe08a') }
-      const next = this.front().find((m) => m !== t)
-      if (next) {
-        bowlingBashFx(this, t.spr.x, next.spr.x, GROUND)
-        this.strike(next, K.bashMul * h2 * (1 + this.st.pskill) + this.hpMul())
-        this.tweens.add({ targets: [next.spr, next.shadow], x: next.spr.x + 60, duration: 160, yoyo: true })
-      }
-      this.hitStop(65)
-      await this.goHome()
-      this.shake(140, 0.01)
-    }
-    this.addShield(this.st.maxHp * Math.max(0, SWORD_MANA.ultShield + this.st.ultShieldAdd) * p2)
-    if (this.st.ultCounters > 0) this.ctrCharges = this.st.ultCounters // talent: ท่าสวนพร้อม
+    await this.swordAwaken(p2, h2) // 🐴 Knight / 🐉 Lord Knight: 🔱 Pierce of Judgement (Q 2026-11-23), the thrust lands later in swordWaveCheck
   }
 
   // ===== Phase 5 Mage: 🌩️ Wizard / 📖 Sage (numbers KIT2.wizard / KIT2.sage) =====
@@ -4461,11 +4437,27 @@ export class BattleScene extends Phaser.Scene {
     await this.ultNow(pow, hitPow)
     this.ultWebAfter()
   }
+  /** ⚔️ ปลุกดาบ (Q 2026-11-21 Riven-style): wake the blade, the wave fires itself later (swordWaveCheck). Job1 ดาบพิพากษา and,
+   *  since Q 2026-11-23, the Knight's 🔱 Pierce of Judgement (same awaken, its wave is one boss-first spear thrust). */
+  private async swordAwaken(pow: number, hitPow: number) {
+    const knight = this.j2?.id === 'knight'
+    this.swAwaken = SWORD_MANA.awakenTurns + 1 // ticks down after this turn
+    this.swWave = true; this.swWaveReUsed = false
+    this.swWavePow = hitPow
+    this.callout(`${knight ? '🔱 ปลุกหอก' : '⚔️ ปลุกดาบ'}! ${SWORD_MANA.awakenTurns} เทิร์น`, W / 2, 170, knight ? '#ffe08a' : '#9fd0ff')
+    awakenBurstFx(this, HERO_X, GROUND)
+    this.swAuraStop(); this.swAura = awakenAuraFx(this, HERO_X, GROUND)
+    if (this.st.ultShieldAdd > 0) this.addShield(this.st.maxHp * this.st.ultShieldAdd * pow) // Q 2026-11-22: no base shield; only talent ปราการ / cards
+    if (this.st.ultCounters > 0) this.ctrCharges = this.st.ultCounters // talent: ท่าสวนพร้อม
+    this.cameras.main.flash(120, 140, 170, 220)
+    await this.swordWaveCheck(true) // a monster already low: cut now (the turn-start check covers the rest)
+  }
   /** 🌊 คลื่นดาบ: the awakened Swordsman's wave, on every monster. Fires once, when a monster is under the execute line or on the
    *  last awakened turn (swordWaveNow). Runs as the ult (src 'ult' + its crit switch) so ⚖️ คำพิพากษา and ult nodes apply,
    *  but not through asSkill: no second on-cast trigger. `inUlt` = called from the ult itself (src is already 'ult'). */
   private async swordWaveCheck(inUlt = false) {
     if (!this.swWave || this.hp <= 0) return
+    if (this.j2?.id === 'knight') { await this.spearWaveCheck(inUlt); return } // 🔱 Pierce of Judgement
     const live = this.front(), fracs = live.map((m) => m.hp / Math.max(1, m.def.hp))
     const go = inUlt ? fracs.some((f) => f < SWORD_MANA.execLow) : swordWaveNow(this.swAwaken, fracs)
     if (!live.length || !go) return
@@ -4498,6 +4490,53 @@ export class BattleScene extends Phaser.Scene {
         this.floatText(HERO_X, GROUND - 170, '🌊 คลื่นซ้ำ!', '#8ff0d6')
       }
     } finally { this.src = prev; this.skillSlot = prevSlot; this.sureHit = pSure }
+  }
+  /** 🔱 Pierce of Judgement's target: boss > mini > front (Q 2026-11-23 "แทงตัวเดียวเล็งบอสก่อน"). */
+  private spearTarget(): Mon | undefined { return this.bossTarget() ?? this.alive().find((m) => m.def.mini) ?? this.front()[0] }
+  /** 🔱 คลื่นทะลวง (Knight / Lord Knight, Q 2026-11-23): the awakened Knight's wave is ONE spear thrust at the boss-first target.
+   *  Fires once, when THAT target is under the execute line or on the last awakened turn. pierceHits hits (boss / mini pierceBigHits)
+   *  + ทะลวง+ / 🐉 Hundred Spear hits, each pierceMul x the wave power + max HP share, never misses, can't crit, reads the full ⚖️ curve
+   *  per hit (so the later hits ramp). The 🌊 web nodes apply: คลื่นคม amp, ★ ปราการคลื่น shield, คลื่นซ้ำ on a kill. */
+  private async spearWaveCheck(inUlt: boolean) {
+    const t = this.spearTarget()
+    if (!t) return
+    const frac = t.hp / Math.max(1, t.def.hp)
+    if (!(inUlt ? frac < SWORD_MANA.execLow : swordWaveNow(this.swAwaken, [frac]))) return
+    this.swWave = false
+    const K = KIT2.knight, st = this.st, big = t.def.ai === 'boss' || !!t.def.mini
+    const hits = (big ? K.pierceBigHits : K.pierceHits) + st.j2PierceHits
+    const extra = st.j3Lk > 0 ? KIT3.lordknight.extraHits + st.j3GospelField : 0 // 🐉 Hundred Spear
+    const prev = this.src, prevSlot = this.skillSlot, pSure = this.sureHit, pNoCrit = this.noCrit
+    this.src = 'ult'; this.skillSlot = 'ult'; this.sureHit = true; this.noCrit = true
+    let dealt = 0, killed = false
+    try {
+      sfx.slam()
+      this.callout('🔱 คลื่นทะลวง!', W / 2, 170, '#ffe08a')
+      const y = t.spr.y - t.spr.displayHeight * 0.45
+      await spearWaveFx(this, HERO_X + 30, t.spr.x - 6, y)
+      this.swAuraStop() // the spear's power is spent
+      this.stayIn = true
+      for (let i = 0; i < hits + extra && !t.dead && this.hp > 0; i++) await this.lunge(t, () => {
+        const k3 = i >= hits ? 1 + st.u3Pow : 1 // ใยชั้น 3 root powers the added hits
+        pierceHitFx(this, t.spr.x, GROUND, i, i >= hits)
+        const n = this.strike(t, ((K.pierceMul + st.ultMulAdd) * this.swWavePow * (1 + st.pskill) * (1 + st.swWaveAmp) * (t.charging ? 1 + st.ultVsCharge : 1) + this.hpMul()) * k3, false, i >= hits ? '#ff9a6a' : '#f2d24b', st.j2Spiral)
+        dealt += n
+        if (i >= hits && n > 0 && st.j3GospelHeal > 0) this.heal(st.maxHp * st.j3GospelHeal, true) // ทวนดูดเลือด
+        if (t.hp / Math.max(1, t.def.hp) < SWORD_MANA.execLow && !t.dead) executeMarkFx(this, t.spr.x, y) // ⚖️ คำพิพากษา
+      }, true, true)
+      if (t.dead) killed = true
+      this.stayIn = false
+      if (extra && st.j3AfterBless > 0) { this.j3Bless = KIT3.common.afterTurns; this.floatText(HERO_X, GROUND - 150, `🌅 พรหลังศึก +${Math.round(st.j3AfterBless * 100)}%`, '#ffe08a') }
+      this.hitStop(65)
+      await this.goHome()
+      this.shake(140, 0.01)
+      const U = KIT.swordUltTree
+      if (st.swWaveShield > 0 && dealt > 0) this.addShield(Math.min(st.maxHp * U.waveShieldCap, dealt * U.waveShield)) // ★ ปราการคลื่น
+      if (st.swWaveRe > 0 && killed && !this.swWaveReUsed && Math.random() < st.swWaveRe && this.swAwaken > 1 && this.alive().length) { // คลื่นซ้ำ
+        this.swWaveReUsed = true; this.swWave = true
+        this.floatText(HERO_X, GROUND - 170, '🔱 คลื่นซ้ำ!', '#ffe08a')
+      }
+    } finally { this.stayIn = false; this.src = prev; this.skillSlot = prevSlot; this.sureHit = pSure; this.noCrit = pNoCrit }
   }
   /** ⚔️ ปลุกดาบ: a basic swing also cuts the next monster for cleaveShare (one cut per swing turn). */
   private swordCleave(first: Mon) {
@@ -4594,17 +4633,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.j2) { await this.ult2(live, pow, hitPow); return }
     switch (this.job.id) {
       case 'swordsman':
-        // ⚔️ ปลุกดาบ (Q 2026-11-21 Riven-style): wake the blade, the 🌊 wave fires itself later (swordWaveCheck)
-        this.swAwaken = SWORD_MANA.awakenTurns + 1 // ticks down after this turn
-        this.swWave = true; this.swWaveReUsed = false
-        this.swWavePow = hitPow
-        this.callout(`⚔️ ปลุกดาบ! ${SWORD_MANA.awakenTurns} เทิร์น`, W / 2, 170, '#9fd0ff')
-        awakenBurstFx(this, HERO_X, GROUND)
-        this.swAuraStop(); this.swAura = awakenAuraFx(this, HERO_X, GROUND)
-        if (this.st.ultShieldAdd > 0) this.addShield(this.st.maxHp * this.st.ultShieldAdd * pow) // Q 2026-11-22: no base shield; only talent ปราการ / cards
-        if (this.st.ultCounters > 0) this.ctrCharges = this.st.ultCounters // talent: ท่าสวนพร้อม
-        this.cameras.main.flash(120, 140, 170, 220)
-        await this.swordWaveCheck(true) // a monster already low: cut now (the turn-start check covers the rest)
+        await this.swordAwaken(pow, hitPow)
         break
       case 'archer':
         await this.archerPierce(hitPow)

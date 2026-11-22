@@ -4,7 +4,7 @@
 //   signature passive · ทักษะ 3 (casts itself, like ทักษะ 2) · Ult วิวัฒน์ (replaces the base ult) · ใยชั้น 2 (data/trees2/)
 // Job2 Lv 1..50 has its own web points (job2Points). Numbers live in skill-math.ts KIT2.
 import type { Resource, Stats } from './game-data'
-import { SWORD_EXEC_DESC, type JobId, type JobSkill } from './jobs'
+import { SWORD_EXEC_DESC, SWORD_MANA, swordExecDesc, type JobId, type JobSkill } from './jobs'
 import { KIT, KIT2 } from './skill-math'
 
 export type Job2Id = 'berserker' | 'knight' | 'rogue' | 'mobster' | 'crusader' | 'monk' | 'wizard' | 'sage' | 'beastmaster' | 'innovator' // Phase 1 Swordsman · 2 Thief · 3 Priest · 4 Archer · 5 Mage
@@ -52,9 +52,10 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     blurb: 'สายหอกขี่เปโกแบบ RO · ถึกเป็นแรง: สกิลหอกบวกดาเมจตาม HP สูงสุด · หอก 1 มือใส่โล่ได้ หอก 2 มือแรงกว่า',
     mod: {}, pct: { maxHp: K.hpPct, aspd: K.aspdPct },
     mastery: { weapon: 'หอก', ok: (it) => it.wtype === 'spear', mod: { hit: K.mastery.hit }, pct: { atk: K.mastery.atkPct } },
-    signature: { name: 'ขี่เปโก', icon: '🐦', desc: `HP สูงสุด +${pc(K.hpPct)} · ความเร็ว +${pc(K.aspdPct)} · ถึกเป็นแรง: ฟันพายุ / Brandish / Pierce บวกดาเมจ ${pc(K.hpDmg)} ของ HP สูงสุด` },
+    signature: { name: 'ขี่เปโก', icon: '🐦', desc: `HP สูงสุด +${pc(K.hpPct)} · ความเร็ว +${pc(K.aspdPct)} · ถึกเป็นแรง: ดาบสยบมนตร์ / Brandish / คลื่นทะลวง บวกดาเมจ ${pc(K.hpDmg)} ของ HP สูงสุด` },
     skill3: { name: 'Brandish Spear', icon: '🌀', cost: K.brandCost, cd: K.brandCd, desc: `Mana ${K.brandCost} · คูลดาวน์ ${K.brandCd}: กวาดหอก ${K.brandTargets} ตัวหน้า ${K.brandMul}x P.ATK + ${pc(K.hpDmg)} HP สูงสุด · ผลักตัวหน้าถอย` },
-    ult: { name: 'Pierce + Bowling Bash', icon: '🎯', cd: 4, cost: 25, desc: `Mana 25: แทงเป้าเดียว ${K.pierceHits} ฮิต (บอส/มินิ ${K.pierceBigHits}) ฮิตละ ${K.pierceMul}x + HP สูงสุด แล้วกระแทกตัวถัดไป ${K.bashMul}x · โล่แบบดาบพิพากษา · ${SWORD_EXEC_DESC}` },
+    // 🔱 Pierce of Judgement (Q 2026-11-23): the whole ดาบพิพากษา kit (⚔️ ปลุก + ✨ + web) but the wave is ONE boss-first spear thrust, no crit
+    ult: { name: 'Pierce of Judgement', icon: '🔱', cd: 4, cost: SWORD_MANA.ult, desc: `Mana ${SWORD_MANA.ult}: ⚔️ ปลุกหอก ${SWORD_MANA.awakenTurns} เทิร์น (ผลเดียวกับปลุกดาบ)\nระหว่างปลุก: STR +${SWORD_MANA.awakenStr.join('/')} (ตาม Lv) · ✨ เคลือบทุกฮิต +${pc(SWORD_MANA.awakenHpPct)} HP ที่เหลือของเป้า · ตีปกติแทงตัวถัดไปด้วย · ตีโดนแน่นอนจนกว่าจะปล่อยคลื่น\n🔱 คลื่นทะลวง: แทงเป้าเดียว (บอสก่อน) ${K.pierceHits} ฮิต (บอส/มินิ ${K.pierceBigHits}) ฮิตละ ${K.pierceMul}x + HP สูงสุด · ไม่พลาด · คริไม่ได้\nปล่อยเองเมื่อเป้า HP < ${pc(SWORD_MANA.execLow)} (หรือเทิร์นสุดท้าย)\n${swordExecDesc(1)}` },
   },
   rogue: {
     id: 'rogue', parent: 'thief', name: 'โร้ก', icon: '🔪', focus: 'AGI · STR · LUK',

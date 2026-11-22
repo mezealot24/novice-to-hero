@@ -274,7 +274,10 @@ test('Keystone mechanics in heroBuild, ultCooldown, autoInfo, ultInfo & allocate
   assert.equal(j1ExecRow?.value, `×${swordExecMul(0.25, false, 1, KIT.swordExecBonus).toFixed(2)}`)
   const j2Judg = heroStats(swInput({ job2: 'knight', passiveNodes: judgPath }))
   const j2ExecRow = ultInfo('swordsman', j2Judg, undefined, 'knight').find((r) => r.label === '⚖️ execute เป้า HP ≤25%')
-  assert.equal(j2ExecRow?.value, `×${swordExecMul(0.25, false, 0.25, KIT.swordExecBonus).toFixed(2)}`)
+  assert.equal(j2ExecRow?.value, `×${swordExecMul(0.25, false, 1, j2Judg.swExecAdd + KIT.swordExecBonus).toFixed(2)}`) // Knight 🔱 Pierce of Judgement: full curve (Q 2026-11-23)
+  const bzJudg = heroStats(swInput({ job2: 'berserker', passiveNodes: judgPath }))
+  const bzExecRow = ultInfo('swordsman', bzJudg, undefined, 'berserker').find((r) => r.label === '⚖️ execute เป้า HP ≤25%')
+  assert.equal(bzExecRow?.value, `×${swordExecMul(0.25, false, 0.25, KIT.swordExecBonus).toFixed(2)}`)
 
   // 4. Immortal Sanguine: overhealShield + spellVamp + skillDmgCut
   const vampPath = ['sw_m_bld1', 'sw_n_bloodthirst', 'sw_m_bld3', 'sw_n_undying', 'sw_k_bloodvamp']

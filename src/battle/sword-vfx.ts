@@ -367,7 +367,7 @@ export function spearBoomerangFx(
 
 const PIERCE_OFFSETS = [-16, 10, -4, 18, -10]
 
-/** Multi-thrust lance strike beam for Knight `Pierce` & Lord Knight `Hundred Spear`. */
+/** Multi-thrust lance strike beam: each hit of the Knight 🔱 คลื่นทะลวง (Pierce of Judgement) & Lord Knight `Hundred Spear`. */
 export function pierceHitFx(scene: Phaser.Scene, targetX: number, targetY: number, hitIdx: number, isLkExtra: boolean) {
   const dy = PIERCE_OFFSETS[hitIdx % PIERCE_OFFSETS.length]
   const deg = ((hitIdx % 3) - 1) * 5
@@ -394,32 +394,13 @@ export function pierceHitFx(scene: Phaser.Scene, targetX: number, targetY: numbe
   }
 }
 
-/** Knight `Bowling Bash` splash: heavy horizontal shockwave slamming the secondary enemy. */
-export function bowlingBashFx(scene: Phaser.Scene, fromX: number, toX: number, groundY: number) {
-  const midX = (fromX + toX) * 0.5
-  const beam = scene.add
-    .image(midX, groundY - 44, texKey(scene, 'vfx_thrust'))
-    .setDepth(9005)
-    .setTint(0xf2d24b)
-    .setScale(Math.max(1.1, Math.abs(toX - fromX) / 80), 1.35)
-  scene.tweens.add({
-    targets: beam,
-    x: toX + 20,
-    alpha: 0,
-    duration: 240,
-    ease: 'Quad.easeOut',
-    onComplete: () => beam.destroy(),
-  })
-  ringPulse(scene, toX, groundY - 44, 14, 0xffd34d, 4.6, 260)
-  sparkBurst(scene, toX + 10, groundY - 40, 'dot', [0xf2d24b, 0xff9a6a, 0xffffff], 14, 100, 290)
-}
-
 // ===== Swordsman rework VFX (Q 2026-11-21): 🤐 ดาบสยบมนตร์ · 🗡️ ดาบพิพากษา (ปลุกดาบ / คลื่นดาบ / ⚖️ execute) =====
 // Pixel art from pixelfx (effects in src/gfx/fx/sword, baked by src/gfx/pixelfx.ts, preloaded via SWORD_PFX).
 /** Presentation numbers for the rework VFX (scale / speed / depth / timings only, no balance). */
 export const SWORD_FX = {
   scale: 2, speed: 1.5, depth: 9003,
   waveMs: 320, // 🌊 คลื่นดาบ crossing time
+  spearMs: 220, spearScale: 1.5, // 🔱 คลื่นทะลวง: flight time to its one target (faster than the wave: a thrust)
   cleaveScale: 1.3, execScale: 1.6, silenceScale: 2, guardSpeed: 2.6, waveScale: 1.5,
 }
 
@@ -475,6 +456,24 @@ export function windWaveFx(scene: Phaser.Scene, fromX: number, toX: number, grou
     scene.tweens.add({
       targets: spr, x: toX + 60, duration: SWORD_FX.waveMs, ease: 'Quad.easeIn',
       onComplete: () => { scene.tweens.add({ targets: spr, alpha: 0, duration: 120, onComplete: () => spr.destroy() }); done() },
+    })
+  })
+}
+
+/** 🔱 คลื่นทะลวง (Knight Pierce of Judgement, Q 2026-11-23): a lance of light thrusts from the hero into ONE target at chest
+ *  height. Resolves as the tip reaches the target (the hits land there); the lance then sinks in a little and fades. */
+export function spearWaveFx(scene: Phaser.Scene, fromX: number, toX: number, y: number): Promise<void> {
+  const spr = loopPfx(scene, 'spearWave', fromX, y, pf({ depth: 9004, scale: SWORD_FX.spearScale }))
+  if (!spr) return Promise.resolve()
+  return new Promise((done) => {
+    scene.tweens.add({
+      targets: spr, x: toX, duration: SWORD_FX.spearMs, ease: 'Cubic.easeIn',
+      onComplete: () => {
+        ringPulse(scene, toX, y, 10, 0xffe8a8, 3.6, 220, 9005)
+        sparkBurst(scene, toX, y, 'dot', [0xf2d24b, 0xffe8a8, 0xffffff], 12, 120, 300, -50, 50)
+        scene.tweens.add({ targets: spr, x: toX + 26, alpha: 0, duration: 200, ease: 'Quad.easeOut', onComplete: () => spr.destroy() })
+        done()
+      },
     })
   })
 }
