@@ -31,9 +31,10 @@ export const PW_SHEETS = {
   sealCut: { url: sealCutUrl, w: 72, h: 64, ms: [50, 60, 90, 70, 90, 90, 70, 70], origin: [36, 29], mul: 2, ramp: SEAL_BLUE },
   // ⚔️ ปลุกดาบ: a gold light sword drops and plants itself, shockwave ring + motes (Pixelwright "awaken-burst")
   awakenBurst: { url: awakenBurstUrl, w: 64, h: 80, ms: [50, 50, 110, 90, 90, 100, 100, 100], origin: [32, 72], mul: 2, ramp: BLADE_GOLD },
-  // 🌊 คลื่นดาบ: a horizontal energy blast, crescent head + twisting strands trailing behind, loops
-  // (Pixelwright "sword-wave-blast", Q 2026-11-22: "แบบพลังของ Guile"). Origin = the head; windWaveFx flies it at chest height.
-  windWave: { url: windWaveUrl, w: 112, h: 48, ms: [60, 60, 60, 60], origin: [96, 24], mul: 2, ramp: WAVE_JADE },
+  // 🌊 คลื่นดาบ: a rounded energy dome flying forward, bright rim + white core streak, layered streaks flowing back
+  // into tail wisps over a smoky inside, loops (Pixelwright "sword-wave-dome", Q 2026-11-22 reference; replaces the
+  // Guile-style "sword-wave-blast"). Origin = the rim's tip; windWaveFx flies it at chest height.
+  windWave: { url: windWaveUrl, w: 100, h: 52, ms: [60, 60, 60, 60], origin: [93, 26], mul: 2, ramp: WAVE_JADE },
 } satisfies Record<string, PwSheet>
 
 export type PwId = keyof typeof PW_SHEETS
