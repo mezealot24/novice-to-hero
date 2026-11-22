@@ -39,12 +39,12 @@ export const SWORD_MANA = {
   ultMul: 1.5, // ดาบพิพากษา 🌊 คลื่นดาบ x P.ATK on every monster (Q 2026-11-21 Riven-style rework; was 1.2 instant, 1.4 before the class rebalance)
   // ⚔️ ปลุกดาบ (Q 2026-11-21, picked "2 steps: awaken + auto wave"): the ult wakes the blade for awakenTurns hero turns
   // (P.ATK +awakenAtk, every basic swing also cuts the next monster for cleaveShare), then 🌊 คลื่นดาบ fires on its own
-  // the first time a monster is under execLow HP, or on the last awakened turn. Job1 Swordsman only (Knight / Berserker keep their ults).
+  // the first time a monster is under execLow HP, or on the last awakened turn. Job1 Swordsman + Knight (🔱 Pierce of Judgement, Q 2026-11-23: one boss-first thrust instead of the AoE wave); Berserker keeps its ult.
   awakenTurns: 3, awakenAtk: 0, cleaveShare: 0.5, // awakenAtk 0.2 -> 0 (Q 2026-11-22: replaced by the STR buff + ✨ เคลือบดาบสวรรค์)
   // Q 2026-11-22: ปลุกดาบ gives STR +awakenStr[ult Lv] (P.ATK via PER_POINT.str.atk) and ✨ เคลือบดาบสวรรค์: every physical hit while awakened
   // adds hpPct + strPer[ult Lv] per 10 total STR (incl. the buff) of the target's CURRENT HP. Boss / mini take awakenBigShare of it.
   awakenStr: [20, 25, 30, 35, 50], awakenHpPct: 0.025, awakenStrPer: [0.005, 0.006, 0.007, 0.008, 0.01], awakenBigShare: 0.5,
-  ultShield: 0.2, // Job1 ดาบพิพากษา no longer reads this (Q 2026-11-22: no shield on cast; talents / cards ultShieldAdd still give one). 2nd-job ults still use it.
+  ultShield: 0.2, // Job1 ดาบพิพากษา no longer reads this (Q 2026-11-22: no shield on cast; talents / cards ultShieldAdd still give one). Unused since the Knight got 🔱 Pierce of Judgement (Q 2026-11-23); kept so old admin overrides still validate.
   // (history) ดาบพิพากษา shield, share of max HP (reworked 0.15 -> 0.20 so pumping VIT translates into a meaningful barrier)
   // ⚖️ คำพิพากษา (Q 2026-11-21, execute curve Q sent): an ult hit deals + execMax x (missing HP / execCapMiss), capped at execCapMiss missing
   // (2.667% per 1% missing, +200% at 75% missing). A multiplier on our P.ATK hit (not % of the monster's HP), so the x4/x10 boss HP of PR #160
@@ -81,6 +81,11 @@ export function swordS1Raw(lv: number, patk: number, str: number, baseLv: number
   const i = Math.min(SWORD_S1.atkPct.length, Math.max(1, Math.round(lv))) - 1
   return patk * SWORD_S1.atkPct[i] + str * SWORD_S1.str[i] + SWORD_S1.base[i] * Math.max(1, baseLv)
 }
+
+/** Swordsman-line ults that run ⚔️ ปลุกดาบ + the auto wave AND take the FULL ⚖️ execute curve (+ ⚖️ คมพิพากษา): job1 ดาบพิพากษา
+ *  and the Knight / Lord Knight 🔱 Pierce of Judgement (Q 2026-11-23: "ได้ผลของสาย ult swordsman ทั้งหมด · Execute 30% เท่า Swordman").
+ *  Berserker / Warlord keep their own ult and take execLineShare. */
+export const swordAwakenUlt = (job2?: string) => !job2 || job2 === 'knight'
 
 /** ⚖️ คำพิพากษา: damage multiplier of a Swordsman-line ult hit on a target at hpFrac (0..1) of its max HP.
  *  share = execLineShare for the 2nd / 3rd job ults, 1 for 🌊 คลื่นดาบ. */

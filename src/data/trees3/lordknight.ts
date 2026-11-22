@@ -14,7 +14,7 @@ export const tree3: ClassTree = {
     { id: 'lk_r', job: 'swordsman', job2: 'knight', name: 'ทหารม้า', icon: '🐦', blurb: 'Charge · ลดดาเมจ · เปิดไฟต์ · Parrying' },
   ],
   nodes: [
-    node('lk_l1', 'lk_l', 1, '🗡️', 'ทวนบรรพชน', 3, (lv) => `Pierce / Hundred Spear +${pct(0.005 * lv)} ต่อแต้มในสาย 🗡️ หอกทะลวง (สูงสุด +${pct(P.leg.crossCap)})`, (lv) => ({ j3LegCross: 0.005 * lv })),
+    node('lk_l1', 'lk_l', 1, '🗡️', 'ทวนบรรพชน', 3, (lv) => `คลื่นทะลวง / Hundred Spear +${pct(0.005 * lv)} ต่อแต้มในสาย 🗡️ หอกทะลวง (สูงสุด +${pct(P.leg.crossCap)})`, (lv) => ({ j3LegCross: 0.005 * lv })),
     node('lk_l2', 'lk_l', 2, '🛡️', 'ป้อมบรรพชน', 3, (lv) => `Auto Guard +${pct(0.002 * lv)} ต่อแต้มในสาย 🛡️ ป้อม (สูงสุด +${pct(P.leg.guardCap)})`, (lv) => ({ j3LegGuard: 0.002 * lv })),
     node('lk_l3', 'lk_l', 3, '🐦', 'เปโกบรรพชน', 3, (lv) => `HP สูงสุด +${pct(0.003 * lv)} ต่อแต้มในสาย 🐦 เปโก (สูงสุด +${pct(P.leg.hpCap)})`, (lv) => ({ j3LegHp: 0.003 * lv })),
     node('lk_l4', 'lk_l', 4, '👑', 'สืบสาน', 1, () => `สายของ variant ≥ ${P.heirNeed} แต้ม: 🐉 ไฟมังกร + เกราะแตก · 💥 Joint Beat แทง 2 ครั้ง`, () => ({ j3Heir: 1 })),

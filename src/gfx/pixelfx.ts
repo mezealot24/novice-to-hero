@@ -61,6 +61,7 @@ import * as cleanse from './fx/sword/cleanse'
 import * as awakenBurst from './fx/sword/awaken-burst'
 import * as awakenAura from './fx/sword/awaken-aura'
 import * as windWave from './fx/sword/wind-wave'
+import * as spearWave from './fx/sword/spear-wave'
 import { BLADE_GOLD, EXEC_RED, SEAL_BLUE } from './fx/sword/_pal'
 import { WOOD_GOLD } from './fx/archer/arrow-shot'
 import { PW_SHEETS, isPwId, pwKey, pwReady, type PwSheet } from './pw-sheets'
@@ -161,6 +162,7 @@ export const DEFS = {
   awakenBurst: { mod: awakenBurst },
   awakenAura: { mod: awakenAura, until: 0.75 }, // looping: drop the last frame (t = 0.8 repeats t = 0)
   windWave: { mod: windWave, until: 0.25 }, // looping: drop the last frame
+  spearWave: { mod: spearWave, until: 0.25 }, // 🔱 Knight Pierce of Judgement wave (looping: drop the last frame)
   // Loot: a kill goes up in a poof and coins bounce out. Cut once they settle (~1.25 s); the battle then flies
   // them to the zeny counter. One bake per coin count (the count is an option, not a palette).
   coinDrop3: { mod: coinDrop, until: COIN_DROP_UNTIL, opts: { coins: 3 } },
@@ -368,6 +370,7 @@ export const SWORD_PFX: PfxPreloadEntry[] = [
   'awakenBurst',
   'awakenAura',
   'windWave',
+  'spearWave',
   { id: 'shadowSlash', palette: BLADE_GOLD },
   { id: 'daggerCross', palette: EXEC_RED },
   { id: 'runeCircle', palette: SEAL_BLUE },

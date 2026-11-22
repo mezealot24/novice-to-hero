@@ -40,9 +40,9 @@ export const JOB3: Record<Job3Id, Job3Def> = {
   },
   lordknight: {
     id: 'lordknight', parent: 'knight', sibling: 'berserker', name: 'Lord Knight', icon: '🐉',
-    blurb: 'Knight ที่ตื่นรู้ · Pierce แทงเพิ่ม 2 ฮิต · สกิลหอกบวก HP แรงขึ้น · แต้มในใยเดิมยิ่งเยอะยิ่งแรง',
+    blurb: 'Knight ที่ตื่นรู้ · คลื่นทะลวงแทงเพิ่ม 2 ฮิต · สกิลหอกบวก HP แรงขึ้น · แต้มในใยเดิมยิ่งเยอะยิ่งแรง',
     focus: 'หอกถึก · Hundred Spear',
-    ultName: 'Hundred Spear', ultDesc: 'Pierce แทงเพิ่ม 2 ฮิต (ต่อจาก Bowling Bash เดิม)', rootDesc: 'ฮิตที่ชั้น 3 เพิ่ม',
+    ultName: 'Hundred Spear', ultDesc: 'Pierce of Judgement: คลื่นทะลวงแทงเพิ่ม 2 ฮิต', rootDesc: 'ฮิตที่ชั้น 3 เพิ่ม',
     signature: { icon: '🐉', name: 'Aura Blade', desc: 'สกิลหอกบวกดาเมจ HP สูงสุดอีก +1.5% · HP สูงสุด +5%' },
     variants: {
       a: { name: 'Dragon Breath', icon: '🐉', desc: 'Brandish Spear เป็นไฟมังกรใส่ทุกตัว + ติดไฟ 2 เทิร์น · แรงขึ้นตามแต้มสาย 🌀 กวาดทวน' },

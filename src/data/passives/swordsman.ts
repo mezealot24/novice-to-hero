@@ -536,7 +536,7 @@ const NODES: readonly PassiveNode[] = [
     icon: '⚔️',
     name: 'ศาสตร์นักรบขั้นสูง',
     desc: (ctx?: PassiveCtx) => {
-      if (ctx?.job2 === 'knight') return 'ปรับตามสาย 🐴 Knight: Pierce + Bowling Bash แรง +20% · Auto Guard +5% · ปักธงโล่ต้นเวฟ +6%'
+      if (ctx?.job2 === 'knight') return 'ปรับตามสาย 🐴 Knight: Pierce of Judgement แรง +20% · Auto Guard +5% · ปักธงโล่ต้นเวฟ +6%'
       if (ctx?.job2 === 'berserker') return 'ปรับตามสาย 🪓 Berserker: บ้าระห่ำแรง +20% · Frenzy สูงสุด +2 · ได้ Rage +15%'
       return 'ปรับตามสายคลาส 2 (นักดาบ: Ult +18% · โล่ Ult +6% · Knight: Ult/Guard/ธง · Berserker: Ult/Frenzy/Rage)'
     },

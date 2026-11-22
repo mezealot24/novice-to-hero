@@ -5,7 +5,7 @@
 // (LoL feel: physical builds still get something from magic procs). Heals and shields stay on M.ATK.
 import { BATTLE, PLAYER, type MonsterKind, type Stats } from './game-data'
 import { CRIT_RULES } from './battle-rules'
-import { CLERIC_KIT, JOBS, MAGE_SPELL, SPELL_VAMP, SWORD_MANA, SWORD_S1, swordCoatPct, swordExecMul, swordS1Lv, swordUltLv, swordS1Raw, type JobDef, type JobId } from './jobs'
+import { CLERIC_KIT, JOBS, MAGE_SPELL, SPELL_VAMP, SWORD_MANA, SWORD_S1, swordCoatPct, swordExecMul, swordS1Lv, swordUltLv, swordS1Raw, swordAwakenUlt, type JobDef, type JobId } from './jobs'
 import type { Skill2Def } from './skill2'
 import { PACKS } from './dungeons'
 import { STAT_RULES } from './meta/stat-spec'
@@ -267,7 +267,7 @@ export const KIT2 = {
   knight: {
     hpPct: 0.1, aspdPct: 0.05, hpDmg: 0.03, // 🐦 ขี่เปโก + ถึกเป็นแรง (spear skills add max HP share)
     brandCost: 20, brandCd: 3, brandMul: 1.5, brandTargets: 3, brandPush: 15, // 🌀 Brandish Spear
-    pierceHits: 3, pierceBigHits: 4, pierceMul: 1.2, bashMul: 0.8, // 🎯 Pierce + Bowling Bash (boss / mini take one more hit)
+    pierceHits: 3, pierceBigHits: 4, pierceMul: 1.2, // 🔱 Pierce of Judgement (Q 2026-11-23): the 🔱 คลื่นทะลวง thrusts ONE target (boss > mini > front) this many hits (boss / mini one more), x P.ATK per hit (+ max HP share), crit only with skillCrit. Bowling Bash is gone (bashMul removed)
     boomerang: 0.8, chargeFirst: 3, chargeFirstGauge: 35, chargeFirstRes: 15, guardShieldless: 0.5, // Spear Boomerang mul · ★ ทะยาน · Auto Guard without an off-hand
     mastery: { atkPct: 0.05, hit: 10 }, // spear
     // v84 ใยชั้น 2: 🚩 ธงศึก + 🌀 กวาดทวน (reworked Peco & Banner). Per-lv = per OLD level (max 3).
@@ -964,16 +964,27 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
   const out: InfoRow[] = [{ label: 'คูลดาวน์', value: `${ultCooldown(job, st)} เทิร์น${ultCost(job, st) ? ` · Mana ${ultCost(job, st)}` : ''}` }]
   switch (jobId) {
     case 'swordsman':
-      if (!job2) {
-        out.push({ label: '⚔️ ปลุกดาบ', value: `${SWORD_MANA.awakenTurns} เทิร์น` })
+      if (swordAwakenUlt(job2)) { // job1 ดาบพิพากษา + Knight 🔱 Pierce of Judgement (Q 2026-11-23)
+        const kn = job2 === 'knight', K = KIT2.knight, aw = kn ? '⚔️ ปลุกหอก' : '⚔️ ปลุกดาบ'
+        out.push({ label: aw, value: `${SWORD_MANA.awakenTurns} เทิร์น` })
         const uLv = swordUltLv(st), strAdd = SWORD_MANA.awakenStr[uLv - 1]
         out.push({ label: '⚔️ ระหว่างปลุก: STR', value: `+${strAdd}` })
         if (st.swAwAtk > 0) out.push({ label: '⚔️ ระหว่างปลุก: P.ATK', value: `+${pct(st.swAwAtk)}` })
         out.push({ label: '✨ ต่อฮิต: HP ที่เหลือเป้า', value: base ? pct(swordCoatPct(uLv, base.str + strAdd)) : `${pct(SWORD_MANA.awakenHpPct)}+` })
         out.push({ label: '✨ บอส/มินิ ได้', value: `×${SWORD_MANA.awakenBigShare}` })
         out.push({ label: '⚔️ ตีปกติฟันตัวถัดไป', value: `${Math.round((SWORD_MANA.cleaveShare + st.swAwCleave) * 100)}%` })
-        out.push({ label: '🌊 คลื่นดาบ/ตัว (ทุกตัว)', value: hitText(st, (SWORD_MANA.ultMul + st.ultMulAdd) * hitPow * (1 + st.pskill) * (1 + st.swWaveAmp), false) })
-        out.push({ label: '🌊 ปล่อยเองเมื่อ', value: `มอน HP < ${Math.round(SWORD_MANA.execLow * 100)}%` })
+        if (kn) {
+          const h2 = hitPow * (1 + st.ult2Pow), hits = K.pierceHits + st.j2PierceHits, bigHits = K.pierceBigHits + st.j2PierceHits
+          out.push({ label: '🔱 คลื่นทะลวง/ฮิต (เป้าเดียว)', value: hitText(st, (K.pierceMul + st.ultMulAdd) * h2 * (1 + st.pskill) * (1 + st.swWaveAmp), false, true) }) // skill hit: crit text only with skillCrit
+          out.push({ label: '🔱 จำนวนฮิต', value: `${hits} (บอส/มินิ ${bigHits})${st.j3Lk > 0 ? ` +${KIT3.lordknight.extraHits + st.j3GospelField}` : ''}` })
+          out.push({ label: '🔱 เป้า', value: `บอส > มินิ > ตัวหน้า · คริ ${st.skillCrit > 0 ? 'ด้วย skillCrit' : 'ต้องมี skillCrit'}` })
+          out.push({ label: '🔱 + HP สูงสุด/ฮิต', value: pct(K.hpDmg + st.j2HpDmg) })
+          if (st.j2Spiral > 0) out.push({ label: '🌀 ข้าม DEF', value: pct(Math.min(1, st.j2Spiral)) })
+          out.push({ label: '🔱 ปล่อยเองเมื่อ', value: `เป้า HP < ${Math.round(SWORD_MANA.execLow * 100)}%` })
+        } else {
+          out.push({ label: '🌊 คลื่นดาบ/ตัว (ทุกตัว)', value: hitText(st, (SWORD_MANA.ultMul + st.ultMulAdd) * hitPow * (1 + st.pskill) * (1 + st.swWaveAmp), false) })
+          out.push({ label: '🌊 ปล่อยเองเมื่อ', value: `มอน HP < ${Math.round(SWORD_MANA.execLow * 100)}%` })
+        }
         const U = KIT.swordUltTree
         out.push({ label: '🎯 ก่อนปล่อยคลื่น', value: 'ไม่พลาด' })
         if (st.swAwDr > 0) out.push({ label: '🛡️ ปลุกอยู่: โดนเบาลง', value: `−${pct(st.swAwDr)}` })
@@ -982,9 +993,9 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
         if (st.swWaveShield > 0) out.push({ label: '🌊 โล่จากคลื่น', value: `${pct(U.waveShield)} ดาเมจ` })
         if (st.swWaveRe > 0) out.push({ label: '🌊 คลื่นซ้ำเมื่อฆ่า', value: `โอกาส ${pct(st.swWaveRe)}` })
         if (st.ultShieldAdd > 0) out.push({ label: 'โล่', value: `${shield(st, st.maxHp * st.ultShieldAdd * pow)}` })
-      } else out.push({ label: 'โล่', value: `${shield(st, st.maxHp * Math.max(0, SWORD_MANA.ultShield + st.ultShieldAdd) * pow)}` })
-      { // ⚖️ คำพิพากษา: the multiplier at a few target HP shares (2nd / 3rd job ults take execLineShare)
-        const sh = job2 ? SWORD_MANA.execLineShare : 1, add = (job2 ? 0 : st.swExecAdd) + st.swExecBonus, x = (f: number, big: boolean) => `×${swordExecMul(f, big, sh, add).toFixed(2)}`
+      }
+      { // ⚖️ คำพิพากษา: the multiplier at a few target HP shares (Berserker / Warlord take execLineShare)
+        const full = swordAwakenUlt(job2), sh = full ? 1 : SWORD_MANA.execLineShare, add = (full ? st.swExecAdd : 0) + st.swExecBonus, x = (f: number, big: boolean) => `×${swordExecMul(f, big, sh, add).toFixed(2)}`
         out.push({ label: '⚖️ execute เป้า HP 50%', value: x(0.5, false) })
         out.push({ label: '⚖️ execute เป้า HP ≤25%', value: x(0.25, false) })
         out.push({ label: '⚖️ บอส/มินิ HP ≤25%', value: x(0.25, true) })
