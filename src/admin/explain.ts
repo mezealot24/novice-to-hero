@@ -68,7 +68,7 @@ export function explainTableGroup(t: TableId, key: string): { title: string; des
       duel: { title: '🎯 duel · กิมมิก Celeste (มินิบอส D3)', desc: 'ค่ากลางสคริปต์ Into Arena, Riposte, Grandado Espada' },
       toxicSkin: { title: '🧪 toxicSkin · พาสซีฟผิวพิษ (มินิบอส)', desc: 'ลดดาเมจ ต้านดีบัฟ ลดคริ และสะท้อนพิษใส่คนตี' },
       iceSkin: { title: '❄️ iceSkin · หนามน้ำแข็ง (Frost Giant)', desc: 'ตีโดนแล้วลดดาเมจฮีโร่' },
-      vengeance: { title: '🛡️ vengeance · โล่แห่งความแค้น (Death Knight)', desc: 'แปลงดาเมจเป็นโล่และปล่อย DoT เวททุกเทิร์น' },
+      vengeance: { title: '🛡️ vengeance · โล่แห่งความแค้น (Death Knight)', desc: 'แปลงดาเมจเป็นโล่และปล่อย DoT กายภาพทุกเทิร์น' },
       bulletTime: { title: '⏱️ bulletTime · ยิงรัว (Gunner)', desc: 'นับถอยหลังและกระหน่ำยิงเมื่อเลือดต่ำกว่าเกณฑ์' },
       maiden: { title: '👻 maiden · เรียกเมเดน (Karvos)', desc: 'เงื่อนไขเรียกเมเดน สัดส่วนดาเมจที่ส่งให้เมเดน และโควตาเทิร์นจำกัดเพิ่มเติม' },
       web: { title: '🕸️ web · สถานะใยพันตัว', desc: 'สัดส่วนการลด AGI ของมอน/ฮีโร่ที่ติดใยแมงมุม' },

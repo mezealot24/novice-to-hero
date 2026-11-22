@@ -5305,7 +5305,7 @@ export class BattleScene extends Phaser.Scene {
     if (m.vengCd) m.vengCd--
     if (m.vengTurns && !m.dead) {
       const V = BATTLE.vengeance
-      if (m.shield > 0 && this.hp > 0 && this.hurtHero(this.st.maxHp * V.dotPct + this.monMatk(m) * V.dotMatk, true, 999, undefined, `🖤 ความแค้นกัดกิน (${m.def.name})`)) this.floatText(HERO_X, GROUND - 150, '🖤 ความแค้นกัดกิน', '#c9a8ff')
+      if (m.shield > 0 && this.hp > 0 && this.hurtHero(this.st.maxHp * V.dotPct + m.def.dmg * V.dotAtk, false, 999, undefined, `🖤 ความแค้นกัดกิน (${m.def.name})`)) this.floatText(HERO_X, GROUND - 150, '🖤 ความแค้นกัดกิน', '#c9a8ff')
       if (--m.vengTurns === 0) { m.shield = 0; m.vengCd = V.cd; this.dotIcon(m) }
     }
     // damage over time first

@@ -218,11 +218,11 @@ export const BATTLE_STATIC: Record<string, FieldExplain> = {
   },
   'vengeance.dotPct': {
     label: 'Vengeance Shield: DoT % Max HP ฮีโร่',
-    effect: 'เพิ่ม = ระหว่างมอนถือโล่นี้ ฮีโร่จะโดนดูดพลังเวทเจ็บขึ้นทุกเทิร์นบอส (% HP)',
+    effect: 'เพิ่ม = ระหว่างมอนถือโล่นี้ ฮีโร่จะโดน DoT กายภาพเจ็บขึ้นทุกเทิร์นบอส (% HP)',
   },
-  'vengeance.dotMatk': {
-    label: 'Vengeance Shield: DoT × M.ATK มอน',
-    effect: 'เพิ่ม = ส่วนคำนวณ DoT จากค่า M.ATK ของ Death Knight สูงขึ้น',
+  'vengeance.dotAtk': {
+    label: 'Vengeance Shield: DoT × ATK มอน',
+    effect: 'เพิ่ม = ส่วนคำนวณ DoT (กายภาพ หัก DEF) จากค่า ATK ของ Death Knight สูงขึ้น',
   },
   'maiden.at': {
     label: 'Karvos: เรียกเมเดนเมื่อ HP <',

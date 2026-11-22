@@ -32,8 +32,8 @@ const KITS: KitDef[] = [
     fields: [f('toxicSkin.dr', 'ลดดาเมจรับ'), f('toxicSkin.poison', 'พิษใส่คนตี (stack)'), f('toxicSkin.tenacity', 'ต้านดีบัฟ'), f('toxicSkin.critCut', 'ลดดาเมจคริ')] },
   { has: (k) => !!MONSTERS[k].iceSkin, name: '❄️ Ice Skin (passive)', desc: 'ตีโดนมันทีไร ติดหนามน้ำแข็ง: ดาเมจฮีโร่ลดลงไม่กี่เทิร์น',
     fields: [f('iceSkin.dmgCut', 'ลดดาเมจฮีโร่'), f('iceSkin.turns', 'นาน (เทิร์น)')] },
-  { has: (k) => !!MONSTERS[k].vengeance, name: '🛡️ โล่แห่งความแค้น (passive)', desc: 'ตีโดน → ส่วนหนึ่งของดาเมจกลายเป็นโล่ · ระหว่างมีโล่ ฮีโร่โดน DoT',
-    fields: [f('vengeance.share', 'ดาเมจ → โล่'), f('vengeance.turns', 'นาน (เทิร์น)'), f('vengeance.cd', 'CD'), f('vengeance.dotPct', 'DoT % max HP'), f('vengeance.dotMatk', 'DoT M.ATK ×')] },
+  { has: (k) => !!MONSTERS[k].vengeance, name: '🛡️ โล่แห่งความแค้น (passive)', desc: 'ตีโดน → ส่วนหนึ่งของดาเมจกลายเป็นโล่ · ระหว่างมีโล่ ฮีโร่โดน DoT กายภาพ',
+    fields: [f('vengeance.share', 'ดาเมจ → โล่'), f('vengeance.turns', 'นาน (เทิร์น)'), f('vengeance.cd', 'CD'), f('vengeance.dotPct', 'DoT % max HP'), f('vengeance.dotAtk', 'DoT ATK ×')] },
 ]
 
 /** Scripted kits this monster has, with the shared `battle` fields that tune them (unknown paths dropped). */
