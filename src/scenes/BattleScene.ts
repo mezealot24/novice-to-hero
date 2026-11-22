@@ -38,6 +38,7 @@ import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } fr
 import { sfx, unlock } from '../sfx'
 import { HARD_POWER, TOWER_POWER } from '../data/power'
 import { escalate, escalationAt } from '../data/hard-escalation'
+import { canPay, MON_MANA, newManaPool, payMana, regenMana, type ManaPool } from '../data/mon-mana'
 import { MON_CAST, monBreakChance, monBreakGauge, monBreaksOn, monCastDmgMul, monCastPity, monSkillCasts } from '../data/mon-cast'
 import { deepAnchor, deepKind, homeDungeon, homeLv, monTier, POW_DEFAULT, restatAt, topStats, roomLevel, scaleOf, skillAtLv, skillMul, slamScaleOf, statMonster, towerMonLv } from '../data/mon-stats'
 import { ENDLESS_HELL, endlessHell, HELL, HELL_MODE, hellBossHp, hellify, hellLvCap, hellXpMul } from '../data/hell'
@@ -97,6 +98,7 @@ interface Mon {
   phase: number // boss phases entered so far
   speedMul: number; dmgMul: number; affix?: string; reflect: number; absorb: number; stored: number; chargeEvery: number
   skills: MonSkill[]; onHit?: HitFx; slamFx?: HitFx
+  mp?: ManaPool // boss mana (data/mon-mana.ts): every ai 'boss' without a hero kit
   heroKit?: HeroKit; kit?: KitState // v125 hero skills the monster casts (resolved: 'mirror' -> the player's kit)
   revived: boolean // came back once (necro): can't be raised again
   clone?: boolean; evaded?: number; trueTurns?: number // v56 trueSight: hero evades counted, then 🎯 its physical hits get FLEE_RULES.trueSightHit
@@ -600,6 +602,7 @@ export class BattleScene extends Phaser.Scene {
       shield: 0, atkUp: 0, atkUpTurns: 0, phase: 0, speedMul: 1, dmgMul: 1, reflect: def.reflect ?? 0, absorb: def.absorb ?? 0, stored: 0, chargeEvery: def.chargeEvery ?? BATTLE.slamEvery, skills: def.skills ?? [], onHit: def.onHit, slamFx: def.slamFx, revived: false, weakTurns: 0, weakPct: 0, armorBrk: 0, blind: 0, exposed: 0, exposedPct: 0, wound: 0, woundTurns: 0, woundCut: 0, woundCutTurns: 0, dagger: 0, daggerTurns: 0, stabMark: 0, strip: 0, wet: 0, deathMark: 0, deathMarkDmg: 0, affix, instanceId: `${kind}_${++this.monSeq}` }
     const hk = def.heroKit && resolveHeroKit(def.heroKit, { job: this.job.id, s2: this.s2?.id, job2: this.j2?.id })
     if (hk?.skills.length) { m.heroKit = hk; m.kit = newKitState(hk) }
+    else if (big) m.mp = newManaPool() // Q 2026-11-23: bosses pay mana for active skills
     if (this.biomeState?.hazard === 'astral_eclipse' && m.instanceId) {
       this.biomeState.monsterAstralLayers[m.instanceId] = big ? HAZARD_TUNING.astral_eclipse.bossLayers : HAZARD_TUNING.astral_eclipse.normalLayers
       this.biomeState.monsterStaggerTurns[m.instanceId] = 0
@@ -5280,6 +5283,7 @@ export class BattleScene extends Phaser.Scene {
   private async monTurn(m: Mon) {
     m.turns++
     if (m.kit && m.heroKit) tickKit(m.kit, m.heroKit)
+    if (m.mp) regenMana(m.mp)
     if (m.atkUpTurns > 0 && --m.atkUpTurns === 0) { m.atkUp = 0; this.dotIcon(m) }
     if (m.weakTurns > 0 && --m.weakTurns === 0) this.dotIcon(m)
     if ((m.trueTurns ?? 0) > 0 && --m.trueTurns! === 0) this.dotIcon(m)
@@ -6924,13 +6928,16 @@ export class BattleScene extends Phaser.Scene {
   /** A skill instead of an attack, on every `every`-th turn when it has a use. Returns true if one was used. */
   private async useSkill(m: Mon) {
     if (m.kit && m.heroKit && await this.useHeroSkill(m, m.heroKit, m.kit)) return true // v125 hero skills first
+    let dry: MonSkill | undefined
     for (const raw of m.skills) {
       if (m.turns % raw.every) continue
       const { picked, sk } = this.monSkillOf(m, raw)
+      if (m.mp && !canPay(m.mp, sk)) { dry ??= sk; continue } // Q 2026-11-23: no mana, no skill (the next one in its list may still fit)
       // Q 2026-11-21: a boss / mini boss casts (ร่าย) its strong magic skills first; the cadence counted here, the release skips it
-      if (m.def.ai === 'boss' && monSkillCasts(picked, POW_DEFAULT[picked.kind])) { await this.startMonCast(m, sk); return true }
-      if (await this.fireMonSkill(m, sk)) return true
+      if (m.def.ai === 'boss' && monSkillCasts(picked, POW_DEFAULT[picked.kind])) { if (m.mp) payMana(m.mp, sk); await this.startMonCast(m, sk); return true }
+      if (await this.fireMonSkill(m, sk)) { if (m.mp) payMana(m.mp, sk); return true }
     }
+    if (dry) this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 10, `💧 มานาไม่พอ (${dry.name})`, '#7fb4ff')
     return false
   }
 
@@ -7021,6 +7028,7 @@ export class BattleScene extends Phaser.Scene {
     if (p.slamFx) m.slamFx = p.slamFx
     if (p.heal) this.healMon(m, m.def.hp * p.heal)
     if (p.shield) m.shield = Math.max(m.shield, Math.round(m.def.hp * p.shield))
+    if (m.mp) regenMana(m.mp, m.mp.maxMana * MON_MANA.phaseRefill) // a new phase opens with a mana surge
     if (p.summon) this.summonAdds(p.summon[0], p.summon[1])
     this.dotIcon(m)
   }
@@ -7747,9 +7755,16 @@ export class BattleScene extends Phaser.Scene {
       const w = Math.max(40, m.spr.displayWidth * 0.8), x = m.spr.x - w / 2, y = m.spr.y - m.spr.displayHeight - 12
       g.fillStyle(COLORS.night, 0.85).fillRect(x - 1, y - 1, w + 2, 8)
       g.fillStyle(m.def.ai === 'boss' ? COLORS.gold : COLORS.hp).fillRect(x, y, w * Math.max(0, m.hp / m.def.hp), 6)
+      let sy = y + 7
       if (m.shield > 0) { // Q 2026-11-23: monster shield (bone shield, ice armor, 🟡 เกราะสวรรค์...) was invisible, so its soak read as "HP barely moved"
-        g.fillStyle(COLORS.night, 0.85).fillRect(x - 1, y + 7, w + 2, 5)
-        g.fillStyle(HUD_THEME.shield, 0.95).fillRect(x, y + 8, w * Math.min(1, m.shield / Math.max(1, m.def.hp)), 3)
+        g.fillStyle(COLORS.night, 0.85).fillRect(x - 1, sy, w + 2, 5)
+        g.fillStyle(HUD_THEME.shield, 0.95).fillRect(x, sy + 1, w * Math.min(1, m.shield / Math.max(1, m.def.hp)), 3)
+        sy += 5
+      }
+      const mp = m.mp ?? (m.kit && m.heroKit ? m.kit : undefined) // Q 2026-11-23: boss mana bar (a hero-kit boss shows its kit mana)
+      if (mp && mp.maxMana > 0) {
+        g.fillStyle(COLORS.night, 0.85).fillRect(x - 1, sy, w + 2, 5)
+        g.fillStyle(HUD_THEME.mana, 0.95).fillRect(x, sy + 1, w * Math.min(1, mp.mana / mp.maxMana), 3)
       }
       m.dotTxt?.setPosition(m.spr.x, y - 12)
     }

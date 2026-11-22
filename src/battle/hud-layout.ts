@@ -8,7 +8,7 @@ export const HUD_THEME = {
   edge: 0xffffff, edgeA: 0.14,
   tile: 0x1e2342, tileHi: 0x2a3060,
   gold: 0xf2b84b, debuff: 0xff6b6b, buff: 0xffd86b,
-  hp: 0xe5484d, hpLow: 0xff9a3c, hpBack: 0x2a1220, hpGhost: 0xffe2c4, shield: 0x9fe3ff, xp: 0x7fd7ff,
+  hp: 0xe5484d, hpLow: 0xff9a3c, hpBack: 0x2a1220, hpGhost: 0xffe2c4, shield: 0x9fe3ff, mana: 0x4a78ff, xp: 0x7fd7ff,
   text: '#f6eedc', sub: '#a9a6c7', ink: '#14172b',
   r: 10, pad: 8,
 } as const

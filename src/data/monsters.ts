@@ -42,6 +42,7 @@ export type MonSkillKind = 'heal' | 'shield' | 'warcry' | 'curse' | 'summon' | '
 /** A monster turn spent on a skill instead of an attack: used on every `every`-th turn of that monster when it makes sense. */
 export interface MonSkill {
   kind: MonSkillKind
+  mp?: number // boss mana cost (data/mon-mana.ts), default by kind
   every: number
   name: string
   pow?: number // heal / shield: share of the target's max HP · warcry: + damage share · haste: gauge added · bolt: x M.ATK
