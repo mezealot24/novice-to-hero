@@ -102,7 +102,7 @@ test('monCastDmgMul: steady cast x steadyDmg, a normal cast untouched, never neg
 
 test('BattleScene: skill casts for bosses only, released through fireMonSkill, cleared with the cast', () => {
   const src = readFileSync('src/scenes/BattleScene.ts', 'utf8')
-  assert.ok(src.includes("if (m.def.ai === 'boss' && monSkillCasts(picked, POW_DEFAULT[picked.kind])) { await this.startMonCast(m, sk); return true }"))
+  assert.ok(src.includes("if (m.def.ai === 'boss' && monSkillCasts(picked, POW_DEFAULT[picked.kind])) { if (m.mp) payMana(m.mp, sk); await this.startMonCast(m, sk); return true }"))
   assert.ok(src.includes('if (sk) await this.fireMonSkill(m, sk, mul)'))
   assert.ok(src.includes('else await this.slam(m, mul)'))
   assert.ok(src.includes('m.castSteady = false; m.castSkill = undefined'), 'endMonCast clears the stored skill')
