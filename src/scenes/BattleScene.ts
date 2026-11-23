@@ -841,7 +841,7 @@ export class BattleScene extends Phaser.Scene {
     this.turnHitsCur = 0; this.turnDmgCur = 0; this.turnHitsLast = 0; this.turnHitsTotal = 0; this.turnHitsPeak = 0; this.inHeroTurn = false; this.hideTurnCombo()
     this.frenzy = 0; this.boomUsed = false; this.firstSwing = true; this.s1Weave = false; this.weaveBonus = 0; this.dodgeCdIcd = 0; this.detUsed = false; this.luckyIcd = false; this.leechLeft = this.st.maxHp * KIT.thiefLeechTurnCap; this.rampage = 0; this.swAwaken = 0; this.swWave = false; this.swAuraStop()
     this.rgTempo = 0; this.rgComboN = 0; this.rgDodgeIcd = 0; this.rgFlee = 0; this.rgDodged = false; this.rgAmbush = false; this.rgSnatchAmp = 0; this.rgSnatchTurns = 0; this.skPlagTurns = 0; this.skFullUsed = false // P3'a Rogue: per wave · 🥷 sk_d
-    this.martyrUsed = false; this.j2Hurt = false; this.monkGrit = 0; this.asuraExhaust = 0; this.awakenTurns = 0; this.awakenAbsorbed = 0; this.awakenUltPow = 1; this.clearAllies() // Crusader ★ ผู้พลีชีพ once per wave · allies last one wave · Awakening resets per wave
+    this.martyrUsed = false; this.lastStandUsed = false; this.thirdHits = 0; this.j2Hurt = false; this.monkGrit = 0; this.asuraExhaust = 0; this.awakenTurns = 0; this.awakenAbsorbed = 0; this.awakenUltPow = 1; this.clearAllies() // Crusader ★ ผู้พลีชีพ once per wave · allies last one wave · Awakening resets per wave
     this.inspireUsed = false; this.inspire = 0; this.earthDone = false // ⚜️ Paladin: once per fight
     this.hwAmp = 0; this.mcOver = 0 // 🌌 Amplify · 🤖 Overclock
     this.clearBookings() // v86: booked Skill 1-3 do not carry into the next wave (the ult booking does)
@@ -1686,6 +1686,9 @@ export class BattleScene extends Phaser.Scene {
   private critKnives = 0 // Rogue ★: knives owed by basic / combo crits, thrown after the swing
   private execTurnUsed = false // Mobster ★ งานต่อไป: one extra turn per hero turn
   private martyrUsed = false // Crusader ★ ผู้พลีชีพ used this wave
+  private lastStandUsed = false // 🧬 ใจสู้ used this wave
+  private thirdHits = 0 // 🧬 สามจังหวะ: basic attacks since the last 3rd-hit burst (this wave)
+  private cleaving = false // 🧬 ฟันกวาด splash in progress (no splash of a splash)
   private j2Hurt = false // a hit landed on the hero since its last turn (Monk Energy Shield)
   private charges = 0 // Monk 🔵 power charges
   private monkGrit = 0 // Monk Sett-style Grit stored from incoming hits
@@ -4187,6 +4190,19 @@ export class BattleScene extends Phaser.Scene {
         const dmg = Math.max(1, Math.round(Math.min(f.hp * pct, this.st.atk * (rc.threshold ?? 2.5))))
         this.withSrc('other', () => this.damageMon(f, dmg, false, '#ff6b8a'))
       }
+      const th = this.itemEffect('third_hit')
+      if (th && !f.dead && !this.inUltWindow() && ++this.thirdHits >= (th.threshold ?? 3)) { // 🧬 สามจังหวะ (Kraken Slayer): flat burst, no DEF
+        this.thirdHits = 0
+        const dmg = Math.max(1, Math.round(this.st.atk * th.power + (save().baseLevel ?? 1) * 4))
+        this.floatText(f.spr.x, f.spr.y - f.spr.displayHeight - 44, '🎯 จังหวะที่ 3!', '#ffd166')
+        this.withSrc('other', () => this.damageMon(f, dmg, false, '#ffd166'))
+      }
+      const bs = this.itemEffect('bash')
+      if (bs && !f.dead && !this.inUltWindow() && this.fxReady('bash') && Math.random() < (bs.chance ?? 0.15)) { // 🧬 ทุบมึน (Skull Basher)
+        this.armFxCd(bs)
+        if (f.def.ai === 'boss' && f.charging && !f.castSteady) { this.endMonCast(f, { text: `💥 ทุบมึน! ร่ายแตก ${f.def.name}`, color: '#ffb347' }); f.gauge = monBreakGauge(f.gauge) }
+        else this.stunMon(f)
+      }
       const cl = this.itemEffect('chain_lightning')
       const rbCl = this.hasRiftBoon('rift_lightning')
       if (!f.dead && ((cl && this.fxReady('chain_lightning') && Math.random() < (cl.chance ?? 1)) || (!cl && rbCl && Math.random() < 0.3))) {
@@ -5143,6 +5159,13 @@ export class BattleScene extends Phaser.Scene {
         m.burn = Math.max(m.burnTurns > 0 ? m.burn : 0, per); m.burnTurns = Math.max(m.burnTurns, 3); this.dotIcon(m)
       }
     }
+    if (!dot && !pure && !this.allyHitting && !this.cleaving && (this.src === 'basic' || this.src === 'combo') && dmg > 0 && !this.inUltWindow()) { // 🧬 ฟันกวาด (Battle Fury)
+      const cv = this.itemEffect('cleave'), others = cv ? this.alive().filter((o) => o !== m) : []
+      if (cv && others.length) {
+        this.cleaving = true
+        try { for (const o of others) this.damageMon(o, Math.max(1, Math.round(dmg * cv.power)), false, '#c9e0ff', false, false, true) } finally { this.cleaving = false }
+      }
+    }
     if (!dot && !pure) this.monCastBreak(m, dmg) // Q 2026-11-20: a hard direct hit may break a boss cast (hero + ally hits; DoT / reflect / echo never)
     if (shouldRecordDeathMark({ dot, pure, allyHitting: this.allyHitting, popping: this.deathMarkPopping, mobExecuting: this.mobExecuting, markTurns: m.deathMark ?? 0, ratio: this.st.thDeathMark })) {
       const net = deathMarkNetHpDmg(hp0, m.hp)
@@ -5846,6 +5869,12 @@ export class BattleScene extends Phaser.Scene {
       this.martyrUsed = true; n = this.hp - 1
       this.addShield(this.st.maxHp * KIT2.crusader.martyrShield, true)
       this.callout('🕊️ ผู้พลีชีพ! ยังไม่ล้ม', HERO_X + 120, GROUND - 150)
+    }
+    const ls = this.itemEffect('last_stand')
+    if (ls && !this.lastStandUsed && this.hp - n <= 0 && this.hp > 1) { // 🧬 ใจสู้ (Sterak / Aegis): once per wave
+      this.lastStandUsed = true; n = this.hp - 1
+      this.addShield(this.st.maxHp * ls.power, true)
+      this.callout('💪 ใจสู้! ยังไม่ล้ม', HERO_X + 120, GROUND - 150)
     }
     this.castBreak(n) // v78: only a hit that got past every shield (v85: and big enough)
     const hpBefore = this.hp

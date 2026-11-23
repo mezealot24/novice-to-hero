@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { buildsInto, canCombine, combine, COMBINE, COMBINE_ITEMS, combineGrade, combineParts } from '../src/data/combine'
-import { craftCost, CRAFT_ITEMS } from '../src/data/craft'
+import { craftCost } from '../src/data/craft'
 import { describeItemEffects } from '../src/data/item-effects'
 import { canWear, heroBuild, itemById, ITEMS } from '../src/data/meta'
 import { salvage } from '../src/data/salvage'
@@ -20,21 +20,25 @@ const mk = (it = blade, over: Partial<SaveData> = {}): SaveData => {
 }
 
 test('combine data: cb_ ids, two crafted pieces, core = 3 boss mats + no common, a labelled Unique Passive, class matches', () => {
-  assert.equal(COMBINE_ITEMS.length, 5)
+  assert.equal(COMBINE_ITEMS.length, 15) // P1 5 + P2 10
+  assert.equal(new Set(COMBINE_ITEMS.flatMap((x) => x.combine!.from)).size, 30) // every piece is used by one recipe only
   for (const it of COMBINE_ITEMS) {
     assert.ok(it.id.startsWith(COMBINE.idPrefix), it.id)
     assert.ok(ITEMS.some((x) => x.id === it.id), `${it.id} registered in ITEMS`)
     assert.equal(it.price, 0)
     const parts = combineParts(it)
     assert.equal(parts.length, 2)
-    for (const p of parts) assert.ok(CRAFT_ITEMS.some((c) => c.id === p.id), `${it.id}: piece ${p.id} is forge gear`)
+    for (const p of parts) assert.ok(p.id === it.combine!.from[parts.indexOf(p)] && p.craft && !p.combine, `${it.id}: piece ${p.id} is forge gear`)
+    for (const p of parts) assert.ok(it.desc.includes(p.name.replace(/\s*\(.*\)$/, '')), `${it.id}: desc names ${p.name}`)
+    assert.ok(it.craft!.dg === parts.map((p) => p.craft!.dg).sort((a, b) => +b.slice(1) - +a.slice(1))[0], `${it.id}: recipe dungeon = the later piece`)
     assert.equal(it.craft!.common, 0)
     assert.equal(it.craft!.boss, COMBINE.coreBoss)
     assert.deepEqual(Object.keys(craftCost(it).mats), [`b_${it.craft!.dg}`]) // never a 0 common entry
     assert.equal(it.effects?.length, 1)
     assert.ok(describeItemEffects(it.effects)[0].length > 10)
-    assert.ok(canWear(it, it.jobs![0]), `${it.id} wearable by its class`)
-    for (const p of parts) assert.ok(canWear(p, it.jobs![0]), `${it.id}: ${p.id} wearable by the same class`)
+    const j2 = it.j2?.[0]
+    assert.ok(canWear(it, it.jobs![0], j2), `${it.id} wearable by its class`)
+    for (const p of parts) assert.ok(canWear(p, it.jobs![0], j2), `${it.id}: ${p.id} wearable by the same class`)
   }
   assert.deepEqual(buildsInto('c_herosword').map((x) => x.id), ['cb_rendblade'])
 })
