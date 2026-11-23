@@ -1,11 +1,11 @@
-// 🔱 Knight ult rework (Q 2026-11-23): Pierce of Judgement = the whole ดาบพิพากษา kit (⚔️ ปลุก + ✨ + ult web) whose wave is ONE
+// 🔱 Knight ult rework (Q 2026-11-23): Pierce of Judgement = 🎯 Pierce on cast (Mana 50) + the whole ดาบพิพากษา kit (⚔️ ปลุก + ✨ + ult web) whose wave is ONE
 // boss-first spear thrust that crits only with skillCrit, with the FULL ⚖️ execute curve like the job1 Swordsman (Berserker keeps execLineShare).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { SWORD_MANA, swordAwakenUlt, swordExecMul } from '../src/data/jobs'
+import { JOBS, SWORD_MANA, swordAwakenUlt, swordExecMul } from '../src/data/jobs'
 import { JOB2 } from '../src/data/jobs2'
 import { JOB3 } from '../src/data/jobs3'
-import { KIT2, ultInfo } from '../src/data/skill-math'
+import { KIT2, ultCost, ultInfo } from '../src/data/skill-math'
 import { PLAYER } from '../src/data/stats'
 import { nodeById } from '../src/data/tree'
 import { DEFS, SWORD_PFX } from '../src/gfx/pixelfx'
@@ -14,8 +14,11 @@ import { createFrame, createFx, clearFrame } from '../src/vendor/pixelfx/core/in
 test('Knight ult is Pierce of Judgement: awaken + spear wave, boss first, crit only with skillCrit, execute at 30%', () => {
   const u = JOB2.knight.ult
   assert.equal(u.name, 'Pierce of Judgement')
-  assert.equal(u.cost, SWORD_MANA.ult)
-  for (const re of [/ปลุกหอก/, /คลื่นทะลวง/, /บอสก่อน/, /skillCrit/, /คำพิพากษา/, /30%/]) assert.match(u.desc, re)
+  assert.equal(u.cost, 50) // Q 2026-11-23: Mana 50
+  assert.equal(KIT2.knight.ultMana, 50)
+  assert.equal(ultCost(JOBS.swordsman, undefined, 'knight'), 50)
+  assert.equal(ultCost(JOBS.swordsman), SWORD_MANA.ult) // job1 unchanged
+  for (const re of [/🎯 Pierce/, /ปลุกหอก/, /คลื่นทะลวง/, /บอสก่อน/, /skillCrit/, /คำพิพากษา/, /30%/]) assert.match(u.desc, re)
   assert.doesNotMatch(u.desc, /Bowling/)
   assert.match(JOB3.lordknight.ultDesc, /คลื่นทะลวง/)
 })
@@ -31,11 +34,12 @@ test('ult detail: Knight shows the spear thrust rows and the full execute curve 
   const kn = ultInfo('swordsman', st, { str: 50, wis: 0 }, 'knight')
   const val = (rows: typeof kn, l: string) => rows.find((r) => r.label === l)?.value
   assert.ok(val(kn, '⚔️ ปลุกหอก'))
-  assert.ok(val(kn, '🔱 คลื่นทะลวง/ฮิต (เป้าเดียว)'))
-  assert.doesNotMatch(String(val(kn, '🔱 คลื่นทะลวง/ฮิต (เป้าเดียว)')), /คริ/) // no skillCrit = no crit
+  assert.match(String(kn[0].value), /Mana 50/)
+  assert.ok(val(kn, '🔱 คลื่นทะลวง (แทงเดียว)'))
+  assert.doesNotMatch(String(val(kn, '🎯 Pierce/ฮิต (กดแล้วแทงทันที)')), /คริ/) // no skillCrit = no crit
   const kc = ultInfo('swordsman', { ...st, skillCrit: 0.1 }, { str: 50, wis: 0 }, 'knight')
-  assert.match(String(val(kc, '🔱 คลื่นทะลวง/ฮิต (เป้าเดียว)')), /คริ/) // skillCrit opens it
-  assert.equal(val(kn, '🔱 จำนวนฮิต'), `${KIT2.knight.pierceHits} (บอส/มินิ ${KIT2.knight.pierceBigHits})`)
+  assert.match(String(val(kc, '🎯 Pierce/ฮิต (กดแล้วแทงทันที)')), /คริ/) // skillCrit opens it
+  assert.equal(val(kn, '🎯 Pierce จำนวนฮิต'), `${KIT2.knight.pierceHits} (บอส/มินิ ${KIT2.knight.pierceBigHits})`)
   assert.equal(kn.find((r) => r.label.startsWith('🌊 คลื่นดาบ')), undefined)
   assert.equal(val(kn, '⚖️ execute เป้า HP ≤25%'), `×${swordExecMul(0.25, false).toFixed(2)}`)
   const bz = ultInfo('swordsman', st, { str: 50, wis: 0 }, 'berserker')
