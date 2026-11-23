@@ -20,6 +20,7 @@ test('Knight ult is Pierce of Judgement: awaken + spear wave, boss first, crit o
   assert.equal(ultCost(JOBS.swordsman), SWORD_MANA.ult) // job1 unchanged
   for (const re of [/🎯 Pierce/, /ปลุกหอก/, /คลื่นทะลวง/, /บอสก่อน/, /skillCrit/, /คำพิพากษา/, /30%/]) assert.match(u.desc, re)
   assert.doesNotMatch(u.desc, /Bowling/)
+  assert.ok(u.desc.indexOf('ปลุกหอก') < u.desc.indexOf('🎯 Pierce'), 'buff first, then thrust (Q 2026-11-23)')
   assert.match(JOB3.lordknight.ultDesc, /คลื่นทะลวง/)
 })
 
@@ -36,9 +37,9 @@ test('ult detail: Knight shows the spear thrust rows and the full execute curve 
   assert.ok(val(kn, '⚔️ ปลุกหอก'))
   assert.match(String(kn[0].value), /Mana 50/)
   assert.ok(val(kn, '🔱 คลื่นทะลวง (แทงเดียว)'))
-  assert.doesNotMatch(String(val(kn, '🎯 Pierce/ฮิต (กดแล้วแทงทันที)')), /คริ/) // no skillCrit = no crit
+  assert.doesNotMatch(String(val(kn, '🎯 Pierce/ฮิต (หลังปลุกหอก)')), /คริ/) // no skillCrit = no crit
   const kc = ultInfo('swordsman', { ...st, skillCrit: 0.1 }, { str: 50, wis: 0 }, 'knight')
-  assert.match(String(val(kc, '🎯 Pierce/ฮิต (กดแล้วแทงทันที)')), /คริ/) // skillCrit opens it
+  assert.match(String(val(kc, '🎯 Pierce/ฮิต (หลังปลุกหอก)')), /คริ/) // skillCrit opens it
   assert.equal(val(kn, '🎯 Pierce จำนวนฮิต'), `${KIT2.knight.pierceHits} (บอส/มินิ ${KIT2.knight.pierceBigHits})`)
   assert.equal(kn.find((r) => r.label.startsWith('🌊 คลื่นดาบ')), undefined)
   assert.equal(val(kn, '⚖️ execute เป้า HP ≤25%'), `×${swordExecMul(0.25, false).toFixed(2)}`)

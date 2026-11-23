@@ -3159,8 +3159,11 @@ export class BattleScene extends Phaser.Scene {
       await this.wait(BATTLE.stepMs * 0.3)
       return
     }
-    await this.knightPierce(h2) // 🐴 Knight / 🐉 Lord Knight: 🔱 Pierce of Judgement = 🎯 Pierce now (Q 2026-11-23) ...
-    if (this.hp > 0) await this.swordAwaken(p2, h2) // ... then ⚔️ ปลุกหอก: the 🔱 thrust lands later in swordWaveCheck
+    // 🐴 Knight / 🐉 Lord Knight: 🔱 Pierce of Judgement = ⚔️ ปลุกหอก first so 🎯 Pierce rides the STR buff + ✨ coat + sure hit
+    // (Q 2026-11-23 "บัฟแล้วค่อยแทง"), then the 🔱 thrust if the target is already under the line (else later in swordWaveCheck)
+    await this.swordAwaken(p2, h2, false)
+    if (this.hp > 0) await this.knightPierce(h2)
+    if (this.hp > 0) await this.swordWaveCheck(true)
   }
 
   // ===== Phase 5 Mage: 🌩️ Wizard / 📖 Sage (numbers KIT2.wizard / KIT2.sage) =====
@@ -4439,7 +4442,7 @@ export class BattleScene extends Phaser.Scene {
   }
   /** ⚔️ ปลุกดาบ (Q 2026-11-21 Riven-style): wake the blade, the wave fires itself later (swordWaveCheck). Job1 ดาบพิพากษา and,
    *  since Q 2026-11-23, the Knight's 🔱 Pierce of Judgement (same awaken, its wave is one boss-first spear thrust). */
-  private async swordAwaken(pow: number, hitPow: number) {
+  private async swordAwaken(pow: number, hitPow: number, waveNow = true) {
     const knight = this.j2?.id === 'knight'
     this.swAwaken = SWORD_MANA.awakenTurns + 1 // ticks down after this turn
     this.swWave = true; this.swWaveReUsed = false
@@ -4450,7 +4453,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.st.ultShieldAdd > 0) this.addShield(this.st.maxHp * this.st.ultShieldAdd * pow) // Q 2026-11-22: no base shield; only talent ปราการ / cards
     if (this.st.ultCounters > 0) this.ctrCharges = this.st.ultCounters // talent: ท่าสวนพร้อม
     this.cameras.main.flash(120, 140, 170, 220)
-    await this.swordWaveCheck(true) // a monster already low: cut now (the turn-start check covers the rest)
+    if (waveNow) await this.swordWaveCheck(true) // a monster already low: cut now (the turn-start check covers the rest)
   }
   /** 🌊 คลื่นดาบ: the awakened Swordsman's wave, on every monster. Fires once, when a monster is under the execute line or on the
    *  last awakened turn (swordWaveNow). Runs as the ult (src 'ult' + its crit switch) so ⚖️ คำพิพากษา and ult nodes apply,
@@ -4495,7 +4498,7 @@ export class BattleScene extends Phaser.Scene {
   private spearTarget(): Mon | undefined { return this.bossTarget() ?? this.alive().find((m) => m.def.mini) ?? this.front()[0] }
   /** 🎯 Pierce (Knight / Lord Knight cast, Q 2026-11-23 "พอไม่มี Pierce เดิมแล้วไม่สะใจ"): the old instant multi-thrust is back as the
    *  first half of Pierce of Judgement. pierceHits hits (boss / mini pierceBigHits) + ทะลวง+ / 🐉 Hundred Spear on the boss-first target,
-   *  each pierceMul x P.ATK (+ max HP share), DEF pierce j2Spiral, full ⚖️ curve per hit, crits only with skillCrit. Then ⚔️ ปลุกหอก. */
+   *  each pierceMul x P.ATK (+ max HP share), DEF pierce j2Spiral, full ⚖️ curve per hit, crits only with skillCrit. Cast right after ⚔️ ปลุกหอก. */
   private async knightPierce(h2: number) {
     const t = this.spearTarget()
     if (!t) return
