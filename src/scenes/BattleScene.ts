@@ -1288,7 +1288,7 @@ export class BattleScene extends Phaser.Scene {
   private guardPool = 0 // ตั้งการ์ด: dmg taken since this hero turn ended, not yet paid back by a counter
   private ctrCharges = 0 // Swordsman talent ท่าสวนพร้อม: sure counters left
   /** Mana the ult costs (Mage, Swordsman); 0 for every other job. */
-  private ultCost() { return ultCost(this.job, this.st) } // v102: + Cleric Ult node Lv Mana
+  private ultCost() { return ultCost(this.job, this.st, this.j2?.id) } // 🔱 Knight: KIT2.knight.ultMana // v102: + Cleric Ult node Lv Mana
   private resMax() { return this.job.resource === 'rage' ? RES_RULES.rageMax : this.job.resource === 'energy' ? RES_RULES.energyMax : this.st.maxRes }
   private ultTurns() {
     const t = this.job.id === 'novice' ? this.smashTurns() : ultCooldown(this.job, this.st) // gear smashCd cuts every job's ult
@@ -3159,7 +3159,8 @@ export class BattleScene extends Phaser.Scene {
       await this.wait(BATTLE.stepMs * 0.3)
       return
     }
-    await this.swordAwaken(p2, h2) // 🐴 Knight / 🐉 Lord Knight: 🔱 Pierce of Judgement (Q 2026-11-23), the thrust lands later in swordWaveCheck
+    await this.knightPierce(h2) // 🐴 Knight / 🐉 Lord Knight: 🔱 Pierce of Judgement = 🎯 Pierce now (Q 2026-11-23) ...
+    if (this.hp > 0) await this.swordAwaken(p2, h2) // ... then ⚔️ ปลุกหอก: the 🔱 thrust lands later in swordWaveCheck
   }
 
   // ===== Phase 5 Mage: 🌩️ Wizard / 📖 Sage (numbers KIT2.wizard / KIT2.sage) =====
@@ -4492,50 +4493,61 @@ export class BattleScene extends Phaser.Scene {
   }
   /** 🔱 Pierce of Judgement's target: boss > mini > front (Q 2026-11-23 "แทงตัวเดียวเล็งบอสก่อน"). */
   private spearTarget(): Mon | undefined { return this.bossTarget() ?? this.alive().find((m) => m.def.mini) ?? this.front()[0] }
-  /** 🔱 คลื่นทะลวง (Knight / Lord Knight, Q 2026-11-23): the awakened Knight's wave is ONE spear thrust at the boss-first target.
-   *  Fires once, when THAT target is under the execute line or on the last awakened turn. pierceHits hits (boss / mini pierceBigHits)
-   *  + ทะลวง+ / 🐉 Hundred Spear hits, each pierceMul x the wave power + max HP share, never misses, crits only with skillCrit (like every skill hit), reads the full ⚖️ curve
-   *  per hit (so the later hits ramp). The 🌊 web nodes apply: คลื่นคม amp, ★ ปราการคลื่น shield, คลื่นซ้ำ on a kill. */
+  /** 🎯 Pierce (Knight / Lord Knight cast, Q 2026-11-23 "พอไม่มี Pierce เดิมแล้วไม่สะใจ"): the old instant multi-thrust is back as the
+   *  first half of Pierce of Judgement. pierceHits hits (boss / mini pierceBigHits) + ทะลวง+ / 🐉 Hundred Spear on the boss-first target,
+   *  each pierceMul x P.ATK (+ max HP share), DEF pierce j2Spiral, full ⚖️ curve per hit, crits only with skillCrit. Then ⚔️ ปลุกหอก. */
+  private async knightPierce(h2: number) {
+    const t = this.spearTarget()
+    if (!t) return
+    const K = KIT2.knight, st = this.st, big = t.def.ai === 'boss' || !!t.def.mini
+    const hits = (big ? K.pierceBigHits : K.pierceHits) + st.j2PierceHits
+    const extra = st.j3Lk > 0 ? KIT3.lordknight.extraHits + st.j3GospelField : 0 // 🐉 Hundred Spear
+    const pForce = this.forceCrit; this.forceCrit = false // crits only with skillCrit (the skill-hit rule), never a forced crit
+    try {
+      this.stayIn = true
+      for (let i = 0; i < hits + extra && !t.dead && this.hp > 0; i++) await this.lunge(t, () => {
+        const k3 = i >= hits ? 1 + st.u3Pow : 1 // ใยชั้น 3 root powers the added hits
+        pierceHitFx(this, t.spr.x, GROUND, i, i >= hits)
+        const n = this.strike(t, ((K.pierceMul + st.ultMulAdd) * h2 * (1 + st.pskill) * (t.charging ? 1 + st.ultVsCharge : 1) + this.hpMul()) * k3, false, i >= hits ? '#ff9a6a' : '#f2d24b', st.j2Spiral)
+        if (i >= hits && n > 0 && st.j3GospelHeal > 0) this.heal(st.maxHp * st.j3GospelHeal, true) // ทวนดูดเลือด
+      }, true, true)
+      this.stayIn = false
+      if (extra && st.j3AfterBless > 0) { this.j3Bless = KIT3.common.afterTurns; this.floatText(HERO_X, GROUND - 150, `🌅 พรหลังศึก +${Math.round(st.j3AfterBless * 100)}%`, '#ffe08a') }
+      this.hitStop(65)
+      await this.goHome()
+      this.shake(140, 0.01)
+    } finally { this.stayIn = false; this.forceCrit = pForce }
+  }
+  /** 🔱 คลื่นทะลวง (Knight / Lord Knight): the awakened Knight's wave is ONE big spear thrust at the boss-first target (Pierce already
+   *  landed on cast). Fires once, when THAT target is under the execute line or on the last awakened turn: waveMul x the wave power
+   *  (+ max HP share), never misses, crits only with skillCrit, full ⚖️ curve. The 🌊 web nodes apply: คลื่นคม amp, ★ ปราการคลื่น, คลื่นซ้ำ. */
   private async spearWaveCheck(inUlt: boolean) {
     const t = this.spearTarget()
     if (!t) return
     const frac = t.hp / Math.max(1, t.def.hp)
     if (!(inUlt ? frac < SWORD_MANA.execLow : swordWaveNow(this.swAwaken, [frac]))) return
     this.swWave = false
-    const K = KIT2.knight, st = this.st, big = t.def.ai === 'boss' || !!t.def.mini
-    const hits = (big ? K.pierceBigHits : K.pierceHits) + st.j2PierceHits
-    const extra = st.j3Lk > 0 ? KIT3.lordknight.extraHits + st.j3GospelField : 0 // 🐉 Hundred Spear
+    const K = KIT2.knight, st = this.st
     const prev = this.src, prevSlot = this.skillSlot, pSure = this.sureHit, pForce = this.forceCrit
-    this.src = 'ult'; this.skillSlot = 'ult'; this.sureHit = true; this.forceCrit = false // crits only with skillCrit (Q 2026-11-23: the skill-hit rule), never a forced crit
-    let dealt = 0, killed = false
+    this.src = 'ult'; this.skillSlot = 'ult'; this.sureHit = true; this.forceCrit = false // crits only with skillCrit (the skill-hit rule), never a forced crit
+    let dealt = 0
     try {
       sfx.slam()
       this.callout('🔱 คลื่นทะลวง!', W / 2, 170, '#ffe08a')
       const y = t.spr.y - t.spr.displayHeight * 0.45
-      await spearWaveFx(this, HERO_X + 30, t.spr.x - 6, y)
+      await spearWaveFx(this, HERO_X + 70, t.spr.x - 6, y)
       this.swAuraStop() // the spear's power is spent
-      this.stayIn = true
-      for (let i = 0; i < hits + extra && !t.dead && this.hp > 0; i++) await this.lunge(t, () => {
-        const k3 = i >= hits ? 1 + st.u3Pow : 1 // ใยชั้น 3 root powers the added hits
-        pierceHitFx(this, t.spr.x, GROUND, i, i >= hits)
-        const n = this.strike(t, ((K.pierceMul + st.ultMulAdd) * this.swWavePow * (1 + st.pskill) * (1 + st.swWaveAmp) * (t.charging ? 1 + st.ultVsCharge : 1) + this.hpMul()) * k3, false, i >= hits ? '#ff9a6a' : '#f2d24b', st.j2Spiral)
-        dealt += n
-        if (i >= hits && n > 0 && st.j3GospelHeal > 0) this.heal(st.maxHp * st.j3GospelHeal, true) // ทวนดูดเลือด
-        if (t.hp / Math.max(1, t.def.hp) < SWORD_MANA.execLow && !t.dead) executeMarkFx(this, t.spr.x, y) // ⚖️ คำพิพากษา
-      }, true, true)
-      if (t.dead) killed = true
-      this.stayIn = false
-      if (extra && st.j3AfterBless > 0) { this.j3Bless = KIT3.common.afterTurns; this.floatText(HERO_X, GROUND - 150, `🌅 พรหลังศึก +${Math.round(st.j3AfterBless * 100)}%`, '#ffe08a') }
-      this.hitStop(65)
-      await this.goHome()
-      this.shake(140, 0.01)
+      dealt = this.strike(t, ((K.waveMul + st.ultMulAdd) * this.swWavePow * (1 + st.pskill) * (1 + st.swWaveAmp) * (t.charging ? 1 + st.ultVsCharge : 1) + this.hpMul()), false, '#ffe08a', st.j2Spiral)
+      if (!t.dead && t.hp / Math.max(1, t.def.hp) < SWORD_MANA.execLow) executeMarkFx(this, t.spr.x, y) // ⚖️ คำพิพากษา
+      this.hitStop(80)
+      this.shake(160, 0.012)
       const U = KIT.swordUltTree
       if (st.swWaveShield > 0 && dealt > 0) this.addShield(Math.min(st.maxHp * U.waveShieldCap, dealt * U.waveShield)) // ★ ปราการคลื่น
-      if (st.swWaveRe > 0 && killed && !this.swWaveReUsed && Math.random() < st.swWaveRe && this.swAwaken > 1 && this.alive().length) { // คลื่นซ้ำ
+      if (st.swWaveRe > 0 && t.dead && !this.swWaveReUsed && Math.random() < st.swWaveRe && this.swAwaken > 1 && this.alive().length) { // คลื่นซ้ำ
         this.swWaveReUsed = true; this.swWave = true
         this.floatText(HERO_X, GROUND - 170, '🔱 คลื่นซ้ำ!', '#ffe08a')
       }
-    } finally { this.stayIn = false; this.src = prev; this.skillSlot = prevSlot; this.sureHit = pSure; this.forceCrit = pForce }
+    } finally { this.src = prev; this.skillSlot = prevSlot; this.sureHit = pSure; this.forceCrit = pForce }
   }
   /** ⚔️ ปลุกดาบ: a basic swing also cuts the next monster for cleaveShare (one cut per swing turn). */
   private swordCleave(first: Mon) {

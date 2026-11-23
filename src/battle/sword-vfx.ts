@@ -400,7 +400,7 @@ export function pierceHitFx(scene: Phaser.Scene, targetX: number, targetY: numbe
 export const SWORD_FX = {
   scale: 2, speed: 1.5, depth: 9003,
   waveMs: 320, // 🌊 คลื่นดาบ crossing time
-  spearMs: 220, spearScale: 1.5, // 🔱 คลื่นทะลวง: flight time to its one target (faster than the wave: a thrust)
+  spearMs: 420, spearScale: 2.8, spearGhosts: 2, // 🔱 คลื่นทะลวง (Q 2026-11-23 "อลังการหน่อย"): flies the whole field like the wave, big lance + afterimages
   cleaveScale: 1.3, execScale: 1.6, silenceScale: 2, guardSpeed: 2.6, waveScale: 1.5,
 }
 
@@ -460,22 +460,47 @@ export function windWaveFx(scene: Phaser.Scene, fromX: number, toX: number, grou
   })
 }
 
-/** 🔱 คลื่นทะลวง (Knight Pierce of Judgement, Q 2026-11-23): a lance of light thrusts from the hero into ONE target at chest
- *  height. Resolves as the tip reaches the target (the hits land there); the lance then sinks in a little and fades. */
+/** 🔱 คลื่นทะลวง (Knight Pierce of Judgement, Q 2026-11-23 "ยิงออกไปแบบนักดาบ เอาอลังการหน่อย"): a big lance of light charges at the
+ *  hero, then flies across the WHOLE field like the 🌊 wave, afterimages trailing, gold flash + shake. Resolves the moment the tip
+ *  reaches the target (the hit lands there, with a big burst); the lance keeps flying off screen and fades. */
 export function spearWaveFx(scene: Phaser.Scene, fromX: number, toX: number, y: number): Promise<void> {
+  ringPulse(scene, fromX, y, 16, 0xffe8a8, 3.2, 200, 9005) // charge-up at the hero
+  sparkBurst(scene, fromX, y, 'dot', [0xf2d24b, 0xffffff], 10, 80, 200, 150, 210)
   const spr = loopPfx(scene, 'spearWave', fromX, y, pf({ depth: 9004, scale: SWORD_FX.spearScale }))
   if (!spr) return Promise.resolve()
+  const endX = scene.scale.width + 120 + spr.displayWidth * 0.2, ms = SWORD_FX.spearMs
+  const ghosts: Phaser.GameObjects.Sprite[] = []
+  for (let i = 1; i <= SWORD_FX.spearGhosts; i++) {
+    const g = loopPfx(scene, 'spearWave', fromX, y, pf({ depth: 9003, scale: SWORD_FX.spearScale * (1 - 0.08 * i), alpha: 0.45 / i }))
+    if (g) { ghosts.push(g); scene.tweens.add({ targets: g, x: endX, alpha: 0, duration: ms, delay: 45 * i, ease: 'Sine.easeIn', onComplete: () => g.destroy() }) }
+  }
+  tintFlash(scene, 0xffe28c, 0.28, 160)
+  scene.cameras.main.shake(ms, 0.006)
   return new Promise((done) => {
+    let hit = false
     scene.tweens.add({
-      targets: spr, x: toX, duration: SWORD_FX.spearMs, ease: 'Cubic.easeIn',
-      onComplete: () => {
-        ringPulse(scene, toX, y, 10, 0xffe8a8, 3.6, 220, 9005)
-        sparkBurst(scene, toX, y, 'dot', [0xf2d24b, 0xffe8a8, 0xffffff], 12, 120, 300, -50, 50)
-        scene.tweens.add({ targets: spr, x: toX + 26, alpha: 0, duration: 200, ease: 'Quad.easeOut', onComplete: () => spr.destroy() })
+      targets: spr, x: endX, duration: ms, ease: 'Sine.easeIn',
+      onUpdate: () => {
+        if (hit || spr.x < toX) return
+        hit = true
+        ringPulse(scene, toX, y, 14, 0xffe8a8, 5.2, 260, 9006)
+        ringPulse(scene, toX, y, 8, 0xffffff, 3.4, 180, 9006)
+        sparkBurst(scene, toX, y, 'dot', [0xf2d24b, 0xffe8a8, 0xffffff], 22, 160, 420, -60, 60)
+        tintFlash(scene, 0xfff4c8, 0.35, 140)
         done()
+      },
+      onComplete: () => {
+        if (!hit) { hit = true; done() }
+        scene.tweens.add({ targets: spr, alpha: 0, duration: 120, onComplete: () => spr.destroy() })
       },
     })
   })
+}
+
+/** A see-through screen tint (camera.flash starts opaque and would hide the lance). */
+function tintFlash(scene: Phaser.Scene, color: number, a: number, ms: number): void {
+  const r = scene.add.rectangle(0, 0, scene.scale.width, scene.scale.height, color, a).setOrigin(0).setDepth(9002).setScrollFactor(0)
+  scene.tweens.add({ targets: r, alpha: 0, duration: ms, onComplete: () => r.destroy() })
 }
 
 /** ⚖️ execute accent on a low-HP target hit by the wave: a red X cut. */

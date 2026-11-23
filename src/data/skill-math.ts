@@ -267,7 +267,7 @@ export const KIT2 = {
   knight: {
     hpPct: 0.1, aspdPct: 0.05, hpDmg: 0.03, // 🐦 ขี่เปโก + ถึกเป็นแรง (spear skills add max HP share)
     brandCost: 20, brandCd: 3, brandMul: 1.5, brandTargets: 3, brandPush: 15, // 🌀 Brandish Spear
-    pierceHits: 3, pierceBigHits: 4, pierceMul: 1.2, // 🔱 Pierce of Judgement (Q 2026-11-23): the 🔱 คลื่นทะลวง thrusts ONE target (boss > mini > front) this many hits (boss / mini one more), x P.ATK per hit (+ max HP share), crit only with skillCrit. Bowling Bash is gone (bashMul removed)
+    pierceHits: 3, pierceBigHits: 4, pierceMul: 1.2, waveMul: 2, ultMana: 50, // ultMana: Pierce of Judgement Mana (Q 2026-11-23, job1 ult is SWORD_MANA.ult) · 🔱 Pierce of Judgement (Q 2026-11-23): 🎯 Pierce on cast = this many hits on ONE target (boss > mini > front; boss / mini one more), x P.ATK per hit (+ max HP share), then ⚔️ ปลุกหอก; the 🔱 คลื่นทะลวง later = ONE thrust waveMul x wave power. Crit only with skillCrit. Bowling Bash is gone (bashMul removed)
     boomerang: 0.8, chargeFirst: 3, chargeFirstGauge: 35, chargeFirstRes: 15, guardShieldless: 0.5, // Spear Boomerang mul · ★ ทะยาน · Auto Guard without an off-hand
     mastery: { atkPct: 0.05, hit: 10 }, // spear
     // v84 ใยชั้น 2: 🚩 ธงศึก + 🌀 กวาดทวน (reworked Peco & Banner). Per-lv = per OLD level (max 3).
@@ -620,7 +620,7 @@ export function thiefUltBudget(st: UltSt, hero: UltHero, shadow: boolean): numbe
 export const ultCdCut = (cdLeft: number, want: number, budget: number, justCast: boolean): number =>
   Math.max(0, Math.min(Math.max(0, want), Math.max(0, budget), cdLeft - (justCast ? KIT.thiefUltCdFloor : 0)))
 /** Mana the ult costs (Mage, Swordsman, Cleric since v86); 0 for every other job. v102: pass st for the base Cleric ult (+clUltMana by Ult node Lv). */
-export const ultCost = (job: JobDef, st?: Stats) => (job.resource === 'mana' ? (job.ult.cost ?? 0) + (job.id === 'cleric' && (job.ult.cost ?? 0) > 0 ? st?.clUltMana ?? 0 : 0) : 0)
+export const ultCost = (job: JobDef, st?: Stats, job2?: string) => (job.resource === 'mana' ? job2 === 'knight' ? KIT2.knight.ultMana : (job.ult.cost ?? 0) + (job.id === 'cleric' && (job.ult.cost ?? 0) > 0 ? st?.clUltMana ?? 0 : 0) : 0)
 /** Ult cooldown in hero turns before relics (gear smashCd lowers it for every job). */
 export const ultCooldown = (job: JobDef, st: Stats) => {
   const cdCut = Math.round((PLAYER.smashCd - st.smashCd) / BATTLE.msPerTurn)
@@ -961,7 +961,7 @@ export function autoInfo(jobId: JobId, st: Stats, job2?: string, base?: { str: n
 /** Ult with these stats. */
 export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: number }, job2?: string): InfoRow[] {
   const job = JOBS[jobId], pow = 1 + st.ultPow, hitPow = pow * (1 + st.ultAmp)
-  const out: InfoRow[] = [{ label: 'คูลดาวน์', value: `${ultCooldown(job, st)} เทิร์น${ultCost(job, st) ? ` · Mana ${ultCost(job, st)}` : ''}` }]
+  const out: InfoRow[] = [{ label: 'คูลดาวน์', value: `${ultCooldown(job, st)} เทิร์น${ultCost(job, st, job2) ? ` · Mana ${ultCost(job, st, job2)}` : ''}` }]
   switch (jobId) {
     case 'swordsman':
       if (swordAwakenUlt(job2)) { // job1 ดาบพิพากษา + Knight 🔱 Pierce of Judgement (Q 2026-11-23)
@@ -975,9 +975,10 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
         out.push({ label: '⚔️ ตีปกติฟันตัวถัดไป', value: `${Math.round((SWORD_MANA.cleaveShare + st.swAwCleave) * 100)}%` })
         if (kn) {
           const h2 = hitPow * (1 + st.ult2Pow), hits = K.pierceHits + st.j2PierceHits, bigHits = K.pierceBigHits + st.j2PierceHits
-          out.push({ label: '🔱 คลื่นทะลวง/ฮิต (เป้าเดียว)', value: hitText(st, (K.pierceMul + st.ultMulAdd) * h2 * (1 + st.pskill) * (1 + st.swWaveAmp), false, true) }) // skill hit: crit text only with skillCrit
-          out.push({ label: '🔱 จำนวนฮิต', value: `${hits} (บอส/มินิ ${bigHits})${st.j3Lk > 0 ? ` +${KIT3.lordknight.extraHits + st.j3GospelField}` : ''}` })
-          out.push({ label: '🔱 เป้า', value: `บอส > มินิ > ตัวหน้า · คริ ${st.skillCrit > 0 ? 'ด้วย skillCrit' : 'ต้องมี skillCrit'}` })
+          out.push({ label: '🎯 Pierce/ฮิต (กดแล้วแทงทันที)', value: hitText(st, (K.pierceMul + st.ultMulAdd) * h2 * (1 + st.pskill), false, true) }) // skill hit: crit text only with skillCrit
+          out.push({ label: '🎯 Pierce จำนวนฮิต', value: `${hits} (บอส/มินิ ${bigHits})${st.j3Lk > 0 ? ` +${KIT3.lordknight.extraHits + st.j3GospelField}` : ''}` })
+          out.push({ label: '🔱 คลื่นทะลวง (แทงเดียว)', value: hitText(st, (K.waveMul + st.ultMulAdd) * h2 * (1 + st.pskill) * (1 + st.swWaveAmp), false, true) })
+          out.push({ label: '🎯 เป้า', value: `บอส > มินิ > ตัวหน้า · คริ ${st.skillCrit > 0 ? 'ด้วย skillCrit' : 'ต้องมี skillCrit'}` })
           out.push({ label: '🔱 + HP สูงสุด/ฮิต', value: pct(K.hpDmg + st.j2HpDmg) })
           if (st.j2Spiral > 0) out.push({ label: '🌀 ข้าม DEF', value: pct(Math.min(1, st.j2Spiral)) })
           out.push({ label: '🔱 ปล่อยเองเมื่อ', value: `เป้า HP < ${Math.round(SWORD_MANA.execLow * 100)}%` })
