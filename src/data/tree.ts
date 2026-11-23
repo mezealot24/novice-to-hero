@@ -157,9 +157,25 @@ export function stretchNode(n: TreeNode): TreeNode {
 	};
 	return { ...n, max, mod, desc };
 }
-/** "+" node level -> Stats.s2Lv (Lv 5 = the old Lv 3). */
-export const s2LvOf = (lv: number) =>
-	(lv * TREE_RULES.s2PlusOld) / TREE_RULES.s2PlusMax;
+/** "+" node level -> Stats.s2Lv (Lv 5 = the old Lv 3). Lv 6-15 (class-1 cap raise) count CLASS1_CAP.s2Above each. */
+export const s2LvOf = (lv: number) => {
+	const head = Math.min(lv, TREE_RULES.s2PlusMax);
+	return (head * TREE_RULES.s2PlusOld) / TREE_RULES.s2PlusMax + Math.max(0, lv - TREE_RULES.s2PlusMax) * CLASS1_CAP.s2Above;
+};
+
+// ===== Class-1 skill Lv cap (Q 2026-11-24): Skill 1 / Ult / Skill 2 "+" nodes of the class web go past Lv 5 =====
+// Lv 5 as a 1st class · 10 once the hero has a 2nd job · 15 once Awakened. Extra levels keep the same per-Lv formula
+// (Skill 1 / Ult +powPer each; Swordsman S1 / ult tables run to Lv 15 in data/jobs.ts). Skill 2 levels past 5 count s2Above
+// s2Lv each (half of the 0.6 of Lv 1-5) and defensive Skill 2 numbers are capped in skill-math S2N.
+export const CLASS1_CAP = { base: 5, job2: 10, job3: 15, s2Above: 0.3 } as const;
+let class1Tier: 1 | 2 | 3 = 1;
+/** Set from the save (save.ts load / job change): 1 = 1st class, 2 = has a 2nd job, 3 = Awakened. */
+export function setClass1Tier(t: 1 | 2 | 3): void {
+	class1Tier = t;
+}
+/** Max Lv of the class-1 Skill 1 / Ult / Skill 2 "+" nodes right now. */
+export const class1Cap = (tier: 1 | 2 | 3 = class1Tier): number =>
+	tier === 3 ? CLASS1_CAP.job3 : tier === 2 ? CLASS1_CAP.job2 : CLASS1_CAP.base;
 // rowsAt: Job Lv that opens talent row 1..4. Talent Points: 1 per `pointEveryJobLv` Job Lv (8 at Job Lv 40), separate from skill points.
 export const TALENT_RULES = {
 	rowsAt: [5, 10, 20, 30] as const,
@@ -219,7 +235,9 @@ for (const c of CLASS_TREES) {
 			tier: 0,
 			icon: sk.icon,
 			name: `${sk.name}`,
-			max: TREE_RULES.powMax,
+			get max() {
+				return class1Cap();
+			},
 			kind: "pow",
 			...(job === "cleric" && line === "ult" // v108 Q 2026-11-07: back to v58, Priest's พรคุ้มครอง node = ult smash +10%/lv of 150% (KIT.clericUltAtkLv) · Mana by Lv only if CLERIC_KIT.ultManaLv > 0
 				? {
@@ -273,7 +291,9 @@ for (const c of CLASS_TREES) {
 			tier: 1,
 			icon: k.plus.icon,
 			name: k.plus.name,
-			max: TREE_RULES.s2PlusMax,
+			get max() {
+				return class1Cap();
+			},
 			kind: "s2plus",
 			s2: k.id,
 			parent: k.id,
@@ -677,7 +697,7 @@ export function ultEvolutionSummary(
 			{
 				tier: 1 as const,
 				icon: j1.ult.icon,
-				name: `ขั้น 1: ${j1.ult.name} (Lv ${u1Lv}/${TREE_RULES.powMax})`,
+				name: `ขั้น 1: ${j1.ult.name} (Lv ${u1Lv}/${class1Cap()})`,
 				active: true,
 				summary: learned1.length
 					? `สืบทอด: ${learned1.slice(0, 3).join(" · ")}${learned1.length > 3 ? ` +${learned1.length - 3}` : ""}`

@@ -486,19 +486,21 @@ export const S2P = {
   smokeRes: { base: 10, per: 5 }, woundMax: { base: 6, per: 2 / 3 }, // P2'b: ควันหอม Energy (rounded) · แผลฉีก Wound cap (floored)
 }
 const lin = (k: { base: number; per: number }, lv: number) => k.base + k.per * lv
+/** Caps for Skill 2 numbers that would run away past the old s2Lv 3 (class-1 skill cap 10 / 15, Q 2026-11-24): s2Lv 3 values stay below them. */
+export const S2CAP = { guardCut: 0.6, tauntWeak: 0.4, hawkCrit: 0.45, mshieldTake: 0.65 }
 
 /** Skill 2 numbers by "+" level (Stats.s2Lv) and ★ (Stats.s2Star). data/skill2.ts texts and BattleScene.castSkill2 read these. */
 export const S2N = {
-  guardCut: (lv: number) => lin(S2P.guardCut, lv), guardTurns: (star: boolean) => (star ? 3 : 2), guardCounters: (star: boolean) => (star ? 2 : 1),
+  guardCut: (lv: number) => Math.min(S2CAP.guardCut, lin(S2P.guardCut, lv)), guardTurns: (star: boolean) => (star ? 3 : 2), guardCounters: (star: boolean) => (star ? 2 : 1),
   guardShield: (star: boolean) => (star ? 0.18 : 0.1),
   guardBack: (lv: number, star: boolean) => lin(S2P.guardBack, lv) + (star ? 0.3 : 0), guardDef: (lv: number) => lin(S2P.guardDef, lv),
   bloodVamp: (lv: number) => lin(S2P.bloodVamp, lv), bloodTurns: 3, bloodAtk: 0.2,
-  tauntWeak: (lv: number) => lin(S2P.tauntWeak, lv), tauntTurns: (star: boolean) => (star ? 3 : 2),
+  tauntWeak: (lv: number) => Math.min(S2CAP.tauntWeak, lin(S2P.tauntWeak, lv)), tauntTurns: (star: boolean) => (star ? 3 : 2),
   tauntBreakTurns: (star: boolean) => (star ? 2 : 1), tauntStarRes: 15, tauntStarShield: 0.08,
   rainMul: (lv: number) => lin(S2P.rainMul, lv), rainWaves: (star: boolean) => (star ? 2 : 1),
-  hawkCrit: (lv: number) => lin(S2P.hawkCrit, lv), hawkTurns: 3, hawkCritDmg: 0.3,
+  hawkCrit: (lv: number) => Math.min(S2CAP.hawkCrit, lin(S2P.hawkCrit, lv)), hawkTurns: 3, hawkCritDmg: 0.3,
   trapMul: 0.6, trapPush: (lv: number) => lin(S2P.trapPush, lv),
-  mshieldTake: (lv: number) => lin(S2P.mshieldTake, lv), mshieldTurns: (star: boolean) => (star ? 5 : 3),
+  mshieldTake: (lv: number) => Math.min(S2CAP.mshieldTake, lin(S2P.mshieldTake, lv)), mshieldTurns: (star: boolean) => (star ? 5 : 3),
   novaMul: (lv: number) => lin(S2P.novaMul, lv), novaChill: (star: boolean) => 2 + (star ? 1 : 0), novaPush: 15,
   arcaneMul: (lv: number) => lin(S2P.arcaneMul, lv), arcaneHits: (star: boolean) => 3 + (star ? 2 : 0),
   renewHeal: (lv: number) => lin(S2P.renewHeal, lv), renewTurns: (star: boolean) => (star ? 6 : 4), // heal x M.ATK per turn (Q 2026-11-04: Priest heals scale with M.ATK; was 6% +1%/lv max HP)

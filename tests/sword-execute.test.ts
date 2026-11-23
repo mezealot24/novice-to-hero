@@ -56,20 +56,23 @@ import { nodeById } from '../src/data/tree'
 import { PLAYER as STATS0 } from '../src/data/stats'
 
 test('ดาบสยบมนตร์ numbers follow Q table: P.ATK 120-200% + STR x0.25-1.25 + 20-100 x Base Lv, Mana 6-30, CD 5', () => {
-  assert.deepEqual(SWORD_S1.atkPct, [1.2, 1.4, 1.6, 1.8, 2.0])
-  assert.deepEqual(SWORD_S1.str, [0.25, 0.5, 0.75, 1.0, 1.25])
-  assert.deepEqual(SWORD_S1.base, [20, 40, 60, 80, 100])
+  // Lv 1-5 unchanged; Q 2026-11-24 extends the table to Lv 15 (class-1 cap 10 Job2 / 15 Awakened)
+  assert.deepEqual(SWORD_S1.atkPct.slice(0, 5), [1.2, 1.4, 1.6, 1.8, 2.0])
+  assert.deepEqual(SWORD_S1.str.slice(0, 5), [0.25, 0.5, 0.75, 1.0, 1.25])
+  assert.deepEqual(SWORD_S1.base.slice(0, 5), [20, 40, 60, 80, 100])
+  assert.equal(SWORD_S1.atkPct.length, 15)
   assert.equal(SWORD_S1.mana, 15) // flat Mana at every Lv
   assert.equal(SWORD_S1.cd, 5)
   near(swordS1Raw(1, 100, 40, 10), 120 + 10 + 200)
   near(swordS1Raw(5, 1000, 200, 99), 2000 + 250 + 9900)
-  near(swordS1Raw(9, 100, 0, 1), swordS1Raw(5, 100, 0, 1)) // Lv clamps
+  near(swordS1Raw(20, 100, 0, 1), swordS1Raw(15, 100, 0, 1)) // Lv clamps at 15
 })
 
 test('Lv = the "+" node Lv (0 points casts Lv 1), Mana by Lv; Berserker casts it too for its flat Rage cost', () => {
   assert.equal(swordS1Lv({ swS1Lv: 0 }), 1)
   assert.equal(swordS1Lv({ swS1Lv: 3 }), 3)
-  assert.equal(swordS1Lv({ swS1Lv: 7 }), 5)
+  assert.equal(swordS1Lv({ swS1Lv: 7 }), 7)
+  assert.equal(swordS1Lv({ swS1Lv: 19 }), 15)
   for (let lv = 1; lv <= 5; lv++) assert.equal(autoCost(JOBS.swordsman, { ...STATS0, swS1Lv: lv }), SWORD_S1.mana)
   assert.ok(swordS1On(JOBS.swordsman))
   const zerk = { ...JOBS.swordsman, resource: 'rage' as const, auto: { ...JOBS.swordsman.auto, cost: 30 } }

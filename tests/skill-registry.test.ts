@@ -6,7 +6,7 @@ import { JOBS, SWORD_S1 } from '../src/data/jobs'
 import { applyPatch, checkPatch, fieldFor, guardsFor, readPath } from '../src/data/patch'
 import { canRollCrit, CRIT_SLOTS, critPower, critRef, scaleCritMul, JOB2_IDS, job2Layout, SKILL_CLASSES, SKILL_CRIT, SKILL_LAYOUT, skillTableFields, type SkillRef } from '../src/data/skill-registry'
 import { SKILL2 } from '../src/data/skill2'
-import { S2N } from '../src/data/skill-math'
+import { S2CAP, S2N } from '../src/data/skill-math'
 import { fieldRow } from '../src/admin/model'
 
 const allRefs = (): { cls: string; ref: SkillRef }[] => SKILL_CLASSES.flatMap((cls) => {
@@ -43,13 +43,13 @@ test('registry has no duplicate path inside a table and every class lists its th
 
 test('Skill 2 base/per numbers keep the v83 formulas (refactor guard)', () => {
   for (const lv of [0, 1, 2, 3, 3.6, 5]) {
-    assert.equal(S2N.guardCut(lv), 0.4 + 0.05 * lv)
+    assert.equal(S2N.guardCut(lv), Math.min(S2CAP.guardCut, 0.4 + 0.05 * lv)) // capped past the old top (Q 2026-11-24)
     assert.equal(S2N.bloodVamp(lv), 0.2 + 0.05 * lv)
-    assert.equal(S2N.tauntWeak(lv), 0.2 + 0.05 * lv)
+    assert.equal(S2N.tauntWeak(lv), Math.min(S2CAP.tauntWeak, 0.2 + 0.05 * lv)) // capped past the old top (Q 2026-11-24)
     assert.equal(S2N.rainMul(lv), 0.8 + 0.15 * lv)
-    assert.equal(S2N.hawkCrit(lv), 0.2 + 0.05 * lv)
+    assert.equal(S2N.hawkCrit(lv), Math.min(S2CAP.hawkCrit, 0.2 + 0.05 * lv)) // capped past the old top (Q 2026-11-24)
     assert.equal(S2N.trapPush(lv), 30 + 10 * lv)
-    assert.equal(S2N.mshieldTake(lv), 0.4 + 0.05 * lv)
+    assert.equal(S2N.mshieldTake(lv), Math.min(S2CAP.mshieldTake, 0.4 + 0.05 * lv)) // capped past the old top (Q 2026-11-24)
     assert.equal(S2N.novaMul(lv), 0.8 + 0.15 * lv)
     assert.equal(S2N.arcaneMul(lv), 0.6 + 0.1 * lv)
     assert.equal(S2N.renewHeal(lv), 0.3 + 0.05 * lv)
