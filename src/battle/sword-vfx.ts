@@ -474,7 +474,7 @@ export function spearWaveFx(scene: Phaser.Scene, fromX: number, toX: number, y: 
     const g = loopPfx(scene, 'spearWave', fromX, y, pf({ depth: 9003, scale: SWORD_FX.spearScale * (1 - 0.08 * i), alpha: 0.45 / i }))
     if (g) { ghosts.push(g); scene.tweens.add({ targets: g, x: endX, alpha: 0, duration: ms, delay: 45 * i, ease: 'Sine.easeIn', onComplete: () => g.destroy() }) }
   }
-  scene.cameras.main.flash(140, 255, 226, 140)
+  tintFlash(scene, 0xffe28c, 0.28, 160)
   scene.cameras.main.shake(ms, 0.006)
   return new Promise((done) => {
     let hit = false
@@ -486,7 +486,7 @@ export function spearWaveFx(scene: Phaser.Scene, fromX: number, toX: number, y: 
         ringPulse(scene, toX, y, 14, 0xffe8a8, 5.2, 260, 9006)
         ringPulse(scene, toX, y, 8, 0xffffff, 3.4, 180, 9006)
         sparkBurst(scene, toX, y, 'dot', [0xf2d24b, 0xffe8a8, 0xffffff], 22, 160, 420, -60, 60)
-        scene.cameras.main.flash(90, 255, 244, 200)
+        tintFlash(scene, 0xfff4c8, 0.35, 140)
         done()
       },
       onComplete: () => {
@@ -495,6 +495,12 @@ export function spearWaveFx(scene: Phaser.Scene, fromX: number, toX: number, y: 
       },
     })
   })
+}
+
+/** A see-through screen tint (camera.flash starts opaque and would hide the lance). */
+function tintFlash(scene: Phaser.Scene, color: number, a: number, ms: number): void {
+  const r = scene.add.rectangle(0, 0, scene.scale.width, scene.scale.height, color, a).setOrigin(0).setDepth(9002).setScrollFactor(0)
+  scene.tweens.add({ targets: r, alpha: 0, duration: ms, onComplete: () => r.destroy() })
 }
 
 /** ⚖️ execute accent on a low-HP target hit by the wave: a red X cut. */
