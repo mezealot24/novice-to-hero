@@ -910,9 +910,14 @@ export class BattleScene extends Phaser.Scene {
     return this.hp > 0
   }
 
+  /** The worn effect of this id. Unique Passive rule (🧬 combine spec): the same id never stacks, the strongest one counts. */
   private itemEffect(id: ItemEffectId): ItemEffectSpec | undefined {
-    return this.build?.effects.find((e) => e.id === id)
+    let best: ItemEffectSpec | undefined
+    for (const e of this.build?.effects ?? []) if (e.id === id && (!best || e.power > best.power)) best = e
+    return best
   }
+  /** 🧬 Combine passives skip the ult: its hits and the ⚔️ ปลุกดาบ / Awakening windows (the point is damage outside the ult). */
+  private inUltWindow() { return this.src === 'ult' || this.swAwaken > 0 || this.awakenTurns > 0 }
   private fxReady(id: ItemEffectId): boolean {
     return (this.fxCd[id] ?? 0) <= 0
   }
@@ -4176,6 +4181,12 @@ export class BattleScene extends Phaser.Scene {
           this.withSrc('other', () => this.strike(f, pow, true, '#7fd7ff'))
         }
       }
+      const rc = this.itemEffect('rend_current')
+      if (rc && !f.dead && !this.inUltWindow()) { // 🧬 คมกัดกร่อน (BotRK): % of the target's current HP, boss half, capped by P.ATK
+        const pct = rc.power * (f.def.ai === 'boss' ? 0.5 : 1)
+        const dmg = Math.max(1, Math.round(Math.min(f.hp * pct, this.st.atk * (rc.threshold ?? 2.5))))
+        this.withSrc('other', () => this.damageMon(f, dmg, false, '#ff6b8a'))
+      }
       const cl = this.itemEffect('chain_lightning')
       const rbCl = this.hasRiftBoon('rift_lightning')
       if (!f.dead && ((cl && this.fxReady('chain_lightning') && Math.random() < (cl.chance ?? 1)) || (!cl && rbCl && Math.random() < 0.3))) {
@@ -5125,6 +5136,13 @@ export class BattleScene extends Phaser.Scene {
     }
     const hp0 = m.hp
     m.hp = maidenHpFloor(m.hp - dmg, this.maidenLinked(m)) // Karvos cannot die before her Maiden
+    if (!dot && !pure && !this.allyHitting && m.hp > 0 && this.isSkillHit() && !this.inUltWindow()) { // 🧬 เพลิงทรมาน (Liandry): skill hit -> % Max HP burn
+      const sb = this.itemEffect('skill_burn')
+      if (sb) {
+        const per = Math.max(1, Math.round(Math.min(m.def.hp * sb.power * (m.def.ai === 'boss' ? 0.5 : 1), Math.max(this.st.atk, this.st.matk) * (sb.threshold ?? 1.5))))
+        m.burn = Math.max(m.burnTurns > 0 ? m.burn : 0, per); m.burnTurns = Math.max(m.burnTurns, 3); this.dotIcon(m)
+      }
+    }
     if (!dot && !pure) this.monCastBreak(m, dmg) // Q 2026-11-20: a hard direct hit may break a boss cast (hero + ally hits; DoT / reflect / echo never)
     if (shouldRecordDeathMark({ dot, pure, allyHitting: this.allyHitting, popping: this.deathMarkPopping, mobExecuting: this.mobExecuting, markTurns: m.deathMark ?? 0, ratio: this.st.thDeathMark })) {
       const net = deathMarkNetHpDmg(hp0, m.hp)
@@ -6076,6 +6094,8 @@ export class BattleScene extends Phaser.Scene {
     if (rel === 'glass' && this.hp < this.st.maxHp * RELIC_RULES.glass.below) k *= 1 + RELIC_RULES.glass.dmg
     if (this.demonOn) k *= 1 + IMMORTAL_RULES.demonDmg
     if (src === 'ult') k *= this.ultOpen
+    const rs = this.itemEffect('ramp_stack') // 🧬 สะสมศึก (Rageblade): +power per fight turn after the first, never on the ult
+    if (rs && !this.allyHitting && !this.inUltWindow()) k *= 1 + rs.power * Math.min(rs.threshold ?? 8, Math.max(0, this.fightTurns - 1))
     return k
   }
   /** Hero damage-taken multiplier from cards / mythics. */

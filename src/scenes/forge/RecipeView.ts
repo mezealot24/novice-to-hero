@@ -7,9 +7,10 @@ import { ALL_CARDFORGE_ITEMS, bagCards, canCardforge, cardforge, cardforgeCost, 
 import { CRAFT_ITEMS, craftCost, forgeItem, GRADE, gradeStars } from '../../data/craft'
 import { CLASS_GEAR } from '../../data/class-gear'
 import { CLASS_CRAFT_ITEMS } from '../../data/class-craft'
+import { buildsInto, canCombine, combine, COMBINE_ITEMS, combineGrade, combineParts, isCombine, type CombineWhy } from '../../data/combine'
 import { describeItemEffects, itemConversionsOf, itemEffectsOf, type SaveExt } from '../../data/item-effects'
 import { matById } from '../../data/materials'
-import { canWearAs, forgeTag, gradeOf, itemById, ITEMS, itemStatLine, itemUnlocked, refineOf, REQ_TEXT, SLOTS, wearText, wornItems, type Item } from '../../data/meta'
+import { canWearAs, forgeTag, gradeOf, isBroken, isTainted, itemById, ITEMS, itemStatLine, itemUnlocked, refineOf, REQ_TEXT, SLOTS, wearText, wornItems, type Item } from '../../data/meta'
 import { salvage, salvageable, salvagePreview, type SalvageWhy } from '../../data/salvage'
 import { setBonuses, type ItemSet } from '../../data/sets'
 import { canPay, cardsOffOnEquip, equip, isWorn, pay, persist, save } from '../../save'
@@ -20,12 +21,14 @@ import { compareRows, dgIx, forgedWithAspect, HEAD_H, itemSetOf, itemSetsOf, set
 import { matSource } from './stash'
 
 export interface ViewHost { wallet(): void; say(text: string): void; changed(): void }
-type Filter = 'all' | 'mine' | 'set'
+type Filter = 'all' | 'mine' | 'set' | 'combine'
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'ทั้งหมด' },
   { id: 'mine', label: '🎯 อาชีพ' },
   { id: 'set', label: '🧩 เซ็ต' },
+  { id: 'combine', label: '🧬 ผสม' },
 ]
+const COMBINE_WHY: Record<CombineWhy, string> = { notCombine: '', owned: 'มีแล้ว', locked: 'ยังไม่ปลดสูตร', missing: 'ยังไม่มีชิ้นส่วน', worn: 'ชิ้นส่วนใส่อยู่ ถอดก่อนนะคะ', broken: 'ชิ้นส่วนแตกอยู่ ซ่อมก่อนนะคะ', tainted: 'ชิ้นส่วนติดคำสาป ผสมไม่ได้', short: 'แกนผสมยังไม่ครบ' }
 const PER = 6, ROW_H = 52
 const dgName = (id: string) => (id === 'rift' ? 'รอยแยกนิรันดร์' : DUNGEONS.find((d) => d.id === id)?.name ?? id)
 const dgBoss = (id: string) => (id === 'rift' ? 'บอสรอยแยกนิรันดร์' : DUNGEONS.find((d) => d.id === id)?.boss ?? '')
@@ -48,6 +51,7 @@ export class RecipeView {
   private list(): Item[] {
     const s = save()
     if (this.salvageMode) return ITEMS.filter((it) => (it.craft || s.taint?.[it.id]) && s.owned.includes(it.id)).sort((a, b) => dgIx(a) - dgIx(b))
+    if (this.filter === 'combine') return [...COMBINE_ITEMS].sort((a, b) => dgIx(a) - dgIx(b))
     const all = [...CRAFT_ITEMS, ...CLASS_GEAR, ...CLASS_CRAFT_ITEMS, ...AWAKENED_CRAFT_ITEMS, ...ALL_CARDFORGE_ITEMS].sort((a, b) => dgIx(a) - dgIx(b))
     if (this.filter === 'mine') return all.filter((it) => canWearAs(it, s))
     if (this.filter === 'set') return all.filter((it) => itemSetsOf(it).length > 0)
@@ -95,6 +99,10 @@ export class RecipeView {
       return `${kind} · 🔒 ${it.req ? REQ_TEXT[it.req] : 'ยังไม่ปลดล็อก'}`
     }
     if (s.owned.includes(it.id)) return `${kind} · ✓ มีแล้ว`
+    if (isCombine(it)) {
+      const c = canCombine(s, it), have = it.combine!.from.filter((id) => s.owned.includes(id)).length
+      return `${kind} · ${c.ok ? '✓ พร้อม' : `🧬 ${have}/2 ชิ้น${c.why !== 'missing' ? ` · ${COMBINE_WHY[c.why]}` : ''}`}`
+    }
     if (isCardforge(it)) {
       const c = canCardforge(s, it)
       return `${kind} · ${c.ok ? '✓ พร้อม' : `🃏 ${Object.entries(it.craft!.cards!).reduce((a, [id, n]) => a + Math.min(n, bagCards(s, id)), 0)}/${Object.values(it.craft!.cards!).reduce((a, b) => a + b, 0)}`}`
@@ -129,9 +137,9 @@ export class RecipeView {
     if (this.salvageMode) {
       root.add(txt(sc, 144, 128, '♻️ เลือกของที่จะหลอมคืน', 13.5, UI.gold, true).setOrigin(0.5))
     } else {
-      FILTERS.forEach((f, i) => root.add(button(sc, 62 + i * 82, 128, 76, 28, f.label, () => {
+      FILTERS.forEach((f, i) => root.add(button(sc, 52 + i * 61, 128, 58, 28, f.label, () => {
         this.filter = f.id; this.page = 0; this.sel = undefined; this.rebuild()
-      }, { size: 12, fill: this.filter === f.id ? 0xf2b84b : 0x5a5f8a, color: this.filter === f.id ? UI.ink : UI.text })))
+      }, { size: 11, fill: this.filter === f.id ? 0xf2b84b : 0x5a5f8a, color: this.filter === f.id ? UI.ink : UI.text })))
     }
 
     let y = this.filter === 'set' && !this.salvageMode ? 148 : 162
@@ -166,7 +174,7 @@ export class RecipeView {
     root.add(itemIcon(sc, 288 + 70, 187, 96, shown ? it : { ...it, icon: '❓', name: '???' }, { grade: salv ? gradeOf(s, it.id) : 1, refine: salv ? refineOf(s, it.id) : 0 }))
 
     const titleMaxW = shown && itemSet ? 344 : 504
-    const titleBadges = `${cf ? '  🃏' : ''}${itemSet ? '  🧩' : ''}`
+    const titleBadges = `${cf ? '  🃏' : ''}${isCombine(it) ? '  🧬' : ''}${itemSet ? '  🧩' : ''}`
     root.add(fit(txt(sc, 288 + 128, 120, shown ? `${it.name}${titleBadges}` : '??? (ยังไม่ปลดสูตร)', 19, shown ? UI.text : UI.sub, true).setWordWrapWidth(titleMaxW), 26))
 
     if (shown && itemSet) {
@@ -185,7 +193,8 @@ export class RecipeView {
       const worn = forgeItem(it, salv ? gradeOf(s, it.id) : 1, salv ? refineOf(s, it.id) : 0)
       root.add(fit(txt(sc, 288 + 128, 168, `${itemStatLine(worn)} · 🃏 ช่องการ์ด ${it.slots ?? 1}`, 13, '#9fe3a8', true).setWordWrapWidth(510), 30))
       const fx = describeItemEffects(itemEffectsOf(undefined, it), itemConversionsOf(undefined, it))
-      const detail = fx.length > 0 ? `${it.desc} · ${fx.join(' · ')}` : it.desc
+      const into = buildsInto(it.id)
+      const detail = `${fx.length > 0 ? `${it.desc} · ${fx.join(' · ')}` : it.desc}${into.length ? ` · 🧬 ผสมต่อได้เป็น ${into.map((x) => x.name).join(', ')}` : ''}`
       root.add(fit(txt(sc, 288 + 128, 200, detail, 11, cf ? UI.gold : UI.sub, cf).setWordWrapWidth(510), 30))
       if (c) root.add(fit(txt(sc, 288 + 128, 234, `★3 ปลด: ${itemStatLine({ mod: c.bonus[0] })}  ·  ★5 ปลด: ${itemStatLine({ mod: c.bonus[1] })}`, 11, GRADE.colors[3]).setWordWrapWidth(510), 22))
     } else {
@@ -219,6 +228,7 @@ export class RecipeView {
     }
     const cost = cf ? cardforgeCost(it) : craftCost(it)
     strip.setCost(cost, s)
+    if (isCombine(it)) { this.combineInfo(root, it, s, cost, owned); return }
     const lines: string[] = []
     for (const [id, n] of Object.entries(cost.mats)) {
       const have = s.mats?.[id] ?? 0
@@ -247,6 +257,47 @@ export class RecipeView {
     }
     const ready = cf ? canCardforge(s, it).ok : canPay(s, cost)
     root.add(button(sc, 794, 522, 280, 48, owned ? '✓ มีแล้ว' : ready ? (cf ? '🃏 ผนึกสร้าง' : '🔨 สร้าง') : 'ของยังไม่ครบ', () => this.build(it, cf), { size: 17 }).setEnabled(ready && !owned))
+  }
+
+  /** 🧬 Combine recipe: the two pieces (each must be owned, unworn, not broken / cursed) + the core on the cost strip. */
+  private combineInfo(root: Phaser.GameObjects.Container, it: Item, s: ReturnType<typeof save>, cost: { mats: Record<string, number>; zeny: number }, owned: boolean) {
+    const sc = this.scene, lines: string[] = []
+    let x = 302
+    for (const p of combineParts(it)) {
+      const has = s.owned.includes(p.id), worn = isWorn(s, p.id), bad = isBroken(s, p.id) || isTainted(s, p.id)
+      const st = !has ? 'ยังไม่มี' : worn ? 'ใส่อยู่' : bad ? 'ใช้ไม่ได้' : gradeStars(gradeOf(s, p.id), 5)
+      const ch = chip(sc, x, 294, p.icon, `${p.name} ${st}`, has && !worn && !bad ? 'ok' : 'short', 316)
+      root.add(ch); x += ch.chipW + 6
+      if (!has) lines.push(`• ${p.icon} ${p.name}: ตีได้ที่ 📜 สูตร (ของ${p.craft ? dgName(p.craft.dg) : 'ร้าน'})`)
+      else if (worn) lines.push(`• ${p.icon} ${p.name} ใส่อยู่ ถอดก่อนนะคะ`)
+      else if (bad) lines.push(`• ${p.icon} ${p.name} ${isBroken(s, p.id) ? 'แตกอยู่ ซ่อมก่อน' : 'ติดคำสาป ผสมไม่ได้'}`)
+    }
+    for (const [id, n] of Object.entries(cost.mats)) {
+      const have = s.mats?.[id] ?? 0
+      if (have < n) lines.push(`• ${matById(id)?.icon ?? ''} ${matById(id)?.name ?? id} ขาด ${n - have} — ${matById(id) ? matSource(matById(id)!) : ''}`)
+    }
+    if (s.zeny < cost.zeny) lines.push(`• 💰 zeny ขาด ${cost.zeny - s.zeny}z`)
+    const g = combineGrade(s, it)
+    const note = `ผสมแล้วได้ ${gradeStars(g, 5)} (ตามชิ้นที่สูงสุด) · ตีบวกเริ่ม +0 · การ์ดที่เสียบกลับกระเป๋า · ชิ้นส่วนทั้ง 2 หายไป และไม่นับเป็นชิ้นเซ็ต`
+    const body = owned ? `✓ มีแล้ว ${gradeStars(gradeOf(s, it.id), 5)} · อัปขั้นกับตีบวกต่อที่ ⚒️ ทั่ง` : lines.length ? `ที่ขาดอยู่:\n${lines.join('\n')}` : `ของครบแล้ว กดผสมได้เลยค่ะ\n${note}`
+    root.add(fit(txt(sc, 302, 322, body, 12, owned ? UI.green : lines.length ? UI.text : UI.green).setWordWrapWidth(316), 132))
+    const ready = canCombine(s, it).ok
+    root.add(button(sc, 794, 522, 280, 48, owned ? '✓ มีแล้ว' : ready ? '🧬 ผสม' : 'ของยังไม่ครบ', () => {
+      confirm(sc, `🧬 ผสม ${it.name}?`, `${combineParts(it).map((p) => p.name).join(' + ')} จะหายไป\n${note}`, 'ผสมเลย', () => this.doCombine(it), 'ไว้ก่อน')
+    }, { size: 17 }).setEnabled(ready && !owned))
+  }
+
+  private doCombine(it: Item) {
+    const s = save()
+    if (!combine(s, it)) { toast(this.scene, 'ยังผสมไม่ได้ เช็คชิ้นส่วนกับแกนผสมอีกทีนะคะ', UI.red); return }
+    persist(); sfx.coin()
+    this.host.wallet()
+    this.host.say(`ผสม ${it.name} สำเร็จ! ได้ Passive ใหม่แล้ว อัปขั้น/ตีบวกต่อที่ ⚒️ ทั่งได้เลย`)
+    if (canWearAs(it, s)) {
+      const off = cardsOffOnEquip(s, it.id), warn = cardsOffText(off)
+      confirm(this.scene, `ผสมสำเร็จ! ${it.icon} ${it.name}`, warn ? `ใส่เลยไหมคะ?\n${warn}` : 'ใส่เลยไหมคะ?', 'ใส่เลย', () => { equip(s, it.id); persist(); cardsOffToast(this.scene, off); this.host.changed() }, 'ไว้ก่อน')
+    }
+    this.host.changed()
   }
 
   private renderComparePanel(root: Phaser.GameObjects.Container, it: Item, s: ReturnType<typeof save>, open: boolean) {

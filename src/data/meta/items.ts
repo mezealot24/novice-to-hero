@@ -8,6 +8,7 @@ import { UNIQUE_ITEMS } from "../uniques";
 import { CHAMPION_UNIQUES, CREATIVE_UNIQUES, UNIQUE3_ITEMS, WARLORD_UNIQUES } from "../uniques3";
 import { CLASS_GEAR } from "../class-gear";
 import { CLASS_CRAFT_ITEMS } from "../class-craft";
+import { COMBINE_ITEMS } from "../combine-items";
 import type { Item, ItemReq } from "./item-types";
 import { withClassHp } from "../class-hp";
 import { ARMOR } from "./items-armor";
@@ -36,6 +37,8 @@ export const ITEMS: Item[] = withClassHp([
 	...CLASS_CRAFT_ITEMS,
 	// ----- Awakened D10-D13 & Rift creative craft gear (data/awakened-craft.ts) -----
 	...AWAKENED_CRAFT_ITEMS,
+	// ----- 🧬 Combine: two owned pieces fused into one item with a Unique Passive (data/combine-items.ts) -----
+	...COMBINE_ITEMS,
 ]); // 🩸 class gear flat HP (data/class-hp.ts)
 export const itemById = (id: string) =>
 	ITEMS.find((i) => i.id === id) ?? ITEMS[0];
