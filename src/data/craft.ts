@@ -244,7 +244,10 @@ export function gradeCost(it: Item, g: number) {
 }
 export function craftCost(it: Item) {
   const c = it.craft!
-  return { mats: { [matOf(c.dg, false)]: c.common, [matOf(c.dg, true)]: c.boss } as Record<string, number>, zeny: c.zeny }
+  const mats: Record<string, number> = {}
+  if (c.common > 0) mats[matOf(c.dg, false)] = c.common
+  if (c.boss > 0) mats[matOf(c.dg, true)] = c.boss // 🧬 combine cores have no common mats: never list a 0
+  return { mats, zeny: c.zeny }
 }
 
 const r3 = (n: number) => Math.round(n * 1000) / 1000

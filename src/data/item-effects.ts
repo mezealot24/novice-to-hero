@@ -28,6 +28,14 @@ export type ItemEffectId =
   | 'mana_overload'
   | 'guardian_pulse'
   | 'void_sunder'
+  // 🧬 Combine passives (Q 2026-11-24): damage that is not the ult
+  | 'rend_current' // basic attack + power x target's CURRENT HP (boss x0.5), capped at threshold x P.ATK
+  | 'ramp_stack' // +power damage (not ult) per fight turn after the first, up to threshold stacks
+  | 'third_hit' // every threshold-th basic attack (default 3): + power x P.ATK + Base Lv x 4, no DEF
+  | 'bash' // basic attack, chance (CD cd): stun a normal mob 1 turn · a casting boss: the cast breaks · a boss not casting: pushed back
+  | 'cleave' // a basic / combo hit splashes power x its damage onto every other monster
+  | 'last_stand' // once per wave: a lethal hit leaves 1 HP + a shield of power x Max HP
+  | 'skill_burn' // a skill hit sets a burn of power x target's Max HP per turn (boss x0.5) for 3 turns, capped at threshold x max(P.ATK, M.ATK)
 
 export interface ItemEffectSpec {
   id: ItemEffectId
@@ -344,6 +352,9 @@ export function itemConversionsOf(s: ImbueAwakenRef | undefined, it: Item): Stat
   }))
 }
 
+/** Percent with up to one decimal (0.008 -> 0.8). */
+const pct1 = (n: number) => Math.round(n * 1000) / 10
+
 const EFFECT_LABEL: Record<ItemEffectId, (e: ItemEffectSpec) => string> = {
   spellblade: (e) => `Spellblade: หลังใช้สกิล ตีปกติถัดไปแรง +${Math.round(e.power * 100)}% (CD ${e.cd ?? 1} เทิร์น)`,
   chain_lightning: (e) => `สายฟ้าชิ่ง ${Math.round((e.chance ?? 1) * 100)}% แรง ${Math.round(e.power * 100)}% ATK/MATK`,
@@ -354,6 +365,13 @@ const EFFECT_LABEL: Record<ItemEffectId, (e: ItemEffectSpec) => string> = {
   echo_double: (e) => `Echo: โอกาส ${Math.round((e.chance ?? 1) * 100)}% ตีซ้ำ ${Math.round(e.power * 100)}% (CD ${e.cd ?? 2} เทิร์น)`,
   mana_overload: (e) => `Mana ≥ ${Math.round((e.threshold ?? 0.6) * 100)}%: สกิลเวทแรง +${Math.round(e.power * 100)}%`,
   guardian_pulse: (e) => `คลื่นโล่สเกล ${Math.round(e.power * 100)}% Max HP ทุก ${e.cd ?? 2} เทิร์น`,
+  rend_current: (e) => `คมกัดกร่อน: ตีปกติ +${pct1(e.power)}% HP ปัจจุบันของเป้าหมาย (บอสครึ่งเดียว · สูงสุด ${e.threshold ?? 2.5}x P.ATK)`,
+  ramp_stack: (e) => `สะสมศึก: ทุกเทิร์นในไฟท์ ดาเมจ (ยกเว้นท่าไม้ตาย) +${pct1(e.power)}% สูงสุด ${e.threshold ?? 8} ชั้น`,
+  skill_burn: (e) => `เพลิงทรมาน: สกิลที่โดนเผา ${pct1(e.power)}% Max HP/เทิร์น 3 เทิร์น (บอสครึ่งเดียว · สูงสุด ${e.threshold ?? 1.5}x ATK)`,
+  third_hit: (e) => `สามจังหวะ: ตีปกติครั้งที่ ${e.threshold ?? 3} +${pct1(e.power)}% P.ATK + Base Lv x4 ไม่ผ่านเกราะ`,
+  bash: (e) => `ทุบมึน ${pct1(e.chance ?? 0.15)}%: มอนเสียเทิร์น · บอสที่ร่ายอยู่ร่ายแตก (CD ${e.cd ?? 2} เทิร์น)`,
+  cleave: (e) => `ฟันกวาด: ตีปกติกระเซ็น ${pct1(e.power)}% ใส่มอนตัวอื่นทุกตัว`,
+  last_stand: (e) => `ใจสู้: เวฟละครั้ง โดนตีตายจะเหลือ 1 HP + โล่ ${pct1(e.power)}% Max HP`,
   void_sunder: (e) => `ฉีกเกราะ P.DEF/M.DEF ศัตรูลง ${Math.round(e.power * 100)}% (CD ${e.cd ?? 1} เทิร์น)`,
 }
 
