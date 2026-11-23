@@ -4535,7 +4535,7 @@ export class BattleScene extends Phaser.Scene {
       sfx.slam()
       this.callout('🔱 คลื่นทะลวง!', W / 2, 170, '#ffe08a')
       const y = t.spr.y - t.spr.displayHeight * 0.45
-      await spearWaveFx(this, HERO_X + 30, t.spr.x - 6, y)
+      await spearWaveFx(this, HERO_X + 70, t.spr.x - 6, y)
       this.swAuraStop() // the spear's power is spent
       dealt = this.strike(t, ((K.waveMul + st.ultMulAdd) * this.swWavePow * (1 + st.pskill) * (1 + st.swWaveAmp) * (t.charging ? 1 + st.ultVsCharge : 1) + this.hpMul()), false, '#ffe08a', st.j2Spiral)
       if (!t.dead && t.hp / Math.max(1, t.def.hp) < SWORD_MANA.execLow) executeMarkFx(this, t.spr.x, y) // ⚖️ คำพิพากษา
