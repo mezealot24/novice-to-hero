@@ -975,7 +975,7 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
         out.push({ label: '⚔️ ตีปกติฟันตัวถัดไป', value: `${Math.round((SWORD_MANA.cleaveShare + st.swAwCleave) * 100)}%` })
         if (kn) {
           const h2 = hitPow * (1 + st.ult2Pow), hits = K.pierceHits + st.j2PierceHits, bigHits = K.pierceBigHits + st.j2PierceHits
-          out.push({ label: '🎯 Pierce/ฮิต (กดแล้วแทงทันที)', value: hitText(st, (K.pierceMul + st.ultMulAdd) * h2 * (1 + st.pskill), false, true) }) // skill hit: crit text only with skillCrit
+          out.push({ label: '🎯 Pierce/ฮิต (หลังปลุกหอก)', value: hitText(st, (K.pierceMul + st.ultMulAdd) * h2 * (1 + st.pskill), false, true) }) // skill hit: crit text only with skillCrit
           out.push({ label: '🎯 Pierce จำนวนฮิต', value: `${hits} (บอส/มินิ ${bigHits})${st.j3Lk > 0 ? ` +${KIT3.lordknight.extraHits + st.j3GospelField}` : ''}` })
           out.push({ label: '🔱 คลื่นทะลวง (แทงเดียว)', value: hitText(st, (K.waveMul + st.ultMulAdd) * h2 * (1 + st.pskill) * (1 + st.swWaveAmp), false, true) })
           out.push({ label: '🎯 เป้า', value: `บอส > มินิ > ตัวหน้า · คริ ${st.skillCrit > 0 ? 'ด้วย skillCrit' : 'ต้องมี skillCrit'}` })
