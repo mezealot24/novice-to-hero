@@ -7,7 +7,7 @@ import { ALL_CARDFORGE_ITEMS, bagCards, canCardforge, cardforge, cardforgeCost, 
 import { CRAFT_ITEMS, craftCost, forgeItem, GRADE, gradeStars } from '../../data/craft'
 import { CLASS_GEAR } from '../../data/class-gear'
 import { CLASS_CRAFT_ITEMS } from '../../data/class-craft'
-import { buildsInto, canCombine, combine, COMBINE_ITEMS, combineGrade, combineParts, isCombine, type CombineWhy } from '../../data/combine'
+import { buildsInto, canCombine, combine, COMBINE_ITEMS, combineGrade, combineParts, isCombine, isMythic, type CombineWhy } from '../../data/combine'
 import { describeItemEffects, itemConversionsOf, itemEffectsOf, type SaveExt } from '../../data/item-effects'
 import { matById } from '../../data/materials'
 import { canWearAs, forgeTag, gradeOf, isBroken, isTainted, itemById, ITEMS, itemStatLine, itemUnlocked, refineOf, REQ_TEXT, SLOTS, wearText, wornItems, type Item } from '../../data/meta'
@@ -28,7 +28,7 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'set', label: '🧩 เซ็ต' },
   { id: 'combine', label: '🧬 ผสม' },
 ]
-const COMBINE_WHY: Record<CombineWhy, string> = { notCombine: '', owned: 'มีแล้ว', locked: 'ยังไม่ปลดสูตร', missing: 'ยังไม่มีชิ้นส่วน', worn: 'ชิ้นส่วนใส่อยู่ ถอดก่อนนะคะ', broken: 'ชิ้นส่วนแตกอยู่ ซ่อมก่อนนะคะ', tainted: 'ชิ้นส่วนติดคำสาป ผสมไม่ได้', short: 'แกนผสมยังไม่ครบ' }
+const COMBINE_WHY: Record<CombineWhy, string> = { notCombine: '', owned: 'มีแล้ว', locked: 'ยังไม่ปลดสูตร', missing: 'ยังไม่มีชิ้นส่วน', worn: 'ชิ้นส่วนใส่อยู่ ถอดก่อนนะคะ', broken: 'ชิ้นส่วนแตกอยู่ ซ่อมก่อนนะคะ', tainted: 'ชิ้นส่วนติดคำสาป ผสมไม่ได้', short: 'แกนผสมยังไม่ครบ', cards: 'การ์ดบอสยังไม่ครบ' }
 const PER = 6, ROW_H = 52
 const dgName = (id: string) => (id === 'rift' ? 'รอยแยกนิรันดร์' : DUNGEONS.find((d) => d.id === id)?.name ?? id)
 const dgBoss = (id: string) => (id === 'rift' ? 'บอสรอยแยกนิรันดร์' : DUNGEONS.find((d) => d.id === id)?.boss ?? '')
@@ -174,7 +174,7 @@ export class RecipeView {
     root.add(itemIcon(sc, 288 + 70, 187, 96, shown ? it : { ...it, icon: '❓', name: '???' }, { grade: salv ? gradeOf(s, it.id) : 1, refine: salv ? refineOf(s, it.id) : 0 }))
 
     const titleMaxW = shown && itemSet ? 344 : 504
-    const titleBadges = `${cf ? '  🃏' : ''}${isCombine(it) ? '  🧬' : ''}${itemSet ? '  🧩' : ''}`
+    const titleBadges = `${cf ? '  🃏' : ''}${isMythic(it) ? '  🧬✨ Mythic' : isCombine(it) ? '  🧬' : ''}${itemSet ? '  🧩' : ''}`
     root.add(fit(txt(sc, 288 + 128, 120, shown ? `${it.name}${titleBadges}` : '??? (ยังไม่ปลดสูตร)', 19, shown ? UI.text : UI.sub, true).setWordWrapWidth(titleMaxW), 26))
 
     if (shown && itemSet) {
@@ -276,9 +276,15 @@ export class RecipeView {
       const have = s.mats?.[id] ?? 0
       if (have < n) lines.push(`• ${matById(id)?.icon ?? ''} ${matById(id)?.name ?? id} ขาด ${n - have} — ${matById(id) ? matSource(matById(id)!) : ''}`)
     }
+    for (const [id, n] of Object.entries(it.combine!.cards ?? {})) {
+      const have = bagCards(s, id), cd = cardById(id)
+      const ch = chip(sc, x, 294, '🃏', `${cd ? cardName(cd) : id} ${have}/${n}`, have >= n ? 'ok' : 'short', 316)
+      root.add(ch); x += ch.chipW + 6
+      if (have < n) lines.push(`• 🃏 ${cd ? cardName(cd) : id} ขาด ${n - have} ใบ — ดรอปจากบอส${dgName(it.craft!.dg)}`)
+    }
     if (s.zeny < cost.zeny) lines.push(`• 💰 zeny ขาด ${cost.zeny - s.zeny}z`)
     const g = combineGrade(s, it)
-    const note = `ผสมแล้วได้ ${gradeStars(g, 5)} (ตามชิ้นที่สูงสุด) · ตีบวกเริ่ม +0 · การ์ดที่เสียบกลับกระเป๋า · ชิ้นส่วนทั้ง 2 หายไป และไม่นับเป็นชิ้นเซ็ต`
+    const note = `${isMythic(it) ? '✨ Mythic: สวมได้ทีละ 1 ชิ้น · ' : ''}ผสมแล้วได้ ${gradeStars(g, 5)} (ตามชิ้นที่สูงสุด) · ตีบวกเริ่ม +0 · การ์ดที่เสียบกลับกระเป๋า · ชิ้นส่วนทั้ง 2 หายไป และไม่นับเป็นชิ้นเซ็ต`
     const body = owned ? `✓ มีแล้ว ${gradeStars(gradeOf(s, it.id), 5)} · อัปขั้นกับตีบวกต่อที่ ⚒️ ทั่ง` : lines.length ? `ที่ขาดอยู่:\n${lines.join('\n')}` : `ของครบแล้ว กดผสมได้เลยค่ะ\n${note}`
     root.add(fit(txt(sc, 302, 322, body, 12, owned ? UI.green : lines.length ? UI.text : UI.green).setWordWrapWidth(316), 132))
     const ready = canCombine(s, it).ok

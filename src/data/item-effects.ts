@@ -37,6 +37,18 @@ export type ItemEffectId =
   | 'last_stand' // once per wave: a lethal hit leaves 1 HP + a shield of power x Max HP
   | 'skill_burn' // a skill hit sets a burn of power x target's Max HP per turn (boss x0.5) for 3 turns, capped at threshold x max(P.ATK, M.ATK)
 
+/** 🧬 Combine passive tuning shared by BattleScene (AGENTS.md: no balance numbers in scenes). */
+export const COMBINE_FX = {
+  bossMul: 0.5, // rend_current / skill_burn on a boss
+  rendCap: 2.5, // rend_current default cap, x P.ATK
+  burnTurns: 3, // skill_burn length
+  burnCap: 1.5, // skill_burn default cap, x max(P.ATK, M.ATK)
+  thirdEvery: 3, // third_hit default
+  thirdPerLv: 4, // third_hit flat damage per Base Lv
+  bashChance: 0.15, // bash default
+  rampMax: 8, // ramp_stack default stacks
+} as const
+
 export interface ItemEffectSpec {
   id: ItemEffectId
   power: number
