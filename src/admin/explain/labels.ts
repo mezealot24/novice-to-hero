@@ -77,6 +77,11 @@ export const TABLE_EXPLAIN: Record<TableId, TableExplain> = {
     short: 'สกิลอาชีพ',
     summary: 'ค่าร่าย คูลดาวน์ อัตราคริของสกิล ทักษะ 2 (base/per Lv) ทักษะ 3, Ult วิวัฒน์ และตัวเลขพาสซีฟของทั้ง 10 อาชีพขั้น 2',
   },
+  passives: {
+    label: '✨ ผังดาวพาสซีฟ (PASSIVE CONSTELLATION)',
+    short: 'ผังดาว',
+    summary: 'ปรับค่าพลังของโหนดในผังดาวพาสซีฟ (Minor / Notable / Keystone / Awakening) แยกตามอาชีพและสายอาชีพขั้น 2',
+  },
 }
 
 export const FX_TH: Record<keyof HitFx, string> = {

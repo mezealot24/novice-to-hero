@@ -175,3 +175,33 @@ test('previewManyMons matches individual previewMon results and reverts cleanly'
   assert.equal(JSON.stringify(MONSTERS.pharaoh), before, 'reverted cleanly')
 })
 
+
+test('passives table: live-patching PASSIVE_TUNING reaches passiveMods() for static and adaptive nodes', async () => {
+  const { applyPatch } = await import('../src/data/patch')
+  const { passiveMods } = await import('../src/data/passive-tree')
+  const { passiveEntriesForJob } = await import('../src/data/passive-registry')
+
+  const swEntries = passiveEntriesForJob('swordsman')
+  const thEntries = passiveEntriesForJob('thief')
+  assert.ok(swEntries.length > 50, `expected >50 swordsman passive entries, got ${swEntries.length}`)
+  assert.ok(thEntries.length > 50, `expected >50 thief passive entries, got ${thEntries.length}`)
+
+  const before = passiveMods('swordsman', ['sw_origin', 'sw_m_van1'])
+  const beforeAtk = before.reduce((s, m) => s + (m.atk ?? 0), 0)
+  assert.ok(beforeAtk > 0)
+
+  const rep = applyPatch({ passives: { 'sw_m_van1.atk': beforeAtk + 42 } }, {})
+  try {
+    assert.equal(rep.ok, true)
+    assert.equal(rep.count, 1)
+    assert.equal(rep.skipped.length, 0)
+
+    const after = passiveMods('swordsman', ['sw_origin', 'sw_m_van1'])
+    const afterAtk = after.reduce((s, m) => s + (m.atk ?? 0), 0)
+    assert.equal(afterAtk, beforeAtk + 42)
+  } finally {
+    rep.revert()
+  }
+  const restored = passiveMods('swordsman', ['sw_origin', 'sw_m_van1']).reduce((s, m) => s + (m.atk ?? 0), 0)
+  assert.equal(restored, beforeAtk)
+})

@@ -1,5 +1,6 @@
 // Pure Thai explanations for every tunable field in the Balance Engine ("ปรับแล้วได้อะไร" + increase/decrease effects + formula hints).
 import { HARD_PASSIVES, HARD_SKILLS, MONSTERS, type MonsterKind } from '../data/game-data'
+import { passiveEntryMeta } from '../data/passive-registry'
 import type { TableId } from '../data/tunables'
 import {
   DUNGEON_LABEL, TABLE_EXPLAIN,
@@ -49,10 +50,30 @@ export function explainField(t: TableId, path: string, ctx?: { native?: boolean;
     case 'progression': return PROGRESSION_MAP[path] ?? { label: path, effect: 'ค่าความก้าวหน้าและ EXP' }
     case 'kit': return { ...(KIT_EXPLAIN[path] ?? { label: path, effect: 'ตัวคูณคิทคลาสหลัก' }), label: ctx?.defaultLabel ?? KIT_EXPLAIN[path]?.label ?? path }
     case 'skills': return explainSkillTable(path, ctx?.defaultLabel)
+    case 'passives': {
+      const dot = path.indexOf('.')
+      const entryKey = dot >= 0 ? path.slice(0, dot) : path
+      const statKey = dot >= 0 ? path.slice(dot + 1) : ''
+      const m = passiveEntryMeta(entryKey)
+      if (!m) return { label: ctx?.defaultLabel ?? path, effect: `ค่าพลังโหนดผังดาว (${statKey || entryKey})` }
+      const ctxTag = m.ctxKey ? ` [${m.ctxKey}]` : m.awaken?.length ? ` [🌟 ${m.awaken.join('/')}]` : ''
+      return {
+        label: `${m.icon} ${m.name}${ctxTag} · ${statKey}`,
+        effect: `ปรับค่า ${statKey} ของโหนด ${m.name} (${m.kind} · ${m.sector})`,
+        detail: m.desc,
+      }
+    }
   }
 }
 
 export function explainTableGroup(t: TableId, key: string): { title: string; desc?: string } {
+  if (t === 'passives') {
+    const m = passiveEntryMeta(key)
+    if (m) {
+      const ctxTag = m.ctxKey ? ` (${m.ctxKey})` : m.awaken?.length ? ` (🌟 ${m.awaken.join('/')})` : ''
+      return { title: `${m.icon} ${m.name}${ctxTag} · ${m.kind}`, desc: m.desc }
+    }
+  }
   if (t === 'hardSkills') {
     const sk = HARD_SKILLS[Number(key)]
     if (sk) return { title: `${key} · ${sk.name} (${sk.kind})`, desc: `สกิลสุ่มโหมด Hard สำหรับมินิบอสและบอส` }

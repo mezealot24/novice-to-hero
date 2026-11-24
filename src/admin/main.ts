@@ -1,8 +1,9 @@
 // admin.html: live-ops balance editor. Edits a Patch (tunables.ts whitelist), saves it as the server draft, publishes it.
 // The server re-validates everything (server/src/config.ts); the checks here are only for fast feedback.
 import { DUNGEONS, MONSTERS, type MonsterKind } from '../data/game-data'
-import { JOBS } from '../data/jobs'
+import { JOBS, type JobId } from '../data/jobs'
 import { JOB2, type Job2Id } from '../data/jobs2'
+import { PASSIVE_JOBS, passiveEntriesForJob } from '../data/passive-registry'
 import type { BaseStat } from '../data/meta'
 import { MON_STAT, monPoints, monTier, statNative } from '../data/mon-stats'
 import { canonicalJson, checkPatch, dataFingerprint, guardsFor, pruneUnappliable, type FieldRow, type Skip } from '../data/patch'
@@ -92,7 +93,7 @@ function announce(msg: string) {
 }
 
 // ---------- state ----------
-type Tab = 'mon' | 'skills' | 'tables' | 'diff' | 'history'
+type Tab = 'mon' | 'skills' | 'passives' | 'tables' | 'diff' | 'history'
 const S = {
   offline: !API,
   me: '',
@@ -121,6 +122,10 @@ const S = {
   skillShowDesc: false,
   skillFilter: { search: '', tier: 'all', cls: 'all', slot: 'all', metric: 'all', status: 'all' } as SkillFilter,
   skillSel: new Set<string>(),
+  passiveJob: 'swordsman' as JobId,
+  passiveKind: 'all' as 'all' | 'minor' | 'notable' | 'keystone' | 'awaken',
+  passiveQuery: '',
+  passiveOnlyChanged: false,
   bulkOp: 'pct' as BulkOp,
   bulkArg: '10',
   busy: false,
@@ -177,7 +182,7 @@ function renderGate(kind: 'login' | 'forbidden' | 'error', info: string) {
 
 // ---------- shell ----------
 function renderApp() {
-  const tabs: [Tab, string][] = [['mon', '👾 มอนสเตอร์'], ['skills', '⚔️ สกิลอาชีพ'], ['tables', '📊 ตารางอื่น'], ['diff', '📝 สรุป / เผยแพร่'], ['history', '🕘 ประวัติ']]
+  const tabs: [Tab, string][] = [['mon', '👾 มอนสเตอร์'], ['skills', '⚔️ สกิลอาชีพ'], ['passives', '✨ ผังดาว'], ['tables', '📊 ตารางอื่น'], ['diff', '📝 สรุป / เผยแพร่'], ['history', '🕘 ประวัติ']]
   const header = h('header', {},
     h('div', { class: 'row top' }, h('h1', { class: 'brand' }, '⚙️ Balance Editor · Engine'), h('span', { class: 'muted' }, S.me),
       S.offline ? null : h('button', { type: 'button', class: 'small', onclick: () => { void authClient?.signOut().then(() => location.reload()) } }, 'ออก')),
@@ -214,6 +219,7 @@ function renderTab() {
   main.replaceChildren()
   if (S.tab === 'mon') renderMonsters(main)
   else if (S.tab === 'skills') renderSkills(main)
+  else if (S.tab === 'passives') renderPassives(main)
   else if (S.tab === 'tables') renderTables(main)
   else if (S.tab === 'diff') renderDiff(main)
   else void renderHistory(main)
@@ -1756,6 +1762,134 @@ function renderSkills(main: HTMLElement) {
 
   drawTable()
   main.append(top, filterBar, bulkBar.el, tableSlot)
+}
+
+// ---------- passive constellation tab ----------
+const SECTOR_TH: Record<string, string> = {
+  core: '⭐ แกนกลาง',
+  vanguard: '⚔️ คมดาบ (Vanguard)',
+  bastion: '🛡️ ปราการ (Bastion)',
+  fury: '🔥 โทสะ (Fury)',
+  warblood: '🩸 โลหิตศึก (Warblood)',
+  blade: '🗡️ คมมีด (Blade)',
+  shadow: '🌑 เงา (Shadow)',
+  venom: '☠️ พิษ (Venom)',
+  alchemy: '🧪 เล่นแร่ (Alchemy)',
+  awaken: '🌟 วงแหวน Awakening (อาชีพขั้น 3)',
+}
+
+function renderPassives(main: HTMLElement) {
+  const top = h('div', { class: 'tab-head' },
+    h('h2', {}, '✨ ผังดาวพาสซีฟ (Passive Constellation)'),
+    h('span', { class: 'muted small' }, 'ปรับค่าพลังโหนด Minor / Notable / Keystone / Awakening แล้วกดบันทึก/ทดสอบในเกมได้ทันที'))
+
+  const jobBar = h('div', { class: 'chips', role: 'group', 'aria-label': 'เลือกสายอาชีพผังดาว' },
+    ...PASSIVE_JOBS.map((j) => h('button', {
+      type: 'button',
+      class: S.passiveJob === j ? 'on' : '',
+      'aria-pressed': String(S.passiveJob === j),
+      onclick: () => { S.passiveJob = j; renderTab() },
+    }, `${JOBS[j].icon} ${JOBS[j].name} (${passiveEntriesForJob(j).length})`)))
+
+  const kinds: ['all' | 'minor' | 'notable' | 'keystone' | 'awaken', string][] = [
+    ['all', 'ทั้งหมด'],
+    ['minor', 'Minor'],
+    ['notable', 'Notable'],
+    ['keystone', 'Keystone'],
+    ['awaken', '🌟 Awaken'],
+  ]
+  const kindBar = h('div', { class: 'chips', role: 'group', 'aria-label': 'กรองประเภทโหนด' },
+    ...kinds.map(([k, lbl]) => h('button', {
+      type: 'button',
+      class: S.passiveKind === k ? 'on' : '',
+      'aria-pressed': String(S.passiveKind === k),
+      onclick: () => { S.passiveKind = k; renderTab() },
+    }, lbl)))
+
+  const bodySlot = h('div', {})
+  const allRows = fields('passives')
+  const rowsByEntry = new Map<string, FieldRow[]>()
+  for (const r of allRows) {
+    const dot = r.path.indexOf('.')
+    const key = dot >= 0 ? r.path.slice(0, dot) : r.path
+    const list = rowsByEntry.get(key) ?? []
+    list.push(r)
+    rowsByEntry.set(key, list)
+  }
+
+  const labelOf = (p: string) => explainField('passives', p).label
+
+  const drawBody = () => {
+    const q = S.passiveQuery.trim().toLowerCase()
+    const entries = passiveEntriesForJob(S.passiveJob).filter((m) => {
+      if (S.passiveKind === 'awaken') {
+        if (!m.awaken?.length) return false
+      } else if (S.passiveKind !== 'all') {
+        if (m.awaken?.length || m.kind !== S.passiveKind) return false
+      }
+      if (S.passiveOnlyChanged && changedCount('passives', `${m.entryKey}.`) === 0) return false
+      if (!q) return true
+      return `${m.name} ${m.nodeId} ${m.entryKey} ${m.sector} ${m.desc} ${m.statKeys.join(' ')}`.toLowerCase().includes(q)
+    })
+
+    if (!entries.length) {
+      bodySlot.replaceChildren(h('p', { class: 'muted', style: 'padding:12px 4px' },
+        S.passiveOnlyChanged ? 'ยังไม่มีโหนดผังดาวที่แก้ไขในหมวดนี้' : `ไม่พบโหนดที่ตรงกับ "${S.passiveQuery.trim()}"`))
+      return
+    }
+
+    const bySector = new Map<string, typeof entries>()
+    for (const m of entries) {
+      const sec = m.awaken?.length ? 'awaken' : m.sector
+      const list = bySector.get(sec) ?? []
+      list.push(m)
+      bySector.set(sec, list)
+    }
+
+    const frag = document.createDocumentFragment()
+    for (const [sec, list] of bySector) {
+      frag.append(h('h3', { style: 'margin:14px 0 6px' }, `${SECTOR_TH[sec] ?? sec} (${list.length})`))
+      for (const m of list) {
+        const rows = rowsByEntry.get(m.entryKey) ?? []
+        if (!rows.length) continue
+        const badge = h('span', { class: 'badge' })
+        const setBadge = () => { const n = changedCount('passives', `${m.entryKey}.`); badge.textContent = n ? `${n} แก้` : ''; badge.hidden = !n; updateStatus() }
+        setBadge()
+        const ctxTag = m.ctxKey ? ` · ${m.ctxKey}` : m.awaken?.length ? ` · 🌟 ${m.awaken.join('/')}` : ''
+        const openByDefault = q.length > 0 || S.passiveOnlyChanged || changedCount('passives', `${m.entryKey}.`) > 0
+        const d = h('details', { class: 'mon', open: openByDefault },
+          h('summary', {},
+            h('b', {}, `${m.icon} ${m.name}`),
+            h('span', { class: 'muted' }, ` · ${m.kind}${ctxTag} · ${rows.length} ช่อง `),
+            badge,
+            h('div', { class: 'small muted' }, m.desc)))
+        const mount = () => { if (d.children.length === 1) d.append(fieldGrid('passives', rows, labelOf, setBadge)) }
+        if (openByDefault) mount()
+        d.addEventListener('toggle', () => { if (d.open) mount() })
+        frag.append(d)
+      }
+    }
+    bodySlot.replaceChildren(frag)
+  }
+
+  const searchIn = h('input', {
+    class: 'sk-search',
+    type: 'search',
+    placeholder: `🔍 ค้นหาโหนดผังดาว ${JOBS[S.passiveJob].name} (ชื่อ, stat, id)...`,
+    value: S.passiveQuery,
+    oninput: (e: Event) => { S.passiveQuery = (e.target as HTMLInputElement).value; drawBody() },
+  })
+  const onlyChk = h('input', {
+    type: 'checkbox',
+    checked: S.passiveOnlyChanged,
+    onchange: (e: Event) => { S.passiveOnlyChanged = (e.target as HTMLInputElement).checked; drawBody() },
+  })
+  const bar = h('div', { class: 'row', style: 'margin:8px 0;gap:10px;align-items:center' },
+    searchIn,
+    h('label', { class: 'small' }, onlyChk, ' เฉพาะที่แก้'))
+
+  drawBody()
+  main.append(top, jobBar, kindBar, bar, bodySlot)
 }
 
 // ---------- other tables (generic from TABLES) ----------
