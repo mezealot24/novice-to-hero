@@ -42,20 +42,19 @@ export const SWORD_MANA = {
   // Q 2026-11-22: ปลุกดาบ gives STR +awakenStr[ult Lv] (P.ATK via PER_POINT.str.atk) and ✨ เคลือบดาบสวรรค์: every physical hit while awakened
   // adds hpPct + strPer[ult Lv] per 10 total STR (incl. the buff) of the target's CURRENT HP. Boss / mini take awakenBigShare of it.
   // Lv 6-15 (Q 2026-11-24 class-1 skill cap 10 at Job2 / 15 at Awakening): STR +5 per Lv past 5.
-  awakenStr: [20, 25, 30, 35, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100], awakenBigShare: 0.5,
-  // ✨ coat rework (Q 2026-11-24 "scale STR ยากขึ้นกว่าเดิมมาก แต่ Base % dmg ขยับขึ้นนิดหน่อย"): was 2.5% + per 10 STR x [0.5..1.0]%
-  // (STR 167 at Lv 5 = 18.5%). Now base awakenHpPct + awakenHpLv per Lv up to Lv 5, then awakenHpLvHi per Lv (Lv 1 3.5% · Lv 5 5.5% ·
-  // Lv 10 6.75% · Lv 15 8%), plus awakenStrPct per awakenStrStep total STR (STR 167 at Lv 5 = 8.5%).
-  awakenHpPct: 0.035, awakenHpLv: 0.005, awakenHpLvHi: 0.0025, awakenStrStep: 25, awakenStrPct: 0.005,
+  awakenStr: [15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85], awakenBigShare: 0.5,
+  // ✨ coat rework (Wave 1): capped post-roll bonus (coatAtkCap x P.ATK, multi-hit gets coatMultiShare)
+  awakenHpPct: 0.025, awakenHpLv: 0.003, awakenHpLvHi: 0.0015, awakenStrStep: 25, awakenStrPct: 0.0025,
+  coatAtkCap: 1.25, coatMultiShare: 0.5,
   // ⚖️ คำพิพากษา (Q 2026-11-21, execute curve Q sent): an ult hit deals + execMax x (missing HP / execCapMiss), capped at execCapMiss missing
-  // (2.667% per 1% missing, +200% at 75% missing). A multiplier on our P.ATK hit (not % of the monster's HP), so the x4/x10 boss HP of PR #160
+  // (2.00% per 1% missing, +150% at 75% missing). A multiplier on our P.ATK hit (not % of the monster's HP), so the x4/x10 boss HP of PR #160
   // can't blow it up; bosses / minis take execBigShare of the bonus. Full curve on 🌊 คลื่นดาบ; the 2nd / 3rd job ults (Knight, Lord Knight,
   // Berserker, Warlord) take execLineShare of it (they hit far more often).
-  execMax: 2, // + damage at execCapMiss missing HP
+  execMax: 1.5, // + damage at execCapMiss missing HP
   execCapMiss: 0.75, // missing HP share where the bonus caps
   execLow: 0.3, // 🌊 fires on its own once a monster is under this HP share
   execBigShare: 0.5, // boss / mini: share of the bonus they take
-  execLineShare: 0.25, // 2nd / 3rd job ults: share of the bonus (+50% max)
+  execLineShare: 0.25, // 2nd / 3rd job ults: share of the bonus
 }
 
 /** 🌊 คลื่นดาบ fires now? turnsLeft = awakened hero turns left counting this one (1 = the last). */
@@ -68,10 +67,10 @@ export function swordWaveNow(turnsLeft: number, hpFracs: number[]): boolean {
  *  Cleanse the hero's CC, one hit of [P.ATK x atkPct + STR x str + base x Base Lv] (option "Base Dmg x BaseLv only", the flat part
  *  turned into P.ATK units in battle), then the target is silenced silenceTurns monster turns, its cast is cut and it loses its next turn. */
 export const SWORD_S1 = {
-  // Lv 6-15 (Q 2026-11-24 class-1 skill cap 10 at Job2 / 15 at Awakening): +0.15 P.ATK, +0.15 STR, +10 base per Lv past 5
-  atkPct: [1.2, 1.4, 1.6, 1.8, 2.0, 2.15, 2.3, 2.45, 2.6, 2.75, 2.9, 3.05, 3.2, 3.35, 3.5],
-  str: [0.25, 0.5, 0.75, 1.0, 1.25, 1.4, 1.55, 1.7, 1.85, 2.0, 2.15, 2.3, 2.45, 2.6, 2.75],
-  base: [20, 40, 60, 80, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200], mana: 15, // mana: flat Mana at every Lv (Q 2026-11-22, was 6/12/18/24/30), admin key swordS1.mana
+  atkPct: [0.8, 0.9, 1.0, 1.1, 1.2, 1.26, 1.32, 1.38, 1.44, 1.5, 1.56, 1.62, 1.68, 1.74, 1.8],
+  str: [0.1, 0.15, 0.2, 0.25, 0.3, 0.33, 0.36, 0.39, 0.42, 0.45, 0.48, 0.51, 0.54, 0.57, 0.6],
+  base: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], mana: 15, // mana: flat Mana at every Lv (Q 2026-11-22, was 6/12/18/24/30), admin key swordS1.mana
+  baseLvSoft: 35, baseLvAfterScale: 0.2, skillCritAdd: 0.08,
   cd: 5, silenceTurns: 2,
 }
 /** Skill 1 Lv (1..15) from Stats.swS1Lv (the "+" node Lv; 0 points still casts Lv 1). */
@@ -84,17 +83,25 @@ export function swordCoatPct(lv: number, str: number): number {
   const base = M.awakenHpPct + M.awakenHpLv * (Math.min(l, 5) - 1) + M.awakenHpLvHi * Math.max(0, l - 5)
   return base + Math.floor(Math.max(0, str) / Math.max(1, M.awakenStrStep)) * M.awakenStrPct
 }
-/** "20/25/30/35/50 (Lv 10: 75 · Lv 15: 100)" for skill texts. */
+/** ✨ เคลือบดาบสวรรค์ capped flat bonus damage (post-roll) for one physical hit. */
+export function swordCoatFlat(lv: number, str: number, monHp: number, atk: number, big: boolean, multiHit = false): number {
+  const bigShare = big ? SWORD_MANA.awakenBigShare : 1
+  const coatShare = multiHit ? SWORD_MANA.coatMultiShare : 1
+  return Math.min(swordCoatPct(lv, str) * Math.max(0, monHp) * bigShare, SWORD_MANA.coatAtkCap * Math.max(1, atk) * coatShare * bigShare)
+}
+/** "15/20/25/30/35 (Lv 10: 60 · Lv 15: 85)" for skill texts. */
 export const swordAwakenStrText = () => { const a = SWORD_MANA.awakenStr; return `${a.slice(0, 5).join('/')} (Lv 10: ${a[9]} · Lv 15: ${a[14]})` }
-/** "3.5-5.5% (Lv 1-5, Lv 15 8%) + 0.5% ต่อ 25 STR" for skill texts. */
+/** "2.5-3.7% (Lv 1-5 · Lv 15 5.2%) + 0.25% ต่อ 25 STR (สูงสุด 125% P.ATK)" for skill texts. */
 export const swordCoatText = () => {
   const p = (x: number) => `${+(x * 100).toFixed(2)}%`, M = SWORD_MANA
-  return `+${p(swordCoatPct(1, 0))}-${p(swordCoatPct(5, 0))} (Lv 1-5 · Lv 15 ${p(swordCoatPct(15, 0))}) + ${p(M.awakenStrPct)} ต่อ ${M.awakenStrStep} STR`
+  return `+${p(swordCoatPct(1, 0))}-${p(swordCoatPct(5, 0))} (Lv 1-5 · Lv 15 ${p(swordCoatPct(15, 0))}) + ${p(M.awakenStrPct)} ต่อ ${M.awakenStrStep} STR (สูงสุด ${p(M.coatAtkCap)} P.ATK)`
 }
-/** Raw damage of one ดาบสยบมนตร์ hit before DEF / crit: P.ATK x pct + STR x k + base x Base Lv. */
+/** Raw damage of one ดาบสยบมนตร์ hit before DEF / crit: P.ATK x pct + STR x k + base x effBaseLv (soft-tapered past baseLvSoft). */
 export function swordS1Raw(lv: number, patk: number, str: number, baseLv: number): number {
   const i = Math.min(SWORD_S1.atkPct.length, Math.max(1, Math.round(lv))) - 1
-  return patk * SWORD_S1.atkPct[i] + str * SWORD_S1.str[i] + SWORD_S1.base[i] * Math.max(1, baseLv)
+  const blv = Math.max(1, baseLv)
+  const effBaseLv = blv <= SWORD_S1.baseLvSoft ? blv : SWORD_S1.baseLvSoft + (blv - SWORD_S1.baseLvSoft) * SWORD_S1.baseLvAfterScale
+  return patk * SWORD_S1.atkPct[i] + str * SWORD_S1.str[i] + SWORD_S1.base[i] * effBaseLv
 }
 
 /** Swordsman-line ults that run ⚔️ ปลุกดาบ + the auto wave AND take the FULL ⚖️ execute curve (+ ⚖️ คมพิพากษา): job1 ดาบพิพากษา
@@ -118,8 +125,8 @@ export function swordExecMul(hpFrac: number, big: boolean, share = 1, maxAdd = 0
 // v108 (Q 2026-11-07): Ult back to v58: ultAtk 2 -> 1.5, root adds smash P.ATK again · ultManaLv 5 -> 0 (flat Mana 30; the v102 nerf was for the 400% Ult)
 export const CLERIC_KIT = { heal: 0.7, smite: 1.4, basic: 1.1, ultAtk: 1.5, ultLights: 3, ultLight: 0.8, ultShield: 0.14, ultShieldTurns: 3, purifyHeal: 1, shieldTurns: 3, shieldCap: 0.5, ultMana: 30, ultManaLv: 0 } // ultMana: v86 Q 2026-11-06, the ult costs Mana like Mage / Swordsman · v102 nerf: +ultManaLv per Ult node Lv above 1 (30/35/40/45/50)
 
-/** Spell vamp (Q 2026-11-04): skill lifesteal, its own stat. AoE skills heal 1/3; Skill 2 เลือดเดือด trades skill damage for it. */
-export const SPELL_VAMP = { aoe: 1 / 3, bloodCut: 0.15 }
+/** Spell vamp (Q 2026-11-04): skill lifesteal, its own stat. AoE skills heal 1/3; Skill 2 เลือดเดือด trades incoming damage taken for it. */
+export const SPELL_VAMP = { aoe: 1 / 3, bloodCut: 0 }
 
 const pc0 = (n: number) => `${Math.round(n * 100)}%`
 /** One line for every Swordsman-line ult desc (job1 here, Knight / Berserker in jobs2.ts). */
@@ -134,7 +141,7 @@ export const JOBS: Record<JobId, JobDef> = {
   },
   swordsman: {
     id: 'swordsman', name: 'นักดาบ', icon: '⚔️', tex: 'hero_swordsman', blurb: 'ยืนหน้า ถึก ฟันโดนหลายตัว · Mana น้อย: สกิลออกได้จำกัด ดาเมจหลักมาจากฟันธรรมดา + สวนกลับ', focus: 'STR · VIT',
-    resource: 'mana', attack: 'melee', tags: ['guard', 'blood'], mod: { maxHp: 25, def: 3, counter: 0.02 }, // HP/DEF partly back 2026-11-04 after the lifesteal cut
+    resource: 'mana', attack: 'melee', tags: ['guard', 'blood'], mod: { maxHp: 25, def: 3, counter: 0.02, cleaveAdd: 0.1 }, // HP/DEF partly back 2026-11-04 after the lifesteal cut
     auto: { name: 'ดาบสยบมนตร์', icon: '🤐', cost: SWORD_S1.mana, desc: `ล้าง CC บนตัวเรา แล้วฟันเป้าเดี่ยว (ตัวที่กำลังร่ายก่อน)\nมอนติดใบ้ ${SWORD_S1.silenceTurns} เทิร์น · โดนขัดร่าย · เสียเทิร์น\nคูลดาวน์ ${SWORD_S1.cd} · แรงขึ้นตาม Lv (ดูตารางขวา) · Mana ${SWORD_S1.mana} ทุก Lv` },
     ult: { name: 'ดาบพิพากษา', icon: '🗡️', cd: 4, cost: SWORD_MANA.ult, desc: `Mana ${SWORD_MANA.ult}: ⚔️ ปลุกดาบ ${SWORD_MANA.awakenTurns} เทิร์น\nระหว่างปลุก: STR +${swordAwakenStrText()} (ตาม Lv) · ✨ เคลือบดาบสวรรค์: ทุกฮิตกายภาพ ${swordCoatText()} HP ที่เหลือของเป้า\nตีปกติฟันตัวถัดไปด้วย · ตีโดนแน่นอนจนกว่าจะปล่อยคลื่น\n🌊 คลื่นดาบใส่ทุกตัว ปล่อยเองเมื่อมีมอน HP < ${pc0(SWORD_MANA.execLow)} (หรือเทิร์นสุดท้าย)\n${swordExecDesc(1)}` },
   },

@@ -65,9 +65,9 @@ test('Swordsman S1 collapses 45 per-level refs into ONE 3x15 table with stripped
   assert.equal(tbl.rows.length, 3, 'atkPct, str, base')
   assert.ok(tbl.title.includes('ดาบสยบมนตร์'), `table title "${tbl.title}"`)
   assert.deepEqual(tbl.rows.map((r) => r.label), ['× P.ATK', '× STR', 'ดาเมจฐาน × Base Lv'])
-  // Only the 4 scalar fields remain outside the table
+  // Only the 7 scalar fields remain outside the table (crit, mana, cd, silenceTurns, baseLvSoft, baseLvAfterScale, skillCritAdd)
   const scalars = res.groups.flatMap((g) => g.items)
-  assert.equal(scalars.length, 4)
+  assert.equal(scalars.length, 7)
 })
 
 test('Swordsman Ult collapses awakenStr into 1x15 table and groups คำพิพากษา / เคลือบดาบสวรรค์ / ปลุกดาบ', () => {

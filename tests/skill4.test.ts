@@ -1,7 +1,7 @@
 // Q 2026-11-24 Skill 4: Knight 🌀 Spiral Pierce (Rell Q shatter + stun, Serpent's Fang passive) + the 🔓 Break trial toggle.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { addBreak, breakText, fangSoak, s4Shatter, s4StunKind, s4Target, s4Unlocked } from '../src/data/skill4'
+import { addBreak, breakText, fangSoak, s4Shatter, s4StunKind, s4Target, s4Unlocked, spBreakMul } from '../src/data/skill4'
 import { COMBINE_ITEMS } from '../src/data/combine-items'
 import { KIT, KIT2 } from '../src/data/skill-math'
 import { JOB2 } from '../src/data/jobs2'
@@ -9,14 +9,14 @@ import { hotkeySlot, slotCenter, SKILL_HUD } from '../src/battle/skill-hud'
 
 const S = KIT2.knight.s4
 
-test('Spiral Pierce data: Mana 20, CD 4, Knight only, unlocks at Job2 Lv 20', () => {
+test('Spiral Pierce data: Mana 15, CD 3, Knight only, unlocks at Job2 Lv 15', () => {
   const sk = JOB2.knight.skill4!
-  assert.equal(sk.cost, 20)
-  assert.equal(sk.cd, 4)
-  assert.equal(sk.unlockLv, 20)
+  assert.equal(sk.cost, 15)
+  assert.equal(sk.cd, 3)
+  assert.equal(sk.unlockLv, 15)
   assert.equal(JOB2.berserker.skill4, undefined)
-  assert.equal(s4Unlocked('knight', 19), false)
-  assert.equal(s4Unlocked('knight', 20), true)
+  assert.equal(s4Unlocked('knight', 14), false)
+  assert.equal(s4Unlocked('knight', 15), true)
   assert.equal(s4Unlocked('knight', 31), true)
   assert.equal(s4Unlocked('berserker', 50), false)
   assert.equal(s4Unlocked(undefined, 50), false)
@@ -79,4 +79,18 @@ test('HUD: hotkey 5 = Skill 4, the 4-button arc does not overlap, the 3-button l
   }
   for (const b of four) assert.ok(Math.hypot(b.x - ult.x, b.y - ult.y) > b.r + ult.r)
   assert.equal(four[0].r, SKILL_HUD.four.smallR)
+})
+
+test('spBreakMul: Knight physical +15% while spBreakTurns > 0; magic / non-Knight / 0 turns stay 1x; cb_breakkris does not touch spBreak', () => {
+  assert.equal(S.spBreakAmp, 0.15)
+  assert.ok(Math.abs(spBreakMul(2, true, false) - 1.15) < 1e-9)
+  assert.ok(Math.abs(spBreakMul(1, true, false) - 1.15) < 1e-9)
+  assert.equal(spBreakMul(2, true, true), 1)
+  assert.equal(spBreakMul(2, false, false), 1)
+  assert.equal(spBreakMul(2, false, true), 1)
+  assert.equal(spBreakMul(0, true, false), 1)
+  assert.equal(spBreakMul(undefined, true, false), 1)
+  const kris = COMBINE_ITEMS.find((x) => x.id === 'cb_breakkris')!
+  assert.deepEqual(kris.effects?.map((e) => e.id), ['break_hit'])
+  assert.equal(JSON.stringify(kris).includes('spBreak'), false)
 })

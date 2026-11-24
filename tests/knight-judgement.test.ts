@@ -14,9 +14,9 @@ import { createFrame, createFx, clearFrame } from '../src/vendor/pixelfx/core/in
 test('Knight ult is Pierce of Judgement: awaken + spear wave, boss first, crit only with skillCrit, execute at 30%', () => {
   const u = JOB2.knight.ult
   assert.equal(u.name, 'Pierce of Judgement')
-  assert.equal(u.cost, 50) // Q 2026-11-23: Mana 50
-  assert.equal(KIT2.knight.ultMana, 50)
-  assert.equal(ultCost(JOBS.swordsman, undefined, 'knight'), 50)
+  assert.equal(u.cost, 40) // Wave 2: Mana 40
+  assert.equal(KIT2.knight.ultMana, 40)
+  assert.equal(ultCost(JOBS.swordsman, undefined, 'knight'), 40)
   assert.equal(ultCost(JOBS.swordsman), SWORD_MANA.ult) // job1 unchanged
   for (const re of [/🎯 Pierce/, /ปลุกหอก/, /คลื่นทะลวง/, /บอสก่อน/, /skillCrit/, /คำพิพากษา/, /30%/]) assert.match(u.desc, re)
   assert.doesNotMatch(u.desc, /Bowling/)
@@ -35,7 +35,7 @@ test('ult detail: Knight shows the spear thrust rows and the full execute curve 
   const kn = ultInfo('swordsman', st, { str: 50, wis: 0 }, 'knight')
   const val = (rows: typeof kn, l: string) => rows.find((r) => r.label === l)?.value
   assert.ok(val(kn, '⚔️ ปลุกหอก'))
-  assert.match(String(kn[0].value), /Mana 50/)
+  assert.match(String(kn[0].value), /Mana 40/)
   assert.ok(val(kn, '🔱 คลื่นทะลวง (แทงเดียว)'))
   assert.doesNotMatch(String(val(kn, '🎯 Pierce/ฮิต (หลังปลุกหอก)')), /คริ/) // no skillCrit = no crit
   const kc = ultInfo('swordsman', { ...st, skillCrit: 0.1 }, { str: 50, wis: 0 }, 'knight')

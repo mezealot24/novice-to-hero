@@ -1,5 +1,5 @@
-// Swordsman ult rework (Q 2026-11-21): ⚔️ ปลุกดาบ + 🌊 คลื่นดาบ (Riven-style 2 steps) and the ⚖️ คำพิพากษา execute curve
-// (+2.667% per 1% missing HP, +200% at 75% missing, half on bosses / minis, 2nd / 3rd job ults take execLineShare).
+// Swordsman ult rework (Q 2026-11-21, Wave 1 execMax 1.5): ⚔️ ปลุกดาบ + 🌊 คลื่นดาบ (Riven-style 2 steps) and the ⚖️ คำพิพากษา execute curve
+// (+2.00% per 1% missing HP, +150% at 75% missing, half on bosses / minis, 2nd / 3rd job ults take execLineShare).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { JOBS, SWORD_MANA, swordExecMul, swordWaveNow } from '../src/data/jobs'
@@ -7,11 +7,11 @@ import { JOB2 } from '../src/data/jobs2'
 
 const near = (a: number, b: number, eps = 1e-9) => assert.ok(Math.abs(a - b) < eps, `${a} vs ${b}`)
 
-test('curve matches the reference table: 0% / 25% / 100% / 200% at 0 / 9.375 / 37.5 / 75% missing', () => {
+test('curve matches the reference table: 0% / 18.75% / 75% / 150% at 0 / 9.375 / 37.5 / 75% missing', () => {
   near(swordExecMul(1, false), 1)
-  near(swordExecMul(1 - 0.09375, false), 1.25)
-  near(swordExecMul(1 - 0.375, false), 2)
-  near(swordExecMul(0.25, false), 3)
+  near(swordExecMul(1 - 0.09375, false), 1.1875)
+  near(swordExecMul(1 - 0.375, false), 1.75)
+  near(swordExecMul(0.25, false), 2.5)
 })
 
 test('caps at 75% missing HP', () => {
@@ -55,16 +55,18 @@ import { autoCost, swordS1On, KIT } from '../src/data/skill-math'
 import { nodeById } from '../src/data/tree'
 import { PLAYER as STATS0 } from '../src/data/stats'
 
-test('ดาบสยบมนตร์ numbers follow Q table: P.ATK 120-200% + STR x0.25-1.25 + 20-100 x Base Lv, Mana 6-30, CD 5', () => {
-  // Lv 1-5 unchanged; Q 2026-11-24 extends the table to Lv 15 (class-1 cap 10 Job2 / 15 Awakened)
-  assert.deepEqual(SWORD_S1.atkPct.slice(0, 5), [1.2, 1.4, 1.6, 1.8, 2.0])
-  assert.deepEqual(SWORD_S1.str.slice(0, 5), [0.25, 0.5, 0.75, 1.0, 1.25])
-  assert.deepEqual(SWORD_S1.base.slice(0, 5), [20, 40, 60, 80, 100])
+test('ดาบสยบมนตร์ numbers follow Wave 1 nerf table: P.ATK 80-120% + STR x0.1-0.3 + 2-6 x effBaseLv (soft-tapered past 35), Mana 15, CD 5', () => {
+  // Lv 1-5 nerfed in Wave 1; table extends to Lv 15 (class-1 cap 10 Job2 / 15 Awakened)
+  assert.deepEqual(SWORD_S1.atkPct.slice(0, 5), [0.8, 0.9, 1.0, 1.1, 1.2])
+  assert.deepEqual(SWORD_S1.str.slice(0, 5), [0.1, 0.15, 0.2, 0.25, 0.3])
+  assert.deepEqual(SWORD_S1.base.slice(0, 5), [2, 3, 4, 5, 6])
   assert.equal(SWORD_S1.atkPct.length, 15)
   assert.equal(SWORD_S1.mana, 15) // flat Mana at every Lv
   assert.equal(SWORD_S1.cd, 5)
-  near(swordS1Raw(1, 100, 40, 10), 120 + 10 + 200)
-  near(swordS1Raw(5, 1000, 200, 99), 2000 + 250 + 9900)
+  near(swordS1Raw(1, 100, 40, 10), 80 + 4 + 20) // 104
+  near(swordS1Raw(5, 1000, 200, 99), 1200 + 60 + 6 * 47.8) // 1546.8 (soft-taper past Base Lv 35)
+  near(swordS1Raw(5, 260, 100, 35), 552) // STR 100: 312 + 30 + 210 = 552
+  assert.ok(swordS1Raw(5, 260, 100, 35) < 260 * SWORD_MANA.ultMul * swordExecMul(0.25, false), 'S1 < full-execute Ult at STR 100')
   near(swordS1Raw(20, 100, 0, 1), swordS1Raw(15, 100, 0, 1)) // Lv clamps at 15
 })
 

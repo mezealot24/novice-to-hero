@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { PLAYER } from '../src/data/game-data'
-import { JOBS, swordExecMul } from '../src/data/jobs'
+import { JOBS, SWORD_S1, swordExecMul } from '../src/data/jobs'
 import { heroBuild, heroStats, type StatsInput } from '../src/data/meta'
 import {
   allocatePassive,
@@ -167,15 +167,15 @@ test('Swordsman constellation mods & descriptions: valid Stats keys, finite numb
       }
     }
   }
-  // Verify all 12 new Swordsman Stats keys + all 18 legacy Swordsman Row 1-4 talent keys
+  // Verify all 13 new Swordsman Stats keys + core constellation Stats keys
   const requiredKeys = [
     'swIronDr', 'swIronAspdCut', 'swCounterDefMul', 'swBlockCounter', 'swNoFlee',
     'swCleaveTaken', 'swExecBonus', 'swS1CdCut', 'swUltCdAdd', 'swBloodFuryDmg',
-    'swBloodFurySelf', 'swS3ArmorBreak',
+    'swBloodFurySelf', 'swS3ArmorBreak', 'swS1Ctr',
     'cleaveAdd', 'hit', 'combo', 'waveShield', 'startRage', 'rageOnHurtAdd',
-    'spellVamp', 'skillDmgCut', 'ultShieldAdd', 'ultMulAdd', 'ultVsCharge',
+    'spellVamp', 'ultShieldAdd', 'ultMulAdd', 'ultVsCharge',
     'ultCounters', 'revive', 'reviveHp', 'overhealShield', 'lifesteal',
-    'counterRage', 'counterShield',
+    'counterRage', 'counterShield', 's1Pow', 's3Pow', 'skillCrit', 'basicDmg', 'counterDmg',
   ] as const
   for (const k of requiredKeys) {
     assert.ok(seenKeys.has(k), `constellation missing stat key: ${k}`)
@@ -189,9 +189,12 @@ test('Adaptive Job2 Notables adapt cleanly across base Swordsman, Knight, and Be
   assert.ok((edge.mod({ job2: 'knight' }).j2HpDmg ?? 0) > 0 && (edge.mod({ job2: 'knight' }).j2Charge ?? 0) > 0)
   assert.ok((edge.mod({ job2: 'berserker' }).j2Duel ?? 0) > 0 && (edge.mod({ job2: 'berserker' }).critMul ?? 0) > 0)
 
-  assert.ok((ult.mod().ultPow ?? 0) > 0 && (ult.mod().ultShieldAdd ?? 0) > 0)
-  assert.ok((ult.mod({ job2: 'knight' }).ult2Pow ?? 0) > 0 && (ult.mod({ job2: 'knight' }).j2Guard ?? 0) > 0)
-  assert.ok((ult.mod({ job2: 'berserker' }).ult2Pow ?? 0) > 0 && (ult.mod({ job2: 'berserker' }).j2FrenzyMax ?? 0) > 0)
+  const ultBase = ult.mod()
+  assert.ok((ultBase.s1Pow ?? 0) > 0 && (ultBase.ultPow ?? 0) > 0 && (ultBase.ultShieldAdd ?? 0) > 0)
+  const ultKnight = ult.mod({ job2: 'knight' })
+  assert.ok((ultKnight.s3Pow ?? 0) > 0 && (ultKnight.j2Sweep ?? 0) > 0 && (ultKnight.j2Guard ?? 0) > 0 && (ultKnight.ult2Pow ?? 0) > 0)
+  const ultZerk = ult.mod({ job2: 'berserker' })
+  assert.ok((ultZerk.s3Pow ?? 0) > 0 && (ultZerk.skillCrit ?? 0) > 0 && (ultZerk.j2FrenzyMax ?? 0) > 0)
 
   const path = ['sw_m_van1', 'sw_m_van2', 'sw_n_adapt_edge']
   const stBase = heroStats(swInput({ passiveNodes: path }))
@@ -263,13 +266,17 @@ test('Keystone mechanics in heroBuild, ultCooldown, autoInfo, ultInfo & allocate
   near(withThorn.swCounterDefMul, KIT.swordCounterDefMul)
   assert.equal(withThorn.swBlockCounter, 1)
 
-  // 3. Judgment: +1 Ult CD in ultCooldown(), -1 S1 CD in autoInfo(), +0.5 execute bonus in ultInfo() across job1 & job2
+  // 3. Judgment: +1 Ult CD in ultCooldown(), -2 S1 CD in autoInfo(), s1Pow/skillCrit/ultPow, +0.2 execute bonus in ultInfo() across job1 & job2
   const judgPath = ['sw_m_van1', 'sw_m_ring_n', 'sw_n_eagleeye', 'sw_k_judgment']
   const withJudg = heroStats(swInput({ passiveNodes: judgPath }))
   assert.equal(withJudg.swUltCdAdd, 1)
+  assert.ok(withJudg.s1Pow >= 0.25, `Judgment s1Pow ${withJudg.s1Pow} >= 0.25`)
+  assert.ok(withJudg.skillCrit >= 0.1, `Judgment skillCrit ${withJudg.skillCrit} >= 0.1`)
+  assert.ok(withJudg.ultPow < 0, `Judgment ultPow ${withJudg.ultPow} < 0`)
   assert.equal(ultCooldown(JOBS.swordsman, withJudg), ultCooldown(JOBS.swordsman, baseSt) + 1)
   const s1CdRow = autoInfo('swordsman', withJudg).find((r) => r.label === 'คูลดาวน์')
-  assert.equal(s1CdRow?.value, '4 เทิร์น', 'autoInfo shows reduced ดาบสยบมนตร์ CD')
+  assert.equal(s1CdRow?.value, `${SWORD_S1.cd - 2} เทิร์น`, 'autoInfo shows reduced ดาบสยบมนตร์ CD (3 เทิร์น)')
+  assert.equal(s1CdRow?.value, '3 เทิร์น')
   const j1ExecRow = ultInfo('swordsman', withJudg).find((r) => r.label === '⚖️ execute เป้า HP ≤25%')
   assert.equal(j1ExecRow?.value, `×${swordExecMul(0.25, false, 1, KIT.swordExecBonus).toFixed(2)}`)
   const j2Judg = heroStats(swInput({ job2: 'knight', passiveNodes: judgPath }))
@@ -279,12 +286,17 @@ test('Keystone mechanics in heroBuild, ultCooldown, autoInfo, ultInfo & allocate
   const bzExecRow = ultInfo('swordsman', bzJudg, undefined, 'berserker').find((r) => r.label === '⚖️ execute เป้า HP ≤25%')
   assert.equal(bzExecRow?.value, `×${swordExecMul(0.25, false, 0.25, KIT.swordExecBonus).toFixed(2)}`)
 
-  // 4. Immortal Sanguine: overhealShield + spellVamp + skillDmgCut
-  const vampPath = ['sw_m_bld1', 'sw_n_bloodthirst', 'sw_m_bld3', 'sw_n_undying', 'sw_k_bloodvamp']
+  // 4. Immortal Sanguine: overhealShield + spellVamp + lifesteal, -15 P.DEF & -5% M.DEF, no skillDmgCut
+  const preVampPath = ['sw_m_bld1', 'sw_n_bloodthirst', 'sw_m_bld3', 'sw_n_undying']
+  const preVamp = heroStats(swInput({ passiveNodes: preVampPath }))
+  const vampPath = [...preVampPath, 'sw_k_bloodvamp']
   const withVamp = heroStats(swInput({ passiveNodes: vampPath }))
   assert.equal(withVamp.overhealShield, 1)
-  near(withVamp.spellVamp, 0.22)
-  near(withVamp.skillDmgCut, KIT.swordVampDmgCut)
+  near(withVamp.spellVamp, 0.2)
+  near(withVamp.lifesteal, preVamp.lifesteal + 0.04, 'sw_k_bloodvamp adds +0.04 lifesteal')
+  assert.equal(withVamp.skillDmgCut, 0)
+  assert.equal(withVamp.def, Math.max(0, preVamp.def - 15), 'sw_k_bloodvamp cuts def by 15 (clamped >= 0)')
+  near(withVamp.mdef, Math.max(0, preVamp.mdef - 0.05), 'sw_k_bloodvamp cuts mdef by 0.05 (clamped >= 0)')
 
   // 5. RPG invariant: allocate & refund every node returns derived stats identically to baseline
   const tree = passiveTreeOf('swordsman')!
@@ -399,7 +411,7 @@ test('Swordsman save migration, changeJob2 trim, Awakening jewel socket & synthe
   assert.deepEqual(live.passiveNodes, [])
 })
 
-test('11 new Swordsman KIT keys are whitelisted in tunables and have specific Thai explanations', () => {
+test('10 new Swordsman KIT keys are whitelisted in tunables and have specific Thai explanations', () => {
   const NEW_SWORD_KEYS = [
     'swordS1CdCut',
     'swordS3BreakTurns',
@@ -411,9 +423,8 @@ test('11 new Swordsman KIT keys are whitelisted in tunables and have specific Th
     'swordBloodFuryAt',
     'swordBloodFuryDmg',
     'swordBloodFurySelf',
-    'swordVampDmgCut',
   ] as const
-  assert.equal(NEW_SWORD_KEYS.length, 11)
+  assert.equal(NEW_SWORD_KEYS.length, 10)
   for (const key of NEW_SWORD_KEYS) {
     assert.ok(typeof KIT[key] === 'number' && KIT[key] > 0, `KIT.${key}`)
     assert.ok(fieldFor('kit', key), `missing tunable whitelist: kit.${key}`)
@@ -421,4 +432,71 @@ test('11 new Swordsman KIT keys are whitelisted in tunables and have specific Th
     assert.ok(ex.label.trim().length > 0, `empty label: ${key}`)
     assert.ok(ex.effect.trim().length > 0 && ex.effect !== 'ตัวคูณคิทคลาสหลัก', `generic fallback explain: ${key}`)
   }
+})
+
+test('Wave 3 rebalanced Swordsman constellation nodes (14 nodes) match updated mods & descriptions', () => {
+  const modOf = (id: string, ctx?: PassiveCtx) => passiveNodeById('swordsman', id)!.mod(ctx)
+  const descOf = (id: string, ctx?: PassiveCtx) => passiveNodeById('swordsman', id)!.desc(ctx)
+
+  assert.deepEqual(modOf('sw_k_cleavestorm'), {
+    cleaveAdd: 0.6,
+    basicDmg: 0.2,
+    s3Pow: 0.25,
+    ultVsCharge: 0.35,
+    ultMulAdd: -0.25,
+    swCleaveTaken: KIT.swordCleaveTaken,
+  })
+  assert.deepEqual(modOf('sw_k_juggernaut'), {
+    swIronDr: KIT.swordIronDr,
+    ultShieldAdd: 0.15,
+    tenacity: 0.15,
+    counterDmg: 0.2,
+    swIronAspdCut: KIT.swordIronAspdCut,
+    ultMulAdd: -0.2,
+  })
+  near(KIT.swordCounterDefMul, 1.5)
+  assert.deepEqual(modOf('sw_k_thornguard'), {
+    swCounterDefMul: KIT.swordCounterDefMul,
+    counter: 0.15,
+    swBlockCounter: 1,
+    swNoFlee: 1,
+  })
+  assert.ok(descOf('sw_k_thornguard').includes('1.5x P.DEF') && !descOf('sw_k_thornguard').includes('1.2x'))
+  assert.deepEqual(modOf('sw_n_ultcounter'), { ultCounters: 2, swS1Ctr: 1, counterDmg: 0.2, ctrAoe: 1 })
+  assert.deepEqual(modOf('sw_n_breaker'), { swS3ArmorBreak: 1, s3Pow: 0.2, physPen: 0.08 })
+  assert.ok(descOf('sw_n_breaker').includes('Spiral Pierce'))
+  assert.deepEqual(modOf('sw_n_warblade'), { physPen: 0.1, skillCrit: 0.08, s3Pow: 0.15 })
+  assert.deepEqual(modOf('sw_m_bridge_n'), { counter: 0.04, s1Pow: 0.08 })
+  assert.deepEqual(modOf('sw_m_van6'), { skillCrit: 0.05, physPen: 0.04 })
+  assert.deepEqual(modOf('sw_m_fur6'), { atk: 10, skillCrit: 0.05 })
+  assert.deepEqual(modOf('sw_n_vitality'), { mdef: 0.08, resRegen: 3, maxRes: 25, shieldAmp: 0.1 })
+  assert.ok(
+    descOf('sw_n_vitality').includes('+9/เทิร์น') &&
+      descOf('sw_n_vitality').includes('Max Mana +25') &&
+      descOf('sw_n_vitality').includes('โล่แรง +10%'),
+  )
+  assert.deepEqual(modOf('sw_n_adapt_edge'), { pskill: 0.12, basicDmg: 0.12, s1Pow: 0.12 })
+  assert.deepEqual(modOf('sw_n_adapt_edge', { job2: 'knight' }), { j2HpDmg: 0.02, j2Charge: 0.5, s3Pow: 0.12 })
+  assert.deepEqual(modOf('sw_n_adapt_edge', { job2: 'berserker' }), { j2Duel: 0.16, critMul: 0.18 })
+  assert.deepEqual(modOf('sw_n_adapt_ult'), { s1Pow: 0.15, ultPow: 0.1, ultShieldAdd: 0.08, startRage: 15 })
+  assert.deepEqual(modOf('sw_n_adapt_ult', { job2: 'knight' }), { s3Pow: 0.15, j2Sweep: 0.2, j2Guard: 0.06, ult2Pow: 0.1 })
+  assert.deepEqual(modOf('sw_n_adapt_ult', { job2: 'berserker' }), { s3Pow: 0.15, skillCrit: 0.05, j2FrenzyMax: 2, rageGain: 0.15 })
+  near(KIT.swordExecBonus, 0.2)
+  near(KIT.swordS1CdCut, 2)
+  assert.deepEqual(modOf('sw_k_judgment'), {
+    swExecBonus: KIT.swordExecBonus,
+    swS1CdCut: KIT.swordS1CdCut,
+    s1Pow: 0.25,
+    skillCrit: 0.1,
+    physPen: 0.1,
+    swUltCdAdd: 1,
+    ultPow: -0.15,
+  })
+  assert.deepEqual(modOf('sw_k_bloodvamp'), {
+    overhealShield: 1,
+    spellVamp: 0.2,
+    lifesteal: 0.04,
+    def: -15,
+    mdef: -0.05,
+  })
 })

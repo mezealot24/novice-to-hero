@@ -26,6 +26,10 @@ const S2P_TH: Record<string, [string, string]> = {
 }
 
 const S2N_TH: Record<string, FieldExplain> = {
+  guardAutoBlockShare: { label: '🛡️ ตั้งการ์ด: Auto Guard เติม guardPool', effect: 'เพิ่ม = เมื่อ Auto Guard บล็อกได้ระหว่างตั้งการ์ด จะเติมเข้า guardPool มากขึ้น (0.5 = 50% ของดาเมจที่ถูกกัน)' },
+  bloodTaken: { label: '🩸 กระหายเลือด: โดนตีแรงขึ้น (ข้อเสีย)', effect: '⚠️ เพิ่ม = ระหว่างเปิดบัฟกระหายเลือด ฮีโร่โดนตีแรงขึ้นตามสัดส่วนนี้ (0.1 = +10%)' },
+  tauntCtrAmp: { label: '💢 ยั่วยุ: สวนกลับใส่มอนติดท้าทายแรงขึ้น', effect: 'เพิ่ม = สวนกลับใส่มอนที่ติดดีบัฟยั่วยุแรงขึ้น (0.2 = +20%)' },
+  tauntStarShield: { label: '💢 ★ ท้าซ้ำ: โล่ % HP', effect: 'เพิ่ม = ★ เมื่อท้าทายซ้ำ ได้โล่ป้องกันหนาขึ้นตาม % Max HP (0.1 = 10%)' },
   bloodTurns: { label: '🩸 กระหายเลือด: นาน (เทิร์น)', effect: 'เพิ่ม = บัฟดูดเลือด + ATK ของทักษะ 2 อยู่ได้นานหลายเทิร์นขึ้น' },
   bloodAtk: { label: '🩸 กระหายเลือด: +ATK (%)', effect: 'เพิ่ม = ระหว่างเปิดบัฟกระหายเลือด ตีกายภาพแรงขึ้น (+0.15 = +15%)' },
   hawkTurns: { label: '🦅 ตาเหยี่ยว: นาน (เทิร์น)', effect: 'เพิ่ม = บัฟคริ/ดาเมจคริจากเหยี่ยวอยู่นานขึ้น' },
@@ -65,6 +69,9 @@ const S4_EFFECT: Record<string, string> = {
   unlockLv: '⚠️ ลดเลข = Knight ได้ Skill 4 เร็วขึ้น (Job2 Lv ต่ำลง)',
   mul: 'เพิ่ม = แทงเกลียวแรงขึ้น (× P.ATK + % Max HP จากถึกเป็นแรง)',
   shatterAmp: 'เพิ่ม = ทุบโล่มอนได้แล้วแทงแรงขึ้นอีก',
+  defPierce: 'เพิ่ม = Spiral Pierce ข้าม P.DEF ของเป้าหมายมากขึ้น (รวมกับ ★ ทะลวงเกลียว)',
+  critAdd: 'เพิ่ม = Spiral Pierce มีโอกาสติดคริสกิลสูงขึ้น (บวกเข้าโอกาสคริสกิลโดยตรง)',
+  spBreakAmp: 'เพิ่ม = เป้าที่ติด Break จาก Spiral Pierce โดนสกิล/โจมตีกายภาพของ Knight แรงขึ้น',
   bossShield: 'เพิ่ม = โล่บอส/เฟสหายมากขึ้นต่อการแทง (1 = หายหมด)',
   bossGauge: 'เพิ่ม = บอสโดนตัดร่ายแล้วเกจถอยหลังมากขึ้น',
   fang: 'เพิ่ม = 🐍 ทุกฮิตของฮีโร่ตีโล่มอนหายเร็วขึ้น (เฉพาะส่วนโล่)',
@@ -77,6 +84,12 @@ const S4_EFFECT: Record<string, string> = {
 const J2_DETAIL_HINTS: Record<string, string> = {
   'berserker.ignorePainTurns': '★ ไม่รู้สึกเจ็บ: ฮีโร่เลือดเหลือ 1 HP อมตะตามจำนวนเทิร์นนี้ (ฮีล/ดูดเลือดไม่ทำงาน) ก่อนเข้าช่วง regen',
   'berserker.ignorePainRegenPct': '★ หลังจบช่วงอมตะ 1 HP ฮีโร่จะฮีลคืนจากสัดส่วนของดาเมจตรง (ไม่รวม DoT) ที่ตัวเองทำได้',
+  'berserker.waveCdJ2': 'ใช้เฉพาะ Berserker ขั้น 2 เท่านั้น · Class 3 Warlord ยังใช้คูลดาวน์คลื่นดาบ 3 เทิร์น (waveCd / JOB2.berserker.skill3.cd)',
+  'berserker.stormFrenzyAt': 'เมื่อ Frenzy ถึงเกณฑ์นี้ หรือกำลังอยู่ในสถานะบ้าระห่ำ ดาบสยบมนตร์ของ Berserker จะแรงขึ้นตาม stormFrenzyAmp',
+  'knight.boomerangTurns': 'Spear Boomerang จะยิงซ้ำเมื่อครบคูลดาวน์จำนวนเทิร์นฮีโร่นี้ (ไม่ใช่ 1 ครั้งต่อเวฟ)',
+  'knight.spiralS3S4Pierce': '★ ทะลวงเกลียว (kn_p4) บวกการเจาะเกราะนี้ให้ทั้ง Brandish Spear และทุกฮิตของ Spiral Pierce (เพดาน 100%)',
+  'knight.s4.spBreakAmp': 'มีผลเฉพาะโจมตีกายภาพของ Knight ต่อเป้าที่ยังติดสถานะ spBreak จาก Spiral Pierce เท่านั้น',
+  'knight.tree.sweepRes': 'ได้รับ Mana ทันทีทุกครั้งที่ทวนวนทำงานร่วมกับโนด ⚡ ทวนเร็ว (kn_r3)',
   'crusader.gcPay': 'หัก HP ปัจจุบัน (ไม่ใช่ Max HP) เพื่อร่าย Grand Cross และนำจำนวน HP ที่เสียไปบวกกับ Mana ที่เผาเป็นโบนัส gcBurn',
   'crusader.gcBurn': 'สูตรโบนัสเวทต่อเป้า = gcBurn × (Mana ที่เผาทิ้งทั้งหมด + HP ที่จ่ายไป)',
   'crusader.guardCap': 'Paladin (ขั้น 3) บวกเพดานนี้เพิ่มอีก +10% (จาก 40% → 50%)',
@@ -114,13 +127,35 @@ function explainKit3Effect(key: string): string {
   return 'เพิ่ม = ตัวคูณ/โบนัสของ Awakening ท่านี้แรงขึ้น'
 }
 
-function explainKit2Effect(_id: Job2Id, key: string, j2Name: string): string {
+const J2_EXACT_EFFECT: Record<string, string> = {
+  'knight.brandPushOther': 'เพิ่ม = Brandish Spear ผลักเกจมอนตัวรอง (ตัวที่ 2–3) ถอยหลังไกลขึ้น',
+  'knight.brandCritAdd': 'เพิ่ม = Brandish Spear มีโอกาสติดคริสกิลสูงขึ้น (บวกเข้าโอกาสคริของสกิลโดยตรง)',
+  'knight.brandLowTargetAmp': 'เพิ่ม = เมื่อมอนเหลือ ≤ 2 ตัว Brandish Spear แทงตัวหน้าแรงขึ้นตามสัดส่วนนี้',
+  'knight.boomerangTurns': '⚠️ ลดเลข = Spear Boomerang ยิงซ้ำได้ถี่ขึ้น · เพิ่ม = รอคูลดาวน์นานขึ้น (เทิร์น)',
+  'knight.spiralS3S4Pierce': 'เพิ่ม = ★ ทะลวงเกลียวช่วยให้ Brandish Spear และ Spiral Pierce ข้าม P.DEF มอนได้มากขึ้น',
+  'knight.tree.sweepCritAdd': 'เพิ่ม = ทวนวนมีโอกาสติดคริสกิลสูงขึ้น (บวกเข้าโอกาสคริของสกิลโดยตรง)',
+  'knight.tree.sweepRes': 'เพิ่ม = ทวนเร็วฟื้น Mana ให้ฮีโร่มากขึ้นทุกครั้งที่ทวนวนกวาดออก',
+  'berserker.stormFrenzyAmp': 'เพิ่ม = เมื่อ Frenzy ถึงเกณฑ์ (หรือกำลังบ้าระห่ำ) ดาบสยบมนตร์ฟันแรงขึ้นตามสัดส่วนนี้',
+  'berserker.stormFrenzyAt': '⚠️ ลดเลข = สะสม Frenzy น้อยลงก็ปลดโบนัสดาบสยบมนตร์แรงขึ้น · เพิ่ม = ต้องเก็บ Frenzy เยอะขึ้น',
+  'berserker.waveCdJ2': '⚠️ ลดเลข = คลื่นดาบของ Berserker วนกลับมาใช้ได้ถี่ขึ้น · เพิ่ม = รอคูลดาวน์นานขึ้น (Warlord ใช้ CD 3)',
+  'berserker.waveHits': 'เพิ่ม = คลื่นดาบฟันซ้ำหลายฮิตขึ้นต่อการกดใช้ 1 ครั้ง',
+  'berserker.waveGoreAtk': 'เพิ่ม = ดีบัฟเลือดไหล (Gore) จากคลื่นดาบกัด DoT ต่อเทิร์นแรงขึ้น (× P.ATK)',
+  'berserker.waveGoreTurns': 'เพิ่ม = ดีบัฟเลือดไหล (Gore) จากคลื่นดาบกัดต่อเนื่องหลายเทิร์นขึ้น',
+  'berserker.waveMultiRage': 'เพิ่ม = เมื่อคลื่นดาบฟันโดนหลายตัวตามเกณฑ์ จะได้ Rage คืนมากขึ้น',
+  'berserker.waveMultiAt': '⚠️ ลดเลข = โดนมอนน้อยตัวลงก็ได้ Rage คืนจากคลื่นดาบ · เพิ่ม = ต้องโดนมอนหลายตัวขึ้น',
+  'berserker.ultRageGain': 'เพิ่ม = กดใช้ Ult บ้าระห่ำแล้วได้รับ Rage ทันทีมากขึ้น',
+}
+
+function explainKit2Effect(id: Job2Id, key: string, j2Name: string): string {
+  const exact = J2_EXACT_EFFECT[`${id}.${key}`]
+  if (exact) return exact
   if (key.startsWith('s4.')) return S4_EFFECT[key.slice(3)] ?? 'เพิ่ม = 🌀 Spiral Pierce (Skill 4) แรงขึ้น'
   if (key.startsWith('tree.')) return `ปรับพลังโนด Skill tree ของ ${j2Name} (ตัวคูณ/ผลต่อ Lv เดิม หรือ ★ สำคัญ)`
   if (key.startsWith('mastery.')) {
     if (key.endsWith('atkPct')) return `เพิ่ม = โบนัส P.ATK (%) จากพาสซีฟชำนาญอาวุธของ ${j2Name} สูงขึ้น`
     if (key.endsWith('matk')) return `เพิ่ม = โบนัส M.ATK พื้นฐานของ ${j2Name} สูงขึ้น`
     if (key.endsWith('crit')) return `เพิ่ม = โบนัสโอกาสคริพื้นฐานจากพาสซีฟอาวุธของ ${j2Name} สูงขึ้น`
+    if (key.endsWith('skillCrit')) return `เพิ่ม = โบนัสโอกาสคริสกิลจากพาสซีฟอาวุธของ ${j2Name} สูงขึ้น`
     if (key.endsWith('hit')) return `เพิ่ม = โบนัสความแม่น (Hit) ของ ${j2Name} สูงขึ้น`
     if (key.endsWith('def')) return `เพิ่ม = โบนัสเกราะ P.DEF ของ ${j2Name} สูงขึ้น`
     if (key.endsWith('combo')) return `เพิ่ม = โบนัสโอกาสคอมโบของ ${j2Name} สูงขึ้น`
@@ -239,20 +274,25 @@ export function explainSkillTable(path: string, defaultLabel?: string): FieldExp
     'swordS1.mana': { label: defaultLabel ?? 'Swordsman · ⚔️ ดาบสยบมนตร์ ค่า Mana (ทุก Lv)', effect: 'ลด = ใช้สกิล 1 ได้ถี่ขึ้น (Mana เท่ากันทุก Lv · Berserker จ่าย Rage คงที่ ไม่ใช้ค่านี้)' },
     'swordS1.cd': { label: defaultLabel ?? 'Swordsman · ⚔️ ดาบสยบมนตร์ คูลดาวน์', effect: 'ลด = กดสกิล 1 (ล้าง CC + ใบ้ + ขัดร่าย) ได้ถี่ขึ้น (5 = ทุก 5 เทิร์น)' },
     'swordS1.silenceTurns': { label: defaultLabel ?? 'Swordsman · ⚔️ ดาบสยบมนตร์ ใบ้กี่เทิร์น', effect: 'เพิ่ม = มอนที่โดนใช้สกิล/ร่ายไม่ได้นานขึ้น (นับเฉพาะเทิร์นที่มอนได้เล่น)' },
-    'sword.execMax': { label: defaultLabel ?? 'Swordsman · ⚖️ คำพิพากษา แรงเพิ่มสูงสุด', effect: 'เพิ่ม = 🌊 คลื่นดาบปิดงานแรงขึ้น (2 = +200% เมื่อ HP มอนหายถึงจุดตัน · Ult job2/3 ได้แค่สัดส่วน)' },
+    'swordS1.baseLvSoft': { label: defaultLabel ?? 'Swordsman · ⚔️ ดาบสยบมนตร์ Base Lv จุดเริ่มชะลอ', effect: 'เพิ่ม = Base Lv ยิ่งสูงขึ้นก่อนดาเมจฐานต่อ Base Lv ของดาบสยบมนตร์จะเริ่มชะลอตัว (35 = ชะลอหลัง Lv 35)' },
+    'swordS1.baseLvAfterScale': { label: defaultLabel ?? 'Swordsman · ⚔️ ดาบสยบมนตร์ สเกลหลังจุดชะลอ', effect: 'เพิ่ม = หลังเลย Base Lv จุดเริ่มชะลอ ดาเมจฐานต่อ Lv ของดาบสยบมนตร์ยังโตต่อมากขึ้น (0.2 = คิด 20% ต่อ Lv ที่เกิน)' },
+    'swordS1.skillCritAdd': { label: defaultLabel ?? 'Swordsman · ⚔️ ดาบสยบมนตร์ โอกาสคริสกิลเพิ่ม', effect: 'เพิ่ม = ดาบสยบมนตร์มีโอกาสติดคริสูงขึ้น (บวกเข้าโอกาสคริสกิลโดยตรง)' },
+    'sword.execMax': { label: defaultLabel ?? 'Swordsman · ⚖️ คำพิพากษา แรงเพิ่มสูงสุด', effect: 'เพิ่ม = 🌊 คลื่นดาบ / 🔱 Pierce of Judgement ปิดงานแรงขึ้น (1.5 = +150% เมื่อ HP มอนหายถึงจุดตัน · Ult อื่นในสายได้แค่สัดส่วน)' },
     'sword.execCapMiss': { label: defaultLabel ?? 'Swordsman · ⚖️ HP หายเท่านี้ = โบนัสตัน', effect: 'ลด = โบนัสเต็มเร็วขึ้น (0.75 = HP หาย 75% ได้เต็ม)' },
     'sword.execLow': { label: defaultLabel ?? 'Swordsman · 🌊 เส้นปล่อยคลื่นดาบ', effect: 'เพิ่ม = คลื่นดาบปล่อยเร็วขึ้น (0.3 = มีมอน HP < 30% ก็ปล่อย)' },
     'sword.execBigShare': { label: defaultLabel ?? 'Swordsman · ⚖️ บอส/มินิ ได้สัดส่วนโบนัส', effect: 'เพิ่ม = execute แรงกับบอส/มินิมากขึ้น (0.5 = ครึ่งเดียว)' },
-    'sword.execLineShare': { label: defaultLabel ?? 'Swordsman · ⚖️ Ult job2/3 ได้สัดส่วนโบนัส', effect: 'เพิ่ม = บ้าระห่ำ/Undying ได้ execute แรงขึ้น (Pierce of Judgement ได้เต็มแบบนักดาบ) (0.25 = สูงสุด +50%)' },
+    'sword.execLineShare': { label: defaultLabel ?? 'Swordsman · ⚖️ Ult job2/3 ได้สัดส่วนโบนัส', effect: 'เพิ่ม = บ้าระห่ำ/Undying/Pierce ได้ execute แรงขึ้น (คลื่นทะลวง Pierce of Judgement ได้เต็มแบบนักดาบ) (0.25 = สูงสุด +37.5%)' },
     'sword.awakenTurns': { label: defaultLabel ?? 'Swordsman · ⚔️ ปลุกดาบ นาน (เทิร์น)', effect: 'เพิ่ม = บัฟหลังกด Ult อยู่นานขึ้น และคลื่นดาบรอจังหวะได้นานขึ้น' },
     'sword.awakenAtk': { label: defaultLabel ?? 'Swordsman · ⚔️ ปลุกดาบ P.ATK เพิ่ม', effect: 'เพิ่ม = ระหว่างปลุกดาบ ตีกายภาพทุกอย่างแรงขึ้น (0.2 = +20%)' },
     'sword.cleaveShare': { label: defaultLabel ?? 'Swordsman · ⚔️ ปลุกดาบ ฟันตัวถัดไป', effect: 'เพิ่ม = ตีปกติระหว่างปลุกดาบฟันมอนตัวที่ 2 แรงขึ้น (0.5 = 50% ของหนึ่งฮิต)' },
-    'sword.awakenHpPct': { label: defaultLabel ?? 'Swordsman · ✨ เคลือบดาบสวรรค์ % HP ที่เหลือ', effect: 'เพิ่ม = ระหว่างปลุกดาบ ทุกฮิตกายภาพตัด % HP ที่เหลือของเป้าเยอะขึ้น (0.025 = 2.5%)' },
+    'sword.awakenHpPct': { label: defaultLabel ?? 'Swordsman · ✨ เคลือบดาบสวรรค์ % HP ที่เหลือ', effect: 'เพิ่ม = ระหว่างปลุกดาบ ทุกฮิตกายภาพตัด % HP ที่เหลือของเป้าเยอะขึ้น (0.025 = 2.5% · ไม่เกินเพดาน coatAtkCap × P.ATK)' },
     'sword.awakenHpLv': { label: defaultLabel ?? 'Swordsman · ✨ เคลือบดาบสวรรค์ +% ต่อ Lv (Lv 2-5)', effect: 'เพิ่ม = เคลือบดาบ % HP ที่เหลือของเป้าโตเร็วขึ้นตอนอัป Ult Lv 2-5' },
     'sword.awakenHpLvHi': { label: defaultLabel ?? 'Swordsman · ✨ เคลือบดาบสวรรค์ +% ต่อ Lv (Lv 6-15)', effect: 'เพิ่ม = เคลือบดาบโตเร็วขึ้นตอนอัป Ult Lv 6-15 (Job2 / Awakening)' },
     'sword.awakenStrStep': { label: defaultLabel ?? 'Swordsman · ✨ เคลือบดาบสวรรค์ ทุกกี่ STR', effect: '⚠️ ลดเลข = STR น้อยลงก็ได้ขั้นโบนัสเคลือบดาบ (สาย STR แรงขึ้นมาก) · เพิ่ม = ต้องปั้น STR เยอะขึ้น' },
     'sword.awakenStrPct': { label: defaultLabel ?? 'Swordsman · ✨ เคลือบดาบสวรรค์ +% ต่อขั้น STR', effect: 'เพิ่ม = ทุกขั้น STR บวก % HP ที่เหลือของเป้าเข้าเคลือบดาบมากขึ้น' },
     'sword.awakenBigShare': { label: defaultLabel ?? 'Swordsman · ✨ เคลือบดาบสวรรค์ บอส/มินิ', effect: 'เพิ่ม = บอส/มินิโดน % HP ที่เหลือเต็มขึ้น (1 = เท่ามอนปกติ)' },
+    'sword.coatAtkCap': { label: defaultLabel ?? 'Swordsman · ✨ เคลือบดาบสวรรค์ เพดานต่อฮิต (× P.ATK)', effect: 'เพิ่ม = เพดานดาเมจเคลือบดาบสวรรค์ (% HP มอน) สูงขึ้นตาม P.ATK (1.25 = สูงสุด 125% P.ATK ต่อฮิต)' },
+    'sword.coatMultiShare': { label: defaultLabel ?? 'Swordsman · ✨ เคลือบดาบสวรรค์ สัดส่วนเพดานท่าหลายฮิต', effect: 'เพิ่ม = ท่าหลายฮิต (เช่น Pierce) ได้เพดานเคลือบดาบสวรรค์ต่อฮิตมากขึ้น (0.5 = ครึ่งหนึ่งของฮิตเดี่ยว)' },
     'mage.barrier': { label: defaultLabel ?? 'Mage · บาเรียเมื่อปล่อย Ult (× M.ATK)', effect: 'เพิ่ม = หลังปล่อยเวทใหญ่ของ Mage/Wizard จะได้โล่หนากันตัวตามค่า M.ATK' },
   }
   if (staticSkills[path]) return staticSkills[path]

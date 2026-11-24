@@ -52,7 +52,7 @@ if (D >= 6) { // D6 profile (Q 2026-11-04 level dungeons): Base Lv 45 (135 point
   const t = { [`${job}_s1p`]: lvTo(save.jobSkills.auto), [`${job}_ultp`]: lvTo(save.jobSkills.ult) }
   if (process.env.S2) { t[process.env.S2] = 1; t[process.env.S2 + '_p'] = +(process.env.PL ?? 0); if (process.env.STAR) { t[process.env.S2 + '_p'] = 5; t[process.env.S2 + '_x'] = 1 } } // v83: "+" max 5 (PL = its Lv 0..5)
   if (process.env.TREEX) Object.assign(t, JSON.parse(process.env.TREEX)) // extra web nodes, e.g. {"thief_core1":5,"thief_v1":5,"thief_v2":5,"thief_v3":5,"thief_v4":1}
-  Object.assign(save, { web: 1, stretch: 1, bmRework: 2, thiefRogueRework: 6, jobTree: t, jobSkills: { auto: 1, ult: 1 } }) // stretch / bmRework / thiefRogueRework: skip migrations (else load() wipes the bot's Thief jobTree)
+  Object.assign(save, { web: 1, stretch: 1, bmRework: 2, thiefRogueRework: 6, swordsmanRework: 1, jobTree: t, jobSkills: { auto: 1, ult: 1 } }) // stretch / bmRework / thiefRogueRework / swordsmanRework: skip migrations (else load() wipes the bot's jobTree)
 }
 // EXTRA=1: also wear headgear + off-hand for the class and a second accessory (equipment screen v1)
 if (process.env.EXTRA) {
@@ -77,6 +77,7 @@ if (process.env.BL) save.baseLevel = +process.env.BL // HARD=1 tests: scaling re
 if (process.env.HARD) save.hardClearsBy = {}
 if (process.env.SOCK) { save.sockets = JSON.parse(process.env.SOCK); save.cards = {}; for (const ids of Object.values(save.sockets)) for (const id of ids) save.cards[id] = (save.cards[id] ?? 0) + 1 }
 if (process.env.TAL) save.jobTalents = JSON.parse(process.env.TAL)
+if (process.env.PASSIVE) save.passiveNodes = JSON.parse(process.env.PASSIVE)
 // 2nd job (design/second-jobs-v1.md): JOB2=berserker|knight|rogue|mobster|crusader|monk|wizard|sage|beastmaster|innovator · PET=hawk|boar|wolf (Beastmaster) · J2LV=n (default 30) · J2T='{"node":lv}' replaces the preset web, J2T=0 empty · J2W=<weapon id> (default the mastery weapon, J2W=0 keeps gear)
 if (process.env.JOB2) {
   const j2 = process.env.JOB2

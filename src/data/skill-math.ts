@@ -140,17 +140,16 @@ export const KIT = {
   thiefPhysLeechCut: 0.5, // Eldritch Venom Keystone downside: -50% normal physical lifesteal
   thiefLuckyPoison: 2, // Lucky Reprisal Notable: poison stacks Mobster applies on LUCKY! dodge
   // PoE Passive Tree Phase 2 (Swordsman-Line Constellation, data/passives/swordsman.ts)
-  swordS1CdCut: 1, // Judgment Keystone: ดาบสยบมนตร์ cooldown cut (turns)
+  swordS1CdCut: 2, // Judgment Keystone: ดาบสยบมนตร์ cooldown cut (turns)
   swordS3BreakTurns: 2, // Armor Breaker Notable: Armor Break turns applied by Skill 1 & Skill 3
   swordIronDr: 0.15, // Iron Fortress Keystone: multiplicative incoming damage reduction
   swordIronAspdCut: 0.15, // Iron Fortress Keystone downside: ASPD multiplier cut
-  swordCounterDefMul: 1.2, // Thorned Aegis Keystone: flat counter bonus damage = P.DEF x this
+  swordCounterDefMul: 1.5, // Thorned Aegis Keystone: flat counter bonus damage = P.DEF x this
   swordCleaveTaken: 0.1, // Cleavestorm Keystone downside: incoming damage taken +this
-  swordExecBonus: 0.5, // Judgment Keystone: execute maxAdd bonus across Swordsman-line ults
+  swordExecBonus: 0.2, // Judgment Keystone: execute maxAdd bonus across Swordsman-line ults
   swordBloodFuryAt: 0.6, // Blood Fury Pact Keystone: HP threshold (< 60% max HP)
   swordBloodFuryDmg: 0.3, // Blood Fury Pact Keystone: physical hit damage bonus below threshold
   swordBloodFurySelf: 0.04, // Blood Fury Pact Keystone downside: current HP paid on S1 / S3 / Ult cast
-  swordVampDmgCut: 0.2, // Immortal Sanguine Keystone downside: skill / ult damage cut
   // ☠️ Thief-line poison (Q 2026-11-17 rebalance): admin table `kit` · poison.*. Per stack per monster turn = Stats.poisonDmg (flat)
   // + atkPer x P.ATK + matkPer x M.ATK (Thief / Rogue / Mobster only), so poison keeps up with monster HP late. atkPer 0 = the old flat poison.
   // 💰 Thief ทักษะ 2 ล้วงกระเป๋า (Q 2026-11-18, GW2 Steal): what you steal depends on the front monster's top stat. admin `kit` · thiefSteal.*
@@ -196,13 +195,13 @@ export const KIT = {
   },
   // ⚔️ ดาบสยบมนตร์ web (Q 2026-11-21, swordsman_b left = Defensive, swordsman_c right = Utility + Dmg), per OLD level (max 3, stretched to 5)
   swordS1Tree: {
-    shield: 0.04, tenacity: 0.05, guardTurns: 1, muteWeak: 0.06, counters: 2, // 🛡️ ตั้งรับ shield/lv · ใจไม่หวั่น tenacity/lv + CC guard turns · ปิดปาก silenced monster dmg cut/lv · ★ สวนเงียบ sure counters
-    vsMute: 0.1, refund: 4, splash: 0.2, starHit: 0.6, // 🎯 เจาะจังหวะ dmg/lv vs casting / silenced · ⏳ ตัดจังหวะ Mana/lv on a cut cast (+ CD -1) · 🌀 ฟันเฉือน share/lv · ★ 2nd cut share
+    shield: 0.04, tenacity: 0.05, guardTurns: 1, muteWeak: 0.06, counters: 3, ctrDmg: 0.25, // 🛡️ ตั้งรับ shield/lv · ใจไม่หวั่น tenacity/lv + CC guard turns · ปิดปาก silenced monster dmg cut/lv · ★ สวนเงียบ sure counters + bonus dmg
+    vsMute: 0.1, refund: 4, splash: 0.25, starHit: 0.6, // 🎯 เจาะจังหวะ dmg/lv vs casting / silenced · ⏳ ตัดจังหวะ Mana/lv on a cut cast (+ CD -1) · 🌀 ฟันเฉือน share/lv · ★ 2nd cut share
   },
   // 🗡️ ดาบพิพากษา web (Q 2026-11-21, ult side: swordsman_a left = Defensive while awakened, swordsman_d right = Utility + Dmg), per OLD level (max 3, stretched to 5)
   swordUltTree: {
-    dr: 0.05, leech: 0.03, ctr: 0.06, waveShield: 0.3, waveShieldCap: 0.25, // 🛡️ ใจดาบ dmg taken cut/lv while awakened · 🩸 ดาบกระหายเลือด basic/cleave leech/lv · 🔁 ตื่นสวน counter/lv · ★ ปราการคลื่น wave dmg share as shield (cap of max HP)
-    execAdd: 0.2, cleave: 0.15, reChance: 1 / 3, awAtk: 0.5, // Q 2026-11-22: d2 = 🌊 คลื่นซ้ำ chance/old lv (full 100%) · d4 ★ = P.ATK +awAtk while awakened (waveAmp removed 2026-11-24: unused) // ⚖️ คมพิพากษา execute max +/lv · 🌊 คลื่นคม wave dmg/lv · ⚔️ ฟันกวาดตื่น cleave share/lv · ★ คลื่นซ้ำ reload once on a wave kill
+    dr: 0.05, leech: 0.03, ctr: 0.06, waveShield: 0.3, waveShieldCap: 0.25, rampageWaveShield: 0.15, // 🛡️ ใจดาบ dmg taken cut/lv while awakened/rampage · 🩸 ดาบกระหายเลือด basic/combo/counter/cleave leech/lv · 🔁 ตื่นสวน counter/lv · ★ ปราการคลื่น wave/rampage dmg share as shield (cap of max HP)
+    execAdd: 0.12, cleave: 0.15, reChance: 1 / 3, awAtk: 0.15, // Q 2026-11-22: d2 = 🌊 คลื่นซ้ำ chance/old lv (full 100%) · d4 ★ = P.ATK +awAtk while awakened (waveAmp removed 2026-11-24: unused) // ⚖️ คมพิพากษา execute max +/lv · 🌊 คลื่นคม wave dmg/lv · ⚔️ ฟันกวาดตื่น cleave share/lv · ★ คลื่นซ้ำ reload once on a wave kill
   },
   // Swordsman core column (swordsman_core, tier 0, always open): Defend VIT/DEF/M.DEF/Regen passives
   swordCore: {
@@ -251,30 +250,31 @@ export const poisonCapOf = (st: Pick<Stats, 'poisonCap'>) => KIT.poison.baseCap 
 export const KIT2 = {
   berserker: {
     frenzyMax: 5, frenzyAspd: 0.06, frenzyCritDmg: 0.08, frenzyKeep: 2, // คลั่งเลือด: per stack, lost after this many hero turns without a crit
-    waveCost: 30, waveCd: 3, waveFront: 1.8, waveBack: 1.2, waveCrit: 0.2, waveOffWeapon: 0.7, // 🌊 คลื่นดาบ (x0.7 without a 2-hand weapon)
-    ultMul: 1.2, ultTurns: 3, ultCrit: 0.3, ultTaken: 0.2, // 👹 บ้าระห่ำ: swing all, then N turns of double swings + crit, taking more damage
-    mastery: { atkPct: 0.08, crit: 0.03 }, // 2-hand weapon
-    stormCost: 35, // ฟันพายุ in Rage (Rage refills fast: at 20 it fired every turn, bot D6 fresh Berserker 0/8 -> 6/8)
+    waveCost: 25, waveCd: 3, waveCdJ2: 2, waveHits: 2, waveFront: 1.65, waveBack: 1.2, waveCrit: 0.25, waveOffWeapon: 0.7, waveGoreAtk: 0.5, waveGoreTurns: 2, waveMultiRage: 10, waveMultiAt: 2, // 🌊 คลื่นดาบ (waveCd: 3 kept for Class 3 Warlord; waveCdJ2: 2 for Berserker)
+    ultMul: 0.7, ultTurns: 3, ultCrit: 0.25, ultTaken: 0.1, ultRageGain: 20, // 👹 บ้าระห่ำ: swing all + gain Rage, then N turns of double swings + crit, taking more damage
+    mastery: { atkPct: 0.12, crit: 0.05, skillCrit: 0.05 }, // 2-hand weapon
+    stormCost: 25, stormFrenzyAmp: 0.15, stormFrenzyAt: 3, // ฟันพายุ in Rage (+15% when frenzy >= 3 or rampage > 0)
     ignorePainTurns: 3, ignorePainRegenTurns: 2, ignorePainRegenPct: 0.3, // ★ ไม่รู้สึกเจ็บ: 3 turns immortal at 1 HP, then 2 turns regen 30% of dmg dealt
   },
   knight: {
-    hpPct: 0.1, aspdPct: 0.05, hpDmg: 0.03, // 🐦 ขี่เปโก + ถึกเป็นแรง (spear skills add max HP share)
-    brandCost: 20, brandCd: 3, brandMul: 1.5, brandTargets: 3, brandPush: 15, // 🌀 Brandish Spear
-    pierceHits: 3, pierceBigHits: 4, pierceMul: 1.2, waveMul: 2, ultMana: 50, // ultMana: Pierce of Judgement Mana (Q 2026-11-23, job1 ult is SWORD_MANA.ult) · 🔱 Pierce of Judgement (Q 2026-11-23): 🎯 Pierce on cast = this many hits on ONE target (boss > mini > front; boss / mini one more), x P.ATK per hit (+ max HP share), then ⚔️ ปลุกหอก; the 🔱 คลื่นทะลวง later = ONE thrust waveMul x wave power. Crit only with skillCrit. Bowling Bash is gone (bashMul removed)
-    boomerang: 0.8, chargeFirst: 3, chargeFirstGauge: 35, chargeFirstRes: 15, guardShieldless: 0.5, // Spear Boomerang mul · ★ ทะยาน · Auto Guard without an off-hand
+    hpPct: 0.1, aspdPct: 0.05, hpDmg: 0.04, // 🐦 ขี่เปโก + ถึกเป็นแรง (spear skills add max HP share)
+    brandCost: 14, brandCd: 3, brandMul: 3.4, brandTargets: 3, brandPush: 20, brandPushOther: 15, brandCritAdd: 0.15, brandLowTargetAmp: 0.45, // 🌀 Brandish Spear
+    pierceHits: 3, pierceBigHits: 4, pierceMul: 0.55, waveMul: 1.3, ultMana: 40, // ultMana: Pierce of Judgement Mana (Q 2026-11-23, job1 ult is SWORD_MANA.ult) · 🔱 Pierce of Judgement: 🎯 Pierce on cast + ⚔️ ปลุกหอก + 🔱 คลื่นทะลวง
+    boomerang: 1.4, boomerangTurns: 4, chargeFirst: 3, chargeFirstGauge: 35, chargeFirstRes: 15, guardShieldless: 0.5, // Spear Boomerang mul & CD · ★ ทะยาน · Auto Guard without an off-hand
+    spiralS3S4Pierce: 0.2, // kn_p4 ★: +20% DEF pierce for Brandish Spear & Spiral Pierce
     mastery: { atkPct: 0.05, hit: 10 }, // spear
     // v84 ใยชั้น 2: 🚩 ธงศึก + 🌀 กวาดทวน (reworked Peco & Banner). Per-lv = per OLD level (max 3).
     tree: {
       banner: 0.08, provokeAt: 0.5, provoke: 0.1, bannerKill: 0.08, bannerKillRes: 10, bannerKillGauge: 20, // ปักธง wave-start shield/lv (stacks) · ข่มขวัญ: monster hits −5%/lv (x2 under 50% HP) · ธงชัย: kill shield/lv + gauge + res (half on block)
       auraHeal: 0.05, auraRes: 10, auraGuard: 0.08, // ★ ธงอมตะ: every block heals + Mana/Rage · + Auto Guard chance
-      sweepEvery: 3, sweep: 0.3, sweepPush: 5, sweepGauge: 15, sweepHitGauge: 3, // ทวนวน: every Nth hero turn sweep all x P.ATK/lv (+ max HP share) · เหวี่ยง gauge −/lv · ทวนเร็ว hero gauge +/lv per sweep kill (+ hit)
+      sweepEvery: 2, sweep: 0.6, sweepPush: 5, sweepGauge: 15, sweepHitGauge: 3, sweepCritAdd: 0.1, sweepRes: 5, // ทวนวน: every Nth hero turn sweep all x P.ATK/lv (+ max HP share) + skillCrit + Mana · เหวี่ยง gauge −/lv · ทวนเร็ว hero gauge +/lv per sweep kill (+ hit)
       sweepBreak: 2, sweepStun: 0.25, // ★ พายุทวน: sweep breaks armor N turns + stun chance (boss / mini: gauge push)
     },
     // Q 2026-11-24 Skill 4 🌀 Spiral Pierce (Rell Q + Serpent's Fang): one target (boss > mini > front), unlocks at Job2 Lv unlockLv, takes the hero turn.
     // Shatters the target's monster shield first (boss phase shield: bossShield share) -> the thrust hits +shatterAmp · normal / mini lose a turn, a boss loses its cast + bossGauge.
     // 🐍 Fang: once unlocked, every hero hit drains monster shields x(1 + fang). Lord Knight: lkHits thrusts of lkMul, the last ignores lkPierce of DEF.
     // ⛓️ Break (Q 2026-11-24, Dota 2 Silver Edge style): the target's passives are off for breakTurns hero turns (data/skill4.ts BREAK_OFF).
-    s4: { cost: 20, cd: 4, unlockLv: 20, mul: 2, shatterAmp: 0.3, bossShield: 0.5, bossGauge: 30, fang: 0.5, lkHits: 3, lkMul: 0.8, lkPierce: 0.5, breakTurns: 2 },
+    s4: { cost: 15, cd: 3, unlockLv: 15, mul: 4.8, shatterAmp: 0.45, defPierce: 0.5, critAdd: 0.25, spBreakAmp: 0.15, bossShield: 0.5, bossGauge: 30, fang: 0.5, lkHits: 3, lkMul: 1.65, lkPierce: 0.75, breakTurns: 2 },
   },
   rogue: {
     knifeMul: 0.4, knifePerCombo: 1, dualKnife: 1, // 🔪 มีดบิน: each extra combo hit throws knives at random monsters (+1 with a dagger off-hand) · no lifesteal
@@ -475,7 +475,7 @@ export const preyTurnsOf = (st: Stats) => KIT2.beastmaster.preyTurns + st.j2Prey
 /** Skill 2 linear "+" numbers: base + per x Stats.s2Lv. Plain numbers so the admin can tune them (skills `s2p.<key>.base|per`);
  *  the S2N functions below read them on every call. Defaults are the v83 values. */
 export const S2P = {
-  guardCut: { base: 0.4, per: 0.05 }, guardBack: { base: 0.5, per: 0.1 }, guardDef: { base: 2, per: 0.5 }, // Q 2026-11-22 ตั้งการ์ด counter: % of dmg taken this turn + P.DEF x
+  guardCut: { base: 0.4, per: 0.05 }, guardBack: { base: 0.5, per: 0.1 }, guardDef: { base: 2.5, per: 0.6 }, // Q 2026-11-22 ตั้งการ์ด counter: % of dmg taken this turn + P.DEF x
   bloodVamp: { base: 0.2, per: 0.05 }, tauntWeak: { base: 0.2, per: 0.05 },
   rainMul: { base: 0.8, per: 0.15 }, hawkCrit: { base: 0.2, per: 0.05 }, trapPush: { base: 30, per: 10 },
   mshieldTake: { base: 0.4, per: 0.05 }, novaMul: { base: 0.8, per: 0.15 }, arcaneMul: { base: 0.6, per: 0.1 },
@@ -492,9 +492,10 @@ export const S2N = {
   guardCut: (lv: number) => Math.min(S2CAP.guardCut, lin(S2P.guardCut, lv)), guardTurns: (star: boolean) => (star ? 3 : 2), guardCounters: (star: boolean) => (star ? 2 : 1),
   guardShield: (star: boolean) => (star ? 0.18 : 0.1),
   guardBack: (lv: number, star: boolean) => lin(S2P.guardBack, lv) + (star ? 0.3 : 0), guardDef: (lv: number) => lin(S2P.guardDef, lv),
-  bloodVamp: (lv: number) => lin(S2P.bloodVamp, lv), bloodTurns: 3, bloodAtk: 0.2,
+  guardAutoBlockShare: 0.5,
+  bloodVamp: (lv: number) => lin(S2P.bloodVamp, lv), bloodTurns: 3, bloodAtk: 0.2, bloodTaken: 0.1,
   tauntWeak: (lv: number) => Math.min(S2CAP.tauntWeak, lin(S2P.tauntWeak, lv)), tauntTurns: (star: boolean) => (star ? 3 : 2),
-  tauntBreakTurns: (star: boolean) => (star ? 2 : 1), tauntStarRes: 15, tauntStarShield: 0.08,
+  tauntBreakTurns: (star: boolean) => (star ? 2 : 1), tauntStarRes: 15, tauntStarShield: 0.1, tauntCtrAmp: 0.2,
   rainMul: (lv: number) => lin(S2P.rainMul, lv), rainWaves: (star: boolean) => (star ? 2 : 1),
   hawkCrit: (lv: number) => Math.min(S2CAP.hawkCrit, lin(S2P.hawkCrit, lv)), hawkTurns: 3, hawkCritDmg: 0.3,
   trapMul: 0.6, trapPush: (lv: number) => lin(S2P.trapPush, lv),
@@ -528,6 +529,9 @@ export const autoCost = (job: JobDef, st: Stats) => {
 }
 /** ⚔️ ดาบสยบมนตร์ is this job's Skill 1: the whole Swordsman line (Q 2026-11-21: Berserker too, paying its flat Rage cost). */
 export const swordS1On = (job: JobDef) => job.id === 'swordsman'
+/** ⚔️ ดาบสยบมนตร์ excess s1Pow multiplier beyond what swS1Lv already scales (avoids circular tree.ts import). */
+export const swordS1ExcessPow = (st: Pick<Stats, 's1Pow' | 'swS1Lv'>, powPer = 0.12): number =>
+  1 + Math.max(0, st.s1Pow - powPer * Math.max(0, st.swS1Lv))
 
 // ---------- P2'a Thief pure helpers (numbers only, no Mon / Phaser: tests call them directly) ----------
 /** สลับคม: after แทงพิษ the next hero turn is a basic attack · Q3: not inside 👤 ร่างเงา (free Skill 1 spam stays). */
@@ -909,7 +913,7 @@ export function autoInfo(jobId: JobId, st: Stats, job2?: string, base?: { str: n
       const lv = swordS1Lv(st), i = lv - 1
       if (base) {
         const b = hitBase(st, false), avg = Math.max(1, (b.lo + b.hi) / 2)
-        const m = (swordS1Raw(lv, avg, base.str, base.baseLv) / avg) * (1 + st.pskill)
+        const m = (swordS1Raw(lv, avg, base.str, base.baseLv) / avg) * (1 + st.pskill) * swordS1ExcessPow(st)
         out.push({ label: 'ดาเมจ (เป้าเดี่ยว)', value: range(b.lo * m, b.hi * m) }) // no crit text: the column is narrow
       }
       out.push({ label: 'สูตร: P.ATK', value: `${Math.round(SWORD_S1.atkPct[i] * 100)}%` })
@@ -924,7 +928,7 @@ export function autoInfo(jobId: JobId, st: Stats, job2?: string, base?: { str: n
       if (st.swS1Star > 0) out.push({ label: '⚔️ ฟันซ้ำ', value: `${pct(KIT.swordS1Tree.starHit)} ของฮิต` })
       if (st.swCcGuard > 0) out.push({ label: '🧘 กัน CC หลังล้าง', value: `${KIT.swordS1Tree.guardTurns} เทิร์น` })
       if (st.swMuteWeak > 0) out.push({ label: '🤐 มอนติดใบ้ตีเบาลง', value: `−${pct(st.swMuteWeak)}` })
-      if (st.swS1Ctr > 0) out.push({ label: '🔁 สวนแน่นอน', value: `${st.swS1Ctr} ครั้ง` })
+      if (st.swS1Ctr > 0) out.push({ label: '🔁 สวนแน่นอน', value: `${st.swS1Ctr} ครั้ง${st.swS1CtrDmg > 0 ? ` (แรง +${pct(st.swS1CtrDmg)})` : ''}` })
       if (st.swVsMute > 0) out.push({ label: '🎯 ตีตัวร่าย/ติดใบ้', value: `+${pct(st.swVsMute)}` })
       if (st.swS1Refund > 0) out.push({ label: '⏳ ขัดร่ายได้: Mana', value: `+${Math.round(st.swS1Refund)} · CD −1` })
       break
@@ -963,7 +967,8 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
   const job = JOBS[jobId], pow = 1 + st.ultPow, hitPow = pow * (1 + st.ultAmp)
   const out: InfoRow[] = [{ label: 'คูลดาวน์', value: `${ultCooldown(job, st)} เทิร์น${ultCost(job, st, job2) ? ` · Mana ${ultCost(job, st, job2)}` : ''}` }]
   switch (jobId) {
-    case 'swordsman':
+    case 'swordsman': {
+      const U = KIT.swordUltTree
       if (swordAwakenUlt(job2)) { // job1 ดาบพิพากษา + Knight 🔱 Pierce of Judgement (Q 2026-11-23)
         const kn = job2 === 'knight', K = KIT2.knight, aw = kn ? '⚔️ ปลุกหอก' : '⚔️ ปลุกดาบ'
         out.push({ label: aw, value: `${SWORD_MANA.awakenTurns} เทิร์น` })
@@ -977,16 +982,15 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
           const h2 = hitPow * (1 + st.ult2Pow), hits = K.pierceHits + st.j2PierceHits, bigHits = K.pierceBigHits + st.j2PierceHits
           out.push({ label: '🎯 Pierce/ฮิต (หลังปลุกหอก)', value: hitText(st, (K.pierceMul + st.ultMulAdd) * h2 * (1 + st.pskill), false, true) }) // skill hit: crit text only with skillCrit
           out.push({ label: '🎯 Pierce จำนวนฮิต', value: `${hits} (บอส/มินิ ${bigHits})${st.j3Lk > 0 ? ` +${KIT3.lordknight.extraHits + st.j3GospelField}` : ''}` })
-          out.push({ label: '🔱 คลื่นทะลวง (แทงเดียว)', value: hitText(st, (K.waveMul + st.ultMulAdd) * h2 * (1 + st.pskill) * (1 + st.swWaveAmp), false, true) })
+          out.push({ label: '🔱 คลื่นทะลวง (แทงเดียว)', value: hitText(st, (K.waveMul + st.ultMulAdd) * h2 * (1 + st.pskill), false, true) })
           out.push({ label: '🎯 เป้า', value: `บอส > มินิ > ตัวหน้า · คริ ${st.skillCrit > 0 ? 'ด้วย skillCrit' : 'ต้องมี skillCrit'}` })
           out.push({ label: '🔱 + HP สูงสุด/ฮิต', value: pct(K.hpDmg + st.j2HpDmg) })
           if (st.j2Spiral > 0) out.push({ label: '🌀 ข้าม DEF', value: pct(Math.min(1, st.j2Spiral)) })
           out.push({ label: '🔱 ปล่อยเองเมื่อ', value: `เป้า HP < ${Math.round(SWORD_MANA.execLow * 100)}%` })
         } else {
-          out.push({ label: '🌊 คลื่นดาบ/ตัว (ทุกตัว)', value: hitText(st, (SWORD_MANA.ultMul + st.ultMulAdd) * hitPow * (1 + st.pskill) * (1 + st.swWaveAmp), false) })
+          out.push({ label: '🌊 คลื่นดาบ/ตัว (ทุกตัว)', value: hitText(st, (SWORD_MANA.ultMul + st.ultMulAdd) * hitPow * (1 + st.pskill), false) })
           out.push({ label: '🌊 ปล่อยเองเมื่อ', value: `มอน HP < ${Math.round(SWORD_MANA.execLow * 100)}%` })
         }
-        const U = KIT.swordUltTree
         out.push({ label: '🎯 ก่อนปล่อยคลื่น', value: 'ไม่พลาด' })
         if (st.swAwDr > 0) out.push({ label: '🛡️ ปลุกอยู่: โดนเบาลง', value: `−${pct(st.swAwDr)}` })
         if (st.swAwLeech > 0) out.push({ label: '🩸 ปลุกอยู่: ดูดเลือด', value: pct(st.swAwLeech) })
@@ -994,14 +998,21 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
         if (st.swWaveShield > 0) out.push({ label: '🌊 โล่จากคลื่น', value: `${pct(U.waveShield)} ดาเมจ` })
         if (st.swWaveRe > 0) out.push({ label: '🌊 คลื่นซ้ำเมื่อฆ่า', value: `โอกาส ${pct(st.swWaveRe)}` })
         if (st.ultShieldAdd > 0) out.push({ label: 'โล่', value: `${shield(st, st.maxHp * st.ultShieldAdd * pow)}` })
+      } else { // Berserker / Warlord: บ้าระห่ำ (swordsman_a1..a4 & d3)
+        if (st.swAwDr > 0) out.push({ label: '🛡️ บ้าระห่ำ: โดนเบาลง', value: `−${pct(st.swAwDr)}` })
+        if (st.swAwLeech > 0) out.push({ label: '🩸 บ้าระห่ำ: ดูดเลือด', value: pct(st.swAwLeech) })
+        if (st.swAwCtr > 0) out.push({ label: '🔁 บ้าระห่ำ: สวนกลับ', value: `+${pct(st.swAwCtr)}` })
+        if (st.swWaveShield > 0) out.push({ label: '🌊 บ้าระห่ำ: โล่จากคลื่น', value: `บ้าระห่ำ ${pct(U.waveShield)} · S3 ${pct(U.rampageWaveShield)}` })
+        if (st.swAwCleave > 0) out.push({ label: '⚔️ บ้าระห่ำ: ฟันตัวถัดไป', value: `${pct(SWORD_MANA.cleaveShare + st.swAwCleave)}` })
       }
       { // ⚖️ คำพิพากษา: the multiplier at a few target HP shares (Berserker / Warlord take execLineShare)
-        const full = swordAwakenUlt(job2), sh = full ? 1 : SWORD_MANA.execLineShare, add = (full ? st.swExecAdd : 0) + st.swExecBonus, x = (f: number, big: boolean) => `×${swordExecMul(f, big, sh, add).toFixed(2)}`
+        const full = swordAwakenUlt(job2), sh = full ? 1 : SWORD_MANA.execLineShare, add = st.swExecAdd + st.swExecBonus, x = (f: number, big: boolean) => `×${swordExecMul(f, big, sh, add).toFixed(2)}`
         out.push({ label: '⚖️ execute เป้า HP 50%', value: x(0.5, false) })
         out.push({ label: '⚖️ execute เป้า HP ≤25%', value: x(0.25, false) })
         out.push({ label: '⚖️ บอส/มินิ HP ≤25%', value: x(0.25, true) })
       }
       break
+    }
     case 'archer':
       out.push({ label: 'ศรทะลวง (เป้าเดียว)', value: hitText(st, (KIT.archerUlt - st.arUltMulCut) * hitPow, false) })
       if (st.arUltSplash > 0) out.push({ label: 'ทะลุใส่ตัวอื่น', value: hitText(st, st.arUltSplash * hitPow, false) })
@@ -1106,8 +1117,8 @@ export function skill2Info(k: Skill2Def, st: Stats): InfoRow[] {
   const add = (label: string, value: string) => out.push({ label, value })
   switch (k.id) {
     case 'sw_guard': add('โล่ทันที + ดาเมจเข้าลด', `${shield(st, st.maxHp * S2N.guardShield(star))} · −${pct(S2N.guardCut(lv))} · ${S2N.guardTurns(star)} เทิร์น`); add('สวนกลับแน่นอน', `${S2N.guardCounters(star)} ครั้ง`); add('สวน +ดาเมจที่โดน', pct(S2N.guardBack(lv, star))); add('สวน +P.DEF', `${S2N.guardDef(lv)}x = ${Math.round(st.def * S2N.guardDef(lv))}`); break
-    case 'sw_blood': add('ดูดเลือด + ดูดเลือดสกิล', `+${pct(S2N.bloodVamp(lv))} · ${S2N.bloodTurns} เทิร์น`); add('ดาเมจสกิล/ult', `−${pct(SPELL_VAMP.bloodCut)}${star ? ` · ATK +${pct(S2N.bloodAtk)}` : ''}`); break
-    case 'sw_taunt': add('มอนตีเบาลง + เกราะแตก', `${pct(S2N.tauntWeak(lv))} (${S2N.tauntTurns(star)} เทิร์น) · เกราะแตก ${S2N.tauntBreakTurns(star)} เทิร์น`); if (star) add('★ ท้าซ้ำ', `ฟื้น Resource +${S2N.tauntStarRes} · โล่ ${shield(st, st.maxHp * S2N.tauntStarShield)}`); break
+    case 'sw_blood': add('ดูดเลือด + ดูดเลือดสกิล', `+${pct(S2N.bloodVamp(lv))} · ${S2N.bloodTurns} เทิร์น`); add('ระหว่างเลือดเดือด', `โดนตีแรงขึ้น +${pct(S2N.bloodTaken)}${SPELL_VAMP.bloodCut > 0 ? ` · ดาเมจสกิล/ult −${pct(SPELL_VAMP.bloodCut)}` : ''}${star ? ` · ATK +${pct(S2N.bloodAtk)}` : ''}`); break
+    case 'sw_taunt': add('มอนตีเบาลง + เกราะแตก', `${pct(S2N.tauntWeak(lv))} (${S2N.tauntTurns(star)} เทิร์น) · เกราะแตก ${S2N.tauntBreakTurns(star)} เทิร์น`); add('สวนกลับใส่มอนติดท้าทาย', `+${pct(S2N.tauntCtrAmp)}`); if (star) add('★ ท้าซ้ำ', `ฟื้น Resource +${S2N.tauntStarRes} · โล่ ${shield(st, st.maxHp * S2N.tauntStarShield)}`); break
     case 'ar_rain': add(`ดาเมจ/ตัว (ทุกตัว ×${S2N.rainWaves(star)} รอบ)`, hitText(st, S2N.rainMul(lv), false)); break
     case 'ar_hawk': add('คริเพิ่ม', `+${pct(S2N.hawkCrit(lv))} → รวม ${pct(st.crit + S2N.hawkCrit(lv))} · ${S2N.hawkTurns} เทิร์น`); if (star) add('ดาเมจคริ', `+${pct(S2N.hawkCritDmg)}`); break
     case 'ar_trap': add(star ? 'ดาเมจ/ตัว (ทุกตัว)' : 'ดาเมจตัวหน้า', hitText(st, S2N.trapMul, false)); add('ผลักเทิร์น', `${S2N.trapPush(lv)}`); break

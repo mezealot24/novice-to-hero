@@ -49,13 +49,50 @@ test('Grand Cross no longer carries its own spell vamp', () => {
   assert.ok(!JOB2.crusader.ult.desc.includes('ดูดเลือด'))
 })
 
-test('Berserker: ★ ไม่รู้สึกเจ็บ grants j2IgnorePain and config matches 3 turns / 2 turns 30%', () => {
+test('Berserker: ★ ไม่รู้สึกเจ็บ grants j2IgnorePain and j2RageTurn: 5, config matches 3 turns / 2 turns 30%', () => {
   const node = nodeById('bz_r4')
   assert.ok(node, 'bz_r4 exists')
   assert.equal(node.mod(1).j2IgnorePain, 1)
+  assert.equal(node.mod(1).j2RageTurn, 5)
   assert.ok(node.desc(1).includes('3 เทิร์น'))
   assert.ok(node.desc(1).includes('30%/เทิร์น'))
   assert.equal(KIT2.berserker.ignorePainTurns, 3)
   assert.equal(KIT2.berserker.ignorePainRegenTurns, 2)
   assert.equal(KIT2.berserker.ignorePainRegenPct, 0.3)
+})
+
+test('Wave 2 Knight & Berserker tree2 nodes: bz_c1/c3/d2/d3/r1 and kn_g2/r1', () => {
+  const near = (a: number, b: number, msg = '') => assert.ok(Math.abs(a - b) < 1e-9, `${msg} ${a} != ${b}`)
+
+  const c1 = nodeById('bz_c1')!
+  assert.equal(Object.keys(c1.mod(1))[0], 'crit')
+  near(c1.mod(c1.max).crit ?? 0, 0.09)
+  near(c1.mod(c1.max).skillCrit ?? 0, 0.06)
+
+  const c3 = nodeById('bz_c3')!
+  assert.equal(c3.mod(c3.max).j2FrenzyMax, 3)
+  near(c3.mod(c3.max).combo ?? 0, 0.15)
+  near(c3.mod(c3.max).comboDmg ?? 0, 0.15)
+
+  const d2 = nodeById('bz_d2')!
+  near(d2.mod(d2.max).aspd ?? 0, 0.192)
+  near(d2.mod(d2.max).s3Pow ?? 0, 0.15)
+
+  const d3 = nodeById('bz_d3')!
+  assert.equal(d3.mod(d3.max).def, 9)
+  near(d3.mod(d3.max).tenacity ?? 0, 0.15)
+  near(d3.mod(d3.max).basicDmg ?? 0, 0.18)
+
+  const r1 = nodeById('bz_r1')!
+  near(r1.mod(r1.max).rageGain ?? 0, 0.3)
+  assert.equal(r1.mod(r1.max).startRage, 30)
+
+  const g2 = nodeById('kn_g2')!
+  near(g2.mod(g2.max).j2DefAtk ?? 0, 0.2 * 3) // 0.20 per oldLv (old max 3 stretched to 5)
+
+  const knR1 = nodeById('kn_r1')!
+  assert.equal(KIT2.knight.tree.sweepEvery, 2)
+  assert.equal(KIT2.knight.tree.sweep, 0.6)
+  near(knR1.mod(knR1.max).j2Sweep ?? 0, 0.6 * 3)
+  assert.ok(knR1.desc(knR1.max).includes('ทุก 2 เทิร์น'))
 })

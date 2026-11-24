@@ -11,28 +11,32 @@ import { newSave, syncClass1 } from '../src/save'
 
 const near = (a: number, b: number, eps = 1e-9) => assert.ok(Math.abs(a - b) < eps, `${a} vs ${b}`)
 
-test('coat: base 3.5% at Lv 1, 5.5% at Lv 5, 6.75% at Lv 10, 8% at Lv 15', () => {
-  near(swordCoatPct(1, 0), 0.035)
-  near(swordCoatPct(5, 0), 0.055)
-  near(swordCoatPct(10, 0), 0.0675)
-  near(swordCoatPct(15, 0), 0.08)
+test('coat: base 2.5% at Lv 1, 3.7% at Lv 5, 4.45% at Lv 10, 5.2% at Lv 15', () => {
+  near(swordCoatPct(1, 0), 0.025)
+  near(swordCoatPct(5, 0), 0.037)
+  near(swordCoatPct(10, 0), 0.0445)
+  near(swordCoatPct(15, 0), 0.052)
 })
 
-test('coat: +0.5% per 25 STR (Q now STR 167 at Lv 5 = 8.5%, was 18.5%)', () => {
-  near(swordCoatPct(5, 167), 0.085)
-  near(swordCoatPct(5, 24), 0.055)
-  near(swordCoatPct(5, 300), 0.115)
-  near(swordCoatPct(1, 50), 0.045)
+test('coat: +0.25% per 25 STR (STR 167 at Lv 5 = 5.2%)', () => {
+  near(swordCoatPct(5, 167), 0.052)
+  near(swordCoatPct(5, 24), 0.037)
+  near(swordCoatPct(5, 300), 0.067)
+  near(swordCoatPct(1, 50), 0.03)
 })
 
 test('Swordsman S1 / ult tables reach Lv 15 and the Lv getters follow them', () => {
   for (const a of [SWORD_S1.atkPct, SWORD_S1.str, SWORD_S1.base, SWORD_MANA.awakenStr]) assert.equal(a.length, 15)
-  near(SWORD_S1.atkPct[9], 2.75)
-  near(SWORD_S1.atkPct[14], 3.5)
-  assert.equal(SWORD_S1.base[14], 200)
+  near(SWORD_S1.atkPct[9], 1.5)
+  near(SWORD_S1.atkPct[14], 1.8)
+  assert.equal(SWORD_S1.base[14], 16)
   assert.equal(swordS1Lv({ swS1Lv: 15 }), 15)
   assert.equal(swordUltLv({ swUltLv: 12 }), 12)
-  for (let i = 1; i < 15; i++) assert.ok(SWORD_S1.atkPct[i] > SWORD_S1.atkPct[i - 1])
+  for (let i = 1; i < 15; i++) {
+    assert.ok(SWORD_S1.atkPct[i] > SWORD_S1.atkPct[i - 1])
+    assert.ok(SWORD_S1.str[i] > SWORD_S1.str[i - 1])
+    assert.ok(SWORD_S1.base[i] > SWORD_S1.base[i - 1])
+  }
 })
 
 test('class-1 cap: 5 / 10 / 15 by tier, read live by the Skill 1 / Ult / Skill 2 "+" nodes only', () => {

@@ -151,8 +151,8 @@ const NODES: readonly PassiveNode[] = [
     edges: ['sw_n_eagleeye', 'sw_n_ironsteel', 'sw_k_judgment'],
     icon: '🌉',
     name: 'สะพานคมปราการ',
-    desc: () => 'สวนกลับ +4% · Ult แรง +6% (เชื่อมเขต คมดาบ ↔ ปราการ รอบนอก)',
-    mod: () => ({ counter: 0.04, ultPow: 0.06 }),
+    desc: () => 'สวนกลับ +4% · ทักษะ 1 แรง +8% (เชื่อมเขต คมดาบ ↔ ปราการ รอบนอก)',
+    mod: () => ({ counter: 0.04, s1Pow: 0.08 }),
     tags: ['vanguard', 'bastion', 'counter', 'ult'],
   },
   {
@@ -265,8 +265,8 @@ const NODES: readonly PassiveNode[] = [
     edges: ['sw_m_van3', 'sw_m_bridge_w', 'sw_k_cleavestorm'],
     icon: '🔨',
     name: 'ทลายเกราะศึก',
-    desc: () => `ดาบสยบมนตร์ (S1) และทักษะ 3 แปะเกราะแตก ${KIT.swordS3BreakTurns} เทิร์นมอน · ทักษะ 3 แรง +15% · เจาะเกราะกาย +6%`,
-    mod: () => ({ swS3ArmorBreak: 1, s3Pow: 0.15, physPen: 0.06 }),
+    desc: () => `ดาบสยบมนตร์ (S1), ทักษะ 3 และ Spiral Pierce แปะเกราะแตก ${KIT.swordS3BreakTurns} เทิร์นมอน · ทักษะ 3 แรง +20% · เจาะเกราะกาย +8%`,
+    mod: () => ({ swS3ArmorBreak: 1, s3Pow: 0.2, physPen: 0.08 }),
     tags: ['vanguard', 's1', 's3'],
   },
   {
@@ -280,14 +280,14 @@ const NODES: readonly PassiveNode[] = [
     icon: '⚔️',
     name: 'คมดาบเฉพาะทาง',
     desc: (ctx?: PassiveCtx) => {
-      if (ctx?.job2 === 'knight') return 'ปรับตามสาย 🐴 Knight: สกิลหอก +1.5% Max HP · Charge Attack ฟันแรก +40%'
-      if (ctx?.job2 === 'berserker') return 'ปรับตามสาย 🪓 Berserker: ดวลบอส/ตัวเดียวแรง +14% · ดาเมจคริ +15%'
-      return 'ปรับตามสายคลาส 2 (นักดาบ: สกิลกาย +12% · ตีปกติ +10% · Knight: หอก/Charge · Berserker: ดวล/คริ)'
+      if (ctx?.job2 === 'knight') return 'ปรับตามสาย 🐴 Knight: สกิลหอก +2% Max HP · Charge Attack ฟันแรก +50% · ทักษะ 3 แรง +12%'
+      if (ctx?.job2 === 'berserker') return 'ปรับตามสาย 🪓 Berserker: ดวลบอส/ตัวเดียวแรง +16% · ดาเมจคริ +18%'
+      return 'ปรับตามสายคลาส 2 (นักดาบ: สกิลกาย +12% · ตีปกติ +12% · ทักษะ 1 +12% | Knight: หอก/Charge/ทักษะ 3 | Berserker: ดวล/ดาเมจคริ)'
     },
     mod: (ctx?: PassiveCtx) => {
-      if (ctx?.job2 === 'knight') return { j2HpDmg: 0.015, j2Charge: 0.4 }
-      if (ctx?.job2 === 'berserker') return { j2Duel: 0.14, critMul: 0.15 }
-      return { pskill: 0.12, basicDmg: 0.1 }
+      if (ctx?.job2 === 'knight') return { j2HpDmg: 0.02, j2Charge: 0.5, s3Pow: 0.12 }
+      if (ctx?.job2 === 'berserker') return { j2Duel: 0.16, critMul: 0.18 }
+      return { pskill: 0.12, basicDmg: 0.12, s1Pow: 0.12 }
     },
     tags: ['vanguard', 's3', 'fury'],
   },
@@ -301,15 +301,16 @@ const NODES: readonly PassiveNode[] = [
     edges: ['sw_n_breaker', 'sw_n_adapt_edge'],
     icon: '🌪️',
     name: 'คมดาบผ่าทัพ',
-    upside: 'Ult แรง +1.0x · ตีตัวกำลังร่ายแรง +50% · ฟันกวาด +0.4x',
-    downside: `โล่จาก Ult −15% Max HP · รับดาเมจทุกแหล่งแรงขึ้น +${pct(KIT.swordCleaveTaken)}`,
+    upside: 'ฟันกวาด +0.6x · ตีปกติ/คอมโบแรง +20% · ทักษะ 3 แรง +25% · Ult ตีตัวกำลังร่ายแรง +35%',
+    downside: `ดาเมจ Ult −0.25x · รับดาเมจทุกแหล่งแรงขึ้น +${pct(KIT.swordCleaveTaken)}`,
     desc: () =>
-      `Ult แรง +1.0x · ตีตัวกำลังร่ายแรง +50% · ฟันกวาด +0.4x | ข้อเสีย: โล่จาก Ult −15% Max HP · รับดาเมจทุกแหล่งแรงขึ้น +${pct(KIT.swordCleaveTaken)}`,
+      `ฟันกวาด +0.6x · ตีปกติ/คอมโบแรง +20% · ทักษะ 3 แรง +25% · Ult ตีตัวกำลังร่ายแรง +35% | ข้อเสีย: ดาเมจ Ult −0.25x · รับดาเมจทุกแหล่งแรงขึ้น +${pct(KIT.swordCleaveTaken)}`,
     mod: () => ({
-      ultMulAdd: 1.0,
-      ultVsCharge: 0.5,
-      cleaveAdd: 0.4,
-      ultShieldAdd: -0.15,
+      cleaveAdd: 0.6,
+      basicDmg: 0.2,
+      s3Pow: 0.25,
+      ultVsCharge: 0.35,
+      ultMulAdd: -0.25,
       swCleaveTaken: KIT.swordCleaveTaken,
     }),
     tags: ['vanguard', 'ult'],
@@ -324,15 +325,18 @@ const NODES: readonly PassiveNode[] = [
     edges: ['sw_n_eagleeye', 'sw_n_adapt_edge', 'sw_m_bridge_n'],
     icon: '⚖️',
     name: 'ตราพิพากษา',
-    upside: `⚖️ คำพิพากษา Execute แรงขึ้นอีก +${pct(KIT.swordExecBonus)} (ทุกคลาสในสายนักดาบ) · คูลดาวน์ดาบสยบมนตร์ −${KIT.swordS1CdCut} เทิร์น · เจาะเกราะกาย +8%`,
-    downside: 'คูลดาวน์ Ult เพิ่มขึ้น +1 เทิร์น',
+    upside: `⚖️ คำพิพากษา Execute แรงขึ้นอีก +${pct(KIT.swordExecBonus)} (ทุกคลาสในสายนักดาบ) · คูลดาวน์ดาบสยบมนตร์ −${KIT.swordS1CdCut} เทิร์น · ทักษะ 1 แรง +25% · สกิลคริ +10% · เจาะเกราะกาย +10%`,
+    downside: 'คูลดาวน์ Ult เพิ่มขึ้น +1 เทิร์น · ดาเมจ Ult −15%',
     desc: () =>
-      `⚖️ คำพิพากษา Execute แรงขึ้นอีก +${pct(KIT.swordExecBonus)} (ทุกคลาสในสายนักดาบ) · คูลดาวน์ดาบสยบมนตร์ −${KIT.swordS1CdCut} เทิร์น · เจาะเกราะกาย +8% | ข้อเสีย: คูลดาวน์ Ult +1 เทิร์น`,
+      `⚖️ คำพิพากษา Execute แรงขึ้นอีก +${pct(KIT.swordExecBonus)} (ทุกคลาสในสายนักดาบ) · คูลดาวน์ดาบสยบมนตร์ −${KIT.swordS1CdCut} เทิร์น · ทักษะ 1 แรง +25% · สกิลคริ +10% · เจาะเกราะกาย +10% | ข้อเสีย: คูลดาวน์ Ult +1 เทิร์น · ดาเมจ Ult −15%`,
     mod: () => ({
       swExecBonus: KIT.swordExecBonus,
       swS1CdCut: KIT.swordS1CdCut,
-      physPen: 0.08,
+      s1Pow: 0.25,
+      skillCrit: 0.1,
+      physPen: 0.1,
       swUltCdAdd: 1,
+      ultPow: -0.15,
     }),
     tags: ['vanguard', 's1', 'ult'],
   },
@@ -404,8 +408,8 @@ const NODES: readonly PassiveNode[] = [
     edges: ['sw_m_bas2', 'sw_m_bas3', 'sw_k_thornguard'],
     icon: '🔁',
     name: 'ท่าสวนพร้อม',
-    desc: () => 'หลังกด Ult สวนกลับแน่นอน 3 ครั้ง · ดาเมจสวนกลับ +15% · สวนกลับกระแทกทุกตัว 0.5x',
-    mod: () => ({ ultCounters: 3, counterDmg: 0.15, ctrAoe: 1 }),
+    desc: () => 'หลังกด Ult สวนกลับแน่นอน 2 ครั้ง · ดาบสยบมนตร์ (S1) สวนกลับแน่นอน +1 ครั้ง · ดาเมจสวนกลับ +20% · สวนกลับกระแทกทุกตัว 0.5x',
+    mod: () => ({ ultCounters: 2, swS1Ctr: 1, counterDmg: 0.2, ctrAoe: 1 }),
     tags: ['bastion', 'counter', 'ult'],
   },
   {
@@ -454,14 +458,15 @@ const NODES: readonly PassiveNode[] = [
     edges: ['sw_m_bas3', 'sw_m_bridge_e'],
     icon: '🏰',
     name: 'ป้อมเหล็กไร้พ่าย',
-    upside: `ลดดาเมจที่ได้รับทั้งหมด −${pct(KIT.swordIronDr)} · โล่จาก Ult +15% Max HP · ต้านทาน +15%`,
+    upside: `ลดดาเมจที่ได้รับทั้งหมด −${pct(KIT.swordIronDr)} · โล่จาก Ult +15% Max HP · ต้านทาน +15% · ดาเมจสวนกลับ +20%`,
     downside: `ความเร็วโจมตี (ASPD) −${pct(KIT.swordIronAspdCut)} · ดาเมจ Ult −0.2x`,
     desc: () =>
-      `ลดดาเมจที่ได้รับทั้งหมด −${pct(KIT.swordIronDr)} · โล่จาก Ult +15% Max HP · ต้านทาน +15% | ข้อเสีย: ASPD −${pct(KIT.swordIronAspdCut)} · ดาเมจ Ult −0.2x`,
+      `ลดดาเมจที่ได้รับทั้งหมด −${pct(KIT.swordIronDr)} · โล่จาก Ult +15% Max HP · ต้านทาน +15% · ดาเมจสวนกลับ +20% | ข้อเสีย: ASPD −${pct(KIT.swordIronAspdCut)} · ดาเมจ Ult −0.2x`,
     mod: () => ({
       swIronDr: KIT.swordIronDr,
       ultShieldAdd: 0.15,
       tenacity: 0.15,
+      counterDmg: 0.2,
       swIronAspdCut: KIT.swordIronAspdCut,
       ultMulAdd: -0.2,
     }),
@@ -536,14 +541,14 @@ const NODES: readonly PassiveNode[] = [
     icon: '⚔️',
     name: 'ศาสตร์นักรบขั้นสูง',
     desc: (ctx?: PassiveCtx) => {
-      if (ctx?.job2 === 'knight') return 'ปรับตามสาย 🐴 Knight: Pierce of Judgement แรง +20% · Auto Guard +5% · ปักธงโล่ต้นเวฟ +6%'
-      if (ctx?.job2 === 'berserker') return 'ปรับตามสาย 🪓 Berserker: บ้าระห่ำแรง +20% · Frenzy สูงสุด +2 · ได้ Rage +15%'
-      return 'ปรับตามสายคลาส 2 (นักดาบ: Ult +18% · โล่ Ult +6% · Knight: Ult/Guard/ธง · Berserker: Ult/Frenzy/Rage)'
+      if (ctx?.job2 === 'knight') return 'ปรับตามสาย 🐴 Knight: ทักษะ 3 แรง +15% · ทวนวน +0.2x · Auto Guard +6% · Pierce of Judgement แรง +10%'
+      if (ctx?.job2 === 'berserker') return 'ปรับตามสาย 🪓 Berserker: คลื่นดาบ (S3) แรง +15% · สกิลคริ +5% · Frenzy สูงสุด +2 · ได้ Rage +15%'
+      return 'ปรับตามสายคลาส 2 (นักดาบ: ทักษะ 1 +15% · Ult +10% · โล่ Ult +8% · Rage เริ่ม +15 | Knight: ทักษะ 3/ทวนวน/Guard/Ult | Berserker: ทักษะ 3/สกิลคริ/Frenzy/Rage)'
     },
     mod: (ctx?: PassiveCtx) => {
-      if (ctx?.job2 === 'knight') return { ult2Pow: 0.2, j2Guard: 0.05, j2Banner: 0.06 }
-      if (ctx?.job2 === 'berserker') return { ult2Pow: 0.2, j2FrenzyMax: 2, rageGain: 0.15 }
-      return { ultPow: 0.18, ultShieldAdd: 0.06, startRage: 10 }
+      if (ctx?.job2 === 'knight') return { s3Pow: 0.15, j2Sweep: 0.2, j2Guard: 0.06, ult2Pow: 0.1 }
+      if (ctx?.job2 === 'berserker') return { s3Pow: 0.15, skillCrit: 0.05, j2FrenzyMax: 2, rageGain: 0.15 }
+      return { s1Pow: 0.15, ultPow: 0.1, ultShieldAdd: 0.08, startRage: 15 }
     },
     tags: ['fury', 'bastion', 'ult'],
   },
@@ -623,8 +628,8 @@ const NODES: readonly PassiveNode[] = [
     edges: ['sw_m_ring_s', 'sw_m_bld2', 'sw_m_bridge_s', 'sw_m_bld4'],
     icon: '💠',
     name: 'จิตเหล็กต้านเวท',
-    desc: () => 'M.DEF +8% · ฟื้น Mana +6/เทิร์น · Max Mana +20 · โล่แรง +8%',
-    mod: () => ({ mdef: 0.08, resRegen: 2, maxRes: 20, shieldAmp: 0.08 }),
+    desc: () => 'M.DEF +8% · ฟื้น Mana +9/เทิร์น · Max Mana +25 · โล่แรง +10%',
+    mod: () => ({ mdef: 0.08, resRegen: 3, maxRes: 25, shieldAmp: 0.1 }),
     tags: ['blood', 'bastion'],
   },
   {
@@ -679,14 +684,16 @@ const NODES: readonly PassiveNode[] = [
     edges: ['sw_n_undying', 'sw_m_bld4'],
     icon: '🧛',
     name: 'กายาโลหิตอมตะ',
-    upside: 'ฮีล/ดูดเลือด/ฟื้นตัวส่วนที่เกิน HP เต็มแปลงเป็นโล่ (สูงสุด 50% Max HP) · ดูดเลือดสกิล +22% (ตีหมู่ได้ 1/3)',
-    downside: `ดาเมจสกิลและ Ult เบาลง −${pct(KIT.swordVampDmgCut)}`,
+    upside: 'ฮีล/ดูดเลือด/ฟื้นตัวส่วนที่เกิน HP เต็มแปลงเป็นโล่ (สูงสุด 50% Max HP) · ดูดเลือดสกิล +20% (ตีหมู่ได้ 1/3) · ดูดเลือดกายภาพ +4%',
+    downside: 'P.DEF −15 · M.DEF −5%',
     desc: () =>
-      `ฮีล/ดูดเลือด/ฟื้นตัวส่วนที่เกิน HP เต็มแปลงเป็นโล่ (สูงสุด 50% Max HP) · ดูดเลือดสกิล +22% (ตีหมู่ได้ 1/3) | ข้อเสีย: ดาเมจสกิล/Ult −${pct(KIT.swordVampDmgCut)}`,
+      'ฮีล/ดูดเลือด/ฟื้นตัวส่วนที่เกิน HP เต็มแปลงเป็นโล่ (สูงสุด 50% Max HP) · ดูดเลือดสกิล +20% (ตีหมู่ได้ 1/3) · ดูดเลือดกายภาพ +4% | ข้อเสีย: P.DEF −15 · M.DEF −5%',
     mod: () => ({
       overhealShield: 1,
-      spellVamp: 0.22,
-      skillDmgCut: KIT.swordVampDmgCut,
+      spellVamp: 0.2,
+      lifesteal: 0.04,
+      def: -15,
+      mdef: -0.05,
     }),
     tags: ['blood', 's3', 'ult'],
   },
@@ -744,8 +751,8 @@ const NODES: readonly PassiveNode[] = [
     edges: ['sw_n_adapt_edge', 'sw_k_cleavestorm', 'sw_n_warblade'],
     icon: '🎯',
     name: 'เล็งจุดเปราะ',
-    desc: () => 'สกิลคริ +3% · เจาะเกราะกายภาพ +4%',
-    mod: () => ({ skillCrit: 0.03, physPen: 0.04 }),
+    desc: () => 'สกิลคริ +5% · เจาะเกราะกายภาพ +4%',
+    mod: () => ({ skillCrit: 0.05, physPen: 0.04 }),
     tags: ['vanguard'],
   },
   {
@@ -772,8 +779,8 @@ const NODES: readonly PassiveNode[] = [
     edges: ['sw_m_van6', 'sw_m_van7'],
     icon: '🗡️',
     name: 'คมดาบทลายศึก',
-    desc: () => 'เจาะเกราะกายภาพ +10% · สกิลคริ +5% · ทักษะ 3 แรง +12%',
-    mod: () => ({ physPen: 0.1, skillCrit: 0.05, s3Pow: 0.12 }),
+    desc: () => 'เจาะเกราะกายภาพ +10% · สกิลคริ +8% · ทักษะ 3 แรง +15%',
+    mod: () => ({ physPen: 0.1, skillCrit: 0.08, s3Pow: 0.15 }),
     tags: ['vanguard', 's3'],
   },
 
@@ -916,8 +923,8 @@ const NODES: readonly PassiveNode[] = [
     edges: ['sw_n_execute', 'sw_m_fur5', 'sw_n_reaver'],
     icon: '⚔️',
     name: 'แรงฟันพิฆาต',
-    desc: () => 'P.ATK +10 · สกิลคริ +3%',
-    mod: () => ({ atk: 10, skillCrit: 0.03 }),
+    desc: () => 'P.ATK +10 · สกิลคริ +5%',
+    mod: () => ({ atk: 10, skillCrit: 0.05 }),
     tags: ['fury'],
   },
   {

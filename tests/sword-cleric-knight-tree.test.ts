@@ -10,7 +10,7 @@ const mem: Record<string, string> = {}
 ;(globalThis as { localStorage?: unknown }).localStorage ??= {
   getItem: (k: string) => mem[k] ?? null, setItem: (k: string, v: string) => { mem[k] = v }, removeItem: (k: string) => { delete mem[k] },
 }
-const { newSave } = await import('../src/save')
+const { newSave, migrateSwordsmanRework, SWORDSMAN_REWORK_VER } = await import('../src/save')
 
 // v84 point pools (plan): Swordsman 48 class points, Cleric 48, Knight 49 job2 points
 const SWORD_POOL = 48, CLERIC_POOL = 48, KNIGHT_POOL = 49
@@ -99,7 +99,7 @@ test('new branches hang under the right line', () => {
 test('each new node sets its field (default 0, grows with level, readable text)', () => {
   const want: Record<string, (keyof Stats)[]> = {
     swordsman_c1: ['swVsMute'], swordsman_c2: ['swS1Refund'], swordsman_c3: ['swS1Splash'], swordsman_c4: ['swS1Star'], // Q 2026-11-21: ทักษะ 1 right line = ⚔️ สยบมนตร์
-    swordsman_b1: ['swS1Shield'], swordsman_b2: ['swCcGuard'], swordsman_b3: ['swMuteWeak'], swordsman_b4: ['swS1Ctr'], // ... left line = 🛡️ ตั้งรับสยบ
+    swordsman_b1: ['swS1Shield'], swordsman_b2: ['swCcGuard'], swordsman_b3: ['swMuteWeak'], swordsman_b4: ['swS1Ctr', 'swS1CtrDmg'], // ... left line = 🛡️ ตั้งรับสยบ
     swordsman_d1: ['swExecAdd'], swordsman_d2: ['swWaveRe'], swordsman_d3: ['swAwCleave'], swordsman_d4: ['swAwAtk'], // Q 2026-11-21: Ult right line = ⚖️ คมพิพากษา
     swordsman_a1: ['swAwDr'], swordsman_a2: ['swAwLeech'], swordsman_a3: ['swAwCtr'], swordsman_a4: ['swWaveShield'], // ... left line = 🛡️ ดาบตื่นพิทักษ์
     cleric_c1: ['clFaith'], cleric_c2: ['clFaithOver'], cleric_c3: ['clFaithHeal'], cleric_c4: ['clOverBurst'],
@@ -154,15 +154,132 @@ test('swordsman_core defend passives unlock at tier 0 and scale VIT/DEF/HP%/MDEF
   assert.ok(coreSt.swLowRegenAmp >= KIT.swordCore.lowHpRegenPer * 3 - 1e-9, 'Core 3 adds low-HP regen amp')
 })
 
-test('Swordsman Skill 2 rework: Guard shield, Bloodlust vamp/ATK, Taunt break + resource restore', () => {
+test('Swordsman Skill 2 rework + Wave 1 updates: Guard DEF/auto-block, Bloodlust vamp/taken, Taunt shield/ctrAmp, b4 ctrDmg', () => {
   assert.equal('ultShield' in SWORD_MANA, false) // Q 2026-11-24 cleanup: the Job1 Ult shield had no effect since 2026-11-22
-  assert.equal(SPELL_VAMP.bloodCut, 0.15)
+  assert.equal(SPELL_VAMP.bloodCut, 0)
   assert.equal(S2N.guardShield(false), 0.1)
   assert.equal(S2N.guardShield(true), 0.18)
+  assert.equal(S2N.guardDef(0), 2.5)
   assert.equal(S2N.bloodVamp(0), 0.2)
   assert.equal(S2N.bloodAtk, 0.2)
+  assert.equal(S2N.bloodTaken, 0.1)
   assert.equal(S2N.tauntBreakTurns(false), 1)
   assert.equal(S2N.tauntBreakTurns(true), 2)
   assert.equal(S2N.tauntStarRes, 15)
-  assert.equal(S2N.tauntStarShield, 0.08)
+  assert.equal(S2N.tauntStarShield, 0.1)
+  assert.equal(S2N.tauntCtrAmp, 0.2)
+  const b4 = swordNodes.find((n) => n.id === 'swordsman_b4')!
+  assert.deepEqual(b4.mod(1), { swS1Ctr: 3, swS1CtrDmg: 0.25 })
+})
+
+test('migrateSwordsmanRework: 1-time reset & refund for Swordsman/Knight/Berserker, idempotent, non-Swordsman untouched, newSave initialized', () => {
+  const fresh = newSave('fresh', 'human')
+  assert.equal(fresh.swordsmanRework, SWORDSMAN_REWORK_VER)
+
+  const sampleJewel = { id: 'j_1', cardId: 'card_poring', tier: 1 as const, stat: 'str' as const, val: 5 }
+
+  // 1. Legacy Swordsman + Knight save
+  const kn = newSave('legacy_kn', 'human')
+  delete kn.swordsmanRework
+  kn.job = 'swordsman'
+  kn.job2 = 'knight'
+  kn.skillPoints = 2
+  kn.job2Points = 3
+  kn.jobTree = { swordsman_s1p: 5, swordsman_c1: 3 }
+  kn.job2Tree = { kn_p1: 4, kn_g2: 5 }
+  kn.jobTalents = { '1': { id: 'sw_t1a', rank: 2 } }
+  kn.job2Talents = { '1': { id: 'kn_t1_hp', rank: 2 } }
+  kn.passiveNodes = ['sw_root', 'sw_1']
+  kn.jewels = [sampleJewel]
+  kn.jewelSock = { sw_sock_1: 'j_1' }
+
+  migrateSwordsmanRework(kn)
+  assert.equal(kn.swordsmanRework, SWORDSMAN_REWORK_VER)
+  assert.equal(kn.skillPoints, 2 + 5 + 3)
+  assert.equal(kn.job2Points, 3 + 4 + 5)
+  assert.deepEqual(kn.jobTree, {})
+  assert.deepEqual(kn.job2Tree, {})
+  assert.deepEqual(kn.jobTalents, {})
+  assert.deepEqual(kn.job2Talents, {})
+  assert.deepEqual(kn.passiveNodes, [])
+  assert.deepEqual(kn.jewelSock, {})
+  assert.deepEqual(kn.jewels, [sampleJewel])
+
+  // Idempotent on second run (even after re-spending points)
+  kn.jobTree = { swordsman_s1p: 2 }
+  kn.job2Tree = { kn_g2: 1 }
+  kn.passiveNodes = ['sw_root']
+  migrateSwordsmanRework(kn)
+  assert.equal(kn.skillPoints, 10)
+  assert.equal(kn.job2Points, 12)
+  assert.deepEqual(kn.jobTree, { swordsman_s1p: 2 })
+  assert.deepEqual(kn.job2Tree, { kn_g2: 1 })
+  assert.deepEqual(kn.passiveNodes, ['sw_root'])
+
+  // 2. Legacy Berserker save
+  const bz = newSave('legacy_bz', 'human')
+  delete bz.swordsmanRework
+  bz.job = 'swordsman'
+  bz.job2 = 'berserker'
+  bz.skillPoints = 0
+  bz.job2Points = 1
+  bz.jobTree = { swordsman_ultp: 4 }
+  bz.job2Tree = { bz_c1: 3, bz_r4: 1 }
+  bz.jobTalents = { '2': { id: 'sw_t2a', rank: 1 } }
+  bz.job2Talents = { '2': { id: 'bz_t2_ult', rank: 1 } }
+  bz.passiveNodes = ['sw_root']
+  bz.jewels = [sampleJewel]
+  bz.jewelSock = { sw_sock_1: 'j_1' }
+
+  migrateSwordsmanRework(bz)
+  assert.equal(bz.swordsmanRework, SWORDSMAN_REWORK_VER)
+  assert.equal(bz.skillPoints, 4)
+  assert.equal(bz.job2Points, 1 + 3 + 1)
+  assert.deepEqual(bz.jobTree, {})
+  assert.deepEqual(bz.job2Tree, {})
+  assert.deepEqual(bz.jobTalents, {})
+  assert.deepEqual(bz.job2Talents, {})
+  assert.deepEqual(bz.passiveNodes, [])
+  assert.deepEqual(bz.jewelSock, {})
+  assert.deepEqual(bz.jewels, [sampleJewel])
+
+  // 3. Base Swordsman (no job2)
+  const sw = newSave('legacy_sw', 'human')
+  delete sw.swordsmanRework
+  sw.job = 'swordsman'
+  sw.skillPoints = 1
+  sw.jobTree = { swordsman_core1: 3 }
+  sw.jobTalents = { '1': { id: 'sw_t1b', rank: 1 } }
+  migrateSwordsmanRework(sw)
+  assert.equal(sw.swordsmanRework, SWORDSMAN_REWORK_VER)
+  assert.equal(sw.skillPoints, 4)
+  assert.deepEqual(sw.jobTree, {})
+  assert.deepEqual(sw.jobTalents, {})
+
+  // 4. Non-Swordsman save untouched
+  const cl = newSave('legacy_cl', 'human')
+  delete cl.swordsmanRework
+  cl.job = 'cleric'
+  cl.job2 = 'crusader'
+  cl.skillPoints = 5
+  cl.job2Points = 6
+  cl.jobTree = { cleric_s1p: 5 }
+  cl.job2Tree = { cr_u1: 3 }
+  cl.jobTalents = { '1': { id: 'cleric_t1a', rank: 1 } }
+  cl.job2Talents = { '1': { id: 'cr_t1_hp', rank: 2 } }
+  cl.passiveNodes = ['cl_root']
+  cl.jewels = [sampleJewel]
+  cl.jewelSock = { cl_sock_1: 'j_1' }
+
+  migrateSwordsmanRework(cl)
+  assert.equal(cl.swordsmanRework, SWORDSMAN_REWORK_VER)
+  assert.equal(cl.skillPoints, 5)
+  assert.equal(cl.job2Points, 6)
+  assert.deepEqual(cl.jobTree, { cleric_s1p: 5 })
+  assert.deepEqual(cl.job2Tree, { cr_u1: 3 })
+  assert.deepEqual(cl.jobTalents, { '1': { id: 'cleric_t1a', rank: 1 } })
+  assert.deepEqual(cl.job2Talents, { '1': { id: 'cr_t1_hp', rank: 2 } })
+  assert.deepEqual(cl.passiveNodes, ['cl_root'])
+  assert.deepEqual(cl.jewelSock, { cl_sock_1: 'j_1' })
+  assert.deepEqual(cl.jewels, [sampleJewel])
 })

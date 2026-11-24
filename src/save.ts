@@ -87,6 +87,7 @@ export interface SaveData {
 	bmRework?: 1 | 2; // Beastmaster rework v1 (1) / v2.1 (2): 1-time free job2Tree reset for existing Beastmasters
 	sageRework?: 1; // Sage rework v1 (Beta): 1-time free job2Tree + talent reset & point refund for existing Sages
 	thiefRogueRework?: number; // Thief / Rogue rework version (THIEF_REWORK_VER): 1 = P2'a Thief class 1 web + talent reset & refund (job2 untouched) · 2 = P2'b same reset (th_t4a / th_t1c / ม่านควัน / แผลลึก) · 3 = P3'a Rogue ใยชั้น 2 web reset & refund · 5 = P2'c same Thief class 1 reset (thief_b / th_t1a-b / th_t3* / th_t4c) · 6 = P2'd (thief_v + th_t4b วิถีพิษคริ)
+	swordsmanRework?: number; // Swordsman / Knight / Berserker rework version (SWORDSMAN_REWORK_VER): 1 = free class 1 + class 2 + passive tree reset & refund
 	job2Talents?: Record<string, { id: string; rank: number }>; // v119 ทาเลนต์ชั้น 2: same shape, Talent Points from Job2 Lv; cleared when the 2nd job changes
 	jobTalents?: Record<string, { id: string; rank: number }>; // talent row "1".."4" -> pick + rank; Talent Points are derived from Job Lv (data/tree.ts)
 	passiveNodes?: string[]; // PoE-style class-line passive constellation node IDs (data/passive-tree.ts); replaces jobTalents/job2Talents for migrated classes
@@ -152,6 +153,7 @@ export function newSave(name: string, race: RaceId): SaveData {
 		bmRework: 2,
 		sageRework: 1,
 		thiefRogueRework: THIEF_REWORK_VER,
+		swordsmanRework: SWORDSMAN_REWORK_VER,
 		name,
 		race,
 		baseLevel: 1,
@@ -228,6 +230,7 @@ export function load(): SaveData | null {
 		migrateBeastmasterRework(s);
 		migrateSageRework(s);
 		migrateThiefRogueRework(s); // after migrateNodeStretch: refunds the stretched web once
+		migrateSwordsmanRework(s); // free class 1 + class 2 + passive tree reset for Swordsman rework
 		migratePassiveTree(s); // PoE passive constellation migration & sanitization for migrated classes (Phase 1: Thief)
 		if (
 			s.pet !== undefined &&
@@ -620,6 +623,35 @@ export function migrateThiefRogueRework(s: SaveData) {
 		const back = resetTree2(s); // corrupt values are skipped · borrowed Job3 points go back to job3Points
 		const cur = typeof s.job2Points === "number" && Number.isFinite(s.job2Points) ? s.job2Points : 0;
 		s.job2Points = cur + back;
+	}
+}
+/** Swordsman / Knight / Berserker rework version. */
+export const SWORDSMAN_REWORK_VER = 1;
+/** Swordsman rework: one-time free reset & point refund of Class 1 web, Knight/Berserker ใยชั้น 2 web, legacy talents, and passive constellation (jewels kept). Idempotent, never throws on bad data. */
+export function migrateSwordsmanRework(s: SaveData) {
+	if (!s || typeof s !== "object") return;
+	const v = typeof s.swordsmanRework === "number" && Number.isFinite(s.swordsmanRework) ? s.swordsmanRework : 0;
+	if (v >= SWORDSMAN_REWORK_VER) return;
+	s.swordsmanRework = SWORDSMAN_REWORK_VER;
+	if (s.job !== "swordsman") return;
+	const t: Record<string, number> = {};
+	if (s.jobTree && typeof s.jobTree === "object" && !Array.isArray(s.jobTree)) {
+		for (const [k, n] of Object.entries(s.jobTree)) if (typeof n === "number" && Number.isFinite(n) && n > 0) t[k] = n;
+	}
+	s.jobTree = t;
+	const back = resetTree(s);
+	const curSkill = typeof s.skillPoints === "number" && Number.isFinite(s.skillPoints) ? s.skillPoints : 0;
+	s.skillPoints = curSkill + back;
+	if ((s.job2 === "knight" || s.job2 === "berserker") && s.job2Tree !== undefined && s.job2Tree !== null) {
+		const back2 = resetTree2(s);
+		const curJob2 = typeof s.job2Points === "number" && Number.isFinite(s.job2Points) ? s.job2Points : 0;
+		s.job2Points = curJob2 + back2;
+	}
+	s.jobTalents = {};
+	s.job2Talents = {};
+	if (Array.isArray(s.passiveNodes) && s.passiveNodes.length > 0) {
+		s.passiveNodes = [];
+		s.jewelSock = {};
 	}
 }
 /** Phase 1 PoE Passive Constellation migration: converts legacy Thief jobTalents/job2Talents to `passiveNodes` once and sanitizes corrupt or disconnected entries. Idempotent, never throws. */

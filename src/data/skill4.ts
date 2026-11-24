@@ -41,3 +41,8 @@ export const BREAK_OFF = ['🔁 สะท้อน/ดูดซับ', '🩸 �
 export const breakText = (turns: number) => `⛓️ Break ${turns} เทิร์น: ปิด passive มอน (${BREAK_OFF.join(' · ')})`
 /** A new Break never shortens one already running. */
 export const addBreak = (cur: number | undefined, turns: number): number => Math.max(cur ?? 0, Math.max(0, Math.round(turns)))
+
+/** Spiral Pierce `spBreak` debuff: Knight physical hits deal `+spBreakAmp` damage while `spBreakTurns > 0`. */
+export function spBreakMul(spBreakTurns: number | undefined, isKnight: boolean, magic: boolean): number {
+  return !magic && isKnight && (spBreakTurns ?? 0) > 0 ? 1 + KIT2.knight.s4.spBreakAmp : 1
+}

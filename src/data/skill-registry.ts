@@ -69,16 +69,19 @@ const perLv = (path: string, what: string, def: FieldDef): SkillOwnRef[] => Arra
 export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
   swordsman: {
     s1: [sk('swordS1.mana', '⚔️ ดาบสยบมนตร์ ค่า Mana (ทุก Lv)', COST), sk('swordS1.cd', '⚔️ ดาบสยบมนตร์ คูลดาวน์ (เทิร์น)', CD), sk('swordS1.silenceTurns', '⚔️ ดาบสยบมนตร์ ใบ้ (เทิร์นมอน)', int(0, 10)),
+      sk('swordS1.baseLvSoft', '⚔️ ดาบสยบมนตร์ Base Lv จุดเริ่มชะลอ', int(1, 99)),
+      sk('swordS1.baseLvAfterScale', '⚔️ ดาบสยบมนตร์ สเกลหลังจุดชะลอ', FRAC),
+      sk('swordS1.skillCritAdd', '⚔️ ดาบสยบมนตร์ โอกาสคริสกิลเพิ่ม', FRAC),
       // Q 2026-11-24: the damage table per skill Lv (P.ATK x atkPct + STR x str + base x Base Lv)
       ...perLv('swordS1.atkPct', '⚔️ ดาบสยบมนตร์ × P.ATK', num(0, 20)), ...perLv('swordS1.str', '⚔️ ดาบสยบมนตร์ × STR', num(0, 20)), ...perLv('swordS1.base', '⚔️ ดาบสยบมนตร์ ดาเมจฐาน × Base Lv', num(0, 2000))],
     s2: [
-      s2('sw_guard', ...lin('guardCut', 'ดาเมจเข้าลด')),
-      s2('sw_blood', ...lin('bloodVamp', 'ดูดเลือดสกิล'), sk('s2n.bloodTurns', 'นาน (เทิร์น)', int(0, 20)), sk('s2n.bloodAtk', 'ATK เพิ่ม', FRAC)),
-      s2('sw_taunt', ...lin('tauntWeak', 'มอนตีเบาลง')),
+      s2('sw_guard', ...lin('guardCut', 'ดาเมจเข้าลด'), ...lin('guardDef', 'สวน × P.DEF'), sk('s2n.guardAutoBlockShare', 'Auto Guard เติม guardPool', FRAC)),
+      s2('sw_blood', ...lin('bloodVamp', 'ดูดเลือดสกิล'), sk('s2n.bloodTurns', 'นาน (เทิร์น)', int(0, 20)), sk('s2n.bloodAtk', 'ATK เพิ่ม', FRAC), sk('s2n.bloodTaken', 'โดนตีแรงขึ้น (ข้อเสีย)', FRAC)),
+      s2('sw_taunt', ...lin('tauntWeak', 'มอนตีเบาลง'), sk('s2n.tauntCtrAmp', 'สวนกลับใส่มอนติดท้าทายแรงขึ้น', FRAC), sk('s2n.tauntStarShield', '★ ท้าซ้ำ: โล่ % HP', FRAC)),
     ],
     ult: [sk('sword.ult', 'ค่า Mana', COST), sk('job.swordsman.ult.cd', 'คูลดาวน์ (เทิร์น)', CD), sk('sword.ultMul', '🌊 คลื่นดาบ × P.ATK (ทุกตัว)', MUL),
       sk('sword.execMax', '⚖️ คำพิพากษา: แรงเพิ่มสูงสุด', num(0, 5)), sk('sword.execCapMiss', '⚖️ HP หายเท่านี้ = ตัน', FRAC), sk('sword.execLow', '🌊 คลื่นดาบออกเองเมื่อ HP มอนต่ำกว่า', FRAC), sk('sword.execBigShare', '⚖️ บอส/มินิ ได้สัดส่วนโบนัส', FRAC), sk('sword.execLineShare', '⚖️ Ult job2/3 ได้สัดส่วนโบนัส', FRAC),
-      sk('sword.awakenTurns', '⚔️ ปลุกดาบ นาน (เทิร์น)', int(1, 10)), sk('sword.awakenAtk', '⚔️ ปลุกดาบ P.ATK เพิ่ม (Q 2026-11-22: 0)', FRAC), sk('sword.awakenHpPct', '✨ เคลือบดาบสวรรค์ % HP ที่เหลือ/ฮิต', FRAC), sk('sword.awakenBigShare', '✨ เคลือบดาบสวรรค์ บอส/มินิ ×', FRAC), sk('sword.cleaveShare', '⚔️ ปลุกดาบ ตีปกติฟันตัวถัดไป ×', num(0, 3)),
+      sk('sword.awakenTurns', '⚔️ ปลุกดาบ นาน (เทิร์น)', int(1, 10)), sk('sword.awakenAtk', '⚔️ ปลุกดาบ P.ATK เพิ่ม (Q 2026-11-22: 0)', FRAC), sk('sword.awakenHpPct', '✨ เคลือบดาบสวรรค์ % HP ที่เหลือ/ฮิต', FRAC), sk('sword.awakenBigShare', '✨ เคลือบดาบสวรรค์ บอส/มินิ ×', FRAC), sk('sword.coatAtkCap', '✨ เคลือบดาบสวรรค์ เพดานต่อฮิต (× P.ATK)', num(0, 10)), sk('sword.coatMultiShare', '✨ เคลือบดาบสวรรค์ สัดส่วนเพดานท่าหลายฮิต', FRAC), sk('sword.cleaveShare', '⚔️ ปลุกดาบ ตีปกติฟันตัวถัดไป ×', num(0, 3)),
       // Q 2026-11-24: ✨ coat growth + ⚔️ ปลุกดาบ STR per Ult Lv
       sk('sword.awakenHpLv', '✨ เคลือบดาบสวรรค์ +% ต่อ Lv (Lv 2-5)', FRAC), sk('sword.awakenHpLvHi', '✨ เคลือบดาบสวรรค์ +% ต่อ Lv (Lv 6-15)', FRAC),
       sk('sword.awakenStrStep', '✨ เคลือบดาบสวรรค์ ทุกกี่ STR', int(1, 500)), sk('sword.awakenStrPct', '✨ เคลือบดาบสวรรค์ +% ต่อขั้น STR', FRAC),
@@ -94,7 +97,6 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
       kit('swordBloodFuryAt', 'สัญญาคลั่งเลือด: เกณฑ์ HP ทำงาน (% Max HP)'),
       kit('swordBloodFuryDmg', 'สัญญาคลั่งเลือด: โบนัสดาเมจกายภาพ'),
       kit('swordBloodFurySelf', 'สัญญาคลั่งเลือด: ข้อเสียจ่าย % HP ปัจจุบันต่อสกิล'),
-      kit('swordVampDmgCut', 'กายาโลหิตอมตะ: ข้อเสียลดดาเมจสกิลและ Ult'),
       // Q 2026-11-24: the Swordsman web nodes (data/trees/swordsman.ts), per OLD Lv (max 3, stretched)
       kit('swordCore.vitPer', '🪨 กายเหล็ก: VIT ต่อ Lv เดิม'), kit('swordCore.defPer', '🪨 กายเหล็ก: P.DEF ต่อ Lv เดิม'), kit('swordCore.hpPctPer', '🪨 กายเหล็ก: Max HP % ต่อ Lv เดิม'),
       kit('swordCore.mdefPer', '💠 เกราะจิตอึด: M.DEF % ต่อ Lv เดิม'), kit('swordCore.tenacityPer', '💠 เกราะจิตอึด: ต้านทานต่อ Lv เดิม'),
@@ -102,11 +104,11 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
       kit('swordCore.regenPer', '❤️‍🩹 ฟื้นฟูนักรบ: ฟื้น HP ต่อ Lv เดิม'), kit('swordCore.healAmpPer', '❤️‍🩹 ฟื้นฟูนักรบ: ฮีลแรงขึ้นต่อ Lv เดิม'),
       kit('swordCore.lowHpAt', '❤️‍🩹 ฟื้นฟูนักรบ: เลือดต่ำกว่า (% Max HP)'), kit('swordCore.lowHpRegenPer', '❤️‍🩹 ฟื้นฟูนักรบ: ฟื้นเพิ่มตอนเลือดต่ำต่อ Lv เดิม'),
       kit('swordS1Tree.shield', '🛡️ ตั้งรับ: โล่ % HP ต่อ Lv เดิม'), kit('swordS1Tree.tenacity', '🧘 ใจไม่หวั่น: ต้านทานต่อ Lv เดิม'), kit('swordS1Tree.guardTurns', '🧘 ใจไม่หวั่น: กัน CC (เทิร์น)'),
-      kit('swordS1Tree.muteWeak', '🤐 ปิดปาก: มอนติดใบ้ตีเบาลงต่อ Lv เดิม'), kit('swordS1Tree.counters', '🔁 ★ สวนเงียบ: สวนกลับแน่นอน (ครั้ง)'),
+      kit('swordS1Tree.muteWeak', '🤐 ปิดปาก: มอนติดใบ้ตีเบาลงต่อ Lv เดิม'), kit('swordS1Tree.counters', '🔁 ★ สวนเงียบ: สวนกลับแน่นอน (ครั้ง)'), kit('swordS1Tree.ctrDmg', '🔁 ★ สวนเงียบ: ดาเมจสวนกลับเพิ่ม'),
       kit('swordS1Tree.vsMute', '🎯 เจาะจังหวะ: ตีตัวร่าย/ติดใบ้แรงขึ้นต่อ Lv เดิม'), kit('swordS1Tree.refund', '⏳ ตัดจังหวะ: คืน Mana ต่อ Lv เดิม'),
       kit('swordS1Tree.splash', '🌀 ฟันเฉือน: เฉือนตัวอื่น % ของฮิตต่อ Lv เดิม'), kit('swordS1Tree.starHit', '⚔️ ★ ดาบสยบคู่: ฟันซ้ำ % ของฮิต'),
       kit('swordUltTree.dr', '🛡️ ใจดาบ: ปลุกดาบแล้วโดนเบาลงต่อ Lv เดิม'), kit('swordUltTree.leech', '🩸 ดาบกระหายเลือด: ดูดเลือดต่อ Lv เดิม'), kit('swordUltTree.ctr', '🔁 ตื่นสวน: สวนกลับต่อ Lv เดิม'),
-      kit('swordUltTree.waveShield', '🌊 ★ ปราการคลื่น: โล่ % ของดาเมจคลื่น'), kit('swordUltTree.waveShieldCap', '🌊 ★ ปราการคลื่น: เพดานโล่ (% Max HP)'),
+      kit('swordUltTree.waveShield', '🌊 ★ ปราการคลื่น: โล่ % ของดาเมจคลื่น'), kit('swordUltTree.waveShieldCap', '🌊 ★ ปราการคลื่น: เพดานโล่ (% Max HP)'), kit('swordUltTree.rampageWaveShield', '🌊 ★ ปราการคลื่น: โล่ % จาก S3 คลื่นดาบระหว่างบ้าระห่ำ'),
       kit('swordUltTree.execAdd', '⚖️ คมพิพากษา: execute สูงสุดเพิ่มต่อ Lv เดิม'), kit('swordUltTree.reChance', '🌊 คลื่นซ้ำ: โอกาสต่อ Lv เดิม'),
       kit('swordUltTree.cleave', '⚔️ ฟันกวาดตื่น: ฟันตัวถัดไปเพิ่มต่อ Lv เดิม'), kit('swordUltTree.awAtk', '⚔️ ★ ดาบตื่นเต็มพลัง: P.ATK เพิ่มระหว่างปลุกดาบ'),
     ],
@@ -255,25 +257,36 @@ const J2_LABEL: Record<string, string> = {
   // 🪓 Berserker
   'berserker.frenzyMax': '🔥 Frenzy สูงสุด (stack)', 'berserker.frenzyAspd': '🔥 ความเร็วเพิ่มต่อ 1 Frenzy',
   'berserker.frenzyCritDmg': '🔥 ดาเมจคริเพิ่มต่อ 1 Frenzy', 'berserker.frenzyKeep': '🔥 เทิร์นไม่คริก่อน stack หาย',
+  'berserker.stormFrenzyAmp': '⚔️ ดาบสยบมนตร์ (Frenzy): แรงขึ้นเมื่อ Frenzy ถึงเกณฑ์', 'berserker.stormFrenzyAt': '⚔️ ดาบสยบมนตร์ (Frenzy): เกณฑ์ Frenzy ขั้นต่ำ (stack)',
+  'berserker.waveCdJ2': '🌊 คลื่นดาบ: คูลดาวน์ Job2 (เทิร์น · Warlord ใช้ 3)', 'berserker.waveHits': '🌊 คลื่นดาบ: จำนวนฮิต',
   'berserker.waveFront': '🌊 คลื่นดาบ: ดาเมจตัวหน้า × P.ATK', 'berserker.waveBack': '🌊 คลื่นดาบ: ดาเมจตัวหลัง × P.ATK',
   'berserker.waveCrit': '🌊 คลื่นดาบ: โอกาสคริเพิ่ม', 'berserker.waveOffWeapon': '🌊 ตัวคูณเมื่อไม่ได้ถืออาวุธ 2 มือ',
+  'berserker.waveGoreAtk': '🌊 คลื่นดาบ: เลือดไหล (Gore) ต่อเทิร์น × P.ATK', 'berserker.waveGoreTurns': '🌊 คลื่นดาบ: เลือดไหล (Gore) นาน (เทิร์น)',
+  'berserker.waveMultiRage': '🌊 คลื่นดาบ: คืน Rage เมื่อโดนหลายตัว', 'berserker.waveMultiAt': '🌊 คลื่นดาบ: จำนวนเป้าขั้นต่ำที่คืน Rage',
   'berserker.ultMul': '👹 บ้าระห่ำ: ฟันทุกตัว × P.ATK', 'berserker.ultTurns': '👹 บ้าระห่ำ: นาน (เทิร์น)',
   'berserker.ultCrit': '👹 บ้าระห่ำ: โอกาสคริเพิ่ม', 'berserker.ultTaken': '👹 บ้าระห่ำ: โดนตีแรงขึ้นระหว่างคลั่ง',
-  'berserker.mastery.atkPct': 'ชำนาญอาวุธ 2 มือ: P.ATK +%', 'berserker.mastery.crit': 'ชำนาญอาวุธ 2 มือ: คริ +',
+  'berserker.ultRageGain': '👹 บ้าระห่ำ: ได้ Rage ทันทีตอนกด',
+  'berserker.mastery.atkPct': 'ชำนาญอาวุธ 2 มือ: P.ATK +%', 'berserker.mastery.crit': 'ชำนาญอาวุธ 2 มือ: คริ +', 'berserker.mastery.skillCrit': 'ชำนาญอาวุธ 2 มือ: สกิลคริ +',
   'berserker.ignorePainTurns': '★ ไม่รู้สึกเจ็บ: อมตะ 1 HP (เทิร์น)', 'berserker.ignorePainRegenTurns': '★ ไม่รู้สึกเจ็บ: ฟื้นตัวหลังจบ (เทิร์น)',
   'berserker.ignorePainRegenPct': '★ ไม่รู้สึกเจ็บ: ฟื้นจากดาเมจที่ทำ (%)',
   // 🐴 Knight
   'knight.hpPct': '🐦 ขี่เปโก: HP สูงสุด +%', 'knight.aspdPct': '🐦 ขี่เปโก: ความเร็ว +%',
   'knight.hpDmg': '🔱 ถึกเป็นแรง: บวก % Max HP เข้าสกิลหอก', 'knight.brandMul': '🌀 Brandish: ดาเมจกวาด × P.ATK',
   'knight.brandTargets': '🌀 Brandish: จำนวนเป้าหน้าสุด', 'knight.brandPush': '🌀 Brandish: ผลักเกจมอนตัวหน้า',
+  'knight.brandPushOther': '🌀 Brandish: ผลักเกจมอนตัวรอง', 'knight.brandCritAdd': '🌀 Brandish: โอกาสคริสกิลเพิ่ม',
+  'knight.brandLowTargetAmp': '🌀 Brandish: ตัวหน้าแรงขึ้นเมื่อเป้า ≤ 2 ตัว',
   'knight.pierceHits': '🎯 Pierce: จำนวนฮิต (มอนปกติ)', 'knight.pierceBigHits': '🎯 Pierce: จำนวนฮิต (บอส/มินิ)',
   'knight.pierceMul': '🎯 Pierce: ดาเมจต่อฮิต × P.ATK', 'knight.waveMul': '🔱 คลื่นทะลวง: แทงเดียว × P.ATK', 'knight.ultMana': '🔱 Pierce of Judgement: ค่า Mana',
-  'knight.boomerang': '↩️ Spear Boomerang: ดาเมจ × P.ATK', 'knight.chargeFirst': '🚀 ★ ทะยาน: ตัวคูณฟันแรก',
+  'knight.boomerang': '↩️ Spear Boomerang: ดาเมจ × P.ATK', 'knight.boomerangTurns': '↩️ Spear Boomerang: คูลดาวน์ (เทิร์น)',
+  'knight.spiralS3S4Pierce': '🌀 ★ ทะลวงเกลียว: ข้าม DEF เพิ่มให้ Brandish & Spiral',
+  'knight.chargeFirst': '🚀 ★ ทะยาน: ตัวคูณฟันแรก',
   'knight.guardShieldless': '🛡️ Auto Guard เมื่อไม่ถือโล่ (ตัวคูณ)',
   'knight.chargeFirstGauge': '🚀 ★ ทะยาน: เติมเกจฮีโร่ต้นไฟต์', 'knight.chargeFirstRes': '🚀 ★ ทะยาน: Mana ต้นไฟต์',
   // Q 2026-11-24 Skill 4 🌀 Spiral Pierce
   'knight.s4.cost': '🌀 Spiral Pierce: ค่า Mana', 'knight.s4.cd': '🌀 Spiral Pierce: คูลดาวน์ (เทิร์น)', 'knight.s4.unlockLv': '🌀 Spiral Pierce: ปลดที่ Job2 Lv',
-  'knight.s4.mul': '🌀 Spiral Pierce: แทง × P.ATK', 'knight.s4.shatterAmp': '🛡️ ทุบโล่ได้: แทงแรงขึ้น', 'knight.s4.bossShield': '🛡️ โล่บอสหาย (สัดส่วน)',
+  'knight.s4.mul': '🌀 Spiral Pierce: แทง × P.ATK', 'knight.s4.shatterAmp': '🛡️ ทุบโล่ได้: แทงแรงขึ้น', 'knight.s4.defPierce': '🌀 Spiral Pierce: ข้าม DEF',
+  'knight.s4.critAdd': '🌀 Spiral Pierce: โอกาสคริสกิลเพิ่ม', 'knight.s4.spBreakAmp': '⛓️ Break: Knight ตีกายภาพแรงขึ้นใส่เป้าติด Break',
+  'knight.s4.bossShield': '🛡️ โล่บอสหาย (สัดส่วน)',
   'knight.s4.bossGauge': '💫 บอสโดนตัดร่าย: ผลักเกจ', 'knight.s4.fang': '🐍 เขี้ยวงู: ตีโล่มอนแรงขึ้น (ติดตัว)', 'knight.s4.breakTurns': '⛓️ Break: ปิด passive มอน (เทิร์น)',
   'knight.s4.lkHits': '🐉 Lord Knight: จำนวนแทง', 'knight.s4.lkMul': '🐉 Lord Knight: ต่อแทง × P.ATK', 'knight.s4.lkPierce': '🐉 Lord Knight: แทงสุดท้ายข้าม DEF',
   'knight.mastery.atkPct': 'ชำนาญหอก: P.ATK +%', 'knight.mastery.hit': 'ชำนาญหอก: Hit +',
@@ -281,8 +294,8 @@ const J2_LABEL: Record<string, string> = {
   'knight.tree.provoke': '😤 ข่มขวัญ: มอนตีเบาลงเมื่อ HP ต่ำ (ทันทีครึ่งหนึ่ง)', 'knight.tree.bannerKill': '🎖️ ธงชัย: โล่เมื่อฆ่า (% HP ต่อ Lv เดิม)',
   'knight.tree.auraHeal': '🏳️ ★ ธงอมตะ: ฮีล % HP เมื่อบล็อก', 'knight.tree.auraRes': '🏳️ ★ ธงอมตะ: ฟื้น Mana/Rage เมื่อบล็อก',
   'knight.tree.auraGuard': '🏳️ ★ ธงอมตะ: โอกาสบล็อกเพิ่ม', 'knight.tree.sweepEvery': '🌀 ทวนวน: ออกอัตโนมัติทุก N เทิร์น',
-  'knight.tree.sweep': '🌀 ทวนวน: ดาเมจ × P.ATK (ต่อ Lv เดิม)', 'knight.tree.sweepPush': '💨 เหวี่ยง: ผลักเกจมอน (ต่อ Lv เดิม)',
-  'knight.tree.sweepGauge': '⚡ ทวนเร็ว: เติมเกจฮีโร่ต่อตัวที่ตาย', 'knight.tree.sweepBreak': '🌪️ ★ พายุทวน: เกราะแตก (เทิร์น)',
+  'knight.tree.sweep': '🌀 ทวนวน: ดาเมจ × P.ATK (ต่อ Lv เดิม)', 'knight.tree.sweepCritAdd': '🌀 ทวนวน: โอกาสคริสกิลเพิ่ม', 'knight.tree.sweepPush': '💨 เหวี่ยง: ผลักเกจมอน (ต่อ Lv เดิม)',
+  'knight.tree.sweepGauge': '⚡ ทวนเร็ว: เติมเกจฮีโร่ต่อตัวที่ตาย', 'knight.tree.sweepRes': '⚡ ทวนเร็ว: ฟื้น Mana ต่อครั้งที่กวาด', 'knight.tree.sweepBreak': '🌪️ ★ พายุทวน: เกราะแตก (เทิร์น)',
   'knight.tree.sweepStun': '🌪️ ★ พายุทวน: โอกาสมึน / ผลักเกจ',
   // 🔪 Rogue
   'rogue.knifeMul': '🔪 มีดบิน: ดาเมจต่อเล่ม × P.ATK', 'rogue.knifePerCombo': '🔪 มีดบิน: จำนวนมีดต่อฮิตคอมโบ',
@@ -439,7 +452,14 @@ const J2_COL: Partial<Record<Job2Id, { s3: RegExp; ult: RegExp }>> = {
 }
 const INTISH = /(Turns|Hits|Max|Keep|At|Stacks|Every|Boxes|Knives|Count|CdCut|Per(Swing|Combo))$/
 /** Ranges that the generic rule (0..10x the default) gets wrong. */
-const J2_DEF: Record<string, FieldDef> = { 'knight.s4.cost': COST, 'knight.s4.cd': CD, 'knight.s4.unlockLv': int(1, 70), 'knight.s4.lkHits': int(1, 10), 'knight.s4.bossGauge': int(0, 200) }
+const J2_DEF: Record<string, FieldDef> = {
+  'knight.s4.cost': COST, 'knight.s4.cd': CD, 'knight.s4.unlockLv': int(1, 70), 'knight.s4.lkHits': int(1, 10), 'knight.s4.bossGauge': int(0, 200),
+  'knight.s4.defPierce': FRAC, 'knight.s4.critAdd': FRAC, 'knight.s4.spBreakAmp': num(0, 5),
+  'knight.boomerangTurns': CD, 'knight.brandPushOther': int(0, 200), 'knight.brandCritAdd': FRAC, 'knight.spiralS3S4Pierce': FRAC,
+  'knight.tree.sweepCritAdd': FRAC, 'knight.tree.sweepRes': int(0, 100),
+  'berserker.mastery.skillCrit': FRAC, 'berserker.waveCdJ2': CD, 'berserker.waveHits': int(1, 10),
+  'berserker.waveMultiRage': int(0, 100), 'berserker.ultRageGain': int(0, 100),
+}
 function j2Leaves(id: Job2Id): SkillOwnRef[] {
   const out: SkillOwnRef[] = []
   const walk = (o: Record<string, unknown>, pre: string) => {
