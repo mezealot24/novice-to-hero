@@ -11,3 +11,6 @@ coverage/
 .bot-dist/
 .claude/*
 !.claude/skills/
+
+# external tool clone
+obsidian-second-brain/
