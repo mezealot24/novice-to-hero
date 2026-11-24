@@ -62,7 +62,18 @@ import * as awakenBurst from './fx/sword/awaken-burst'
 import * as awakenAura from './fx/sword/awaken-aura'
 import * as windWave from './fx/sword/wind-wave'
 import * as spearWave from './fx/sword/spear-wave'
-import { BLADE_GOLD, EXEC_RED, SEAL_BLUE } from './fx/sword/_pal'
+import * as swordSlash from './fx/sword/sword-slash'
+import * as heavyCleave from './fx/sword/heavy-cleave'
+import * as spinSlash from './fx/sword/spin-slash'
+import * as lanceThrust from './fx/sword/lance-thrust'
+import * as spiralDrill from './fx/sword/spiral-drill'
+import * as spearSpin from './fx/sword/spear-spin'
+import * as chargeDash from './fx/sword/charge-dash'
+import * as guardDome from './fx/sword/guard-dome'
+import * as bloodSurge from './fx/sword/blood-surge'
+import * as warCry from './fx/sword/war-cry'
+import * as rampageBurst from './fx/sword/rampage-burst'
+import { BLADE_GOLD, BLOOD_CRIMSON, EXEC_RED, SEAL_BLUE, SOLAR_ORANGE, SPIRAL_CYAN, STEEL_SILVER } from './fx/sword/_pal'
 import { WOOD_GOLD } from './fx/archer/arrow-shot'
 import { PW_SHEETS, isPwId, pwKey, pwReady, type PwSheet } from './pw-sheets'
 export { WOOD_GOLD }
@@ -163,6 +174,17 @@ export const DEFS = {
   awakenAura: { mod: awakenAura, until: 0.75 }, // looping: drop the last frame (t = 0.8 repeats t = 0)
   windWave: { mod: windWave, until: 0.25 }, // looping: drop the last frame
   spearWave: { mod: spearWave, until: 0.25 }, // 🔱 Knight Pierce of Judgement wave (looping: drop the last frame)
+  swordSlash: { mod: swordSlash },
+  heavyCleave: { mod: heavyCleave },
+  spinSlash: { mod: spinSlash },
+  lanceThrust: { mod: lanceThrust },
+  spiralDrill: { mod: spiralDrill },
+  spearSpin: { mod: spearSpin, until: 0.2 }, // looping: drop the last frame (0.24 s repeats t = 0)
+  chargeDash: { mod: chargeDash },
+  guardDome: { mod: guardDome },
+  bloodSurge: { mod: bloodSurge },
+  warCry: { mod: warCry },
+  rampageBurst: { mod: rampageBurst },
   // Loot: a kill goes up in a poof and coins bounce out. Cut once they settle (~1.25 s); the battle then flies
   // them to the zeny counter. One bake per coin count (the count is an option, not a palette).
   coinDrop3: { mod: coinDrop, until: COIN_DROP_UNTIL, opts: { coins: 3 } },
@@ -371,8 +393,37 @@ export const SWORD_PFX: PfxPreloadEntry[] = [
   'awakenAura',
   'windWave',
   'spearWave',
+  'swordSlash',
+  { id: 'swordSlash', palette: BLADE_GOLD },
+  'spinSlash',
+  { id: 'spinSlash', palette: BLADE_GOLD },
+  'guardDome',
+  'bloodSurge',
+  { id: 'bloodSurge', palette: SOLAR_ORANGE },
+  'warCry',
   { id: 'shadowSlash', palette: BLADE_GOLD },
   { id: 'daggerCross', palette: EXEC_RED },
   { id: 'runeCircle', palette: SEAL_BLUE },
 ]
-export { BLADE_GOLD, EXEC_RED, SEAL_BLUE }
+
+/** Every effect the Knight / Lord Knight line adds on top of SWORD_PFX. */
+export const KNIGHT_PFX: PfxPreloadEntry[] = [
+  'spearWave',
+  'lanceThrust',
+  { id: 'lanceThrust', palette: SOLAR_ORANGE },
+  { id: 'spinSlash', palette: BLADE_GOLD },
+  'spiralDrill',
+  'spearSpin',
+  'chargeDash',
+]
+
+/** Every effect the Berserker / Warlord line adds on top of SWORD_PFX. */
+export const BERSERKER_PFX: PfxPreloadEntry[] = [
+  { id: 'swordSlash', palette: BLOOD_CRIMSON },
+  'heavyCleave',
+  { id: 'heavyCleave', palette: SOLAR_ORANGE },
+  'rampageBurst',
+  { id: 'awakenAura', palette: BLOOD_CRIMSON },
+]
+
+export { BLADE_GOLD, BLOOD_CRIMSON, EXEC_RED, SEAL_BLUE, SOLAR_ORANGE, SPIRAL_CYAN, STEEL_SILVER }
