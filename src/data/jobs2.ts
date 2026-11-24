@@ -4,7 +4,7 @@
 //   signature passive · ทักษะ 3 (casts itself, like ทักษะ 2) · Ult วิวัฒน์ (replaces the base ult) · ใยชั้น 2 (data/trees2/)
 // Job2 Lv 1..50 has its own web points (job2Points). Numbers live in skill-math.ts KIT2.
 import type { Resource, Stats } from './game-data'
-import { SWORD_EXEC_DESC, SWORD_MANA, swordExecDesc, type JobId, type JobSkill } from './jobs'
+import { SWORD_EXEC_DESC, SWORD_MANA, swordExecDesc, swordAwakenStrText, swordCoatText, type JobId, type JobSkill } from './jobs'
 import { KIT, KIT2 } from './skill-math'
 
 export type Job2Id = 'berserker' | 'knight' | 'rogue' | 'mobster' | 'crusader' | 'monk' | 'wizard' | 'sage' | 'beastmaster' | 'innovator' // Phase 1 Swordsman · 2 Thief · 3 Priest · 4 Archer · 5 Mage
@@ -55,7 +55,7 @@ export const JOB2: Record<Job2Id, Job2Def> = {
     signature: { name: 'ขี่เปโก', icon: '🐦', desc: `HP สูงสุด +${pc(K.hpPct)} · ความเร็ว +${pc(K.aspdPct)} · ถึกเป็นแรง: ดาบสยบมนตร์ / Brandish / คลื่นทะลวง บวกดาเมจ ${pc(K.hpDmg)} ของ HP สูงสุด` },
     skill3: { name: 'Brandish Spear', icon: '🌀', cost: K.brandCost, cd: K.brandCd, desc: `Mana ${K.brandCost} · คูลดาวน์ ${K.brandCd}: กวาดหอก ${K.brandTargets} ตัวหน้า ${K.brandMul}x P.ATK + ${pc(K.hpDmg)} HP สูงสุด · ผลักตัวหน้าถอย` },
     // 🔱 Pierce of Judgement (Q 2026-11-23 option A + Mana 50): ⚔️ ปลุกหอก first (Q 2026-11-23 "บัฟแล้วค่อยแทง"), then 🎯 Pierce buffed, plus the whole ดาบพิพากษา kit (⚔️ ปลุก + ✨ + web) whose wave is ONE boss-first spear thrust; crit only with skillCrit
-    ult: { name: 'Pierce of Judgement', icon: '🔱', cd: 4, cost: K.ultMana, desc: `Mana ${K.ultMana}: ⚔️ ปลุกหอก ${SWORD_MANA.awakenTurns} เทิร์นก่อน (ผลเดียวกับปลุกดาบ): STR +${SWORD_MANA.awakenStr.join('/')} (ตาม Lv) · ✨ เคลือบทุกฮิต +${pc(SWORD_MANA.awakenHpPct)} HP ที่เหลือของเป้า · ตีปกติแทงตัวถัดไปด้วย · ตีโดนแน่นอนจนกว่าจะปล่อยคลื่น\nแล้ว 🎯 Pierce แทงเป้าเดียวทันทีด้วยพลังที่บัฟแล้ว (บอสก่อน) ${K.pierceHits} ฮิต (บอส/มินิ ${K.pierceBigHits}) ฮิตละ ${K.pierceMul}x + HP สูงสุด\n🔱 คลื่นทะลวง: แทงเดียว ${K.waveMul}x ใส่เป้าเดิม ไม่พลาด ปล่อยเองเมื่อเป้า HP < ${pc(SWORD_MANA.execLow)} (หรือเทิร์นสุดท้าย)\nคริได้เฉพาะเมื่อมี skillCrit · ${swordExecDesc(1)}` },
+    ult: { name: 'Pierce of Judgement', icon: '🔱', cd: 4, cost: K.ultMana, desc: `Mana ${K.ultMana}: ⚔️ ปลุกหอก ${SWORD_MANA.awakenTurns} เทิร์นก่อน (ผลเดียวกับปลุกดาบ): STR +${swordAwakenStrText()} (ตาม Lv) · ✨ เคลือบทุกฮิต ${swordCoatText()} HP ที่เหลือของเป้า · ตีปกติแทงตัวถัดไปด้วย · ตีโดนแน่นอนจนกว่าจะปล่อยคลื่น\nแล้ว 🎯 Pierce แทงเป้าเดียวทันทีด้วยพลังที่บัฟแล้ว (บอสก่อน) ${K.pierceHits} ฮิต (บอส/มินิ ${K.pierceBigHits}) ฮิตละ ${K.pierceMul}x + HP สูงสุด\n🔱 คลื่นทะลวง: แทงเดียว ${K.waveMul}x ใส่เป้าเดิม ไม่พลาด ปล่อยเองเมื่อเป้า HP < ${pc(SWORD_MANA.execLow)} (หรือเทิร์นสุดท้าย)\nคริได้เฉพาะเมื่อมี skillCrit · ${swordExecDesc(1)}` },
   },
   rogue: {
     id: 'rogue', parent: 'thief', name: 'โร้ก', icon: '🔪', focus: 'AGI · STR · LUK',

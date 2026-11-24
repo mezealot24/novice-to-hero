@@ -1,6 +1,7 @@
 // One save slot in localStorage. Every read/write is guarded: private windows and sandboxed hosts
 // may throw or start empty, and the game must still run (it just won't remember).
 import { JOB_CHANGE, type JobId } from "./data/jobs";
+import { setClass1Tier } from "./data/tree";
 import { hasPassiveTree, passiveCtxFor, passiveEarnedFor, trimPassiveNodesToBudget } from "./data/passive-tree";
 import { UNIQUE } from "./data/uniques";
 import { JOB2, JOB2_RULES, type Job2Id, type PetId } from "./data/jobs2";
@@ -66,6 +67,7 @@ export interface SaveData {
 	job2Level?: number; // Job2 Lv 1..JOB2_RULES.maxJobLevel (kept on a re-pick)
 	job2Xp?: number;
 	job2Points?: number; // free ใยชั้น 2 points (1 per Job2 Lv)
+	j1Bonus?: number; // Q 2026-11-24: class-1 skill points already granted from Job2 / Job3 Lv (+1 per Lv past 1), see syncClass1
 	job2Tree?: Record<string, number>; // ใยชั้น 2 node -> level (data/tree.ts TREE2)
 	job3?: Job3Id; // 3rd job "Awakening" on top of job2 (design/awakening-crusader-v1.md); parked (kept, off) when job2 changes
 	job3Level?: number; // Job3 Lv 1..JOB3_RULES.maxJobLevel
@@ -405,7 +407,22 @@ export function unequip(s: SaveData, slot: EquipSlot): boolean {
 /** The current save; scenes after the title can rely on it existing. */
 export function save(): SaveData {
 	if (!cache) cache = load() ?? newSave("โนวิส", "human");
+	syncClass1(cache);
 	return cache;
+}
+
+/** Q 2026-11-24 "when become 2nd job and job lv up, obtain 1st job skill point": every Job2 / Job3 Lv past 1 adds one class-1
+ *  skill point (s.skillPoints, the class-1 web pool), granted once (s.j1Bonus remembers how many, so old saves get theirs back and
+ *  a lost 2nd job never takes them away). Also sets the class-1 skill Lv cap tier (data/tree.ts class1Cap: 5 / 10 / 15). */
+export function syncClass1(s: SaveData): void {
+	const j3 = activeJob3(s);
+	setClass1Tier(j3 ? 3 : s.job2 ? 2 : 1);
+	const want = (s.job2 ? Math.max(0, (s.job2Level ?? 1) - 1) : 0) + (j3 ? Math.max(0, (s.job3Level ?? 1) - 1) : 0);
+	const had = s.j1Bonus ?? 0;
+	if (want > had) {
+		s.skillPoints = (s.skillPoints ?? 0) + want - had;
+		s.j1Bonus = want;
+	}
 }
 
 export function setSave(s: SaveData) {

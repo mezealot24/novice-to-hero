@@ -1,0 +1,97 @@
+// Q 2026-11-24 (thread "Rebalance Hard/Hell combat beyond ult"): class-1 skills keep scaling after the job change.
+// - every Job2 / Job3 Lv past 1 = +1 class-1 skill point (granted once, old saves get theirs back)
+// - class-1 Skill 1 / Ult / Skill 2 "+" nodes: max Lv 5 -> 10 with a 2nd job -> 15 Awakened
+// - Swordsman-line ✨ coat: STR step 10 -> 25 (much harder), base % a little higher
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { SWORD_MANA, SWORD_S1, swordCoatPct, swordS1Lv, swordUltLv } from '../src/data/jobs'
+import { CLASS1_CAP, class1Cap, nodeById, s2LvOf, setClass1Tier, TREE_RULES } from '../src/data/tree'
+import { S2CAP, S2N } from '../src/data/skill-math'
+import { newSave, syncClass1 } from '../src/save'
+
+const near = (a: number, b: number, eps = 1e-9) => assert.ok(Math.abs(a - b) < eps, `${a} vs ${b}`)
+
+test('coat: base 3.5% at Lv 1, 5.5% at Lv 5, 6.75% at Lv 10, 8% at Lv 15', () => {
+  near(swordCoatPct(1, 0), 0.035)
+  near(swordCoatPct(5, 0), 0.055)
+  near(swordCoatPct(10, 0), 0.0675)
+  near(swordCoatPct(15, 0), 0.08)
+})
+
+test('coat: +0.5% per 25 STR (Q now STR 167 at Lv 5 = 8.5%, was 18.5%)', () => {
+  near(swordCoatPct(5, 167), 0.085)
+  near(swordCoatPct(5, 24), 0.055)
+  near(swordCoatPct(5, 300), 0.115)
+  near(swordCoatPct(1, 50), 0.045)
+})
+
+test('Swordsman S1 / ult tables reach Lv 15 and the Lv getters follow them', () => {
+  for (const a of [SWORD_S1.atkPct, SWORD_S1.str, SWORD_S1.base, SWORD_MANA.awakenStr]) assert.equal(a.length, 15)
+  near(SWORD_S1.atkPct[9], 2.75)
+  near(SWORD_S1.atkPct[14], 3.5)
+  assert.equal(SWORD_S1.base[14], 200)
+  assert.equal(swordS1Lv({ swS1Lv: 15 }), 15)
+  assert.equal(swordUltLv({ swUltLv: 12 }), 12)
+  for (let i = 1; i < 15; i++) assert.ok(SWORD_S1.atkPct[i] > SWORD_S1.atkPct[i - 1])
+})
+
+test('class-1 cap: 5 / 10 / 15 by tier, read live by the Skill 1 / Ult / Skill 2 "+" nodes only', () => {
+  assert.equal(class1Cap(1), CLASS1_CAP.base)
+  assert.equal(class1Cap(2), 10)
+  assert.equal(class1Cap(3), 15)
+  const s1 = nodeById('swordsman_s1p')!, ult = nodeById('swordsman_ultp')!, s2p = nodeById('sw_guard_p')!
+  try {
+    setClass1Tier(1)
+    assert.equal(s1.max, 5)
+    setClass1Tier(2)
+    assert.equal(s1.max, 10)
+    assert.equal(ult.max, 10)
+    assert.equal(s2p.max, 10)
+    setClass1Tier(3)
+    assert.equal(s1.max, 15)
+    assert.equal(nodeById('knight_s3p')!.max, TREE_RULES.powMax) // Job2 nodes keep Lv 5
+  } finally {
+    setClass1Tier(1)
+  }
+})
+
+test('Skill 2 "+": Lv 5 = s2Lv 3 as before, each Lv past 5 adds s2Above; defensive numbers capped', () => {
+  near(s2LvOf(5), 3)
+  near(s2LvOf(10), 3 + 5 * CLASS1_CAP.s2Above)
+  near(s2LvOf(15), 6)
+  assert.ok(S2N.guardCut(s2LvOf(15)) <= S2CAP.guardCut)
+  assert.ok(S2N.tauntWeak(s2LvOf(15)) <= S2CAP.tauntWeak)
+  assert.ok(S2N.mshieldTake(s2LvOf(15)) <= S2CAP.mshieldTake)
+  // the old top (s2Lv 3) is untouched by the caps
+  near(S2N.guardCut(3), 0.55)
+  near(S2N.tauntWeak(3), 0.35)
+})
+
+test('class-1 points: +1 per Job2 / Job3 Lv past 1, granted once, kept when the 2nd job goes away', () => {
+  const s = newSave('t', 'human')
+  try {
+    s.skillPoints = 0
+    syncClass1(s)
+    assert.equal(s.skillPoints, 0)
+    s.job2 = 'knight'
+    s.job2Level = 31
+    syncClass1(s)
+    assert.equal(s.skillPoints, 30) // Q's save at Job2 Lv 31
+    syncClass1(s)
+    assert.equal(s.skillPoints, 30) // no double grant
+    s.job2Level = 32
+    syncClass1(s)
+    assert.equal(s.skillPoints, 31)
+    s.job2 = undefined // class change keeps Job2 Lv: points stay, nothing new until Job2 Lv goes past 31
+    syncClass1(s)
+    assert.equal(s.skillPoints, 31)
+    s.job2 = 'knight'
+    s.job2Level = 50
+    s.job3 = 'lordknight'
+    s.job3Level = 5
+    syncClass1(s)
+    assert.equal(s.skillPoints, 49 + 4)
+  } finally {
+    setClass1Tier(1)
+  }
+})
