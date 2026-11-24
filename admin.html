@@ -138,6 +138,17 @@
     display: inline-flex;
     gap: 2px;
   }
+  /* The radios stay hidden even while focused / pressed: the generic .visually-hidden un-hides on :focus-within/:active,
+     which made the clicked radio pop up as a grey circle in the pill and steal the next click (Q 2026-11-24). */
+  .mode-seg { position: relative; }
+  .mode-seg input[type=radio] {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    pointer-events: none;
+  }
   .mode-seg label {
     padding: 5px 12px;
     border-radius: 999px;

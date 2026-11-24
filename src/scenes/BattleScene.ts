@@ -60,7 +60,7 @@ import { ARCHER_PFX, BEAST_PFX, CLERIC_PFX, COIN_DROP_IDS, COIN_DROP_REST, COIN_
 import { THIEF_FX, backstabFx, daggerCrossFx, flyingKnife, knifeLandFx, knifeStormFx, shadowSlashFx, smokeBombFx, venomStabFx } from '../battle/thief-vfx'
 import { pickChainTargets, playChainLightningFx } from '../battle/lightning-vfx'
 import { RANGER_FX, arrowImpactFx, arrowProjectile, arrowRainFx, beastRoarFx, boarGuardFx, eagleEyeFx, huntMarkOn, petHitFx, type PetKind, pierceShotFx, snareTrapFx, stampedeFx, wolfRoarPalette } from '../battle/ranger-vfx'
-import { awakenAuraFx, awakenBurstFx, blockShieldFx, brandishSweepFx, castBreakFx, ccGuardFx, chargeOpenerFx, cleanseFx, cleaveFx, comboSlashFx, executeMarkFx, guardianUltFx, pierceHitFx, sealCutFx, silenceSealFx, skill2AuraFx, spearBoomerangFx, spearWaveFx, whirlwindFx, windWaveFx } from '../battle/sword-vfx'
+import { awakenAuraFx, awakenBurstFx, blockShieldFx, brandishSweepFx, castBreakFx, ccGuardFx, chargeOpenerFx, cleanseFx, cleaveFx, comboSlashFx, executeMarkFx, guardianUltFx, pierceHitFx, sealCutFx, silenceSealFx, skill2AuraFx, spearBoomerangFx, spearWaveFx, windWaveFx } from '../battle/sword-vfx'
 import { applyTankDr, isMonSkillTag } from '../data/tank-scale'
 
 // Side-scroll, turn-based (Capybara Go-like): the hero walks right, meets a group, and everyone
@@ -450,7 +450,7 @@ export class BattleScene extends Phaser.Scene {
     this.startedAt = this.time.now
     this.turnHitsCur = 0; this.turnDmgCur = 0; this.turnHitsLast = 0; this.turnHitsTotal = 0; this.turnHitsPeak = 0; this.inHeroTurn = false; this.hideTurnCombo()
     this.eventLog = []; this.lockTarget = undefined; this.lockStacks = 0; this.hawkTurn = 0; this.revivedCount = 0; this.spears = 0; this.spearAcc = 0; this.ultRegenTurns = 0; this.shieldLayers = []; this.smiteCount = 0; this.counterCount = 0; this.comboCount = 0; this.comboLevel = 0; this.lowShake = !!save().lowShake; this.autoUlt = ultMode() === 'auto'; this.autoSkip = false; this.ultHeld = 0; this.peakTurns = 0; this.turnsLog = []
-    this.flow = 0; this.faith = 0; this.wardTurns = 0; this.holyRevived = false // v84 webs: momentum / Faith / ม่านพร / ★ คืนชีพ (1 per run)
+    this.faith = 0; this.wardTurns = 0; this.holyRevived = false // v84 webs: momentum / Faith / ม่านพร / ★ คืนชีพ (1 per run)
     this.minHpPct = 1; this.relic = null; this.miniKind = null; this.miniWon = false; this.parryCount = 0; this.freezeCount = 0; this.harvest = 0; this.enemyAttacks = 0
     this.hx = { poison: 0, burn: 0, weaken: 0, armorBreak: 0, silence: 0, web: 0, slow: 0, thorn: 0, venom: 0, venomTurns: 0 }; this.webOn = false; this.webDelta = undefined; this.debuffCount = 0; this.resistCount = 0
     this.flags = newFlags(); this.hpFloor = 0; this.starsOn = false; this.ignorePainTurns = 0; this.ignorePainDmg = 0; this.ignorePainUsed = false; this.ignorePainRegenTurns = 0; this.ignorePainRegenPerTurn = 0; this.wlUndyingTurns = 0
@@ -856,7 +856,7 @@ export class BattleScene extends Phaser.Scene {
       this.floatText(HERO_X, GROUND - 160, `📜 Memorize: Endow ${ELEMENTS[this.element].icon}${this.pfFreeEndow ? ' · ไม่ใช้ Mana ทั้งเวฟ' : ''}`, '#c9a8ff')
     }
     if (this.st.j2ChargeFirst > 0) this.heroGauge = Math.max(this.heroGauge, 100) // Knight ★ ทะยาน: the hero acts first
-    this.flow = 0; this.clEmerUsed = false; this.sweepTurn = 0 // v84: momentum and ฉุกเฉิน are per wave, the sweep counts this wave's hero turns
+    this.clEmerUsed = false; this.sweepTurn = 0 // v84: momentum and ฉุกเฉิน are per wave, the sweep counts this wave's hero turns
     if (this.st.j2Banner > 0) { // v84 Knight ปักธง: wave-start shield (stacks)
       this.addShield(this.st.maxHp * this.st.j2Banner, true)
       this.floatText(HERO_X, GROUND - 100, `🚩 ปักธง: โล่ ${Math.round(this.shield)}`, '#9fe3ff')
@@ -1536,7 +1536,6 @@ export class BattleScene extends Phaser.Scene {
       if (r.crit && cm > 1) r.dmg = r.dmg * (1 + (cm - 1) * (1 - T.critCut)) / cm
       r.dmg = Math.max(1, Math.round(r.dmg * (1 - T.dr)))
     }
-    const broken = m.armorBrk > 0
     this.lastCrit = r.crit
     this.damageMon(m, r.dmg, r.crit, color)
     if (r.crit && !this.killHealCritUsed && this.st.killHeal > 0 && (m.def.ai === 'boss' || !!m.def.mini) && this.hp > 0) {
@@ -1547,7 +1546,6 @@ export class BattleScene extends Phaser.Scene {
       this.heal(this.st.maxHp * thiefBossCritHeal(this.st), true)
       if (this.job.resource === 'energy') this.resGain(KIT.thiefBossCritRes)
     }
-    if (broken && this.st.swBreakLeech > 0 && this.hp > 0) this.heal(r.dmg * this.st.swBreakLeech, true) // v84 Swordsman ซ้ำรอย
     if (m.def.toxicSkin && this.hp > 0) this.applyFx({ poison: BATTLE.toxicSkin.poison }) // every landed hit poisons the hero
     if (m.def.iceSkin && this.hp > 0) { if (!this.hx.thorn) this.floatText(HERO_X + 30, GROUND - 150, '❄️ หนามน้ำแข็ง! DMG -15%', '#9fe3ff'); this.hx.thorn = BATTLE.iceSkin.turns }
     if (this.raidReady && !magic && !this.allyHitting && !m.dead && (this.src === 'basic' || this.src === 'combo' || this.src === 'skill' || this.src === 'ult')) this.sightlessRaid(m) // P2'b ม่านควัน
@@ -4437,42 +4435,7 @@ export class BattleScene extends Phaser.Scene {
     await this.skillName(this.job.auto)
     const live = this.front()
     switch (this.job.id) {
-      case 'swordsman': { // v84 จังหวะดาบ: momentum stacks (this.flow) add damage / crit / Mana · ★ พันดาบ at max stacks (Berserker's ฟันพายุ now)
-        if (swordS1On(this.job)) { await this.swordS1(); break } // the whole line: ⚔️ ดาบสยบมนตร์ (Q 2026-11-21); the ฟันพายุ code below is unused now
-        const T = KIT.swordTree, storm = this.st.swFlowStar > 0 && this.flow >= T.flowMax
-        const k = 1 + this.flow * this.st.swFlow, crit = this.flow * this.st.swFlowCrit
-        this.critAdd += crit; this.forceCrit = storm
-        if (storm) this.callout('⚔️ พันดาบ!', W / 2, 170)
-        try {
-          if (live[0]) {
-            const hitOne = () => live.forEach((m) => { this.strike(m, SWORD_MANA.autoMul * pow * (1 + this.st.pskill) * k + this.hpMul()) }) // Knight: + max HP share
-            if (storm) {
-              const prevStay = this.stayIn
-              this.stayIn = true
-              try {
-                const wx = live[0].spr.x - 10
-                await this.lunge(live[0], () => { whirlwindFx(this, wx, GROUND - 40, true, 0xffd34d); hitOne() }, false, true)
-                for (let i = 1; i < T.stormHits; i++) {
-                  await this.wait(48)
-                  if (!this.alive().length || this.hp <= 0) break
-                  this.heroRig.playStrike(i + 1, false)
-                  comboSlashFx(this, wx, GROUND - 40, i + 1, this.rigSpec.slashPalette)
-                  whirlwindFx(this, wx, GROUND - 40, true, i % 2 === 0 ? 0xffd34d : 0x7fd7ff)
-                  sfx.swing()
-                  hitOne()
-                }
-              } finally { this.stayIn = prevStay }
-              if (!this.stayIn) await this.goHome()
-            } else {
-              await this.lunge(live[0], () => { whirlwindFx(this, live[0].spr.x - 10, GROUND - 40, false); hitOne() }, false, true)
-            }
-          }
-        } finally { this.critAdd -= crit; this.forceCrit = false }
-        if (this.flow > 0 && this.st.swFlowMana > 0) this.resGain(this.flow * this.st.swFlowMana)
-        if (storm) this.flow = 0
-        else if (this.st.swFlow > 0 && this.flow < T.flowMax) { this.flow++; this.floatText(HERO_X, GROUND - 165, `🌊 จังหวะ ${this.flow}/${T.flowMax}`, '#9fe3ff') }
-        break
-      }
+      case 'swordsman': await this.swordS1(); break // the whole line: ⚔️ ดาบสยบมนตร์ (Q 2026-11-21; the old ฟันพายุ + v84 จังหวะดาบ code is gone, Q 2026-11-24 cleanup)
       case 'archer':
         if (this.st.arAim > 0) { // talent ศรเล็ง: 2 aimed shots at the front, + crit
           this.st.crit += this.st.arAimCrit
@@ -4575,8 +4538,7 @@ export class BattleScene extends Phaser.Scene {
         }
         for (const m of low) executeMarkFx(this, m.spr.x, m.spr.y - m.spr.displayHeight * 0.45) // ⚖️ คำพิพากษา
         guardianUltFx(this, HERO_X, GROUND, live[0].spr.x - 10, {
-          armorBreak: this.st.swBreak > 0 && this.alive().length > 0,
-          shatteredTargets: this.st.swShatter > 0 ? this.alive().filter((m) => m.charging).map((m) => ({ x: m.spr.x, y: m.spr.y })) : [],
+          armorBreak: false, shatteredTargets: [], // the v84 ทุบเกราะ / ★ หักท่า nodes are gone (Q 2026-11-24 cleanup)
         })
       }, false, true) // talents: ปราการ / ฟันทลาย
       const U = KIT.swordUltTree
@@ -4692,16 +4654,9 @@ export class BattleScene extends Phaser.Scene {
     }
     if (wasCasting && st.swS1Refund > 0) { this.resGain(st.swS1Refund); this.s1Cd = Math.max(0, this.s1Cd - 1) } // ⚔️ ตัดจังหวะ
   }
-  /** v84 webs, after any Swordsman / Priest ult (their 2nd jobs too): ★ หักท่า · ทุบเกราะ · ม่านพร · ชุบชีวา. */
+  /** v84 webs, after any Swordsman / Priest ult (their 2nd jobs too): ม่านพร · ชุบชีวา. */
   private ultWebAfter() {
-    const S = KIT.swordTree, C = KIT.clericTree, st = this.st
-    if (st.swShatter > 0) for (const m of this.alive()) if (m.charging) {
-      this.endMonCast(m, { text: '⚡ หักท่า! ขัดร่าย', color: '#9fe3ff', float: true, dy: 24 }, S.shatterPush, false)
-    }
-    if (st.swBreak > 0 && this.alive().length) {
-      for (const m of this.alive()) { m.armorBrk = Math.max(m.armorBrk, S.breakTurns); this.dotIcon(m) }
-      this.floatText(W / 2 + 120, GROUND - 190, '🔨 ทุบเกราะ!', '#e0b07a')
-    }
+    const C = KIT.clericTree, st = this.st
     if (st.clUltWard > 0) { this.wardTurns = C.wardTurns + 1; this.floatText(HERO_X, GROUND - 175, `🕯️ ม่านพร −${Math.round(st.clUltWard * 100)}% ${C.wardTurns} เทิร์น`, '#fff3a0') } // +1: this turn's tick
     if (st.clUltMend > 0 && this.hp > 0 && this.hp < st.maxHp) this.skillHeal((st.maxHp - this.hp) * st.clUltMend)
   }
@@ -4893,8 +4848,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // ----- v84 webs: ⚔️ จังหวะดาบ / 🔨 ทลายเกราะ (KIT.swordTree) · 🙏 ศรัทธา / ⛪ ฟื้นคืน (KIT.clericTree) · 🚩 ธงศึก / 🌀 กวาดทวน (KIT2.knight.tree) -----
-  private flow = 0 // Swordsman momentum stacks (this wave)
+  // ----- v84 webs: 🙏 ศรัทธา / ⛪ ฟื้นคืน (KIT.clericTree) · 🚩 ธงศึก / 🌀 กวาดทวน (KIT2.knight.tree) -----
   private faith = 0 // Priest Faith stacks (this run)
   private overBursting = false // ★ แสงล้นฟ้า running (its kill heals can't chain another burst)
   private wardTurns = 0 // ม่านพร: hero turns of less damage taken left
@@ -5188,7 +5142,6 @@ export class BattleScene extends Phaser.Scene {
       }
       if ((m.marked ?? 0) > 0) dmg = Math.ceil(dmg * 1.15) // cleric ★B: ตราบาป
       if (!dot && m.huntMark > 0) { const mk = Math.max(this.st.arMark, this.j2?.id === 'beastmaster' ? preyMarkOf(this.st) : 0); if (mk > 0) dmg = Math.ceil(dmg * (1 + mk)) } // v82 archer หมายหัว · 🏷️ Beastmaster Prey Mark (hits only)
-      if (!dot && m.armorBrk > 0 && this.st.swBreak > 0) dmg = Math.ceil(dmg * (1 + this.st.swBreak)) // v84 Swordsman ทุบเกราะ (hits only)
       if (this.st.lateDmg > 0 && this.fightTurns >= 12) dmg = Math.ceil(dmg * (1 + this.st.lateDmg)) // cleric talent: อรุณรุ่ง
       const taken = this.takenAmpOf(m, dot); if (taken > 0) dmg = Math.ceil(dmg * (1 + taken)) // P2'b B1 Taken (R4.6): Exposed + Privileged + gear กัดกร่อน, added under KIT.thiefTakenCap
       if (!dot && this.relic === 'executioner' && m.hp < m.def.hp * RELIC_RULES.executioner.below) dmg = Math.ceil(dmg * (1 + RELIC_RULES.executioner.mul))
@@ -5372,11 +5325,6 @@ export class BattleScene extends Phaser.Scene {
       if (blast > 0) for (const o of live) if (!o.dead) this.withSrc('poison', () => this.damageMon(o, blast, false, '#b48aff', true))
     }
     this.archerKill(m, others)
-    if (m.armorBrk > 0 && this.st.swBreakSpread > 0 && others.length) { // v84 Swordsman ร้าวลาม
-      for (const o of others) { o.armorBrk = Math.max(o.armorBrk, KIT.swordTree.breakTurns); this.dotIcon(o) }
-      this.resGain(this.st.swBreakSpread)
-      this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 40, '💥 ร้าวลาม!', '#e0b07a')
-    }
     if (this.st.j2BannerKill > 0 && this.hp > 0) { // Knight ธงชัย: shield + gauge + res on kill
       const T = KIT2.knight.tree
       this.addShield(this.st.maxHp * this.st.j2BannerKill, true)
@@ -5948,7 +5896,6 @@ export class BattleScene extends Phaser.Scene {
     const floor = this.ignorePainTurns > 0 || this.wlUndyingTurns > 0 ? Math.max(1, this.hpFloor) : this.hpFloor
     this.hp = Math.max(floor, this.hp - n)
     this.hitLost = hpBefore - this.hp
-    if (this.flow > 0 && n >= this.st.maxHp * KIT.swordTree.flowBreak) { this.flow = 0; this.floatText(HERO_X, GROUND - 165, '💢 เสียจังหวะ', '#c9c9d6') } // v84 ไหลลื่น
     if (this.hp > 0) this.lowHpCheck()
     if (this.st.mgEmergency > 0 && !this.emergencyUsed && this.hp > 0 && this.hp < this.st.maxHp * 0.3) { // mage talent มานาฉุกเฉิน
       this.emergencyUsed = true; this.res = this.resMax()

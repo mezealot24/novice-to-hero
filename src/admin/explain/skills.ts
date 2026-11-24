@@ -59,6 +59,21 @@ const S2N_TH: Record<string, FieldExplain> = {
   woundPriv: { label: '🩸 Privileged (แผลลึก): รับดาเมจเพิ่ม', effect: 'เพิ่ม = มอนที่ติดทั้งพิษและ Wound รับดาเมจทุกแบบ (รวมพิษ) แรงขึ้น (รวมในเพดาน B1)' },
 }
 
+const S4_EFFECT: Record<string, string> = {
+  cost: '⚠️ ลดเลข = กด Spiral Pierce ได้ถี่ขึ้น · เพิ่ม = เปลือง Mana มากขึ้น (แย่ง Mana กับ Ult)',
+  cd: '⚠️ ลดเลข = Spiral Pierce วนกลับมาเร็วขึ้น (ทุบโล่ / ตัดร่ายบ่อยขึ้น)',
+  unlockLv: '⚠️ ลดเลข = Knight ได้ Skill 4 เร็วขึ้น (Job2 Lv ต่ำลง)',
+  mul: 'เพิ่ม = แทงเกลียวแรงขึ้น (× P.ATK + % Max HP จากถึกเป็นแรง)',
+  shatterAmp: 'เพิ่ม = ทุบโล่มอนได้แล้วแทงแรงขึ้นอีก',
+  bossShield: 'เพิ่ม = โล่บอส/เฟสหายมากขึ้นต่อการแทง (1 = หายหมด)',
+  bossGauge: 'เพิ่ม = บอสโดนตัดร่ายแล้วเกจถอยหลังมากขึ้น',
+  fang: 'เพิ่ม = 🐍 ทุกฮิตของฮีโร่ตีโล่มอนหายเร็วขึ้น (เฉพาะส่วนโล่)',
+  breakTurns: 'เพิ่ม = ⛓️ Break ปิด passive มอน (สะท้อน / ดูดเลือด / ติดสถานะ ...) นานขึ้น',
+  lkHits: 'เพิ่ม = Lord Knight แทงเกลียวหลายครั้งขึ้น',
+  lkMul: 'เพิ่ม = Lord Knight แต่ละแทงแรงขึ้น',
+  lkPierce: 'เพิ่ม = แทงสุดท้ายของ Lord Knight ข้าม DEF มากขึ้น',
+}
+
 const J2_DETAIL_HINTS: Record<string, string> = {
   'berserker.ignorePainTurns': '★ ไม่รู้สึกเจ็บ: ฮีโร่เลือดเหลือ 1 HP อมตะตามจำนวนเทิร์นนี้ (ฮีล/ดูดเลือดไม่ทำงาน) ก่อนเข้าช่วง regen',
   'berserker.ignorePainRegenPct': '★ หลังจบช่วงอมตะ 1 HP ฮีโร่จะฮีลคืนจากสัดส่วนของดาเมจตรง (ไม่รวม DoT) ที่ตัวเองทำได้',
@@ -78,7 +93,29 @@ const J2_DETAIL_HINTS: Record<string, string> = {
   'innovator.wetAmp': '☁️ เมฆฝนทำให้มอนที่ติดเปียกรับดาเมจแรงขึ้นจากทุกฮิตของฮีโร่',
 }
 
+const SWORD_S1_LV: Record<string, [string, string]> = {
+  atkPct: ['× P.ATK', 'เพิ่ม = ดาบสยบมนตร์ Lv นี้ฟันแรงขึ้นตาม P.ATK'],
+  str: ['× STR', 'เพิ่ม = ดาบสยบมนตร์ Lv นี้บวกดาเมจตาม STR มากขึ้น (สาย STR ได้เปรียบ)'],
+  base: ['ดาเมจฐาน × Base Lv', 'เพิ่ม = ดาบสยบมนตร์ Lv นี้บวกดาเมจคงที่ตาม Base Lv มากขึ้น (แปลงเป็นหน่วย P.ATK ในไฟต์)'],
+}
+
+/** Q 2026-11-24 Awakening (KIT3) keys: Lord Knight / Warlord. */
+function explainKit3Effect(key: string): string {
+  if (/\.per$/.test(key)) return 'เพิ่ม = ร่างแปลงสกิล 3 แรงขึ้นต่อแต้มที่ลงในสายที่ผูกไว้ (ชนเพดาน cap)'
+  if (/\.cap$|Cap$/.test(key)) return 'เพิ่ม = ปลดเพดานโบนัสให้ลงแต้มสายเดิมแล้วได้ผลต่อ'
+  if (key === 'heirNeed') return '⚠️ ลดเลข = ปลดโบนัสทายาท (ฮิตเพิ่ม / ผลพิเศษ) ได้ง่ายขึ้น · เพิ่ม = ต้องลงแต้มสายนั้นเยอะขึ้น'
+  if (/Taken$/.test(key)) return '⚠️ เพิ่ม = ฮีโร่โดนตีแรงขึ้นเป็นข้อเสียแลกพลัง (ลด = ปลอดภัยขึ้น)'
+  if (/Turns$|\.burn$/.test(key)) return 'เพิ่ม = ผล/สถานะนี้อยู่นานขึ้น (เทิร์น)'
+  if (/hits$|Hits$/.test(key)) return 'เพิ่ม = จำนวนฮิตมากขึ้น ดาเมจรวมพุ่ง'
+  if (/push$|Push$/.test(key)) return 'เพิ่ม = ผลักเกจเทิร์นมอนถอยหลังไกลขึ้น'
+  if (/[Rr]age/.test(key)) return 'เพิ่ม = ได้/ใช้ Rage ในเงื่อนไขนี้มากขึ้น'
+  if (/[Hh]eal|shield|hp|Hp/.test(key)) return 'เพิ่ม = ฮีล / โล่ / ส่วน Max HP ที่บวกเข้าท่านี้มากขึ้น'
+  if (/pierce/.test(key)) return 'เพิ่ม = ข้าม P.DEF มอนได้มากขึ้น (ตีบอสเกราะหนาแรงขึ้น)'
+  return 'เพิ่ม = ตัวคูณ/โบนัสของ Awakening ท่านี้แรงขึ้น'
+}
+
 function explainKit2Effect(_id: Job2Id, key: string, j2Name: string): string {
+  if (key.startsWith('s4.')) return S4_EFFECT[key.slice(3)] ?? 'เพิ่ม = 🌀 Spiral Pierce (Skill 4) แรงขึ้น'
   if (key.startsWith('tree.')) return `ปรับพลังโนด Skill tree ของ ${j2Name} (ตัวคูณ/ผลต่อ Lv เดิม หรือ ★ สำคัญ)`
   if (key.startsWith('mastery.')) {
     if (key.endsWith('atkPct')) return `เพิ่ม = โบนัส P.ATK (%) จากพาสซีฟชำนาญอาวุธของ ${j2Name} สูงขึ้น`
@@ -143,6 +180,12 @@ export function explainSkillTable(path: string, defaultLabel?: string): FieldExp
   if (p[0] === 'job2') {
     const id = p[1] as Job2Id, slot = p[2], prop = p[3]
     const j2 = JOB2[id]
+    if (slot === 'autoCost') {
+      return {
+        label: defaultLabel ?? `${j2?.name ?? id} · ค่าร่ายทักษะ 1`,
+        effect: `⚠️ ลดเลข = ${j2?.name ?? id} กดทักษะ 1 (ดาบสยบมนตร์) ได้ถี่ขึ้น · เพิ่ม = ต้องเก็บ ${j2?.resource === 'rage' ? 'Rage' : 'ทรัพยากร'} นานขึ้นก่อนกด`,
+      }
+    }
     const skName = slot === 'skill3' ? j2?.skill3.name : j2?.ult.name
     if (prop === 'cost') {
       return {
@@ -191,11 +234,8 @@ export function explainSkillTable(path: string, defaultLabel?: string): FieldExp
   if (p[0] === 's2n' && S2N_TH[p[1]]) return { ...S2N_TH[p[1]], label: defaultLabel ?? S2N_TH[p[1]].label }
 
   const staticSkills: Record<string, FieldExplain> = {
-    'sword.auto': { label: defaultLabel ?? 'Swordsman · ค่าร่าย Mana ฟันพายุ', effect: '⚠️ ลดเลข = ใช้ Mana น้อยลง กดฟันพายุได้แทบทุกเทิร์น (ซิงค์เข้า jobs)' },
-    'sword.autoMul': { label: defaultLabel ?? 'Swordsman · ฟันพายุ × P.ATK', effect: 'เพิ่ม = ทักษะ 1 (ฟันทุกตัว) ของนักดาบ/Berserker/Knight แรงขึ้นชัดเจน' },
     'sword.ult': { label: defaultLabel ?? 'Swordsman · ค่าร่าย Mana Ult ผ่าสวรรค์', effect: '⚠️ ลดเลข = ใช้ Mana กด Ult น้อยลง (ซิงค์เข้า jobs)' },
     'sword.ultMul': { label: defaultLabel ?? 'Swordsman · Ult 🌊 คลื่นดาบ × P.ATK', effect: 'เพิ่ม = 🌊 คลื่นดาบ (Ult นักดาบ ฟันทุกตัว) แรงขึ้น' },
-    'sword.ultShield': { label: defaultLabel ?? 'Swordsman · Ult โล่ (% Max HP)', effect: 'ไม่มีผลแล้ว: นักดาบ/อัศวินไม่ได้โล่ฐานจาก Ult (ได้จากทาเลนต์ ปราการ/การ์ดเท่านั้น)' },
     'swordS1.mana': { label: defaultLabel ?? 'Swordsman · ⚔️ ดาบสยบมนตร์ ค่า Mana (ทุก Lv)', effect: 'ลด = ใช้สกิล 1 ได้ถี่ขึ้น (Mana เท่ากันทุก Lv · Berserker จ่าย Rage คงที่ ไม่ใช้ค่านี้)' },
     'swordS1.cd': { label: defaultLabel ?? 'Swordsman · ⚔️ ดาบสยบมนตร์ คูลดาวน์', effect: 'ลด = กดสกิล 1 (ล้าง CC + ใบ้ + ขัดร่าย) ได้ถี่ขึ้น (5 = ทุก 5 เทิร์น)' },
     'swordS1.silenceTurns': { label: defaultLabel ?? 'Swordsman · ⚔️ ดาบสยบมนตร์ ใบ้กี่เทิร์น', effect: 'เพิ่ม = มอนที่โดนใช้สกิล/ร่ายไม่ได้นานขึ้น (นับเฉพาะเทิร์นที่มอนได้เล่น)' },
@@ -208,10 +248,33 @@ export function explainSkillTable(path: string, defaultLabel?: string): FieldExp
     'sword.awakenAtk': { label: defaultLabel ?? 'Swordsman · ⚔️ ปลุกดาบ P.ATK เพิ่ม', effect: 'เพิ่ม = ระหว่างปลุกดาบ ตีกายภาพทุกอย่างแรงขึ้น (0.2 = +20%)' },
     'sword.cleaveShare': { label: defaultLabel ?? 'Swordsman · ⚔️ ปลุกดาบ ฟันตัวถัดไป', effect: 'เพิ่ม = ตีปกติระหว่างปลุกดาบฟันมอนตัวที่ 2 แรงขึ้น (0.5 = 50% ของหนึ่งฮิต)' },
     'sword.awakenHpPct': { label: defaultLabel ?? 'Swordsman · ✨ เคลือบดาบสวรรค์ % HP ที่เหลือ', effect: 'เพิ่ม = ระหว่างปลุกดาบ ทุกฮิตกายภาพตัด % HP ที่เหลือของเป้าเยอะขึ้น (0.025 = 2.5%)' },
+    'sword.awakenHpLv': { label: defaultLabel ?? 'Swordsman · ✨ เคลือบดาบสวรรค์ +% ต่อ Lv (Lv 2-5)', effect: 'เพิ่ม = เคลือบดาบ % HP ที่เหลือของเป้าโตเร็วขึ้นตอนอัป Ult Lv 2-5' },
+    'sword.awakenHpLvHi': { label: defaultLabel ?? 'Swordsman · ✨ เคลือบดาบสวรรค์ +% ต่อ Lv (Lv 6-15)', effect: 'เพิ่ม = เคลือบดาบโตเร็วขึ้นตอนอัป Ult Lv 6-15 (Job2 / Awakening)' },
+    'sword.awakenStrStep': { label: defaultLabel ?? 'Swordsman · ✨ เคลือบดาบสวรรค์ ทุกกี่ STR', effect: '⚠️ ลดเลข = STR น้อยลงก็ได้ขั้นโบนัสเคลือบดาบ (สาย STR แรงขึ้นมาก) · เพิ่ม = ต้องปั้น STR เยอะขึ้น' },
+    'sword.awakenStrPct': { label: defaultLabel ?? 'Swordsman · ✨ เคลือบดาบสวรรค์ +% ต่อขั้น STR', effect: 'เพิ่ม = ทุกขั้น STR บวก % HP ที่เหลือของเป้าเข้าเคลือบดาบมากขึ้น' },
     'sword.awakenBigShare': { label: defaultLabel ?? 'Swordsman · ✨ เคลือบดาบสวรรค์ บอส/มินิ', effect: 'เพิ่ม = บอส/มินิโดน % HP ที่เหลือเต็มขึ้น (1 = เท่ามอนปกติ)' },
     'mage.barrier': { label: defaultLabel ?? 'Mage · บาเรียเมื่อปล่อย Ult (× M.ATK)', effect: 'เพิ่ม = หลังปล่อยเวทใหญ่ของ Mage/Wizard จะได้โล่หนากันตัวตามค่า M.ATK' },
   }
   if (staticSkills[path]) return staticSkills[path]
+
+  // Q 2026-11-24: ⚔️ ดาบสยบมนตร์ damage table / ⚔️ ปลุกดาบ STR, one value per skill Lv
+  const lv = Number(p[2]) + 1
+  if (p[0] === 'swordS1' && p.length === 3 && SWORD_S1_LV[p[1]]) {
+    const [what, eff] = SWORD_S1_LV[p[1]]
+    return { label: defaultLabel ?? `Swordsman · ⚔️ ดาบสยบมนตร์ Lv ${lv}: ${what}`, effect: eff, detail: 'สูตร: P.ATK × atkPct + STR × str + base × Base Lv (ทั้งสาย Swordsman / Knight / Berserker · Lv = แต้มโนด "+" ทักษะ 1, เพดาน 5 / 10 / 15)' }
+  }
+  if (p[0] === 'sword' && p[1] === 'awakenStr' && p.length === 3) {
+    return { label: defaultLabel ?? `Swordsman · ⚔️ ปลุกดาบ Lv ${lv}: STR เพิ่ม`, effect: 'เพิ่ม = ระหว่างปลุกดาบได้ STR มากขึ้น (P.ATK ขึ้น และนับเข้าขั้น STR ของ ✨ เคลือบดาบสวรรค์)', detail: 'Lv = แต้มโนดราก Ult (เพดาน 5 / 10 / 15)' }
+  }
+
+  if (p[0] === 'kit3') {
+    const id = p[1], key = p.slice(2).join('.')
+    return {
+      label: defaultLabel ?? `${id} · ${key}`,
+      effect: explainKit3Effect(key),
+      detail: 'ตัวเลขอาชีพขั้น 3 (Awakening) · มีผลกับตัวที่ปลด Awakening แล้วเท่านั้น',
+    }
+  }
 
   if (p[0] === 'kit2') {
     const id = p[1] as Job2Id, key = p.slice(2).join('.')

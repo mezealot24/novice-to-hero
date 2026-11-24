@@ -214,7 +214,11 @@ export const TABLES: Record<TableId, TableDef> = {
       ['poison.atkPer|matkPer|intPer|burstKeep|defPer|defCap', num(0, 1)], ['poison.baseCap', int(1, 50)],
       ['thiefShadow.max|turns|dodge|double|ult', int(0, 20)], ['thiefMark.max', int(1, 20)], ['thiefMark.dmg', num(0, 5)],
       ['poison.slowAt|slowStep|slowTurns', int(0, 50)], ['poison.overflowMul|spreadBurst|hpFlat', num(0, 10)], ['poison.hpAbove|hpPct|hpPctInt|spreadShare', num(0, 1)],
-      ['thiefSteal.atk|heal|crit', num(0, 2)], ['thiefSteal.turns|res|poison|brkTurns', int(0, 100)]], // ☠️ Thief-line poison (Q 2026-11-17)
+      ['thiefSteal.atk|heal|crit', num(0, 2)], ['thiefSteal.turns|res|poison|brkTurns', int(0, 100)], // ☠️ Thief-line poison (Q 2026-11-17)
+      // Q 2026-11-24 Swordsman web nodes (data/trees/swordsman.ts reads them live, per OLD Lv)
+      ['swordCore.vitPer|defPer', num(0, 50)], ['swordCore.hpPctPer|mdefPer|vitToMdefPer|vitToMdefCap|tenacityPer|healAmpPer|lowHpAt|lowHpRegenPer', num(0, 1)], ['swordCore.regenPer', num(0, 10)],
+      ['swordS1Tree.shield|tenacity|muteWeak|vsMute|splash|starHit', num(0, 5)], ['swordS1Tree.guardTurns|counters', int(0, 10)], ['swordS1Tree.refund', num(0, 100)],
+      ['swordUltTree.dr|leech|ctr|waveShield|waveShieldCap|execAdd|cleave|reChance|awAtk', num(0, 5)]],
   },
   // Class skills (skill-registry.ts): costs / cooldowns / Skill 2 numbers / per-skill crit switch. Exact paths, built from the registry.
   // Class kit numbers that are already in `kit` stay there (one path = one table): the admin "⚔️ สกิลอาชีพ" tab shows both.

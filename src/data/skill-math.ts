@@ -194,13 +194,6 @@ export const KIT = {
     markTurns: 3, markAmp: 0.05, markJumpRes: 8, killCd: [0.5, 0.75, 1], killCdCut: 1, killCdRes: 12, // หมายหัว per lv · ไล่ล่า Energy per lv · ล่าต่อ chance + Energy on kill
     execBelow: 0.25, execBig: 0.6, // ★ ศรประหาร: normal monster under 25% HP dies · boss / mini +60%
   },
-  // v84 Swordsman web: ⚔️ จังหวะดาบ (under ทักษะ 1) + 🔨 ทลายเกราะ (under Ult), first guesses (design/skill-tree-swordsman.md v84).
-  // Per-lv numbers are per OLD level (node max 3, v83 stretch shows 5 levels at the same full value).
-  swordTree: {
-    flowMax: 5, flow: 0.03, flowMana: 0.6, flowCrit: 0.01, flowBreak: 0.15, // ไหลลื่น: ฟันพายุ in a row stacks (max 5) +dmg/stack/lv · ลมหายใจ Mana/stack/lv · เฉือนคม crit/stack/lv · a hit >= 15% max HP (after shields) resets
-    stormHits: 2, // ★ พันดาบ: at max stacks ฟันพายุ swings this many times, sure crit, then stacks reset
-    breakTurns: 3, breakAmp: 0.04, breakLeech: 0.02, breakSpreadRes: 4, shatterPush: 30, // ทุบเกราะ: ult breaks armor (Mon.armorBrk = DEF −KIT2.mobster.armorBrk) N turns + dmg taken/lv · ซ้ำรอย heal share/lv · ร้าวลาม Mana/lv · ★ หักท่า gauge push
-  },
   // ⚔️ ดาบสยบมนตร์ web (Q 2026-11-21, swordsman_b left = Defensive, swordsman_c right = Utility + Dmg), per OLD level (max 3, stretched to 5)
   swordS1Tree: {
     shield: 0.04, tenacity: 0.05, guardTurns: 1, muteWeak: 0.06, counters: 2, // 🛡️ ตั้งรับ shield/lv · ใจไม่หวั่น tenacity/lv + CC guard turns · ปิดปาก silenced monster dmg cut/lv · ★ สวนเงียบ sure counters
@@ -209,7 +202,7 @@ export const KIT = {
   // 🗡️ ดาบพิพากษา web (Q 2026-11-21, ult side: swordsman_a left = Defensive while awakened, swordsman_d right = Utility + Dmg), per OLD level (max 3, stretched to 5)
   swordUltTree: {
     dr: 0.05, leech: 0.03, ctr: 0.06, waveShield: 0.3, waveShieldCap: 0.25, // 🛡️ ใจดาบ dmg taken cut/lv while awakened · 🩸 ดาบกระหายเลือด basic/cleave leech/lv · 🔁 ตื่นสวน counter/lv · ★ ปราการคลื่น wave dmg share as shield (cap of max HP)
-    execAdd: 0.2, waveAmp: 0.1, cleave: 0.15, reChance: 1 / 3, awAtk: 0.5, // Q 2026-11-22: d2 = 🌊 คลื่นซ้ำ chance/old lv (full 100%) · d4 ★ = P.ATK +awAtk while awakened (waveAmp: unused now) // ⚖️ คมพิพากษา execute max +/lv · 🌊 คลื่นคม wave dmg/lv · ⚔️ ฟันกวาดตื่น cleave share/lv · ★ คลื่นซ้ำ reload once on a wave kill
+    execAdd: 0.2, cleave: 0.15, reChance: 1 / 3, awAtk: 0.5, // Q 2026-11-22: d2 = 🌊 คลื่นซ้ำ chance/old lv (full 100%) · d4 ★ = P.ATK +awAtk while awakened (waveAmp removed 2026-11-24: unused) // ⚖️ คมพิพากษา execute max +/lv · 🌊 คลื่นคม wave dmg/lv · ⚔️ ฟันกวาดตื่น cleave share/lv · ★ คลื่นซ้ำ reload once on a wave kill
   },
   // Swordsman core column (swordsman_core, tier 0, always open): Defend VIT/DEF/M.DEF/Regen passives
   swordCore: {

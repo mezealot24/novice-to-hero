@@ -4,7 +4,7 @@
 import { node as n, talent as t, type ClassTree } from '../tree-types'
 import { KIT } from '../skill-math'
 
-// v84 (design/skill-tree-swordsman.md v84): numbers in KIT.swordTree / swordCore, written per OLD level (max 3); data/tree.ts stretches them to 5.
+// v84 (design/skill-tree-swordsman.md v84): numbers in KIT.swordCore / swordS1Tree / swordUltTree (admin ⚔️ สกิลอาชีพ → 🌳 Skill tree), written per OLD level (max 3); data/tree.ts stretches them to 5.
 const C = KIT.swordCore, S = KIT.swordS1Tree, U = KIT.swordUltTree, pc = (x: number) => `${+(x * 100).toFixed(1)}%`, r1 = (x: number) => +x.toFixed(1)
 
 export const tree: ClassTree = {
