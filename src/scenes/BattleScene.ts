@@ -8,7 +8,7 @@ import { EVENT_RULES, FORTUNE, type DayOpts, type EventId } from '../data/events
 import { newFlags, runPostWaveEvent, type Curse, type EventHost, type Opt, type Panel, type RunFlags } from './battle-events'
 import { blessBase, FREE_GEMS, heroBuild, heroStats, jobUpText, itemById, PER_POINT, RESOURCES, splitStatLine, totalBase, type BaseStat, type HeroBuildSummary } from '../data/meta'
 import { COIN_FX, CRIT_RULES, FLEE_RULES, monHitChance, RESIST_RULES, coinTier, monCritRate, monSkillCritRate, splitZeny } from '../data/battle-rules'
-import { type ItemEffectId, type ItemEffectSpec } from '../data/item-effects'
+import { COMBINE_FX, type ItemEffectId, type ItemEffectSpec } from '../data/item-effects'
 import { createBiomeCombatState, HAZARD_TUNING, modifyHeroDirectHealBiome, onHeroShieldOrBlockBiome, onHeroSkillCastBiome, onMonsterHitBiome, onTurnEndBiome, type BiomeCombatState } from '../data/biome-hazards'
 import { RIFT_BRANCHES, riftBoonById, type RiftBoonDef, type RiftBranchDef } from '../data/rift'
 import { applyRiftBranchChoice } from '../battle/rift-engine'
@@ -4236,20 +4236,23 @@ export class BattleScene extends Phaser.Scene {
       }
       const rc = this.itemEffect('rend_current')
       if (rc && !f.dead && !this.inUltWindow()) { // 🧬 คมกัดกร่อน (BotRK): % of the target's current HP, boss half, capped by P.ATK
-        const pct = rc.power * (f.def.ai === 'boss' ? 0.5 : 1)
-        const dmg = Math.max(1, Math.round(Math.min(f.hp * pct, this.st.atk * (rc.threshold ?? 2.5))))
+        const pct = rc.power * (f.def.ai === 'boss' ? COMBINE_FX.bossMul : 1)
+        const dmg = Math.max(1, Math.round(Math.min(f.hp * pct, this.st.atk * (rc.threshold ?? COMBINE_FX.rendCap))))
+        this.burst(f.spr.x, f.spr.y - f.spr.displayHeight / 2, 0xff6b8a, 8, 140)
         this.withSrc('other', () => this.damageMon(f, dmg, false, '#ff6b8a'))
       }
       const th = this.itemEffect('third_hit')
-      if (th && !f.dead && !this.inUltWindow() && ++this.thirdHits >= (th.threshold ?? 3)) { // 🧬 สามจังหวะ (Kraken Slayer): flat burst, no DEF
+      if (th && !f.dead && !this.inUltWindow() && ++this.thirdHits >= (th.threshold ?? COMBINE_FX.thirdEvery)) { // 🧬 สามจังหวะ (Kraken Slayer): flat burst, no DEF
         this.thirdHits = 0
-        const dmg = Math.max(1, Math.round(this.st.atk * th.power + (save().baseLevel ?? 1) * 4))
+        const dmg = Math.max(1, Math.round(this.st.atk * th.power + (save().baseLevel ?? 1) * COMBINE_FX.thirdPerLv))
         this.floatText(f.spr.x, f.spr.y - f.spr.displayHeight - 44, '🎯 จังหวะที่ 3!', '#ffd166')
+        this.burst(f.spr.x, f.spr.y - f.spr.displayHeight / 2, 0xffd166, 14, 220, true)
         this.withSrc('other', () => this.damageMon(f, dmg, false, '#ffd166'))
       }
       const bs = this.itemEffect('bash')
-      if (bs && !f.dead && !this.inUltWindow() && this.fxReady('bash') && Math.random() < (bs.chance ?? 0.15)) { // 🧬 ทุบมึน (Skull Basher)
+      if (bs && !f.dead && !this.inUltWindow() && this.fxReady('bash') && Math.random() < (bs.chance ?? COMBINE_FX.bashChance)) { // 🧬 ทุบมึน (Skull Basher)
         this.armFxCd(bs)
+        this.burst(f.spr.x, f.spr.y - f.spr.displayHeight / 2, 0xffb347, 12, 180); this.shake(80, 0.004)
         if (f.def.ai === 'boss' && f.charging && !f.castSteady) { this.endMonCast(f, { text: `💥 ทุบมึน! ร่ายแตก ${f.def.name}`, color: '#ffb347' }); f.gauge = monBreakGauge(f.gauge) }
         else this.stunMon(f)
       }
@@ -5206,8 +5209,8 @@ export class BattleScene extends Phaser.Scene {
     if (!dot && !pure && !this.allyHitting && m.hp > 0 && this.isSkillHit() && !this.inUltWindow()) { // 🧬 เพลิงทรมาน (Liandry): skill hit -> % Max HP burn
       const sb = this.itemEffect('skill_burn')
       if (sb) {
-        const per = Math.max(1, Math.round(Math.min(m.def.hp * sb.power * (m.def.ai === 'boss' ? 0.5 : 1), Math.max(this.st.atk, this.st.matk) * (sb.threshold ?? 1.5))))
-        m.burn = Math.max(m.burnTurns > 0 ? m.burn : 0, per); m.burnTurns = Math.max(m.burnTurns, 3); this.dotIcon(m)
+        const per = Math.max(1, Math.round(Math.min(m.def.hp * sb.power * (m.def.ai === 'boss' ? COMBINE_FX.bossMul : 1), Math.max(this.st.atk, this.st.matk) * (sb.threshold ?? COMBINE_FX.burnCap))))
+        m.burn = Math.max(m.burnTurns > 0 ? m.burn : 0, per); m.burnTurns = Math.max(m.burnTurns, COMBINE_FX.burnTurns); this.dotIcon(m)
       }
     }
     if (!dot && !pure && !this.allyHitting && !this.cleaving && (this.src === 'basic' || this.src === 'combo') && dmg > 0 && !this.inUltWindow()) { // 🧬 ฟันกวาด (Battle Fury)
@@ -5926,6 +5929,7 @@ export class BattleScene extends Phaser.Scene {
       this.lastStandUsed = true; n = this.hp - 1
       this.addShield(this.st.maxHp * ls.power, true)
       this.callout('💪 ใจสู้! ยังไม่ล้ม', HERO_X + 120, GROUND - 150)
+      this.burst(HERO_X, GROUND - 40, 0xffe08a, 22, 200, true)
     }
     this.castBreak(n) // v78: only a hit that got past every shield (v85: and big enough)
     const hpBefore = this.hp
@@ -6175,7 +6179,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.demonOn) k *= 1 + IMMORTAL_RULES.demonDmg
     if (src === 'ult') k *= this.ultOpen
     const rs = this.itemEffect('ramp_stack') // 🧬 สะสมศึก (Rageblade): +power per fight turn after the first, never on the ult
-    if (rs && !this.allyHitting && !this.inUltWindow()) k *= 1 + rs.power * Math.min(rs.threshold ?? 8, Math.max(0, this.fightTurns - 1))
+    if (rs && !this.allyHitting && !this.inUltWindow()) k *= 1 + rs.power * Math.min(rs.threshold ?? COMBINE_FX.rampMax, Math.max(0, this.fightTurns - 1))
     return k
   }
   /** Hero damage-taken multiplier from cards / mythics. */
