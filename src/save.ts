@@ -291,7 +291,7 @@ export function replaceSlot(
 }
 
 /** Why `itemId` can't be worn at `slot` right now (null = it can): wrong slot kind, too many uniques, or a 2-handed weapon holds the off-hand. */
-export type EquipBlock = "slot" | "unique" | "twohand";
+export type EquipBlock = "slot" | "unique" | "twohand" | "mythic";
 export function equipBlock(
 	s: SaveData,
 	itemId: string,
@@ -303,6 +303,7 @@ export function equipBlock(
 	if (at === "offhand" && itemId !== BARE_ITEM.offhand && offhandLocked(s))
 		return "twohand"; // 2H weapon = both hands: change weapon first
 	if (uniqueEquipBlocked(s, itemId, at)) return "unique"; // v88: at most UNIQUE.maxEquipped uniques at once
+	if (mythicEquipBlocked(s, itemId, at)) return "mythic"; // 🧬 one tier-3 Mythic combine item at a time
 	return null;
 }
 
@@ -383,6 +384,13 @@ export function uniqueEquipBlocked(
 		others.filter((sl) => itemById(s.equipped[sl]).unique).length >=
 		UNIQUE.maxEquipped
 	);
+}
+/** 🧬 Mythic rule: wearing a tier-3 combined item while another one is on (in another slot) is blocked. */
+export const MYTHIC_MAX_EQUIPPED = 1;
+export function mythicEquipBlocked(s: SaveData, itemId: string, at: EquipSlot): boolean {
+	if (itemById(itemId).combine?.tier !== 3) return false;
+	const others = (Object.keys(s.equipped) as EquipSlot[]).filter((sl) => sl !== at && s.equipped[sl] !== itemId);
+	return others.filter((sl) => itemById(s.equipped[sl]).combine?.tier === 3).length >= MYTHIC_MAX_EQUIPPED;
 }
 /** Is this item worn in any slot? */
 export const isWorn = (s: SaveData, itemId: string) =>

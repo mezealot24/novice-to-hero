@@ -8,6 +8,7 @@ import type { Item } from './meta/item-types'
 /** Core cost rules (the boss mats + zeny on top of the two pieces). */
 export const COMBINE = {
   coreBoss: 3, // boss mats of the recipe dungeon (the dearer piece's dungeon)
+  coreBossMythic: 6, // tier 3: + 1 boss card of the recipe dungeon (combine.cards)
   idPrefix: 'cb_',
 }
 
@@ -105,4 +106,36 @@ export const COMBINE_ITEMS: Item[] = [
     effects: [{ id: 'bash', power: 1, chance: 0.15, cd: 2 }],
     combine: { tier: 2, from: ['cc_tc_knuckle', 'cc_tc_bell'] },
     craft: { dg: 'd14', common: 0, boss: 3, zeny: 12500, bonus: [{ combo: 0.05 }, { critMul: 0.15, magPen: 0.04 }] } },
+  // ===== P3 Mythic (tier 3, Q 2026-11-24): a combined item + a D10+ / unique piece; the inherited passive x1.3 + one more.
+  // Core: 6 boss mats + 1 boss card of the recipe dungeon. Only one Mythic worn at a time (save.ts mythicEquipBlocked). =====
+  { id: 'cb_m_executioner', wtype: 'sword', slot: 'weapon', name: 'เพชฌฆาตบัลลังก์กัดกร่อน', icon: '⚔️', price: 0, slots: 2, jobs: ['swordsman'], req: 'd12',
+    desc: 'Mythic · ผสมจากดาบกัดกร่อนวีรชน + คมมีดเพชฌฆาต · กัดกร่อน HP ปัจจุบันแรงขึ้น และประหารเป้าหมายที่ HP ต่ำ',
+    base: { str: 10, dex: 6, agi: 3 }, mod: { atk: 56, pskill: 0.1, crit: 0.1, critMul: 0.25, physPen: 0.14 },
+    effects: [{ id: 'rend_current', power: 0.039, threshold: 3.25 }, { id: 'execute_cull', power: 1, threshold: 0.1 }],
+    combine: { tier: 3, from: ['cb_rendblade', 'ac_collector_blade'], cards: { card_leviathan: 1 } },
+    craft: { dg: 'd12', common: 0, boss: 6, zeny: 15000, bonus: [{ lifesteal: 0.05 }, { critMul: 0.15 }] } },
+  { id: 'cb_m_krakenvoid', wtype: 'bow', slot: 'weapon', name: 'ธนูอสูรฉีกมิติ', icon: '🐙', price: 0, slots: 2, jobs: ['archer'], req: 'rift',
+    desc: 'Mythic · ผสมจากธนูอสูรสามจังหวะ + ธนูฉีกมิติรอยแยก · ทุกการยิงครั้งที่ 3 แรงขึ้น และฉีกเกราะเป้าหมาย',
+    base: { dex: 13, agi: 6, luk: 6 }, mod: { atk: 62, hit: 26, crit: 0.12, physPen: 0.18, magPen: 0.08, maxHp: 80 },
+    effects: [{ id: 'third_hit', power: 0.78, threshold: 3 }, { id: 'void_sunder', power: 0.35, cd: 1 }],
+    combine: { tier: 3, from: ['cb_krakenbow', 'ac_void_bow'], cards: { card_seraph: 1 } },
+    craft: { dg: 'd13', common: 0, boss: 6, zeny: 15000, bonus: [{ critMul: 0.2 }, { physPen: 0.06 }] } },
+  { id: 'cb_m_starfire', wtype: 'staff', slot: 'weapon', name: 'คทาเพลิงดาราทรมาน', icon: '🌠', price: 0, slots: 2, jobs: ['mage'], req: 'd13',
+    desc: 'Mythic · ผสมจากคทาเพลิงน้ำแข็งทรมาน + ปริซึมเซราฟ · เผาตาม Max HP แรงขึ้น และเวทแรงขึ้นเมื่อ Mana เหลือเยอะ',
+    base: { int: 14, wis: 8, luk: 4 }, mod: { matk: 68, spellCrit: 0.12, elemDmg: 0.2, magPen: 0.12, vsBurn: 0.18, maxHp: 60 },
+    effects: [{ id: 'skill_burn', power: 0.013, threshold: 2.3 }, { id: 'mana_overload', power: 0.35, threshold: 0.6 }],
+    combine: { tier: 3, from: ['cb_frostfirestaff', 'ac_seraph_prism'], cards: { card_seraph: 1 } },
+    craft: { dg: 'd13', common: 0, boss: 6, zeny: 15000, bonus: [{ spellCrit: 0.05 }, { mgUltAmp: 0.1 }] } },
+  { id: 'cb_m_bloodramp', wtype: 'dagger', slot: 'weapon', name: 'เขี้ยวโลหิตสะสมศึก', icon: '🩸', price: 0, slots: 2, jobs: ['thief'], req: 'd12',
+    desc: 'Mythic · ผสมจากมีดสะสมศึกเกล็ดหนอง + เขี้ยวกระหายเลือด (ยูนีค) · ยิ่งสู้นานยิ่งแรงขึ้นอีก ตีเบิ้ลได้ ดูดเลือดแรงแต่ฮีลตัวเองลดลง',
+    base: { agi: 11, str: 4, luk: 4 }, mod: { atk: 50, combo: 0.12, skillCrit: 0.08, lifesteal: 0.1, healAmp: -0.25 },
+    effects: [{ id: 'ramp_stack', power: 0.052, threshold: 8 }, { id: 'echo_double', power: 0.65, chance: 0.4, cd: 2 }],
+    combine: { tier: 3, from: ['cb_rampfang', 'u_bloodfang'], cards: { card_leviathan: 1 } },
+    craft: { dg: 'd12', common: 0, boss: 6, zeny: 15000, bonus: [{ dodgeHeal: 0.03 }, { skillCrit: 0.04, critMul: 0.12 }] } },
+  { id: 'cb_m_heartvow', slot: 'offhand', name: 'โล่คำสาบานหัวใจเหล็ก', icon: '🛡️', price: 0, slots: 2, jobs: ['cleric'], req: 'd12',
+    desc: 'Mythic · ผสมจากกระถางธูปคำสาบานใจสู้ + โล่หัวใจเหล็ก · ใจสู้โล่หนาขึ้น และปล่อยคลื่นโล่ตาม Max HP เมื่อเลือดต่ำ',
+    base: { vit: 12, wis: 8, str: 3 }, mod: { matk: 26, maxHp: 480, def: 40, mdef: 0.08, healAmp: 0.18, shieldAmp: 0.2 },
+    effects: [{ id: 'last_stand', power: 0.325 }, { id: 'guardian_pulse', power: 0.18, cd: 2, threshold: 0.35 }],
+    combine: { tier: 3, from: ['cb_vowcenser', 'ac_heartsteel_shield'], cards: { card_leviathan: 1 } },
+    craft: { dg: 'd12', common: 0, boss: 6, zeny: 15000, bonus: [{ shieldAmp: 0.1 }, { resRegen: 1 }] } },
 ]

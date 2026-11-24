@@ -10,10 +10,12 @@ import { canPay, forgetForge, isWorn, pay, unsocketAll, type SaveData } from '..
 
 export { COMBINE, COMBINE_ITEMS } from './combine-items'
 
-export type CombineWhy = 'notCombine' | 'owned' | 'locked' | 'missing' | 'worn' | 'broken' | 'tainted' | 'short'
+export type CombineWhy = 'notCombine' | 'owned' | 'locked' | 'missing' | 'worn' | 'broken' | 'tainted' | 'short' | 'cards'
 export type CombineCheck = { ok: true } | { ok: false; why: CombineWhy; piece?: string }
 
 export const isCombine = (it: Item) => !!it.combine
+/** Tier 3 Mythic: one worn at a time (save.ts mythicEquipBlocked). */
+export const isMythic = (it: Item) => it.combine?.tier === 3
 /** The two pieces a combined item eats. */
 export const combineParts = (it: Item): Item[] => (it.combine?.from ?? []).map(itemById)
 /** "ผสมต่อได้เป็น…": combined items that use this piece. */
@@ -31,6 +33,7 @@ export function canCombine(s: SaveData, it: Item): CombineCheck {
     if (isBroken(s, id)) return { ok: false, why: 'broken', piece: id }
     if (isTainted(s, id)) return { ok: false, why: 'tainted', piece: id }
   }
+  for (const [id, n] of Object.entries(it.combine.cards ?? {})) if ((s.cards?.[id] ?? 0) < n) return { ok: false, why: 'cards', piece: id }
   if (!canPay(s, craftCost(it))) return { ok: false, why: 'short' }
   return { ok: true }
 }
@@ -40,6 +43,7 @@ export function combine(s: SaveData, it: Item): boolean {
   if (!canCombine(s, it).ok) return false
   const g = combineGrade(s, it)
   if (!pay(s, craftCost(it))) return false
+  for (const [id, n] of Object.entries(it.combine!.cards ?? {})) { s.cards![id] -= n; if (s.cards![id] <= 0) delete s.cards![id] }
   for (const id of it.combine!.from) {
     unsocketAll(s, id)
     forgetForge(s, id)

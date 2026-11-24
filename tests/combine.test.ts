@@ -1,11 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildsInto, canCombine, combine, COMBINE, COMBINE_ITEMS, combineGrade, combineParts } from '../src/data/combine'
+import { buildsInto, canCombine, combine, COMBINE, COMBINE_ITEMS, combineGrade, combineParts, isMythic } from '../src/data/combine'
 import { craftCost } from '../src/data/craft'
-import { describeItemEffects } from '../src/data/item-effects'
+import { bossCardOfDungeon, describeItemEffects } from '../src/data/item-effects'
 import { canWear, heroBuild, itemById, ITEMS } from '../src/data/meta'
 import { salvage } from '../src/data/salvage'
-import { addCard, equip, newSave, socketCard, type SaveData } from '../src/save'
+import { addCard, equip, equipBlock, newSave, socketCard, type SaveData } from '../src/save'
 
 const blade = itemById('cb_rendblade')
 /** A save that owns both pieces of `it`, has beaten its dungeon and can pay the core (+ some spare zeny). */
@@ -20,9 +20,9 @@ const mk = (it = blade, over: Partial<SaveData> = {}): SaveData => {
 }
 
 test('combine data: cb_ ids, two crafted pieces, core = 3 boss mats + no common, a labelled Unique Passive, class matches', () => {
-  assert.equal(COMBINE_ITEMS.length, 15) // P1 5 + P2 10
-  assert.equal(new Set(COMBINE_ITEMS.flatMap((x) => x.combine!.from)).size, 30) // every piece is used by one recipe only
-  for (const it of COMBINE_ITEMS) {
+  assert.equal(COMBINE_ITEMS.length, 20) // P1 5 + P2 10 + P3 5 Mythic
+  assert.equal(new Set(COMBINE_ITEMS.flatMap((x) => x.combine!.from)).size, 40) // every piece is used by one recipe only
+  for (const it of COMBINE_ITEMS.filter((x) => !isMythic(x))) {
     assert.ok(it.id.startsWith(COMBINE.idPrefix), it.id)
     assert.ok(ITEMS.some((x) => x.id === it.id), `${it.id} registered in ITEMS`)
     assert.equal(it.price, 0)
@@ -41,6 +41,39 @@ test('combine data: cb_ ids, two crafted pieces, core = 3 boss mats + no common,
     for (const p of parts) assert.ok(canWear(p, it.jobs![0], j2), `${it.id}: ${p.id} wearable by the same class`)
   }
   assert.deepEqual(buildsInto('c_herosword').map((x) => x.id), ['cb_rendblade'])
+})
+
+const MYTHICS = COMBINE_ITEMS.filter(isMythic)
+test('mythic data: one per class, a tier-2 combined item + a D10+ / unique piece, 6 boss mats + its boss card, passive x1.3 + one more', () => {
+  assert.deepEqual(MYTHICS.map((x) => x.jobs![0]).sort(), ['archer', 'cleric', 'mage', 'swordsman', 'thief'])
+  for (const it of MYTHICS) {
+    const [base, extra] = combineParts(it)
+    assert.equal(base.combine?.tier, 2, `${it.id}: first piece is a tier-2 combined item`)
+    assert.ok(extra.unique || /^ac_/.test(extra.id), `${it.id}: second piece is D10+ awakened craft or a unique`)
+    for (const p of [base, extra]) assert.ok(it.desc.includes(p.name.replace(/\s*\(.*\)$/, '')), `${it.id}: desc names ${p.name}`)
+    assert.equal(it.craft!.boss, COMBINE.coreBossMythic)
+    assert.deepEqual(it.combine!.cards, { [bossCardOfDungeon(it.craft!.dg)!]: 1 })
+    assert.equal(it.effects?.length, 2)
+    const inh = base.effects![0], mine = it.effects!.find((e) => e.id === inh.id)!
+    assert.ok(Math.abs(mine.power / inh.power - 1.3) < 0.01, `${it.id}: inherited ${inh.id} x1.3`)
+    assert.ok(describeItemEffects(it.effects).every((l) => l.length > 10))
+  }
+})
+
+test('mythic: eats the boss card, and only one Mythic can be worn at a time', () => {
+  const ex = itemById('cb_m_executioner'), card = Object.keys(ex.combine!.cards!)[0]
+  const s = mk(ex, { zeny: 20000 })
+  assert.deepEqual(canCombine(s, ex), { ok: false, why: 'cards', piece: card })
+  addCard(s, card)
+  assert.ok(combine(s, ex))
+  assert.equal(s.cards?.[card] ?? 0, 0)
+  assert.ok(!s.owned.includes('ac_collector_blade'))
+  assert.equal(equipBlock(s, ex.id, 'weapon'), null)
+  assert.ok(equip(s, ex.id, 'weapon'))
+  s.owned.push('cb_m_heartvow')
+  assert.equal(equipBlock(s, 'cb_m_heartvow', 'offhand'), 'mythic')
+  assert.equal(equip(s, 'cb_m_heartvow', 'offhand'), false)
+  assert.equal(equipBlock(s, 'cb_m_heartvow', 'weapon'), 'slot')
 })
 
 test('combine eats both pieces, pays the core, carries the highest grade, refine +0, cards back to the bag', () => {

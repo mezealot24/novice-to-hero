@@ -90,10 +90,12 @@ export interface Item {
 	/** 🧬 Combine (data/combine.ts, Q 2026-11-24): made only by fusing `from` (owned pieces, eaten) + its `craft` cost. */
 	combine?: CombineInfo;
 }
-/** 🧬 Combine recipe: the pieces it eats. The core cost (boss mats + zeny) is the item's own `craft` entry. */
+/** 🧬 Combine recipe: the pieces it eats. The core cost (boss mats + zeny) is the item's own `craft` entry.
+ * Tier 3 = Mythic (a combined item + a D10+ / unique piece): also eats `cards` from the bag, and only one Mythic is worn at a time. */
 export interface CombineInfo {
-	tier: 2;
+	tier: 2 | 3;
 	from: [string, string];
+	cards?: Record<string, number>;
 }
 export const SW: JobId[] = ["swordsman"],
 	AR: JobId[] = ["archer"],
