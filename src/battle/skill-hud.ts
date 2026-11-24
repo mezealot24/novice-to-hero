@@ -1,7 +1,7 @@
 // v86 MOBA-style skill buttons: the pure rules behind the bottom-right cluster (docs/design/skill-buttons-v86.md).
 // No Phaser in here, so tests/skill-hud.test.ts can run it directly. BattleScene only draws what these return.
 
-export type SkillSlot = 's1' | 's2' | 's3' | 'ult'
+export type SkillSlot = 's1' | 's2' | 's3' | 's4' | 'ult'
 
 export interface SkillBtnIn {
   cdLeft: number // hero turns until ready (0 = no cooldown running)
@@ -42,11 +42,11 @@ export function resourceIcon(resource: 'mana' | 'rage' | 'energy' | null): strin
   return resource === 'mana' ? '💧' : resource === 'rage' ? '🔥' : resource === 'energy' ? '⚡' : ''
 }
 
-/** Desktop hotkeys: Digit1-3 / Numpad1-3 book Skill 1-3, Digit4 / Numpad4 book the ult. null = not ours. */
+/** Desktop hotkeys: Digit1-3 / Numpad1-3 book Skill 1-3, Digit4 / Numpad4 book the ult, Digit5 / Numpad5 Skill 4 (Q 2026-11-24). null = not ours. */
 export function hotkeySlot(code: string): SkillSlot | null {
-  const m = /^(?:Digit|Numpad)([1-4])$/.exec(code)
+  const m = /^(?:Digit|Numpad)([1-5])$/.exec(code)
   if (!m) return null
-  return (['s1', 's2', 's3', 'ult'] as const)[Number(m[1]) - 1] ?? null
+  return (['s1', 's2', 's3', 'ult', 's4'] as const)[Number(m[1]) - 1] ?? null
 }
 
 /** Pie-slice end angles (radians) for the dark cooldown sweep, clockwise from 12 o'clock. */
@@ -55,15 +55,18 @@ export function sweepAngles(sweep: number): { from: number; to: number } {
   return { from, to: from + Math.PI * 2 * clamp01(sweep) }
 }
 
-/** Cluster geometry: ult circle bottom-right, Skill 1-3 on an arc around it (180 / 225 / 270 degrees). */
+/** Cluster geometry: ult circle bottom-right, Skill 1-3 on an arc around it (180 / 225 / 270 degrees).
+ *  With a Skill 4 (`four`) the arc holds 4 buttons (180 / 210 / 240 / 270) on a wider, smaller-button ring so they don't overlap. */
 export const SKILL_HUD = {
   ultR: 48, smallR: 28, arcR: 88, margin: 64,
-  angles: { s1: 180, s2: 225, s3: 270 },
+  angles: { s1: 180, s2: 225, s3: 270, s4: 270 },
+  four: { smallR: 26, arcR: 112, angles: { s1: 180, s2: 210, s3: 240, s4: 270 } },
 } as const
 
-export function slotCenter(slot: SkillSlot, w: number, h: number): { x: number; y: number; r: number } {
+export function slotCenter(slot: SkillSlot, w: number, h: number, four = false): { x: number; y: number; r: number } {
   const cx = w - SKILL_HUD.margin, cy = h - SKILL_HUD.margin
   if (slot === 'ult') return { x: cx, y: cy, r: SKILL_HUD.ultR }
-  const a = (SKILL_HUD.angles[slot] * Math.PI) / 180
-  return { x: Math.round(cx + Math.cos(a) * SKILL_HUD.arcR), y: Math.round(cy + Math.sin(a) * SKILL_HUD.arcR), r: SKILL_HUD.smallR }
+  const g = four ? SKILL_HUD.four : SKILL_HUD
+  const a = (g.angles[slot] * Math.PI) / 180
+  return { x: Math.round(cx + Math.cos(a) * g.arcR), y: Math.round(cy + Math.sin(a) * g.arcR), r: g.smallR }
 }

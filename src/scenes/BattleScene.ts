@@ -26,7 +26,7 @@ import { BM_CRIT_COUNTER, BM_STANCE, KIT3, disarmWeak, divestMul, rogueStripCut,
 import { branchPts } from '../data/tree'
 import { ultCdCut, condCritB3, thiefUltCondCritDmg, thiefUltCritAdd, thiefUltHitCount, thiefOnHitEff, thiefUltFinisher, thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, swordS1On, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, matkToPmRatio, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost, rogueKnifeMul, rogueSteelMul, rogueStabAmp, rogueComboDebuff, rogueAmbushCrit } from '../data/skill-math'
 import { agonyBonus, canDetonate, contaminateBossRefund, contaminateCritChance, contaminateLeechShare, detonateDmg, detonateStacks, gamblerLuckyRes, paApplies, poisonPowerBonus, poisonTickTotal, shadowWardApplies } from '../data/thief-offmeta'
-import { applyDeathMarkState, applyMistDr, applyToxicOverheal, bloodFuryDmgMul, bloodFurySelfCost, counterDefBonusDmg, deathMarkEarlyPop, deathMarkEchoDmg, deathMarkNetHpDmg, flurryStabMul, luckyReprisalAction, mobsterFlurrySlashMul, physLeechMul, pickDeathMarkTarget, resolveMonsterShieldSoak, s3ShieldPierceOf, shieldCutMul, shouldRecordDeathMark, swordBreakTurnsOf, swordS1Cd, swordS3BreakTurns, swordTakenMul } from '../data/passive-battle'
+import { applyDeathMarkState, applyMistDr, applyToxicOverheal, bloodFuryDmgMul, bloodFurySelfCost, counterDefBonusDmg, deathMarkEarlyPop, deathMarkEchoDmg, deathMarkNetHpDmg, flurryStabMul, luckyReprisalAction, mobsterFlurrySlashMul, physLeechMul, pickDeathMarkTarget, s3ShieldPierceOf, shieldCutMul, shouldRecordDeathMark, swordBreakTurnsOf, swordS1Cd, swordS3BreakTurns, swordTakenMul } from '../data/passive-battle'
 import { addCard, addMat, addXp, loseXp, persist, save, trialWin, ultMode } from '../save'
 import { activeJob3, JOB3 } from '../data/jobs3'
 import { MAT_RULES, matName, matOf, taintDrop } from '../data/materials'
@@ -36,6 +36,7 @@ import { rollUniqueDrop, UNIQUE } from '../data/uniques'
 import { rollEndgameUniqueDrop, rollUnique3Drop } from '../data/uniques3'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
+import { breakAmpOf, breakTurns, fangSoak, s4Shatter, s4StunKind, s4Target, s4Unlocked } from '../data/skill4'
 import { HARD_POWER, TOWER_POWER } from '../data/power'
 import { escalate, escalationAt } from '../data/hard-escalation'
 import { canPay, MON_MANA, newManaPool, payMana, regenMana, type ManaPool } from '../data/mon-mana'
@@ -115,6 +116,7 @@ interface Mon {
   wet: number // Innovator ☁️ เมฆฝน: turns of +KIT2.innovator.wetAmp damage taken
   huntMark: number // v82 Archer หมายหัว: turns of +st.arMark damage taken (ticks with its turns)
   stunTurns?: number // Champion Tiger Knuckle extra stun turns left
+  brk4?: number // Q 2026-11-24 🔓 Break trial (Skill 4): hero turns left
   permafrost?: number // Sage ❄️ Permafrost stacks (0..4, Sejuani E style)
   mark?: ProfMark | null; markTurns?: number; markLayers?: number // 🎓 Professor 🏷️ element mark (monster turns left · charges before it is used up)
   sunder?: number // void_sunder DEF/M.DEF shred share
@@ -428,7 +430,7 @@ export class BattleScene extends Phaser.Scene {
     this.sageInt = tb.int; this.heroVit = tb.vit; this.heroDex = tb.dex; this.heroWis = tb.wis; this.mdPower = mageDefPower(tb.int, tb.wis, s.baseLevel); this.casts = []; this.steady = false; this.endow = 0 // Phase 5 Mage · v78 DEX lowers the chant break
     this.heroLuk = tb.luk; this.heroStr = tb.str; this.heroTopStat = Math.max(tb.str, tb.dex, tb.agi); this.pet = s.pet ?? 'hawk' // Phase 4 Archer: hawk / gadget odds read base LUK · bm_k1 highest STR/DEX/AGI
     { const wpn = itemById(s.equipped.weapon ?? ''); this.j2Weapon = !!this.j2?.mastery.ok(wpn); this.hasShield = !wpn.twoHand && !!s.equipped.offhand && s.equipped.offhand !== 'none_off'; this.dualKnife = this.hasShield && itemById(s.equipped.offhand ?? '').wtype === 'dagger' }
-    this.frenzy = 0; this.frenzyAt = 0; this.s3Cd = 0; this.rampage = 0; this.swAwaken = 0; this.swWave = false; this.swAuraStop(); this.charges = 0; this.monkGrit = 0; this.asuraExhaust = 0; this.allies = []; this.allyTxt.clear(); this.chargeTxt = undefined
+    this.frenzy = 0; this.frenzyAt = 0; this.s3Cd = 0; this.s4Cd = 0; this.rampage = 0; this.swAwaken = 0; this.swWave = false; this.swAuraStop(); this.charges = 0; this.monkGrit = 0; this.asuraExhaust = 0; this.allies = []; this.allyTxt.clear(); this.chargeTxt = undefined
     this.s2 = this.job.id === 'novice' ? undefined : skill2Picked(s.jobTree, this.job.id); this.s2Cd = 0; this.s1Cd = 0; this.swGuard = 0
     this.buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, bless: 0, dawnWis: 0, lootAtk: 0, lootCrit: 0 }; this.s2Count = 0
     this.hcVit = { n: 0, turns: 0, amt: 0, delta: {} } // v119 💪 Holy Cross VIT stacks
@@ -1206,6 +1208,8 @@ export class BattleScene extends Phaser.Scene {
     if (this.zenTurns > 0) this.zenTurns--
     if (this.smashCdLeft > 0) this.smashCdLeft--
     if (this.s1Cd > 0) this.s1Cd--
+    if (this.s4Cd > 0) this.s4Cd--
+    for (const m of this.alive()) if ((m.brk4 ?? 0) > 0) { m.brk4!--; this.dotIcon(m) } // 🔓 Break counts hero turns
     if (this.swGuard > 0) this.swGuard--
     this.ultCdCutLeft = KIT.thiefUltCdCutCap; this.ultJustCast = false // P2'c Global Ult CD cap: new hero turn
     if (this.relic === 'storm' && this.fightTurns % RELIC_RULES.storm.every === 0) { await this.lightningWrath(); if (!this.alive().length) return }
@@ -1231,6 +1235,7 @@ export class BattleScene extends Phaser.Scene {
     }
     this.autoUltTurn()
     if (chantDone) return // free actions above still ran; no Skill 1 / ult / basic this turn
+    if (await this.skill4Turn()) return // Q 2026-11-24 Skill 4 takes the hero turn (a booked, paid ult goes first)
     if (this.smashQueued && this.smashCdLeft <= 0 && this.hx.silence > 0) this.floatText(HERO_X, GROUND - 140, `🤐 ใบ้! อีก ${this.hx.silence} เทิร์น`, '#c9a8ff')
     const asuraNeed = this.j2?.id === 'monk' && this.st.j2Asura > 0 ? KIT2.monk.asuraMinAt : 0
     const ultCost = this.ultCost()
@@ -1274,7 +1279,7 @@ export class BattleScene extends Phaser.Scene {
   private buf = { guard: 0, blood: 0, hawk: 0, mshield: 0, renew: 0, bless: 0, dawnWis: 0, lootAtk: 0, lootCrit: 0 } // hero turns left on Skill 2 buffs (+ v102 ☀️ แสงแตก WIS)
   private kyrie = { hp: 0, hits: 0 } // v77 พรแสง "+" Kyrie Eleison: barrier HP + hits left (gone with the blessing)
   private s2Count = 0 // casts this run (bot/debug)
-  private book = { s1: false, s2: false, s3: false } // v86 manual mode: skills the player booked (the ult uses smashQueued)
+  private book = { s1: false, s2: false, s3: false, s4: false } // v86 manual mode: skills the player booked (the ult uses smashQueued)
   private skillBtns: SkillBtnView[] = [] // v86 MOBA-style cluster (everything but the Novice)
   private skillTip?: Phaser.GameObjects.Text
   private res = 0
@@ -1631,6 +1636,7 @@ export class BattleScene extends Phaser.Scene {
   private frenzy = 0 // Berserker Frenzy stacks
   private frenzyAt = 0 // fightTurns of the last crit
   private s3Cd = 0 // hero turns until ทักษะ 3 can cast again
+  private s4Cd = 0 // Q 2026-11-24 hero turns until Skill 4 can cast again
   private rampage = 0 // Berserker บ้าระห่ำ turns left
   private s1Cd = 0 // ⚔️ ดาบสยบมนตร์: hero turns until Skill 1 can cast again · swGuard = CC-immune hero turns (web ใจไม่หวั่น)
   private swGuard = 0
@@ -3013,6 +3019,50 @@ export class BattleScene extends Phaser.Scene {
       }
       } finally { this.inS3 = prevS3 }
     }, 'skill')
+  }
+  /** Q 2026-11-24 Skill 4 is learned (Knight, Job2 Lv >= KIT2.knight.s4.unlockLv): button, cast and the 🐍 Fang passive. */
+  private s4On() { return !!this.j2?.skill4 && s4Unlocked(this.j2.id, save().job2Level) }
+  /** Skill 4: takes the hero turn when ready and paid for. A booked, affordable ult goes first; auto mode keeps Mana for an ult that is about to come back. */
+  private async skill4Turn(): Promise<boolean> {
+    const sk = this.j2?.skill4
+    if (!sk || !this.s4On() || this.s4Cd > 0 || this.hx.silence > 0 || this.asuraExhaust > 0) return false
+    if (!mayCast(!this.autoUlt, this.book.s4)) return false
+    const ultCost = this.ultCost()
+    if (this.smashQueued && this.smashCdLeft <= 0 && this.res >= ultCost) return false
+    if (this.res < sk.cost) return false
+    if (this.autoUlt && this.smashCdLeft <= 1 && this.res - sk.cost < ultCost) return false
+    const t = s4Target(this.alive(), (m) => monTier(m.def))
+    if (!t) return false
+    this.spendRes(sk.cost)
+    this.s4Cd = sk.cd
+    this.book.s4 = false; this.popSkill('s4')
+    await this.asSkill(() => this.spiralPierce(t), 'skill')
+    return true
+  }
+  /** 🌀 Spiral Pierce (Rell Q + Serpent's Fang): shatter the target's shield, thrust (+ if shattered), then stun a normal / mini or cut a boss cast. */
+  private async spiralPierce(t: Mon) {
+    const S = KIT2.knight.s4, st = this.st, tier = monTier(t.def), lk = st.j3Lk > 0
+    await this.skillName(this.j2!.skill4!)
+    const sh = s4Shatter(t.shield, tier)
+    if (sh.shattered) {
+      t.shield = sh.shield; this.dotIcon(t)
+      this.burst(t.spr.x, t.spr.y - t.spr.displayHeight * 0.5, 0x9fe3ff, 14, 200)
+      this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 40, tier === 'boss' ? `🛡️💥 ทุบโล่ −${Math.round(S.bossShield * 100)}%` : '🛡️💥 ทุบโล่!', '#9fe3ff')
+    }
+    const amp = sh.shattered ? 1 + S.shatterAmp : 1, hits = lk ? S.lkHits : 1
+    const mul = ((lk ? S.lkMul : S.mul) * (1 + st.pskill) + this.hpMul()) * amp
+    await this.lunge(t, () => {
+      this.cameras.main.flash(70, 160, 220, 255)
+      for (let i = 0; i < hits && !t.dead; i++) this.strike(t, mul, false, '#9fe3ff', lk && i === hits - 1 ? S.lkPierce : 0)
+      if (t.dead) return
+      const y = t.spr.y - t.spr.displayHeight - 24
+      if (s4StunKind(tier) === 'turn') { t.frozen = true; this.floatText(t.spr.x, y, '💫 สตั๊น (เสียเทิร์น)', '#ffe08a') }
+      else if (t.charging) this.endMonCast(t, { text: `💫 ตัดร่าย ${t.def.name}!`, color: '#ffe08a' }, S.bossGauge)
+      else { t.gauge = Math.max(0, t.gauge - S.bossGauge); this.floatText(t.spr.x, y, `💫 เกจ −${S.bossGauge}`, '#ffe08a') }
+      const bt = breakTurns()
+      if (bt > 0) { t.brk4 = bt; this.floatText(t.spr.x, y - 22, `🔓 Break ${bt} เทิร์น`, '#ffb86b') }
+      this.dotIcon(t)
+    }, true, true)
   }
   /** Ult วิวัฒน์: replaces the base class ult (keeps ultPow + ult-web Stats where they fit). */
   private async ult2(live: Mon[], pow: number, hitPow: number) {
@@ -5124,6 +5174,7 @@ export class BattleScene extends Phaser.Scene {
       if (!dot && m.huntMark > 0) { const mk = Math.max(this.st.arMark, this.j2?.id === 'beastmaster' ? preyMarkOf(this.st) : 0); if (mk > 0) dmg = Math.ceil(dmg * (1 + mk)) } // v82 archer หมายหัว · 🏷️ Beastmaster Prey Mark (hits only)
       if (!dot && m.armorBrk > 0 && this.st.swBreak > 0) dmg = Math.ceil(dmg * (1 + this.st.swBreak)) // v84 Swordsman ทุบเกราะ (hits only)
       if (this.st.lateDmg > 0 && this.fightTurns >= 12) dmg = Math.ceil(dmg * (1 + this.st.lateDmg)) // cleric talent: อรุณรุ่ง
+      const brk4 = breakAmpOf({ turns: m.brk4 ?? 0, tier: monTier(m.def), src: this.src, slot: this.skillSlot, inUlt: this.inUltWindow(), dot }); if (brk4 > 0) dmg = Math.ceil(dmg * (1 + brk4)) // 🔓 Break trial (admin kit break4.on)
       const taken = this.takenAmpOf(m, dot); if (taken > 0) dmg = Math.ceil(dmg * (1 + taken)) // P2'b B1 Taken (R4.6): Exposed + Privileged + gear กัดกร่อน, added under KIT.thiefTakenCap
       if (!dot && this.relic === 'executioner' && m.hp < m.def.hp * RELIC_RULES.executioner.below) dmg = Math.ceil(dmg * (1 + RELIC_RULES.executioner.mul))
     }
@@ -5142,7 +5193,7 @@ export class BattleScene extends Phaser.Scene {
     if (!dot && !pure && m.absorb > 0 && dmg > 0) { m.stored += dmg * m.absorb; this.dotIcon(m) } // Mirage: stores it for the Soul Strike
     if (!pure && m.shield > 0) { // monster shield (turtle wall, ice armor, bone shield) soaks first · PoE Passive S3 shield pierce
       const shPierce = s3ShieldPierceOf(this.inS3, this.src, dot, this.st.thS3ShieldPierce)
-      const soak = resolveMonsterShieldSoak(m.shield, dmg, shPierce, pure)
+      const soak = fangSoak(m.shield, dmg, shPierce, !this.allyHitting && this.s4On() ? KIT2.knight.s4.fang : 0, pure) // 🐍 เขี้ยวงู (Skill 4 passive)
       if (soak.absorbed > 0) {
         m.shield = soak.remShield; dmg = soak.remDmg
         this.floatText(m.spr.x + 30, m.spr.y - m.spr.displayHeight - 20, `🛡️-${Math.round(soak.absorbed)}`, '#9fe3ff')
@@ -5936,7 +5987,7 @@ export class BattleScene extends Phaser.Scene {
   private dotIcon(m: Mon) {
     if (m.dead || !m.spr.active) return // a DoT tick or card can land after the kill: its icon text is already gone (page error 'drawImage' of null)
     if (!m.dotTxt) m.dotTxt = this.add.text(0, 0, '', { fontSize: '14px' }).setOrigin(0.5).setDepth(9500)
-    m.dotTxt.setText(`${(m.mSilence ?? 0) > 0 ? '🤐' : ''}${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${(m.permafrost ?? 0) > 0 ? '💠' + m.permafrost : ''}${m.mark ? `[${PROF_ICON[m.mark]}${(m.markLayers ?? 1) > 1 ? '×' + m.markLayers : ''}]` : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${(m.disarm ?? 0) > 0 ? '🧤' : ''}${m.armorBrk > 0 ? '🦴' : ''}${(m.sunderTurns ?? 0) > 0 ? '🕳️' : ''}${m.blind > 0 ? '🙈' : ''}${m.exposed > 0 ? '👁️' : ''}${m.wound > 0 ? '🩸' + m.wound : ''}${m.dagger > 0 ? '🔪' + m.dagger : ''}${m.stabMark > 0 ? '🗡️' : ''}${m.strip > 0 ? '🔓' : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${this.thMarkMon === m ? '🔻' + this.malice : ''}${(m.deathMark ?? 0) > 0 ? '💀' + m.deathMark : ''}${m.reflect > 0 ? '🔁' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
+    m.dotTxt.setText(`${(m.brk4 ?? 0) > 0 ? '🔓' + m.brk4 : ''}${(m.mSilence ?? 0) > 0 ? '🤐' : ''}${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${(m.permafrost ?? 0) > 0 ? '💠' + m.permafrost : ''}${m.mark ? `[${PROF_ICON[m.mark]}${(m.markLayers ?? 1) > 1 ? '×' + m.markLayers : ''}]` : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${(m.disarm ?? 0) > 0 ? '🧤' : ''}${m.armorBrk > 0 ? '🦴' : ''}${(m.sunderTurns ?? 0) > 0 ? '🕳️' : ''}${m.blind > 0 ? '🙈' : ''}${m.exposed > 0 ? '👁️' : ''}${m.wound > 0 ? '🩸' + m.wound : ''}${m.dagger > 0 ? '🔪' + m.dagger : ''}${m.stabMark > 0 ? '🗡️' : ''}${m.strip > 0 ? '🔓' : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${this.thMarkMon === m ? '🔻' + this.malice : ''}${(m.deathMark ?? 0) > 0 ? '💀' + m.deathMark : ''}${m.reflect > 0 ? '🔁' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
   }
 
   // ---------- xp / perks ----------
@@ -7618,7 +7669,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   // ---------- v86 MOBA-style skill buttons (docs/design/skill-buttons-v86.md) ----------
-  private clearBookings() { this.book = { s1: false, s2: false, s3: false } }
+  private hudFour = false // Q 2026-11-24: Skill 4 button on, the arc holds 4 small buttons
+  private clearBookings() { this.book = { s1: false, s2: false, s3: false, s4: false } }
   private s3Cost() { return this.pfFreeEndow && this.j2?.id === 'sage' ? 0 : Math.max(0, (this.j2?.skill3.cost ?? 0) - this.st.j2CmdCut) } // 🎓 📜 Memorize Lv 2: free Endow this boss wave // v82 Beastmaster คำสั่งไว
 
   /** (Re)build the cluster for the current job. The Novice keeps the old long smash button. */
@@ -7636,13 +7688,15 @@ export class BattleScene extends Phaser.Scene {
     if (this.job.resource) slots.push('s1')
     if (this.s2) slots.push('s2')
     if (this.j2) slots.push('s3')
+    this.hudFour = this.s4On()
+    if (this.hudFour) slots.push('s4')
     slots.push('ult')
     this.skillBtns = slots.map((s) => this.makeSkillBtn(s))
     this.skillTip = this.add.text(W - 8, slotCenter('s3', W, H).y - 36, '', { fontFamily: FONT_UI, fontSize: '14px', fontStyle: 'bold', color: '#f6eedc', stroke: '#14172b', strokeThickness: 4, align: 'right' }).setOrigin(1, 1).setDepth(15004)
   }
 
   private makeSkillBtn(slot: SkillSlot): SkillBtnView {
-    const { x, y, r } = slotCenter(slot, W, H), big = slot === 'ult'
+    const { x, y, r } = slotCenter(slot, W, H, this.hudFour), big = slot === 'ult'
     const base = this.add.graphics(), sweep = this.add.graphics(), ring = this.add.graphics(), bookRing = this.add.graphics()
     const flash = this.add.graphics(); flash.fillStyle(0xffffff, 1).fillCircle(0, 0, r).setAlpha(0)
     const t = (oy: number, size: number, color: string, font = FONT_NUM) => this.add.text(0, oy, '', { fontFamily: font, fontSize: `${size}px`, fontStyle: 'bold', color, stroke: '#14172b', strokeThickness: 3 }).setOrigin(0.5)
@@ -7685,6 +7739,10 @@ export class BattleScene extends Phaser.Scene {
     if (slot === 's3' && this.j2) {
       const sk = this.j2.skill3, cost = this.s3Cost(), monk = this.j2.id === 'monk', need = KIT2.monk.thunderMin
       return { in: { cdLeft: this.s3Cd, cdMax: sk.cd, cost, res: this.res, booked: this.book.s3, manual, blocked: silent || exhaust || (monk && this.charges < need) }, icon: sk.icon, name: sk.name, costTxt: monk ? `🔵${this.charges}/${need}` : money(cost) }
+    }
+    if (slot === 's4' && this.j2?.skill4) {
+      const sk = this.j2.skill4
+      return { in: { cdLeft: this.s4Cd, cdMax: sk.cd, cost: sk.cost, res: this.res, booked: this.book.s4, manual, blocked: silent || exhaust }, icon: sk.icon, name: sk.name, costTxt: money(sk.cost) }
     }
     const cost = this.ultCost(), asura = this.j2?.id === 'monk' && this.st.j2Asura > 0, need = KIT2.monk.asuraMinAt
     const u = asura ? { icon: '💥', name: 'อาชูร่าสไตรก์' } : this.job.ult

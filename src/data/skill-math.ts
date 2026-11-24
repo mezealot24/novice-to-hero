@@ -78,6 +78,7 @@ export const breakRefundMana = (paid: number) => Math.floor(Math.max(0, paid) * 
 export const KIT = {
   cast: MAGE_CAST, // v78: tunable as kit `cast.*`
   monCast: MON_CAST, // Q 2026-11-20: boss / mini-boss cast break (data/mon-cast.ts), tunable as kit `monCast.*`
+  break4: { on: 0, amp: 0.2, bossAmp: 0.12, turns: 2 }, // Q 2026-11-24 🔓 Break trial (admin kit `break4.*`, off by default): Skill 4 opens the target -> basic / Skill 1 / Skill 3 hits +amp (boss / mini bossAmp) for N hero turns, never the ult
   cleric: CLERIC_KIT, // v86: reference (defined in jobs.ts to avoid a jobs <-> skill-math import cycle), tunable as kit `cleric.*`
   archerAuto: 0.9, archerAutoShots: 2, archerVolleyShots: 3, archerUlt: 5,
   mageFire: 2, mageFireStacks: 3, mageIce: 1.6, mageIceChill: 3, mageLightHits: 6, mageLightLo: 0.3, mageLightHi: 1.2,
@@ -277,6 +278,10 @@ export const KIT2 = {
       sweepEvery: 3, sweep: 0.3, sweepPush: 5, sweepGauge: 15, sweepHitGauge: 3, // ทวนวน: every Nth hero turn sweep all x P.ATK/lv (+ max HP share) · เหวี่ยง gauge −/lv · ทวนเร็ว hero gauge +/lv per sweep kill (+ hit)
       sweepBreak: 2, sweepStun: 0.25, // ★ พายุทวน: sweep breaks armor N turns + stun chance (boss / mini: gauge push)
     },
+    // Q 2026-11-24 Skill 4 🌀 Spiral Pierce (Rell Q + Serpent's Fang): one target (boss > mini > front), unlocks at Job2 Lv unlockLv, takes the hero turn.
+    // Shatters the target's monster shield first (boss phase shield: bossShield share) -> the thrust hits +shatterAmp · normal / mini lose a turn, a boss loses its cast + bossGauge.
+    // 🐍 Fang: once unlocked, every hero hit drains monster shields x(1 + fang). Lord Knight: lkHits thrusts of lkMul, the last ignores lkPierce of DEF.
+    s4: { cost: 20, cd: 4, unlockLv: 20, mul: 2, shatterAmp: 0.3, bossShield: 0.5, bossGauge: 30, fang: 0.5, lkHits: 3, lkMul: 0.8, lkPierce: 0.5 },
   },
   rogue: {
     knifeMul: 0.4, knifePerCombo: 1, dualKnife: 1, // 🔪 มีดบิน: each extra combo hit throws knives at random monsters (+1 with a dagger off-hand) · no lifesteal

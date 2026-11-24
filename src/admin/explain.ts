@@ -100,6 +100,7 @@ export function explainTableGroup(t: TableId, key: string): { title: string; des
     },
     kit: {
       cast: { title: '🔮 cast · ระบบร่ายเวท (Mage)', desc: 'โอกาสร่ายแตก คืน Mana และลูกไฟพื้นฐาน' },
+      break4: { title: '🔓 break4 · Break ทดลอง (Skill 4)', desc: 'สวิตช์ทดลองของ Q: Skill 4 เปิดเกราะเป้า แล้วตีปกติ / Skill 1 / Skill 3 แรงขึ้นชั่วคราว (ult ไม่ได้)' },
       monCast: { title: '🔮 monCast · บอสร่ายเวท (ร่ายแตก)', desc: 'โอกาสตีบอส/มินิบอสที่กำลังร่ายแล้วร่ายแตก ต้านตามระดับ เกจถอย และร่ายถัดไปไม่แตก' },
       cleric: { title: '✝️ cleric · ตัวคูณและโล่หลัก (Cleric)', desc: 'ค่าร่าย Ult, ฮีล, แสงตก, โล่ และเพดานโล่พระ' },
       clericTree: { title: '🕸️ clericTree · ใยแมงมุมพระ (รุ่งอรุณ / แก่นศรัทธา)', desc: 'ตัวเลขโนดในสกิลทรีของนักบวช' },

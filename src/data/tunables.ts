@@ -214,6 +214,7 @@ export const TABLES: Record<TableId, TableDef> = {
       ['poison.atkPer|matkPer|intPer|burstKeep|defPer|defCap', num(0, 1)], ['poison.baseCap', int(1, 50)],
       ['thiefShadow.max|turns|dodge|double|ult', int(0, 20)], ['thiefMark.max', int(1, 20)], ['thiefMark.dmg', num(0, 5)],
       ['poison.slowAt|slowStep|slowTurns', int(0, 50)], ['poison.overflowMul|spreadBurst|hpFlat', num(0, 10)], ['poison.hpAbove|hpPct|hpPctInt|spreadShare', num(0, 1)],
+      ['break4.on', int(0, 1)], ['break4.turns', int(0, 5)], ['break4.amp|bossAmp', num(0, 1)], // Q 2026-11-24 🔓 Break trial (Skill 4)
       ['thiefSteal.atk|heal|crit', num(0, 2)], ['thiefSteal.turns|res|poison|brkTurns', int(0, 100)]], // ☠️ Thief-line poison (Q 2026-11-17)
   },
   // Class skills (skill-registry.ts): costs / cooldowns / Skill 2 numbers / per-skill crit switch. Exact paths, built from the registry.
