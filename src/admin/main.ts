@@ -29,6 +29,7 @@ import {
   type TableFilter,
 } from './bulk'
 import { explainField, explainTableGroup, TABLE_EXPLAIN } from './explain'
+import { groupSkillRefs, type SkillLvTable } from './skill-groups'
 import { kitUsers, scriptKits } from './kits'
 import {
   allocFor,
@@ -114,6 +115,10 @@ const S = {
   tableSel: new Set<string>(),
   skillClass: 'swordsman' as SkillClass | Job2Id,
   skillMode: 'class' as 'class' | 'bulk',
+  skillSlot: 'all' as string,
+  skillQuery: '',
+  skillOnlyChanged: false,
+  skillShowDesc: false,
   skillFilter: { search: '', tier: 'all', cls: 'all', slot: 'all', metric: 'all', status: 'all' } as SkillFilter,
   skillSel: new Set<string>(),
   bulkOp: 'pct' as BulkOp,
@@ -1051,9 +1056,396 @@ function renderMonsters(main: HTMLElement) {
 }
 
 // ---------- class skills (skill-registry.ts) ----------
-function skillBlock(title: string, refs: SkillRef[], hint?: string): HTMLElement {
-  const cs = refs.map((ref) => { const row = fieldRow(ref.table, ref.path); return row ? fieldCell(ref.table, row, ref.label, updateStatus) : null })
-  return h('section', { class: 'sec skillcol' }, h('h4', {}, title), hint ? h('p', { class: 'hint' }, hint) : null, h('div', { class: 'grid' }, ...cs))
+type SkillSecSpec =
+  | { kind: 'std'; id: string; tabLabel: string; title: string; hint?: string; refs: SkillRef[]; defaultOpen: boolean }
+  | { kind: 's2'; id: string; tabLabel: string; title: string; hint?: string; sharedCrit: SkillRef; choices: { id: string; title: string; refs: SkillRef[] }[]; defaultOpen: boolean }
+
+function allRefsOfClass(id: SkillClass | Job2Id): SkillRef[] {
+  if ((JOB2_IDS as string[]).includes(id)) {
+    const l = job2Layout(id as Job2Id)
+    return [...l.s1, ...l.s3, ...l.ult, ...l.s4, ...l.j3, ...l.other]
+  }
+  const c = id as SkillClass, L = SKILL_LAYOUT[c]
+  return [
+    critRef(c, 's1'), ...L.s1,
+    critRef(c, 's2'), ...L.s2.flatMap((x) => x.refs),
+    critRef(c, 'ult'), ...L.ult,
+    ...(L.tree ?? []),
+  ]
+}
+
+function sectionRefs(sec: SkillSecSpec): SkillRef[] {
+  return sec.kind === 'std' ? sec.refs : [sec.sharedCrit, ...sec.choices.flatMap((x) => x.refs)]
+}
+
+function countEdits(refs: readonly SkillRef[]): { chg: number; pat: number; total: number } {
+  const seen = new Set<string>()
+  let chg = 0, pat = 0
+  for (const r of refs) {
+    const k = `${r.table}:${r.path}`
+    if (seen.has(k)) continue
+    seen.add(k)
+    const d = valueIn(S.draft, r.table, r.path)
+    const cur = draftOf(r.table, r.path), live = liveOf(r.table, r.path)
+    if (cur !== live) chg++
+    if (d !== undefined) pat++
+  }
+  return { chg, pat, total: seen.size }
+}
+
+function editDot(chg: number, pat: number): HTMLElement | null {
+  if (chg > 0) return h('span', { class: 'sk-dot chg', title: `แก้ต่างจาก live ${chg} ช่อง` }, String(chg))
+  if (pat > 0) return h('span', { class: 'sk-dot pat', title: `ตั้งค่าต่างจาก default ${pat} ช่อง` }, String(pat))
+  return null
+}
+
+function matchesSkillFilter(ref: SkillRef, shortLabel: string, q: string, onlyChanged: boolean): boolean {
+  if (onlyChanged) {
+    const d = valueIn(S.draft, ref.table, ref.path)
+    const cur = draftOf(ref.table, ref.path), live = liveOf(ref.table, ref.path)
+    if (cur === live && d === undefined) return false
+  }
+  if (!q) return true
+  const ex = explainField(ref.table, ref.path, { defaultLabel: ref.label })
+  const hay = `${ref.label} ${shortLabel} ${ref.path} ${ex.label} ${ex.effect} ${ex.detail ?? ''}`.toLowerCase()
+  return q.split(/\s+/).every((tok) => hay.includes(tok))
+}
+
+/** Compact horizontal parameter row for the Class Skills view (click ? for full formula & path). */
+function skillParamRow(ref: SkillRef, shortLabel: string, showDesc: boolean, onChange: () => void): HTMLElement | null {
+  const row = fieldRow(ref.table, ref.path)
+  if (!row) return null
+  const { path, def } = row
+  const ex = explainField(ref.table, path, { defaultLabel: ref.label })
+  const displayLabel = shortLabel || ref.label || ex.label
+  const range = `ช่วง ${def.min} – ${def.max}${def.kind === 'int' ? ' (จำนวนเต็ม)' : ''}`
+  const inId = nextId('skin'), detId = nextId('skdet')
+
+  const input = h('input', {
+    id: inId,
+    class: 'sk-in',
+    type: 'number',
+    inputmode: 'decimal',
+    step: def.kind === 'int' ? '1' : 'any',
+    min: String(def.min),
+    max: String(def.max),
+  })
+  const pctEl = h('span', { class: 'sk-pct' })
+  const metaEl = h('div', { class: 'sk-meta' })
+  const wrap = h('div', { class: 'sk-row' })
+
+  const toLive = h('button', {
+    type: 'button',
+    class: 'icon mini',
+    'aria-label': `คืนค่า live ของ ${displayLabel}`,
+    title: 'กลับเป็นค่า live',
+    onclick: () => write(valueIn(livePatch(), ref.table, path) ?? null),
+  }, '↺')
+  const toDef = h('button', {
+    type: 'button',
+    class: 'icon mini',
+    'aria-label': `คืนค่า default ของ ${displayLabel}`,
+    title: 'กลับเป็นค่า default',
+    onclick: () => write(null),
+  }, '×')
+
+  const refresh = () => {
+    const d = valueIn(S.draft, ref.table, path), live = liveOf(ref.table, path), cur = draftOf(ref.table, path)
+    input.value = d === undefined ? (row.value === undefined ? '' : String(row.value)) : String(d)
+    const pct = pctHint(def, cur)
+    pctEl.textContent = pct ?? ''
+    pctEl.hidden = !pct
+    const parts: string[] = []
+    if (cur !== live) parts.push(`✏️ live ${fmt(live)}`)
+    else if (live !== row.value) parts.push('✅ live')
+    if (cur !== row.value || live !== row.value) parts.push(`เดิม ${fmt(row.value)}`)
+    metaEl.textContent = parts.join(' · ')
+    toLive.hidden = cur === live
+    toDef.hidden = d === undefined
+    wrap.classList.toggle('chg', cur !== live)
+    wrap.classList.toggle('pat', d !== undefined)
+  }
+
+  const write = (v: number | null) => {
+    setIn(S.draft, ref.table, path, v === null || v === row.value ? null : v)
+    refresh()
+    updateStatus()
+    onChange()
+  }
+
+  input.addEventListener('change', () => {
+    const v = clampField(def, input.value)
+    if (v !== null && String(v) !== input.value.trim()) toast(`${displayLabel}: ปรับเป็น ${v} (ช่วง ${def.min}–${def.max})`)
+    write(v)
+  })
+
+  const det = h('div', { class: 'sk-det', id: detId, hidden: true },
+    h('div', { class: 'f-det-text' }, ex.effect),
+    ex.detail ? h('div', {}, ex.detail) : null,
+    h('div', {}, h('code', {}, `${ref.table}.${path}`), ` · ${range} · ค่าเดิม ${fmt(row.value)}`),
+  )
+  const infoBtn = h('button', {
+    type: 'button',
+    class: 'icon mini info-btn',
+    'aria-expanded': 'false',
+    'aria-controls': detId,
+    'aria-label': `ดูสูตรและคำอธิบายเพิ่ม: ${displayLabel}`,
+    title: 'ดูคำอธิบายและสูตร',
+    onclick: () => {
+      const open = !det.hidden
+      det.hidden = open
+      infoBtn.setAttribute('aria-expanded', String(!open))
+    },
+  }, '?')
+
+  wrap.append(
+    h('div', { class: 'sk-main' },
+      h('label', { class: 'sk-lbl', for: inId }, displayLabel),
+      showDesc ? h('div', { class: 'sk-eff' }, ex.effect) : null,
+      metaEl),
+    h('div', { class: 'sk-ctrl' }, pctEl, input, toLive, toDef, infoBtn),
+    det,
+  )
+  refresh()
+  return wrap
+}
+
+/** Compact horizontal Lv matrix table for per-level arrays (e.g. Lv 1-15 Swordsman S1 / Awaken STR). */
+function skillLvTableView(tbl: SkillLvTable, onChange: () => void): HTMLElement {
+  const allRefs = tbl.rows.flatMap((r) => r.refs)
+  const cellRefreshers: (() => void)[] = []
+
+  const resetLiveBtn = h('button', {
+    type: 'button',
+    class: 'small',
+    title: 'คืนค่า live ทั้งตาราง',
+    onclick: () => {
+      for (const r of allRefs) {
+        const row = fieldRow(r.table, r.path)
+        const lv = valueIn(livePatch(), r.table, r.path) ?? null
+        setIn(S.draft, r.table, r.path, lv === null || lv === row?.value ? null : lv)
+      }
+      refreshAll()
+      updateStatus()
+      onChange()
+    },
+  }, '↺ คืน live ทั้งตาราง')
+
+  const resetDefBtn = h('button', {
+    type: 'button',
+    class: 'small',
+    title: 'คืนค่า default ทั้งตาราง',
+    onclick: () => {
+      for (const r of allRefs) setIn(S.draft, r.table, r.path, null)
+      refreshAll()
+      updateStatus()
+      onChange()
+    },
+  }, '× คืน default ทั้งตาราง')
+
+  const refreshBtns = () => {
+    const e = countEdits(allRefs)
+    resetLiveBtn.hidden = e.chg === 0
+    resetDefBtn.hidden = e.pat === 0
+  }
+  const refreshAll = () => {
+    for (const fn of cellRefreshers) fn()
+    refreshBtns()
+  }
+
+  const is15 = tbl.lvLabels.length === 15
+  const thead = h('thead', {}, h('tr', {},
+    h('th', { scope: 'col', class: 'sk-lv-sticky' }, 'ค่า / เลเวล'),
+    ...tbl.lvLabels.map((lv, idx) => h('th', {
+      scope: 'col',
+      class: is15 && (idx === 5 || idx === 10) ? 'tier-split' : '',
+    }, lv)),
+  ))
+
+  const tbody = h('tbody', {})
+  for (const r of tbl.rows) {
+    const firstRef = r.refs[0]
+    const firstRow = fieldRow(firstRef.table, firstRef.path)
+    const ex = explainField(firstRef.table, firstRef.path, { defaultLabel: r.label })
+    const detId = nextId('sklvdet')
+    const detRow = h('tr', { class: 'sk-lv-det-row', id: detId, hidden: true },
+      h('td', { colspan: String(tbl.lvLabels.length + 1) },
+        h('div', { class: 'f-det-text' }, ex.effect),
+        ex.detail ? h('div', {}, ex.detail) : null,
+        h('div', {}, h('code', {}, `${r.table}.${r.basePath}.0..${r.refs.length - 1}`),
+          firstRow ? ` · ช่วง ${firstRow.def.min} – ${firstRow.def.max}${firstRow.def.kind === 'int' ? ' (จำนวนเต็ม)' : ''}` : '')))
+    const infoBtn = h('button', {
+      type: 'button',
+      class: 'icon mini info-btn',
+      'aria-expanded': 'false',
+      'aria-controls': detId,
+      'aria-label': `ดูสูตรและคำอธิบาย: ${r.label}`,
+      onclick: () => {
+        const open = !detRow.hidden
+        detRow.hidden = open
+        infoBtn.setAttribute('aria-expanded', String(!open))
+      },
+    }, '?')
+
+    const tr = h('tr', {},
+      h('th', { scope: 'row', class: 'sk-lv-sticky' },
+        h('div', { class: 'sk-lv-row-hdr' }, h('span', {}, r.label), infoBtn)))
+
+    r.refs.forEach((ref, idx) => {
+      const frow = fieldRow(ref.table, ref.path)
+      if (!frow) { tr.append(h('td', {}, '—')); return }
+      const { path, def } = frow
+      const td = h('td', { class: is15 && (idx === 5 || idx === 10) ? 'tier-split' : '' })
+      const inp = h('input', {
+        class: 'sk-lv-in',
+        type: 'number',
+        inputmode: 'decimal',
+        step: def.kind === 'int' ? '1' : 'any',
+        min: String(def.min),
+        max: String(def.max),
+        'aria-label': `${r.label} ${tbl.lvLabels[idx]}`,
+      })
+      const refreshCell = () => {
+        const d = valueIn(S.draft, ref.table, path), live = liveOf(ref.table, path), cur = draftOf(ref.table, path)
+        inp.value = d === undefined ? (frow.value === undefined ? '' : String(frow.value)) : String(d)
+        inp.title = `${tbl.lvLabels[idx]} · default ${fmt(frow.value)} · live ${fmt(live)}`
+        td.classList.toggle('chg', cur !== live)
+        td.classList.toggle('pat', d !== undefined)
+      }
+      inp.addEventListener('change', () => {
+        const v = clampField(def, inp.value)
+        if (v !== null && String(v) !== inp.value.trim()) toast(`${r.label} ${tbl.lvLabels[idx]}: ปรับเป็น ${v} (ช่วง ${def.min}–${def.max})`)
+        setIn(S.draft, ref.table, path, v === null || v === frow.value ? null : v)
+        refreshCell()
+        refreshBtns()
+        updateStatus()
+        onChange()
+      })
+      refreshCell()
+      cellRefreshers.push(refreshCell)
+      td.append(inp)
+      tr.append(td)
+    })
+
+    tbody.append(tr, detRow)
+  }
+
+  refreshBtns()
+  return h('div', { class: 'sk-lv-box' },
+    h('div', { class: 'sk-lv-head' },
+      h('div', {},
+        h('div', { class: 'sk-lv-title' }, `📊 ${tbl.title}`),
+        is15 ? h('div', { class: 'sk-lv-legend' }, 'คลาส 1: Lv 1–5 │ ขั้น 2: Lv 6–10 │ จุติ (Awakening): Lv 11–15') : null),
+      h('div', { class: 'row', style: 'margin:0' }, resetLiveBtn, resetDefBtn)),
+    h('div', { class: 'sk-lv-wrap' }, h('table', { class: 'sk-lv-tbl' }, thead, tbody)))
+}
+
+function renderSkillSection(sec: SkillSecSpec, opts: {
+  solo: boolean
+  q: string
+  onlyChanged: boolean
+  showDesc: boolean
+  onChange: () => void
+}): HTMLElement | null {
+  const { solo, q, onlyChanged, showDesc, onChange } = opts
+  const body = h('div', { class: 'sk-sec-body' })
+  if (sec.hint) body.append(h('p', { class: 'sk-sec-hint' }, sec.hint))
+
+  let shownCount = 0
+  let subGroupCount = 0
+
+  if (sec.kind === 's2') {
+    const critVisible = matchesSkillFilter(sec.sharedCrit, sec.sharedCrit.label, q, onlyChanged)
+    if (critVisible) {
+      const critRow = skillParamRow(sec.sharedCrit, '💥 ความแรงคริ (ใช้ร่วมกันทั้ง 3 ท่า)', showDesc, onChange)
+      if (critRow) { body.append(h('div', { class: 'sk-s2-crit' }, critRow)); shownCount++ }
+    }
+    const cards: HTMLElement[] = []
+    for (const ch of sec.choices) {
+      const grouped = groupSkillRefs(ch.refs)
+      const rows: HTMLElement[] = []
+      for (const g of grouped.groups) {
+        for (const it of g.items) {
+          const lbl = g.title ? `${g.title}: ${it.shortLabel}` : it.shortLabel
+          if (!matchesSkillFilter(it.ref, lbl, q, onlyChanged)) continue
+          const el = skillParamRow(it.ref, lbl, showDesc, onChange)
+          if (el) { rows.push(el); shownCount++ }
+        }
+      }
+      if (!rows.length) continue
+      subGroupCount++
+      cards.push(h('div', { class: 'sk-subcard' },
+        h('div', { class: 'sk-subcard-head' }, h('span', {}, ch.title), h('span', { class: 'muted small' }, `${rows.length} ช่อง`)),
+        h('div', { class: 'sk-subcard-body' }, ...rows)))
+    }
+    if (cards.length) body.append(h('div', { class: 'sk-s2grid' }, ...cards))
+  } else {
+    const grouped = groupSkillRefs(sec.refs)
+    const core = grouped.groups.find((g) => g.title === '')
+    const named = grouped.groups.filter((g) => g.title !== '')
+
+    // 1) Core params
+    if (core) {
+      const coreRows: HTMLElement[] = []
+      for (const it of core.items) {
+        if (!matchesSkillFilter(it.ref, it.shortLabel, q, onlyChanged)) continue
+        const el = skillParamRow(it.ref, it.shortLabel, showDesc, onChange)
+        if (el) { coreRows.push(el); shownCount++ }
+      }
+      if (coreRows.length) body.append(h('div', { class: 'sk-core' }, ...coreRows))
+    }
+
+    // 2) Per-level matrix tables
+    for (const tbl of grouped.tables) {
+      const filteredRows = tbl.rows.filter((r) => {
+        if (onlyChanged) {
+          const e = countEdits(r.refs)
+          if (e.chg === 0 && e.pat === 0) return false
+        }
+        if (!q) return true
+        const ex = explainField(r.refs[0].table, r.refs[0].path, { defaultLabel: r.label })
+        const hay = `${tbl.title} ${r.label} ${r.basePath} ${ex.label} ${ex.effect} ${ex.detail ?? ''}`.toLowerCase()
+        return q.split(/\s+/).every((tok) => hay.includes(tok))
+      })
+      if (!filteredRows.length) continue
+      shownCount += filteredRows.reduce((n, r) => n + r.refs.length, 0)
+      body.append(skillLvTableView({ ...tbl, rows: filteredRows }, onChange))
+    }
+
+    // 3) Named topic sub-cards
+    const subCards: HTMLElement[] = []
+    for (const g of named) {
+      const rows: HTMLElement[] = []
+      for (const it of g.items) {
+        if (!matchesSkillFilter(it.ref, `${g.title} ${it.shortLabel}`, q, onlyChanged)) continue
+        const el = skillParamRow(it.ref, it.shortLabel, showDesc, onChange)
+        if (el) { rows.push(el); shownCount++ }
+      }
+      if (!rows.length) continue
+      subGroupCount++
+      subCards.push(h('div', { class: 'sk-subcard' },
+        h('div', { class: 'sk-subcard-head' }, h('span', {}, g.title), h('span', { class: 'muted small' }, `${rows.length}`)),
+        h('div', { class: 'sk-subcard-body' }, ...rows)))
+    }
+    if (subCards.length) body.append(h('div', { class: 'sk-subgrid' }, ...subCards))
+  }
+
+  if (shownCount === 0) return null
+
+  const edits = countEdits(sectionRefs(sec))
+  const metaText = `${shownCount} ช่อง${subGroupCount > 1 ? ` · ${subGroupCount} กลุ่ม` : ''}`
+  const meta = h('span', { class: 'sk-sec-meta' }, h('span', {}, metaText), editDot(edits.chg, edits.pat))
+
+  if (solo) {
+    return h('section', { class: 'sk-sec' },
+      h('div', { class: 'sk-sec-head' }, h('span', {}, sec.title), meta),
+      body)
+  }
+
+  const open = sec.defaultOpen || !!q || onlyChanged || edits.chg > 0
+  return h('details', { class: 'sk-sec', open },
+    h('summary', {}, h('span', {}, sec.title), meta),
+    body)
 }
 
 function renderSkills(main: HTMLElement) {
@@ -1064,33 +1456,151 @@ function renderSkills(main: HTMLElement) {
   if (S.skillMode === 'class') {
     const sel = S.skillClass, j2 = (JOB2_IDS as string[]).includes(sel) ? JOB2[sel as Job2Id] : undefined
     const c = (j2 ? j2.parent : sel) as SkillClass, job = JOBS[c], L = SKILL_LAYOUT[c]
-    const chip = (id: SkillClass | Job2Id, label: string) => h('button', { type: 'button', class: sel === id ? 'on' : '', 'aria-pressed': String(sel === id), onclick: () => { S.skillClass = id; renderTab() } }, label)
-    const pick = h('div', { class: 'chips' }, ...SKILL_CLASSES.map((id) => chip(id, `${JOBS[id].icon} ${JOBS[id].name}`)))
-    const pick2 = h('div', { class: 'chips' }, h('span', { class: 'muted' }, 'อาชีพขั้น 2: '), ...JOB2_IDS.filter((id) => JOB2[id].parent === c).map((id) => chip(id, `${JOB2[id].icon} ${JOB2[id].name}`)))
 
+    // Build section specs for the selected base class or 2nd job
+    const secs: SkillSecSpec[] = []
     if (j2) {
       const l = job2Layout(sel as Job2Id)
-      main.append(top, pick, pick2, h('h3', {}, `${j2.icon} ${j2.name}`),
-        h('p', { class: 'hint' }, 'ความแรงคริใช้ของคลาสแม่ · ตัวเลขคำอธิบายบนหน้าจอเกมจะคงเดิมจนกว่าจะ build ใหม่ แต่ค่าคำนวณจริงเปลี่ยนทันที · แตะ ? ที่แต่ละช่องเพื่อดูสูตร'),
-        h('div', { class: 'skillcols' },
-          ...(l.s1.length ? [skillBlock(`1 · ${job.auto.icon} ${job.auto.name}`, l.s1, 'ค่าร่ายทักษะ 1 ของอาชีพนี้ (ตัวเลขดาเมจใช้ของคลาสแม่)')] : []),
-          skillBlock(`3 · ${j2.skill3.icon} ${j2.skill3.name}`, l.s3, 'ทักษะใหม่ของอาชีพขั้น 2 (ปรับ cost / cd และตัวคูณทั้งหมดได้)'),
-          skillBlock(`Ult วิวัฒน์ · ${j2.ult.icon} ${j2.ult.name}`, l.ult, 'ท่าไม้ตายขั้น 2 (สเกลควบคู่ของคลาสแม่)'),
-          ...(l.s4.length && j2.skill4 ? [skillBlock(`4 · ${j2.skill4.icon} ${j2.skill4.name}`, l.s4, `Skill 4 ปลดที่ Job2 Lv ${j2.skill4.unlockLv}`)] : []),
-          ...(l.j3.length ? [skillBlock('🌟 Awakening (อาชีพขั้น 3)', l.j3, 'signature · Ult · ร่างแปลงสกิล 3 (A/B) · มรดก / ทายาท')] : []),
-          skillBlock(`${j2.signature.icon} ${j2.signature.name} · พาสซีฟ/อื่น ๆ`, l.other, 'Signature, Weapon Mastery และ Skill tree ชั้น 2 (ถ้ามี)')))
-      return
+      if (l.s1.length) secs.push({ kind: 'std', id: 's1', tabLabel: '1 · ทักษะ 1', title: `1 · ${job.auto.icon} ${job.auto.name}`, hint: 'ค่าร่ายทักษะ 1 ของอาชีพนี้ (ตัวเลขดาเมจใช้ของคลาสแม่)', refs: l.s1, defaultOpen: true })
+      secs.push({ kind: 'std', id: 's3', tabLabel: `3 · ${j2.skill3.name}`, title: `3 · ${j2.skill3.icon} ${j2.skill3.name}`, hint: 'ทักษะใหม่ของอาชีพขั้น 2 (ปรับ cost / cd และตัวคูณทั้งหมดได้)', refs: l.s3, defaultOpen: true })
+      secs.push({ kind: 'std', id: 'ult', tabLabel: `Ult · ${j2.ult.name}`, title: `Ult วิวัฒน์ · ${j2.ult.icon} ${j2.ult.name}`, hint: 'ท่าไม้ตายขั้น 2 (สเกลควบคู่ของคลาสแม่)', refs: l.ult, defaultOpen: true })
+      if (l.s4.length && j2.skill4) secs.push({ kind: 'std', id: 's4', tabLabel: `4 · ${j2.skill4.name}`, title: `4 · ${j2.skill4.icon} ${j2.skill4.name}`, hint: `Skill 4 ปลดที่ Job2 Lv ${j2.skill4.unlockLv}`, refs: l.s4, defaultOpen: true })
+      if (l.j3.length) secs.push({ kind: 'std', id: 'j3', tabLabel: '🌟 Awakening', title: '🌟 Awakening (อาชีพขั้น 3)', hint: 'signature · Ult · ร่างแปลงสกิล 3 (A/B) · มรดก / ทายาท', refs: l.j3, defaultOpen: false })
+      if (l.other.length) secs.push({ kind: 'std', id: 'other', tabLabel: '✨ พาสซีฟ / ทรี', title: `${j2.signature.icon} ${j2.signature.name} · พาสซีฟและสกิลทรีขั้น 2`, hint: 'Signature, Weapon Mastery และ Skill tree ชั้น 2 (ถ้ามี)', refs: l.other, defaultOpen: false })
+    } else {
+      const crit = (slot: (typeof CRIT_SLOTS)[number]) => critRef(c, slot)
+      secs.push({ kind: 'std', id: 's1', tabLabel: `1 · ${job.auto.name}`, title: `1 · ${job.auto.icon} ${job.auto.name}`, refs: [crit('s1'), ...L.s1], defaultOpen: true })
+      secs.push({
+        kind: 's2', id: 's2', tabLabel: '2 · ทักษะ 2 (3 ท่า)', title: '2 · ทักษะ 2 (เลือก 1 ใน 3)',
+        hint: 'ทักษะ 2 เลือกได้ 1 ใน 3 · ความแรงคริใช้ร่วมกันทั้ง 3 ท่า',
+        sharedCrit: crit('s2'),
+        choices: L.s2.map((x) => { const d = SKILL2.find((s) => s.id === x.id); return { id: x.id, title: `${d?.icon ?? ''} ${d?.name ?? x.id}`, refs: x.refs } }),
+        defaultOpen: true,
+      })
+      secs.push({ kind: 'std', id: 'ult', tabLabel: `Ult · ${job.ult.name}`, title: `Ult · ${job.ult.icon} ${job.ult.name}`, refs: [crit('ult'), ...L.ult], defaultOpen: true })
+      if (L.tree?.length) secs.push({ kind: 'std', id: 'tree', tabLabel: '🌳 Skill Tree', title: '🌳 Skill Tree (โหนดพาสซีฟและสายสกิล)', hint: '"Lv เดิม" = ค่าต่อ Lv ก่อนยืด 3 → 5 (Lv จริง × 3/5)', refs: L.tree, defaultOpen: false })
     }
-    const crit = (slot: (typeof CRIT_SLOTS)[number]) => critRef(c, slot)
-    const cols: HTMLElement[] = [
-      skillBlock(`1 · ${job.auto.icon} ${job.auto.name}`, [crit('s1'), ...L.s1]),
-      ...L.s2.map((x) => { const d = SKILL2.find((s) => s.id === x.id); return skillBlock(`2 · ${d?.icon ?? ''} ${d?.name ?? x.id}`, [crit('s2'), ...x.refs], 'ทักษะ 2 เลือกได้ 1 ใน 3 · ความแรงคริใช้ร่วมกันทั้ง 3 ท่า') }),
-      skillBlock(`Ult · ${job.ult.icon} ${job.ult.name}`, [crit('ult'), ...L.ult]),
-      ...(L.tree ? [skillBlock('🌳 Skill tree (node)', L.tree, '"Lv เดิม" = ค่าต่อ Lv ก่อนยืด 3 → 5 (Lv จริง × 3/5)')] : []),
-    ]
-    main.append(top, pick, pick2, h('h3', {}, `${job.icon} ${job.name}`),
-      h('p', { class: 'hint' }, 'ความแรงคริ: 1 = คริเต็ม · 0.5 = โบนัสคริ (critMul−1) เหลือครึ่ง · 0 = ไม่คริ · ใช้กับอาชีพขั้น 2 ของคลาสนี้ด้วย · ค่าคำนวณจริงในเกมเปลี่ยนทันที'),
-      h('div', { class: 'skillcols' }, ...cols))
+
+    if (S.skillSlot !== 'all' && !secs.some((s) => s.id === S.skillSlot)) S.skillSlot = 'all'
+
+    // Dynamic badge slots so editing any field refreshes counts without rebuilding the search input
+    const pickerSlot = h('div', {})
+    const tabSlot = h('div', { class: 'sk-tabs', role: 'tablist', 'aria-label': 'หมวดสกิลของอาชีพนี้' })
+    const bodySlot = h('div', { class: 'sk-stack' })
+
+    const drawPicker = () => {
+      const chip = (id: SkillClass | Job2Id, label: string) => {
+        const e = countEdits(allRefsOfClass(id))
+        return h('button', {
+          type: 'button',
+          class: sel === id ? 'on small' : 'small',
+          'aria-pressed': String(sel === id),
+          onclick: () => { S.skillClass = id; S.skillSlot = 'all'; S.skillQuery = ''; renderTab() },
+        }, label, editDot(e.chg, e.pat))
+      }
+      const row1 = h('div', { class: 'sk-picker-row' },
+        h('span', { class: 'sk-picker-lbl' }, 'คลาสหลัก'),
+        h('div', { class: 'chips' }, ...SKILL_CLASSES.map((id) => chip(id, `${JOBS[id].icon} ${JOBS[id].name}`))))
+      const row2 = h('div', { class: 'sk-picker-row' },
+        h('span', { class: 'sk-picker-lbl' }, 'อาชีพขั้น 2'),
+        h('div', { class: 'chips' }, ...JOB2_IDS.filter((id) => JOB2[id].parent === c).map((id) => chip(id, `${JOB2[id].icon} ${JOB2[id].name}`))))
+      pickerSlot.replaceChildren(h('div', { class: 'sk-picker' }, row1, row2))
+    }
+
+    const drawTabs = () => {
+      const allCount = countEdits(secs.flatMap(sectionRefs))
+      const mkTab = (id: string, label: string, count: number, chg: number, pat: number) => h('button', {
+        type: 'button',
+        role: 'tab',
+        class: S.skillSlot === id ? 'on' : '',
+        'aria-selected': String(S.skillSlot === id),
+        onclick: () => { S.skillSlot = id; drawTabs(); drawBody() },
+      }, label, h('span', { class: 'sk-cnt' }, `(${count})`), editDot(chg, pat))
+
+      tabSlot.replaceChildren(
+        mkTab('all', 'ทั้งหมด', allCount.total, allCount.chg, allCount.pat),
+        ...secs.map((sec) => {
+          const e = countEdits(sectionRefs(sec))
+          return mkTab(sec.id, sec.tabLabel, e.total, e.chg, e.pat)
+        }),
+      )
+    }
+
+    const onAnyFieldChange = () => { drawPicker(); drawTabs() }
+
+    const drawBody = () => {
+      const q = S.skillQuery.trim().toLowerCase()
+      const targets = S.skillSlot === 'all' ? secs : secs.filter((s) => s.id === S.skillSlot)
+      const solo = S.skillSlot !== 'all'
+      const els = targets
+        .map((sec) => renderSkillSection(sec, { solo, q, onlyChanged: S.skillOnlyChanged, showDesc: S.skillShowDesc, onChange: onAnyFieldChange }))
+        .filter((el): el is HTMLElement => el !== null)
+      if (!els.length) {
+        bodySlot.replaceChildren(h('p', { class: 'muted', style: 'padding:12px 4px' },
+          S.skillOnlyChanged ? 'ยังไม่มีช่องที่แก้ไขในหมวดนี้' : `ไม่พบช่องสกิลที่ตรงกับ "${S.skillQuery.trim()}"`))
+      } else {
+        bodySlot.replaceChildren(...els)
+      }
+    }
+
+    const searchId = nextId('skq')
+    const searchIn = h('input', {
+      id: searchId,
+      class: 'sk-search',
+      type: 'search',
+      placeholder: `🔍 ค้นหาใน ${j2 ? j2.name : job.name} (ชื่อสกิล, ผล, path)…`,
+      value: S.skillQuery,
+      autocorrect: 'off',
+      autocapitalize: 'off',
+      spellcheck: 'false',
+    })
+    let tSk: ReturnType<typeof setTimeout> | undefined
+    searchIn.addEventListener('input', () => {
+      S.skillQuery = searchIn.value
+      clearTimeout(tSk)
+      tSk = setTimeout(drawBody, 90)
+    })
+
+    const onlyBtn = h('button', {
+      type: 'button',
+      class: `sk-toggle chg-t${S.skillOnlyChanged ? ' on' : ''}`,
+      'aria-pressed': String(S.skillOnlyChanged),
+      onclick: () => {
+        S.skillOnlyChanged = !S.skillOnlyChanged
+        onlyBtn.classList.toggle('on', S.skillOnlyChanged)
+        onlyBtn.setAttribute('aria-pressed', String(S.skillOnlyChanged))
+        drawBody()
+      },
+    }, '✏️ เฉพาะที่แก้')
+
+    const descBtn = h('button', {
+      type: 'button',
+      class: `sk-toggle${S.skillShowDesc ? ' on' : ''}`,
+      'aria-pressed': String(S.skillShowDesc),
+      onclick: () => {
+        S.skillShowDesc = !S.skillShowDesc
+        descBtn.classList.toggle('on', S.skillShowDesc)
+        descBtn.setAttribute('aria-pressed', String(S.skillShowDesc))
+        drawBody()
+      },
+    }, '📖 แสดงคำอธิบาย')
+
+    const toolbar = h('div', { class: 'sk-toolbar' },
+      tabSlot,
+      h('div', { class: 'sk-controls' },
+        h('label', { for: searchId, class: 'visually-hidden' }, 'ค้นหาสกิลในอาชีพนี้'),
+        searchIn, onlyBtn, descBtn))
+
+    const heading = j2 ? `${j2.icon} ${j2.name}` : `${job.icon} ${job.name}`
+    const subtitle = j2
+      ? 'ความแรงคริใช้ของคลาสแม่ · ค่าคำนวณจริงในเกมเปลี่ยนทันที · กด ? ที่แต่ละช่องเพื่อดูสูตรและ path'
+      : 'ความแรงคริ: 1 = ปกติ · 0.5 = โบนัสคริเหลือครึ่ง · 0 = ไม่คริ · กด ? ที่แต่ละช่องเพื่อดูสูตรและ path'
+
+    drawPicker()
+    drawTabs()
+    drawBody()
+
+    main.append(top, pickerSlot, h('h3', { style: 'margin:8px 0 2px' }, heading), h('p', { class: 'hint' }, subtitle), toolbar, bodySlot)
     return
   }
 
