@@ -154,7 +154,7 @@ export const PERKS_V2: PerkDef[] = [
   c('grd_basic', 'guard', '🔰', 'โล่ตีธรรมดา', ['ตีธรรมดา 15% ได้โล่ 4% HP', 'ตีธรรมดา 25% ได้โล่ 4% HP'], { proc: { on: 'basic', fx: 'shield', chance: [0.15, 0.25], amt: [0.04, 0.04] } }),
   c('grd_low', 'guard', '🆘', 'โล่คับขัน', ['HP ต่ำกว่า 30% ครั้งแรกในไฟต์ ได้โล่ 25% HP', 'HP ต่ำกว่า 30% ได้โล่ 35% HP'], { proc: { on: 'lowHp', fx: 'shield', amt: [0.25, 0.35] } }),
   c('grd_tough', 'guard', '⛰️', 'แกร่ง', ['รับดาเมจน้อยลง 12%', 'รับดาเมจน้อยลง 20%'], { mod: [{ guard: 0.12 }, { guard: 0.2 }] }),
-  c('grd_hp', 'guard', '🐘', 'หนังหนา', ['HP สูงสุด +60', 'HP สูงสุด +110'], { mod: [{ maxHp: 60 }, { maxHp: 110 }] }),
+  c('grd_hp', 'guard', '🐘', 'หนังหนา', ['HP สูงสุด +12% · P.DEF +12 · M.DEF +6%', 'HP สูงสุด +22% · P.DEF +24 · M.DEF +12%'], { mod: [{ pickHpPct: 0.12, def: 12, mdef: 0.06 }, { pickHpPct: 0.22, def: 24, mdef: 0.12 }] }),
   // ---------- 💚 life ----------
   c('lif_breath', 'life', '🍃', 'ลมหายใจ', ['ฟื้น HP 1.5% ทุกเทิร์น', 'ฟื้น HP 2.5% ทุกเทิร์น'], { mod: [{ regen: 1 }, { regen: 5 / 3 }] }),
   c('lif_hits', 'life', '💗', 'ฮิตฟื้นกาย', ['ทุก 4 ฮิต ฟื้น HP 3%', 'ทุก 3 ฮิต ฟื้น HP 4%'], { proc: { on: 'hits', fx: 'heal', every: [4, 3], amt: [0.03, 0.04] } }),
@@ -172,7 +172,7 @@ export const PERKS_V2: PerkDef[] = [
   c('wpn_quick', 'weapon', '💨', 'มือไว', ['ความเร็วเทิร์น +20%', 'ความเร็วเทิร์น +32%'], { mod: [{ aspd: 0.32 }, { aspd: 0.512 }] }),
   // ---------- 💢 focus ----------
   // v78 universal focus (design/mage-cast-focus-v78.md): every card works for every job (Novice / full bar -> shield / heal)
-  c('foc_calm', 'focus', '🧘', 'สมาธินิ่ง', ['Poise: กันแข็ง / มึนจากท่าร่ายบอส / ใบ้ 100% · ร่ายไม่แตก · Flee +12', ''], { max: 1, mod: [{ poise: 1, flee: 12 }, { poise: 1, flee: 12 }] }),
+  c('foc_calm', 'focus', '🧘', 'สมาธินิ่ง', ['HIT +20 · คริสกิล/เวท +12% · กันขัดจังหวะ (ใบ้/แช่แข็ง/ร่ายไม่แตก/ไม่โดนผลักเทิร์น)', 'HIT +38 · คริสกิล/เวท +22% · กันขัดจังหวะทั้งหมด'], { mod: [{ poise: 1, hit: 20, skillCrit: 0.12, spellCrit: 0.12 }, { poise: 1, hit: 38, skillCrit: 0.22, spellCrit: 0.22 }] }),
   c('foc_bone', 'focus', '🦴', 'บดกระดูก', ['ดาเมจ{ult} +75% · เจาะ DEF / M.DEF 30%', 'ดาเมจ{ult} +120% · เจาะ 30%'], { mod: [{ ultAmp: 0.75, smashMul: 2.25, ultPierce: 0.3 }, { ultAmp: 1.2, smashMul: 3.6, ultPierce: 0.3 }] }),
   c('foc_wake', 'focus', '🔋', 'ปลุกพลัง', ['เริ่มทุกไฟต์ Mana/Energy/Rage +40 · ส่วนที่ล้น / ไม่มี → โล่สูงสุด 20% HP', 'เริ่มทุกไฟต์ +60 · โล่สูงสุด 30% HP'], { proc: { on: 'fightStart', fx: 'res', amt: [40, 60] }, pk: [{ wakeShield: 0.2 }, { wakeShield: 0.3 }] }),
   c('foc_pray', 'focus', '🙏', 'ภาวนา', ['ทุกเทิร์น Mana/Energy/Rage +6 · ส่วนที่ล้น / ไม่มี → ฮีลสูงสุด 3% HP', 'ทุกเทิร์น +10 · ฮีลสูงสุด 5% HP'], { pk: [{ resTurn: 6, prayHeal: 0.03 }, { resTurn: 10, prayHeal: 0.05 }] }),

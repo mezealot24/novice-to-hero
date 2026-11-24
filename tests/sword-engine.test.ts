@@ -71,7 +71,7 @@ test('patches reach the game: ดาบสยบมนตร์ Lv 3, ปลุ�
 
 test('cleanup: the dead ฟันพายุ / v84 จังหวะดาบ / Ult shield numbers are gone, old live paths are skipped not rejected', () => {
   assert.equal((KIT as Record<string, unknown>).swordTree, undefined)
-  assert.equal('waveAmp' in KIT.swordUltTree, false)
+  assert.equal(KIT.swordUltTree.waveAmp > 0, true)
   for (const k of ['auto', 'autoMul', 'ultShield']) assert.equal(k in SWORD_MANA, false, k)
   const r = applyPatch({ skills: { 'sword.ultShield': 0.3, 'sword.autoMul': 2 } })
   assert.equal(r.ok, true)
@@ -97,7 +97,8 @@ test('Wave 1 helpers & balance constants: swordCoatFlat, swordS1ExcessPow, cleav
 
   // Balance constants
   near(JOBS.swordsman.mod.cleaveAdd ?? 0, 0.1)
-  near(KIT.swordUltTree.awAtk, 0.15)
+  near(KIT.swordUltTree.awAtk, 0.2)
+  near(KIT.swordUltTree.awStrPct, 0.2)
   near(KIT.swordUltTree.execAdd, 0.12)
   near(KIT.swordUltTree.rampageWaveShield, 0.15)
 

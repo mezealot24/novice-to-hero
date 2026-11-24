@@ -10,27 +10,27 @@ const C = KIT.swordCore, S = KIT.swordS1Tree, U = KIT.swordUltTree, pc = (x: num
 export const tree: ClassTree = {
   branches: [
     { id: 'swordsman_core', job: 'swordsman', name: 'แก่นป้องกัน', icon: '🛡️', blurb: 'VIT · P.DEF · M.DEF · ฟื้นตัว' },
-    { id: 'swordsman_a', job: 'swordsman', name: 'ดาบตื่นพิทักษ์', icon: '🛡️', blurb: 'ระหว่างปลุกดาบ/บ้าระห่ำ: โดนเบาลง · ตีปกติ/คอมโบ/สวนดูดเลือด · สวนกลับง่าย · ★ คลื่นให้โล่' }, // Q 2026-11-21: Ult left line = Defensive (was ป้อมเหล็ก)
-    { id: 'swordsman_b', job: 'swordsman', name: 'ตั้งรับสยบ', icon: '🛡️', blurb: 'ดาบสยบมนตร์: โล่ตอนกด · กัน CC · มอนติดใบ้ตีเบา · ★ สวนกลับแน่นอน' }, // Q 2026-11-21: ทักษะ 1 left line = Defensive (was 🩸 โลหิต)
+    { id: 'swordsman_a', job: 'swordsman', name: 'ดาบผลาญพิพากษา', icon: '🔥', blurb: 'สะสมเพลิงแค้นระเบิดตอน Ult · ดูดเลือด · สวนกลับ · ★ ดาบผ่าชีพประหารรีเซ็ต CD' }, // Q 2026-11-21: Ult left line = Vengeance + Cull (ids kept: save data)
+    { id: 'swordsman_b', job: 'swordsman', name: 'พายุตั้งรับ', icon: '🌀', blurb: 'โดนตีครบ 4 ฮิตหมุนพายุสวนกลับ AoE · กันโดนตีรัว · เสริมแรงตาม DEF · ★ หมุนทุก 3 ฮิต' }, // Q 2026-11-21: ทักษะ 1 left line = Anti-Multi-Hit Counter (ids kept: save data)
     // v84: ATTACH in data/tree.ts: swordsman_b/c under ทักษะ 1, swordsman_a/d under Ult
     { id: 'swordsman_c', job: 'swordsman', name: 'สยบมนตร์', icon: '⚔️', blurb: 'ดาบสยบมนตร์: ตีตัวร่าย/ติดใบ้แรง · ตัดร่ายคืน Mana/CD · เฉือนตัวอื่น · ★ ฟันคู่' }, // Q 2026-11-21: ทักษะ 1 right line = Utility + Dmg (was ⚔️ จังหวะดาบ)
-    { id: 'swordsman_d', job: 'swordsman', name: 'คมพิพากษา', icon: '⚖️', blurb: `execute แรงขึ้น · คลื่นดาบฆ่าได้ลุ้นได้อีกลูก · ฟันตัวถัดไปแรงขึ้น · ★ ระหว่างปลุก P.ATK +${pc(U.awAtk)}` }, // Q 2026-11-21: Ult right line = Utility + Dmg (was ทลายเกราะ)
+    { id: 'swordsman_d', job: 'swordsman', name: 'คมพิพากษา', icon: '⚖️', blurb: `execute แรงขึ้น · คลื่นซ้ำ + คลื่นแรงขึ้น · ฟันตัวถัดไปแรงขึ้น · ★ True Strike · P.ATK +${pc(U.awAtk)} · STR +${pc(U.awStrPct)}` }, // Q 2026-11-21: Ult right line = Utility + Dmg (was ทลายเกราะ)
   ],
   nodes: [
     // Core: 🛡️ แก่นป้องกัน — tier 0, always open at start so VIT-focused tanks survive phys + magic hits
     n('swordsman_core1', 'swordsman_core', 0, '🪨', 'กายเหล็ก', 3, (lv) => `VIT +${Math.round(C.vitPer * lv)} · P.DEF +${r1(C.defPer * lv)} · Max HP +${pc(C.hpPctPer * lv)}`, (lv) => ({ swCoreVit: C.vitPer * lv, def: C.defPer * lv, swCoreHpPct: C.hpPctPer * lv })),
     n('swordsman_core2', 'swordsman_core', 0, '💠', 'เกราะจิตอึด', 3, (lv) => `M.DEF +${pc(C.mdefPer * lv)} · ต้านทาน +${pc(C.tenacityPer * lv)} · VIT ทุก 1 แต้มเพิ่ม M.DEF +${pc(C.vitToMdefPer * lv)} (ส่วน VIT→M.DEF สูงสุด +${pc(C.vitToMdefCap)})`, (lv) => ({ mdef: C.mdefPer * lv, tenacity: C.tenacityPer * lv, swVitToMdef: C.vitToMdefPer * lv })),
     n('swordsman_core3', 'swordsman_core', 0, '❤️‍🩹', 'ฟื้นฟูนักรบ', 3, (lv) => `ฟื้น HP/เทิร์น +${pc((C.regenPer * lv * 1.5) / 100)} · ฮีลแรง +${pc(C.healAmpPer * lv)} · เลือด < ${pc(C.lowHpAt)} Regen แรงขึ้น +${pc(C.lowHpRegenPer * lv)}`, (lv) => ({ regen: C.regenPer * lv, healAmp: C.healAmpPer * lv, swLowRegenAmp: C.lowHpRegenPer * lv })),
-    // 🗡️ ดาบพิพากษา left line (Q 2026-11-21): Defensive while ⚔️ ปลุกดาบ / 👹 บ้าระห่ำ is up (ids kept: save data)
-    n('swordsman_a1', 'swordsman_a', 1, '🛡️', 'ใจดาบ', 3, (lv) => `ระหว่างปลุกดาบ/บ้าระห่ำ โดนตีเบาลง −${pc(U.dr * lv)}`, (lv) => ({ swAwDr: U.dr * lv })),
-    n('swordsman_a2', 'swordsman_a', 2, '🩸', 'ดาบกระหายเลือด', 3, (lv) => `ระหว่างปลุกดาบ/บ้าระห่ำ ตีปกติ/คอมโบ/สวน/ฟันตัวถัดไป ดูดเลือด ${pc(U.leech * lv)}`, (lv) => ({ swAwLeech: U.leech * lv })),
-    n('swordsman_a3', 'swordsman_a', 3, '🔁', 'ตื่นสวน', 3, (lv) => `ระหว่างปลุกดาบ/บ้าระห่ำ สวนกลับ +${pc(U.ctr * lv)}`, (lv) => ({ swAwCtr: U.ctr * lv })),
-    n('swordsman_a4', 'swordsman_a', 4, '🌊', 'ปราการคลื่น', 1, () => `คลื่นดาบ/บ้าระห่ำให้โล่ ${pc(U.waveShield)} ของดาเมจที่ทำ · คลื่นดาบ S3 ระหว่างบ้าระห่ำ ${pc(U.rampageWaveShield)} (ไม่เกิน ${pc(U.waveShieldCap)} HP)`, () => ({ swWaveShield: 1 })),
-    // B (left, Q 2026-11-21): 🛡️ ตั้งรับสยบ, Defensive on ดาบสยบมนตร์ (ids kept: save data; the old 🩸 โลหิต effects are gone)
-    n('swordsman_b1', 'swordsman_b', 1, '🛡️', 'ตั้งรับ', 3, (lv) => `กดดาบสยบมนตร์ ได้โล่ ${pc(S.shield * lv)} ของ HP สูงสุด`, (lv) => ({ swS1Shield: S.shield * lv })),
-    n('swordsman_b2', 'swordsman_b', 2, '🧘', 'ใจไม่หวั่น', 3, (lv) => `ต้านทาน +${pc(S.tenacity * lv)} · ล้าง CC แล้วกัน ใบ้/ใยมัด/ช้า ${S.guardTurns} เทิร์น`, (lv) => ({ tenacity: S.tenacity * lv, swCcGuard: lv })),
-    n('swordsman_b3', 'swordsman_b', 3, '🤐', 'ปิดปาก', 3, (lv) => `มอนที่ติดใบ้ ตีเราเบาลง −${pc(S.muteWeak * lv)}`, (lv) => ({ swMuteWeak: S.muteWeak * lv })),
-    n('swordsman_b4', 'swordsman_b', 4, '🔁', 'สวนเงียบ', 1, () => `หลังกดดาบสยบมนตร์: โดนตี ${S.counters} ครั้งถัดไป สวนกลับแน่นอน แรง +${pc(S.ctrDmg)}`, () => ({ swS1Ctr: S.counters, swS1CtrDmg: S.ctrDmg })),
+    // 🗡️ ดาบพิพากษา left line: 🔥 ดาบผลาญพิพากษา — เพลิงแค้น (Vengeance) + ดาบผ่าชีพ (Cull) (ids kept: save data)
+    n('swordsman_a1', 'swordsman_a', 1, '🛡️', 'ใจเหล็กกล้า', 3, (lv) => `ระหว่างปลุกดาบ/บ้าระห่ำ โดนตีเบาลง −${pc(U.dr * lv)} · สะสม 🔥 เพลิงแค้น ${pc(U.vengRate * lv)} ของดาเมจที่โดน (สูงสุด ${pc(U.vengCap)} HP) ระเบิดเป็นโบนัสดาเมจ + โล่เมื่อใช้ Ult`, (lv) => ({ swAwDr: U.dr * lv, swVengRate: U.vengRate * lv })),
+    n('swordsman_a2', 'swordsman_a', 2, '🩸', 'ดาบกระหายเลือด', 3, (lv) => `ระหว่างปลุกดาบ/บ้าระห่ำ ตีปกติ/คอมโบ/สวน/พายุสวนกลับ ดูดเลือด ${pc(U.leech * lv)}`, (lv) => ({ swAwLeech: U.leech * lv })),
+    n('swordsman_a3', 'swordsman_a', 3, '🔁', 'ตื่นสวนสะท้าน', 3, (lv) => `ระหว่างปลุกดาบ/บ้าระห่ำ สวนกลับ +${pc(U.ctr * lv)} · เพิ่มเกณฑ์ 🪓 ดาบผ่าชีพ +${pc(U.cullAdd * lv)}`, (lv) => ({ swAwCtr: U.ctr * lv, swCullAdd: U.cullAdd * lv })),
+    n('swordsman_a4', 'swordsman_a', 4, '🪓', 'ดาบผ่าชีพ', 1, () => `คลื่นดาบ/บ้าระห่ำให้โล่ ${pc(U.waveShield)} ดาเมจ · Ult/คลื่น/พายุสวนกลับ ประหารศัตรู HP ≤ ${pc(U.cullPct)} (บอส/มินิ ${pc(U.cullBossPct)}) ทันที! ฆ่าได้: Mana +${U.cullMana} · Ult CD −${U.cullCdCut} · บัฟ P.ATK +${pc(U.cullAtk)} / P.DEF +${pc(U.cullDef)} ${U.cullBuffTurns} เทิร์น`, () => ({ swWaveShield: 1, swCull: 1 })),
+    // B (left): 🌀 พายุตั้งรับ — Anti-Multi-Hit Counter (ids kept: save data)
+    n('swordsman_b1', 'swordsman_b', 1, '🌀', 'พายุสวนกลับ', 3, (lv) => `กดดาบสยบมนตร์ ได้โล่ ${pc(S.shield * lv)} HP · โดนตีครบทุก ${S.helixHits} ฮิต หมุนฟัน AoE ทุกตัว ${pc(S.helixMul * lv)} P.ATK`, (lv) => ({ swS1Shield: S.shield * lv, swHelixMul: S.helixMul * lv })),
+    n('swordsman_b2', 'swordsman_b', 2, '🛡️', 'เกราะไม่สะทก', 3, (lv) => `ต้านทาน +${pc(S.tenacity * lv)} · ล้าง CC กันใบ้/ใย/ช้า ${S.guardTurns} เทิร์น · โดนตีซ้ำในเทิร์นเดียวกัน ฮิตที่ 2+ เบาลง −${pc(S.multiDr * lv)}/ฮิต (สูงสุด ${pc(S.multiDrCap)})`, (lv) => ({ tenacity: S.tenacity * lv, swCcGuard: lv, swMultiDr: S.multiDr * lv })),
+    n('swordsman_b3', 'swordsman_b', 3, '⚔️', 'คมสะท้อน', 3, (lv) => `มอนติดใบ้ตีเบาลง −${pc(S.muteWeak * lv)} · พายุสวนกลับแรงขึ้น +${pc(S.helixAmp * lv)} และบวกดาเมจ ${pc(S.helixDef * lv)} ของ P.DEF`, (lv) => ({ swMuteWeak: S.muteWeak * lv, swHelixAmp: S.helixAmp * lv, swHelixDef: S.helixDef * lv })),
+    n('swordsman_b4', 'swordsman_b', 4, '🌪️', 'จักรผันสะท้าน', 1, () => `พายุสวนกลับหมุนทุก ${S.helixHitsStar} ฮิต (ลดจาก ${S.helixHits}) + หมุนแต่ละครั้งได้โล่ ${pc(S.helixStarShield)} HP & Mana +${S.helixStarMana} · หลังกดดาบสยบมนตร์ โดนตี ${S.counters} ครั้งถัดไป สวนกลับแน่นอน แรง +${pc(S.ctrDmg)}`, () => ({ swS1Ctr: S.counters, swS1CtrDmg: S.ctrDmg, swHelixFast: 1 })),
     // C (right, Q 2026-11-21): ⚔️ สยบมนตร์, Utility + Dmg (ids kept: save data; the old จังหวะดาบ flow is gone)
     n('swordsman_c1', 'swordsman_c', 1, '🎯', 'เจาะจังหวะ', 3, (lv) => `ตีตัวที่กำลังร่าย หรือติดใบ้ แรง +${pc(S.vsMute * lv)} (ทุกการตี)`, (lv) => ({ swVsMute: S.vsMute * lv })),
     n('swordsman_c2', 'swordsman_c', 2, '⏳', 'ตัดจังหวะ', 3, (lv) => `ดาบสยบมนตร์ขัดร่ายได้: Mana +${r1(S.refund * lv)} · คูลดาวน์ −1 (บอส/มินิ/ติดใบ้อยู่แล้ว คืน Mana ครึ่งหนึ่ง)`, (lv) => ({ swS1Refund: S.refund * lv })),
@@ -38,9 +38,9 @@ export const tree: ClassTree = {
     n('swordsman_c4', 'swordsman_c', 4, '⚔️', 'ดาบสยบคู่', 1, () => `ดาบสยบมนตร์ฟันซ้ำอีกครั้ง ${pc(S.starHit)} · ใบ้ +1 เทิร์น`, () => ({ swS1Star: 1 })),
     // 🗡️ ดาบพิพากษา right line (Q 2026-11-21): Utility + Dmg (ids kept: save data)
     n('swordsman_d1', 'swordsman_d', 1, '⚖️', 'คมพิพากษา', 3, (lv) => `⚖️ execute สูงสุด +${pc(U.execAdd * lv)} (ทุก Ult สายนักดาบ)`, (lv) => ({ swExecAdd: U.execAdd * lv })),
-    n('swordsman_d2', 'swordsman_d', 2, '🌊', 'คลื่นซ้ำ', 3, (lv) => `คลื่นดาบฆ่ามอนได้ → โอกาส ${pc(Math.min(1, U.reChance * lv))} ได้คลื่นอีกลูก (1 ครั้ง/ปลุก)`, (lv) => ({ swWaveRe: Math.min(1, U.reChance * lv) })), // Q 2026-11-22: was คลื่นคม
+    n('swordsman_d2', 'swordsman_d', 2, '🌊', 'คลื่นซ้ำ', 3, (lv) => `คลื่นดาบฆ่ามอนได้ → โอกาส ${pc(Math.min(1, U.reChance * lv))} ได้คลื่นอีกลูก (1 ครั้ง/ปลุก) · คลื่นดาบ/คลื่นทะลวงแรงขึ้น +${pc(U.waveAmp * lv)} (สเกลต่อแม้เกิน Lv 5)`, (lv) => ({ swWaveRe: Math.min(1, U.reChance * lv), swWaveAmp: U.waveAmp * lv })),
     n('swordsman_d3', 'swordsman_d', 3, '⚔️', 'ฟันกวาดตื่น', 3, (lv) => `ระหว่างปลุกดาบ/บ้าระห่ำ ฟันตัวถัดไปแรง +${pc(U.cleave * lv)} ของฮิต`, (lv) => ({ swAwCleave: U.cleave * lv })),
-    n('swordsman_d4', 'swordsman_d', 4, '⚔️', 'ดาบตื่นเต็มพลัง', 1, () => `ระหว่างปลุกดาบ P.ATK +${pc(U.awAtk)}`, () => ({ swAwAtk: U.awAtk })), // Q 2026-11-22: was ★ คลื่นซ้ำ
+    n('swordsman_d4', 'swordsman_d', 4, '⚔️', 'ดาบตื่นเต็มพลัง', 1, () => `ระหว่างปลุกดาบ: 🎯 True Strike (ตีไม่พลาด/ไม่โดนหลบ) · P.ATK +${pc(U.awAtk)} · Bonus STR +${pc(U.awStrPct)}`, () => ({ swAwAtk: U.awAtk, swAwStrPct: U.awStrPct, swAwTrue: 1 })),
   ],
   talents: [
     // ----- row 1 · Job Lv 5 · basic swing -----

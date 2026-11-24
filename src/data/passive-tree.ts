@@ -7,6 +7,7 @@ import { JOB2, JOB2_RULES, type Job2Id } from './jobs2'
 import { activeJob3, JOB3_RULES, type Job3Id } from './jobs3'
 import { SWORDSMAN_PASSIVE_TREE } from './passives/swordsman'
 import { THIEF_PASSIVE_TREE } from './passives/thief'
+import { evalPassiveTuning } from './passive-registry'
 
 export type PassiveKind = 'origin' | 'minor' | 'notable' | 'keystone' | 'socket'
 export type PassiveSector =
@@ -318,7 +319,7 @@ export function passiveMods(
   for (const id of norm) {
     const node = map.get(id)
     if (!node) continue
-    const m = node.mod(ctx)
+    const m = evalPassiveTuning(node, ctx)
     if (Object.keys(m).length > 0) out.push(m)
   }
   return out

@@ -4,6 +4,7 @@ import { BATTLE, COMBO, HARD, HARD_PASSIVES, HARD_SKILLS, MONSTERS, RULES } from
 import { JOB_RULES, STAT_RULES } from './meta'
 import { ARCHETYPES, MON_STAT, SKILL_SCALE } from './mon-stats'
 import { skillRoot, skillTableFields } from './skill-registry'
+import { passiveRoot, passiveTableFields } from './passive-registry'
 import { KIT } from './skill-math'
 import { DUNGEON_DAYS } from './dungeon-days'
 import { HELL_MODE } from './hell'
@@ -12,7 +13,7 @@ export const CONFIG_SCHEMA = 1
 
 export type TableId =
   | 'monsters' | 'battle' | 'combo' | 'hard' | 'hardSkills' | 'hardPassives'
-  | 'monStat' | 'archetypes' | 'skillScale' | 'progression' | 'kit' | 'skills'
+  | 'monStat' | 'archetypes' | 'skillScale' | 'progression' | 'kit' | 'skills' | 'passives'
 /** Path -> number, per table. */
 export type Patch = Partial<Record<TableId, Record<string, number>>>
 /** Array-element path ("king.skills.1") -> that element's expected name / id, per table. */
@@ -217,11 +218,12 @@ export const TABLES: Record<TableId, TableDef> = {
       ['thiefSteal.atk|heal|crit', num(0, 2)], ['thiefSteal.turns|res|poison|brkTurns', int(0, 100)], // ☠️ Thief-line poison (Q 2026-11-17)
       // Q 2026-11-24 Swordsman web nodes (data/trees/swordsman.ts reads them live, per OLD Lv)
       ['swordCore.vitPer|defPer', num(0, 50)], ['swordCore.hpPctPer|mdefPer|vitToMdefPer|vitToMdefCap|tenacityPer|healAmpPer|lowHpAt|lowHpRegenPer', num(0, 1)], ['swordCore.regenPer', num(0, 10)],
-      ['swordS1Tree.shield|tenacity|muteWeak|vsMute|splash|starHit|ctrDmg', num(0, 5)], ['swordS1Tree.guardTurns|counters', int(0, 10)], ['swordS1Tree.refund', num(0, 100)],
-      ['swordUltTree.dr|leech|ctr|waveShield|waveShieldCap|rampageWaveShield|execAdd|cleave|reChance|awAtk', num(0, 5)]],
+      ['swordS1Tree.shield|tenacity|muteWeak|vsMute|splash|starHit|ctrDmg|helixMul|multiDr|multiDrCap|helixAmp|helixDef|helixStarShield', num(0, 5)], ['swordS1Tree.guardTurns|counters|helixHits|helixHitsStar', int(0, 10)], ['swordS1Tree.refund|helixStarMana', num(0, 100)],
+      ['swordUltTree.dr|leech|ctr|waveShield|waveShieldCap|rampageWaveShield|vengRate|vengCap|vengDmg|vengShield|cullAdd|cullPct|cullBossPct|cullBonusAt|cullBonusMul|cullAtk|cullDef|execAdd|cleave|reChance|waveAmp|awAtk|awStrPct', num(0, 5)], ['swordUltTree.cullCdCut|cullBuffTurns', int(0, 10)], ['swordUltTree.cullMana', num(0, 100)]],
   },
   // Class skills (skill-registry.ts): costs / cooldowns / Skill 2 numbers / per-skill crit switch. Exact paths, built from the registry.
   // Class kit numbers that are already in `kit` stay there (one path = one table): the admin "⚔️ สกิลอาชีพ" tab shows both.
   skills: { id: 'skills', label: 'Class skills (cost / cd / Skill 2 / crit switch)', target: skillRoot, fields: skillTableFields() },
+  passives: { id: 'passives', label: 'Hero Passive Constellation (Swordsman / Thief nodes)', target: passiveRoot, fields: passiveTableFields() },
 }
 export const TABLE_IDS = Object.keys(TABLES) as TableId[]

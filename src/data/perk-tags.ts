@@ -26,7 +26,7 @@ export const PERKS: Perk[] = [
   { id: 'spd2', tag: 'speed', name: 'ฝีเท้าเบา', desc: 'ตีเร็ว +15% · Flee +6', mod: { aspd: 0.24, flee: 6 } },
   { id: 'spd4', tag: 'speed', name: 'ฟันรัว', desc: 'โอกาสคอมโบ (ตีซ้ำ) +12%', mod: { combo: 0.12 } },
   { id: 'spd3', tag: 'speed', name: 'สมาธินิ่ง', desc: '{ult} คูลดาวน์ -1 เทิร์น · Flee +8', mod: { smashCd: -1500, flee: 8 } },
-  { id: 'grd1', tag: 'guard', name: 'หนังหนา', desc: 'HP สูงสุด +50 (ฟื้นเท่าที่เพิ่ม)', mod: { maxHp: 50 } },
+  { id: 'grd1', tag: 'guard', name: 'หนังหนา', desc: 'HP สูงสุด +12% · P.DEF +12 · M.DEF +6%', mod: { pickHpPct: 0.12, def: 12, mdef: 0.06 } },
   { id: 'grd2', tag: 'guard', name: 'โล่ไม้', desc: 'รับดาเมจน้อยลง 15%', mod: { guard: 0.15 } },
   { id: 'grd3', tag: 'guard', name: 'ลมหายใจ', desc: 'ฟื้น HP 1.5% ทุกเทิร์น', mod: { regen: 1 } },
   { id: 'grd4', tag: 'guard', name: 'ท่าสวน', desc: 'โอกาสสวนกลับ +15% เมื่อโดนตี', mod: { counter: 0.15 } },

@@ -65,8 +65,9 @@ test('v78 focus fallbacks: full bar -> shield / heal, empty bar -> resource, Nov
 
 test('v78 focus cards match the table', () => {
   const calm = perkById('foc_calm')!, bone = perkById('foc_bone')!, wake = perkById('foc_wake')!, pray = perkById('foc_pray')!, l1 = perkById('foc_L1')!
-  assert.equal(calm.max, 1)
-  assert.deepEqual(calm.mod![0], { poise: 1, flee: 12 })
+  assert.equal(calm.max, 2)
+  assert.deepEqual(calm.mod![0], { poise: 1, hit: 20, skillCrit: 0.12, spellCrit: 0.12 })
+  assert.deepEqual(calm.mod![1], { poise: 1, hit: 38, skillCrit: 0.22, spellCrit: 0.22 })
   assert.equal(calm.mod![0].smashCd, undefined)
   assert.deepEqual(bone.mod, [{ ultAmp: 0.75, smashMul: 2.25, ultPierce: 0.3 }, { ultAmp: 1.2, smashMul: 3.6, ultPierce: 0.3 }])
   assert.deepEqual(wake.proc!.amt, [40, 60])

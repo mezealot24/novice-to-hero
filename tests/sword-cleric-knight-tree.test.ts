@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { branches2Of, branchesOf, lockReason, nodesOf, TREE, TREE2, TREE_RULES, type TreeNode, type TreeSave } from '../src/data/tree'
 import { PLAYER, type Stats } from '../src/data/game-data'
 import { SPELL_VAMP, SWORD_MANA } from '../src/data/jobs'
-import { KIT, S2N } from '../src/data/skill-math'
+import { KIT, S2N, swordCullThreshold, swordHelixNeed, swordMultiHitDr } from '../src/data/skill-math'
 import { heroStats } from '../src/data/meta'
 
 const mem: Record<string, string> = {}
@@ -99,9 +99,9 @@ test('new branches hang under the right line', () => {
 test('each new node sets its field (default 0, grows with level, readable text)', () => {
   const want: Record<string, (keyof Stats)[]> = {
     swordsman_c1: ['swVsMute'], swordsman_c2: ['swS1Refund'], swordsman_c3: ['swS1Splash'], swordsman_c4: ['swS1Star'], // Q 2026-11-21: ทักษะ 1 right line = ⚔️ สยบมนตร์
-    swordsman_b1: ['swS1Shield'], swordsman_b2: ['swCcGuard'], swordsman_b3: ['swMuteWeak'], swordsman_b4: ['swS1Ctr', 'swS1CtrDmg'], // ... left line = 🛡️ ตั้งรับสยบ
-    swordsman_d1: ['swExecAdd'], swordsman_d2: ['swWaveRe'], swordsman_d3: ['swAwCleave'], swordsman_d4: ['swAwAtk'], // Q 2026-11-21: Ult right line = ⚖️ คมพิพากษา
-    swordsman_a1: ['swAwDr'], swordsman_a2: ['swAwLeech'], swordsman_a3: ['swAwCtr'], swordsman_a4: ['swWaveShield'], // ... left line = 🛡️ ดาบตื่นพิทักษ์
+    swordsman_b1: ['swS1Shield', 'swHelixMul'], swordsman_b2: ['swCcGuard', 'swMultiDr'], swordsman_b3: ['swMuteWeak', 'swHelixAmp', 'swHelixDef'], swordsman_b4: ['swS1Ctr', 'swS1CtrDmg', 'swHelixFast'], // ... left line = 🌀 พายุตั้งรับ
+    swordsman_d1: ['swExecAdd'], swordsman_d2: ['swWaveRe', 'swWaveAmp'], swordsman_d3: ['swAwCleave'], swordsman_d4: ['swAwAtk', 'swAwStrPct', 'swAwTrue'], // Q 2026-11-21: Ult right line = ⚖️ คมพิพากษา
+    swordsman_a1: ['swAwDr', 'swVengRate'], swordsman_a2: ['swAwLeech'], swordsman_a3: ['swAwCtr', 'swCullAdd'], swordsman_a4: ['swWaveShield', 'swCull'], // ... left line = 🔥 ดาบผลาญพิพากษา
     cleric_c1: ['clFaith'], cleric_c2: ['clFaithOver'], cleric_c3: ['clFaithHeal'], cleric_c4: ['clOverBurst'],
     cleric_dn1: ['clDawn'], cleric_dn2: ['clDawnHeal'], cleric_dn3: ['clDawnWis', 'clDawnWisTurns'], cleric_dn4: ['clDawnUlt', 'clDawnCrit'], // v92 🌄 รุ่งอรุณ
     kn_o1: ['j2Banner'], kn_o2: ['j2Provoke'], kn_o3: ['j2BannerKill'], kn_o4: ['j2BannerAura', 'j2Guard'],
@@ -169,7 +169,7 @@ test('Swordsman Skill 2 rework + Wave 1 updates: Guard DEF/auto-block, Bloodlust
   assert.equal(S2N.tauntStarShield, 0.1)
   assert.equal(S2N.tauntCtrAmp, 0.2)
   const b4 = swordNodes.find((n) => n.id === 'swordsman_b4')!
-  assert.deepEqual(b4.mod(1), { swS1Ctr: 3, swS1CtrDmg: 0.25 })
+  assert.deepEqual(b4.mod(1), { swS1Ctr: 3, swS1CtrDmg: 0.25, swHelixFast: 1 })
 })
 
 test('migrateSwordsmanRework: 1-time reset & refund for Swordsman/Knight/Berserker, idempotent, non-Swordsman untouched, newSave initialized', () => {
@@ -282,4 +282,16 @@ test('migrateSwordsmanRework: 1-time reset & refund for Swordsman/Knight/Berserk
   assert.deepEqual(cl.passiveNodes, ['cl_root'])
   assert.deepEqual(cl.jewelSock, { cl_sock_1: 'j_1' })
   assert.deepEqual(cl.jewels, [sampleJewel])
+})
+
+test('Swordsman left-branch math helpers: พายุสวนกลับ, เกราะไม่สะทก, ดาบผ่าชีพ', () => {
+  assert.equal(swordHelixNeed(0), KIT.swordS1Tree.helixHits)
+  assert.equal(swordHelixNeed(1), KIT.swordS1Tree.helixHitsStar)
+  assert.ok(swordHelixNeed(1) < swordHelixNeed(0))
+  assert.equal(swordMultiHitDr(0, 0.18), 0)
+  assert.ok(Math.abs(swordMultiHitDr(1, 0.18) - 0.18) < 1e-9)
+  assert.ok(Math.abs(swordMultiHitDr(2, 0.18) - 0.36) < 1e-9)
+  assert.equal(swordMultiHitDr(10, 0.18), KIT.swordS1Tree.multiDrCap)
+  assert.ok(Math.abs(swordCullThreshold(false, 0.06) - (KIT.swordUltTree.cullPct + 0.06)) < 1e-9)
+  assert.ok(Math.abs(swordCullThreshold(true, 0.06) - (KIT.swordUltTree.cullBossPct + 0.03)) < 1e-9)
 })

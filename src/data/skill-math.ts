@@ -193,15 +193,18 @@ export const KIT = {
     markTurns: 3, markAmp: 0.05, markJumpRes: 8, killCd: [0.5, 0.75, 1], killCdCut: 1, killCdRes: 12, // หมายหัว per lv · ไล่ล่า Energy per lv · ล่าต่อ chance + Energy on kill
     execBelow: 0.25, execBig: 0.6, // ★ ศรประหาร: normal monster under 25% HP dies · boss / mini +60%
   },
-  // ⚔️ ดาบสยบมนตร์ web (Q 2026-11-21, swordsman_b left = Defensive, swordsman_c right = Utility + Dmg), per OLD level (max 3, stretched to 5)
+  // ⚔️ ดาบสยบมนตร์ web (Q 2026-11-21, swordsman_b left = 🌀 พายุตั้งรับ / Anti-Multi-Hit, swordsman_c right = Utility + Dmg), per OLD level (max 3, stretched to 5)
   swordS1Tree: {
-    shield: 0.04, tenacity: 0.05, guardTurns: 1, muteWeak: 0.06, counters: 3, ctrDmg: 0.25, // 🛡️ ตั้งรับ shield/lv · ใจไม่หวั่น tenacity/lv + CC guard turns · ปิดปาก silenced monster dmg cut/lv · ★ สวนเงียบ sure counters + bonus dmg
+    shield: 0.04, tenacity: 0.05, guardTurns: 1, muteWeak: 0.06, counters: 3, ctrDmg: 0.25, // 🛡️ พายุสวนกลับ shield/lv · เกราะไม่สะทก tenacity/lv + CC guard turns · คมสะท้อน silenced monster dmg cut/lv · ★ จักรผันสะท้าน sure counters + bonus dmg
+    helixHits: 4, helixHitsStar: 3, helixMul: 0.45, multiDr: 0.06, multiDrCap: 0.5, helixAmp: 0.15, helixDef: 0.35, helixStarShield: 0.05, helixStarMana: 6, // 🌀 พายุสวนกลับ (every N hits taken -> AoE slash) · เกราะไม่สะทก (multi-hit DR) · คมสะท้อน (Helix amp + DEF bonus) · ★ 4->3 hits + shield + Mana
     vsMute: 0.1, refund: 4, splash: 0.25, starHit: 0.6, // 🎯 เจาะจังหวะ dmg/lv vs casting / silenced · ⏳ ตัดจังหวะ Mana/lv on a cut cast (+ CD -1) · 🌀 ฟันเฉือน share/lv · ★ 2nd cut share
   },
-  // 🗡️ ดาบพิพากษา web (Q 2026-11-21, ult side: swordsman_a left = Defensive while awakened, swordsman_d right = Utility + Dmg), per OLD level (max 3, stretched to 5)
+  // 🗡️ ดาบพิพากษา web (Q 2026-11-21, ult side: swordsman_a left = 🔥 ดาบผลาญพิพากษา / Vengeance + Cull, swordsman_d right = Utility + Dmg), per OLD level (max 3, stretched to 5)
   swordUltTree: {
-    dr: 0.05, leech: 0.03, ctr: 0.06, waveShield: 0.3, waveShieldCap: 0.25, rampageWaveShield: 0.15, // 🛡️ ใจดาบ dmg taken cut/lv while awakened/rampage · 🩸 ดาบกระหายเลือด basic/combo/counter/cleave leech/lv · 🔁 ตื่นสวน counter/lv · ★ ปราการคลื่น wave/rampage dmg share as shield (cap of max HP)
-    execAdd: 0.12, cleave: 0.15, reChance: 1 / 3, awAtk: 0.15, // Q 2026-11-22: d2 = 🌊 คลื่นซ้ำ chance/old lv (full 100%) · d4 ★ = P.ATK +awAtk while awakened (waveAmp removed 2026-11-24: unused) // ⚖️ คมพิพากษา execute max +/lv · 🌊 คลื่นคม wave dmg/lv · ⚔️ ฟันกวาดตื่น cleave share/lv · ★ คลื่นซ้ำ reload once on a wave kill
+    dr: 0.05, leech: 0.03, ctr: 0.06, waveShield: 0.3, waveShieldCap: 0.25, rampageWaveShield: 0.15, // 🛡️ ใจเหล็กกล้า dmg taken cut/lv while awakened/rampage · 🩸 ดาบกระหายเลือด basic/combo/counter/cleave/helix leech/lv · 🔁 ตื่นสวนสะท้าน counter/lv · ★ ดาบผ่าชีพ wave/rampage dmg share as shield
+    vengRate: 0.25, vengCap: 0.35, vengDmg: 0.8, vengShield: 0.6, // 🔥 เพลิงแค้น (Vengeance): store dmg taken up to cap of Max HP, release on Ult/wave as bonus dmg + shield
+    cullAdd: 0.02, cullPct: 0.2, cullBossPct: 0.1, cullBonusAt: 0.35, cullBonusMul: 1.2, cullMana: 25, cullCdCut: 2, cullAtk: 0.2, cullDef: 0.15, cullBuffTurns: 3, // 🪓 ดาบผ่าชีพ (Execute + kill reset & buff)
+    execAdd: 0.12, cleave: 0.15, reChance: 1 / 3, waveAmp: 0.08, awAtk: 0.2, awStrPct: 0.2, // d2 = 🌊 คลื่นซ้ำ chance/old lv (100% at Lv5) + waveAmp (scales past Lv5) · d4 ★ = True Strike + P.ATK +20% + Bonus STR +20% while awakened
   },
   // Swordsman core column (swordsman_core, tier 0, always open): Defend VIT/DEF/M.DEF/Regen passives
   swordCore: {
@@ -475,8 +478,8 @@ export const preyTurnsOf = (st: Stats) => KIT2.beastmaster.preyTurns + st.j2Prey
 /** Skill 2 linear "+" numbers: base + per x Stats.s2Lv. Plain numbers so the admin can tune them (skills `s2p.<key>.base|per`);
  *  the S2N functions below read them on every call. Defaults are the v83 values. */
 export const S2P = {
-  guardCut: { base: 0.4, per: 0.05 }, guardBack: { base: 0.5, per: 0.1 }, guardDef: { base: 2.5, per: 0.6 }, // Q 2026-11-22 ตั้งการ์ด counter: % of dmg taken this turn + P.DEF x
-  bloodVamp: { base: 0.2, per: 0.05 }, tauntWeak: { base: 0.2, per: 0.05 },
+  guardCut: { base: 0.4, per: 0.05 }, guardBack: { base: 0.5, per: 0.1 }, guardDef: { base: 2.5, per: 0.6 }, guardDefPct: { base: 0.3, per: 0.1 }, guardThorn: { base: 0.6, per: 0.3 }, // Q 2026-11-22 ตั้งการ์ด counter + Rammus W เกราะหนาม
+  bloodVamp: { base: 0.2, per: 0.05 }, tauntWeak: { base: 0.2, per: 0.05 }, tauntVuln: { base: 0.2, per: 0.08 },
   rainMul: { base: 0.8, per: 0.15 }, hawkCrit: { base: 0.2, per: 0.05 }, trapPush: { base: 30, per: 10 },
   mshieldTake: { base: 0.4, per: 0.05 }, novaMul: { base: 0.8, per: 0.15 }, arcaneMul: { base: 0.6, per: 0.1 },
   renewHeal: { base: 0.3, per: 0.05 }, kyrieHp: { base: 0, per: 0.05 }, spearPlus: { base: 0, per: 0.03 },
@@ -492,9 +495,10 @@ export const S2N = {
   guardCut: (lv: number) => Math.min(S2CAP.guardCut, lin(S2P.guardCut, lv)), guardTurns: (star: boolean) => (star ? 3 : 2), guardCounters: (star: boolean) => (star ? 2 : 1),
   guardShield: (star: boolean) => (star ? 0.18 : 0.1),
   guardBack: (lv: number, star: boolean) => lin(S2P.guardBack, lv) + (star ? 0.3 : 0), guardDef: (lv: number) => lin(S2P.guardDef, lv),
+  guardDefPct: (lv: number) => lin(S2P.guardDefPct, lv), guardThorn: (lv: number, star: boolean) => lin(S2P.guardThorn, lv) * (star ? 1.5 : 1),
   guardAutoBlockShare: 0.5,
   bloodVamp: (lv: number) => lin(S2P.bloodVamp, lv), bloodTurns: 3, bloodAtk: 0.2, bloodTaken: 0.1,
-  tauntWeak: (lv: number) => Math.min(S2CAP.tauntWeak, lin(S2P.tauntWeak, lv)), tauntTurns: (star: boolean) => (star ? 3 : 2),
+  tauntWeak: (lv: number) => Math.min(S2CAP.tauntWeak, lin(S2P.tauntWeak, lv)), tauntVuln: (lv: number) => lin(S2P.tauntVuln, lv), tauntEnrage: 0.1, tauntHelixMult: 2, tauntTurns: (star: boolean) => (star ? 3 : 2),
   tauntBreakTurns: (star: boolean) => (star ? 2 : 1), tauntStarRes: 15, tauntStarShield: 0.1, tauntCtrAmp: 0.2,
   rainMul: (lv: number) => lin(S2P.rainMul, lv), rainWaves: (star: boolean) => (star ? 2 : 1),
   hawkCrit: (lv: number) => Math.min(S2CAP.hawkCrit, lin(S2P.hawkCrit, lv)), hawkTurns: 3, hawkCritDmg: 0.3,
@@ -924,6 +928,8 @@ export function autoInfo(jobId: JobId, st: Stats, job2?: string, base?: { str: n
       out.push({ label: 'ใบ้ + ขัดร่าย', value: `${SWORD_S1.silenceTurns + (st.swS1Star > 0 ? 1 : 0)} เทิร์น` })
       out.push({ label: 'ล้าง CC ตัวเรา', value: 'ใบ้ · ใย · ช้า' })
       if (st.swS1Shield > 0) out.push({ label: '🛡️ โล่เมื่อกด', value: `${shield(st, st.maxHp * st.swS1Shield)}` })
+      if (st.swHelixMul > 0) out.push({ label: `🌀 พายุสวนกลับ (ทุก ${swordHelixNeed(st.swHelixFast)} ฮิต)`, value: hitText(st, st.swHelixMul * (1 + st.swHelixAmp), false) })
+      if (st.swMultiDr > 0) out.push({ label: '🛡️ กันโดนตีรัว', value: `−${pct(st.swMultiDr)}/ฮิตซ้ำ (สูงสุด ${pct(KIT.swordS1Tree.multiDrCap)})` })
       if (st.swS1Splash > 0) out.push({ label: '🌀 เฉือนตัวอื่น', value: `${pct(st.swS1Splash)} ของฮิต` })
       if (st.swS1Star > 0) out.push({ label: '⚔️ ฟันซ้ำ', value: `${pct(KIT.swordS1Tree.starHit)} ของฮิต` })
       if (st.swCcGuard > 0) out.push({ label: '🧘 กัน CC หลังล้าง', value: `${KIT.swordS1Tree.guardTurns} เทิร์น` })
@@ -962,6 +968,18 @@ export function autoInfo(jobId: JobId, st: Stats, job2?: string, base?: { str: n
   return out
 }
 
+/** ⚔️ Swordsman left-branch helpers: 🌀 พายุตั้งรับ (Anti-Multi-Hit Counter) + 🔥 ดาบผลาญพิพากษา (Vengeance + Cull). */
+export function swordMultiHitDr(hitsBefore: number, multiDr: number): number {
+  if (hitsBefore <= 0 || multiDr <= 0) return 0
+  return Math.min(KIT.swordS1Tree.multiDrCap, hitsBefore * multiDr)
+}
+export function swordHelixNeed(helixFast: number): number {
+  return helixFast > 0 ? KIT.swordS1Tree.helixHitsStar : KIT.swordS1Tree.helixHits
+}
+export function swordCullThreshold(isBig: boolean, cullAdd: number): number {
+  return isBig ? KIT.swordUltTree.cullBossPct + cullAdd * 0.5 : KIT.swordUltTree.cullPct + cullAdd
+}
+
 /** Ult with these stats. */
 export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: number }, job2?: string): InfoRow[] {
   const job = JOBS[jobId], pow = 1 + st.ultPow, hitPow = pow * (1 + st.ultAmp)
@@ -972,9 +990,10 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
       if (swordAwakenUlt(job2)) { // job1 ดาบพิพากษา + Knight 🔱 Pierce of Judgement (Q 2026-11-23)
         const kn = job2 === 'knight', K = KIT2.knight, aw = kn ? '⚔️ ปลุกหอก' : '⚔️ ปลุกดาบ'
         out.push({ label: aw, value: `${SWORD_MANA.awakenTurns} เทิร์น` })
-        const uLv = swordUltLv(st), strAdd = SWORD_MANA.awakenStr[uLv - 1]
-        out.push({ label: '⚔️ ระหว่างปลุก: STR', value: `+${strAdd}` })
+        const uLv = swordUltLv(st), strAdd = SWORD_MANA.awakenStr[uLv - 1] + (base && st.swAwStrPct > 0 ? Math.round(base.str * st.swAwStrPct) : 0)
+        out.push({ label: '⚔️ ระหว่างปลุก: STR', value: `+${strAdd}${st.swAwStrPct > 0 ? ` (+${pct(st.swAwStrPct)} STR)` : ''}` })
         if (st.swAwAtk > 0) out.push({ label: '⚔️ ระหว่างปลุก: P.ATK', value: `+${pct(st.swAwAtk)}` })
+        if (st.swAwTrue > 0) out.push({ label: '🎯 ระหว่างปลุก: True Strike', value: 'ตีไม่พลาด · ไม่โดนหลบ' })
         out.push({ label: '✨ ต่อฮิต: HP ที่เหลือเป้า', value: base ? pct(swordCoatPct(uLv, base.str + strAdd)) : `${pct(SWORD_MANA.awakenHpPct)}+` })
         out.push({ label: '✨ บอส/มินิ ได้', value: `×${SWORD_MANA.awakenBigShare}` })
         out.push({ label: '⚔️ ตีปกติฟันตัวถัดไป', value: `${Math.round((SWORD_MANA.cleaveShare + st.swAwCleave) * 100)}%` })
@@ -991,11 +1010,13 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
           out.push({ label: '🌊 คลื่นดาบ/ตัว (ทุกตัว)', value: hitText(st, (SWORD_MANA.ultMul + st.ultMulAdd) * hitPow * (1 + st.pskill), false) })
           out.push({ label: '🌊 ปล่อยเองเมื่อ', value: `มอน HP < ${Math.round(SWORD_MANA.execLow * 100)}%` })
         }
-        out.push({ label: '🎯 ก่อนปล่อยคลื่น', value: 'ไม่พลาด' })
+        if (st.swWaveAmp > 0) out.push({ label: '🌊 คลื่นแรงขึ้น (คลื่นซ้ำ)', value: `+${pct(st.swWaveAmp)}` })
         if (st.swAwDr > 0) out.push({ label: '🛡️ ปลุกอยู่: โดนเบาลง', value: `−${pct(st.swAwDr)}` })
+        if (st.swVengRate > 0) out.push({ label: '🔥 เพลิงแค้น', value: `สะสม ${pct(st.swVengRate)} ดาเมจที่โดน (สูงสุด ${pct(U.vengCap)} HP)` })
         if (st.swAwLeech > 0) out.push({ label: '🩸 ปลุกอยู่: ดูดเลือด', value: pct(st.swAwLeech) })
         if (st.swAwCtr > 0) out.push({ label: '🔁 ปลุกอยู่: สวนกลับ', value: `+${pct(st.swAwCtr)}` })
         if (st.swWaveShield > 0) out.push({ label: '🌊 โล่จากคลื่น', value: `${pct(U.waveShield)} ดาเมจ` })
+        if (st.swCull > 0) out.push({ label: '🪓 ดาบผ่าชีพ', value: `ประหาร HP ≤ ${pct(swordCullThreshold(false, st.swCullAdd))} (บอส ${pct(swordCullThreshold(true, st.swCullAdd))})` })
         if (st.swWaveRe > 0) out.push({ label: '🌊 คลื่นซ้ำเมื่อฆ่า', value: `โอกาส ${pct(st.swWaveRe)}` })
         if (st.ultShieldAdd > 0) out.push({ label: 'โล่', value: `${shield(st, st.maxHp * st.ultShieldAdd * pow)}` })
       } else { // Berserker / Warlord: บ้าระห่ำ (swordsman_a1..a4 & d3)
@@ -1116,9 +1137,17 @@ export function skill2Info(k: Skill2Def, st: Stats): InfoRow[] {
   const out: InfoRow[] = [{ label: 'ใช้', value: `${resName(job)} ${k.cost} · คูลดาวน์ ${s2Cooldown(k, st)} เทิร์น` }]
   const add = (label: string, value: string) => out.push({ label, value })
   switch (k.id) {
-    case 'sw_guard': add('โล่ทันที + ดาเมจเข้าลด', `${shield(st, st.maxHp * S2N.guardShield(star))} · −${pct(S2N.guardCut(lv))} · ${S2N.guardTurns(star)} เทิร์น`); add('สวนกลับแน่นอน', `${S2N.guardCounters(star)} ครั้ง`); add('สวน +ดาเมจที่โดน', pct(S2N.guardBack(lv, star))); add('สวน +P.DEF', `${S2N.guardDef(lv)}x = ${Math.round(st.def * S2N.guardDef(lv))}`); break
+    case 'sw_guard': {
+      const defX = Number(S2N.guardDef(lv).toFixed(2)), thornX = Number(S2N.guardThorn(lv, star).toFixed(2))
+      add('โล่ทันที + ดาเมจเข้าลด', `${shield(st, st.maxHp * S2N.guardShield(star))} · −${pct(S2N.guardCut(lv))} · P.DEF +${pct(S2N.guardDefPct(lv))} · ${S2N.guardTurns(star)} เทิร์น`)
+      add('🦔 เกราะหนาม (สะท้อนทุกฮิต)', `P.DEF ×${thornX} = ${Math.round(st.def * (1 + S2N.guardDefPct(lv)) * S2N.guardThorn(lv, star))}`)
+      add('สวนกลับแน่นอน', `${S2N.guardCounters(star)} ครั้ง`)
+      add('สวน +ดาเมจที่โดน', pct(S2N.guardBack(lv, star)))
+      add('สวน +P.DEF', `${defX}x = ${Math.round(st.def * S2N.guardDef(lv))}`)
+      break
+    }
     case 'sw_blood': add('ดูดเลือด + ดูดเลือดสกิล', `+${pct(S2N.bloodVamp(lv))} · ${S2N.bloodTurns} เทิร์น`); add('ระหว่างเลือดเดือด', `โดนตีแรงขึ้น +${pct(S2N.bloodTaken)}${SPELL_VAMP.bloodCut > 0 ? ` · ดาเมจสกิล/ult −${pct(SPELL_VAMP.bloodCut)}` : ''}${star ? ` · ATK +${pct(S2N.bloodAtk)}` : ''}`); break
-    case 'sw_taunt': add('มอนตีเบาลง + เกราะแตก', `${pct(S2N.tauntWeak(lv))} (${S2N.tauntTurns(star)} เทิร์น) · เกราะแตก ${S2N.tauntBreakTurns(star)} เทิร์น`); add('สวนกลับใส่มอนติดท้าทาย', `+${pct(S2N.tauntCtrAmp)}`); if (star) add('★ ท้าซ้ำ', `ฟื้น Resource +${S2N.tauntStarRes} · โล่ ${shield(st, st.maxHp * S2N.tauntStarShield)}`); break
+    case 'sw_taunt': add('📣 ยั่วยุฉีกเกราะ (RO Provoke)', `มอนโดนกายภาพแรงขึ้น +${pct(S2N.tauntVuln(lv))} · เกราะแตก ${S2N.tauntBreakTurns(star)} เทิร์น (มอนคลั่งตีแรง +${pct(S2N.tauntEnrage)}) · ${S2N.tauntTurns(star)} เทิร์น`); add('🌀 เร่งพายุสวนกลับ + สวนแรงขึ้น', `นับฮิตพายุ ×${S2N.tauntHelixMult} · สวนแรง +${pct(S2N.tauntCtrAmp)}`); if (star) add('★ ท้าซ้ำ', `ตัดร่ายทันที · ฟื้น Resource +${S2N.tauntStarRes} · โล่ ${shield(st, st.maxHp * S2N.tauntStarShield)}`); break
     case 'ar_rain': add(`ดาเมจ/ตัว (ทุกตัว ×${S2N.rainWaves(star)} รอบ)`, hitText(st, S2N.rainMul(lv), false)); break
     case 'ar_hawk': add('คริเพิ่ม', `+${pct(S2N.hawkCrit(lv))} → รวม ${pct(st.crit + S2N.hawkCrit(lv))} · ${S2N.hawkTurns} เทิร์น`); if (star) add('ดาเมจคริ', `+${pct(S2N.hawkCritDmg)}`); break
     case 'ar_trap': add(star ? 'ดาเมจ/ตัว (ทุกตัว)' : 'ดาเมจตัวหน้า', hitText(st, S2N.trapMul, false)); add('ผลักเทิร์น', `${S2N.trapPush(lv)}`); break
