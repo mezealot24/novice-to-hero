@@ -167,7 +167,7 @@ export const s2LvOf = (lv: number) => {
 // Lv 5 as a 1st class · 10 once the hero has a 2nd job · 15 once Awakened. Extra levels keep the same per-Lv formula
 // (Skill 1 / Ult +powPer each; Swordsman S1 / ult tables run to Lv 15 in data/jobs.ts). Skill 2 levels past 5 count s2Above
 // s2Lv each (half of the 0.6 of Lv 1-5) and defensive Skill 2 numbers are capped in skill-math S2N.
-export const CLASS1_CAP = { base: 5, job2: 10, job3: 15, s2Above: 0.3 } as const;
+export const CLASS1_CAP = { base: 5, job2: 10, job3: 15, s2Above: 0.3, statAbove: 0.5 } as const;
 let class1Tier: 1 | 2 | 3 = 1;
 /** Set from the save (save.ts load / job change): 1 = 1st class, 2 = has a 2nd job, 3 = Awakened. */
 export function setClass1Tier(t: 1 | 2 | 3): void {
@@ -176,7 +176,31 @@ export function setClass1Tier(t: 1 | 2 | 3): void {
 /** Max Lv of the class-1 Skill 1 / Ult / Skill 2 "+" nodes right now. */
 export const class1Cap = (tier: 1 | 2 | 3 = class1Tier): number =>
 	tier === 3 ? CLASS1_CAP.job3 : tier === 2 ? CLASS1_CAP.job2 : CLASS1_CAP.base;
-// rowsAt: Job Lv that opens talent row 1..4. Talent Points: 1 per `pointEveryJobLv` Job Lv (8 at Job Lv 40), separate from skill points.
+
+/** Q 2026-11-24 "ขยายเลเวล node สกิลอื่นๆ": the other multi-level class-1 web nodes (branch stat / effect nodes, old max >= 2)
+ *  grow with the class-1 cap too: max x2 with a 2nd job, x3 Awakened (5 -> 10 -> 15, 4 -> 8 -> 12). Each Lv past the old
+ *  max is worth CLASS1_CAP.statAbove of a normal Lv. ★ / 1-point nodes, tier-4 keystones and Skill 2 nodes keep their max. */
+export function class1Scale(n: TreeNode, oldMax: number): TreeNode {
+	const base = n.max;
+	if (oldMax < 2 || base < 2 || n.kind || n.tier === 4 || n.id in NO_STRETCH) return n;
+	const mod0 = n.mod, desc0 = n.desc;
+	const whole = Object.keys(mod0(base)).some((k) => INT_FIELDS.has(k as keyof Stats));
+	const eff = (lv: number) => (lv <= base ? lv : base + (lv - base) * CLASS1_CAP.statAbove);
+	const mod = (lv: number): Partial<Stats> => {
+		const raw = mod0(eff(lv));
+		if (lv <= base || !whole) return raw;
+		const o: Partial<Stats> = {};
+		for (const k of Object.keys(raw) as (keyof Stats)[]) o[k] = INT_FIELDS.has(k) ? Math.round(raw[k] ?? 0) : raw[k];
+		return o;
+	};
+	const out: TreeNode = {
+		...n,
+		mod,
+		desc: (lv: number) => (lv <= base ? desc0(lv) : tidy(desc0(eff(lv)), whole)),
+	};
+	Object.defineProperty(out, "max", { get: () => Math.round((base * class1Cap()) / CLASS1_CAP.base), enumerable: true, configurable: true });
+	return out;
+}// rowsAt: Job Lv that opens talent row 1..4. Talent Points: 1 per `pointEveryJobLv` Job Lv (8 at Job Lv 40), separate from skill points.
 export const TALENT_RULES = {
 	rowsAt: [5, 10, 20, 30] as const,
 	pointEveryJobLv: 5,
@@ -326,10 +350,9 @@ for (const c of CLASS_TREES) {
 		for (const x of c.nodes
 			.filter((q) => q.branch === b.id)
 			.sort((p, q) => p.tier - q.tier)) {
-			webNodes.push({
-				...stretchNode(x),
-				parent: x.tier === 0 ? undefined : prev,
-			});
+			webNodes.push(
+				class1Scale({ ...stretchNode(x), parent: x.tier === 0 ? undefined : prev }, x.max),
+			);
 			prev = x.id;
 		}
 	}

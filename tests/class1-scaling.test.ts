@@ -95,3 +95,26 @@ test('class-1 points: +1 per Job2 / Job3 Lv past 1, granted once, kept when the 
     setClass1Tier(1)
   }
 })
+
+// Q 2026-11-24 "ขยายเลเวล node สกิลอื่นๆ": the other multi-level class-1 web nodes follow the cap too
+import { TREE } from '../src/data/tree'
+test('other class-1 nodes: max x2 / x3 with the 2nd job / Awakening, Lv past the old max worth statAbove, ★ kept', () => {
+  const n = TREE.find((x) => x.id === 'swordsman_b1')!
+  const star = TREE.find((x) => !x.kind && x.tier === 4)!, starMax = star.max
+  try {
+    setClass1Tier(1)
+    assert.equal(n.max, 5)
+    const full = n.mod(5).swS1Shield!
+    setClass1Tier(2)
+    assert.equal(n.max, 10)
+    near(n.mod(10).swS1Shield!, full * (1 + CLASS1_CAP.statAbove))
+    near(n.mod(5).swS1Shield!, full) // Lv 1-5 unchanged
+    setClass1Tier(3)
+    assert.equal(n.max, 15)
+    near(n.mod(15).swS1Shield!, full * (1 + 2 * CLASS1_CAP.statAbove))
+    assert.equal(star.max, starMax) // ★ keystones keep their max
+    assert.ok(TREE.filter((x) => !x.kind && x.max > 5).length > 50, 'most branch nodes grow')
+  } finally {
+    setClass1Tier(1)
+  }
+})

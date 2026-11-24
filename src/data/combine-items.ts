@@ -106,6 +106,12 @@ export const COMBINE_ITEMS: Item[] = [
     effects: [{ id: 'bash', power: 1, chance: 0.15, cd: 2 }],
     combine: { tier: 2, from: ['cc_tc_knuckle', 'cc_tc_bell'] },
     craft: { dg: 'd14', common: 0, boss: 3, zeny: 12500, bonus: [{ combo: 0.05 }, { critMul: 0.15, magPen: 0.04 }] } },
+  { id: 'cb_breakkris', wtype: 'dagger', slot: 'weapon', name: 'กริชเงาตัดพลัง', icon: '⛓️', price: 0, slots: 2, jobs: ['thief'], j2: ['mobster'], req: 'd12',
+    desc: 'ผสมจากกริชเงาคู่ทวิภพ + หมายศาลเงามรณะ · แทงปกติมีโอกาสติด ⛓️ Break: ปิด passive ของมอน (สะท้อน ดูดเลือด ติดสถานะเมื่อตี ...) (Q 2026-11-24)',
+    base: { agi: 9, str: 5, luk: 5 }, mod: { atk: 42, combo: 0.1, crit: 0.1, critMul: 0.08, flee: 8, maxHp: 90 },
+    effects: [{ id: 'break_hit', power: 2, chance: 0.25, cd: 3 }],
+    combine: { tier: 2, from: ['cc_ts_kris', 'cc_mt_writ'] },
+    craft: { dg: 'd12', common: 0, boss: 3, zeny: 9500, bonus: [{ critMul: 0.15 }, { skillCrit: 0.03, physPen: 0.05 }] } },
   // ===== P3 Mythic (tier 3, Q 2026-11-24): a combined item + a D10+ / unique piece; the inherited passive x1.3 + one more.
   // Core: 6 boss mats + 1 boss card of the recipe dungeon. Only one Mythic worn at a time (save.ts mythicEquipBlocked). =====
   { id: 'cb_m_executioner', wtype: 'sword', slot: 'weapon', name: 'เพชฌฆาตบัลลังก์กัดกร่อน', icon: '⚔️', price: 0, slots: 2, jobs: ['swordsman'], req: 'd12',

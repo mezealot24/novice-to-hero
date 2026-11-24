@@ -152,8 +152,8 @@ test('borrow over-level: growing nodes go to Lv 50, talents stop at max, caps fl
   assert.ok(blade && talent)
   assert.equal(blade.top, 50)
   assert.equal(talent.top, talent.max, 'rank table talent cannot pass max')
-  const crit = borrowPlan('king', blade, 50, (p) => (p === 'king.crit' ? 0.7 : undefined)).lines.find((l) => l.path === 'king.crit')
-  assert.ok(crit?.capped && crit.to === 1.5, `${blade.name} Lv 50 crit 0.7 + node hits the 1.5 cap`)
+  const crit = borrowPlan('king', blade, 50, (p) => (p === 'king.crit' ? 0.9 : undefined)).lines.find((l) => l.path === 'king.crit') // Q 2026-11-24: class-1 node Lv past 5 = CLASS1_CAP.statAbove each, so Lv 50 grows less
+  assert.ok(crit?.capped && crit.to === 1.5, `${blade.name} Lv 50 crit 0.9 + node hits the 1.5 cap`)
 })
 
 test('pointsMul + allocFor: typed stats -> weights + budget, defaults untouched', () => {

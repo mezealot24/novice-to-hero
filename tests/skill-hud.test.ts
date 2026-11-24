@@ -55,12 +55,13 @@ test('booking rule: auto mode always casts, manual only when booked', () => {
   assert.equal(tapAction(true), 'book')
 })
 
-test('hotkeys: 1-3 skills, 4 ult, digit row and numpad, nothing else', () => {
+test('hotkeys: 1-3 skills, 4 ult, 5 Skill 4, digit row and numpad, nothing else', () => {
   assert.equal(hotkeySlot('Digit1'), 's1')
   assert.equal(hotkeySlot('Digit3'), 's3')
   assert.equal(hotkeySlot('Numpad2'), 's2')
   assert.equal(hotkeySlot('Digit4'), 'ult')
-  assert.equal(hotkeySlot('Digit5'), null)
+  assert.equal(hotkeySlot('Digit5'), 's4') // Q 2026-11-24 Skill 4
+  assert.equal(hotkeySlot('Digit6'), null)
   assert.equal(hotkeySlot('KeyA'), null)
 })
 

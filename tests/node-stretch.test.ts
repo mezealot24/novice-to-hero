@@ -37,8 +37,10 @@ test('every class / ใยชั้น 2 node is either stretched by the rule or
     const keep = raw.tier === 4 || id in NO_STRETCH || !TREE_RULES.stretch[raw.max] || TREE_RULES.stretch[raw.max] === raw.max
     if (keep) {
       assert.equal(n.max, raw.max, `${id} kept`)
-      assert.equal(n.mod, raw.mod, `${id} same formula`)
-      assert.equal(n.desc, raw.desc, `${id} same text`)
+      for (let lv = 1; lv <= raw.max; lv++) { // Q 2026-11-24 class1Scale wraps class-1 nodes: same numbers up to the old max
+        assert.deepEqual(n.mod(lv), raw.mod(lv), `${id} same formula`)
+        assert.equal(n.desc(lv), raw.desc(lv), `${id} same text`)
+      }
     } else assert.equal(n.max, TREE_RULES.stretch[raw.max], `${id}: ${raw.max} -> ${TREE_RULES.stretch[raw.max]}`)
   }
   for (const id of Object.keys(NO_STRETCH)) assert.ok(RAW.has(id), `NO_STRETCH ${id} exists`)
