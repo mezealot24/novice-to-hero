@@ -20,8 +20,8 @@ const mk = (it = blade, over: Partial<SaveData> = {}): SaveData => {
 }
 
 test('combine data: cb_ ids, two crafted pieces, core = 3 boss mats + no common, a labelled Unique Passive, class matches', () => {
-  assert.equal(COMBINE_ITEMS.length, 20) // P1 5 + P2 10 + P3 5 Mythic
-  assert.equal(new Set(COMBINE_ITEMS.flatMap((x) => x.combine!.from)).size, 40) // every piece is used by one recipe only
+  assert.equal(COMBINE_ITEMS.length, 21) // P1 5 + P2 10 + P3 5 Mythic + ⛓️ cb_breakkris (Q 2026-11-24)
+  assert.equal(new Set(COMBINE_ITEMS.flatMap((x) => x.combine!.from)).size, 42) // every piece is used by one recipe only
   for (const it of COMBINE_ITEMS.filter((x) => !isMythic(x))) {
     assert.ok(it.id.startsWith(COMBINE.idPrefix), it.id)
     assert.ok(ITEMS.some((x) => x.id === it.id), `${it.id} registered in ITEMS`)

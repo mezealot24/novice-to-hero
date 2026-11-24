@@ -35,6 +35,7 @@ export type ItemEffectId =
   | 'bash' // basic attack, chance (CD cd): stun a normal mob 1 turn · a casting boss: the cast breaks · a boss not casting: pushed back
   | 'cleave' // a basic / combo hit splashes power x its damage onto every other monster
   | 'last_stand' // once per wave: a lethal hit leaves 1 HP + a shield of power x Max HP
+  | 'break_hit' // basic attack, chance (CD cd): ⛓️ Break the target for power hero turns (its passives are off, data/skill4.ts)
   | 'skill_burn' // a skill hit sets a burn of power x target's Max HP per turn (boss x0.5) for 3 turns, capped at threshold x max(P.ATK, M.ATK)
 
 /** 🧬 Combine passive tuning shared by BattleScene (AGENTS.md: no balance numbers in scenes). */
@@ -46,6 +47,7 @@ export const COMBINE_FX = {
   thirdEvery: 3, // third_hit default
   thirdPerLv: 4, // third_hit flat damage per Base Lv
   bashChance: 0.15, // bash default
+  breakChance: 0.25, // break_hit default
   rampMax: 8, // ramp_stack default stacks
 } as const
 
@@ -381,6 +383,7 @@ const EFFECT_LABEL: Record<ItemEffectId, (e: ItemEffectSpec) => string> = {
   ramp_stack: (e) => `สะสมศึก: ทุกเทิร์นในไฟท์ ดาเมจ (ยกเว้นท่าไม้ตาย) +${pct1(e.power)}% สูงสุด ${e.threshold ?? 8} ชั้น`,
   skill_burn: (e) => `เพลิงทรมาน: สกิลที่โดนเผา ${pct1(e.power)}% Max HP/เทิร์น 3 เทิร์น (บอสครึ่งเดียว · สูงสุด ${e.threshold ?? 1.5}x ATK)`,
   third_hit: (e) => `สามจังหวะ: ตีปกติครั้งที่ ${e.threshold ?? 3} +${pct1(e.power)}% P.ATK + Base Lv x4 ไม่ผ่านเกราะ`,
+  break_hit: (e) => `ตัดพลัง ${pct1(e.chance ?? 0.25)}%: ⛓️ Break ${Math.round(e.power)} เทิร์น ปิด passive มอน (สะท้อน · ดูดเลือด · ติดสถานะเมื่อตี ...) (CD ${e.cd ?? 3} เทิร์น)`,
   bash: (e) => `ทุบมึน ${pct1(e.chance ?? 0.15)}%: มอนเสียเทิร์น · บอสที่ร่ายอยู่ร่ายแตก (CD ${e.cd ?? 2} เทิร์น)`,
   cleave: (e) => `ฟันกวาด: ตีปกติกระเซ็น ${pct1(e.power)}% ใส่มอนตัวอื่นทุกตัว`,
   last_stand: (e) => `ใจสู้: เวฟละครั้ง โดนตีตายจะเหลือ 1 HP + โล่ ${pct1(e.power)}% Max HP`,

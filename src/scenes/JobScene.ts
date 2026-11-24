@@ -127,7 +127,7 @@ export class JobScene extends Phaser.Scene {
         `พลัง: ${res.name} · เก่งเมื่อใช้: ${j.mastery.weapon}`,
         `${j.signature.icon} ${j.signature.name}: ${j.signature.desc}`,
         `${j.skill3.icon} ทักษะ 3 ${j.skill3.name}: ${j.skill3.desc}`,
-        ...(j.skill4 ? [`${j.skill4.icon} ทักษะ 4 ${j.skill4.name} (ปลดที่ Job2 Lv ${j.skill4.unlockLv}): ทุบโล่ + สตั๊น/ตัดร่าย · 🐍 ตีโล่แรงขึ้น`] : []),
+        ...(j.skill4 ? [`${j.skill4.icon} ทักษะ 4 ${j.skill4.name} (ปลดที่ Job2 Lv ${j.skill4.unlockLv}): ทุบโล่ + สตั๊น/ตัดร่าย + ⛓️ Break · 🐍 ตีโล่แรงขึ้น`] : []),
         `${j.ult.icon} Ult ${j.ult.name}: ${j.ult.desc}`,
       ].join('\n'), 12, '#d8d4f0').setWordWrapWidth(cw - 28).setLineSpacing(5)
       const z = this.add.zone(x, 86 + ch / 2, cw, ch).setInteractive({ useHandCursor: true })

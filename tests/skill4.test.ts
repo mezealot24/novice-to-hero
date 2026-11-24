@@ -1,7 +1,8 @@
 // Q 2026-11-24 Skill 4: Knight 🌀 Spiral Pierce (Rell Q shatter + stun, Serpent's Fang passive) + the 🔓 Break trial toggle.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { breakAmpOf, breakOn, breakTurns, fangSoak, s4Shatter, s4StunKind, s4Target, s4Unlocked } from '../src/data/skill4'
+import { addBreak, breakText, fangSoak, s4Shatter, s4StunKind, s4Target, s4Unlocked } from '../src/data/skill4'
+import { COMBINE_ITEMS } from '../src/data/combine-items'
 import { KIT, KIT2 } from '../src/data/skill-math'
 import { JOB2 } from '../src/data/jobs2'
 import { hotkeySlot, slotCenter, SKILL_HUD } from '../src/battle/skill-hud'
@@ -51,28 +52,16 @@ test("🐍 Fang: shields drain x1.5, only the shield part grows; no fang = the o
   assert.deepEqual(fangSoak(300, 100, 0, 0.5, true), { absorbed: 0, remShield: 300, remDmg: 100 }) // pure skips the shield
 })
 
-test('🔓 Break: off by default; when on, basic / Skill 1 / Skill 3 get it, the ult window, Skill 2 and DoT never do', () => {
-  assert.equal(breakOn(), false)
-  assert.equal(breakTurns(), 0)
-  const hit = { turns: 2, tier: 'normal' as const, src: 'basic', slot: null, inUlt: false, dot: false }
-  assert.equal(breakAmpOf(hit), 0)
-  const prev = KIT.break4.on
-  try {
-    KIT.break4.on = 1
-    assert.equal(breakTurns(), KIT.break4.turns)
-    assert.equal(breakAmpOf(hit), KIT.break4.amp)
-    assert.equal(breakAmpOf({ ...hit, tier: 'boss' }), KIT.break4.bossAmp)
-    assert.equal(breakAmpOf({ ...hit, src: 'skill', slot: 's1' }), KIT.break4.amp)
-    assert.equal(breakAmpOf({ ...hit, src: 'skill', slot: null }), KIT.break4.amp) // Skill 3 casts with no crit slot
-    assert.equal(breakAmpOf({ ...hit, src: 'skill', slot: 'ult' }), 0)
-    assert.equal(breakAmpOf({ ...hit, src: 'skill', slot: 's2' }), 0)
-    assert.equal(breakAmpOf({ ...hit, inUlt: true }), 0)
-    assert.equal(breakAmpOf({ ...hit, src: 'ult' }), 0)
-    assert.equal(breakAmpOf({ ...hit, dot: true }), 0)
-    assert.equal(breakAmpOf({ ...hit, turns: 0 }), 0)
-  } finally {
-    KIT.break4.on = prev
-  }
+test('⛓️ Break: Spiral Pierce and the break_hit item apply it, no admin switch, a new Break never shortens one running', () => {
+  assert.equal(S.breakTurns, 2)
+  assert.match(JOB2.knight.skill4!.desc, /Break/)
+  assert.equal(addBreak(undefined, 2), 2)
+  assert.equal(addBreak(3, 2), 3)
+  assert.equal(addBreak(1, 2), 2)
+  assert.match(breakText(2), /ปิด passive/)
+  assert.equal((KIT as Record<string, unknown>).break4, undefined) // the old trial toggle is gone
+  const kris = COMBINE_ITEMS.find((x) => x.id === 'cb_breakkris')!
+  assert.deepEqual(kris.effects?.map((e) => e.id), ['break_hit'])
 })
 
 test('HUD: hotkey 5 = Skill 4, the 4-button arc does not overlap, the 3-button layout is unchanged', () => {

@@ -1,6 +1,6 @@
-// Q 2026-11-24 Skill 4 (spec doc "4 สกิลสำหรับ Job2 + Awakening"): the pure rules behind Knight 🌀 Spiral Pierce + the 🔓 Break trial.
-// No Phaser here, so tests/skill4.test.ts runs them directly. Numbers: KIT2.knight.s4 and KIT.break4 (skill-math.ts).
-import { KIT, KIT2 } from './skill-math'
+// Q 2026-11-24 Skill 4 (spec doc "4 สกิลสำหรับ Job2 + Awakening"): the pure rules behind Knight 🌀 Spiral Pierce + ⛓️ Break.
+// No Phaser here, so tests/skill4.test.ts runs them directly. Numbers: KIT2.knight.s4 (skill-math.ts), item Break in item-effects.ts.
+import { KIT2 } from './skill-math'
 import { resolveMonsterShieldSoak, type MonsterShieldSoak } from './passive-battle'
 import type { MonTier } from './mon-stats'
 
@@ -35,15 +35,9 @@ export function fangSoak(shield: number, dmg: number, pierce: number, fang: numb
   return { absorbed: r.absorbed, remShield: r.remShield, remDmg: Math.max(0, Math.round(r.remDmg / (1 + f))) }
 }
 
-/** 🔓 Break trial: off unless admin kit `break4.on` = 1. Hero turns it lasts when Skill 4 lands. */
-export const breakOn = (): boolean => KIT.break4.on > 0
-export const breakTurns = (): number => (breakOn() ? Math.max(0, Math.round(KIT.break4.turns)) : 0)
-
-/** Damage-taken share a broken monster gets from this hit: basic / Skill 1 / Skill 3 hits only (never the ult window, never DoT). */
-export function breakAmpOf(o: { turns: number; tier: MonTier; src: string; slot: string | null; inUlt: boolean; dot: boolean }): number {
-  if (!breakOn() || o.turns <= 0 || o.dot || o.inUlt) return 0
-  const fromBasic = o.src === 'basic' || o.src === 'combo'
-  const fromSkill = o.src === 'skill' && o.slot !== 'ult' && o.slot !== 's2'
-  if (!fromBasic && !fromSkill) return 0
-  return o.tier === 'normal' ? KIT.break4.amp : KIT.break4.bossAmp
-}
+/** ⛓️ Break (Q 2026-11-24, Dota 2 Silver Edge / Shadow Blade style): while broken, a monster's passives are off.
+ *  Only some hero skills (Knight 🌀 Spiral Pierce) and items (🧬 effect `break_hit`) apply it. No admin switch. */
+export const BREAK_OFF = ['🔁 สะท้อน/ดูดซับ', '🩸 ดูดเลือด', '☠️ ติดสถานะเมื่อตี', '🩸 Blood Razor', '🐺 คลั่ง/ดมกลิ่น (Hunter)', '💚 ฟื้น HP (Drainer)'] as const
+export const breakText = (turns: number) => `⛓️ Break ${turns} เทิร์น: ปิด passive มอน (${BREAK_OFF.join(' · ')})`
+/** A new Break never shortens one already running. */
+export const addBreak = (cur: number | undefined, turns: number): number => Math.max(cur ?? 0, Math.max(0, Math.round(turns)))

@@ -36,7 +36,7 @@ import { rollUniqueDrop, UNIQUE } from '../data/uniques'
 import { rollEndgameUniqueDrop, rollUnique3Drop } from '../data/uniques3'
 import { hellEff, MINI_POOL, MINI_RELICS, RELIC_RULES, RELICS, type RelicId } from '../data/relics'
 import { sfx, unlock } from '../sfx'
-import { breakAmpOf, breakTurns, fangSoak, s4Shatter, s4StunKind, s4Target, s4Unlocked } from '../data/skill4'
+import { addBreak, fangSoak, s4Shatter, s4StunKind, s4Target, s4Unlocked } from '../data/skill4'
 import { HARD_POWER, TOWER_POWER } from '../data/power'
 import { escalate, escalationAt } from '../data/hard-escalation'
 import { canPay, MON_MANA, newManaPool, payMana, regenMana, type ManaPool } from '../data/mon-mana'
@@ -116,7 +116,7 @@ interface Mon {
   wet: number // Innovator ☁️ เมฆฝน: turns of +KIT2.innovator.wetAmp damage taken
   huntMark: number // v82 Archer หมายหัว: turns of +st.arMark damage taken (ticks with its turns)
   stunTurns?: number // Champion Tiger Knuckle extra stun turns left
-  brk4?: number // Q 2026-11-24 🔓 Break trial (Skill 4): hero turns left
+  broken?: number // Q 2026-11-24 ⛓️ Break (Dota 2 style): hero turns left with its passives off (data/skill4.ts BREAK_OFF)
   permafrost?: number // Sage ❄️ Permafrost stacks (0..4, Sejuani E style)
   mark?: ProfMark | null; markTurns?: number; markLayers?: number // 🎓 Professor 🏷️ element mark (monster turns left · charges before it is used up)
   sunder?: number // void_sunder DEF/M.DEF shred share
@@ -809,14 +809,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private monSpeed(m: Mon) {
-    const frenzy = m.def.mini === 'hunter' && m.hp < m.def.hp * BATTLE.frenzyAt ? BATTLE.frenzySpeed : 1
+    const frenzy = m.def.mini === 'hunter' && !this.isBroken(m) && m.hp < m.def.hp * BATTLE.frenzyAt ? BATTLE.frenzySpeed : 1
     const scent = this.scent(m) ? BATTLE.scentSpeed : 1 // hunter กลิ่นเลือด: the hero is low
     return (m.def.speed ?? BATTLE.monSpeed[m.kind] ?? 10) * (m.chill > 0 ? Math.max(0.3, 0.6 - this.st.chillSlow) : 1) * Math.max(frenzy, scent) * m.speedMul
   }
-  private scent(m: Mon) { return m.def.mini === 'hunter' && this.hp > 0 && this.hp < this.st.maxHp * BATTLE.scentAt }
+  private scent(m: Mon) { return m.def.mini === 'hunter' && !this.isBroken(m) && this.hp > 0 && this.hp < this.st.maxHp * BATTLE.scentAt }
   /** hunter Blood Razor: a landed normal hit adds magic damage from the hero's current HP. */
   private razor(m: Mon) {
-    if (!m.def.razor || this.hp <= 0 || m.dead) return
+    if (!m.def.razor || this.hp <= 0 || m.dead || this.isBroken(m)) return
     const n = this.hp * m.def.razor
     if (n >= 1 && this.hurtHero(n, true, 999, m, '🩸 Blood Razor')) this.floatText(HERO_X + 30, GROUND - 150, '🩸 Blood Razor', '#ff7a9a')
   }
@@ -1209,7 +1209,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.smashCdLeft > 0) this.smashCdLeft--
     if (this.s1Cd > 0) this.s1Cd--
     if (this.s4Cd > 0) this.s4Cd--
-    for (const m of this.alive()) if ((m.brk4 ?? 0) > 0) { m.brk4!--; this.dotIcon(m) } // 🔓 Break counts hero turns
+    for (const m of this.alive()) if ((m.broken ?? 0) > 0) { m.broken!--; this.dotIcon(m) } // ⛓️ Break counts hero turns
     if (this.swGuard > 0) this.swGuard--
     this.ultCdCutLeft = KIT.thiefUltCdCutCap; this.ultJustCast = false // P2'c Global Ult CD cap: new hero turn
     if (this.relic === 'storm' && this.fightTurns % RELIC_RULES.storm.every === 0) { await this.lightningWrath(); if (!this.alive().length) return }
@@ -3020,6 +3020,14 @@ export class BattleScene extends Phaser.Scene {
       } finally { this.inS3 = prevS3 }
     }, 'skill')
   }
+  /** ⛓️ Break (Q 2026-11-24, Dota 2 style): the monster's passives are off (reflect / absorb, lifesteal, on-hit status, Blood Razor, Hunter frenzy, Drainer regen). */
+  private isBroken(m: Mon) { return (m.broken ?? 0) > 0 }
+  private breakMon(m: Mon, turns: number, y = m.spr.y - m.spr.displayHeight - 46) {
+    if (m.dead || turns <= 0) return
+    m.broken = addBreak(m.broken, turns)
+    this.floatText(m.spr.x, y, `⛓️ Break ${m.broken} เทิร์น (ปิด passive)`, '#c9a8ff')
+    this.dotIcon(m)
+  }
   /** Q 2026-11-24 Skill 4 is learned (Knight, Job2 Lv >= KIT2.knight.s4.unlockLv): button, cast and the 🐍 Fang passive. */
   private s4On() { return !!this.j2?.skill4 && s4Unlocked(this.j2.id, save().job2Level) }
   /** Skill 4: takes the hero turn when ready and paid for. A booked, affordable ult goes first; auto mode keeps Mana for an ult that is about to come back. */
@@ -3059,8 +3067,7 @@ export class BattleScene extends Phaser.Scene {
       if (s4StunKind(tier) === 'turn') { t.frozen = true; this.floatText(t.spr.x, y, '💫 สตั๊น (เสียเทิร์น)', '#ffe08a') }
       else if (t.charging) this.endMonCast(t, { text: `💫 ตัดร่าย ${t.def.name}!`, color: '#ffe08a' }, S.bossGauge)
       else { t.gauge = Math.max(0, t.gauge - S.bossGauge); this.floatText(t.spr.x, y, `💫 เกจ −${S.bossGauge}`, '#ffe08a') }
-      const bt = breakTurns()
-      if (bt > 0) { t.brk4 = bt; this.floatText(t.spr.x, y - 22, `🔓 Break ${bt} เทิร์น`, '#ffb86b') }
+      this.breakMon(t, S.breakTurns, y - 22)
       this.dotIcon(t)
     }, true, true)
   }
@@ -4256,6 +4263,12 @@ export class BattleScene extends Phaser.Scene {
         if (f.def.ai === 'boss' && f.charging && !f.castSteady) { this.endMonCast(f, { text: `💥 ทุบมึน! ร่ายแตก ${f.def.name}`, color: '#ffb347' }); f.gauge = monBreakGauge(f.gauge) }
         else this.stunMon(f)
       }
+      const bk = this.itemEffect('break_hit')
+      if (bk && !f.dead && this.fxReady('break_hit') && Math.random() < (bk.chance ?? COMBINE_FX.breakChance)) { // 🧬 ⛓️ ตัดพลัง (Silver Edge style Break)
+        this.armFxCd(bk)
+        this.burst(f.spr.x, f.spr.y - f.spr.displayHeight / 2, 0xc9a8ff, 12, 180)
+        this.breakMon(f, bk.power)
+      }
       const cl = this.itemEffect('chain_lightning')
       const rbCl = this.hasRiftBoon('rift_lightning')
       if (!f.dead && ((cl && this.fxReady('chain_lightning') && Math.random() < (cl.chance ?? 1)) || (!cl && rbCl && Math.random() < 0.3))) {
@@ -5177,7 +5190,6 @@ export class BattleScene extends Phaser.Scene {
       if (!dot && m.huntMark > 0) { const mk = Math.max(this.st.arMark, this.j2?.id === 'beastmaster' ? preyMarkOf(this.st) : 0); if (mk > 0) dmg = Math.ceil(dmg * (1 + mk)) } // v82 archer หมายหัว · 🏷️ Beastmaster Prey Mark (hits only)
       if (!dot && m.armorBrk > 0 && this.st.swBreak > 0) dmg = Math.ceil(dmg * (1 + this.st.swBreak)) // v84 Swordsman ทุบเกราะ (hits only)
       if (this.st.lateDmg > 0 && this.fightTurns >= 12) dmg = Math.ceil(dmg * (1 + this.st.lateDmg)) // cleric talent: อรุณรุ่ง
-      const brk4 = breakAmpOf({ turns: m.brk4 ?? 0, tier: monTier(m.def), src: this.src, slot: this.skillSlot, inUlt: this.inUltWindow(), dot }); if (brk4 > 0) dmg = Math.ceil(dmg * (1 + brk4)) // 🔓 Break trial (admin kit break4.on)
       const taken = this.takenAmpOf(m, dot); if (taken > 0) dmg = Math.ceil(dmg * (1 + taken)) // P2'b B1 Taken (R4.6): Exposed + Privileged + gear กัดกร่อน, added under KIT.thiefTakenCap
       if (!dot && this.relic === 'executioner' && m.hp < m.def.hp * RELIC_RULES.executioner.below) dmg = Math.ceil(dmg * (1 + RELIC_RULES.executioner.mul))
     }
@@ -5192,8 +5204,8 @@ export class BattleScene extends Phaser.Scene {
       if (m.parry && !dot && !pure && this.hp > 0) this.riposteHit(m, dmg)
       return
     }
-    if (!dot && !pure && m.reflect > 0 && dmg > 0 && this.hp > 0) this.reflectHurt(m, dmg * m.reflect)
-    if (!dot && !pure && m.absorb > 0 && dmg > 0) { m.stored += dmg * m.absorb; this.dotIcon(m) } // Mirage: stores it for the Soul Strike
+    if (!dot && !pure && m.reflect > 0 && dmg > 0 && this.hp > 0 && !this.isBroken(m)) this.reflectHurt(m, dmg * m.reflect) // ⛓️ Break: passives off
+    if (!dot && !pure && m.absorb > 0 && dmg > 0 && !this.isBroken(m)) { m.stored += dmg * m.absorb; this.dotIcon(m) } // Mirage: stores it for the Soul Strike
     if (!pure && m.shield > 0) { // monster shield (turtle wall, ice armor, bone shield) soaks first · PoE Passive S3 shield pierce
       const shPierce = s3ShieldPierceOf(this.inS3, this.src, dot, this.st.thS3ShieldPierce)
       const soak = fangSoak(m.shield, dmg, shPierce, !this.allyHitting && this.s4On() ? KIT2.knight.s4.fang : 0, pure) // 🐍 เขี้ยวงู (Skill 4 passive)
@@ -5478,7 +5490,7 @@ export class BattleScene extends Phaser.Scene {
       this.dotIcon(m)
     }
     if (!m.dead && m.hell > 0) this.withSrc('fire', () => this.damageMon(m, Math.max(1, Math.round(hellEff(m.hell) * RELIC_RULES.hellfire.dmgPerStack * this.magicPow() * this.dotMul())), false, '#ff5a2a', true))
-    if (!m.dead && m.def.mini === 'drainer' && m.hp < m.def.hp * BATTLE.demonAt) this.healMon(m, m.def.hp * BATTLE.demonRegen, true)
+    if (!m.dead && m.def.mini === 'drainer' && !this.isBroken(m) && m.hp < m.def.hp * BATTLE.demonAt) this.healMon(m, m.def.hp * BATTLE.demonRegen, true)
     m.parry = false
     if (!m.dead && (m.duelHealTurns ?? 0) > 0) { m.duelHealTurns!--; this.healMon(m, m.duelHeal ?? 0) }
     if (!m.dead && (m.sunderTurns ?? 0) > 0) { if (--m.sunderTurns! <= 0) m.sunder = 0; this.dotIcon(m) }
@@ -5543,7 +5555,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.riposte(m)) continue
       const cr = this.monCrit(m)
       const landed = this.hurtHero((m.def.magic ? this.monMatk(m) : m.def.dmg) * BATTLE.monDmgMul * this.monMul(m) * cr, !!m.def.magic, cr > 1 ? 999 : m.def.hit ?? 15, m, shots > 1 ? `โจมตี ${i + 1}/${shots}` : 'โจมตี')
-      if (landed) { this.monLeech(m); this.razor(m); if (m.onHit) this.applyFx(m.onHit, m); if (await this.procs('hurt', m) > 0) await this.wait(90); await this.tryCounter(m) }
+      if (landed) { this.monLeech(m); this.razor(m); if (m.onHit && !this.isBroken(m)) this.applyFx(m.onHit, m); if (await this.procs('hurt', m) > 0) await this.wait(90); await this.tryCounter(m) }
       else if (this.hitOut === 'block' && this.st.swBlockCounter > 0) await this.tryCounter(m, true)
     }
     if (m.def.combo) { // v49 monster combo: chain extra hits like the hero (same cap)
@@ -5991,7 +6003,7 @@ export class BattleScene extends Phaser.Scene {
   private dotIcon(m: Mon) {
     if (m.dead || !m.spr.active) return // a DoT tick or card can land after the kill: its icon text is already gone (page error 'drawImage' of null)
     if (!m.dotTxt) m.dotTxt = this.add.text(0, 0, '', { fontSize: '14px' }).setOrigin(0.5).setDepth(9500)
-    m.dotTxt.setText(`${(m.brk4 ?? 0) > 0 ? '🔓' + m.brk4 : ''}${(m.mSilence ?? 0) > 0 ? '🤐' : ''}${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${(m.permafrost ?? 0) > 0 ? '💠' + m.permafrost : ''}${m.mark ? `[${PROF_ICON[m.mark]}${(m.markLayers ?? 1) > 1 ? '×' + m.markLayers : ''}]` : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${(m.disarm ?? 0) > 0 ? '🧤' : ''}${m.armorBrk > 0 ? '🦴' : ''}${(m.sunderTurns ?? 0) > 0 ? '🕳️' : ''}${m.blind > 0 ? '🙈' : ''}${m.exposed > 0 ? '👁️' : ''}${m.wound > 0 ? '🩸' + m.wound : ''}${m.dagger > 0 ? '🔪' + m.dagger : ''}${m.stabMark > 0 ? '🗡️' : ''}${m.strip > 0 ? '🔓' : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${this.thMarkMon === m ? '🔻' + this.malice : ''}${(m.deathMark ?? 0) > 0 ? '💀' + m.deathMark : ''}${m.reflect > 0 ? '🔁' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
+    m.dotTxt.setText(`${(m.broken ?? 0) > 0 ? '⛓️' + m.broken : ''}${(m.mSilence ?? 0) > 0 ? '🤐' : ''}${m.burnTurns > 0 ? '🔥' : ''}${m.burnStacks > 0 ? '🔥' + m.burnStacks : ''}${m.hell > 0 ? '♨️' + m.hell : ''}${m.poison > 0 ? '☠️' + m.poison : ''}${m.chill > 0 ? '❄️' : ''}${(m.permafrost ?? 0) > 0 ? '💠' + m.permafrost : ''}${m.mark ? `[${PROF_ICON[m.mark]}${(m.markLayers ?? 1) > 1 ? '×' + m.markLayers : ''}]` : ''}${m.ice > 0 ? '🧊' + m.ice : ''}${m.shield > 0 ? '🛡️' : ''}${m.atkUpTurns > 0 ? '💢' : ''}${m.weakTurns > 0 ? '😰' : ''}${(m.disarm ?? 0) > 0 ? '🧤' : ''}${m.armorBrk > 0 ? '🦴' : ''}${(m.sunderTurns ?? 0) > 0 ? '🕳️' : ''}${m.blind > 0 ? '🙈' : ''}${m.exposed > 0 ? '👁️' : ''}${m.wound > 0 ? '🩸' + m.wound : ''}${m.dagger > 0 ? '🔪' + m.dagger : ''}${m.stabMark > 0 ? '🗡️' : ''}${m.strip > 0 ? '🔓' : ''}${m.wet > 0 ? '💧' : ''}${(m.trueTurns ?? 0) > 0 ? '🎯' : ''}${m.huntMark > 0 ? '🏷️' : ''}${this.thMarkMon === m ? '🔻' + this.malice : ''}${(m.deathMark ?? 0) > 0 ? '💀' + m.deathMark : ''}${m.reflect > 0 ? '🔁' : ''}${m.stored > 0 ? '🔮' + Math.round(m.stored) : ''}`)
   }
 
   // ---------- xp / perks ----------
@@ -6676,6 +6688,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Lifesteal monsters heal from the damage that just landed on the hero (pre-shield). */
   private monLeech(m: Mon, share?: number) {
+    if (this.isBroken(m)) return // ⛓️ Break: no lifesteal
     let ls = share ?? m.def.lifesteal ?? 0
     if (m.def.mini === 'hunter' && share === undefined && m.hp < m.def.hp * BATTLE.frenzyAt) ls = BATTLE.frenzyLifesteal
     if (ls > 0 && this.lastHurt > 0) this.healMon(m, this.lastHurt * ls)
