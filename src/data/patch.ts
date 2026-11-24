@@ -196,10 +196,10 @@ export function readPath(table: TableId, path: string): number | undefined {
 
 /** Recompute values that are copied from tunables at module load (MON_STAT.pointsPerLv is a getter, so it needs nothing).
  *  jobs.ts copies three Mana costs into JOBS at import, but the cast code reads JOBS: re-copy them from their source consts
- *  (SWORD_MANA.auto / .ult, CLERIC_KIT.ultMana), so tuning those consts (skills `sword.*`, kit `cleric.ultMana`) takes effect.
+ *  (SWORD_S1.mana / SWORD_MANA.ult, CLERIC_KIT.ultMana), so tuning those consts (skills `sword.*`, kit `cleric.ultMana`) takes effect.
  *  refine.ts FODDER must be rebuilt here once ITEMS becomes tunable. */
 export function rebuildDerived(): void {
-  JOBS.swordsman.auto.cost = SWORD_S1.mana // ⚔️ ดาบสยบมนตร์ flat Mana (Q 2026-11-22; autoCost reads it live) · SWORD_MANA.auto is unused now
+  JOBS.swordsman.auto.cost = SWORD_S1.mana // ⚔️ ดาบสยบมนตร์ flat Mana (Q 2026-11-22; autoCost reads it live)
   JOBS.swordsman.ult.cost = SWORD_MANA.ult
   JOBS.cleric.ult.cost = CLERIC_KIT.ultMana
 }

@@ -220,7 +220,7 @@ function modeSwitch<T extends string>(legend: string, value: T, choices: [T, str
   const fs = h('fieldset', { class: 'mode-seg' }, h('legend', { class: 'visually-hidden' }, legend))
   for (const [val, label] of choices) {
     const id = nextId('mopt')
-    const radio = h('input', { type: 'radio', name: group, id, value: val, class: 'visually-hidden', checked: value === val })
+    const radio = h('input', { type: 'radio', name: group, id, value: val, checked: value === val })
     radio.addEventListener('change', () => { if (radio.checked) onPick(val) })
     fs.append(radio, h('label', { for: id }, label))
   }
@@ -1073,8 +1073,11 @@ function renderSkills(main: HTMLElement) {
       main.append(top, pick, pick2, h('h3', {}, `${j2.icon} ${j2.name}`),
         h('p', { class: 'hint' }, 'ความแรงคริใช้ของคลาสแม่ · ตัวเลขคำอธิบายบนหน้าจอเกมจะคงเดิมจนกว่าจะ build ใหม่ แต่ค่าคำนวณจริงเปลี่ยนทันที · แตะ ? ที่แต่ละช่องเพื่อดูสูตร'),
         h('div', { class: 'skillcols' },
+          ...(l.s1.length ? [skillBlock(`1 · ${job.auto.icon} ${job.auto.name}`, l.s1, 'ค่าร่ายทักษะ 1 ของอาชีพนี้ (ตัวเลขดาเมจใช้ของคลาสแม่)')] : []),
           skillBlock(`3 · ${j2.skill3.icon} ${j2.skill3.name}`, l.s3, 'ทักษะใหม่ของอาชีพขั้น 2 (ปรับ cost / cd และตัวคูณทั้งหมดได้)'),
           skillBlock(`Ult วิวัฒน์ · ${j2.ult.icon} ${j2.ult.name}`, l.ult, 'ท่าไม้ตายขั้น 2 (สเกลควบคู่ของคลาสแม่)'),
+          ...(l.s4.length && j2.skill4 ? [skillBlock(`4 · ${j2.skill4.icon} ${j2.skill4.name}`, l.s4, `Skill 4 ปลดที่ Job2 Lv ${j2.skill4.unlockLv}`)] : []),
+          ...(l.j3.length ? [skillBlock('🌟 Awakening (อาชีพขั้น 3)', l.j3, 'signature · Ult · ร่างแปลงสกิล 3 (A/B) · มรดก / ทายาท')] : []),
           skillBlock(`${j2.signature.icon} ${j2.signature.name} · พาสซีฟ/อื่น ๆ`, l.other, 'Signature, Weapon Mastery และ Skill tree ชั้น 2 (ถ้ามี)')))
       return
     }
@@ -1203,7 +1206,9 @@ function renderSkills(main: HTMLElement) {
     h('option', { value: 's2' }, '2 · ทักษะ 2'),
     h('option', { value: 's3' }, '3 · ทักษะ 3 (ขั้น 2)'),
     h('option', { value: 'ult' }, '⚡ Ult / Ult วิวัฒน์'),
+    h('option', { value: 's4' }, '4 · Skill 4 (ขั้น 2)'),
     h('option', { value: 'tree' }, '🌳 Skill tree'),
+    h('option', { value: 'j3' }, '🌟 Awakening (ขั้น 3)'),
     h('option', { value: 'other' }, '✨ Signature / พาสซีฟขั้น 2'))
   fSlot.value = S.skillFilter.slot
 

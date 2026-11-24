@@ -155,7 +155,7 @@ test('swordsman_core defend passives unlock at tier 0 and scale VIT/DEF/HP%/MDEF
 })
 
 test('Swordsman Skill 2 rework: Guard shield, Bloodlust vamp/ATK, Taunt break + resource restore', () => {
-  assert.equal(SWORD_MANA.ultShield, 0.2)
+  assert.equal('ultShield' in SWORD_MANA, false) // Q 2026-11-24 cleanup: the Job1 Ult shield had no effect since 2026-11-22
   assert.equal(SPELL_VAMP.bloodCut, 0.15)
   assert.equal(S2N.guardShield(false), 0.1)
   assert.equal(S2N.guardShield(true), 0.18)

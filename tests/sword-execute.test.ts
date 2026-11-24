@@ -93,5 +93,5 @@ test('ทักษะ 1 web: left 🛡️ = Defensive stats, right ⚔️ = Util
   assert.ok((mod('swordsman_c2', 5).swS1Refund ?? 0) > 0)
   assert.ok((mod('swordsman_c3', 5).swS1Splash ?? 0) > 0)
   assert.equal(mod('swordsman_c4', 1).swS1Star, 1)
-  for (const id of ['swordsman_b1', 'swordsman_c1']) assert.equal(mod(id, 5).lifesteal ?? mod(id, 5).swFlow ?? 0, 0) // old โลหิต / จังหวะดาบ effects gone
+  for (const id of ['swordsman_b1', 'swordsman_c1']) assert.equal(mod(id, 5).lifesteal ?? 0, 0) // old โลหิต (จังหวะดาบ removed 2026-11-24) effects gone
 })

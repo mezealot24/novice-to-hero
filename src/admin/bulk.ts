@@ -315,7 +315,7 @@ export const MON_PRESETS: Record<MonPresetId, { label: string; cols: MonPresetCo
 }
 
 // ---------- Skills Catalog & Filter ----------
-export type SkillSlotTag = 'crit' | 's1' | 's2' | 's3' | 'ult' | 'tree' | 'other'
+export type SkillSlotTag = 'crit' | 's1' | 's2' | 's3' | 'ult' | 's4' | 'tree' | 'j3' | 'other'
 export type SkillMetricKind = 'cost' | 'cd' | 'crit' | 'dmg' | 'count' | 'other'
 
 export interface SkillRow {
@@ -397,7 +397,10 @@ export function skillCatalog(): SkillRow[] {
     const parent = j2.parent as SkillClass
     const clsName = `${j2.icon} ${j2.name}`
     const l = job2Layout(id)
+    for (const r of l.s1) pushRef('job2', parent, id, clsName, 's1', `1 · ${JOBS[parent].auto.name}`, r)
     for (const r of l.s3) pushRef('job2', parent, id, clsName, 's3', `3 · ${j2.skill3.name}`, r)
+    for (const r of l.s4) pushRef('job2', parent, id, clsName, 's4', `4 · ${j2.skill4?.name ?? 'Skill 4'}`, r)
+    for (const r of l.j3) pushRef('job2', parent, id, clsName, 'j3', '🌟 Awakening', r)
     for (const r of l.ult) pushRef('job2', parent, id, clsName, 'ult', `Ult · ${j2.ult.name}`, r)
     for (const r of l.other) pushRef('job2', parent, id, clsName, 'other', `${j2.signature.name} / พาสซีฟ`, r)
   }

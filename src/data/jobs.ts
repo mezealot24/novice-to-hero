@@ -33,9 +33,7 @@ export const MAGE_SPELL = {
 /** Swordsman (Q 2026-11-03): Rage is gone, the knight runs on a small Mana pool like RO (design/swordsman-mana-nerf.md).
  *  A STR/VIT build gets only the base pool and regen, so skills are rationed and the basic swing + counters carry the fight. */
 export const SWORD_MANA = {
-  auto: 20, // old ฟันพายุ cost, unused since ดาบสยบมนตร์ (SWORD_S1.mana, flat; Berserker pays JOB2 autoCost Rage)
   ult: 25, // ดาบพิพากษา (plus its turn cooldown; booked ult waits for Mana like the Mage's)
-  autoMul: 1.25, // ฟันพายุ x P.ATK (1.3 before the class rebalance 2026-11-03, 1.15 in v40, 1.25 after the lifesteal cut 2026-11-04)
   ultMul: 1.5, // ดาบพิพากษา 🌊 คลื่นดาบ x P.ATK on every monster (Q 2026-11-21 Riven-style rework; was 1.2 instant, 1.4 before the class rebalance)
   // ⚔️ ปลุกดาบ (Q 2026-11-21, picked "2 steps: awaken + auto wave"): the ult wakes the blade for awakenTurns hero turns
   // (P.ATK +awakenAtk, every basic swing also cuts the next monster for cleaveShare), then 🌊 คลื่นดาบ fires on its own
@@ -49,8 +47,6 @@ export const SWORD_MANA = {
   // (STR 167 at Lv 5 = 18.5%). Now base awakenHpPct + awakenHpLv per Lv up to Lv 5, then awakenHpLvHi per Lv (Lv 1 3.5% · Lv 5 5.5% ·
   // Lv 10 6.75% · Lv 15 8%), plus awakenStrPct per awakenStrStep total STR (STR 167 at Lv 5 = 8.5%).
   awakenHpPct: 0.035, awakenHpLv: 0.005, awakenHpLvHi: 0.0025, awakenStrStep: 25, awakenStrPct: 0.005,
-  ultShield: 0.2, // Job1 ดาบพิพากษา no longer reads this (Q 2026-11-22: no shield on cast; talents / cards ultShieldAdd still give one). Unused since the Knight got 🔱 Pierce of Judgement (Q 2026-11-23); kept so old admin overrides still validate.
-  // (history) ดาบพิพากษา shield, share of max HP (reworked 0.15 -> 0.20 so pumping VIT translates into a meaningful barrier)
   // ⚖️ คำพิพากษา (Q 2026-11-21, execute curve Q sent): an ult hit deals + execMax x (missing HP / execCapMiss), capped at execCapMiss missing
   // (2.667% per 1% missing, +200% at 75% missing). A multiplier on our P.ATK hit (not % of the monster's HP), so the x4/x10 boss HP of PR #160
   // can't blow it up; bosses / minis take execBigShare of the bonus. Full curve on 🌊 คลื่นดาบ; the 2nd / 3rd job ults (Knight, Lord Knight,

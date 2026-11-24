@@ -78,9 +78,9 @@ test('a patch reaches the real data and revert() restores it (Skill 2 cost / cd 
 
 test('the Mana costs jobs.ts copies at import follow their source consts (sword.ult / kit cleric.ultMana; Swordsman Skill 1 = ดาบสยบมนตร์ Lv 1)', () => {
   const before = [JOBS.swordsman.auto.cost, JOBS.swordsman.ult.cost, JOBS.cleric.ult.cost]
-  const r = applyPatch({ skills: { 'sword.auto': 11, 'sword.ult': 12 }, kit: { 'cleric.ultMana': 13 } })
+  const r = applyPatch({ skills: { 'swordS1.mana': 11, 'sword.ult': 12 }, kit: { 'cleric.ultMana': 13 } })
   assert.equal(r.ok, true)
-  assert.deepEqual([JOBS.swordsman.auto.cost, JOBS.swordsman.ult.cost, JOBS.cleric.ult.cost], [SWORD_S1.mana, 12, 13]) // Q 2026-11-21: Skill 1 cost by Lv (SWORD_S1)
+  assert.deepEqual([JOBS.swordsman.auto.cost, JOBS.swordsman.ult.cost, JOBS.cleric.ult.cost], [11, 12, 13]) // Skill 1 = ดาบสยบมนตร์ flat Mana (swordS1.mana)
   r.revert()
   assert.deepEqual([JOBS.swordsman.auto.cost, JOBS.swordsman.ult.cost, JOBS.cleric.ult.cost], before)
 })

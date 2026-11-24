@@ -7,7 +7,7 @@ import { JOBS, MAGE_SPELL, SWORD_MANA, SWORD_S1 } from './jobs'
 import { JOB2, type Job2Id } from './jobs2'
 import type { Skill2Id } from './skill2'
 import { SKILL2 } from './skill2'
-import { KIT2, S2N, S2P } from './skill-math'
+import { KIT2, KIT3, S2N, S2P } from './skill-math'
 import type { FieldDef } from './tunables'
 
 export const SKILL_CLASSES = ['swordsman', 'archer', 'mage', 'cleric', 'thief'] as const
@@ -62,18 +62,27 @@ const lin = (key: keyof typeof S2P, what: string): SkillOwnRef[] => [
 ]
 const s2cost = (id: Skill2Id): SkillOwnRef[] => [sk(`skill2.${id}.cost`, 'ค่าร่าย', COST), sk(`skill2.${id}.cd`, 'คูลดาวน์ (เทิร์น)', CD)]
 const s2 = (id: Skill2Id, ...more: SkillRef[]) => ({ id, refs: [...s2cost(id), ...more] })
+/** Q 2026-11-24: one ref per skill Lv of a number list (Swordsman ดาบสยบมนตร์ / ปลุกดาบ tables, class-1 cap 15 = SWORD_S1 / SWORD_MANA lengths). */
+export const CLASS1_LVS = 15
+const perLv = (path: string, what: string, def: FieldDef): SkillOwnRef[] => Array.from({ length: CLASS1_LVS }, (_, i) => sk(`${path}.${i}`, `${what} · Lv ${i + 1}`, def))
 
 export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
   swordsman: {
-    s1: [sk('swordS1.mana', '⚔️ ดาบสยบมนตร์ ค่า Mana (ทุก Lv)', COST), sk('swordS1.cd', '⚔️ ดาบสยบมนตร์ คูลดาวน์ (เทิร์น)', CD), sk('swordS1.silenceTurns', '⚔️ ดาบสยบมนตร์ ใบ้ (เทิร์นมอน)', int(0, 10))],
+    s1: [sk('swordS1.mana', '⚔️ ดาบสยบมนตร์ ค่า Mana (ทุก Lv)', COST), sk('swordS1.cd', '⚔️ ดาบสยบมนตร์ คูลดาวน์ (เทิร์น)', CD), sk('swordS1.silenceTurns', '⚔️ ดาบสยบมนตร์ ใบ้ (เทิร์นมอน)', int(0, 10)),
+      // Q 2026-11-24: the damage table per skill Lv (P.ATK x atkPct + STR x str + base x Base Lv)
+      ...perLv('swordS1.atkPct', '⚔️ ดาบสยบมนตร์ × P.ATK', num(0, 20)), ...perLv('swordS1.str', '⚔️ ดาบสยบมนตร์ × STR', num(0, 20)), ...perLv('swordS1.base', '⚔️ ดาบสยบมนตร์ ดาเมจฐาน × Base Lv', num(0, 2000))],
     s2: [
       s2('sw_guard', ...lin('guardCut', 'ดาเมจเข้าลด')),
       s2('sw_blood', ...lin('bloodVamp', 'ดูดเลือดสกิล'), sk('s2n.bloodTurns', 'นาน (เทิร์น)', int(0, 20)), sk('s2n.bloodAtk', 'ATK เพิ่ม', FRAC)),
       s2('sw_taunt', ...lin('tauntWeak', 'มอนตีเบาลง')),
     ],
-    ult: [sk('sword.ult', 'ค่า Mana', COST), sk('job.swordsman.ult.cd', 'คูลดาวน์ (เทิร์น)', CD), sk('sword.ultMul', '🌊 คลื่นดาบ × P.ATK (ทุกตัว)', MUL), sk('sword.ultShield', 'โล่ % HP สูงสุด', FRAC),
+    ult: [sk('sword.ult', 'ค่า Mana', COST), sk('job.swordsman.ult.cd', 'คูลดาวน์ (เทิร์น)', CD), sk('sword.ultMul', '🌊 คลื่นดาบ × P.ATK (ทุกตัว)', MUL),
       sk('sword.execMax', '⚖️ คำพิพากษา: แรงเพิ่มสูงสุด', num(0, 5)), sk('sword.execCapMiss', '⚖️ HP หายเท่านี้ = ตัน', FRAC), sk('sword.execLow', '🌊 คลื่นดาบออกเองเมื่อ HP มอนต่ำกว่า', FRAC), sk('sword.execBigShare', '⚖️ บอส/มินิ ได้สัดส่วนโบนัส', FRAC), sk('sword.execLineShare', '⚖️ Ult job2/3 ได้สัดส่วนโบนัส', FRAC),
-      sk('sword.awakenTurns', '⚔️ ปลุกดาบ นาน (เทิร์น)', int(1, 10)), sk('sword.awakenAtk', '⚔️ ปลุกดาบ P.ATK เพิ่ม (Q 2026-11-22: 0)', FRAC), sk('sword.awakenHpPct', '✨ เคลือบดาบสวรรค์ % HP ที่เหลือ/ฮิต', FRAC), sk('sword.awakenBigShare', '✨ เคลือบดาบสวรรค์ บอส/มินิ ×', FRAC), sk('sword.cleaveShare', '⚔️ ปลุกดาบ ตีปกติฟันตัวถัดไป ×', num(0, 3))],
+      sk('sword.awakenTurns', '⚔️ ปลุกดาบ นาน (เทิร์น)', int(1, 10)), sk('sword.awakenAtk', '⚔️ ปลุกดาบ P.ATK เพิ่ม (Q 2026-11-22: 0)', FRAC), sk('sword.awakenHpPct', '✨ เคลือบดาบสวรรค์ % HP ที่เหลือ/ฮิต', FRAC), sk('sword.awakenBigShare', '✨ เคลือบดาบสวรรค์ บอส/มินิ ×', FRAC), sk('sword.cleaveShare', '⚔️ ปลุกดาบ ตีปกติฟันตัวถัดไป ×', num(0, 3)),
+      // Q 2026-11-24: ✨ coat growth + ⚔️ ปลุกดาบ STR per Ult Lv
+      sk('sword.awakenHpLv', '✨ เคลือบดาบสวรรค์ +% ต่อ Lv (Lv 2-5)', FRAC), sk('sword.awakenHpLvHi', '✨ เคลือบดาบสวรรค์ +% ต่อ Lv (Lv 6-15)', FRAC),
+      sk('sword.awakenStrStep', '✨ เคลือบดาบสวรรค์ ทุกกี่ STR', int(1, 500)), sk('sword.awakenStrPct', '✨ เคลือบดาบสวรรค์ +% ต่อขั้น STR', FRAC),
+      ...perLv('sword.awakenStr', '⚔️ ปลุกดาบ STR เพิ่ม', int(0, 1000))],
     tree: [ // PoE Passive Tree Phase 2 (Swordsman-Line Constellation)
       kit('swordS1CdCut', 'ตราพิพากษา: ลดคูลดาวน์ดาบสยบมนตร์ (เทิร์น)'),
       kit('swordS3BreakTurns', 'ทลายเกราะศึก: เกราะแตกจาก S1/S3 (เทิร์น)'),
@@ -86,6 +95,20 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
       kit('swordBloodFuryDmg', 'สัญญาคลั่งเลือด: โบนัสดาเมจกายภาพ'),
       kit('swordBloodFurySelf', 'สัญญาคลั่งเลือด: ข้อเสียจ่าย % HP ปัจจุบันต่อสกิล'),
       kit('swordVampDmgCut', 'กายาโลหิตอมตะ: ข้อเสียลดดาเมจสกิลและ Ult'),
+      // Q 2026-11-24: the Swordsman web nodes (data/trees/swordsman.ts), per OLD Lv (max 3, stretched)
+      kit('swordCore.vitPer', '🪨 กายเหล็ก: VIT ต่อ Lv เดิม'), kit('swordCore.defPer', '🪨 กายเหล็ก: P.DEF ต่อ Lv เดิม'), kit('swordCore.hpPctPer', '🪨 กายเหล็ก: Max HP % ต่อ Lv เดิม'),
+      kit('swordCore.mdefPer', '💠 เกราะจิตอึด: M.DEF % ต่อ Lv เดิม'), kit('swordCore.tenacityPer', '💠 เกราะจิตอึด: ต้านทานต่อ Lv เดิม'),
+      kit('swordCore.vitToMdefPer', '💠 เกราะจิตอึด: VIT 1 แต้ม → M.DEF % ต่อ Lv เดิม'), kit('swordCore.vitToMdefCap', '💠 เกราะจิตอึด: เพดาน M.DEF จาก VIT'),
+      kit('swordCore.regenPer', '❤️‍🩹 ฟื้นฟูนักรบ: ฟื้น HP ต่อ Lv เดิม'), kit('swordCore.healAmpPer', '❤️‍🩹 ฟื้นฟูนักรบ: ฮีลแรงขึ้นต่อ Lv เดิม'),
+      kit('swordCore.lowHpAt', '❤️‍🩹 ฟื้นฟูนักรบ: เลือดต่ำกว่า (% Max HP)'), kit('swordCore.lowHpRegenPer', '❤️‍🩹 ฟื้นฟูนักรบ: ฟื้นเพิ่มตอนเลือดต่ำต่อ Lv เดิม'),
+      kit('swordS1Tree.shield', '🛡️ ตั้งรับ: โล่ % HP ต่อ Lv เดิม'), kit('swordS1Tree.tenacity', '🧘 ใจไม่หวั่น: ต้านทานต่อ Lv เดิม'), kit('swordS1Tree.guardTurns', '🧘 ใจไม่หวั่น: กัน CC (เทิร์น)'),
+      kit('swordS1Tree.muteWeak', '🤐 ปิดปาก: มอนติดใบ้ตีเบาลงต่อ Lv เดิม'), kit('swordS1Tree.counters', '🔁 ★ สวนเงียบ: สวนกลับแน่นอน (ครั้ง)'),
+      kit('swordS1Tree.vsMute', '🎯 เจาะจังหวะ: ตีตัวร่าย/ติดใบ้แรงขึ้นต่อ Lv เดิม'), kit('swordS1Tree.refund', '⏳ ตัดจังหวะ: คืน Mana ต่อ Lv เดิม'),
+      kit('swordS1Tree.splash', '🌀 ฟันเฉือน: เฉือนตัวอื่น % ของฮิตต่อ Lv เดิม'), kit('swordS1Tree.starHit', '⚔️ ★ ดาบสยบคู่: ฟันซ้ำ % ของฮิต'),
+      kit('swordUltTree.dr', '🛡️ ใจดาบ: ปลุกดาบแล้วโดนเบาลงต่อ Lv เดิม'), kit('swordUltTree.leech', '🩸 ดาบกระหายเลือด: ดูดเลือดต่อ Lv เดิม'), kit('swordUltTree.ctr', '🔁 ตื่นสวน: สวนกลับต่อ Lv เดิม'),
+      kit('swordUltTree.waveShield', '🌊 ★ ปราการคลื่น: โล่ % ของดาเมจคลื่น'), kit('swordUltTree.waveShieldCap', '🌊 ★ ปราการคลื่น: เพดานโล่ (% Max HP)'),
+      kit('swordUltTree.execAdd', '⚖️ คมพิพากษา: execute สูงสุดเพิ่มต่อ Lv เดิม'), kit('swordUltTree.reChance', '🌊 คลื่นซ้ำ: โอกาสต่อ Lv เดิม'),
+      kit('swordUltTree.cleave', '⚔️ ฟันกวาดตื่น: ฟันตัวถัดไปเพิ่มต่อ Lv เดิม'), kit('swordUltTree.awAtk', '⚔️ ★ ดาบตื่นเต็มพลัง: P.ATK เพิ่มระหว่างปลุกดาบ'),
     ],
   },
   archer: {
@@ -218,7 +241,15 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
 
 // ---------- v107 round 2: 2nd jobs (KIT2 + JOB2 skill 3 / Ult วิวัฒน์) ----------
 export const JOB2_IDS = Object.keys(JOB2) as Job2Id[]
-export interface Job2Layout { s3: SkillRef[]; ult: SkillRef[]; other: SkillRef[] }
+export interface Job2Layout {
+  s3: SkillRef[]; ult: SkillRef[]; other: SkillRef[]
+  /** Q 2026-11-24: the job's own Skill 1 cost (Berserker Rage), [] when it uses the parent's. */
+  s1: SkillRef[]
+  /** Q 2026-11-24: Skill 4 (KIT2.<id>.s4: Knight 🌀 Spiral Pierce), [] when the job has none. */
+  s4: SkillRef[]
+  /** Q 2026-11-24: the Awakening (KIT3) numbers of this 2nd job's line, [] when not wired yet (Swordsman line first). */
+  j3: SkillRef[]
+}
 /** Hand-written Thai labels for every 2nd-job KIT2 number. */
 const J2_LABEL: Record<string, string> = {
   // 🪓 Berserker
@@ -239,6 +270,12 @@ const J2_LABEL: Record<string, string> = {
   'knight.pierceMul': '🎯 Pierce: ดาเมจต่อฮิต × P.ATK', 'knight.waveMul': '🔱 คลื่นทะลวง: แทงเดียว × P.ATK', 'knight.ultMana': '🔱 Pierce of Judgement: ค่า Mana',
   'knight.boomerang': '↩️ Spear Boomerang: ดาเมจ × P.ATK', 'knight.chargeFirst': '🚀 ★ ทะยาน: ตัวคูณฟันแรก',
   'knight.guardShieldless': '🛡️ Auto Guard เมื่อไม่ถือโล่ (ตัวคูณ)',
+  'knight.chargeFirstGauge': '🚀 ★ ทะยาน: เติมเกจฮีโร่ต้นไฟต์', 'knight.chargeFirstRes': '🚀 ★ ทะยาน: Mana ต้นไฟต์',
+  // Q 2026-11-24 Skill 4 🌀 Spiral Pierce
+  'knight.s4.cost': '🌀 Spiral Pierce: ค่า Mana', 'knight.s4.cd': '🌀 Spiral Pierce: คูลดาวน์ (เทิร์น)', 'knight.s4.unlockLv': '🌀 Spiral Pierce: ปลดที่ Job2 Lv',
+  'knight.s4.mul': '🌀 Spiral Pierce: แทง × P.ATK', 'knight.s4.shatterAmp': '🛡️ ทุบโล่ได้: แทงแรงขึ้น', 'knight.s4.bossShield': '🛡️ โล่บอสหาย (สัดส่วน)',
+  'knight.s4.bossGauge': '💫 บอสโดนตัดร่าย: ผลักเกจ', 'knight.s4.fang': '🐍 เขี้ยวงู: ตีโล่มอนแรงขึ้น (ติดตัว)', 'knight.s4.breakTurns': '⛓️ Break: ปิด passive มอน (เทิร์น)',
+  'knight.s4.lkHits': '🐉 Lord Knight: จำนวนแทง', 'knight.s4.lkMul': '🐉 Lord Knight: ต่อแทง × P.ATK', 'knight.s4.lkPierce': '🐉 Lord Knight: แทงสุดท้ายข้าม DEF',
   'knight.mastery.atkPct': 'ชำนาญหอก: P.ATK +%', 'knight.mastery.hit': 'ชำนาญหอก: Hit +',
   'knight.tree.banner': '🚩 ปักธง: โล่ต้นเวฟ (% HP ต่อ Lv เดิม)', 'knight.tree.provokeAt': '😤 ข่มขวัญ: ทำงานเต็มเมื่อ HP มอนต่ำกว่า',
   'knight.tree.provoke': '😤 ข่มขวัญ: มอนตีเบาลงเมื่อ HP ต่ำ (ทันทีครึ่งหนึ่ง)', 'knight.tree.bannerKill': '🎖️ ธงชัย: โล่เมื่อฆ่า (% HP ต่อ Lv เดิม)',
@@ -401,6 +438,8 @@ const J2_COL: Partial<Record<Job2Id, { s3: RegExp; ult: RegExp }>> = {
   innovator: { s3: /^(rare|chicken|rocket|turret|magnet|mirror|cola|wet)/, ult: /^ult/ },
 }
 const INTISH = /(Turns|Hits|Max|Keep|At|Stacks|Every|Boxes|Knives|Count|CdCut|Per(Swing|Combo))$/
+/** Ranges that the generic rule (0..10x the default) gets wrong. */
+const J2_DEF: Record<string, FieldDef> = { 'knight.s4.cost': COST, 'knight.s4.cd': CD, 'knight.s4.unlockLv': int(1, 70), 'knight.s4.lkHits': int(1, 10), 'knight.s4.bossGauge': int(0, 200) }
 function j2Leaves(id: Job2Id): SkillOwnRef[] {
   const out: SkillOwnRef[] = []
   const walk = (o: Record<string, unknown>, pre: string) => {
@@ -409,7 +448,7 @@ function j2Leaves(id: Job2Id): SkillOwnRef[] {
       if (typeof v === 'number') {
         if (/(Cost|Cd)$/.test(k)) continue // copied into JOB2 at import (see above)
         const hi = Math.max(10, Math.ceil(Math.abs(v) * 10))
-        out.push(sk(`kit2.${id}.${key}`, J2_LABEL[`${id}.${key}`] ?? key, INTISH.test(k) && Number.isInteger(v) ? int(0, hi) : num(0, hi)))
+        out.push(sk(`kit2.${id}.${key}`, J2_LABEL[`${id}.${key}`] ?? key, J2_DEF[`${id}.${key}`] ?? (INTISH.test(k) && Number.isInteger(v) ? int(0, hi) : num(0, hi))))
       } else if (Array.isArray(v) && v.every((x) => typeof x === 'number')) { // v109: number lists (Grand Cross pulses per Lv)
         v.forEach((x: number, i: number) => out.push(sk(`kit2.${id}.${key}.${i}`, J2_LABEL[`${id}.${key}.${i}`] ?? `${key}[${i}]`, Number.isInteger(x) ? int(0, Math.max(10, x * 10)) : num(0, Math.max(10, Math.ceil(x * 10))))))
       } else if (v && typeof v === 'object' && !Array.isArray(v)) walk(v as Record<string, unknown>, key)
@@ -420,12 +459,64 @@ function j2Leaves(id: Job2Id): SkillOwnRef[] {
 }
 export function job2Layout(id: Job2Id): Job2Layout {
   const col = J2_COL[id], leaves = j2Leaves(id), key = (r: SkillRef) => r.path.split('.').slice(2).join('.')
-  const s3 = leaves.filter((r) => col?.s3.test(key(r))), ult = leaves.filter((r) => col?.ult.test(key(r)))
+  const s4 = leaves.filter((r) => key(r).startsWith('s4.'))
+  const s3 = leaves.filter((r) => !s4.includes(r) && col?.s3.test(key(r))), ult = leaves.filter((r) => !s4.includes(r) && col?.ult.test(key(r)))
+  const j3 = J3_OF[id]
   return {
+    s1: JOB2[id].autoCost !== undefined ? [sk(`job2.${id}.autoCost`, `ค่าร่ายทักษะ 1 (${JOB2[id].resource === 'rage' ? 'Rage' : JOB2[id].resource === 'energy' ? 'Energy' : 'Mana'})`, COST)] : [],
     s3: [sk(`job2.${id}.skill3.cost`, 'ค่าร่าย', COST), sk(`job2.${id}.skill3.cd`, 'คูลดาวน์ (เทิร์น)', CD), ...s3],
     ult: [sk(`job2.${id}.ult.cd`, 'คูลดาวน์ (เทิร์น)', CD), ...ult],
-    other: leaves.filter((r) => !s3.includes(r) && !ult.includes(r)),
+    s4,
+    j3: j3 ? j3Leaves(j3) : [],
+    other: leaves.filter((r) => !s3.includes(r) && !ult.includes(r) && !s4.includes(r)),
   }
+}
+
+/** Q 2026-11-24: which Awakening's KIT3 numbers show under a 2nd job (Swordsman line first; add a line = add its labels to J3_LABEL). */
+export const J3_OF: Partial<Record<Job2Id, 'lordknight' | 'warlord'>> = { knight: 'lordknight', berserker: 'warlord' }
+const J3_NAME = { lordknight: '🐉 Lord Knight', warlord: '🪓 Warlord' } as const
+const VAR_LABEL = (v: 'A' | 'B', name: string, branch: string): Record<string, string> => ({
+  [`var${v}.per`]: `${name}: แรงขึ้นต่อแต้มในสาย ${branch}`, [`var${v}.cap`]: `${name}: เพดานโบนัสจากแต้มสาย`,
+})
+/** Hand-written Thai labels for the KIT3 numbers J3_OF exposes (keys = path under KIT3.<id>). */
+const J3_LABEL: Record<'lordknight' | 'warlord', Record<string, string>> = {
+  lordknight: {
+    hpDmgAdd: '🐉 Aura Blade: สกิลหอกบวก % Max HP เพิ่ม', hpPct: '🐉 Aura Blade: Max HP +%', extraHits: '✨ Hundred Spear: Pierce ฮิตเพิ่ม',
+    'varA.mul': '🐉 Dragon Breath: ดาเมจทุกตัว × P.ATK', 'varA.hp': '🐉 Dragon Breath: บวก % Max HP', 'varA.burn': '🐉 Dragon Breath: เผานาน (เทิร์น)', 'varA.burnAtk': '🐉 Dragon Breath: เผาต่อเทิร์น × P.ATK',
+    ...VAR_LABEL('A', '🐉 Dragon Breath', 'กวาดทวน'),
+    'varB.mul': '💥 Joint Beat: ดาเมจ × P.ATK', 'varB.hp': '💥 Joint Beat: บวก % Max HP', 'varB.pierce': '💥 Joint Beat: ข้าม DEF',
+    ...VAR_LABEL('B', '💥 Joint Beat', 'หอกทะลวง'),
+    'leg.crossCap': '🧬 มรดก: เพดานโบนัสสกิล', 'leg.guardCap': '🧬 มรดก: เพดานโบนัส Auto Guard', 'leg.hpCap': '🧬 มรดก: เพดานโบนัส Max HP', heirNeed: '👑 ทายาท: แต้มในสายที่ต้องมี',
+  },
+  warlord: {
+    frenzyMaxAdd: '🪓 Undying Warlord: Frenzy สูงสุดเพิ่ม', rageCritPer: '🪓 Undying Warlord: คริต่อ 1 Rage', rageCritDmgPer: '🪓 Undying Warlord: ดาเมจคริต่อ 1 Rage',
+    carnageDmg: '🪓 Aspect of Carnage: ดาเมจทั้งหมด +', carnageTaken: '🪓 Aspect of Carnage: ข้อเสียโดนตีแรงขึ้น',
+    ultRageGain: '🩸 Undying Bloodlust: ได้ Rage ตอนกด', ultUndyingTurns: '🩸 Undying Bloodlust: อมตะ (เทิร์น)', ultBloodHealBase: '🩸 Undying Bloodlust: ฮีลฐาน (% Max HP)',
+    ultBloodHealPerRage: '🩸 Undying Bloodlust: ฮีลเพิ่มต่อ 1 Rage', ultFuryCritRage: '🔥 Bloodlust: คริแล้วได้ Rage', ultFuryCritHeal: '🔥 Bloodlust: คริแล้วฮีล (% Max HP)',
+    'varA.hits': '⚔️ Spinning Guillotine: จำนวนฮิต', 'varA.mul': '⚔️ Spinning Guillotine: ต่อฮิต × P.ATK', 'varA.critAdd': '⚔️ Spinning Guillotine: คริเพิ่ม',
+    'varA.execMax': '⚔️ Spinning Guillotine: execute สูงสุด', 'varA.splashShare': '⚔️ Spinning Guillotine: กระเด็นใส่ตัวอื่น (สัดส่วน)',
+    ...VAR_LABEL('A', '⚔️ Spinning Guillotine', '💥 สับ'),
+    'varB.mul': "📣 Warlord's Warcry: ดาเมจ × P.ATK", 'varB.weakPct': "📣 Warcry: มอนอ่อนแรง (%)", 'varB.weakTurns': '📣 Warcry: อ่อนแรงนาน (เทิร์น)', 'varB.breakTurns': '📣 Warcry: เกราะแตก (เทิร์น)',
+    'varB.push': '📣 Warcry: ผลักเกจมอน', 'varB.rage': '📣 Warcry: ได้ Rage', 'varB.shield': '📣 Warcry: โล่ (% Max HP)', 'varB.heirPush': '📣 Warcry: ผลักเกจเพิ่ม (ทายาท)',
+    ...VAR_LABEL('B', "📣 Warlord's Warcry", '🩸 คลั่ง'),
+    'leg.crossCap': '🧬 มรดก: เพดานโบนัสสกิล', 'leg.guardCap': '🧬 มรดก: เพดานโบนัสป้องกัน', 'leg.hpCap': '🧬 มรดก: เพดานโบนัส Max HP', heirNeed: '👑 ทายาท: แต้มในสายที่ต้องมี',
+    warcryRage: '📣 คำรามทลายทัพ: ได้ Rage ต้นไฟต์',
+  },
+}
+const J3_INT = /(Hits|Turns|Need|Gain|Rage|MaxAdd|push|Push|rage|hits|burn)$/
+function j3Leaves(id: 'lordknight' | 'warlord'): SkillOwnRef[] {
+  const out: SkillOwnRef[] = []
+  const walk = (o: Record<string, unknown>, pre: string) => {
+    for (const [k, v] of Object.entries(o)) {
+      const key = pre ? `${pre}.${k}` : k
+      if (typeof v === 'number') {
+        const hi = Math.max(10, Math.ceil(Math.abs(v) * 10))
+        out.push(sk(`kit3.${id}.${key}`, `${J3_NAME[id]} · ${J3_LABEL[id][key] ?? key}`, Number.isInteger(v) && J3_INT.test(k) ? int(0, Math.max(hi, 100)) : num(0, hi)))
+      } else if (v && typeof v === 'object' && !Array.isArray(v)) walk(v as Record<string, unknown>, key)
+    }
+  }
+  walk(KIT3[id] as unknown as Record<string, unknown>, '')
+  return out
 }
 
 /** The crit-power ref of one slot (always shown first in its column). */
@@ -440,7 +531,7 @@ export function skillTableFields(): [string, FieldDef][] {
     for (const slot of CRIT_SLOTS) add(critRef(c, slot))
     l.s1.forEach(add); l.ult.forEach(add); l.s2.forEach((x) => x.refs.forEach(add)); l.tree?.forEach(add)
   }
-  for (const id of JOB2_IDS) { const l = job2Layout(id); [...l.s3, ...l.ult, ...l.other].forEach(add) }
+  for (const id of JOB2_IDS) { const l = job2Layout(id); [...l.s1, ...l.s3, ...l.ult, ...l.s4, ...l.j3, ...l.other].forEach(add) }
   return [...out.entries()]
 }
 
@@ -448,7 +539,7 @@ let root: object | null = null
 /** The object the `skills` table patches in place: refs to the real consts, so writes reach the game's data. Built on first use (module cycles). */
 export function skillRoot(): object {
   return (root ??= {
-    job: JOBS, sword: SWORD_MANA, swordS1: SWORD_S1, mage: MAGE_SPELL, s2p: S2P, s2n: S2N, crit: SKILL_CRIT, job2: JOB2, kit2: KIT2, // v107: 2nd jobs
+    job: JOBS, sword: SWORD_MANA, swordS1: SWORD_S1, mage: MAGE_SPELL, s2p: S2P, s2n: S2N, crit: SKILL_CRIT, job2: JOB2, kit2: KIT2, kit3: KIT3, // v107: 2nd jobs · Q 2026-11-24: Awakening numbers
     skill2: Object.fromEntries(SKILL2.map((s) => [s.id, s])), // keyed by id: a patch path never depends on array order
   })
 }
