@@ -7,13 +7,12 @@ import { forged, type Item } from '../../../data/meta'
 import { matName, matOf } from '../../../data/materials'
 import { canAffordAuto } from '../../../data/refine'
 import { persist, save, type SaveData } from '../../../save'
-import { fit, toast, txt, UI } from '../../../ui'
+import { shrinkFit, toast, txt, UI } from '../../../ui'
 import { ascendWhyText, compareRows, itemSetOf, pressLabel } from '../state'
 import { INNER_W, PAD, type ForgeCtx, type Preview, type VerbAction, type VerbPanel } from '../types'
 import { PanelBase } from './PanelBase'
 
 const ASC_COLOR = '#ffd35a'
-const PREVIEW_ROWS = 5
 
 export class AscendPanel extends PanelBase implements VerbPanel {
   private it!: Item
@@ -48,19 +47,19 @@ export class AscendPanel extends PanelBase implements VerbPanel {
       this.sub.setText(max ? `จากบ้านเดิม ${zoneName(homeZone(it))} · ค่าพลังทั้งชิ้นตามทันโซนนี้แล้ว` : '')
       this.rows.setText('')
       this.foot.setColor(chk.ok ? UI.sub : UI.gold).setText(chk.ok ? '' : ascendWhyText(it, chk.why))
-      fit(this.foot, 70)
+      shrinkFit(this.foot, 70, 9.5)
       return
     }
     const from = ascendZone(it, a), to = ascendZone(it, n), st = ASCEND.step[to]
     this.head.setText(`โซน ${zoneName(from)} → ${zoneName(to)}`).setColor(ASC_COLOR)
     this.sub.setText(`⇧${a} → ⇧${n} (สูงสุด ⇧${max}) · ${set ? `ยังนับเป็นชิ้นของ 🧩 ${set.name}` : 'ชิ้นเดิม การ์ด ตีบวก ค่าพิเศษ อยู่ครบ'}`)
-    fit(this.sub, 44)
-    const rows = compareRows(forged(s, it), forged(this.after(s, n), it)).filter((r) => r.d !== 0).slice(0, PREVIEW_ROWS)
+    shrinkFit(this.sub, 44, 9.5)
+    const rows = compareRows(forged(s, it), forged(this.after(s, n), it)).filter((r) => r.d !== 0)
     this.rows.setText(rows.length ? rows.map((r) => `${r.label}  ${r.now} → ${r.next}`).join('\n') : 'ไม่มีค่าที่ขยับได้ค่ะ')
-    fit(this.rows, 120)
+    shrinkFit(this.rows, 134, 8.5)
     const why = chk.ok ? '' : `🔒 ${ascendWhyText(it, chk.why)}\n`
     this.foot.setColor(chk.ok ? UI.sub : UI.gold).setText(`${why}✅ ยกขั้นสำเร็จเสมอ ไม่มีพัง · ใช้ ${matName(matOf(st.dg, false))} + ${matName(matOf(st.dg, true))} ตามแถบด้านล่างค่ะ`)
-    fit(this.foot, 70)
+    shrinkFit(this.foot, 70, 9)
   }
 
   cost() { const n = this.next(); return n ? ascendCost(this.it, n) : null }

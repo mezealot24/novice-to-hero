@@ -532,6 +532,33 @@ export function iconTabs(scene: Phaser.Scene, x: number, y: number, items: IconT
   return c
 }
 
+const baseFontSizes = new WeakMap<Phaser.GameObjects.Text, number>()
+
+/** Shrink a text's font size (down to `minSize`) so it fits inside `maxH` (and optional `maxW`) without ever truncating with "…". */
+export function shrinkFit(t: Phaser.GameObjects.Text, maxH: number, minSize = 9, maxW?: number) {
+  let baseSize = baseFontSizes.get(t)
+  if (baseSize === undefined) {
+    baseSize = parseFloat(String(t.style.fontSize)) || 12
+    baseFontSizes.set(t, baseSize)
+  }
+  t.setScale(1, 1)
+  if (parseFloat(String(t.style.fontSize)) !== baseSize) t.setFontSize(baseSize)
+  let size = baseSize
+  while (size > minSize && (t.height > maxH || (maxW !== undefined && t.width > maxW))) {
+    size = Math.max(minSize, +(size - 0.5).toFixed(1))
+    t.setFontSize(size)
+  }
+  let sx = 1
+  let sy = 1
+  if (maxW !== undefined && t.width > maxW && t.width > 0) sx = Math.min(1, maxW / t.width)
+  if (t.height > maxH && t.height > 0) sy = Math.min(1, maxH / t.height)
+  if (sx < 1 || sy < 1) {
+    const s = Math.min(sx, sy)
+    t.setScale(s, s)
+  }
+  return t
+}
+
 /** Clip a wrapped text to a height budget, ending with "…" (keeps cards from running into the row below). Cuts by code point, so a surrogate pair (most emoji) is never split. */
 export function fit(t: Phaser.GameObjects.Text, maxH: number) {
   if (t.height <= maxH) return t

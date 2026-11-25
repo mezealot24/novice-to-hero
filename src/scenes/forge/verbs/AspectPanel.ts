@@ -17,7 +17,7 @@ import {
 import { matById } from '../../../data/materials'
 import { isTainted, itemStatLine, type Item } from '../../../data/meta'
 import { persist, save } from '../../../save'
-import { button, fit, panel, toast, txt, UI } from '../../../ui'
+import { button, panel, shrinkFit, toast, txt, UI } from '../../../ui'
 import { forgedWithAspect, pressLabel } from '../state'
 import { BOX_H, BOX_W, INNER_W, PAD, type ForgeCtx, type Preview, type VerbAction, type VerbPanel } from '../types'
 import { PanelBase } from './PanelBase'
@@ -229,7 +229,7 @@ export class AspectPanel extends PanelBase implements VerbPanel {
           .setText(`🃏 ${cardLabel} ${haveCard}/${UNIQUE_AWAKEN.bossCards} · ${matLabel} ${haveMat}/${UNIQUE_AWAKEN.bossMats} · ${UNIQUE_AWAKEN.zeny}z`)
         this.awakenBtn.setLabel('🌟 ปลุกพลัง').setEnabled(chk.ok && !busy).setFill(chk.ok ? 0x8a4fd0 : 0x3b3556)
       }
-      fit(this.awakenInfo, 38)
+      shrinkFit(this.awakenInfo, 38, 8.5)
     }
 
     if (this.blockedStarter || this.pool.length === 0) return
@@ -241,7 +241,7 @@ export class AspectPanel extends PanelBase implements VerbPanel {
     } else {
       this.statusT.setColor(UI.sub).setText(`เลือกรูนให้ช่องนี้ (${this.pool.length} แบบ)`)
     }
-    fit(this.statusT, 18)
+    shrinkFit(this.statusT, 18, 9)
 
     const pTotal = this.pages()
     if (this.pageT && this.prevBtn && this.nextBtn) {
@@ -273,7 +273,7 @@ export class AspectPanel extends PanelBase implements VerbPanel {
     if (!sel || !this.detTitle || !this.detState || !this.detMod || !this.detFx || !this.detFoot) return
 
     this.detTitle.setText(`${sel.icon} ${sel.name}`)
-    fit(this.detTitle, 20)
+    shrinkFit(this.detTitle, 20, 10)
 
     const isSame = curId === sel.id
     if (tainted) this.detState.setText('🔒 คำสาป').setColor('#c9a8ff')
@@ -283,21 +283,21 @@ export class AspectPanel extends PanelBase implements VerbPanel {
 
     const modLine = sel.mod && Object.keys(sel.mod).length > 0 ? `📊 ${itemStatLine({ mod: sel.mod })}` : `✨ ${sel.desc}`
     this.detMod.setText(modLine)
-    fit(this.detMod, 22)
+    shrinkFit(this.detMod, 22, 9)
 
     const fxLines = describeItemEffects(sel.effects, sel.conversions)
     const bodyText = fxLines.length > 0
       ? fxLines.map((l) => `• ${l}`).join('\n') + (!it.unique && sel.mod && Object.keys(sel.mod).length > 0 ? `\n${sel.desc}` : '')
       : sel.desc
     this.detFx.setText(bodyText)
-    fit(this.detFx, Math.max(24, this.cardH - 72))
+    shrinkFit(this.detFx, Math.max(24, this.cardH - 72), 8.5)
 
     const chk = canImbueAspect(s, it, sel.id)
     if (tainted) this.detFoot.setColor('#ffb0b0').setText('🌑 ติดคำสาปแล้ว ฝังรูนใหม่ไม่ได้อีกค่ะ')
     else if (isSame) this.detFoot.setColor('#9fe3a8').setText('✅ อุปกรณ์ชิ้นนี้ฝังรูนนี้อยู่แล้วค่ะ')
     else if (chk.why === 'short') this.detFoot.setColor('#ff9d9d').setText(`ขาด: ${chk.short.join(', ')}`)
     else this.detFoot.setColor(UI.gold).setText(curId ? '⚠️ การฝังใหม่จะแทนที่รูนเดิมของชิ้นนี้ค่ะ' : '🔮 ดูค่าวัตถุดิบด้านล่างแล้วกดปุ่มเพื่อฝังรูน')
-    fit(this.detFoot, 18)
+    shrinkFit(this.detFoot, 18, 8.5)
   }
 
   cost() {

@@ -6,7 +6,7 @@ import { isBroken, isTainted, linesOf, type Item } from '../../../data/meta'
 import { lineText, taintCheck, taintCost, tryTaint } from '../../../data/refine'
 import { TAINT, TAINT_KINDS, type TaintKind } from '../../../data/taint'
 import { isWorn, persist, save } from '../../../save'
-import { fit, meter, toast, txt, UI } from '../../../ui'
+import { meter, shrinkFit, toast, txt, UI } from '../../../ui'
 import { pressLabel, taintNote, taintOutcome } from '../state'
 import { INNER_W, PAD, type ForgeCtx, type Preview, type VerbAction, type VerbPanel } from '../types'
 import { PanelBase } from './PanelBase'
@@ -37,7 +37,7 @@ export class TaintPanel extends PanelBase implements VerbPanel {
       const x = PAD, y = 62 + i * 30
       const bar = meter(sc, x, y + 3, 44, 10, [{ v: TAINT.odds[k], color: KIND[k].color }])
       const t = txt(sc, x + 52, y, `${Math.round(TAINT.odds[k] * 100)}% ${KIND[k].label}`, 12, UI.text).setWordWrapWidth(INNER_W - 52)
-      fit(t, 28)
+      shrinkFit(t, 28, 9)
       this.put(box, bar, t)
       this.odds.push(bar, t)
     })
@@ -53,18 +53,19 @@ export class TaintPanel extends PanelBase implements VerbPanel {
     if (tainted) {
       this.head.setText('☠️ Corrupted: ล็อกถาวรแล้ว')
       this.warn.setY(52).setColor('#c9a8ff').setText(`${taintNote(s, it)}\nอัปขั้น · ตีบวก · สุ่มค่าพิเศษ ทำไม่ได้อีก (ซ่อมได้ ยังใส่/เสียบการ์ดได้ปกติ)`)
-      fit(this.warn, 120)
+      shrinkFit(this.warn, 120, 9.5)
       const lines = linesOf(s, it.id)
-      this.foot.setY(190).setColor('#d9c2ff').setText(`🎁 ค่าพิเศษ\n${REFINE.lineAt.map((at, i) => `+${at} ${lines[i] ? lineText(lines[i]) : '—'}`).join('\n')}`)
+      this.foot.setY(186).setColor('#d9c2ff').setText(`🎁 ค่าพิเศษ\n${REFINE.lineAt.map((at, i) => `+${at} ${lines[i] ? lineText(lines[i]) : '—'}`).join('\n')}`)
+      shrinkFit(this.foot, 122, 8.5)
       return
     }
     this.head.setText('☠️ Corrupt: สุ่มครั้งเดียว ย้อนไม่ได้')
     this.warn.setY(186).setColor('#ffb0b0').setText(isBroken(s, it.id)
       ? '💔 ซ่อมของให้เสร็จก่อนค่อยลุ้นคำสาปค่ะ'
       : `หลัง Corrupt ของชิ้นนี้ถูกล็อก: ตีบวก · อัปขั้น · สุ่มค่าพิเศษ ไม่ได้อีก (ซ่อมได้)${isWorn(s, it.id) ? ' · ⚠ ของชิ้นนี้ใส่อยู่' : ''}`)
-    fit(this.warn, 58)
+    shrinkFit(this.warn, 58, 9.5)
     this.foot.setY(250).setColor(UI.sub).setText(`ราคา ${TAINT.zeny}z + 🔻 ผลึกโลกันตร์ x${TAINT.crystals} · 💀 ลุ้นซิกเนเจอร์: คืนชีพ · สวนกลับทุกตัว · คลั่ง · โล่ · ดูดเลือด`)
-    fit(this.foot, 56)
+    shrinkFit(this.foot, 56, 9)
   }
 
   cost() { return isTainted(save(), this.it.id) ? null : taintCost() }

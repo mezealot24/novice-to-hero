@@ -1,7 +1,8 @@
-// 📜 สูตร & ♻️ หลอม (design/forge-ux-v1.md): recipes (All / Class / Set) with slot badges, Set modal link, and Compare vs Equipped; Salvage lives in its own top tab.
+// 📜 สูตร & ♻️ หลอม (design/forge-ux-v1.md): recipes (All / Set / Combine) + separate Class checkbox + Set picker filter, Set modal link, and full Compare vs Equipped; Salvage lives in its own top tab.
 import Phaser from 'phaser'
 import { AWAKENED_CRAFT_ITEMS } from '../../data/awakened-craft'
 import { DUNGEONS, H, W } from '../../data/game-data'
+import { JOBS } from '../../data/jobs'
 import { cardById, cardName } from '../../data/cards'
 import { ALL_CARDFORGE_ITEMS, bagCards, canCardforge, cardforge, cardforgeCost, isCardforge } from '../../data/cardforge'
 import { CRAFT_ITEMS, craftCost, forgeItem, GRADE, gradeStars } from '../../data/craft'
@@ -16,20 +17,23 @@ import { setBonuses, type ItemSet } from '../../data/sets'
 import { canPay, cardsOffOnEquip, equip, isWorn, pay, persist, save } from '../../save'
 import { cardsOffText, cardsOffToast } from '../card-guard'
 import { sfx } from '../../sfx'
-import { button, chip, confirm, costStrip, fit, holdButton, itemIcon, panel, toast, txt, UI } from '../../ui'
-import { compareRows, dgIx, forgedWithAspect, HEAD_H, itemSetOf, itemSetsOf, setPages, setSpan, wornRival, type CmpRow, type Row } from './state'
+import { button, chip, confirm, costStrip, holdButton, itemIcon, panel, shrinkFit, toast, txt, UI } from '../../ui'
+import { renderFlowStats } from './CompareView'
+import { availableRecipeSets, compareRows, dgIx, forgedWithAspect, HEAD_H, itemSetOf, itemSetsOf, setPages, setSpan, wornRival, type RecipeSetGroup, type Row } from './state'
 import { matSource } from './stash'
 
 export interface ViewHost { wallet(): void; say(text: string): void; changed(): void }
-type Filter = 'all' | 'mine' | 'set' | 'combine'
+type Filter = 'all' | 'set' | 'combine'
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'ทั้งหมด' },
-  { id: 'mine', label: '🎯 อาชีพ' },
   { id: 'set', label: '🧩 เซ็ต' },
   { id: 'combine', label: '🧬 ผสม' },
 ]
 const COMBINE_WHY: Record<CombineWhy, string> = { notCombine: '', owned: 'มีแล้ว', locked: 'ยังไม่ปลดสูตร', missing: 'ยังไม่มีชิ้นส่วน', worn: 'ชิ้นส่วนใส่อยู่ ถอดก่อนนะคะ', broken: 'ชิ้นส่วนแตกอยู่ ซ่อมก่อนนะคะ', tainted: 'ชิ้นส่วนติดคำสาป ผสมไม่ได้', short: 'แกนผสมยังไม่ครบ', cards: 'การ์ดบอสยังไม่ครบ' }
 const PER = 6, ROW_H = 52
+const LIST_START_Y = 176
+const LIST_AVAIL_H = 348
+const shortSetName = (st: ItemSet) => st.name.replace(/\s*\(.*\)$/, '')
 const dgName = (id: string) => (id === 'rift' ? 'รอยแยกนิรันดร์' : DUNGEONS.find((d) => d.id === id)?.name ?? id)
 const dgBoss = (id: string) => (id === 'rift' ? 'บอสรอยแยกนิรันดร์' : DUNGEONS.find((d) => d.id === id)?.boss ?? '')
 const slotBadge = (it: Item) => {
@@ -42,25 +46,45 @@ export class RecipeView {
   private root?: Phaser.GameObjects.Container
   private modal?: Phaser.GameObjects.Container
   private filter: Filter = 'all'
+  private mineOnly = false
+  private selectedSetId: string | null = null
   private salvageMode = false
   private page = 0
   private sel?: string
   constructor(private scene: Phaser.Scene, private host: ViewHost) {}
 
-  /** The list for the current filter. Fixed order (dungeon, then catalogue), never by affordability, so rows don't jump. */
+  /** All set-capable recipes before applying `selectedSetId` (respects `mineOnly`). Used to populate the Set Picker modal. */
+  private setCandidates(s: ReturnType<typeof save>): Item[] {
+    const all = [...CRAFT_ITEMS, ...CLASS_GEAR, ...CLASS_CRAFT_ITEMS, ...AWAKENED_CRAFT_ITEMS, ...ALL_CARDFORGE_ITEMS].sort((a, b) => dgIx(a) - dgIx(b))
+    const byJob = this.mineOnly ? all.filter((it) => canWearAs(it, s)) : all
+    return byJob.filter((it) => itemSetsOf(it).length > 0)
+  }
+
+  /** The list for the current filter + class checkbox + optional set filter. Fixed order (dungeon, then catalogue), never by affordability, so rows don't jump. */
   private list(): Item[] {
     const s = save()
     if (this.salvageMode) return ITEMS.filter((it) => (it.craft || s.taint?.[it.id]) && s.owned.includes(it.id)).sort((a, b) => dgIx(a) - dgIx(b))
-    if (this.filter === 'combine') return [...COMBINE_ITEMS].sort((a, b) => dgIx(a) - dgIx(b))
+    if (this.filter === 'combine') {
+      const comb = [...COMBINE_ITEMS].sort((a, b) => dgIx(a) - dgIx(b))
+      return this.mineOnly ? comb.filter((it) => canWearAs(it, s)) : comb
+    }
+    if (this.filter === 'set') {
+      const cand = this.setCandidates(s)
+      if (!this.selectedSetId) return cand
+      return cand.filter((it) => itemSetsOf(it).some((st) => st.id === this.selectedSetId))
+    }
     const all = [...CRAFT_ITEMS, ...CLASS_GEAR, ...CLASS_CRAFT_ITEMS, ...AWAKENED_CRAFT_ITEMS, ...ALL_CARDFORGE_ITEMS].sort((a, b) => dgIx(a) - dgIx(b))
-    if (this.filter === 'mine') return all.filter((it) => canWearAs(it, s))
-    if (this.filter === 'set') return all.filter((it) => itemSetsOf(it).length > 0)
-    return all
+    return this.mineOnly ? all.filter((it) => canWearAs(it, s)) : all
   }
 
   /** Pages of the left list: flat 6 per page, or (🧩 filter) grouped under set headers. */
   private pageRows(list: Item[]): Row[][] {
-    if (this.filter === 'set' && !this.salvageMode) return setPages(list, itemSetsOf)
+    if (this.filter === 'set' && !this.salvageMode) {
+      const setsOf = this.selectedSetId
+        ? (it: Item) => itemSetsOf(it).filter((st) => st.id === this.selectedSetId)
+        : itemSetsOf
+      return setPages(list, setsOf, LIST_AVAIL_H)
+    }
     const out: Row[][] = []
     for (let i = 0; i < list.length; i += PER) out.push(list.slice(i, i + PER).map((it) => ({ kind: 'item' as const, it })))
     return out
@@ -75,7 +99,8 @@ export class RecipeView {
     const g = sc.add.graphics()
     g.fillStyle(0x3b4e82, 1).fillRoundedRect(-w / 2, -HEAD_H / 2, w, HEAD_H, 8)
     const meta = sc.add.text(w / 2 - 8, 0, `${span ? `${span} · ` : ''}${owned}/${members.length} ›`, { fontSize: '11px', color: UI.text }).setOrigin(1, 0.5)
-    const name = fit(sc.add.text(-w / 2 + 8, 0, `${r.cont ? '↪ ' : ''}${r.set.icon} ${r.set.name.replace(/\s*\(.*\)$/, '')}`, { fontSize: '12px', fontStyle: 'bold', color: UI.gold, wordWrap: { width: w - 22 - meta.width } }).setOrigin(0, 0.5), 17)
+    const nameMaxW = Math.max(80, w - 22 - meta.width)
+    const name = shrinkFit(sc.add.text(-w / 2 + 8, 0, `${r.cont ? '↪ ' : ''}${r.set.icon} ${shortSetName(r.set)}`, { fontSize: '12px', fontStyle: 'bold', color: UI.gold }).setOrigin(0, 0.5), 18, 9, nameMaxW)
     const bar = sc.add.container(16 + 6 + w / 2, y + HEAD_H / 2, [g, name, meta]).setSize(w, HEAD_H).setInteractive({ useHandCursor: true })
     bar.on('pointerup', () => { sfx.pop(); this.openSetModal(r.set, s) })
     root.add(bar)
@@ -128,6 +153,8 @@ export class RecipeView {
     this.modal?.destroy(); this.modal = undefined
     this.root?.destroy()
     const sc = this.scene, s = save(), root = (this.root = sc.add.container(0, 0))
+    const availSets = this.filter === 'set' && !this.salvageMode ? availableRecipeSets(this.setCandidates(s)) : []
+    if (this.selectedSetId && !availSets.some((g) => g.set.id === this.selectedSetId)) this.selectedSetId = null
     const list = this.list(), book = this.pageRows(list), pages = Math.max(1, book.length)
     this.page = Math.max(0, Math.min(this.page, pages - 1))
     const firstOn = (p: number) => book[p]?.find((r): r is Extract<Row, { kind: 'item' }> => r.kind === 'item')?.it.id
@@ -137,12 +164,20 @@ export class RecipeView {
     if (this.salvageMode) {
       root.add(txt(sc, 144, 128, '♻️ เลือกของที่จะหลอมคืน', 13.5, UI.gold, true).setOrigin(0.5))
     } else {
-      FILTERS.forEach((f, i) => root.add(button(sc, 52 + i * 61, 128, 58, 28, f.label, () => {
+      // Row 1: 3 filter tabs (ทั้งหมด / เซ็ต / ผสม)
+      const tabW = 78, tabGap = 5
+      FILTERS.forEach((f, i) => root.add(button(sc, 22 + tabW / 2 + i * (tabW + tabGap), 130, tabW, 26, f.label, () => {
         this.filter = f.id; this.page = 0; this.sel = undefined; this.rebuild()
-      }, { size: 11, fill: this.filter === f.id ? 0xf2b84b : 0x5a5f8a, color: this.filter === f.id ? UI.ink : UI.text })))
+      }, { size: 11.5, fill: this.filter === f.id ? 0xf2b84b : 0x5a5f8a, color: this.filter === f.id ? UI.ink : UI.text })))
+
+      // Row 2: separate Class checkbox (mineOnly) + Set filter picker when on เซ็ต tab
+      const inSetTab = this.filter === 'set'
+      const cbW = inSetTab ? 94 : 244
+      this.renderClassCheckbox(root, 22, 147, cbW, 24, s)
+      if (inSetTab) this.renderSetFilterControl(root, 22 + cbW + 6, 147, 244 - cbW - 6, 24, availSets, s)
     }
 
-    let y = this.filter === 'set' && !this.salvageMode ? 148 : 162
+    let y = this.salvageMode ? 156 : LIST_START_Y
     for (const r of book[this.page] ?? []) {
       if (r.kind === 'head') { this.setHeader(root, r, y, s); y += HEAD_H + 4; continue }
       const it = r.it
@@ -151,18 +186,137 @@ export class RecipeView {
       const g = sc.add.graphics()
       g.fillStyle(on ? UI.panelHi : UI.panel, 1).fillRoundedRect(-w / 2, -ROW_H / 2, w, ROW_H, 10).lineStyle(on ? 3 : 1.5, on ? 0xf2b84b : UI.line, 1).strokeRoundedRect(-w / 2, -ROW_H / 2, w, ROW_H, 10)
       const ico = itemIcon(sc, -w / 2 + 28, 0, 40, hide ? { ...it, icon: '❓', name: '???' } : it, { grade: 1, refine: 0 })
-      const name = fit(sc.add.text(-w / 2 + 54, -ROW_H / 2 + 6, hide ? '???' : it.name, { fontSize: '13px', fontStyle: 'bold', color: hide ? UI.sub : UI.text, wordWrap: { width: w - 62 } }), 18)
-      const cap = fit(sc.add.text(-w / 2 + 54, -ROW_H / 2 + 28, this.caption(it), { fontSize: '11px', color: UI.sub, wordWrap: { width: w - 62 } }), 16)
+      const name = shrinkFit(sc.add.text(-w / 2 + 54, -ROW_H / 2 + 6, hide ? '???' : it.name, { fontSize: '13px', fontStyle: 'bold', color: hide ? UI.sub : UI.text }), 20, 9.5, w - 60)
+      const cap = shrinkFit(sc.add.text(-w / 2 + 54, -ROW_H / 2 + 28, this.caption(it), { fontSize: '11px', color: UI.sub }), 18, 8.5, w - 60)
       const row = sc.add.container(16 + 6 + w / 2, cy, [g, ico, name, cap]).setSize(w, ROW_H).setInteractive({ useHandCursor: true })
       row.on('pointerup', () => { sfx.pop(); this.sel = it.id; this.rebuild() })
       root.add(row)
     }
-    root.add(button(sc, 16 + 60, 540, 44, 30, '◀', () => { this.page--; this.rebuild() }, { size: 14 }).setEnabled(this.page > 0))
-    root.add(txt(sc, 16 + 128, 540, `${this.page + 1}/${pages}`, 14, UI.text, true).setOrigin(0.5))
-    root.add(button(sc, 16 + 196, 540, 44, 30, '▶', () => { this.page++; this.rebuild() }, { size: 14 }).setEnabled(this.page < pages - 1))
+    root.add(button(sc, 16 + 60, 542, 44, 28, '◀', () => { this.page--; this.rebuild() }, { size: 14 }).setEnabled(this.page > 0))
+    root.add(txt(sc, 16 + 128, 542, `${this.page + 1}/${pages}`, 14, UI.text, true).setOrigin(0.5))
+    root.add(button(sc, 16 + 196, 542, 44, 28, '▶', () => { this.page++; this.rebuild() }, { size: 14 }).setEnabled(this.page < pages - 1))
     const it = list.find((x) => x.id === this.sel)
     if (!it) { root.add(txt(sc, 616, 300, this.salvageMode ? 'ยังไม่มีของตีเอง หรือของร้านที่ติดคำสาปให้หลอมค่ะ' : 'ไม่มีสูตรในหมวดนี้ค่ะ', 16, UI.sub).setOrigin(0.5)); return }
     this.stage(root, it, s)
+  }
+
+  /** Checkbox toggle for current job filter (combines with ทั้งหมด / เซ็ต / ผสม). */
+  private renderClassCheckbox(root: Phaser.GameObjects.Container, x: number, y: number, w: number, h: number, s: ReturnType<typeof save>) {
+    const sc = this.scene, on = this.mineOnly
+    const job = JOBS[s.job]
+    const g = sc.add.graphics()
+    g.fillStyle(on ? 0x223a3c : 0x171b36, 1).fillRoundedRect(-w / 2, -h / 2, w, h, 7)
+    g.lineStyle(1.5, on ? 0x6fd08c : UI.line, 1).strokeRoundedRect(-w / 2, -h / 2, w, h, 7)
+    const boxSize = 14, bx = -w / 2 + 8, by = -boxSize / 2
+    g.fillStyle(on ? 0x6fd08c : 0x101325, 1).fillRoundedRect(bx, by, boxSize, boxSize, 4)
+    g.lineStyle(1.5, on ? 0x6fd08c : 0x7b82a8, 1).strokeRoundedRect(bx, by, boxSize, boxSize, 4)
+    const check = sc.add.text(bx + boxSize / 2, 0, on ? '✓' : '', { fontSize: '11px', fontStyle: 'bold', color: UI.ink }).setOrigin(0.5)
+    const labelText = w >= 160 ? `${job.icon} เฉพาะอาชีพนี้ (${job.name})` : `${job.icon} อาชีพ`
+    const lb = shrinkFit(sc.add.text(bx + boxSize + 6, 0, labelText, { fontSize: '11.5px', fontStyle: 'bold', color: on ? UI.green : UI.text }).setOrigin(0, 0.5), 18, 9, w - boxSize - 20)
+    const c = sc.add.container(x + w / 2, y + h / 2, [g, check, lb]).setSize(w, h).setInteractive({ useHandCursor: true })
+    c.on('pointerup', () => {
+      sfx.pop()
+      this.mineOnly = !this.mineOnly
+      this.page = 0
+      this.sel = undefined
+      this.rebuild()
+    })
+    root.add(c)
+  }
+
+  /** Set filter selector bar (shown when on the 🧩 เซ็ต tab). */
+  private renderSetFilterControl(root: Phaser.GameObjects.Container, x: number, y: number, w: number, h: number, availSets: readonly RecipeSetGroup[], s: ReturnType<typeof save>) {
+    const sc = this.scene
+    const active = this.selectedSetId ? availSets.find((g) => g.set.id === this.selectedSetId)?.set : undefined
+    const clearW = active ? 24 : 0
+    const mainW = active ? w - clearW - 4 : w
+
+    const g = sc.add.graphics()
+    g.fillStyle(active ? 0x3b4e82 : 0x171b36, 1).fillRoundedRect(-mainW / 2, -h / 2, mainW, h, 7)
+    g.lineStyle(1.5, active ? 0xf2b84b : UI.line, 1).strokeRoundedRect(-mainW / 2, -h / 2, mainW, h, 7)
+    const arrow = sc.add.text(mainW / 2 - 6, 0, '▾', { fontSize: '11px', fontStyle: 'bold', color: active ? UI.gold : UI.sub }).setOrigin(1, 0.5)
+    const labelStr = active ? `${active.icon} ${shortSetName(active)}` : `🧩 ทุกเซ็ต (${availSets.length})`
+    const lb = shrinkFit(sc.add.text(-mainW / 2 + 7, 0, labelStr, { fontSize: '11px', fontStyle: 'bold', color: active ? UI.gold : UI.text }).setOrigin(0, 0.5), 18, 8.5, mainW - 22)
+    const btn = sc.add.container(x + mainW / 2, y + h / 2, [g, lb, arrow]).setSize(mainW, h).setInteractive({ useHandCursor: true })
+    btn.on('pointerup', () => { sfx.pop(); this.openSetPickerModal(availSets, s, 0) })
+    root.add(btn)
+
+    if (active) {
+      const cg = sc.add.graphics()
+      cg.fillStyle(0x5a3a4a, 1).fillRoundedRect(-clearW / 2, -h / 2, clearW, h, 7)
+      cg.lineStyle(1.5, 0xff9f9f, 0.9).strokeRoundedRect(-clearW / 2, -h / 2, clearW, h, 7)
+      const cx = sc.add.text(0, 0, '✕', { fontSize: '11px', fontStyle: 'bold', color: UI.text }).setOrigin(0.5)
+      const clearBtn = sc.add.container(x + mainW + 4 + clearW / 2, y + h / 2, [cg, cx]).setSize(clearW, h).setInteractive({ useHandCursor: true })
+      clearBtn.on('pointerup', () => { sfx.pop(); this.selectedSetId = null; this.page = 0; this.sel = undefined; this.rebuild() })
+      root.add(clearBtn)
+    }
+  }
+
+  /** Modal to pick a specific set (or "All sets") to filter the 🧩 เซ็ต recipe list. */
+  private openSetPickerModal(groups: readonly RecipeSetGroup[], s: ReturnType<typeof save>, pickerPage = 0) {
+    this.modal?.destroy()
+    const sc = this.scene
+    const close = () => { this.modal?.destroy(); this.modal = undefined }
+    const c = sc.add.container(0, 0).setDepth(30000)
+    this.modal = c
+
+    const dim = sc.add.rectangle(W / 2, H / 2, W, H, 0x080a18, 0.82).setInteractive()
+    dim.on('pointerup', close)
+    const mx = 74, my = 44, mw = W - 148, mh = H - 88
+    c.add([dim, panel(sc, mx, my, mw, mh, 0x141834, 0xf2b84b, 14), sc.add.zone(mx, my, mw, mh).setOrigin(0).setInteractive()])
+
+    c.add(txt(sc, mx + 20, my + 16, `🧩 เลือกกรองเซ็ต${this.mineOnly ? ` (${JOBS[s.job].icon} ${JOBS[s.job].name})` : ''}`, 18, UI.gold, true))
+    c.add(button(sc, mx + mw - 28, my + 26, 36, 32, '✕', close, { size: 16, fill: 0x5a5f8a, color: UI.text }))
+
+    const allOn = this.selectedSetId === null
+    c.add(button(sc, mx + 128, my + 62, 216, 28, `🧩 แสดงทุกเซ็ต (${groups.length} เซ็ต)`, () => {
+      this.selectedSetId = null; this.page = 0; this.sel = undefined; close(); this.rebuild()
+    }, { size: 12, fill: allOn ? 0xf2b84b : 0x3b4e82, color: allOn ? UI.ink : UI.text }))
+
+    const cols = 3, perPage = 24
+    const pages = Math.max(1, Math.ceil(groups.length / perPage))
+    const curPage = Math.max(0, Math.min(pickerPage, pages - 1))
+    const slice = groups.slice(curPage * perPage, curPage * perPage + perPage)
+
+    const gx = mx + 20, gy = my + 86, gapX = 10, gapY = 7
+    const cardW = Math.floor((mw - 40 - gapX * (cols - 1)) / cols)
+    const cardH = 40
+
+    if (!slice.length) {
+      c.add(txt(sc, mx + mw / 2, my + mh / 2, 'ไม่มีเซ็ตที่ตรงเงื่อนไขค่ะ', 15, UI.sub).setOrigin(0.5))
+    }
+
+    slice.forEach((grp, idx) => {
+      const col = idx % cols, row = Math.floor(idx / cols)
+      const cx = gx + col * (cardW + gapX) + cardW / 2
+      const cy = gy + row * (cardH + gapY) + cardH / 2
+      const on = this.selectedSetId === grp.set.id
+      const members = grp.set.memberIds ?? grp.items.map((x) => x.id)
+      const owned = members.filter((id) => s.owned.includes(id)).length
+      const span = setSpan(members)
+      const bg = sc.add.graphics()
+      bg.fillStyle(on ? 0x2f3b6b : 0x1b203f, 1).fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 8)
+      bg.lineStyle(on ? 2.5 : 1.2, on ? 0xf2b84b : UI.line, 1).strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 8)
+      const title = shrinkFit(sc.add.text(-cardW / 2 + 10, -cardH / 2 + 5, `${grp.set.icon} ${shortSetName(grp.set)}`, { fontSize: '12px', fontStyle: 'bold', color: on ? UI.gold : UI.text }), 16, 9, cardW - 20)
+      const meta = shrinkFit(sc.add.text(-cardW / 2 + 10, -cardH / 2 + 22, `${span ? `${span} · ` : ''}สูตร ${grp.items.length} ชิ้น · มี ${owned}/${members.length}`, { fontSize: '10.5px', color: owned >= members.length ? UI.green : UI.sub }), 14, 8.5, cardW - 20)
+      const card = sc.add.container(cx, cy, [bg, title, meta]).setSize(cardW, cardH).setInteractive({ useHandCursor: true })
+      card.on('pointerup', () => {
+        sfx.pop()
+        this.selectedSetId = grp.set.id
+        this.page = 0
+        this.sel = undefined
+        close()
+        this.rebuild()
+      })
+      c.add(card)
+    })
+
+    if (pages > 1) {
+      const py = my + mh - 24
+      c.add(button(sc, mx + mw / 2 - 64, py, 44, 28, '◀', () => this.openSetPickerModal(groups, s, curPage - 1), { size: 13 }).setEnabled(curPage > 0))
+      c.add(txt(sc, mx + mw / 2, py, `${curPage + 1}/${pages}`, 13, UI.text, true).setOrigin(0.5))
+      c.add(button(sc, mx + mw / 2 + 64, py, 44, 28, '▶', () => this.openSetPickerModal(groups, s, curPage + 1), { size: 13 }).setEnabled(curPage < pages - 1))
+    }
   }
 
   // ---------- right side ----------
@@ -175,7 +329,7 @@ export class RecipeView {
 
     const titleMaxW = shown && itemSet ? 344 : 504
     const titleBadges = `${cf ? '  🃏' : ''}${isMythic(it) ? '  🧬✨ Mythic' : isCombine(it) ? '  🧬' : ''}${itemSet ? '  🧩' : ''}`
-    root.add(fit(txt(sc, 288 + 128, 120, shown ? `${it.name}${titleBadges}` : '??? (ยังไม่ปลดสูตร)', 19, shown ? UI.text : UI.sub, true).setWordWrapWidth(titleMaxW), 26))
+    root.add(shrinkFit(txt(sc, 288 + 128, 118, shown ? `${it.name}${titleBadges}` : '??? (ยังไม่ปลดสูตร)', 19, shown ? UI.text : UI.sub, true).setWordWrapWidth(titleMaxW), 26, 11))
 
     if (shown && itemSet) {
       const members = itemSet.memberIds ?? []
@@ -185,18 +339,28 @@ export class RecipeView {
     }
 
     const slotLabel = slotBadge(it)
-    const setTag = shown && itemSet ? ` · 🧩 ${allSets.map((x) => x.name.replace(/\s*\(.*\)$/, '')).join(' + ')}` : ''
-    root.add(fit(txt(sc, 288 + 128, 148, `${slotLabel} · ${c ? `ของ${dgName(c.dg)}` : 'ของร้าน (ติดคำสาป)'} · ${wearText(it)}${canWearAs(it, s) ? '' : ' (ไม่ใช่อาชีพนี้)'}${setTag}`, 12, canWearAs(it, s) ? UI.sub : UI.red).setWordWrapWidth(510), 18))
+    const setTag = shown && itemSet ? ` · 🧩 ${allSets.map((x) => shortSetName(x)).join(' + ')}` : ''
+    const metaT = shrinkFit(txt(sc, 288 + 128, 146, `${slotLabel} · ${c ? `ของ${dgName(c.dg)}` : 'ของร้าน (ติดคำสาป)'} · ${wearText(it)}${canWearAs(it, s) ? '' : ' (ไม่ใช่อาชีพนี้)'}${setTag}`, 11.5, canWearAs(it, s) ? UI.sub : UI.red).setWordWrapWidth(510).setLineSpacing(1), 22, 9)
+    root.add(metaT)
 
     const lockMsg = c && !((s.clearsBy?.[c.dg] ?? 0) > 0) ? `ล้ม${dgBoss(c.dg)}ก่อนถึงจะตีได้` : (it.req ? REQ_TEXT[it.req] : 'ยังไม่ปลดล็อก')
     if (shown) {
       const worn = forgeItem(it, salv ? gradeOf(s, it.id) : 1, salv ? refineOf(s, it.id) : 0)
-      root.add(fit(txt(sc, 288 + 128, 168, `${itemStatLine(worn)} · 🃏 ช่องการ์ด ${it.slots ?? 1}`, 13, '#9fe3a8', true).setWordWrapWidth(510), 30))
+      let curY = metaT.y + Math.ceil(metaT.height * metaT.scaleY) + 3
+      const statT = shrinkFit(txt(sc, 288 + 128, curY, `${itemStatLine(worn)} · 🃏 ช่องการ์ด ${it.slots ?? 1}`, 12.5, '#9fe3a8', true).setWordWrapWidth(510).setLineSpacing(1), 32, 9)
+      root.add(statT)
+      curY = statT.y + Math.ceil(statT.height * statT.scaleY) + 3
       const fx = describeItemEffects(itemEffectsOf(undefined, it), itemConversionsOf(undefined, it))
       const into = buildsInto(it.id)
       const detail = `${fx.length > 0 ? `${it.desc} · ${fx.join(' · ')}` : it.desc}${into.length ? ` · 🧬 ผสมต่อได้เป็น ${into.map((x) => x.name).join(', ')}` : ''}`
-      root.add(fit(txt(sc, 288 + 128, 200, detail, 11, cf ? UI.gold : UI.sub, cf).setWordWrapWidth(510), 30))
-      if (c) root.add(fit(txt(sc, 288 + 128, 234, `★3 ปลด: ${itemStatLine({ mod: c.bonus[0] })}  ·  ★5 ปลด: ${itemStatLine({ mod: c.bonus[1] })}`, 11, GRADE.colors[3]).setWordWrapWidth(510), 22))
+      const bonusReserve = c ? 24 : 4
+      const detailMaxH = Math.max(20, 258 - curY - bonusReserve)
+      const detailT = shrinkFit(txt(sc, 288 + 128, curY, detail, 11, cf ? UI.gold : UI.sub, cf).setWordWrapWidth(510).setLineSpacing(1), detailMaxH, 8.5)
+      root.add(detailT)
+      if (c) {
+        const bonusY = Math.min(238, detailT.y + Math.ceil(detailT.height * detailT.scaleY) + 3)
+        root.add(shrinkFit(txt(sc, 288 + 128, bonusY, `★3 ปลด: ${itemStatLine({ mod: c.bonus[0] })}  ·  ★5 ปลด: ${itemStatLine({ mod: c.bonus[1] })}`, 11, GRADE.colors[3]).setWordWrapWidth(510).setLineSpacing(1), Math.max(16, 258 - bonusY), 8.5))
+      }
     } else {
       root.add(txt(sc, 288 + 128, 176, `🔒 ${lockMsg}\nวัตถุดิบ: ??? · ค่าตี: ???`, 14, UI.sub))
     }
@@ -244,7 +408,7 @@ export class RecipeView {
       }
     }
     if (s.zeny < cost.zeny) lines.push(`• 💰 zeny ขาด ${cost.zeny - s.zeny}z`)
-    root.add(fit(txt(sc, 302, cf ? 322 : 286, owned ? `✓ มีแล้ว ${gradeStars(gradeOf(s, it.id), 5)} · อัปขั้นกับตีบวกต่อที่ ⚒️ ทั่ง` : lines.length ? `ที่ขาดอยู่:\n${lines.join('\n')}` : 'ของครบแล้ว กดสร้างได้เลยค่ะ', 12, owned ? UI.green : lines.length ? UI.text : UI.green).setWordWrapWidth(316), cf ? 102 : 136))
+    root.add(shrinkFit(txt(sc, 302, cf ? 322 : 286, owned ? `✓ มีแล้ว ${gradeStars(gradeOf(s, it.id), 5)} · อัปขั้นกับตีบวกต่อที่ ⚒️ ทั่ง` : lines.length ? `ที่ขาดอยู่:\n${lines.join('\n')}` : 'ของครบแล้ว กดสร้างได้เลยค่ะ', 12, owned ? UI.green : lines.length ? UI.text : UI.green).setWordWrapWidth(316), cf ? 102 : 136, 9))
 
     if (!owned) {
       const pinned = s.forgePin === it.id
@@ -286,7 +450,7 @@ export class RecipeView {
     const g = combineGrade(s, it)
     const note = `${isMythic(it) ? '✨ Mythic: สวมได้ทีละ 1 ชิ้น · ' : ''}ผสมแล้วได้ ${gradeStars(g, 5)} (ตามชิ้นที่สูงสุด) · ตีบวกเริ่ม +0 · การ์ดที่เสียบกลับกระเป๋า · ชิ้นส่วนทั้ง 2 หายไป และไม่นับเป็นชิ้นเซ็ต`
     const body = owned ? `✓ มีแล้ว ${gradeStars(gradeOf(s, it.id), 5)} · อัปขั้นกับตีบวกต่อที่ ⚒️ ทั่ง` : lines.length ? `ที่ขาดอยู่:\n${lines.join('\n')}` : `ของครบแล้ว กดผสมได้เลยค่ะ\n${note}`
-    root.add(fit(txt(sc, 302, 322, body, 12, owned ? UI.green : lines.length ? UI.text : UI.green).setWordWrapWidth(316), 132))
+    root.add(shrinkFit(txt(sc, 302, 322, body, 12, owned ? UI.green : lines.length ? UI.text : UI.green).setWordWrapWidth(316), 132, 9))
     const ready = canCombine(s, it).ok
     root.add(button(sc, 794, 522, 280, 48, owned ? '✓ มีแล้ว' : ready ? '🧬 ผสม' : 'ของยังไม่ครบ', () => {
       confirm(sc, `🧬 ผสม ${it.name}?`, `${combineParts(it).map((p) => p.name).join(' + ')} จะหายไป\n${note}`, 'ผสมเลย', () => this.doCombine(it), 'ไว้ก่อน')
@@ -307,7 +471,7 @@ export class RecipeView {
   }
 
   private renderComparePanel(root: Phaser.GameObjects.Container, it: Item, s: ReturnType<typeof save>, open: boolean) {
-    const sc = this.scene, px = 654, py = 282, pw = 278
+    const sc = this.scene, px = 654, py = 280, pw = 278
     root.add(txt(sc, px, py, '🆚 เทียบกับของที่ใส่อยู่', 13, UI.gold, true))
     if (!open) {
       root.add(txt(sc, px, py + 32, '🔒 ปลดล็อกสูตรก่อนเพื่อเทียบค่าพลัง', 12, UI.sub).setWordWrapWidth(pw))
@@ -315,32 +479,22 @@ export class RecipeView {
     }
     const target = forgeItem(it, s.owned.includes(it.id) ? gradeOf(s, it.id) : 1, s.owned.includes(it.id) ? refineOf(s, it.id) : 0)
     if (isWorn(s, it.id)) {
-      root.add(txt(sc, px, py + 24, '✅ กำลังใส่ชิ้นนี้อยู่แล้ว', 12, UI.green, true))
-      const rows = compareRows(target, target).slice(0, 6)
-      rows.forEach((r, idx) => {
-        root.add(fit(txt(sc, px, py + 48 + idx * 20, `${r.label}: ${r.next}`, 11.5, UI.text).setWordWrapWidth(pw), 18))
-      })
+      root.add(txt(sc, px, py + 22, '✅ กำลังใส่ชิ้นนี้อยู่แล้ว', 12, UI.green, true))
+      const rows = compareRows(target, target)
+      root.add(renderFlowStats(sc, rows, { x: px, y: py + 42, w: pw, h: 136, single: true }))
       return
     }
     const rival = wornRival(s, it)
     const headText = rival ? `ที่ใส่: ${rival.name}${forgeTag(s, rival.id)}` : `ช่อง${slotBadge(it)} ยังว่างอยู่`
-    root.add(fit(txt(sc, px, py + 22, headText, 11.5, rival ? '#98d8ff' : UI.sub).setWordWrapWidth(pw), 18))
+    root.add(shrinkFit(txt(sc, px, py + 21, headText, 11.5, rival ? '#98d8ff' : UI.sub), 17, 9, pw))
 
     const rivalForged = rival ? forgedWithAspect(s as SaveExt, rival) : null
     const rows = compareRows(rivalForged, target)
     if (!rows.length) {
-      root.add(txt(sc, px, py + 52, 'ไม่มีค่าพลังที่ต่างกัน', 12, UI.sub))
+      root.add(txt(sc, px, py + 50, 'ไม่มีค่าพลังที่ต่างกัน', 12, UI.sub))
       return
     }
-    const shown = rows.slice(0, 6)
-    shown.forEach((r, idx) => {
-      const ry = py + 44 + idx * 21
-      const color = r.d > 0 ? UI.green : r.d < 0 ? UI.red : r.curse ? '#ff9f9f' : UI.sub
-      root.add(fit(txt(sc, px, ry, cmpLine(r), 11.5, color, r.d !== 0).setWordWrapWidth(pw), 18))
-    })
-    if (rows.length > shown.length) {
-      root.add(txt(sc, px, py + 44 + shown.length * 21, `…อีก ${rows.length - shown.length} ค่า`, 11, UI.sub))
-    }
+    root.add(renderFlowStats(sc, rows, { x: px, y: py + 41, w: pw, h: 137, single: false, boldChanged: true }))
   }
 
   /** `tabs`: every set the opening item counts for, shown as switch buttons when there is more than one. */
@@ -357,8 +511,8 @@ export class RecipeView {
     c.add([dim, panel(sc, mx, my, mw, mh, 0x141834, 0xf2b84b, 14), sc.add.zone(mx, my, mw, mh).setOrigin(0).setInteractive()])
 
     const span = setSpan(itemSet.memberIds ?? [])
-    c.add(fit(txt(sc, mx + 20, my + 16, `${itemSet.icon} ${itemSet.name}${span ? `  ·  ${span}` : ''}`, 20, UI.gold, true).setWordWrapWidth(tabs.length > 1 ? mw - 70 - tabs.length * 92 : mw - 90), 28))
-    c.add(fit(txt(sc, mx + 20, my + 44, itemSet.desc, 12.5, UI.sub).setWordWrapWidth(mw - 90), 34))
+    c.add(shrinkFit(txt(sc, mx + 20, my + 16, `${itemSet.icon} ${itemSet.name}${span ? `  ·  ${span}` : ''}`, 20, UI.gold, true).setWordWrapWidth(tabs.length > 1 ? mw - 70 - tabs.length * 92 : mw - 90), 28, 12))
+    c.add(shrinkFit(txt(sc, mx + 20, my + 44, itemSet.desc, 12.5, UI.sub).setWordWrapWidth(mw - 90), 34, 9))
     // A piece in two sets: switch between them here
     if (tabs.length > 1) tabs.forEach((t, i) => c.add(button(sc, mx + mw - 70 - (tabs.length - i) * 92 + 46, my + 26, 86, 28, `${t.icon} ${t.name.replace(/\s*\(.*\)$/, '').replace(/^ชุด/, '')}`, () => this.openSetModal(t, s, tabs), { size: 10.5, fill: t.id === itemSet.id ? 0xf2b84b : 0x3b4e82, color: t.id === itemSet.id ? UI.ink : UI.text })))
     c.add(button(sc, mx + mw - 26, my + 26, 36, 32, '✕', close, { size: 16, fill: 0x5a5f8a, color: UI.text }))
@@ -389,13 +543,13 @@ export class RecipeView {
         // compact two-column row: tap the row to jump to its recipe (uniques are boss drops, no recipe)
         c.add(itemIcon(sc, lx + 22, ry + half, Math.min(34, ph - 8), item, { grade: gradeOf(s, id), refine: refineOf(s, id) }))
         const go = recipeIds.has(id) && id !== this.sel
-        c.add(fit(txt(sc, lx + 44, ry + Math.max(2, half - 17), `${item.name}${go ? ' ›' : ''}`, 12, UI.text, true).setWordWrapWidth(lw - 50, true), 16))
-        c.add(fit(txt(sc, lx + 44, ry + Math.max(18, half + 1), `${SLOTS.find((q) => q.id === item.slot)?.icon ?? ''} ${item.unique ? '👑 ยูนีค' : status}`, 10.5, item.unique ? '#ffb347' : stColor).setWordWrapWidth(lw - 50), 15))
+        c.add(shrinkFit(txt(sc, lx + 44, ry + Math.max(2, half - 17), `${item.name}${go ? ' ›' : ''}`, 12, UI.text, true), 16, 8.5, lw - 50))
+        c.add(shrinkFit(txt(sc, lx + 44, ry + Math.max(18, half + 1), `${SLOTS.find((q) => q.id === item.slot)?.icon ?? ''} ${item.unique ? '👑 ยูนีค' : status}`, 10.5, item.unique ? '#ffb347' : stColor), 15, 8.5, lw - 50))
         if (go) c.add(sc.add.zone(lx, ry, lw, ph).setOrigin(0).setInteractive({ useHandCursor: true }).on('pointerup', () => { sfx.pop(); open() }))
         return
       }
       c.add(itemIcon(sc, lx + 28, ry + half, Math.min(38, ph - 8), item, { grade: gradeOf(s, id), refine: refineOf(s, id) }))
-      c.add(fit(txt(sc, lx + 56, ry + Math.max(3, half - 18), item.name, 13, UI.text, true).setWordWrapWidth(lw - 140), 18))
+      c.add(shrinkFit(txt(sc, lx + 56, ry + Math.max(3, half - 18), item.name, 13, UI.text, true), 18, 9, lw - 140))
       c.add(txt(sc, lx + 56, ry + Math.max(22, half + 2), `${slotBadge(item)} · ${status}`, 11, stColor))
       if (recipeIds.has(id) && id !== this.sel) {
         c.add(button(sc, lx + lw - 42, ry + half, 68, Math.min(26, ph - 10), 'ดูสูตร ›', open, { size: 11, fill: 0x3b4e82, color: UI.text }))
@@ -457,10 +611,4 @@ export class RecipeView {
     this.sel = undefined
     this.host.changed()
   }
-}
-
-function cmpLine(r: CmpRow): string {
-  const prefix = r.curse ? '💀 ' : ''
-  if (r.d === 0) return `${prefix}${r.label}: ${r.next === '—' ? r.now : r.next}`
-  return `${prefix}${r.label}: ${r.now} → ${r.next} ${r.d > 0 ? '▲' : '▼'}`
 }

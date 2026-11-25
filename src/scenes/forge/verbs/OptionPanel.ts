@@ -8,7 +8,7 @@ import { LINE_TIER_COLOR, LINE_TIER_ICON, LINE_TIER_NAME, lineTier, type LineTie
 import { canAfford, classOf, lineIdx, lineText, lockGems, maxLocks, nextRerollCost, reroll, rerollMul, rollLine, rollsOf } from '../../../data/refine'
 import { persist, save } from '../../../save'
 import { sfx } from '../../../sfx'
-import { button, fit, panel, toast, txt, UI, type Btn } from '../../../ui'
+import { button, panel, shrinkFit, toast, txt, UI, type Btn } from '../../../ui'
 import { punch, spinText } from '../../../ui-fx'
 import { pressLabel } from '../state'
 import { BOX_H, BOX_W, INNER_W, PAD, type ForgeCtx, type Preview, type VerbAction, type VerbPanel } from '../types'
@@ -48,7 +48,7 @@ export class OptionPanel extends PanelBase implements VerbPanel {
       const y = ROW_Y[i]
       const card = panel(sc, PAD - 6, y - 4, INNER_W + 12, 60, 0x1d2140, UI.line, 10)
       const label = txt(sc, PAD, y + 2, `+${at} (${SIZE[i]})`, 13, UI.sub, true)
-      const val = txt(sc, PAD, y + 26, '', 16, UI.text, true)
+      const val = txt(sc, PAD, y + 25, '', 15, UI.text, true).setWordWrapWidth(INNER_W).setLineSpacing(1)
       const old = txt(sc, PAD, y + 28, '', 12, UI.sub).setVisible(false)
       const strike = sc.add.graphics()
       const lock = button(sc, BOX_W - PAD - 46, y + 11, 92, 24, '', () => this.toggle(i), { size: 12, fill: 0x5a5f8a, color: UI.text })
@@ -79,17 +79,21 @@ export class OptionPanel extends PanelBase implements VerbPanel {
     this.sub.setVisible(true)
     const rolls = rollsOf(s, it.id), maxLk = maxLocks(have.length), busy = this.ctx.isBusy() || this.anim.size > 0
     this.headR.setText(`สุ่มไปแล้ว ${rolls} ครั้ง · ราคา x${rerollMul(rolls).toFixed(1)} · ${maxLk ? `ล็อก ${this.locked.length}/${maxLk} · 💎${lockGems(this.locked.length)} ต่อการสุ่ม` : 'ล็อกไม่ได้ (ต้องเหลือบรรทัดให้สุ่ม)'}`)
-    fit(this.headR, 34)
-    this.sub.setY(this.headR.y + this.headR.height + 4)
+    shrinkFit(this.headR, 34, 9.5)
+    this.sub.setY(this.headR.y + Math.ceil(this.headR.height * this.headR.scaleY) + 4)
     this.rows.forEach((r, i) => {
       const l = lines[i], on = this.locked.includes(i)
       r.card.setVisible(true); r.label.setVisible(true); r.val.setVisible(true)
       if (!l) {
         r.val.setText(`— ยังไม่ได้ (ตีถึง +${REFINE.lineAt[i]})`).setColor(UI.sub)
+        shrinkFit(r.val, 28, 10, INNER_W)
         r.lock.setVisible(false)
         return
       }
-      if (!this.anim.has(i)) r.val.setText(lineText(l)).setColor(LINE_TIER_COLOR[lineTier(l)])
+      if (!this.anim.has(i)) {
+        r.val.setText(lineText(l)).setColor(LINE_TIER_COLOR[lineTier(l)])
+        shrinkFit(r.val, 29, 9.5, INNER_W)
+      }
       const canLock = on || this.locked.length < maxLk
       // 💎N is the extra gem charge on EVERY roll while this line stays locked
       r.lock.setVisible(true).setLabel(on ? '🔒 ล็อก' : `🔓 💎${REFINE.lockGems[this.locked.length] ?? '—'}`).setFill(on ? 0xb8860b : 0x5a5f8a).setEnabled(canLock && !tainted && !busy)
@@ -138,6 +142,7 @@ export class OptionPanel extends PanelBase implements VerbPanel {
       this.curSkip = undefined
       this.anim.delete(i)
       row.val.setText(fin).setColor(LINE_TIER_COLOR[lineTier(line)])
+      shrinkFit(row.val, 29, 9.5, INNER_W)
       punch(this.ctx.scene, row.val, { by: 1.12 + 0.05 * lineTier(line), ms: 160 }) // the row flash on landing
       this.showOld(row, before[i])
       if (this.fast || k === order.length - 1) this.step(order, k + 1, before, res)
@@ -153,7 +158,7 @@ export class OptionPanel extends PanelBase implements VerbPanel {
     if (!old) return
     const x = Math.min(row.val.x + row.val.width + 10, BOX_W - PAD - 90)
     row.old.setText(`เดิม ${lineText(old)}`).setPosition(x, row.old.y).setWordWrapWidth(Math.max(60, BOX_W - PAD - x)).setVisible(true).setAlpha(0.75)
-    fit(row.old, 16)
+    shrinkFit(row.old, 16, 8.5, Math.max(60, BOX_W - PAD - x))
     row.strike.clear().lineStyle(2, 0xff7a7a, 1).lineBetween(row.old.x, row.old.y + row.old.height / 2, row.old.x + row.old.width, row.old.y + row.old.height / 2).setVisible(true)
     row.oldTimer?.remove(false) // one timer per row: a newer roll replaces the older one
     row.oldTimer = this.ctx.scene.time.delayedCall(1500, () => { row.oldTimer = undefined; if (row.old.scene) { row.old.setVisible(false); row.strike.clear() } })

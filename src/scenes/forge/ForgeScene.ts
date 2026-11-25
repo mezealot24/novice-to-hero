@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { isBroken, itemById, type Item } from '../../data/meta'
 import { persist, save } from '../../save'
-import { button, costStrip, fit, go, holdButton, iconTabs, panel, tabs, toast, topBar, txt, UI, type Btn, type CostStrip, type HoldBtn, type IconTabs } from '../../ui'
+import { button, costStrip, go, holdButton, iconTabs, panel, shrinkFit, tabs, toast, topBar, txt, UI, type Btn, type CostStrip, type HoldBtn, type IconTabs } from '../../ui'
 import { AnvilStage } from './AnvilStage'
 import type { CmpMode } from './CompareView'
 import { ItemRail, railBackdrop } from './ItemRail'
@@ -101,7 +101,7 @@ export class ForgeScene extends Phaser.Scene {
 
   private say(text: string) {
     this.bubble.setText(`ช่างตีเหล็ก: "${text}"`)
-    fit(this.bubble, 40) // two lines of 13px
+    shrinkFit(this.bubble, 40, 10) // two lines of 13px, shrinks cleanly instead of truncating
   }
 
   // ---------- busy lock (anti double-tap, and the option reveal) ----------

@@ -8,8 +8,7 @@ import { gradeCap, gradeStars } from '../../data/craft'
 import { isBroken, isTainted, refineOf, gradeOf, type Item } from '../../data/meta'
 import { isWorn, save, type SaveData } from '../../save'
 import { sfx } from '../../sfx'
-import { button, itemIcon, panel, txt, UI, type Btn, type ItemIcon } from '../../ui'
-import { fit } from '../../ui'
+import { button, itemIcon, panel, shrinkFit, txt, UI, type Btn, type ItemIcon } from '../../ui'
 import { iconState, railItems } from './state'
 
 const ROW_H = 52, PER = 7, ROW_GAP = 4
@@ -84,8 +83,8 @@ export class ItemRail {
       const cy = this.y + 44 + i * (ROW_H + ROW_GAP) + ROW_H / 2, w = this.w
       const bg = this.scene.add.graphics()
       const icon = itemIcon(this.scene, -w / 2 + 30, 0, 40, it, iconState(s, it))
-      const name = this.scene.add.text(-w / 2 + 58, -ROW_H / 2 + 6, '', { fontFamily: FONT_UI, fontSize: '13px', fontStyle: 'bold', color: UI.text, wordWrap: { width: w - 66 } })
-      const sub = this.scene.add.text(-w / 2 + 58, -ROW_H / 2 + 30, '', { fontFamily: FONT_UI, fontSize: '11px', color: UI.sub, wordWrap: { width: w - 66 } })
+      const name = this.scene.add.text(-w / 2 + 56, -ROW_H / 2 + 6, '', { fontFamily: FONT_UI, fontSize: '13px', fontStyle: 'bold', color: UI.text })
+      const sub = this.scene.add.text(-w / 2 + 56, -ROW_H / 2 + 29, '', { fontFamily: FONT_UI, fontSize: '11px', color: UI.sub })
       const box = this.scene.add.container(this.x + w / 2, cy, [bg, icon, name, sub]).setSize(w, ROW_H).setInteractive({ useHandCursor: true })
       box.on('pointerup', () => { if (this.selected !== it.id) { sfx.pop(); this.onPick(it.id) } })
       this.root.add(box)
@@ -108,9 +107,9 @@ export class ItemRail {
       r.bg.lineStyle(on ? 3 : 1.5, on ? 0xf2b84b : worn ? 0x3f7a5a : UI.line, 1).strokeRoundedRect(-w / 2, -ROW_H / 2, w, ROW_H, 10)
       r.icon.setItem(r.it, iconState(s, r.it))
       r.name.setText(r.it.name)
-      fit(r.name, 18)
+      shrinkFit(r.name, 20, 9.5, w - 62)
       r.sub.setText(this.caption(s, r.it)).setColor(worn ? UI.green : UI.sub)
-      fit(r.sub, 16)
+      shrinkFit(r.sub, 18, 8.5, w - 62)
     }
   }
 

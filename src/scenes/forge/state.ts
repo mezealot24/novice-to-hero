@@ -269,18 +269,26 @@ export function setSpan(ids: readonly string[]): string {
   const lo = Math.min(...ns), hi = Math.max(...ns)
   return lo === hi ? `D${lo}` : `D${lo}-D${hi}`
 }
-/** Group recipes by set (sets in the order of their earliest piece), then pack them into pages by height.
- *  A set starts on a fresh page unless it fits whole; a set longer than a page repeats its header (↪) on the next one. */
-export function setPages(items: readonly Item[], setsOf: (it: Item) => readonly ItemSet[], h = LIST_H): Row[][] {
-  const groups = new Map<string, { set: ItemSet; items: Item[] }>()
+
+export interface RecipeSetGroup { set: ItemSet; items: Item[] }
+
+/** Ordered sets present in `items` (earliest dungeon piece first, then ITEM_SETS order). */
+export function availableRecipeSets(items: readonly Item[], setsOf: (it: Item) => readonly ItemSet[] = itemSetsOf): RecipeSetGroup[] {
+  const groups = new Map<string, RecipeSetGroup>()
   for (const it of items) {
-    for (const st of setsOf(it)) { // a piece in two sets shows under both headers
+    for (const st of setsOf(it)) {
       const g = groups.get(st.id) ?? { set: st, items: [] }
       g.items.push(it)
       groups.set(st.id, g)
     }
   }
-  const order = [...groups.values()].sort((a, b) => dgIx(a.items[0]) - dgIx(b.items[0]) || ITEM_SETS.indexOf(a.set) - ITEM_SETS.indexOf(b.set))
+  return [...groups.values()].sort((a, b) => dgIx(a.items[0]) - dgIx(b.items[0]) || ITEM_SETS.indexOf(a.set) - ITEM_SETS.indexOf(b.set))
+}
+
+/** Group recipes by set (sets in the order of their earliest piece), then pack them into pages by height.
+ *  A set starts on a fresh page unless it fits whole; a set longer than a page repeats its header (↪) on the next one. */
+export function setPages(items: readonly Item[], setsOf: (it: Item) => readonly ItemSet[], h = LIST_H): Row[][] {
+  const order = availableRecipeSets(items, setsOf)
   const pages: Row[][] = []
   let page: Row[] = [], used = 0
   const push = (r: Row) => { page.push(r); used += rowH(r) }

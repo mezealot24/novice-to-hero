@@ -5,7 +5,7 @@ import { REFINE } from '../../../data/craft'
 import { isBroken, refineOf, type Item } from '../../../data/meta'
 import { canAfford, canAffordAuto, fodderToBuy, gemRepairCost, repair, repairCost, totalZeny } from '../../../data/refine'
 import { persist, save } from '../../../save'
-import { button, confirm, fit, toast, txt, UI, type Btn } from '../../../ui'
+import { button, confirm, shrinkFit, toast, txt, UI, type Btn } from '../../../ui'
 import { pressLabel } from '../state'
 import { BOX_H, BOX_W, INNER_W, PAD, type ForgeCtx, type Preview, type VerbAction, type VerbPanel } from '../types'
 import { PanelBase } from './PanelBase'
@@ -35,7 +35,7 @@ export class RepairPanel extends PanelBase implements VerbPanel {
     this.info.setText(broken
       ? `ซ่อมแล้วใช้ได้เต็มที่ทันที · บวก (+${refineOf(s, it.id)}) ขั้น การ์ด ค่าพิเศษ ยังอยู่ครบ\n${pity ? `pity เก็บไว้ให้: ครั้งหน้าตีบวกโอกาส +${Math.round(pity * REFINE.pity * 100)}%\n` : ''}ซ่อมด้วยวัสดุถูกกว่าเพชรเสมอ`
       : 'ของชิ้นนี้ยังไม่แตก ไม่ต้องซ่อมค่ะ')
-    fit(this.info, 150)
+    shrinkFit(this.info, 150, 10)
     const c = repairCost(it, refineOf(s, it.id))
     this.matBtn.setLabel(broken ? pressLabel('🔧 ซ่อมด้วยวัสดุ', s, c) : '🔧 ซ่อมด้วยวัสดุ').setEnabled(broken && canAffordAuto(s, c) && !this.ctx.isBusy())
     this.gemBtn.setEnabled(broken && canAfford(s, gemRepairCost) && !this.ctx.isBusy())

@@ -8,18 +8,17 @@ import { ASPECTS, describeItemEffects, itemConversionsOf, itemEffectsOf, type As
 import { gradeOf, isBroken, isTainted, refineOf, slotCount, SLOTS, socketed, type Item } from '../../data/meta'
 import { isWorn, save } from '../../save'
 import { sfx } from '../../sfx'
-import { button, chip, itemIcon, panel, UI, type Btn, type Chip, type ItemIcon } from '../../ui'
+import { button, chip, itemIcon, panel, shrinkFit, UI, type Btn, type Chip, type ItemIcon } from '../../ui'
 import { crack, floatNum, hitStop, punch } from '../../ui-fx'
-import { fit } from '../../ui'
 import { CompareView, type CmpMode } from './CompareView'
 import { iconState, itemSetOf, taintNote } from './state'
 import type { Preview, StageFx } from './types'
 
 export const STAGE_W = 368, STAGE_H = 376
-const ICON_X = STAGE_W / 2, ICON_Y = 80 // the icon's resting spot (a shake moves it and puts it back here)
-const ICON = 84, CX = STAGE_W / 2, TEXT_W = STAGE_W - 32
-// v115: icon / name moved up so the compare table gets the bottom third of the stage
-const NAME_Y = 183, SUB_Y = 205, FX_Y = 221, CMP_Y = 239, CMP_H = STAGE_H - CMP_Y - 4
+const ICON_X = STAGE_W / 2, ICON_Y = 66 // the icon's resting spot (a shake moves it and puts it back here)
+const ICON = 74, CX = STAGE_W / 2, TEXT_W = STAGE_W - 28
+// v115+: compact anvil so the compare table gets generous space to show all stats in full
+const NAME_Y = 158, SUB_Y = 180, FX_Y = 195, CMP_Y = 212, CMP_H = STAGE_H - CMP_Y - 4
 
 /** v101: the anvil itself (spec 3.2 "ANVIL STAGE"): slab, waist and foot, drawn once under the icon. */
 function drawAnvil(g: Phaser.GameObjects.Graphics, y: number) {
@@ -90,7 +89,7 @@ export class AnvilStage implements StageFx {
     for (let i = 5; i >= 1; i--) this.glow.fillStyle(halo, (broken ? 0.03 : 0.06) * (6 - i) / 2).fillCircle(ICON_X, ICON_Y, ICON / 2 + i * 14)
     this.icon.setItem(it, iconState(s, it))
     this.nameT.setText(`${it.name}${r ? ` +${r}` : ''}`).setColor(gc)
-    fit(this.nameT, 26)
+    shrinkFit(this.nameT, 22, 11, TEXT_W)
     this.subT.setText([`★${g}/${gradeCap(it)} ${GRADE.names[g] ?? ''}`, broken ? '💔 แตก (ไม่ให้ค่าพลังจนกว่าจะซ่อม)' : ''].filter(Boolean).join(' · '))
     // v115: worn or in the bag, said loud: a chip top-right + a green frame round the whole stage
     const worn = isWorn(s, it.id), sl = SLOTS.find((q) => q.id === it.slot)
@@ -98,10 +97,10 @@ export class AnvilStage implements StageFx {
     this.wornChip.x = STAGE_W - 12 - this.wornChip.chipW
     this.wornFrame.clear()
     if (worn) this.wornFrame.lineStyle(3, 0x6fd08c, 0.9).strokeRoundedRect(1.5, 1.5, STAGE_W - 3, STAGE_H - 3, 14)
-    fit(this.subT, 16)
+    shrinkFit(this.subT, 15, 9, TEXT_W)
     const fxLines = describeItemEffects(itemEffectsOf(s, it), itemConversionsOf(s, it))
     this.fxT.setVisible(fxLines.length > 0).setText(fxLines.length ? `✨ ${fxLines.join(' · ')}` : '')
-    fit(this.fxT, 18)
+    shrinkFit(this.fxT, 16, 8.5, TEXT_W)
     const curAspId = s.imbue?.[it.id] as AspectId | undefined
     const curAsp = curAspId ? ASPECTS[curAspId] : undefined
     const setInfo = itemSetOf(it), asc = ascendOf(s, it.id)
@@ -112,7 +111,7 @@ export class AnvilStage implements StageFx {
       setInfo ? `🧩 ${setInfo.name}` : '',
       tainted ? '🌑 ล็อก' : '',
     ].filter(Boolean).join('\n'))
-    fit(this.tagT, 88)
+    shrinkFit(this.tagT, 96, 8.5)
   }
 
   // ---------- fx (all tweens/timers belong to the scene and die with it; ui-fx restores timeScale on SHUTDOWN) ----------
