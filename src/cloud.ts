@@ -170,11 +170,18 @@ if (cloudEnabled) {
 }
 
 // ---------- account linking ----------
-/** Guest -> real account. linkSocial keeps the same user (and save). If that social account already belongs to someone,
- *  fall back to a normal sign-in: the server moves the guest save over only when that account has none. */
+/** Guest -> real account: a normal social sign-in. The anonymous plugin's onLinkAccount (server/src/auth.ts) moves the
+ *  guest save over only when that account has none, then drops the guest user. Guests must NOT use linkSocial: the
+ *  guest's email is a generated temp-...@ address, so the OAuth callback always fails with email_does_not_match
+ *  (and that failure happens after the redirect, so no fallback here can catch it).
+ *  Signed-in users adding a second provider still use linkSocial (same user, same save). */
 export async function linkProvider(provider: ProviderId): Promise<string | null> {
   if (!authClient) return 'cloud off'
   const callbackURL = location.href.split('#')[0]
+  if (status.guest) {
+    const s = await authClient.signIn.social({ provider, callbackURL })
+    return s.error ? (s.error.message ?? 'login failed') : null
+  }
   const r = await authClient.linkSocial({ provider, callbackURL })
   if (!r.error) return null
   const s = await authClient.signIn.social({ provider, callbackURL })
