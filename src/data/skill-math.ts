@@ -1028,9 +1028,9 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
       }
       { // ⚖️ คำพิพากษา: the multiplier at a few target HP shares (Berserker / Warlord take execLineShare)
         const full = swordAwakenUlt(job2), sh = full ? 1 : SWORD_MANA.execLineShare, add = st.swExecAdd + st.swExecBonus, x = (f: number, big: boolean) => `×${swordExecMul(f, big, sh, add).toFixed(2)}`
-        out.push({ label: '⚖️ execute เป้า HP 50%', value: x(0.5, false) })
-        out.push({ label: '⚖️ execute เป้า HP ≤25%', value: x(0.25, false) })
-        out.push({ label: '⚖️ บอส/มินิ HP ≤25%', value: x(0.25, true) })
+        out.push({ label: '⚖️ คำพิพากษา: เป้า HP 50%', value: x(0.5, false) })
+        out.push({ label: '⚖️ คำพิพากษา: เป้า HP ≤25%', value: x(0.25, false) })
+        out.push({ label: '⚖️ คำพิพากษา: บอส/มินิ ≤25%', value: x(0.25, true) })
       }
       break
     }

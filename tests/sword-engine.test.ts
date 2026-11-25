@@ -113,7 +113,7 @@ test('Wave 1 helpers & balance constants: swordCoatFlat, swordS1ExcessPow, cleav
     swWaveShield: 1,
     swAwCleave: 0.5,
   }, undefined, 'berserker')
-  const execVal = (rows: ReturnType<typeof ultInfo>) => rows.find((r) => r.label === '⚖️ execute เป้า HP ≤25%')?.value
+  const execVal = (rows: ReturnType<typeof ultInfo>) => rows.find((r) => r.label === '⚖️ คำพิพากษา: เป้า HP ≤25%')?.value
   assert.equal(execVal(zerkBase), '×1.38')
   assert.equal(execVal(zerkBuffed), '×1.52')
   for (const label of [

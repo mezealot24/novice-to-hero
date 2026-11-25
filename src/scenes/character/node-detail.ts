@@ -26,6 +26,7 @@ import { save } from "../../save";
 import { BRANCHES, branchPts, skill2Picked, type TreeNode } from "../../data/tree";
 import { JOBS } from "../../data/jobs";
 import { activeJob3, JOB3 } from "../../data/jobs3";
+import { shrinkFit } from "../../ui";
 
 type DetailRow = {
 	label: string;
@@ -310,17 +311,8 @@ export function nodeDetail(
 
 export const clip = (t: string, n: number) =>
 	t.length > n ? t.slice(0, n - 1) + "…" : t;
-/** Clip a text object to maxW pixels with an ellipsis (pixel-based: Thai vowel / tone marks take no width). */
+/** Shrink a text object's font size so it fits within maxW pixels without truncating with "…". */
 export function clipW(t: Phaser.GameObjects.Text, maxW: number) {
 	if (t.width <= maxW) return t;
-	const full = t.text;
-	let lo = 0,
-		hi = full.length;
-	while (lo < hi) {
-		const m = (lo + hi + 1) >> 1;
-		t.setText(full.slice(0, m) + "…");
-		if (t.width <= maxW) lo = m;
-		else hi = m - 1;
-	}
-	return t.setText(full.slice(0, lo) + "…");
+	return shrinkFit(t, Number.POSITIVE_INFINITY, 8.5, maxW);
 }

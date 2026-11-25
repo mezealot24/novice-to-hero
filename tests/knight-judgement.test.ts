@@ -42,9 +42,9 @@ test('ult detail: Knight shows the spear thrust rows and the full execute curve 
   assert.match(String(val(kc, '🎯 Pierce/ฮิต (หลังปลุกหอก)')), /คริ/) // skillCrit opens it
   assert.equal(val(kn, '🎯 Pierce จำนวนฮิต'), `${KIT2.knight.pierceHits} (บอส/มินิ ${KIT2.knight.pierceBigHits})`)
   assert.equal(kn.find((r) => r.label.startsWith('🌊 คลื่นดาบ')), undefined)
-  assert.equal(val(kn, '⚖️ execute เป้า HP ≤25%'), `×${swordExecMul(0.25, false).toFixed(2)}`)
+  assert.equal(val(kn, '⚖️ คำพิพากษา: เป้า HP ≤25%'), `×${swordExecMul(0.25, false).toFixed(2)}`)
   const bz = ultInfo('swordsman', st, { str: 50, wis: 0 }, 'berserker')
-  assert.equal(val(bz, '⚖️ execute เป้า HP ≤25%'), `×${swordExecMul(0.25, false, SWORD_MANA.execLineShare).toFixed(2)}`)
+  assert.equal(val(bz, '⚖️ คำพิพากษา: เป้า HP ≤25%'), `×${swordExecMul(0.25, false, SWORD_MANA.execLineShare).toFixed(2)}`)
   assert.equal(bz.find((r) => r.label === 'โล่'), undefined) // the old 2nd-job ult shield row is gone
 })
 

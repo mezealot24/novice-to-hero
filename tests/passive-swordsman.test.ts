@@ -277,13 +277,13 @@ test('Keystone mechanics in heroBuild, ultCooldown, autoInfo, ultInfo & allocate
   const s1CdRow = autoInfo('swordsman', withJudg).find((r) => r.label === 'คูลดาวน์')
   assert.equal(s1CdRow?.value, `${SWORD_S1.cd - 2} เทิร์น`, 'autoInfo shows reduced ดาบสยบมนตร์ CD (3 เทิร์น)')
   assert.equal(s1CdRow?.value, '3 เทิร์น')
-  const j1ExecRow = ultInfo('swordsman', withJudg).find((r) => r.label === '⚖️ execute เป้า HP ≤25%')
+  const j1ExecRow = ultInfo('swordsman', withJudg).find((r) => r.label === '⚖️ คำพิพากษา: เป้า HP ≤25%')
   assert.equal(j1ExecRow?.value, `×${swordExecMul(0.25, false, 1, KIT.swordExecBonus).toFixed(2)}`)
   const j2Judg = heroStats(swInput({ job2: 'knight', passiveNodes: judgPath }))
-  const j2ExecRow = ultInfo('swordsman', j2Judg, undefined, 'knight').find((r) => r.label === '⚖️ execute เป้า HP ≤25%')
+  const j2ExecRow = ultInfo('swordsman', j2Judg, undefined, 'knight').find((r) => r.label === '⚖️ คำพิพากษา: เป้า HP ≤25%')
   assert.equal(j2ExecRow?.value, `×${swordExecMul(0.25, false, 1, j2Judg.swExecAdd + KIT.swordExecBonus).toFixed(2)}`) // Knight 🔱 Pierce of Judgement: full curve (Q 2026-11-23)
   const bzJudg = heroStats(swInput({ job2: 'berserker', passiveNodes: judgPath }))
-  const bzExecRow = ultInfo('swordsman', bzJudg, undefined, 'berserker').find((r) => r.label === '⚖️ execute เป้า HP ≤25%')
+  const bzExecRow = ultInfo('swordsman', bzJudg, undefined, 'berserker').find((r) => r.label === '⚖️ คำพิพากษา: เป้า HP ≤25%')
   assert.equal(bzExecRow?.value, `×${swordExecMul(0.25, false, 0.25, KIT.swordExecBonus).toFixed(2)}`)
 
   // 4. Immortal Sanguine: overhealShield + spellVamp + lifesteal, -15 P.DEF & -5% M.DEF, no skillDmgCut

@@ -299,7 +299,7 @@ export function nodeFooter(
 			const nowT = clipW(txt(scene, x + 2, ry + 14, r.now, 12.5, UI.text, true), w - 4);
 			b.add(nowT);
 			if (changed.length && r.next !== undefined && r.next !== r.now) {
-				const nx = x + 2 + nowT.width + 6;
+				const nx = x + 2 + nowT.displayWidth + 6;
 				b.add(
 					clipW(
 						txt(scene, nx, ry + 14, `→ ${r.next}`, 12.5, UI.green, true),
@@ -730,17 +730,35 @@ export function nodeModal(
 	}
 	c.add(made);
 
-	// right: numbers
+	// right: numbers (all rows shown in full — scrollable when tall, zero "… และอีก N บรรทัด")
 	if (hasRows) {
 		const rx = x + 340,
 			rw = w - 360,
-			c1 = rx + rw - 236,
-			c2 = rx + rw - 116;
+			rowH = 19,
+			listY = y + 104,
+			listH = h - 166,
+			totalH = d.rows.length * rowH,
+			canScroll = totalH > listH,
+			sbReserve = canScroll ? 10 : 0,
+			innerW = rw - sbReserve,
+			c1 = rx + innerW - 230,
+			c2 = rx + innerW - 110;
 		c.add(
-			scene.add.rectangle(rx - 10, y + 76, 1, h - 150, 0x454c80).setOrigin(0),
+			scene.add.rectangle(rx - 10, y + 76, 1, h - 144, 0x454c80).setOrigin(0),
 		);
 		c.add(
-			txt(scene, rx, y + 80, "🔢 ตัวเลขจริง (รวมผลข้ามคลาส)", 14, UI.gold, true),
+			clipW(
+				txt(
+					scene,
+					rx,
+					y + 80,
+					canScroll ? "🔢 ตัวเลขจริง (รวมผลข้ามคลาส · ↕ เลื่อนดูได้)" : "🔢 ตัวเลขจริง (รวมผลข้ามคลาส)",
+					13.5,
+					UI.gold,
+					true,
+				),
+				c1 - rx - 8,
+			),
 		);
 		c.add(txt(scene, c1, y + 82, "ตอนนี้", 12, UI.text, true));
 		c.add(
@@ -754,48 +772,104 @@ export function nodeModal(
 				true,
 			),
 		);
-		const rowH = 21,
-			maxRows = Math.floor((h - 190) / rowH),
-			rows = d.rows.slice(0, maxRows);
-		rows.forEach((r, i) => {
-			const ry = y + 106 + i * rowH;
+
+		const rowsC = scene.add.container(0, listY);
+		d.rows.forEach((r, i) => {
+			const ry = i * rowH;
 			if (r.section) {
-				c.add(clipW(txt(scene, rx, ry, r.label, 12, UI.gold, true), rw));
+				rowsC.add(clipW(txt(scene, rx, ry + 1, r.label, 11.5, UI.gold, true), innerW));
 				return;
 			}
 			const changed = r.next !== undefined && r.next !== r.now;
 			if (i % 2)
-				c.add(
+				rowsC.add(
 					scene.add
-						.rectangle(rx - 4, ry - 2, rw + 4, rowH, 0xffffff, 0.04)
+						.rectangle(rx - 4, ry, innerW + 4, rowH, 0xffffff, 0.04)
 						.setOrigin(0),
 				);
-			c.add(clipW(txt(scene, rx + 8, ry, r.label, 12, "#d8d4f0"), c1 - rx - 16));
-			c.add(
+			rowsC.add(clipW(txt(scene, rx + 6, ry + 2, r.label, 11.5, "#d8d4f0"), c1 - rx - 14));
+			rowsC.add(
 				clipW(
-					txt(scene, c1, ry, r.now, 12, UI.text),
-					r.next === undefined ? rx + rw - c1 : c2 - c1 - 8,
+					txt(scene, c1, ry + 2, r.now, 11.5, UI.text),
+					r.next === undefined ? rx + innerW - c1 : c2 - c1 - 8,
 				),
 			);
 			if (r.next !== undefined)
-				c.add(
+				rowsC.add(
 					clipW(
-						txt(scene, c2, ry, r.next, 12, changed ? UI.green : UI.sub, changed),
-						rx + rw - c2,
+						txt(scene, c2, ry + 2, r.next, 11.5, changed ? UI.green : UI.sub, changed),
+						rx + innerW - c2,
 					),
 				);
 		});
-		if (d.rows.length > rows.length)
-			c.add(
-				txt(
-					scene,
-					rx,
-					y + 106 + rows.length * rowH,
-					`… และอีก ${d.rows.length - rows.length} บรรทัด`,
-					11,
-					UI.sub,
-				),
-			);
+		c.add(rowsC);
+
+		if (canScroll) {
+			const maskG = scene.make.graphics({});
+			maskG.fillStyle(0xffffff).fillRect(rx - 6, listY, rw + 8, listH);
+			rowsC.setMask(maskG.createGeometryMask());
+
+			const maxScroll = totalH - listH;
+			let scrollY = 0;
+			const sbX = rx + rw - 5;
+			const sbTrack = scene.add.graphics();
+			sbTrack.fillStyle(0x0d1020, 0.9).fillRoundedRect(sbX, listY, 5, listH, 3);
+			const thumbH = Math.max(28, Math.round((listH / totalH) * listH));
+			const sbThumb = scene.add.graphics();
+			sbThumb.fillStyle(COLORS.gold, 0.9).fillRoundedRect(sbX, 0, 5, thumbH, 3);
+			c.add([sbTrack, sbThumb]);
+
+			const syncScroll = (nextY: number) => {
+				scrollY = Math.max(0, Math.min(maxScroll, nextY));
+				rowsC.setY(listY - scrollY);
+				sbThumb.setY(listY + (scrollY / maxScroll) * (listH - thumbH));
+			};
+			syncScroll(0);
+
+			// Drag/swipe scrolling inside the right column
+			const dragZone = scene.add
+				.zone(rx - 6, listY, rw + 8, listH)
+				.setOrigin(0)
+				.setInteractive({ useHandCursor: true });
+			let dragging = false;
+			let dragStartY = 0;
+			let dragBaseScroll = 0;
+			dragZone.on("pointerdown", (p: Phaser.Input.Pointer) => {
+				dragging = true;
+				dragStartY = p.y;
+				dragBaseScroll = scrollY;
+			});
+			const onMove = (p: Phaser.Input.Pointer) => {
+				if (!dragging || !p.isDown) {
+					dragging = false;
+					return;
+				}
+				syncScroll(dragBaseScroll - (p.y - dragStartY));
+			};
+			const onUp = () => {
+				dragging = false;
+			};
+			const onWheel = (
+				p: Phaser.Input.Pointer,
+				_objs: Phaser.GameObjects.GameObject[],
+				_dx: number,
+				dy: number,
+			) => {
+				if (p.x >= rx - 10 && p.x <= x + w && p.y >= y && p.y <= y + h) {
+					syncScroll(scrollY + (dy > 0 ? 48 : -48));
+				}
+			};
+			scene.input.on("pointermove", onMove);
+			scene.input.on("pointerup", onUp);
+			scene.input.on("wheel", onWheel);
+			c.add(dragZone);
+			c.once("destroy", () => {
+				maskG.destroy();
+				scene.input.off("pointermove", onMove);
+				scene.input.off("pointerup", onUp);
+				scene.input.off("wheel", onWheel);
+			});
+		}
 	}
 	c.add(
 		txt(scene, x + 20, y + h - 52, d.note, 10, UI.sub).setWordWrapWidth(
