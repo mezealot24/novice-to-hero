@@ -5,6 +5,7 @@ import type { Stats } from './stats'
 import { JOB_CHANGE, type JobId } from './jobs'
 import { JOB2, JOB2_RULES, type Job2Id } from './jobs2'
 import { activeJob3, JOB3_RULES, type Job3Id } from './jobs3'
+import { CLERIC_PASSIVE_TREE } from './passives/cleric'
 import { SWORDSMAN_PASSIVE_TREE } from './passives/swordsman'
 import { THIEF_PASSIVE_TREE } from './passives/thief'
 import { evalPassiveTuning } from './passive-registry'
@@ -20,6 +21,10 @@ export type PassiveSector =
   | 'bastion'
   | 'fury'
   | 'warblood'
+  | 'fist'
+  | 'ki'
+  | 'aegis'
+  | 'holy'
   | 'awaken'
 export interface PassiveCtx { job2?: Job2Id; job3?: Job3Id }
 
@@ -92,11 +97,12 @@ function normalizeTree(raw: PassiveTreeDef): { def: PassiveTreeDef; map: Readonl
 const REGISTRY: Partial<Record<JobId, { def: PassiveTreeDef; map: ReadonlyMap<string, PassiveNode> }>> = {
   thief: normalizeTree(THIEF_PASSIVE_TREE),
   swordsman: normalizeTree(SWORDSMAN_PASSIVE_TREE),
+  cleric: normalizeTree(CLERIC_PASSIVE_TREE),
 }
 
 const nodeMapOf = (job: JobId): ReadonlyMap<string, PassiveNode> | undefined => REGISTRY[job]?.map
 
-/** True for base classes migrated to the PoE Passive Constellation (Phase 1: Thief-line, Phase 2: Swordsman-line). */
+/** True for base classes migrated to the PoE Passive Constellation (Phase 1: Thief-line, Phase 2: Swordsman-line, Phase 3: Cleric-line). */
 export const hasPassiveTree = (job: JobId): boolean => job in REGISTRY
 
 /** Normalized passive tree definition (with symmetric undirected edges) for `job`, if migrated. */

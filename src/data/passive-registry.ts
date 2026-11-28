@@ -1,9 +1,10 @@
 // ✨ Live-tunable registry for Hero Passive Constellations (Swordsman, Thief, and future classes).
-// Automatically mirrors every numeric stat modifier from SWORDSMAN_PASSIVE_TREE / THIEF_PASSIVE_TREE
+// Automatically mirrors every numeric stat modifier from SWORDSMAN_PASSIVE_TREE / THIEF_PASSIVE_TREE / CLERIC_PASSIVE_TREE
 // into a flat mutable table (`PASSIVE_TUNING`) so Admin / live-config patches apply in-place with zero duplication.
 import type { JobId } from './jobs'
 import type { Job2Id } from './jobs2'
 import type { PassiveCtx, PassiveKind, PassiveNode, PassiveSector, PassiveTreeDef } from './passive-tree'
+import { CLERIC_PASSIVE_TREE } from './passives/cleric'
 import { SWORDSMAN_PASSIVE_TREE } from './passives/swordsman'
 import { THIEF_PASSIVE_TREE } from './passives/thief'
 import type { Stats } from './stats'
@@ -23,11 +24,12 @@ export interface PassiveEntryMeta {
   statKeys: string[]
 }
 
-const TREES: readonly PassiveTreeDef[] = [SWORDSMAN_PASSIVE_TREE, THIEF_PASSIVE_TREE]
+const TREES: readonly PassiveTreeDef[] = [SWORDSMAN_PASSIVE_TREE, THIEF_PASSIVE_TREE, CLERIC_PASSIVE_TREE]
 
 const JOB2_VARIANTS: Partial<Record<JobId, readonly Job2Id[]>> = {
   swordsman: ['knight', 'berserker'],
   thief: ['rogue', 'mobster'],
+  cleric: ['monk', 'crusader'],
 }
 
 export const PASSIVE_JOBS: readonly JobId[] = TREES.map((t) => t.job)
