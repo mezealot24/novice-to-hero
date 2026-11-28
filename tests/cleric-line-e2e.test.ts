@@ -1138,7 +1138,7 @@ test('Tier 2 — Mana & Ult Cost Boundaries (0/insufficient Mana gating, autoCos
   const renewCost = skill2ById('cl_renew')!.cost
   assert.equal(spearCost, 20)
   assert.equal(blessCost, 30)
-  assert.equal(renewCost, 40)
+  assert.equal(renewCost, 25) // M2: 40 -> 25
   assert.equal(zeroMana >= spearCost, false)
   assert.equal(spearCost - 1 >= spearCost, false)
   assert.equal(blessCost - 1 >= blessCost, false)

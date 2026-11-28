@@ -2,7 +2,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { heroStats } from '../src/data/meta'
-import { clericUltSmash, dawnBonus } from '../src/data/skill-math'
+import { clericUltSmash, dawnBonus, KIT } from '../src/data/skill-math'
 import { branchesOf, nodesOf, talentFree, talentsOf } from '../src/data/tree'
 import { migrateClericDawn, migrateDawnBurst, newSave } from '../src/save'
 
@@ -33,7 +33,7 @@ test('v108 Ult back to v58: smash 150% x (1 + 10%/root Lv); 🌄 adds no smash; 
   assert.ok(Math.abs(lv(1) - 1.65) < 1e-9)
   assert.ok(Math.abs(lv(5) - 2.25) < 1e-9)
   const both = heroStats(tree({ cleric_ultp: 5, cleric_dn1: 5 }))
-  assert.equal(both.ultPow, 0); assert.ok(Math.abs(both.clUltAtk - 0.75) < 1e-9)
+  assert.ok(Math.abs(both.ultPow - 5 * KIT.clericUltPowLv) < 1e-9); assert.ok // M2: root now also gives ultPow (smash skips it)(Math.abs(both.clUltAtk - 0.75) < 1e-9)
   const st = { ...heroStats(tree({ cleric_ultp: 1 })), matk: 100, clDawn: 1 }
   assert.equal(dawnBonus(st, 50, 50), 110) // Q's example
   assert.equal(dawnBonus({ ...st, clDawn: 0 }, 50, 50), 0)

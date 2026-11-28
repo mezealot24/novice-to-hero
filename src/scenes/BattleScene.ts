@@ -1266,11 +1266,14 @@ export class BattleScene extends Phaser.Scene {
     const s1Ok = mayCast(!this.autoUlt, this.book.s1) && !(swordS1On(this.job) && this.s1Cd > 0) // ⚔️ ดาบสยบมนตร์ has a cooldown · v86: manual mode only casts Skill 1 when it is booked, otherwise a basic attack (saves Mana for the ult)
     const castS1 = async () => { const inShadow = this.shadowTurns > 0; this.spendRes(cost); this.book.s1 = false; this.popSkill('s1'); await this.asSkill(() => this.autoSkill(), 'skill', 's1'); if (this.job.id === 'thief' && !inShadow) this.s1Weave = true } // P2'a สลับคม: next turn is a basic attack (Q3: not after a free ร่างเงา cast)
     if (this.job.id === 'cleric') { // v59 Q: the Priest smashes EVERY turn; Skill 1 rides along (heal first when low, holy light after the smash)
-      const castable = () => s1Ok && !ultWaiting && this.res >= cost && this.alive().length > 0 && this.hp > 0
+      // M2 (eval §2.2 A.3): a booked ult no longer blocks Skill 1 outright (was `!ultWaiting`): the low-HP heal always goes,
+      // the holy light goes when the Mana left still reaches the ult by next turn (same rule as the Swordsman S1)
+      const ultSafe = () => !ultWaiting || this.res - cost >= ultCost - this.st.resRegen * RES_RULES.manaPerTurnMul
+      const castable = (emergency: boolean) => s1Ok && (emergency || ultSafe()) && this.res >= cost && this.alive().length > 0 && this.hp > 0
       const low = this.hp < this.st.maxHp * (KIT.clericHealBelow - this.st.healAt)
-      if (low && castable()) await castS1()
+      if (low && castable(true)) await castS1()
       if (this.alive().length) await this.basicAttack()
-      if (!low && castable()) await castS1()
+      if (!low && castable(false)) await castS1()
       await this.faithBurst() // v84 ศรัทธา: full Faith bursts after the turn's actions
       return
     }
@@ -4951,7 +4954,7 @@ export class BattleScene extends Phaser.Scene {
    *  v103 (Q 2026-11-07): Crusader's Grand Cross runs all of it first. */
   private async clericUlt(live: Mon[], pow: number, hitPow: number) {
     const charging = this.alive().some((m) => m.charging)
-    if (live[0]) await this.maceSmash(live[0], () => { live.forEach((m) => this.strike(m, clericUltSmash(this.st) * hitPow * (1 + this.st.pskill))); this.cameras.main.flash(120, 255, 240, 170) })
+    if (live[0]) await this.maceSmash(live[0], () => { live.forEach((m) => this.strike(m, clericUltSmash(this.st) * (hitPow / pow) * (1 + this.st.pskill))); this.cameras.main.flash(120, 255, 240, 170) })
     for (let i = 0; i < clericUltLights(this.st); i++) { const t = this.alive(); if (!t.length) break; await this.holyLight(t[Phaser.Math.Between(0, t.length - 1)], CLERIC_KIT.ultLight * hitPow) }
     this.addShield(this.st.maxHp * CLERIC_KIT.ultShield * pow * (charging ? 1 + this.st.ultChargeShield : 1)) // talent: ใต้ปีกเทพ · lasts shieldTurns, capped
     await this.clericUltExtras()

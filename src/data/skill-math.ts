@@ -83,6 +83,13 @@ export const KIT = {
   mageFire: 2, mageFireStacks: 3, mageIce: 1.6, mageIceChill: 3, mageLightHits: 6, mageLightLo: 0.3, mageLightHi: 1.2,
   clericHealBelow: 0.75, clericSmiteTargets: 2, clericJudge: 2.2, clericJudgeEvery: 3,
   // v58 Priest Ult web (Q 2026-11-04), linear per level: พรคุ้มครอง (v92 Q 2026-11-07) = ult smash 150% + 50%/Lv P.ATK, Lv5 = 400% · พรอุ่นไอ Lv5 = counter +12.5%, Holy Light 3 -> 8 · เกราะแสง Lv3 = 6% shield per spear volley
+  // M2 (Q 2026-11-28, cleric-crusader-monk-balance-eval-v1 §5 P0): root พรคุ้มครอง also gives Ult power (ultPow) per Lv -> Ult lights / shield,
+  // Grand Cross, Tempest Bell, Asura scale with the root. The Cleric smash itself keeps only clUltAtk (no double dip, BattleScene.clericUlt).
+  clericUltPowLv: 0.06,
+  // M2: ใจนิ่ง (cleric_b3s) heal-at shift capped so the class-1 Lv 10 / 15 stretch can't push the heal line to 15% HP (0.3 = heal under 45%).
+  clericHealAtCap: 0.3,
+  // M2: ปาฏิหาริย์ (cleric_t3_miracle) rank 1 / 2: spellCrit (หอกแสง / ระเบิดศรัทธา procs) + skillCrit (S1 แสง / Ult hits; a magic skill crit = skillCrit + spellCrit)
+  clericMiracleSpell1: 0.1, clericMiracleSpell2: 0.18, clericMiracleSkill1: 0.05, clericMiracleSkill2: 0.09,
   clericUltAtkLv: 0.15, // v108 (Q: Ult back to v58): root พรคุ้มครอง smash +0.15x P.ATK per Lv = 150% x (1 + 10%/Lv) · v104 0.2 per 🌄 Lv · v92 0.5 per root Lv
   clericWarmCounterLv: 0.025, clericWarmLightLv: 1, clericSpearShieldLv: 0.02,
   spearBase: 0.3, spearMax: 8, spearSplash: 0.5, // v120 Q 2026-11-11: หอกแสง = random target (Priest lights: their own target) + the monster on each side x spearSplash
@@ -1106,7 +1113,7 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
         }
         break
       }
-      out.push({ label: `ทุบทุกตัว ${pct(clericUltSmash(st))} P.ATK`, value: hitText(st, clericUltSmash(st) * hitPow * (1 + st.pskill), false) })
+      out.push({ label: `ทุบทุกตัว ${pct(clericUltSmash(st))} P.ATK`, value: hitText(st, clericUltSmash(st) * (1 + st.ultAmp) * (1 + st.pskill), false) }) // M2: the smash rides clUltAtk only (root ultPow skips it)
       out.push({ label: `🔱 หอกแสง ${clericUltLights(st)} เล่ม ตัวสุ่ม /เล่ม`, value: hitText(st, CLERIC_KIT.ultLight * hitPow, true) })
       out.push({ label: '　↳ ตัวข้างๆ โดน 50%', value: hitText(st, CLERIC_KIT.ultLight * hitPow * KIT.spearSplash, true) })
       out.push({ label: `โล่ ${CLERIC_KIT.ultShieldTurns} เทิร์น`, value: `${shield(st, st.maxHp * CLERIC_KIT.ultShield)} (รวมไม่เกิน ${r(st.maxHp * CLERIC_KIT.shieldCap)})` })
