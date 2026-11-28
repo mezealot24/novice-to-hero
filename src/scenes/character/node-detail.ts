@@ -17,6 +17,7 @@ import {
 	sageLightChance,
 	sageRodGain,
 	skill2Info,
+	skill3Info,
 	ultInfo,
 	type InfoRow,
 } from "../../data/skill-math";
@@ -97,6 +98,15 @@ export function nodeDetail(
 				(tier2 && n.branch.endsWith("_u2")) ||
 				(tier2 === 3 && n.branch.endsWith("_u3")),
 		},
+		...(s.job2 === "crusader" || s.job2 === "monk" // M3: ทักษะ 3 numbers (+ Paladin / Champion variants)
+			? [
+					{
+						name: s.job2 === "crusader" ? "✝️ ทักษะ 3: Holy Cross" : "⚡ ทักษะ 3: Falling Thunder",
+						info: (st: Stats) => skill3Info(s.job2 ?? "", st),
+						all: !!tier2 && n.branch.endsWith("_s3"),
+					},
+				]
+			: []),
 		{
 			name: `${(s2 ?? picked(t))?.icon ?? "🔀"} ทักษะ 2: ${(s2 ?? picked(t))?.name ?? ""}`,
 			all: !!s2,

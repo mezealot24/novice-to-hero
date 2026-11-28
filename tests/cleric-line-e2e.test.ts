@@ -314,7 +314,7 @@ test('Tier 1 — Cleric S1 (cleric_s1p, cleric_b1..b4j, cleric_c1..c4) scales S1
   // cleric_b2 + cleric_b4j: targets, smiteMul, judge capstone
   const stB4 = heroStats(makeInput({ jobTree: { cleric_s1p: 1, cleric_b1: 5, cleric_b2: 5, cleric_b4j: 1 } }))
   assert.equal(stB4.smiteTargets, 2)
-  near(stB4.smiteMul, 0.15)
+  near(stB4.smiteMul, 0.2) // M4 rework: ตัดสินหมู่ +4%/Lv
   assert.equal(stB4.judge, 1)
   const rowsB4 = autoInfo('cleric', stB4)
   assert.ok(rowsB4.some((r) => r.label.includes(`${KIT.clericSmiteTargets + 2} ตัวหน้า`)))
@@ -385,8 +385,8 @@ test('Tier 1 — Cleric S2 (cl_renew, cl_bless, cl_spear) mutual exclusion, +/�
   const stSpearLowDex = heroStats(makeInput({ stats: { ...DEFAULT_STATS, dex: 1 }, jobTree: { cl_spear: 1, cl_spear_p: 5, cl_spear_x: 1 } }))
   const stSpearHiDex = heroStats(makeInput({ stats: { ...DEFAULT_STATS, dex: 41 }, jobTree: { cl_spear: 1, cl_spear_p: 5, cl_spear_x: 1 } }))
   near(spearMul(stSpearHiDex, spearDef) - spearMul(stSpearLowDex, spearDef), 40 * PER_POINT.off.clericDexSpear)
-  assert.equal(S2N.spearCount(false), 2)
-  assert.equal(S2N.spearCount(true), 4)
+  assert.equal(S2N.spearCount(false), S2N.spearN) // M4: 3
+  assert.equal(S2N.spearCount(true), S2N.spearStarN) // M4: 5
 })
 
 test('Tier 1 — Cleric Ult, Dawn Light (cleric_d), Sanctuary (cleric_a), and Core (cleric_core)', () => {
@@ -1138,7 +1138,7 @@ test('Tier 2 — Mana & Ult Cost Boundaries (0/insufficient Mana gating, autoCos
   const renewCost = skill2ById('cl_renew')!.cost
   assert.equal(spearCost, 20)
   assert.equal(blessCost, 30)
-  assert.equal(renewCost, 40)
+  assert.equal(renewCost, 25) // M2: 40 -> 25
   assert.equal(zeroMana >= spearCost, false)
   assert.equal(spearCost - 1 >= spearCost, false)
   assert.equal(blessCost - 1 >= blessCost, false)
@@ -1236,7 +1236,7 @@ test('Tier 2 — Shield Cap (Cleric 50% vs Global 100%) & Auto Guard Cap / Over-
 test('Tier 2 — Asura Charges (0/2/3/7/9), Exhaust Lockout, & RESIST_RULES Soft/Hard Cap (<= 0.85)', () => {
   assert.equal(KIT2.monk.thunderMin, 2)
   assert.equal(KIT2.monk.asuraMinAt, 3)
-  assert.equal(KIT2.monk.asuraExhaustTurns, 3)
+  assert.equal(KIT2.monk.asuraExhaustTurns, 2) // M3: 3 -> 2
 
   const stMaxCharges = heroStats(
     makeInput({
@@ -1865,7 +1865,7 @@ test('Tier 4 Scenario 3 — Deterministic 12-Turn Combat Simulation: Monk/Champi
   }
 
   assert.ok(asuraFired, 'Asura Strike must fire once charges >= 3')
-  assert.equal(exhaustedTurnCount, KIT2.monk.asuraExhaustTurns, 'Asura Exhaust must lock out exact 3 hero turns')
+  assert.equal(exhaustedTurnCount, KIT2.monk.asuraExhaustTurns, 'Asura Exhaust must lock out exactly asuraExhaustTurns hero turns')
   assert.ok(haymakerFired, 'Haymaker must trigger once Grit >= triggerAt')
   assert.equal(exhaust, 0, '3-turn Asura Exhaust must recover before turn 12')
   assert.ok(Number.isFinite(totalDealt) && totalDealt > boss.hp * 0.1)

@@ -22,9 +22,9 @@ import { ALLIES, falconHitMul, fillAllies, frenzyMul, gadgetById, guardHit, hawk
 import type { Skill2Def } from '../data/skill2'
 import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/skill-registry'
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
-import { BM_CRIT_COUNTER, BM_STANCE, KIT3, disarmWeak, divestMul, rogueStripCut, snatchShare, stalkerPreyAmp, stalkerResMul, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, kingpinDebtAmp, kingpinTakeMul, stalkerMarkCap, wizCastTaken, type ProfReaction } from '../data/skill-math'
+import { BM_CRIT_COUNTER, BM_STANCE, KIT3, championVarMul, disarmWeak, divestMul, rogueStripCut, snatchShare, stalkerPreyAmp, stalkerResMul, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, kingpinDebtAmp, kingpinTakeMul, stalkerMarkCap, wizCastTaken, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
-import { ultCdCut, condCritB3, thiefUltCondCritDmg, thiefUltCritAdd, thiefUltHitCount, thiefOnHitEff, thiefUltFinisher, thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, swordS1ExcessPow, swordS1On, swordMultiHitDr, swordHelixNeed, swordCullThreshold, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, matkToPmRatio, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost, rogueKnifeMul, rogueSteelMul, rogueStabAmp, rogueComboDebuff, rogueAmbushCrit } from '../data/skill-math'
+import { ultCdCut, condCritB3, thiefUltCondCritDmg, thiefUltCritAdd, thiefUltHitCount, thiefOnHitEff, thiefUltFinisher, thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, swordS1ExcessPow, swordS1On, swordMultiHitDr, swordHelixNeed, swordCullThreshold, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, gcRootCut, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, matkToPmRatio, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost, rogueKnifeMul, rogueSteelMul, rogueStabAmp, rogueComboDebuff, rogueAmbushCrit } from '../data/skill-math'
 import { agonyBonus, canDetonate, contaminateBossRefund, contaminateCritChance, contaminateLeechShare, detonateDmg, detonateStacks, gamblerLuckyRes, paApplies, poisonPowerBonus, poisonTickTotal, shadowWardApplies } from '../data/thief-offmeta'
 import { applyDeathMarkState, applyMistDr, applyToxicOverheal, bloodFuryDmgMul, bloodFurySelfCost, counterDefBonusDmg, deathMarkEarlyPop, deathMarkEchoDmg, deathMarkNetHpDmg, flurryStabMul, luckyReprisalAction, mobsterFlurrySlashMul, physLeechMul, pickDeathMarkTarget, s3ShieldPierceOf, shieldCutMul, shouldRecordDeathMark, swordBreakTurnsOf, swordS1Cd, swordS3BreakTurns, swordTakenMul } from '../data/passive-battle'
 import { addCard, addMat, addXp, loseXp, persist, save, trialWin, ultMode } from '../save'
@@ -1266,11 +1266,14 @@ export class BattleScene extends Phaser.Scene {
     const s1Ok = mayCast(!this.autoUlt, this.book.s1) && !(swordS1On(this.job) && this.s1Cd > 0) // ⚔️ ดาบสยบมนตร์ has a cooldown · v86: manual mode only casts Skill 1 when it is booked, otherwise a basic attack (saves Mana for the ult)
     const castS1 = async () => { const inShadow = this.shadowTurns > 0; this.spendRes(cost); this.book.s1 = false; this.popSkill('s1'); await this.asSkill(() => this.autoSkill(), 'skill', 's1'); if (this.job.id === 'thief' && !inShadow) this.s1Weave = true } // P2'a สลับคม: next turn is a basic attack (Q3: not after a free ร่างเงา cast)
     if (this.job.id === 'cleric') { // v59 Q: the Priest smashes EVERY turn; Skill 1 rides along (heal first when low, holy light after the smash)
-      const castable = () => s1Ok && !ultWaiting && this.res >= cost && this.alive().length > 0 && this.hp > 0
+      // M2 (eval §2.2 A.3): a booked ult no longer blocks Skill 1 outright (was `!ultWaiting`): the low-HP heal always goes,
+      // the holy light goes when the Mana left still reaches the ult by next turn (same rule as the Swordsman S1)
+      const ultSafe = () => !ultWaiting || this.res - cost >= ultCost - this.st.resRegen * RES_RULES.manaPerTurnMul
+      const castable = (emergency: boolean) => s1Ok && (emergency || ultSafe()) && this.res >= cost && this.alive().length > 0 && this.hp > 0
       const low = this.hp < this.st.maxHp * (KIT.clericHealBelow - this.st.healAt)
-      if (low && castable()) await castS1()
+      if (low && castable(true)) await castS1()
       if (this.alive().length) await this.basicAttack()
-      if (!low && castable()) await castS1()
+      if (!low && castable(false)) await castS1()
       await this.faithBurst() // v84 ศรัทธา: full Faith bursts after the turn's actions
       return
     }
@@ -1774,8 +1777,9 @@ export class BattleScene extends Phaser.Scene {
     if (s.job3Var === 'b') {
       const V = P.varB, hpBonus = heir && branchPts(s.job2Tree, V.branch) >= P.heirNeed ? 0.03 * this.st.maxHp : 0
       this.cameras.main.flash(90, 255, 170, 70)
+      const cm = championVarMul(this.st, V, n) // M3: the 🔵 charges paid now count (were drained for nothing)
       for (const m of this.alive()) {
-        const dmg = Math.round(this.st.atk * V.mul * base + this.st.mdef * this.st.maxHp * V.mdefHp + hpBonus)
+        const dmg = Math.round(this.st.atk * cm * base + this.st.mdef * this.st.maxHp * V.mdefHp + hpBonus)
         this.burst(m.spr.x, m.spr.y - 30, 0xff9a3c, 10, 180)
         this.withSrc('skill', () => this.damageMon(m, dmg, true, '#ff9a3c', true))
       }
@@ -1789,7 +1793,7 @@ export class BattleScene extends Phaser.Scene {
       await this.lunge(t, () => {
         this.cameras.main.flash(100, 255, 230, 150)
         this.burst(t.spr.x, t.spr.y - 30, 0xffd24a, 16, 220)
-        this.strike(t, V.mul * base + V.hp * this.st.maxHp / Math.max(1, this.st.atk), false, '#ffd24a')
+        this.strike(t, championVarMul(this.st, V, n) * base + V.hp * this.st.maxHp / Math.max(1, this.st.atk), false, '#ffd24a') // M3: x spent charges
         if (!t.dead) {
           t.frozen = true
           t.stunTurns = Math.max(t.stunTurns ?? 0, stuns - 1)
@@ -1797,7 +1801,7 @@ export class BattleScene extends Phaser.Scene {
           this.dotIcon(t)
         }
       })
-      this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 30, `🐅 Tiger Knuckle (💫 เสียเทิร์น x${stuns})`, '#ffd24a')
+      this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 30, `🐅 Tiger Knuckle x${n}🔵 (💫 เสียเทิร์น x${stuns})`, '#ffd24a')
     }
   }
   /** 🐉 Lord Knight Brandish Spear variant (design/awakening-lordknight-v1.md): 🐉 Dragon Breath (all + burn) / 💥 Joint Beat (one, DEF -50%). */
@@ -2064,6 +2068,7 @@ export class BattleScene extends Phaser.Scene {
       const V = P.varB, m = this.bossTarget() ?? t, heirOn = heir && branchPts(save().job2Tree, V.branch) >= P.heirNeed
       await this.maceSmash(m, () => {
         landed += this.strike(m, V.atk * base * (1 + this.st.pskill) + V.hp * this.st.maxHp / Math.max(1, this.st.atk), false, '#ffe08a', 1)
+        if (!m.dead && V.pm > 0) landed += this.strike(m, V.pm * base, true, '#fff3a0') // M3: + Holy Cross magic share
         for (const x of heirOn ? this.alive() : [m]) blind(x, V.blindAdd)
         this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, heirOn ? '⚖️ Pressure! 🙈 ทุกตัว' : '⚖️ Pressure! 🙈', '#ffe08a')
         this.cameras.main.flash(80, 255, 240, 170)
@@ -2075,7 +2080,7 @@ export class BattleScene extends Phaser.Scene {
     let m: Mon | undefined = t
     for (let i = 0; i < hits && m; i++) {
       const target: Mon = m
-      await this.shoot(target, 0xd8d8e8, () => { landed += this.strike(target, mul * (1 + this.st.pskill), false, '#d8d8e8'); blind(target) })
+      await this.shoot(target, 0xd8d8e8, () => { landed += this.strike(target, mul * (1 + this.st.pskill), false, '#d8d8e8'); if (!target.dead && V.pm > 0) landed += this.strike(target, V.pm * base, true, '#fff3a0'); blind(target) }) // M3: + magic share
       const rest: Mon[] = this.alive().filter((x) => x !== target)
       m = rest.length ? rest[Phaser.Math.Between(0, rest.length - 1)] : !target.dead ? target : undefined
     }
@@ -3233,7 +3238,8 @@ export class BattleScene extends Phaser.Scene {
     }
     if (this.j2!.id === 'crusader') { // ✨ Grand Cross (v106/v111 Q 2026-11-08): pay HP + burn ALL Mana left; pulse 1 now, the rest one per hero turn (spread, not burst)
       // Cleric Ult-web buffs: root P.ATK (split over the pulses) · ใต้ปีกเทพ shield · ไฟชำระ / talents · ★ ซ้อน: every pulse hits twice (the 2nd without the burn bonus)
-      const C = KIT2.crusader, k = h2 * (1 + this.st.j2CrossAdd), charging = this.alive().some((m) => m.charging)
+      // M4 (bot: root ultPow pushed GC Ult% 66 -> 75%): Grand Cross takes only gcRootShare of the Cleric root ultPow (the shield keeps all of it)
+      const C = KIT2.crusader, k = h2 * gcRootCut(this.st) * (1 + this.st.j2CrossAdd), charging = this.alive().some((m) => m.charging)
       const paid = Math.min(this.hp - 1, Math.floor(this.hp * C.gcPay * Math.max(0, 1 - this.st.j2PayCut)))
       if (paid > 0) { const hp0 = this.hp; this.hp -= paid; this.logLoss('✨ Grand Cross จ่าย HP', hp0); this.damageNumber(HERO_X, GROUND - 70, paid, false, '#ff9a9a') }
       const burnt = Math.floor(this.res)
@@ -3291,6 +3297,7 @@ export class BattleScene extends Phaser.Scene {
           }
         }
         this.asuraExhaust = O.asuraExhaustTurns + 1
+        await this.clericUltExtras() // M3: ไฟชำระ / แสงลงทัณฑ์ / พรยืนยาว now work on the Monk line too (was skipped)
         await this.wait(BATTLE.stepMs * 0.35)
         return
       }
@@ -3315,7 +3322,7 @@ export class BattleScene extends Phaser.Scene {
           this.floatText(HERO_X, GROUND - 150, `🌅 พรหลังศึก +${Math.round(this.st.j3AfterBless * 100)}%`, '#ffe08a')
         }
       }
-      await this.wait(BATTLE.stepMs * 0.3)
+      await this.clericUltExtras() // M3: Tempest Bell path too
       return
     }
     // 🐴 Knight / 🐉 Lord Knight: 🔱 Pierce of Judgement = ⚔️ ปลุกหอก first so 🎯 Pierce rides the STR buff + ✨ coat + sure hit
@@ -4395,7 +4402,11 @@ export class BattleScene extends Phaser.Scene {
   /** Skill 2: buffs tick down, then it casts by itself (free extra action) when ready, paid for and useful. */
   private async skill2Turn() {
     const B = this.buf
-    if (B.renew > 0) { B.renew--; this.heal(this.st.matk * S2N.renewHeal(this.st.s2Lv)) } // Priest heals = x M.ATK
+    if (B.renew > 0) { // Priest heals = x M.ATK · M4: + a holy light on the front monster each tick
+      B.renew--; this.heal(this.st.matk * S2N.renewHeal(this.st.s2Lv))
+      const f = this.front()[0]
+      if (f) this.withSrc('light', () => this.strike(f, S2N.renewLight(this.st.s2Lv), true, '#9ff0b0'))
+    }
     for (const k of ['guard', 'blood', 'hawk', 'mshield', 'lootAtk', 'lootCrit'] as const) if (B[k] > 0) B[k]--
     this.heroRig.setGuardAura(B.guard > 0)
     if (B.bless > 0 && --B.bless === 0) this.syncBless()
@@ -4408,7 +4419,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.res < k.cost) return
     if (this.smashQueued && this.smashCdLeft <= 0 && this.res - k.cost < this.ultCost()) return // keep Mana for the booked ult
     if (k.id === 'mg_mshield' && B.mshield > 0) return
-    if (k.id === 'cl_renew' && (B.renew > 0 || this.hp >= this.st.maxHp)) return
+    if (k.id === 'cl_renew' && B.renew > 0) return // M4: renew also hits now, so it casts at full HP too
     if (k.id === 'sw_guard' && B.guard > 0) return
     if (k.id === 'cl_bless' && B.bless > 0) return
     this.spendRes(k.cost)
@@ -4951,7 +4962,7 @@ export class BattleScene extends Phaser.Scene {
    *  v103 (Q 2026-11-07): Crusader's Grand Cross runs all of it first. */
   private async clericUlt(live: Mon[], pow: number, hitPow: number) {
     const charging = this.alive().some((m) => m.charging)
-    if (live[0]) await this.maceSmash(live[0], () => { live.forEach((m) => this.strike(m, clericUltSmash(this.st) * hitPow * (1 + this.st.pskill))); this.cameras.main.flash(120, 255, 240, 170) })
+    if (live[0]) await this.maceSmash(live[0], () => { live.forEach((m) => this.strike(m, clericUltSmash(this.st) * (hitPow / pow) * (1 + this.st.pskill))); this.cameras.main.flash(120, 255, 240, 170) })
     for (let i = 0; i < clericUltLights(this.st); i++) { const t = this.alive(); if (!t.length) break; await this.holyLight(t[Phaser.Math.Between(0, t.length - 1)], CLERIC_KIT.ultLight * hitPow) }
     this.addShield(this.st.maxHp * CLERIC_KIT.ultShield * pow * (charging ? 1 + this.st.ultChargeShield : 1)) // talent: ใต้ปีกเทพ · lasts shieldTurns, capped
     await this.clericUltExtras()

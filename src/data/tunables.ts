@@ -210,7 +210,7 @@ export const TABLES: Record<TableId, TableDef> = {
       ['monCast.breakBase|breakMinHp|hardResist', num(0, 1)], ['monCast.resist.*', num(0, 1)], ['monCast.pushGauge', int(0, 200)], ['monCast.steady|skillFreeTurn', int(0, 1)], ['monCast.steadyDmg', num(0, 1)], ['monCast.skillMinPow', num(0, 20)], // Q 2026-11-20 / 11-21 MON_CAST (boss cast break, skill casts, steady damage)
       ['cleric.heal|smite|basic|ultAtk|ultLight|purifyHeal', num(0, 20)], ['cleric.ultShield|shieldCap', num(0, 1)], ['cleric.ultLights|ultShieldTurns|shieldTurns', int(0, 20)], ['cleric.ultMana', int(0, 200)], // v86 CLERIC_KIT
       ['cleric.ultManaLv', int(0, 100)], ['clericTree.dawn.matk|share|heal|crit|weak', num(0, 20)], ['clericTree.dawn.wis.*', num(0, 5)], ['clericTree.dawn.wisTurns.*', int(0, 20)], ['clericTree.dawn.every', int(1, 20)], // v107 Cleric web
-      ['clericTree.core.base|regen|guard|wisAmp|heal|shield', num(0, 50)], ['clericTree.core.intPer.*', int(1, 50)],
+      ['clericTree.core.base|regen|guard|wisAmp|heal|shield', num(0, 50)], ['clericUltPowLv', num(0, 2)], ['clericCalmAt', num(0, 0.75)], ['clericCalmLight|clericCalmHeal|clericGroupLight', num(0, 2)], ['clericGroupAt2', int(1, 15)], ['clericMiracleSkill1|clericMiracleSkill2|clericMiracleSpell1|clericMiracleSpell2', num(0, 1)], ['clericTree.core.intPer.*', int(1, 50)], // M2 Cleric polish: root ultPow, ใจนิ่ง cap, ปาฏิหาริย์
       ['mageCore.regenStep|matkStep', int(1, 100)], ['mageCore.regenMissing', int(0, 1)], ['mageCore.matkPer', num(0, 1000)], // 💪 กายสู่เวท
       ['poison.atkPer|matkPer|intPer|burstKeep|defPer|defCap', num(0, 1)], ['poison.baseCap', int(1, 50)],
       ['thiefShadow.max|turns|dodge|double|ult', int(0, 20)], ['thiefMark.max', int(1, 20)], ['thiefMark.dmg', num(0, 5)],

@@ -266,9 +266,10 @@ for (const c of CLASS_TREES) {
 			...(job === "cleric" && line === "ult" // v108 Q 2026-11-07: back to v58, Priest's พรคุ้มครอง node = ult smash +10%/lv of 150% (KIT.clericUltAtkLv) · Mana by Lv only if CLERIC_KIT.ultManaLv > 0
 				? {
 						desc: (lv: number) =>
-							`Ult ทุบแรง +${Math.round(lv * KIT.clericUltAtkLv * 100)}% P.ATK${CLERIC_KIT.ultManaLv ? ` · Mana Ult ${CLERIC_KIT.ultMana + clUltManaAt(lv)}` : ""}`,
+							`Ult ทุบแรง +${Math.round(lv * KIT.clericUltAtkLv * 100)}% P.ATK · Ult แรง +${Math.round(lv * KIT.clericUltPowLv * 100)}%${CLERIC_KIT.ultManaLv ? ` · Mana Ult ${CLERIC_KIT.ultMana + clUltManaAt(lv)}` : ""}`,
 						mod: (lv: number) => ({
 							clUltAtk: KIT.clericUltAtkLv * lv,
+							ultPow: KIT.clericUltPowLv * lv, // M2 P0: was missing, so Ult lights / shield / GC / Bell / Asura / Hero Power never scaled from the root
 							clUltMana: clUltManaAt(lv),
 						}),
 					}

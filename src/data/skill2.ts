@@ -50,13 +50,13 @@ export const SKILL2: Skill2Def[] = [
   s('mg_arcane', 'mage', '✨', 'ลูกศรเวท', 15, 2, 'ร่ายทันที · เป้าเดียว (บอสก่อน) 3 ฮิต ฮิตละ 0.6x M.ATK',
     { icon: '➶', name: 'ศรคม', desc: (lv) => `ฮิตละ ${+(0.6 + lv * 0.1).toFixed(2)}x` }, { icon: '🌠', name: 'ฝนดาว', desc: 'ลูกศรเวท +2 ฮิต' }),
   // ✨ Cleric (Mana)
-  s('cl_renew', 'cleric', '🌿', 'ฟื้นฟู', 40, 5, `ฮีล ${S2N.renewHeal(0).toFixed(2)}x M.ATK ทุกเทิร์น 4 เทิร์น (ร่ายเมื่อ HP ไม่เต็ม)`, // v37 Q: easier to cast, costs more
-    { icon: '🍃', name: 'ฟื้นฟูลึก', desc: (lv) => `ฮีล ${S2N.renewHeal(lv).toFixed(2)}x M.ATK/เทิร์น` }, { icon: '🌳', name: 'ต้นไม้ชีวิต', desc: 'ฟื้นฟูนาน 6 เทิร์น' }),
+  s('cl_renew', 'cleric', '🌿', 'ฟื้นฟู', 25, 5, `4 เทิร์น: ทุกเทิร์นฮีล ${S2N.renewHeal(0).toFixed(2)}x M.ATK + แสงใส่ตัวหน้า ${S2N.renewLight(0).toFixed(2)}x พลังเวท`, // v37 Q: easier to cast, costs more · M2 2026-11-28: 40 -> 25 Mana (was dearer than the 30 Mana ult; weakest S2 in the M1 bot eval)
+    { icon: '🍃', name: 'ฟื้นฟูลึก', desc: (lv) => `ฮีล ${S2N.renewHeal(lv).toFixed(2)}x M.ATK · แสง ${S2N.renewLight(lv).toFixed(2)}x /เทิร์น` }, { icon: '🌳', name: 'ต้นไม้ชีวิต', desc: 'ฟื้นฟูนาน 6 เทิร์น' }),
   s('cl_bless', 'cleric', '🔆', 'พรแสง', 30, 4, `${S2N.blessTurns} เทิร์น STR/DEX/INT/WIS +${S2N.blessStat} + ล้างดีบัฟ ${S2N.blessCleanse} อย่าง (ร่ายเมื่อพรหมด)`, // v77 Q 2026-11-06: passive -> active
     { icon: '🛡️', name: 'Kyrie Eleison', desc: (lv) => `ร่ายพรแล้วได้บาเรีย ${Math.round(S2N.kyrieHp(lv) * 100)}% HP สูงสุด (แตกเมื่อโดน ${S2N.kyrieHits} ฮิต)` },
     { icon: '✨', name: 'Gloria', desc: `ระหว่างพรแสง LUK +${S2N.gloriaLuk} (คริ / หลบโชคดี / โอกาสติดผลสูงขึ้น)` }),
-  s('cl_spear', 'cleric', '🔱', 'หอกแสง', 20, 3, 'เรียกหอกแสง 2 เล่ม (ตอนจบเทิร์น ใส่ตัวสุ่ม · ตัวข้างๆ 50%)',
-    { icon: '⚜️', name: 'หอกคม', desc: (lv) => `หอกแรง +${lv * 10}%` }, { icon: '🌟', name: 'หอกสวรรค์', desc: 'เรียกหอก 4 เล่ม' }),
+  s('cl_spear', 'cleric', '🔱', 'หอกแสง', 20, 3, `เรียกหอกแสง ${S2N.spearN} เล่ม (ตอนจบเทิร์น ใส่ตัวสุ่ม · ตัวข้างๆ 50%)`,
+    { icon: '⚜️', name: 'หอกคม', desc: (lv) => `หอกแรง +${S2N.spearPlus(lv).toFixed(2)}x พลังเวท/เล่ม` }, { icon: '🌟', name: 'หอกสวรรค์', desc: `เรียกหอก ${S2N.spearStarN} เล่ม` }),
   // 🗡️ Thief (Energy)
   s('th_smoke', 'thief', '💨', 'ม่านควัน', 35, 4, `หลบแน่นอน ${S2N.smokeDodges(false)} ครั้ง + Shroud ${S2N.smokeTurns} เทิร์น (FLEE +${pc(S2N.smokeFlee)} · skillCrit +${pc(S2N.smokeSkillCrit)}) · การโจมตีครั้งแรกหลังร่าย = Sightless Raid ${S2N.raidMul}x + Exposed (รับดาเมจ +${pc(S2N.exposedPct)} ${S2N.exposedTurns} เทิร์น) + Blind ${S2N.smokeBlindTurns} เทิร์น`,
     { icon: '🌫️', name: 'ควันหอม', desc: (lv) => `ร่ายแล้วฟื้น ${pc(S2N.smokeHeal(lv))} HP + Energy ${S2N.smokeRes(lv)}` },
