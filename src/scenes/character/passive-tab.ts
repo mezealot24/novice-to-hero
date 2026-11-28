@@ -79,6 +79,10 @@ const SECTOR_META: Readonly<
 	bastion: { label: "🛡️ ปราการ", color: 0x5ea8f5, hex: "#9fd4ff", lx: 335, ly: -395 },
 	fury: { label: "🔥 โทสะ", color: 0xf08c42, hex: "#ffbd7a", lx: 345, ly: 395 },
 	warblood: { label: "🩸 โลหิตศึก", color: 0xd15b7a, hex: "#ff9bb5", lx: -335, ly: 410 },
+	fist: { label: "👊 หมัด", color: 0xe66a55, hex: "#ff9e8c", lx: -335, ly: -395 },
+	ki: { label: "🔵 ปราณ", color: 0x5ea8f5, hex: "#9fd4ff", lx: 335, ly: -395 },
+	aegis: { label: "🛡️ โล่ศรัทธา", color: 0x52c7e0, hex: "#8ce4f8", lx: 345, ly: 395 },
+	holy: { label: "✝️ แสงศักดิ์สิทธิ์", color: 0xc9a4ff, hex: "#e0caff", lx: -335, ly: 410 },
 	awaken: { label: "🌟 ตื่นรู้", color: 0xffc85a, hex: "#ffd98a", lx: 0, ly: 0 }, // labels per 3rd job: AWAKEN_LABELS
 };
 
@@ -101,6 +105,11 @@ const TAG_THAI: Readonly<Record<string, string>> = {
 	counter: "สวนกลับ",
 	fury: "โทสะ",
 	blood: "โลหิต",
+	fist: "หมัด",
+	ki: "ปราณ",
+	aegis: "โล่",
+	holy: "แสง",
+	heal: "ฮีล",
 	s1: "ทักษะ 1",
 	s3: "ทักษะ 3",
 	ult: "Ult",
@@ -117,6 +126,8 @@ const AWAKEN_LABELS: readonly { job3: Job3Id; x: number; y: number; glowY: numbe
 	{ job3: "kingpin", x: 0, y: 722, glowY: 575 },
 	{ job3: "lordknight", x: 0, y: -718, glowY: -575 },
 	{ job3: "warlord", x: 0, y: 722, glowY: 575 },
+	{ job3: "champion", x: 0, y: -718, glowY: -575 },
+	{ job3: "paladin", x: 0, y: 722, glowY: 575 },
 ];
 
 /** "🔒 ปลดเมื่อเป็น 🥷 Stalker" for an Awakening node the hero can't use yet (undefined when open). */

@@ -1775,6 +1775,10 @@ const SECTOR_TH: Record<string, string> = {
   shadow: '🌑 เงา (Shadow)',
   venom: '☠️ พิษ (Venom)',
   alchemy: '🧪 เล่นแร่ (Alchemy)',
+  fist: '👊 หมัด (Fist)',
+  ki: '🔵 ปราณ (Ki)',
+  aegis: '🛡️ โล่ศรัทธา (Aegis)',
+  holy: '✝️ แสงศักดิ์สิทธิ์ (Holy)',
   awaken: '🌟 วงแหวน Awakening (อาชีพขั้น 3)',
 }
 
