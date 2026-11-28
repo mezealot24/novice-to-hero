@@ -339,6 +339,7 @@ export const KIT2 = {
     crossCost: 22, crossCd: 2, crossHits: 2, crossMul: 1.4, blindTurns: 2, // M3 (Q 2026-11-28): crossMul 1 -> 1.4 (move damage off Grand Cross, M1 Ult% 68-83%)
     blindHit: 0.2, // ✝️ Holy Cross: per hit P.ATK + Pm on the front monster · blind = its Hit -20%
     gcPay: 0.2, gcPm: 0.5, gcAtk: 0.6, gcStr: 0.8, gcPulses: [2, 2, 2, 3, 4, 4], gcRefund: 0.5, gcRefundAt: 3, gcBurn: 1, // v119 (Q 2026-11-08): spell vamp removed (the HP refund already heals) · v109 (Q): PER PULSE gcPm x Pm (magic) + gcAtk x P.ATK + gcStr x STR (physical), pulses by Ult วิวัฒน์ Lv 0..5; burn bonus + root P.ATK split over the pulses · // ✨ Grand Cross: pay 20% current HP · all monsters · 3+ hit = half the HP back · v106 (Q 2026-11-07): back to the v102 cross (no Mana cost, no Cleric ult) + burns ALL Mana left: bonus magic dmg/target = gcBurn x (Mana burnt + HP paid) · Cleric Ult-web node buffs apply (root Ult +12%/Lv, 🌄 P.ATK + Dawn Light, ไฟชำระ, talents)
+    gcRootShare: 0.25, // M4: share of the Cleric root ultPow Grand Cross damage keeps (gcRootCut)
     angelCap: 0.25, hcVit: 2, hcVitGrace: 2, // v119 (Q 2026-11-08): 🪽 Guardian Angel DR cap · ✝️ Holy Cross VIT per stack, turns it lasts after Holy Cross is ready again
     martyrShield: 0.2, // ★ ผู้พลีชีพ: shield share of max HP (Reflect Shield is capped by BATTLE.reflectCap)
     mastery: { atkPct: 0.05, def: 6 }, // mace / sword
@@ -781,6 +782,8 @@ export const KIT3 = {
 }
 export const gcPulses = (st: Stats) => KIT2.crusader.gcPulses[Math.max(0, Math.min(KIT2.crusader.gcPulses.length - 1, Math.round(st.j2GcLv)))]
   + (st.j3On > 0 ? KIT3.paladin.gospelPulse + st.j3GospelField : 0) // ⚜️ Paladin Gospel Cross
+/** M4: ✨ Grand Cross damage factor that keeps only KIT2.crusader.gcRootShare of the root ultPow (x (1 + share x ultPow) / (1 + ultPow)). */
+export const gcRootCut = (st: Pick<Stats, 'ultPow'>) => (1 + KIT2.crusader.gcRootShare * st.ultPow) / (1 + st.ultPow)
 /** 🔔 Monk กังวานเหล็ก: Tempest Bell & Asura M.DEF bonus multiplier. */
 export const bellMdefMul = (st: Stats) => 1 + st.mdef * st.j2BellMdef
 /** 🥊 Monk หมัดแค้น / หมัดพิพากษา calculations (rawShield avoids double shieldAmp inside BattleScene.addShield). */
@@ -1085,7 +1088,7 @@ export function ultInfo(jobId: JobId, st: Stats, base?: { str: number; wis: numb
     }
     case 'cleric':
       if (job2 === 'crusader') { // v106: Grand Cross + the Cleric Ult-web buffs (v108: 🌄 is a basic-attack passive now, not here)
-        const C = KIT2.crusader, k = hitPow * (1 + st.ult2Pow) * (1 + st.j2CrossAdd)
+        const C = KIT2.crusader, k = hitPow * (1 + st.ult2Pow) * gcRootCut(st) * (1 + st.j2CrossAdd)
         // v116 (Q 2026-11-08): short values so they fit the 112px column; labels stay the same across Lv so now/next rows pair up
         out[0] = { label: 'คูลดาวน์ (ไม่ใช้ Mana)', value: `${ultCooldown(job, st)} เทิร์น` }
         const n = gcPulses(st), atkPer = C.gcAtk + st.clUltAtk / n, strFlat = C.gcStr * (base?.str ?? 0) * k

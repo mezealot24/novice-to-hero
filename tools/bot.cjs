@@ -299,7 +299,8 @@ const ALLOW_PAGE_ERRORS = !!process.env.ALLOW_PAGE_ERRORS
             B[mName] = function() {
               const prev = this.__botTel.__sub
               this.__botTel.__sub = tag
-              try { return origFn.apply(this, arguments) } finally { this.__botTel.__sub = prev }
+              let out, async = false // M4 fix: async methods (releaseHaymaker hits inside an awaited lunge) reset the tag only when they settle
+              try { out = origFn.apply(this, arguments); if (out && typeof out.then === 'function') { async = true; return out.finally(() => { this.__botTel.__sub = prev }) } return out } finally { if (!async) this.__botTel.__sub = prev }
             }
           }
         }
