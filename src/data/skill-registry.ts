@@ -152,7 +152,7 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
     ],
     tree: [ // v107: numbers the Cleric web nodes read at run time (kit `clericTree.*`)
       kit('cleric.ultManaLv', '🙏 ราก: Mana Ult เพิ่มต่อ Lv (เหนือ Lv1 · 0 = คงที่)'), kit('clericUltAtkLv', '🙏 ราก: Ult ทุบแรง × P.ATK ต่อ Lv'), kit('clericUltPowLv', '🙏 ราก: Ult แรง (ultPow) ต่อ Lv · ไม่รวมทุบ'),
-      kit('clericHealAtCap', '🧘 ใจนิ่ง: เลื่อนเส้นฮีลได้สูงสุด'), kit('clericMiracleSkill1', '🍀 ปาฏิหาริย์ R1: คริสกิล (แสง)'), kit('clericMiracleSkill2', '🍀 ปาฏิหาริย์ R2: คริสกิล (แสง)'),
+      kit('clericCalmAt', '🧘 ใจนิ่ง: เลื่อนเส้นฮีล (คงที่)'), kit('clericCalmLight', '🧘 ใจนิ่ง: แสง/พิพากษาแรง ต่อ Lv'), kit('clericCalmHeal', '🧘 ใจนิ่ง: ฮีลแรง ต่อ Lv'), kit('clericMiracleSkill1', '🍀 ปาฏิหาริย์ R1: คริสกิล (แสง)'), kit('clericMiracleSkill2', '🍀 ปาฏิหาริย์ R2: คริสกิล (แสง)'),
       kit('clericMiracleSpell1', '🍀 ปาฏิหาริย์ R1: คริเวท (หอก/ศรัทธา)'), kit('clericMiracleSpell2', '🍀 ปาฏิหาริย์ R2: คริเวท (หอก/ศรัทธา)'),
 kit('clericTree.dawn.every', '🌄 passive: ทุกกี่ฮิต (ตีธรรมดา/คอมโบ)'),
       kit('clericTree.dawn.share', '🌄 โบนัส: share ต่อ Lv เดิม (× STR+WIS+M.ATK)'), kit('clericTree.dawn.matk', '🌄 โบนัส: × M.ATK ในฐาน'),

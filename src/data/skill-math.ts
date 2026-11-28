@@ -86,8 +86,9 @@ export const KIT = {
   // M2 (Q 2026-11-28, cleric-crusader-monk-balance-eval-v1 §5 P0): root พรคุ้มครอง also gives Ult power (ultPow) per Lv -> Ult lights / shield,
   // Grand Cross, Tempest Bell, Asura scale with the root. The Cleric smash itself keeps only clUltAtk (no double dip, BattleScene.clericUlt).
   clericUltPowLv: 0.06,
-  // M2: ใจนิ่ง (cleric_b3s) heal-at shift capped so the class-1 Lv 10 / 15 stretch can't push the heal line to 15% HP (0.3 = heal under 45%).
-  clericHealAtCap: 0.3,
+  // M4 rework (Q 2026-11-28 "แต่ละเลเวลไม่คุ้มอัพ"): ใจนิ่ง (cleric_b3s) per NEW Lv (1..5, x0.5 past 5): heal-line shift is flat from Lv 1,
+  // every Lv adds holy light / Judgement damage (smiteMul) + heal power. Was: heal line −6%/Lv (down to 15% HP at Lv 15) + heal +6%/Lv, no damage.
+  clericCalmAt: 0.1, clericCalmLight: 0.05, clericCalmHeal: 0.06,
   // M2: ปาฏิหาริย์ (cleric_t3_miracle) rank 1 / 2: spellCrit (หอกแสง / ระเบิดศรัทธา procs) + skillCrit (S1 แสง / Ult hits; a magic skill crit = skillCrit + spellCrit)
   clericMiracleSpell1: 0.1, clericMiracleSpell2: 0.18, clericMiracleSkill1: 0.05, clericMiracleSkill2: 0.09,
   clericUltAtkLv: 0.15, // v108 (Q: Ult back to v58): root พรคุ้มครอง smash +0.15x P.ATK per Lv = 150% x (1 + 10%/Lv) · v104 0.2 per 🌄 Lv · v92 0.5 per root Lv
