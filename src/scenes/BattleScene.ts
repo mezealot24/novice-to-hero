@@ -4401,7 +4401,11 @@ export class BattleScene extends Phaser.Scene {
   /** Skill 2: buffs tick down, then it casts by itself (free extra action) when ready, paid for and useful. */
   private async skill2Turn() {
     const B = this.buf
-    if (B.renew > 0) { B.renew--; this.heal(this.st.matk * S2N.renewHeal(this.st.s2Lv)) } // Priest heals = x M.ATK
+    if (B.renew > 0) { // Priest heals = x M.ATK · M4: + a holy light on the front monster each tick
+      B.renew--; this.heal(this.st.matk * S2N.renewHeal(this.st.s2Lv))
+      const f = this.front()[0]
+      if (f) this.withSrc('light', () => this.strike(f, S2N.renewLight(this.st.s2Lv), true, '#9ff0b0'))
+    }
     for (const k of ['guard', 'blood', 'hawk', 'mshield', 'lootAtk', 'lootCrit'] as const) if (B[k] > 0) B[k]--
     this.heroRig.setGuardAura(B.guard > 0)
     if (B.bless > 0 && --B.bless === 0) this.syncBless()
@@ -4414,7 +4418,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.res < k.cost) return
     if (this.smashQueued && this.smashCdLeft <= 0 && this.res - k.cost < this.ultCost()) return // keep Mana for the booked ult
     if (k.id === 'mg_mshield' && B.mshield > 0) return
-    if (k.id === 'cl_renew' && (B.renew > 0 || this.hp >= this.st.maxHp)) return
+    if (k.id === 'cl_renew' && B.renew > 0) return // M4: renew also hits now, so it casts at full HP too
     if (k.id === 'sw_guard' && B.guard > 0) return
     if (k.id === 'cl_bless' && B.bless > 0) return
     this.spendRes(k.cost)

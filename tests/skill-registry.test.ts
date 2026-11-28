@@ -54,7 +54,7 @@ test('Skill 2 base/per numbers keep the v83 formulas (refactor guard)', () => {
     assert.equal(S2N.arcaneMul(lv), 0.6 + 0.1 * lv)
     assert.equal(S2N.renewHeal(lv), 0.3 + 0.05 * lv)
     assert.equal(S2N.kyrieHp(lv), 0.05 * lv)
-    assert.equal(S2N.spearPlus(lv), 0.03 * lv)
+    assert.equal(S2N.spearPlus(lv), 0.05 * lv) // M4: 0.03 -> 0.05
     assert.equal(S2N.smokeHeal(lv), 0.03 * lv)
     assert.equal(S2N.pickRes(lv), 15 + 5 * lv)
     assert.equal(S2N.smokeRes(lv), Math.round(10 + 5 * lv)) // P2'b

@@ -385,8 +385,8 @@ test('Tier 1 — Cleric S2 (cl_renew, cl_bless, cl_spear) mutual exclusion, +/�
   const stSpearLowDex = heroStats(makeInput({ stats: { ...DEFAULT_STATS, dex: 1 }, jobTree: { cl_spear: 1, cl_spear_p: 5, cl_spear_x: 1 } }))
   const stSpearHiDex = heroStats(makeInput({ stats: { ...DEFAULT_STATS, dex: 41 }, jobTree: { cl_spear: 1, cl_spear_p: 5, cl_spear_x: 1 } }))
   near(spearMul(stSpearHiDex, spearDef) - spearMul(stSpearLowDex, spearDef), 40 * PER_POINT.off.clericDexSpear)
-  assert.equal(S2N.spearCount(false), 2)
-  assert.equal(S2N.spearCount(true), 4)
+  assert.equal(S2N.spearCount(false), S2N.spearN) // M4: 3
+  assert.equal(S2N.spearCount(true), S2N.spearStarN) // M4: 5
 })
 
 test('Tier 1 — Cleric Ult, Dawn Light (cleric_d), Sanctuary (cleric_a), and Core (cleric_core)', () => {

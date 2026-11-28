@@ -145,10 +145,10 @@ export const SKILL_LAYOUT: Record<SkillClass, ClassLayout> = {
   cleric: {
     s1: [sk('job.cleric.auto.cost', 'ค่า Mana', COST), kit('cleric.heal', 'ฮีล × M.ATK'), kit('clericHealBelow', 'ฮีลเมื่อ HP ต่ำกว่า'), kit('cleric.smite', 'หอกแสง (ทักษะ 1) × M.ATK'), kit('clericSmiteTargets', 'หอกแสงทักษะ 1 กี่ตัว')],
     s2: [
-      s2('cl_renew', ...lin('renewHeal', 'ฮีลต่อเทิร์น × M.ATK')),
+      s2('cl_renew', ...lin('renewHeal', 'ฮีลต่อเทิร์น × M.ATK'), ...lin('renewLight', 'แสงใส่ตัวหน้าต่อเทิร์น × พลังเวท')),
       s2('cl_bless', sk('s2n.blessTurns', 'นาน (เทิร์น)', int(0, 20)), sk('s2n.blessStat', 'STR/DEX/INT/WIS +', int(0, 200)), sk('s2n.blessCleanse', 'ล้างดีบัฟ (อย่าง)', int(0, 10)),
         sk('s2n.kyrieHits', 'Kyrie แตกหลังโดน (ครั้ง)', int(0, 20)), sk('s2n.gloriaLuk', 'Gloria LUK +', int(0, 200)), ...lin('kyrieHp', 'Kyrie บาเรีย % HP')),
-      s2('cl_spear', ...lin('spearPlus', 'หอกแรงเพิ่ม'), kit('spearBase', 'ดาเมจหอกพื้นฐาน × M.ATK'), kit('spearMax', 'หอกสูงสุด (เล่ม)')),
+      s2('cl_spear', ...lin('spearPlus', 'หอกแรงเพิ่ม'), sk('s2n.spearN', 'หอกต่อการร่าย (เล่ม)', int(0, 20)), sk('s2n.spearStarN', '★ หอกต่อการร่าย (เล่ม)', int(0, 20)), kit('spearBase', 'ดาเมจหอกพื้นฐาน × M.ATK'), kit('spearMax', 'หอกสูงสุด (เล่ม)')),
     ],
     tree: [ // v107: numbers the Cleric web nodes read at run time (kit `clericTree.*`)
       kit('cleric.ultManaLv', '🙏 ราก: Mana Ult เพิ่มต่อ Lv (เหนือ Lv1 · 0 = คงที่)'), kit('clericUltAtkLv', '🙏 ราก: Ult ทุบแรง × P.ATK ต่อ Lv'), kit('clericUltPowLv', '🙏 ราก: Ult แรง (ultPow) ต่อ Lv · ไม่รวมทุบ'),
