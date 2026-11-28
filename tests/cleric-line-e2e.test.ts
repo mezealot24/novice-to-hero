@@ -314,7 +314,7 @@ test('Tier 1 — Cleric S1 (cleric_s1p, cleric_b1..b4j, cleric_c1..c4) scales S1
   // cleric_b2 + cleric_b4j: targets, smiteMul, judge capstone
   const stB4 = heroStats(makeInput({ jobTree: { cleric_s1p: 1, cleric_b1: 5, cleric_b2: 5, cleric_b4j: 1 } }))
   assert.equal(stB4.smiteTargets, 2)
-  near(stB4.smiteMul, 0.15)
+  near(stB4.smiteMul, 0.2) // M4 rework: ตัดสินหมู่ +4%/Lv
   assert.equal(stB4.judge, 1)
   const rowsB4 = autoInfo('cleric', stB4)
   assert.ok(rowsB4.some((r) => r.label.includes(`${KIT.clericSmiteTargets + 2} ตัวหน้า`)))

@@ -250,6 +250,8 @@ export const KIT_EXPLAIN: Record<string, FieldExplain> = {
   clericUltPowLv: { label: 'Cleric tree · ราก: Ult แรง (ultPow) ต่อ Lv', effect: 'เพิ่ม = แต่ละ Lv ของโนดรากทำให้หอกแสง/โล่ Ult, Grand Cross, Tempest Bell, Asura แรงขึ้น (0.06 = +6% ต่อ Lv · ไม่บวกซ้ำกับทุบ Ult)' },
   clericCalmAt: { label: 'Cleric tree · ใจนิ่ง: เลื่อนเส้นฮีล (คงที่ตั้งแต่ Lv 1)', effect: 'เพิ่ม = ทักษะ 1 รอ HP ต่ำลงก่อนฮีล (0.1 = ฮีลเมื่อ HP < 65%) · ไม่โตตาม Lv แล้ว' },
   clericCalmLight: { label: 'Cleric tree · ใจนิ่ง: แสง/พิพากษาแรง ต่อ Lv', effect: 'เพิ่ม = ทุก Lv ของใจนิ่งทำให้แสงทักษะ 1 และวันพิพากษาแรงขึ้น (0.05 = +5%/Lv, เกิน Lv 5 ได้ครึ่ง)' },
+  clericGroupLight: { label: 'Cleric tree · ตัดสินหมู่: แสง/พิพากษาแรง ต่อ Lv', effect: 'เพิ่ม = ทุก Lv ของตัดสินหมู่ทำให้แสงทักษะ 1 และวันพิพากษาแรงขึ้น (0.04 = +4%/Lv, เกิน Lv 5 ได้ครึ่ง)' },
+  clericGroupAt2: { label: 'Cleric tree · ตัดสินหมู่: Lv ที่ได้เป้าแสงตัวที่ 2', effect: 'ลดเลข = ได้แสงยิงเพิ่มตัวที่ 2 เร็วขึ้น (Lv 1 ได้ +1 ตัวเสมอ)' },
   clericCalmHeal: { label: 'Cleric tree · ใจนิ่ง: ฮีลแรง ต่อ Lv', effect: 'เพิ่ม = ทุก Lv ของใจนิ่งทำให้ฮีลแรงขึ้น (0.06 = +6%/Lv, เกิน Lv 5 ได้ครึ่ง)' },
   clericMiracleSkill1: { label: 'Cleric talent · ปาฏิหาริย์ R1: คริสกิลแสง', effect: 'เพิ่ม = แสงทักษะ 1 / Ult คริได้บ่อยขึ้น (skillCrit · สกิลเวทรวม spellCrit ด้วย)' },
   clericMiracleSkill2: { label: 'Cleric talent · ปาฏิหาริย์ R2: คริสกิลแสง', effect: 'เพิ่ม = แสงทักษะ 1 / Ult คริได้บ่อยขึ้นที่ rank 2 (skillCrit)' },

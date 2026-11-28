@@ -89,6 +89,9 @@ export const KIT = {
   // M4 rework (Q 2026-11-28 "แต่ละเลเวลไม่คุ้มอัพ"): ใจนิ่ง (cleric_b3s) per NEW Lv (1..5, x0.5 past 5): heal-line shift is flat from Lv 1,
   // every Lv adds holy light / Judgement damage (smiteMul) + heal power. Was: heal line −6%/Lv (down to 15% HP at Lv 15) + heal +6%/Lv, no damage.
   clericCalmAt: 0.1, clericCalmLight: 0.05, clericCalmHeal: 0.06,
+  // M4 rework (Q 2026-11-28 "ตัดสินหมู่ แต่ละเลเวลซ้ำ"): ตัดสินหมู่ (cleric_b2) +1 light target at Lv 1, +2 from Lv clericGroupAt2,
+  // and EVERY Lv light / Judgement +clericGroupLight (x0.5 past Lv 5). Was: 3 / 3 / 4 / 4 / 4 +15% targets, Lv 6-15 gave nothing.
+  clericGroupLight: 0.04, clericGroupAt2: 3,
   // M2: ปาฏิหาริย์ (cleric_t3_miracle) rank 1 / 2: spellCrit (หอกแสง / ระเบิดศรัทธา procs) + skillCrit (S1 แสง / Ult hits; a magic skill crit = skillCrit + spellCrit)
   clericMiracleSpell1: 0.1, clericMiracleSpell2: 0.18, clericMiracleSkill1: 0.05, clericMiracleSkill2: 0.09,
   clericUltAtkLv: 0.15, // v108 (Q: Ult back to v58): root พรคุ้มครอง smash +0.15x P.ATK per Lv = 150% x (1 + 10%/Lv) · v104 0.2 per 🌄 Lv · v92 0.5 per root Lv

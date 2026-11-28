@@ -7,6 +7,8 @@ import { CLERIC_KIT } from '../jobs'
 
 // v84 (design/skill-tree-priest.md v84): numbers in KIT.clericTree, written per OLD level (max 3); data/tree.ts stretches them to 5.
 const T = KIT.clericTree, D = T.dawn, K = T.core, pc = (x: number) => `${+(x * 100).toFixed(1)}%`, x2 = (x: number) => +x.toFixed(2)
+/** ตัดสินหมู่ extra light targets at OLD-scale lv: +1 from shown Lv 1, +2 from shown Lv KIT.clericGroupAt2. */
+const groupTargets = (lv: number) => { const s = Math.round((lv * 5) / 3); return s <= 0 ? 0 : s >= KIT.clericGroupAt2 ? 2 : 1 }
 const i3 = (lv: number) => Math.max(0, Math.min(2, Math.round(lv) - 1)) // Lv 1..3 -> table index
 
 
@@ -31,7 +33,8 @@ export const tree: ClassTree = {
     // B: Judgement
     // v120 (Q 2026-11-11): + INT 1 per shown level (lv here is the OLD 0..3 scale, stretched to 5 -> x5/3)
     n('cleric_b1', 'cleric_b', 1, '🌟', 'แสงคม', 3, (lv) => `M.ATK +${lv * 5} · INT +${Math.round((lv * 5) / 3)} → ฮีล · หอกแสง · ดาเมจเวททุกท่าแรงขึ้น`, (lv) => ({ matk: 5 * lv, clInt: (lv * 5) / 3 })),
-    n('cleric_b2', 'cleric_b', 2, '⚖️', 'ตัดสินหมู่', 3, (lv) => `แสงยิง ${2 + Math.min(lv, 2)} ตัว${lv >= 3 ? ' · ดาเมจแสง +15%' : ''}`, (lv) => ({ smiteTargets: Math.min(lv, 2), smiteMul: lv >= 3 ? 0.15 : 0 })),
+    // M4 rework: lv = OLD 0..3 scale (x5/3 = shown Lv) · targets by shown Lv, light dmg every Lv (KIT.clericGroup*)
+    n('cleric_b2', 'cleric_b', 2, '⚖️', 'ตัดสินหมู่', 3, (lv) => `แสงยิง ${KIT.clericSmiteTargets + groupTargets(lv)} ตัว · แสง/พิพากษาแรง +${pc(KIT.clericGroupLight * lv * 5 / 3)}`, (lv) => ({ smiteTargets: groupTargets(lv), smiteMul: KIT.clericGroupLight * lv * 5 / 3 })),
     // M4 rework: lv here is the OLD 0..3 scale (x5/3 = shown Lv) · heal line flat, light dmg + heal per Lv (KIT.clericCalm*)
     n('cleric_b3s', 'cleric_b', 3, '🧘', 'ใจนิ่ง', 3, (lv) => `ฮีลเมื่อ HP < ${Math.round((KIT.clericHealBelow - KIT.clericCalmAt) * 100)}% · แสง/พิพากษาแรง +${pc(KIT.clericCalmLight * lv * 5 / 3)} · ฮีลแรง +${pc(KIT.clericCalmHeal * lv * 5 / 3)}`, (lv) => ({ healAt: lv > 0 ? KIT.clericCalmAt : 0, smiteMul: KIT.clericCalmLight * lv * 5 / 3, healAmp: KIT.clericCalmHeal * lv * 5 / 3 })),
     n('cleric_b4j', 'cleric_b', 4, '⚖️', 'วันพิพากษา', 1, () => 'แสงครั้งที่ 3 ทุกรอบ = พิพากษา: ใส่ทุกตัว 2.2x + ตราบาป (รับดาเมจ +15% 2 เทิร์น)', () => ({ judge: 1 })),
