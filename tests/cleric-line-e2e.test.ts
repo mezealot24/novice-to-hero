@@ -1236,7 +1236,7 @@ test('Tier 2 — Shield Cap (Cleric 50% vs Global 100%) & Auto Guard Cap / Over-
 test('Tier 2 — Asura Charges (0/2/3/7/9), Exhaust Lockout, & RESIST_RULES Soft/Hard Cap (<= 0.85)', () => {
   assert.equal(KIT2.monk.thunderMin, 2)
   assert.equal(KIT2.monk.asuraMinAt, 3)
-  assert.equal(KIT2.monk.asuraExhaustTurns, 3)
+  assert.equal(KIT2.monk.asuraExhaustTurns, 2) // M3: 3 -> 2
 
   const stMaxCharges = heroStats(
     makeInput({
@@ -1865,7 +1865,7 @@ test('Tier 4 Scenario 3 — Deterministic 12-Turn Combat Simulation: Monk/Champi
   }
 
   assert.ok(asuraFired, 'Asura Strike must fire once charges >= 3')
-  assert.equal(exhaustedTurnCount, KIT2.monk.asuraExhaustTurns, 'Asura Exhaust must lock out exact 3 hero turns')
+  assert.equal(exhaustedTurnCount, KIT2.monk.asuraExhaustTurns, 'Asura Exhaust must lock out exactly asuraExhaustTurns hero turns')
   assert.ok(haymakerFired, 'Haymaker must trigger once Grit >= triggerAt')
   assert.equal(exhaust, 0, '3-turn Asura Exhaust must recover before turn 12')
   assert.ok(Number.isFinite(totalDealt) && totalDealt > boss.hp * 0.1)

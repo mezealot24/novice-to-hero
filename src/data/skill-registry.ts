@@ -502,13 +502,32 @@ export function job2Layout(id: Job2Id): Job2Layout {
 }
 
 /** Q 2026-11-24: which Awakening's KIT3 numbers show under a 2nd job (Swordsman line first; add a line = add its labels to J3_LABEL). */
-export const J3_OF: Partial<Record<Job2Id, 'lordknight' | 'warlord'>> = { knight: 'lordknight', berserker: 'warlord' }
-const J3_NAME = { lordknight: '🐉 Lord Knight', warlord: '🪓 Warlord' } as const
+type J3Shown = 'lordknight' | 'warlord' | 'paladin' | 'champion'
+export const J3_OF: Partial<Record<Job2Id, J3Shown>> = { knight: 'lordknight', berserker: 'warlord', crusader: 'paladin', monk: 'champion' } // M3: + Cleric line
+const J3_NAME: Record<J3Shown, string> = { lordknight: '🐉 Lord Knight', warlord: '🪓 Warlord', paladin: '⚜️ Paladin', champion: '🥊 Champion' }
 const VAR_LABEL = (v: 'A' | 'B', name: string, branch: string): Record<string, string> => ({
   [`var${v}.per`]: `${name}: แรงขึ้นต่อแต้มในสาย ${branch}`, [`var${v}.cap`]: `${name}: เพดานโบนัสจากแต้มสาย`,
 })
 /** Hand-written Thai labels for the KIT3 numbers J3_OF exposes (keys = path under KIT3.<id>). */
-const J3_LABEL: Record<'lordknight' | 'warlord', Record<string, string>> = {
+const J3_LABEL: Record<J3Shown, Record<string, string>> = {
+  paladin: {
+    capAdd: '⚜️ Prestige: เพดาน Auto Guard เพิ่ม', blockAmp: '⚜️ Prestige: โล่/ฮีลจากบล็อก ×', blockFaith: '⚜️ Prestige: บล็อกแล้วได้ศรัทธา',
+    gospelPulse: '✨ Gospel Cross: pulse เพิ่ม', gospelAt: '✨ Gospel Cross: โดนกี่ตัวขึ้นไปได้ศรัทธา', gospelFaith: '✨ Gospel Cross: ศรัทธาที่ได้', gospelHealMax: '✨ Gospel Cross: ฮีลสูงสุด (ครั้ง)',
+    'varA.hits': '🔗 Shield Chain: จำนวนฮิต', 'varA.atk': '🔗 Shield Chain: ต่อฮิต × P.ATK', 'varA.def': '🔗 Shield Chain: ต่อฮิต × P.DEF', 'varA.noShield': '🔗 Shield Chain: ไม่มีโล่ ×',
+    ...VAR_LABEL('A', '🔗 Shield Chain', 'โล่'),
+    'varB.atk': '⚖️ Pressure: ดาเมจ × P.ATK', 'varB.hp': '⚖️ Pressure: บวก % Max HP', 'varB.blindAdd': '⚖️ Pressure: ตาบอดเพิ่ม (เทิร์น)',
+    ...VAR_LABEL('B', '⚖️ Pressure', 'อุทิศ'),
+    'leg.crossCap': '🧬 มรดก: เพดานโบนัสสกิล', 'leg.guardCap': '🧬 มรดก: เพดานโบนัส Auto Guard', 'leg.hpCap': '🧬 มรดก: เพดานโบนัส Max HP', heirNeed: '👑 ทายาท: แต้มในสายที่ต้องมี',
+  },
+  champion: {
+    chargeMaxAdd: '🧘 Ki Translation: ลูกพลังสูงสุดเพิ่ม', comboManaBonus: '🧘 Ki Translation: คอมโบได้ Mana เพิ่ม', gritMdefBonus: '🧘 Ki Translation: แรงฮึดจาก M.DEF',
+    extraHits: '✨ Supreme Asura / Bell: คลื่นเพิ่ม', earthDrivePer: '🌋 Earth Drive: × P.DEF ต่อ Lv', thunderShare: '🔵 ร่างแปลงสกิล 3: สัดส่วน j2ThunderPer ที่นับต่อลูก',
+    'varA.mul': '🐅 Tiger Knuckle: ดาเมจ × P.ATK', 'varA.hp': '🐅 Tiger Knuckle: บวก % Max HP', 'varA.stunTurns': '🐅 Tiger Knuckle: สตัน (เทิร์น)', 'varA.chargePer': '🐅 Tiger Knuckle: แรงขึ้นต่อลูกพลังที่ใช้',
+    ...VAR_LABEL('A', '🐅 Tiger Knuckle', 'คอมโบ'),
+    'varB.mul': '💥 Chain Crush: ดาเมจ × P.ATK', 'varB.mdefHp': '💥 Chain Crush: × M.DEF × Max HP', 'varB.chargePer': '💥 Chain Crush: แรงขึ้นต่อลูกพลังที่ใช้',
+    ...VAR_LABEL('B', '💥 Chain Crush', 'หมัดแค้น'),
+    'leg.crossCap': '🧬 มรดก: เพดานโบนัสสกิล', 'leg.guardCap': '🧬 มรดก: เพดานโบนัสป้องกัน', 'leg.hpCap': '🧬 มรดก: เพดานโบนัส Max HP', heirNeed: '👑 ทายาท: แต้มในสายที่ต้องมี',
+  },
   lordknight: {
     hpDmgAdd: '🐉 Aura Blade: สกิลหอกบวก % Max HP เพิ่ม', hpPct: '🐉 Aura Blade: Max HP +%', extraHits: '✨ Hundred Spear: Pierce ฮิตเพิ่ม',
     'varA.mul': '🐉 Dragon Breath: ดาเมจทุกตัว × P.ATK', 'varA.hp': '🐉 Dragon Breath: บวก % Max HP', 'varA.burn': '🐉 Dragon Breath: เผานาน (เทิร์น)', 'varA.burnAtk': '🐉 Dragon Breath: เผาต่อเทิร์น × P.ATK',
@@ -532,8 +551,8 @@ const J3_LABEL: Record<'lordknight' | 'warlord', Record<string, string>> = {
     warcryRage: '📣 คำรามทลายทัพ: ได้ Rage ต้นไฟต์',
   },
 }
-const J3_INT = /(Hits|Turns|Need|Gain|Rage|MaxAdd|push|Push|rage|hits|burn)$/
-function j3Leaves(id: 'lordknight' | 'warlord'): SkillOwnRef[] {
+const J3_INT = /(Hits|Turns|Need|Gain|Rage|MaxAdd|push|Push|rage|hits|burn|Faith|Pulse|At|HealMax|blindAdd)$/
+function j3Leaves(id: J3Shown): SkillOwnRef[] {
   const out: SkillOwnRef[] = []
   const walk = (o: Record<string, unknown>, pre: string) => {
     for (const [k, v] of Object.entries(o)) {

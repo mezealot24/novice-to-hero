@@ -182,7 +182,7 @@ const CLASS_LINES: { j2?: Job2Id; j3?: Job3Id; lines: [stat: string, vals: Vals]
   { j2: 'rogue', lines: [['j2KnifeMul', [0.05, 0.1, 0.15]]] },
   { j2: 'mobster', lines: [['j2ExecAdd', [0.005, 0.01, 0.015]], ['j2DebuffTurns', [1, 1, 2]]] },
   { j2: 'crusader', lines: [['j2CrossAdd', [0.05, 0.1, 0.15]], ['j2BlockHeal', [0.01, 0.02, 0.03]], ['j2PayCut', [0.05, 0.1, 0.15]], ['j2Reflect', [0.03, 0.05, 0.08]]] },
-  { j2: 'monk', lines: [['j2ThunderPer', [0.05, 0.1, 0.15]], ['j2Es', [0.015, 0.03, 0.045]], ['j2Dark', [0.01, 0.02, 0.03]]] },
+  { j2: 'monk', lines: [['j2ThunderPer', [0.05, 0.1, 0.15]], ['j2MdefDmg', [0.05, 0.1, 0.15]], ['j2HpPunch', [0.002, 0.004, 0.006]]] }, // M3: j2Es / j2Dark (retired) -> live Monk stats
   { j2: 'wizard', lines: [['j2MeteorMul', [0.05, 0.1, 0.15]], ['j2LovMul', [0.05, 0.1, 0.15]], ['j2GustMul', [0.05, 0.1, 0.15]]] },
   { j2: 'sage', lines: [['j2AutoChance', [0.03, 0.05, 0.08]], ['j2EndowAmp', [0.03, 0.05, 0.08]], ['j2MagicRod', [2, 3, 5]]] },
   { j2: 'beastmaster', lines: [['j2PetPow', [0.04, 0.06, 0.1]], ['j2PetHeal', [0.003, 0.005, 0.008]]] },

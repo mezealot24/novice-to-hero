@@ -22,7 +22,7 @@ import { ALLIES, falconHitMul, fillAllies, frenzyMul, gadgetById, guardHit, hawk
 import type { Skill2Def } from '../data/skill2'
 import { canRollCrit, critPower, scaleCritMul, type CritSlot } from '../data/skill-registry'
 import { hotkeySlot, mayCast, resourceIcon, skillButtonState, slotCenter, sweepAngles, tapAction, type SkillBtnIn, type SkillBtnOut, type SkillSlot } from '../battle/skill-hud'
-import { BM_CRIT_COUNTER, BM_STANCE, KIT3, disarmWeak, divestMul, rogueStripCut, snatchShare, stalkerPreyAmp, stalkerResMul, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, kingpinDebtAmp, kingpinTakeMul, stalkerMarkCap, wizCastTaken, type ProfReaction } from '../data/skill-math'
+import { BM_CRIT_COUNTER, BM_STANCE, KIT3, championVarMul, disarmWeak, divestMul, rogueStripCut, snatchShare, stalkerPreyAmp, stalkerResMul, preyMarkOf, preyTurnsOf, reactionOf, reactionMul, doubleCastReady, doubleCastMul, soulBurst, foresightCdCut, profLegacy, profOffMul, soulChangeShield, kingpinDebtAmp, kingpinTakeMul, stalkerMarkCap, wizCastTaken, type ProfReaction } from '../data/skill-math'
 import { branchPts } from '../data/tree'
 import { ultCdCut, condCritB3, thiefUltCondCritDmg, thiefUltCritAdd, thiefUltHitCount, thiefOnHitEff, thiefUltFinisher, thiefPoisonPerStack, poisonCapOf, poisonDefCut, slowAtLv, ablazeBlastDmg, asuraDamage, autoCost, swordS1ExcessPow, swordS1On, swordMultiHitDr, swordHelixNeed, swordCullThreshold, bellMdefMul, breakChance, breakRefundMana, breaksOn, castUsesTurn, clericBasic, clericUltLights, clericUltSmash, dawnBonus, dawnMul, dawnWisGain, gcPulses, glacialBarrierMax, glacialDue, glacialNovaMul, haymakerCalc, icdReady, physBase, hitBase, KIT, KIT2, MAGE_CAST, MAGE_DEF, MAGE_DEF_POWER_NONE, MAGE_PASSIVE, mageAutoMul, mageDefPower, type MageDefPower, magicPower, matkToPmRatio, moltenThornsMul, moltenWardGain, SAGE_S1, sageAutoChance, sageElementBenefit, sageFireChance, sageIceChance, sageLightChance, sageRodGain, staticCounterMul, staticDodgeCharges, staticShockChance, S2N, s2Cooldown, thiefBloodKingOn, thiefBossCritHeal, thiefCondLeechAdd, thiefKillHeal, thiefS1Woven, thiefStackCritAdd, debuffKinds, type DebuffFlags, poisonAt, takenAmp, ultCooldown, ultCost, rogueKnifeMul, rogueSteelMul, rogueStabAmp, rogueComboDebuff, rogueAmbushCrit } from '../data/skill-math'
 import { agonyBonus, canDetonate, contaminateBossRefund, contaminateCritChance, contaminateLeechShare, detonateDmg, detonateStacks, gamblerLuckyRes, paApplies, poisonPowerBonus, poisonTickTotal, shadowWardApplies } from '../data/thief-offmeta'
@@ -1777,8 +1777,9 @@ export class BattleScene extends Phaser.Scene {
     if (s.job3Var === 'b') {
       const V = P.varB, hpBonus = heir && branchPts(s.job2Tree, V.branch) >= P.heirNeed ? 0.03 * this.st.maxHp : 0
       this.cameras.main.flash(90, 255, 170, 70)
+      const cm = championVarMul(this.st, V, n) // M3: the 🔵 charges paid now count (were drained for nothing)
       for (const m of this.alive()) {
-        const dmg = Math.round(this.st.atk * V.mul * base + this.st.mdef * this.st.maxHp * V.mdefHp + hpBonus)
+        const dmg = Math.round(this.st.atk * cm * base + this.st.mdef * this.st.maxHp * V.mdefHp + hpBonus)
         this.burst(m.spr.x, m.spr.y - 30, 0xff9a3c, 10, 180)
         this.withSrc('skill', () => this.damageMon(m, dmg, true, '#ff9a3c', true))
       }
@@ -1792,7 +1793,7 @@ export class BattleScene extends Phaser.Scene {
       await this.lunge(t, () => {
         this.cameras.main.flash(100, 255, 230, 150)
         this.burst(t.spr.x, t.spr.y - 30, 0xffd24a, 16, 220)
-        this.strike(t, V.mul * base + V.hp * this.st.maxHp / Math.max(1, this.st.atk), false, '#ffd24a')
+        this.strike(t, championVarMul(this.st, V, n) * base + V.hp * this.st.maxHp / Math.max(1, this.st.atk), false, '#ffd24a') // M3: x spent charges
         if (!t.dead) {
           t.frozen = true
           t.stunTurns = Math.max(t.stunTurns ?? 0, stuns - 1)
@@ -1800,7 +1801,7 @@ export class BattleScene extends Phaser.Scene {
           this.dotIcon(t)
         }
       })
-      this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 30, `🐅 Tiger Knuckle (💫 เสียเทิร์น x${stuns})`, '#ffd24a')
+      this.floatText(t.spr.x, t.spr.y - t.spr.displayHeight - 30, `🐅 Tiger Knuckle x${n}🔵 (💫 เสียเทิร์น x${stuns})`, '#ffd24a')
     }
   }
   /** 🐉 Lord Knight Brandish Spear variant (design/awakening-lordknight-v1.md): 🐉 Dragon Breath (all + burn) / 💥 Joint Beat (one, DEF -50%). */
@@ -2067,6 +2068,7 @@ export class BattleScene extends Phaser.Scene {
       const V = P.varB, m = this.bossTarget() ?? t, heirOn = heir && branchPts(save().job2Tree, V.branch) >= P.heirNeed
       await this.maceSmash(m, () => {
         landed += this.strike(m, V.atk * base * (1 + this.st.pskill) + V.hp * this.st.maxHp / Math.max(1, this.st.atk), false, '#ffe08a', 1)
+        if (!m.dead && V.pm > 0) landed += this.strike(m, V.pm * base, true, '#fff3a0') // M3: + Holy Cross magic share
         for (const x of heirOn ? this.alive() : [m]) blind(x, V.blindAdd)
         this.floatText(m.spr.x, m.spr.y - m.spr.displayHeight - 30, heirOn ? '⚖️ Pressure! 🙈 ทุกตัว' : '⚖️ Pressure! 🙈', '#ffe08a')
         this.cameras.main.flash(80, 255, 240, 170)
@@ -2078,7 +2080,7 @@ export class BattleScene extends Phaser.Scene {
     let m: Mon | undefined = t
     for (let i = 0; i < hits && m; i++) {
       const target: Mon = m
-      await this.shoot(target, 0xd8d8e8, () => { landed += this.strike(target, mul * (1 + this.st.pskill), false, '#d8d8e8'); blind(target) })
+      await this.shoot(target, 0xd8d8e8, () => { landed += this.strike(target, mul * (1 + this.st.pskill), false, '#d8d8e8'); if (!target.dead && V.pm > 0) landed += this.strike(target, V.pm * base, true, '#fff3a0'); blind(target) }) // M3: + magic share
       const rest: Mon[] = this.alive().filter((x) => x !== target)
       m = rest.length ? rest[Phaser.Math.Between(0, rest.length - 1)] : !target.dead ? target : undefined
     }
@@ -3294,6 +3296,7 @@ export class BattleScene extends Phaser.Scene {
           }
         }
         this.asuraExhaust = O.asuraExhaustTurns + 1
+        await this.clericUltExtras() // M3: ไฟชำระ / แสงลงทัณฑ์ / พรยืนยาว now work on the Monk line too (was skipped)
         await this.wait(BATTLE.stepMs * 0.35)
         return
       }
@@ -3318,7 +3321,7 @@ export class BattleScene extends Phaser.Scene {
           this.floatText(HERO_X, GROUND - 150, `🌅 พรหลังศึก +${Math.round(this.st.j3AfterBless * 100)}%`, '#ffe08a')
         }
       }
-      await this.wait(BATTLE.stepMs * 0.3)
+      await this.clericUltExtras() // M3: Tempest Bell path too
       return
     }
     // 🐴 Knight / 🐉 Lord Knight: 🔱 Pierce of Judgement = ⚔️ ปลุกหอก first so 🎯 Pierce rides the STR buff + ✨ coat + sure hit

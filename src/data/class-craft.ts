@@ -78,10 +78,10 @@ export const JOB2_ARMORS: Item[] = [
   {
     id: 'cc_mk_gi', slot: 'armor', name: 'ชุดนักพรตสายฟ้าอัสนี', icon: '👊', price: 0, slots: 1,
     jobs: CL, j2: ['monk'],
-    desc: 'เกราะเฉพาะมังค์ · คอมโบรัว สายฟ้าแรงตามลูกพลัง ปราณคุ้มกายและฝ่ามือเยือกแข็ง',
+    desc: 'เกราะเฉพาะมังค์ · คอมโบรัว สายฟ้าแรงตามลูกพลัง ปราณเหล็กใน แรงฮึดและฝ่ามือเยือกแข็ง',
     base: { wis: 5, agi: 5 },
-    mod: { maxHp: 160, def: 12, matk: 14, combo: 0.06, j2ThunderPer: 0.12, j2Es: 0.03 },
-    craft: { ...D6, bonus: [{ j2Dark: 0.03, j2Chill: 0.12 }, { j2ChargeMax: 1, j2Instill: 1 }] },
+    mod: { maxHp: 160, def: 12, matk: 14, combo: 0.06, j2ThunderPer: 0.12, j2MdefDmg: 0.15 }, // M3: j2Es (retired) -> j2MdefDmg
+    craft: { ...D6, bonus: [{ j2GritRate: 0.15, j2Chill: 0.12 }, { j2ChargeMax: 1, j2BellMdef: 0.15 }] }, // M3: j2Dark / j2Instill (retired) -> j2GritRate / j2BellMdef
   },
   // 🔮 Mage -> Wizard
   {
